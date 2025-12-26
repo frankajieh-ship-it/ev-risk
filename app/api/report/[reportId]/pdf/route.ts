@@ -53,7 +53,7 @@ export async function GET(
     );
 
     // Generate PDF
-    const pdfDoc = React.createElement(ReportPdf, { data: pdfData });
+    const pdfDoc = React.createElement(ReportPdf, { data: pdfData }) as any;
     const pdfBuffer = await renderToBuffer(pdfDoc);
 
     // Create filename
