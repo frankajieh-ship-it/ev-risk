@@ -77,13 +77,25 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [period, setPeriod] = useState("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [showCustomDate, setShowCustomDate] = useState(false);
 
-  const fetchAnalytics = async (key: string, selectedPeriod: string = period) => {
+  const fetchAnalytics = async (
+    key: string,
+    selectedPeriod: string = period,
+    customStart?: string,
+    customEnd?: string
+  ) => {
     setLoading(true);
     setError("");
 
     try {
-      const response = await fetch(`/api/analytics?period=${selectedPeriod}`, {
+      let url = `/api/analytics?period=${selectedPeriod}`;
+      if (customStart) url += `&start=${customStart}`;
+      if (customEnd) url += `&end=${customEnd}`;
+
+      const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${key}`,
         },
@@ -121,9 +133,17 @@ export default function AdminDashboard() {
 
   const handlePeriodChange = (newPeriod: string) => {
     setPeriod(newPeriod);
+    setShowCustomDate(newPeriod === "custom");
     const storedKey = sessionStorage.getItem("admin_api_key");
-    if (storedKey) {
+    if (storedKey && newPeriod !== "custom") {
       fetchAnalytics(storedKey, newPeriod);
+    }
+  };
+
+  const handleCustomDateFilter = () => {
+    const storedKey = sessionStorage.getItem("admin_api_key");
+    if (storedKey && startDate && endDate) {
+      fetchAnalytics(storedKey, "custom", startDate, endDate);
     }
   };
 
@@ -210,8 +230,8 @@ export default function AdminDashboard() {
               </p>
             </div>
 
-            <div className="flex gap-2">
-              {["all", "today", "week", "month"].map((p) => (
+            <div className="flex flex-wrap gap-2">
+              {["all", "today", "week", "month", "custom"].map((p) => (
                 <button
                   key={p}
                   onClick={() => handlePeriodChange(p)}
@@ -226,6 +246,46 @@ export default function AdminDashboard() {
               ))}
             </div>
           </div>
+
+          {/* Custom Date Range Picker */}
+          {showCustomDate && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row gap-3 items-end">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <button
+                  onClick={handleCustomDateFilter}
+                  disabled={!startDate || !endDate}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  Apply Filter
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Use this to filter out test data or view specific time periods
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Key Metrics */}

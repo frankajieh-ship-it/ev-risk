@@ -28,13 +28,23 @@ export async function GET(request: NextRequest) {
 
     // Get time period from query params (default: all time)
     const { searchParams } = new URL(request.url);
-    const period = searchParams.get("period") || "all"; // all, today, week, month
+    const period = searchParams.get("period") || "all"; // all, today, week, month, custom
+    const startDate = searchParams.get("start");
+    const endDate = searchParams.get("end");
 
     // Calculate date filter
     let dateFilter = "";
     let feedbackDateFilter = "";
     const now = new Date();
-    if (period === "today") {
+
+    if (period === "custom" && startDate && endDate) {
+      // Custom date range
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999); // Include the entire end date
+      dateFilter = `AND created_at >= '${start.toISOString()}' AND created_at <= '${end.toISOString()}'`;
+      feedbackDateFilter = `AND f.created_at >= '${start.toISOString()}' AND f.created_at <= '${end.toISOString()}'`;
+    } else if (period === "today") {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       dateFilter = `AND created_at >= '${today.toISOString()}'`;
       feedbackDateFilter = `AND f.created_at >= '${today.toISOString()}'`;
