@@ -10,16 +10,22 @@ import { neon } from "@neondatabase/serverless";
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import { ReportPdf, type ReportPayload } from "@/lib/pdf/ReportPdf";
+import { securityLogger } from "@/lib/security-logger";
 
 export const runtime = "nodejs"; // Required for @react-pdf/renderer
 
 const sql = neon(process.env.POSTGRES_URL!);
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ reportId: string }> }
 ) {
   const { reportId } = await params;
+
+  // Get client IP for logging
+  const forwarded = req.headers.get("x-forwarded-for");
+  const realIP = req.headers.get("x-real-ip");
+  const clientIP = forwarded?.split(",")[0] || realIP || "unknown";
 
   try {
     // Load report from database
@@ -30,6 +36,7 @@ export async function GET(
     `;
 
     if (result.length === 0) {
+      securityLogger.logReportAccessDenied(reportId, clientIP, "Report not found");
       return NextResponse.json(
         { error: "Report not found" },
         { status: 404 }
@@ -40,6 +47,11 @@ export async function GET(
 
     // Verify payment or free status
     if (report.status !== "paid" && report.status !== "free") {
+      securityLogger.logReportAccessDenied(
+        reportId,
+        clientIP,
+        `Unpaid report access attempt (status: ${report.status})`
+      );
       return NextResponse.json(
         { error: "Payment required - report not paid" },
         { status: 402 }
@@ -64,12 +76,14 @@ export async function GET(
     const shortId = reportId.slice(0, 8);
     const filename = `EV-Risk-${year}-${model}-${shortId}.pdf`;
 
-    // Return PDF
+    // Return PDF with strong cache prevention
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${filename}"`,
-        "Cache-Control": "no-store, must-revalidate",
+        "Cache-Control": "no-store, no-cache, must-revalidate, private",
+        "Pragma": "no-cache",
+        "Expires": "0",
       },
     });
   } catch (error) {

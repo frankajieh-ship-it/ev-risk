@@ -7,24 +7,37 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
+import { securityLogger } from "@/lib/security-logger";
 
 const sql = neon(process.env.POSTGRES_URL!);
 
 // Simple authentication - check for admin key in Authorization header
 const ADMIN_KEY = process.env.ADMIN_API_KEY || "your-secret-admin-key";
 
+function getClientIP(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const realIP = request.headers.get("x-real-ip");
+  return forwarded?.split(",")[0] || realIP || "unknown";
+}
+
 export async function GET(request: NextRequest) {
+  const clientIP = getClientIP(request);
+
   try {
     // Check authentication
     const authHeader = request.headers.get("authorization");
     const providedKey = authHeader?.replace("Bearer ", "");
 
     if (providedKey !== ADMIN_KEY) {
+      securityLogger.logAdminLoginFailed(clientIP, "Invalid admin API key");
       return NextResponse.json(
         { error: "Unauthorized - invalid admin key" },
         { status: 401 }
       );
     }
+
+    // Log successful access
+    securityLogger.logAdminLoginSuccess(clientIP, "analytics_access");
 
     // Get time period from query params (default: all time)
     const { searchParams } = new URL(request.url);
