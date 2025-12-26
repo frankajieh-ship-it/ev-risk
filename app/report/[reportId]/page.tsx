@@ -78,7 +78,15 @@ export default async function ReportPage({
   const reportDataString = JSON.stringify(report.payload_json);
   const dataParam = encodeURIComponent(reportDataString);
 
+  // Build query string with reportId for PDF download
+  const queryParams = new URLSearchParams();
+  queryParams.set('data', reportDataString);
+  queryParams.set('reportId', reportId);
+  if (justPaid) {
+    queryParams.set('paid', 'true');
+  }
+
   // Redirect to legacy report page
   // Note: redirect() throws internally - this is expected Next.js behavior
-  redirect(`/report?data=${dataParam}${justPaid ? '&paid=true' : ''}`);
+  redirect(`/report?${queryParams.toString()}`);
 }
