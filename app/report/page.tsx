@@ -61,6 +61,8 @@ function ReportContent() {
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [isPaid, setIsPaid] = useState(false);
   const [reportId, setReportId] = useState<string | null>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
   useEffect(() => {
     // Check for 'data' param (normal flow) or 'payload' param (after payment)
@@ -465,8 +467,8 @@ function ReportContent() {
             <button
               onClick={async () => {
                 try {
-                  // Step 1: Create draft report in database
-                  const createResponse = await fetch('/api/report/create', {
+                  // Create free report in database
+                  const createResponse = await fetch('/api/report/free', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ reportData })
@@ -477,33 +479,34 @@ function ReportContent() {
                   }
 
                   const { reportId } = await createResponse.json();
+                  setReportId(reportId);
 
-                  // Step 2: Create Stripe checkout session with reportId
-                  const checkoutResponse = await fetch('/api/checkout', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reportId })
-                  });
+                  // Trigger PDF download
+                  const pdfLink = document.createElement('a');
+                  pdfLink.href = `/api/report/${reportId}/pdf`;
+                  pdfLink.download = `EV-Risk-${input.year}-${input.model}-Report.pdf`;
+                  document.body.appendChild(pdfLink);
+                  pdfLink.click();
+                  document.body.removeChild(pdfLink);
 
-                  const checkoutData = await checkoutResponse.json();
-
-                  if (checkoutData.url) {
-                    // Redirect to Stripe Checkout
-                    window.location.href = checkoutData.url;
-                  } else {
-                    alert('Failed to create checkout session. Please try again.');
-                  }
+                  // Show feedback modal after short delay
+                  setTimeout(() => {
+                    setShowFeedbackModal(true);
+                  }, 1500);
                 } catch (error) {
-                  console.error('Checkout error:', error);
+                  console.error('Free report error:', error);
                   alert('An error occurred. Please try again.');
                 }
               }}
               className="bg-white text-blue-600 font-bold text-lg px-12 py-4 rounded-full hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
             >
-              Get Full Report - $15 (One-Time Payment)
+              Get Full Report
             </button>
             <p className="mt-4 text-sm text-blue-100">
-              ✓ Printable web view  ✓ 30-day money-back guarantee  ✓ Secure payment via Stripe
+              <span className="line-through opacity-75">$15</span> <span className="font-bold text-white">FREE</span> - First report is on us!
+            </p>
+            <p className="mt-2 text-xs text-blue-100 opacity-90">
+              ✓ Instant PDF download  ✓ Comprehensive analysis  ✓ No payment required
             </p>
           </div>
         </div>
@@ -573,6 +576,139 @@ function ReportContent() {
           </p>
         </div>
       </div>
+
+      {/* Feedback Modal */}
+      {showFeedbackModal && !feedbackSubmitted && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative animate-fadeIn">
+            <button
+              onClick={() => setShowFeedbackModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Your Report is Ready!</h3>
+              <p className="text-gray-600">The PDF should download shortly.</p>
+              <p className="text-sm text-gray-500 mt-2">
+                <span className="line-through">$15</span> <span className="font-bold text-green-600">FREE</span> - This first one's on us!
+              </p>
+            </div>
+
+            <div className="border-t border-gray-200 pt-6">
+              <h4 className="font-semibold text-gray-900 mb-4">Help us improve EV-Risk!</h4>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const rating = formData.get('rating');
+                const feedbackText = formData.get('feedback');
+                const wouldRecommend = formData.get('recommend') === 'yes';
+
+                try {
+                  await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      reportId,
+                      rating: rating ? parseInt(rating as string) : null,
+                      feedbackText,
+                      wouldRecommend
+                    })
+                  });
+                  setFeedbackSubmitted(true);
+                  setTimeout(() => setShowFeedbackModal(false), 2000);
+                } catch (error) {
+                  console.error('Feedback error:', error);
+                }
+              }}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    How useful was this report?
+                  </label>
+                  <div className="flex gap-2 justify-center">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <label key={star} className="cursor-pointer">
+                        <input type="radio" name="rating" value={star} className="sr-only peer" />
+                        <svg className="w-8 h-8 text-gray-300 peer-checked:text-yellow-400 hover:text-yellow-300" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Would you recommend EV-Risk to others?
+                  </label>
+                  <div className="flex gap-4 justify-center">
+                    <label className="flex items-center cursor-pointer">
+                      <input type="radio" name="recommend" value="yes" className="mr-2" />
+                      <span className="text-sm">Yes</span>
+                    </label>
+                    <label className="flex items-center cursor-pointer">
+                      <input type="radio" name="recommend" value="no" className="mr-2" />
+                      <span className="text-sm">No</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Any suggestions or feedback? (optional)
+                  </label>
+                  <textarea
+                    name="feedback"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Your feedback helps us improve..."
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowFeedbackModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Submit Feedback
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Thank You Message */}
+      {feedbackSubmitted && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">Thank You!</h3>
+            <p className="text-gray-600">Your feedback helps us improve EV-Risk for everyone.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

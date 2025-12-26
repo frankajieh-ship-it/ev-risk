@@ -25,17 +25,31 @@ async function setupDatabase() {
     await sql`
       CREATE TABLE IF NOT EXISTS reports (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        status TEXT NOT NULL CHECK (status IN ('draft', 'paid')),
+        status TEXT NOT NULL CHECK (status IN ('draft', 'paid', 'free')),
         payload_json JSONB NOT NULL,
         created_at TIMESTAMP DEFAULT NOW(),
         paid_at TIMESTAMP,
         stripe_session_id TEXT,
         customer_email TEXT,
         vehicle_year INTEGER,
-        vehicle_model TEXT
+        vehicle_model TEXT,
+        is_free BOOLEAN DEFAULT FALSE
       );
     `;
     console.log("✅ Created reports table");
+
+    // Create feedback table
+    await sql`
+      CREATE TABLE IF NOT EXISTS feedback (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        report_id UUID REFERENCES reports(id),
+        rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+        feedback_text TEXT,
+        would_recommend BOOLEAN,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `;
+    console.log("✅ Created feedback table");
 
     // Create indexes
     await sql`CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);`;

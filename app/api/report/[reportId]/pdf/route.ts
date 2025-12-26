@@ -38,8 +38,8 @@ export async function GET(
 
     const report = result[0];
 
-    // Verify payment
-    if (report.status !== "paid") {
+    // Verify payment or free status
+    if (report.status !== "paid" && report.status !== "free") {
       return NextResponse.json(
         { error: "Payment required - report not paid" },
         { status: 402 }
