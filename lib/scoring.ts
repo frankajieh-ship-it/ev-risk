@@ -264,12 +264,10 @@ function calculateOwnershipFit(input: ScoringInput): OwnershipFitScore {
     else if (charger_density === "Moderate") score -= 35;
     else if (charger_density === "Good") score -= 25;
     else if (charger_density === "Excellent") score -= 20; // Increased from -10
-    else if (charger_density === "Unknown") score -= 30; // Increased from -20
   } else {
     // Mild penalty even with home charging
     if (charger_density === "Poor") score -= 10;
     else if (charger_density === "Moderate") score -= 5;
-    else if (charger_density === "Unknown") score -= 3; // Minor penalty for unknown
   }
 
   // Annual miles fit
