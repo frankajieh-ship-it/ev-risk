@@ -20,9 +20,10 @@ export default async function ReportPage({
   const { reportId } = await params;
   const search = await searchParams;
 
+  // Load report from database
+  let result;
   try {
-    // Load report from database
-    const result = await sql`
+    result = await sql`
       SELECT
         id,
         status,
@@ -34,25 +35,8 @@ export default async function ReportPage({
       FROM reports
       WHERE id = ${reportId}
     `;
-
-    if (result.length === 0) {
-      notFound();
-    }
-
-    const report = result[0];
-    const isPaid = report.status === "paid";
-    const justPaid = search.paid === "true";
-
-    // For now, redirect to the existing report page with data param
-    // This ensures the existing UI works while we implement the new page
-    const reportDataString = JSON.stringify(report.payload_json);
-    const dataParam = encodeURIComponent(reportDataString);
-
-    // Redirect to legacy report page
-    redirect(`/report?data=${dataParam}${justPaid ? '&paid=true' : ''}`);
-
   } catch (error) {
-    console.error("Error loading report:", error);
+    console.error("Database error loading report:", error);
     console.error("Report ID:", reportId);
     console.error("Error details:", error instanceof Error ? error.message : String(error));
     console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
@@ -81,4 +65,20 @@ export default async function ReportPage({
       </div>
     );
   }
+
+  // Check if report exists
+  if (result.length === 0) {
+    notFound();
+  }
+
+  const report = result[0];
+  const justPaid = search.paid === "true";
+
+  // Prepare data for redirect to legacy report page
+  const reportDataString = JSON.stringify(report.payload_json);
+  const dataParam = encodeURIComponent(reportDataString);
+
+  // Redirect to legacy report page
+  // Note: redirect() throws internally - this is expected Next.js behavior
+  redirect(`/report?data=${dataParam}${justPaid ? '&paid=true' : ''}`);
 }
