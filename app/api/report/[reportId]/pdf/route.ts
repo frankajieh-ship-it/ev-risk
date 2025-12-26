@@ -7,7 +7,8 @@
 
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import ReactPDF from "@react-pdf/renderer";
+import { renderToBuffer } from "@react-pdf/renderer";
+import React from "react";
 import { ReportPdf, type ReportPayload } from "@/lib/pdf/ReportPdf";
 
 export const runtime = "nodejs"; // Required for @react-pdf/renderer
@@ -52,8 +53,8 @@ export async function GET(
     );
 
     // Generate PDF
-    const pdfDoc = ReactPDF.createElement(ReportPdf, { data: pdfData });
-    const pdfBuffer = await ReactPDF.renderToBuffer(pdfDoc);
+    const pdfDoc = React.createElement(ReportPdf, { data: pdfData });
+    const pdfBuffer = await renderToBuffer(pdfDoc);
 
     // Create filename
     const year = report.vehicle_year || "Unknown";
