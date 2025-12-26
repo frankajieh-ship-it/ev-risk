@@ -5,8 +5,10 @@
  * Loads report from database and redirects to legacy report page
  */
 
-import { sql } from "@vercel/postgres";
+import { neon } from "@neondatabase/serverless";
 import { notFound, redirect } from "next/navigation";
+
+const sql = neon(process.env.POSTGRES_URL!);
 
 export default async function ReportPage({
   params,
@@ -33,11 +35,11 @@ export default async function ReportPage({
       WHERE id = ${reportId}
     `;
 
-    if (result.rowCount === 0) {
+    if (result.length === 0) {
       notFound();
     }
 
-    const report = result.rows[0];
+    const report = result[0];
     const isPaid = report.status === "paid";
     const justPaid = search.paid === "true";
 

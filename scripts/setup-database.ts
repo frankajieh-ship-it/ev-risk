@@ -13,7 +13,9 @@ import { resolve } from "path";
 // Load .env.local file
 config({ path: resolve(process.cwd(), ".env.local") });
 
-import { sql } from "@vercel/postgres";
+import { neon } from "@neondatabase/serverless";
+
+const sql = neon(process.env.POSTGRES_URL!);
 
 async function setupDatabase() {
   try {
@@ -49,7 +51,7 @@ async function setupDatabase() {
     console.log("\nYou can now:");
     console.log("  1. Run the dev server: npm run dev");
     console.log("  2. Test the payment flow");
-    console.log("  3. Reports will be stored in Vercel Postgres\n");
+    console.log("  3. Reports will be stored in Neon Postgres\n");
 
     process.exit(0);
   } catch (error) {

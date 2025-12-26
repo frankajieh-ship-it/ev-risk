@@ -11,8 +11,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
+import { neon } from "@neondatabase/serverless";
 import { v4 as uuidv4 } from "uuid";
+
+const sql = neon(process.env.POSTGRES_URL!);
 
 export async function POST(request: NextRequest) {
   try {

@@ -14,7 +14,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { sql } from "@vercel/postgres";
+import { neon } from "@neondatabase/serverless";
+
+const sql = neon(process.env.POSTGRES_URL!);
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -128,7 +130,7 @@ async function fulfillOrder(session: Stripe.Checkout.Session) {
       RETURNING id
     `;
 
-    if (result.rowCount === 0) {
+    if (result.length === 0) {
       console.error(`❌ Report ${reportId} not found or already paid`);
       return false;
     }

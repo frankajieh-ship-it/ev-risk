@@ -6,12 +6,14 @@
  */
 
 import { NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
+import { neon } from "@neondatabase/serverless";
 import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import { ReportPdf, type ReportPayload } from "@/lib/pdf/ReportPdf";
 
 export const runtime = "nodejs"; // Required for @react-pdf/renderer
+
+const sql = neon(process.env.POSTGRES_URL!);
 
 export async function GET(
   _req: Request,
@@ -27,14 +29,14 @@ export async function GET(
       WHERE id = ${reportId}
     `;
 
-    if (result.rowCount === 0) {
+    if (result.length === 0) {
       return NextResponse.json(
         { error: "Report not found" },
         { status: 404 }
       );
     }
 
-    const report = result.rows[0];
+    const report = result[0];
 
     // Verify payment
     if (report.status !== "paid") {
