@@ -1,0 +1,366 @@
+Below is a ready-to-drop-in MVP one-page UI (Next.js App Router). It matches your exact requirements: above-the-fold hook → inputs → submit → result screen with big 🟢/🟡/🔴, one-sentence verdict, plain-English bullets, and $15 CTA.
+
+File: app/page.tsx
+"use client";
+
+import React, { useMemo, useState } from "react";
+
+type RiskLevel = "green" | "yellow" | "red";
+
+type FormState = {
+  vinOrModel: string;
+  zip: string;
+  dailyMiles: string;
+  homeCharging: "yes" | "no";
+  riskTolerance: "low" | "medium" | "high";
+};
+
+type ResultState = {
+  level: RiskLevel;
+  score: number; // 0–100, higher = better (buy confidence)
+  verdict: string;
+  reasons: string[];
+};
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function levelFromScore(score: number): RiskLevel {
+  if (score >= 70) return "green";
+  if (score >= 45) return "yellow";
+  return "red";
+}
+
+function levelEmoji(level: RiskLevel) {
+  return level === "green" ? "🟢" : level === "yellow" ? "🟡" : "🔴";
+}
+
+function levelLabel(level: RiskLevel) {
+  return level === "green" ? "Good Buy" : level === "yellow" ? "Proceed Carefully" : "High Risk";
+}
+
+/**
+ * MVP placeholder scoring (rules-first).
+ * Replace with your real scoring engine when backend is ready.
+ * IMPORTANT: This is intentionally simple for UI validation.
+ */
+function computeMvpResult(form: FormState): ResultState {
+  const daily = Number(form.dailyMiles || "0");
+  const hasVin = /^[A-HJ-NPR-Z0-9]{11,17}$/i.test(form.vinOrModel.trim());
+  const zipOk = /^\d{5}$/.test(form.zip.trim());
+  const dailyOk = Number.isFinite(daily) && daily > 0;
+
+  // Base score
+  let score = 60;
+
+  // Confidence adjustments
+  if (hasVin) score += 5; // VIN tends to mean the user is further in buying intent
+  if (!zipOk) score -= 8;
+  if (!dailyOk) score -= 10;
+
+  // Usage stress / fit
+  if (daily >= 80) score -= 10;
+  else if (daily >= 50) score -= 6;
+
+  // Charging dependency
+  if (form.homeCharging === "no") score -= 10;
+
+  // Risk tolerance: if user is risk-averse, tighten thresholds (lower effective score)
+  if (form.riskTolerance === "low") score -= 6;
+  if (form.riskTolerance === "high") score += 4;
+
+  score = clamp(score, 5, 95);
+  const level = levelFromScore(score);
+
+  const verdict =
+    level === "green"
+      ? "This looks like a solid used-EV choice for your daily driving and charging setup."
+      : level === "yellow"
+        ? "This could work, but you should verify a few key battery and ownership risks before buying."
+        : "High risk for your situation—there are multiple red flags to verify before you commit.";
+
+  const reasons: string[] = [];
+
+  // Plain-English reasons (UI demo)
+  if (form.homeCharging === "no") reasons.push("No home charging increases cost and inconvenience—public charging reliability matters more.");
+  if (daily >= 80) reasons.push("High daily mileage leaves less buffer for cold/heat range loss and battery wear.");
+  if (!hasVin) reasons.push("No VIN provided—model/year/trim uncertainty makes battery and recall risk harder to verify.");
+  if (!zipOk) reasons.push("ZIP code missing/invalid—local climate and charger availability can materially change ownership risk.");
+  if (reasons.length === 0) reasons.push("Inputs indicate a typical use case with manageable reliability and ownership risk.");
+
+  // Ensure 3 bullets for consistency
+  while (reasons.length < 3) reasons.push("We’ll confirm battery health, recall history, and range fit in the full report.");
+
+  return { level, score, verdict, reasons: reasons.slice(0, 3) };
+}
+
+export default function Page() {
+  const [form, setForm] = useState<FormState>({
+    vinOrModel: "",
+    zip: "",
+    dailyMiles: "",
+    homeCharging: "yes",
+    riskTolerance: "medium",
+  });
+
+  const [submitted, setSubmitted] = useState(false);
+  const [result, setResult] = useState<ResultState | null>(null);
+
+  const canSubmit = useMemo(() => {
+    return form.vinOrModel.trim().length >= 3 && form.zip.trim().length >= 3;
+  }, [form.vinOrModel, form.zip]);
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const r = computeMvpResult(form);
+    setResult(r);
+    setSubmitted(true);
+    // Scroll to results on mobile
+    setTimeout(() => {
+      document.getElementById("result")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
+
+  function onReset() {
+    setSubmitted(false);
+    setResult(null);
+    setForm({
+      vinOrModel: "",
+      zip: "",
+      dailyMiles: "",
+      homeCharging: "yes",
+      riskTolerance: "medium",
+    });
+    setTimeout(() => {
+      document.getElementById("top")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
+
+  return (
+    <main id="top" className="min-h-screen bg-white text-neutral-900">
+      {/* Top bar */}
+      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-neutral-200">
+        <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-xl border border-neutral-200 flex items-center justify-center font-semibold">
+              EV
+            </div>
+            <div className="leading-tight">
+              <div className="text-sm font-semibold">EV-Risk (MVP)</div>
+              <div className="text-xs text-neutral-500">Used EV Reliability Copilot</div>
+            </div>
+          </div>
+          <a
+            href="#result"
+            className="text-sm font-medium text-neutral-700 hover:text-neutral-900"
+          >
+            See results
+          </a>
+        </div>
+      </header>
+
+      {/* Hero + Form (Above the fold) */}
+      <section className="mx-auto max-w-5xl px-4 pt-10 pb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">
+              Before you buy a used EV — check battery &amp; reliability risk in 2 minutes.
+            </h1>
+            <p className="mt-4 text-neutral-600 text-base sm:text-lg leading-relaxed">
+              Enter the VIN (or model/year), your ZIP code, and a few basics. You’ll get a simple{" "}
+              <span className="font-medium text-neutral-800">Buy Confidence</span> verdict with
+              plain-English reasons.
+            </p>
+
+            <div className="mt-6 flex flex-wrap gap-2 text-xs">
+              <span className="px-3 py-1 rounded-full border border-neutral-200 bg-neutral-50">
+                No account required
+              </span>
+              <span className="px-3 py-1 rounded-full border border-neutral-200 bg-neutral-50">
+                Works for used EV buyers
+              </span>
+              <span className="px-3 py-1 rounded-full border border-neutral-200 bg-neutral-50">
+                Battery + platform risk focus
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-neutral-200 p-5 shadow-sm">
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium">VIN or Model/Year/Trim</label>
+                <input
+                  value={form.vinOrModel}
+                  onChange={(e) => setForm((s) => ({ ...s, vinOrModel: e.target.value }))}
+                  placeholder="e.g., 5YJ3E1EA7KF... or “Bolt EUV 2020”"
+                  className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-neutral-300"
+                />
+                <p className="mt-1 text-xs text-neutral-500">
+                  VIN gives the best accuracy. Model/year works for MVP.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium">ZIP Code</label>
+                  <input
+                    value={form.zip}
+                    onChange={(e) => setForm((s) => ({ ...s, zip: e.target.value }))}
+                    placeholder="e.g., 46204"
+                    className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-neutral-300"
+                    inputMode="numeric"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium">Daily Miles</label>
+                  <input
+                    value={form.dailyMiles}
+                    onChange={(e) => setForm((s) => ({ ...s, dailyMiles: e.target.value }))}
+                    placeholder="e.g., 35"
+                    className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-neutral-300"
+                    inputMode="numeric"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium">Home Charging</label>
+                  <select
+                    value={form.homeCharging}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, homeCharging: e.target.value as FormState["homeCharging"] }))
+                    }
+                    className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-neutral-300 bg-white"
+                  >
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium">Risk Tolerance</label>
+                  <select
+                    value={form.riskTolerance}
+                    onChange={(e) =>
+                      setForm((s) => ({
+                        ...s,
+                        riskTolerance: e.target.value as FormState["riskTolerance"],
+                      }))
+                    }
+                    className="mt-1 w-full rounded-xl border border-neutral-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-neutral-300 bg-white"
+                  >
+                    <option value="low">Low (play it safe)</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High (I can tolerate risk)</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={!canSubmit}
+                className="w-full rounded-xl bg-neutral-900 text-white py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Check Reliability Risk
+              </button>
+
+              <p className="text-xs text-neutral-500">
+                MVP preview: results are directional. Full engine connects to v1.0 datasets + scoring model.
+              </p>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      {/* Result */}
+      <section id="result" className="mx-auto max-w-5xl px-4 pb-14">
+        {!submitted || !result ? (
+          <div className="rounded-2xl border border-dashed border-neutral-300 p-8 text-center text-neutral-600">
+            Results will appear here after you submit.
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-neutral-200 p-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div
+                  className="h-16 w-16 rounded-2xl border border-neutral-200 flex items-center justify-center text-3xl"
+                  aria-label={levelLabel(result.level)}
+                >
+                  {levelEmoji(result.level)}
+                </div>
+                <div>
+                  <div className="text-sm text-neutral-500">Buy Confidence</div>
+                  <div className="text-xl font-semibold">{levelLabel(result.level)}</div>
+                  <div className="mt-1 text-sm text-neutral-600">
+                    Score: <span className="font-medium text-neutral-800">{result.score}/100</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={onReset}
+                  className="rounded-xl border border-neutral-300 px-4 py-2 text-sm font-medium hover:bg-neutral-50"
+                >
+                  New Check
+                </button>
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    alert("Wire this to Stripe checkout in Phase 3.");
+                  }}
+                  className="rounded-xl bg-neutral-900 text-white px-4 py-2 text-sm font-semibold"
+                >
+                  Unlock full report + negotiation checklist ($15)
+                </a>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <p className="text-base sm:text-lg font-medium">{result.verdict}</p>
+
+              <ul className="mt-4 space-y-2 text-sm text-neutral-700 list-disc pl-5">
+                {result.reasons.map((r, idx) => (
+                  <li key={idx}>{r}</li>
+                ))}
+              </ul>
+
+              <div className="mt-6 rounded-xl bg-neutral-50 border border-neutral-200 p-4">
+                <div className="text-sm font-semibold">What you get in the full report</div>
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-neutral-700">
+                  <div>• Battery-risk breakdown (age/miles/climate)</div>
+                  <div>• Recall + platform maturity flags</div>
+                  <div>• Range fit vs your daily driving</div>
+                  <div>• Dealer questions + walk-away triggers</div>
+                </div>
+              </div>
+
+              <p className="mt-4 text-xs text-neutral-500">
+                Disclaimer: This tool provides a risk estimate, not a guarantee of vehicle condition.
+              </p>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <footer className="border-t border-neutral-200">
+        <div className="mx-auto max-w-5xl px-4 py-8 text-xs text-neutral-500 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+          <span>© {new Date().getFullYear()} EV-Risk (MVP)</span>
+          <span>Built for used EV buyers who want clarity before they commit.</span>
+        </div>
+      </footer>
+    </main>
+  );
+}
+
+What you can wire next (minimal)
+
+Replace computeMvpResult() with your real v1.0 scoring (using the JSON/CSV datasets you defined).
+
+Replace the CTA alert() with Stripe Checkout redirect (Phase 3).
+
+Optionally swap VIN/model input into two fields later (keep MVP friction low now).

@@ -1,0 +1,256 @@
+SIMPLE BACKEND LOGIC (Day 3-5)
+Core Engine: ev_scorer.py
+python
+import json
+import csv
+from typing import Dict, List, Tuple
+
+class EVReliabilityScorer:
+    def __init__(self, data_path="data_v1.0/"):
+        self.load_data(data_path)
+    
+    def load_data(self, path):
+        with open(f"{path}battery_degradation.json") as f:
+            self.battery_data = json.load(f)
+        
+        with open(f"{path}range_delta.csv") as f:
+            self.range_data = {row["model"]: row for row in csv.DictReader(f)}
+        
+        # Load other datasets...
+    
+    def resolve_vehicle(self, vin_or_model: str, year: int, trim: str = "") -> Dict:
+        """Match input to known vehicle profile"""
+        # V1: Simple model/year lookup (no VIN decoding yet)
+        vehicle_key = f"{vin_or_model} {year}"
+        
+        # Default vehicle profile
+        return {
+            "model": vin_or_model,
+            "year": year,
+            "chemistry": self.get_chemistry(vin_or_model, year),
+            "base_range": self.get_range(vin_or_model, year),
+            "recalls": self.get_recall_count(vin_or_model, year),
+            "common_issues": self.get_issues(vin_or_model, year),
+            "has_heat_pump": self.has_heat_pump(vin_or_model, year)
+        }
+    
+    def calculate_score(self, 
+                       vehicle: Dict,
+                       zip_code: str,
+                       daily_miles: int,
+                       home_charging: bool,
+                       risk_tolerance: str = "medium") -> Dict:
+        """Core scoring algorithm"""
+        
+        # 1. Battery Risk (40%)
+        battery_score = self.calc_battery_risk(
+            vehicle["chemistry"],
+            vehicle["year"],
+            zip_code
+        )
+        
+        # 2. Platform Risk (30%)
+        platform_score = self.calc_platform_risk(
+            vehicle["model"],
+            vehicle["year"],
+            vehicle["recalls"],
+            vehicle["common_issues"]
+        )
+        
+        # 3. Ownership Fit (30%)
+        ownership_score = self.calc_ownership_fit(
+            vehicle["base_range"],
+            daily_miles,
+            home_charging,
+            zip_code,
+            vehicle["has_heat_pump"]
+        )
+        
+        # Weighted total
+        total = (battery_score * 0.4) + (platform_score * 0.3) + (ownership_score * 0.3)
+        
+        # Apply risk tolerance adjustment
+        if risk_tolerance == "low":
+            total *= 0.9  # More conservative
+        elif risk_tolerance == "high":
+            total *= 1.1  # More optimistic
+        
+        return {
+            "score": round(total, 1),
+            "components": {
+                "battery": round(battery_score, 1),
+                "platform": round(platform_score, 1),
+                "ownership": round(ownership_score, 1)
+            }
+        }
+    
+    def generate_verdict(self, score: float, vehicle: Dict, user_input: Dict) -> Dict:
+        """Generate full output with reasons and flags"""
+        
+        # Score to verdict mapping
+        if score >= 70:
+            verdict = "🟢 GREEN - Good Buy"
+            confidence = "high"
+        elif score >= 45:
+            verdict = "🟡 YELLOW - Conditional Buy"
+            confidence = "medium"
+        else:
+            verdict = "🔴 RED - High Risk"
+            confidence = "low"
+        
+        # Top 3 reasons (algorithmically determined)
+        reasons = self.identify_top_reasons(vehicle, user_input)
+        
+        # Red flags (critical issues)
+        red_flags = self.identify_red_flags(vehicle, user_input)
+        
+        # Pre-purchase verification checklist
+        checklist = self.generate_checklist(vehicle, user_input)
+        
+        return {
+            "verdict": verdict,
+            "confidence": confidence,
+            "score": score,
+            "top_reasons": reasons[:3],
+            "red_flags": red_flags[:2],
+            "pre_purchase_checklist": checklist,
+            "timestamp": self.get_timestamp()
+        }
+📋 API Endpoint (FastAPI Minimal):
+python
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+app = FastAPI(title="EV Reliability Copilot", version="1.0")
+
+class EVRequest(BaseModel):
+    vin_or_model: str
+    year: int
+    trim: Optional[str] = ""
+    zip_code: str
+    daily_miles: int
+    home_charging: bool
+    risk_tolerance: str = "medium"
+
+@app.post("/assess")
+async def assess_ev(request: EVRequest):
+    """Main endpoint - returns buy confidence assessment"""
+    
+    scorer = EVReliabilityScorer()
+    
+    # 1. Resolve vehicle
+    vehicle = scorer.resolve_vehicle(
+        request.vin_or_model,
+        request.year,
+        request.trim
+    )
+    
+    # 2. Calculate score
+    score_result = scorer.calculate_score(
+        vehicle,
+        request.zip_code,
+        request.daily_miles,
+        request.home_charging,
+        request.risk_tolerance
+    )
+    
+    # 3. Generate verdict
+    user_input = request.dict()
+    verdict = scorer.generate_verdict(
+        score_result["score"],
+        vehicle,
+        user_input
+    )
+    
+    # 4. Return structured response
+    return {
+        "assessment": {
+            "summary": verdict["verdict"],
+            "score": score_result["score"],
+            "confidence": verdict["confidence"]
+        },
+        "details": {
+            "top_reasons": verdict["top_reasons"],
+            "red_flags": verdict["red_flags"],
+            "component_scores": score_result["components"]
+        },
+        "actions": {
+            "pre_purchase_checklist": verdict["pre_purchase_checklist"],
+            "next_steps": self.get_next_steps(verdict["confidence"])
+        },
+        "disclaimer": "Based on EV-Risk v1.0 assumptions. Not a guarantee."
+    }
+🔍 Reason & Flag Generator:
+python
+def identify_top_reasons(self, vehicle: Dict, user_input: Dict) -> List[str]:
+    """Identify top 3 reasons for the score"""
+    reasons = []
+    
+    # Battery-related reasons
+    if vehicle["chemistry"] == "NMC 811":
+        reasons.append(f"Higher degradation chemistry ({vehicle['chemistry']})")
+    
+    if vehicle["year"] < 2020:
+        age = 2024 - vehicle["year"]
+        reasons.append(f"Older EV platform ({age} years) - higher battery aging risk")
+    
+    # Ownership fit reasons
+    range_ratio = user_input["daily_miles"] / vehicle["base_range"]
+    if range_ratio > 0.5:
+        reasons.append(f"Daily usage ({user_input['daily_miles']}mi) is high for battery range")
+    
+    if not user_input["home_charging"]:
+        reasons.append("No home charging - public network dependency")
+    
+    # Platform reasons
+    if vehicle["recalls"] > 3:
+        reasons.append(f"Multiple recalls ({vehicle['recalls']}) for this model year")
+    
+    return reasons[:3]
+
+def identify_red_flags(self, vehicle: Dict, user_input: Dict) -> List[str]:
+    """Identify critical red flags"""
+    flags = []
+    
+    # Critical battery issues
+    if vehicle.get("battery_recall_active", False):
+        flags.append("⚠️ ACTIVE BATTERY RECALL - Verify replacement status")
+    
+    # Critical ownership mismatches
+    if not user_input["home_charging"] and user_input["daily_miles"] > 50:
+        flags.append("⚠️ HIGH DAILY MILEAGE WITHOUT HOME CHARGING")
+    
+    # Critical platform issues
+    if vehicle.get("critical_failures", 0) > 1:
+        flags.append("⚠️ MULTIPLE CRITICAL FAILURE MODES REPORTED")
+    
+    return flags[:2]
+📝 Pre-Purchase Checklist Generator:
+python
+def generate_checklist(self, vehicle: Dict, user_input: Dict) -> List[str]:
+    """Generate specific verification steps"""
+    checklist = []
+    
+    # Universal checks
+    checklist.append("Verify remaining battery warranty (8+ years recommended)")
+    checklist.append("Check for open recalls at nhtsa.gov/recalls")
+    
+    # Battery-specific
+    checklist.append("Request OBD-II battery health report if available")
+    checklist.append("Check charging speed at DC fast charger during test drive")
+    
+    # Ownership-specific
+    if not user_input["home_charging"]:
+        checklist.append("Test nearby public chargers for availability/reliability")
+    
+    if user_input["daily_miles"] > 40:
+        checklist.append("Verify real-world range in current climate conditions")
+    
+    # Model-specific
+    if "Tesla" in vehicle["model"]:
+        checklist.append("Check Supercharger transfer eligibility")
+    
+    if vehicle["year"] < 2020:
+        checklist.append("Consider pre-purchase inspection by EV specialist")
+    
+    return checklist

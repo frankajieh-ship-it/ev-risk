@@ -1,0 +1,50 @@
+Directory Structure Created:
+text
+/data_v1.0/
+├── battery_degradation.json        ✅
+├── range_delta.csv                 ✅
+├── recalls.csv                     ✅
+├── owner_issue_clusters.json       ✅
+├── climate_zones.csv               ✅
+├── charger_density.csv             ✅
+└── assumptions.md                  ✅
+Key Additions to Your Data Schema:
+1. Extended battery_degradation.json:
+
+json
+{
+  "chemistry_mapping": {
+    "Tesla Model 3 2021+": "LFP",
+    "Nissan Leaf 2018-2022": "NMC 622",
+    "Chevy Bolt 2017-2022": "NMC 622",
+    "Tesla Model S/X": "NCA",
+    "Hyundai Kona": "NMC 811"
+  },
+  "degradation_thresholds": {
+    "green": 85,
+    "yellow": 70,
+    "red": 50
+  }
+}
+2. Expanded range_delta.csv (First 20 EVs):
+
+csv
+model,year,epa_range_miles,real_world_range_miles,climate_multiplier
+Tesla Model 3 Standard Range,2021,272,245,0.9
+Tesla Model 3 Long Range,2021,358,320,0.89
+Nissan Leaf SV,2019,150,125,0.83
+Chevy Bolt LT,2020,259,220,0.85
+Hyundai Kona SEL,2021,258,230,0.89
+Ford Mustang Mach-E,2021,270,240,0.89
+Volkswagen ID.4,2021,250,220,0.88
+Audi e-tron,2020,222,210,0.95
+...
+3. Critical Data Enhancements:
+
+Heat pump mapping by model/year (critical for cold climates)
+
+Battery warranty status by model/year (8yr/100k mi vs 10yr/150k mi)
+
+Supercharger access (Tesla vs CCS networks)
+
+Service center density by ZIP (proxy for repair access)

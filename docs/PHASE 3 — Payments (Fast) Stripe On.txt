@@ -1,0 +1,29 @@
+PHASE 3 — Payments (Fast): Stripe One-Time Payment (No Subs)
+
+You already have the correct approach: Stripe Checkout session, mode="payment".
+
+Here’s the minimal checklist:
+
+Install Stripe
+npm i stripe
+
+Set env
+STRIPE_SECRET_KEY=sk_live_...
+
+Ensure checkout session uses mode: "payment"
+
+(You already have this in your /api/checkout route.)
+
+Optional hardening (still minimal)
+
+Add client_reference_id (reportId)
+
+Add metadata with reportId + resolved make/model/year (for debugging)
+
+Example inside sessions.create():
+
+client_reference_id: body.reportId ?? undefined,
+metadata: {
+  reportId: body.reportId ?? "",
+  vinOrModel: body.vinOrModel ?? "",
+}

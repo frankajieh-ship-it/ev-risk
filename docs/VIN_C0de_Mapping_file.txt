@@ -1,0 +1,243 @@
+1) Add a mapping file (v1.0)
+
+Create:
+
+/data_v1.0/model_map.csv
+
+This is your source of truth for v1. Add rows as you expand coverage.
+
+make,model,year_from,year_to,trim,chemistry,battery_kwh,platform_notes,range_row_key,recall_row_key,owner_cluster_key
+Tesla,Model 3,2018,2020,Standard Range Plus,NMC,55,"Early platform maturity",Tesla Model 3,Tesla Model 3,Tesla Model 3
+Tesla,Model 3,2021,2025,Standard Range Plus,LFP,60,"LFP variants common in later SR trims",Tesla Model 3,Tesla Model 3,Tesla Model 3
+Chevrolet,Bolt,2017,2021,LT,NMC,60,"Battery recall era – verify",Chevy Bolt,Chevy Bolt,Chevy Bolt
+Chevrolet,Bolt EUV,2022,2023,LT,NMC,65,"Verify recall completion",Chevy Bolt EUV,Chevy Bolt EUV,Chevy Bolt EUV
+Nissan,Leaf,2016,2019,S,LMO,30,"Air-cooled pack; higher heat sensitivity",Nissan Leaf,Nissan Leaf,Nissan Leaf
+Hyundai,Kona Electric,2019,2023,SEL,NMC,64,"Solid thermal mgmt",Hyundai Kona Electric,Hyundai Kona Electric,Hyundai Kona Electric
+
+
+How it’s used
+
+range_row_key ties into your range_delta.csv “model” column
+
+recall_row_key ties into your recalls.csv “model” column
+
+owner_cluster_key ties into owner_issue_clusters.json keys
+
+So your downstream datasets don’t need to perfectly match VIN details—just these keys.
+
+2) VIN decode stub (local-only, no APIs)
+/lib/vin.ts
+export type VinDecoded = {
+  vin: string;
+  valid: boolean;
+  wmi?: string;
+  make_guess?: string;
+  year?: number;
+  notes: string[];
+};
+
+const VIN_RE = /^[A-HJ-NPR-Z0-9]{17}$/i;
+
+// Minimal WMI make guesses (expand over time)
+const WMI_TO_MAKE: Record<string, string> = {
+  "5YJ": "Tesla",
+  "7SA": "Tesla",
+  "1G1": "Chevrolet",
+  "1N4": "Nissan",
+  "KMH": "Hyundai",
+  "KMF": "Hyundai",
+};
+
+// VIN year code table (works for 1980–2039 cycles; MVP needs recent years only)
+const YEAR_CODE: Record<string, number> = {
+  A: 2010, B: 2011, C: 2012, D: 2013, E: 2014, F: 2015, G: 2016, H: 2017,
+  J: 2018, K: 2019, L: 2020, M: 2021, N: 2022, P: 2023, R: 2024, S: 2025,
+  T: 2026, V: 2027, W: 2028, X: 2029, Y: 2030,
+  "1": 2031, "2": 2032, "3": 2033, "4": 2034, "5": 2035, "6": 2036, "7": 2037, "8": 2038, "9": 2039,
+};
+
+function normalizeVin(vin: string) {
+  return vin.trim().toUpperCase();
+}
+
+/**
+ * Stub decoder:
+ * - validates format (17 chars, no I/O/Q)
+ * - identifies WMI + make guess
+ * - decodes model year from VIN position 10 (index 9) using a modern-year mapping
+ *
+ * Note: Full VIN decoding requires manufacturer-specific logic + API data.
+ */
+export function decodeVinStub(vinRaw: string): VinDecoded {
+  const notes: string[] = [];
+  const vin = normalizeVin(vinRaw);
+
+  const valid = VIN_RE.test(vin);
+  if (!valid) {
+    return { vin, valid: false, notes: ["VIN invalid format (must be 17 chars, no I/O/Q)."] };
+  }
+
+  const wmi = vin.slice(0, 3);
+  const make_guess = WMI_TO_MAKE[wmi];
+  if (!make_guess) notes.push(`Unknown WMI: ${wmi} (expand mapping as needed).`);
+
+  const yearCode = vin[9]; // 10th character
+  const year = YEAR_CODE[yearCode];
+  if (!year) notes.push(`Could not decode year from VIN code '${yearCode}'.`);
+
+  // Add MVP notes to prevent overtrust
+  notes.push("VIN decode stub: make/year are best-effort; confirm listing details.");
+
+  return { vin, valid: true, wmi, make_guess, year, notes };
+}
+
+3) Load mapping file + resolve “canonical vehicle key”
+/lib/vehicle_resolver.ts
+import { readCsv } from "./data";
+import { decodeVinStub } from "./vin";
+
+export type VehicleResolved = {
+  input: string;
+  isVin: boolean;
+
+  make?: string;
+  model?: string;
+  year?: number;
+  trim?: string;
+
+  chemistry?: string;
+  battery_kwh?: number;
+
+  // Keys used to join your datasets
+  range_row_key?: string;
+  recall_row_key?: string;
+  owner_cluster_key?: string;
+
+  resolution_notes: string[];
+};
+
+function looksLikeVin(s: string) {
+  return /^[A-HJ-NPR-Z0-9]{11,17}$/i.test(s.trim());
+}
+
+type MapRow = {
+  make: string;
+  model: string;
+  year_from: string;
+  year_to: string;
+  trim: string;
+  chemistry: string;
+  battery_kwh: string;
+  platform_notes: string;
+  range_row_key: string;
+  recall_row_key: string;
+  owner_cluster_key: string;
+};
+
+export function resolveVehicle(input: string): VehicleResolved {
+  const resolution_notes: string[] = [];
+  const s = input.trim();
+
+  const modelMap = readCsv("model_map.csv") as unknown as MapRow[];
+
+  const isVin = looksLikeVin(s) && s.trim().length === 17;
+
+  // 1) VIN path
+  if (isVin) {
+    const decoded = decodeVinStub(s);
+    resolution_notes.push(...decoded.notes);
+
+    // If we have make + year, try to match a row by make + year
+    if (decoded.make_guess && decoded.year) {
+      const row = modelMap.find((r) => {
+        const yf = Number(r.year_from);
+        const yt = Number(r.year_to);
+        return (
+          r.make === decoded.make_guess &&
+          decoded.year! >= yf &&
+          decoded.year! <= yt
+        );
+      });
+
+      if (row) {
+        resolution_notes.push(`Matched model_map.csv for ${row.make} ${row.model} (${row.year_from}-${row.year_to}).`);
+        return {
+          input: s,
+          isVin: true,
+          make: row.make,
+          model: row.model,
+          year: decoded.year,
+          trim: row.trim,
+          chemistry: row.chemistry,
+          battery_kwh: Number(row.battery_kwh || "0") || undefined,
+          range_row_key: row.range_row_key,
+          recall_row_key: row.recall_row_key,
+          owner_cluster_key: row.owner_cluster_key,
+          resolution_notes: [...resolution_notes, row.platform_notes].filter(Boolean),
+        };
+      }
+
+      resolution_notes.push("No model_map.csv match for decoded make/year. Using make/year only (limited joins).");
+      return {
+        input: s,
+        isVin: true,
+        make: decoded.make_guess,
+        year: decoded.year,
+        resolution_notes,
+      };
+    }
+
+    resolution_notes.push("VIN decode incomplete (missing make/year). Falling back to text matching.");
+  }
+
+  // 2) Text path (best-effort match by substring)
+  const lowered = s.toLowerCase();
+  const row = modelMap.find((r) => {
+    const key = `${r.make} ${r.model}`.toLowerCase();
+    return lowered.includes(key.toLowerCase());
+  });
+
+  if (row) {
+    resolution_notes.push(`Matched model_map.csv by text: ${row.make} ${row.model}.`);
+    return {
+      input: s,
+      isVin: false,
+      make: row.make,
+      model: row.model,
+      trim: row.trim,
+      chemistry: row.chemistry,
+      battery_kwh: Number(row.battery_kwh || "0") || undefined,
+      range_row_key: row.range_row_key,
+      recall_row_key: row.recall_row_key,
+      owner_cluster_key: row.owner_cluster_key,
+      resolution_notes: [...resolution_notes, row.platform_notes].filter(Boolean),
+    };
+  }
+
+  return {
+    input: s,
+    isVin: false,
+    resolution_notes: ["No model_map.csv match. Add a row for this vehicle to improve accuracy."],
+  };
+}
+
+4) Update scoring to use resolver keys (minimal change)
+
+In your /lib/scoring.ts, replace your modelKey logic with:
+
+import { resolveVehicle } from "./vehicle_resolver";
+
+// ...
+const resolved = resolveVehicle(input.vinOrModel);
+
+const rangeKey = resolved.range_row_key ?? resolved.model ?? input.vinOrModel.trim();
+const recallKey = resolved.recall_row_key ?? resolved.model ?? input.vinOrModel.trim();
+const ownerKey = resolved.owner_cluster_key ?? resolved.model ?? input.vinOrModel.trim();
+
+// Chemistry from mapping if available
+const chemistry = resolved.chemistry ?? "NMC";
+
+
+And use rangeKey/recallKey/ownerKey when searching range_delta.csv, recalls.csv, and owner_issue_clusters.json.
+
+Also add resolved.resolution_notes into your report sections (e.g., under summary) so users see transparency.

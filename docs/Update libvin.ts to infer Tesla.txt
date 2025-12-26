@@ -1,0 +1,312 @@
+1) Update lib/vin.ts to infer Tesla drivetrain + trim family (likely)
+What we’ll infer (Tesla only)
+
+drivetrain_guess: RWD or AWD (or Unknown)
+
+trim_family_guess: Standard Range / Long Range / Performance (or Unknown)
+
+battery_pack_family_guess: LFP-likely / NMC-likely / Unknown
+
+confidence: low | medium
+
+Heuristic basis
+
+Tesla VIN 8th character is widely used as a motor/drive unit code (community-observed).
+We’ll treat it as a hint:
+
+A → likely Single Motor (RWD)
+
+B → likely Dual Motor (AWD)
+
+C → likely Dual Motor (Performance-ish) (low confidence)
+
+Else → Unknown
+
+Then we map drivetrain → trim family:
+
+RWD → likely Standard Range
+
+AWD → likely Long Range
+
+AWD + C → likely Performance (still low confidence)
+
+And we add a battery family guess:
+
+Model 3 RWD, year ≥ 2021 → often LFP-likely (still “likely”, not guaranteed)
+
+Otherwise → NMC-likely (or Unknown if year missing)
+
+✅ Replace your lib/vin.ts with this version (includes previous model heuristics)
+export type TeslaTrimFamily = "Standard Range" | "Long Range" | "Performance" | "Unknown";
+export type TeslaDriveGuess = "RWD" | "AWD" | "Unknown";
+export type TeslaBatteryFamilyGuess = "LFP-likely" | "NMC-likely" | "Unknown";
+
+export type VinDecoded = {
+  vin: string;
+  valid: boolean;
+  wmi?: string;
+  make_guess?: string;
+  model_guess?: string; // Model 3 / Y / S / X best-effort
+  year?: number;
+
+  // NEW: Tesla-only “likely” hints
+  drivetrain_guess?: TeslaDriveGuess;
+  trim_family_guess?: TeslaTrimFamily;
+  battery_pack_family_guess?: TeslaBatteryFamilyGuess;
+  trim_confidence?: "low" | "medium";
+
+  notes: string[];
+};
+
+const VIN_RE = /^[A-HJ-NPR-Z0-9]{17}$/i;
+
+const WMI_TO_MAKE: Record<string, string> = {
+  "5YJ": "Tesla",
+  "7SA": "Tesla",
+  "1G1": "Chevrolet",
+  "1N4": "Nissan",
+  "KMH": "Hyundai",
+  "KMF": "Hyundai",
+};
+
+const YEAR_CODE: Record<string, number> = {
+  A: 2010, B: 2011, C: 2012, D: 2013, E: 2014, F: 2015, G: 2016, H: 2017,
+  J: 2018, K: 2019, L: 2020, M: 2021, N: 2022, P: 2023, R: 2024, S: 2025,
+  T: 2026, V: 2027, W: 2028, X: 2029, Y: 2030,
+  "1": 2031, "2": 2032, "3": 2033, "4": 2034, "5": 2035, "6": 2036, "7": 2037, "8": 2038, "9": 2039,
+};
+
+function normalizeVin(vin: string) {
+  return vin.trim().toUpperCase();
+}
+
+/**
+ * Tesla model inference: 4th character (index 3) often corresponds to model family.
+ * 5YJ3 = Model 3, 5YJY = Model Y, etc. (best-effort)
+ */
+function inferTeslaModelFromVin(vin: string) {
+  const pos4 = vin[3];
+  if (pos4 === "3") return "Model 3";
+  if (pos4 === "Y") return "Model Y";
+  if (pos4 === "S") return "Model S";
+  if (pos4 === "X") return "Model X";
+  return undefined;
+}
+
+/**
+ * Tiny Tesla trim/pack heuristic (still best-effort):
+ * Uses VIN 8th character (index 7) as a motor/drive-unit hint.
+ * Conservative mapping:
+ *  - A => likely Single Motor => RWD => Standard Range family
+ *  - B => likely Dual Motor => AWD => Long Range family
+ *  - C => likely Dual Motor (Performance-ish) => AWD => Performance family (low confidence)
+ *
+ * Battery family guess:
+ *  - Model 3 RWD and year >= 2021 => often LFP-likely (still not guaranteed)
+ *  - Otherwise NMC-likely (or Unknown if no year)
+ */
+function inferTeslaTrimPackFromVin(vin: string, modelGuess?: string, year?: number) {
+  const notes: string[] = [];
+
+  const motorCode = vin[7]; // 8th char
+  let drivetrain_guess: TeslaDriveGuess = "Unknown";
+  let trim_family_guess: TeslaTrimFamily = "Unknown";
+  let battery_pack_family_guess: TeslaBatteryFamilyGuess = "Unknown";
+  let trim_confidence: "low" | "medium" = "low";
+
+  if (!motorCode) return { drivetrain_guess, trim_family_guess, battery_pack_family_guess, trim_confidence, notes };
+
+  if (motorCode === "A") {
+    drivetrain_guess = "RWD";
+    trim_family_guess = "Standard Range";
+    trim_confidence = "medium";
+    notes.push("Heuristic: Tesla VIN 8th char 'A' → likely Single Motor (RWD).");
+  } else if (motorCode === "B") {
+    drivetrain_guess = "AWD";
+    trim_family_guess = "Long Range";
+    trim_confidence = "medium";
+    notes.push("Heuristic: Tesla VIN 8th char 'B' → likely Dual Motor (AWD).");
+  } else if (motorCode === "C") {
+    drivetrain_guess = "AWD";
+    trim_family_guess = "Performance";
+    trim_confidence = "low";
+    notes.push("Heuristic: Tesla VIN 8th char 'C' → possible Performance (treat as low confidence).");
+  } else {
+    notes.push(`Tesla motor/drive code '${motorCode}' not mapped in MVP. Add mapping if needed.`);
+  }
+
+  // Battery family “likely” inference
+  if (year && modelGuess === "Model 3") {
+    if (drivetrain_guess === "RWD" && year >= 2021) {
+      battery_pack_family_guess = "LFP-likely";
+      notes.push("Heuristic: Model 3 RWD (2021+) often uses LFP in Standard Range variants (not guaranteed).");
+    } else {
+      battery_pack_family_guess = "NMC-likely";
+      notes.push("Heuristic: Defaulting battery family to NMC-likely for non-Model 3 RWD (2021+).");
+    }
+  } else if (year) {
+    battery_pack_family_guess = "NMC-likely";
+  } else {
+    battery_pack_family_guess = "Unknown";
+  }
+
+  return { drivetrain_guess, trim_family_guess, battery_pack_family_guess, trim_confidence, notes };
+}
+
+/**
+ * Cross-make, tiny model heuristics for MVP targets.
+ */
+function inferModelFromVin(vin: string): { make?: string; model?: string; notes: string[] } {
+  const notes: string[] = [];
+  const wmi = vin.slice(0, 3);
+  const vds7 = vin.slice(0, 7);
+  const pos4 = vin[3];
+
+  // TESLA
+  if (wmi === "5YJ" || wmi === "7SA") {
+    const make = "Tesla";
+    const model = inferTeslaModelFromVin(vin);
+    if (model) return { make, model, notes: [`Heuristic: Tesla VIN 4th char '${pos4}' → ${model}.`] };
+    notes.push("Tesla WMI detected but model char not recognized; add mapping if needed.");
+    return { make, notes };
+  }
+
+  // CHEVY BOLT (EV vs EUV) – observed patterns
+  if (wmi === "1G1") {
+    const make = "Chevrolet";
+    if (vds7.startsWith("1G1FW6")) return { make, model: "Bolt EV", notes: ["Heuristic: VIN starts 1G1FW6 → Bolt EV."] };
+    if (vds7.startsWith("1G1FZ6")) return { make, model: "Bolt EUV", notes: ["Heuristic: VIN starts 1G1FZ6 → Bolt EUV."] };
+    return { make, notes };
+  }
+
+  // NISSAN LEAF – common prefix
+  if (wmi === "1N4") {
+    const make = "Nissan";
+    if (vin.startsWith("1N4AZ0C")) return { make, model: "Leaf", notes: ["Heuristic: VIN starts 1N4AZ0C → Nissan Leaf."] };
+    return { make, notes };
+  }
+
+  return { notes };
+}
+
+export function decodeVinStub(vinRaw: string): VinDecoded {
+  const notes: string[] = [];
+  const vin = normalizeVin(vinRaw);
+
+  const valid = VIN_RE.test(vin);
+  if (!valid) {
+    return { vin, valid: false, notes: ["VIN invalid format (must be 17 chars, no I/O/Q)."] };
+  }
+
+  const wmi = vin.slice(0, 3);
+
+  const make_guess_from_wmi = WMI_TO_MAKE[wmi];
+  if (!make_guess_from_wmi) notes.push(`Unknown WMI: ${wmi} (expand mapping as needed).`);
+
+  const yearCode = vin[9];
+  const year = YEAR_CODE[yearCode];
+  if (!year) notes.push(`Could not decode year from VIN code '${yearCode}'.`);
+
+  const inferred = inferModelFromVin(vin);
+  const make_guess = inferred.make ?? make_guess_from_wmi;
+  const model_guess = inferred.model;
+  notes.push(...(inferred.notes ?? []));
+
+  // Tesla trim/pack hints (only if Tesla)
+  let drivetrain_guess: TeslaDriveGuess | undefined;
+  let trim_family_guess: TeslaTrimFamily | undefined;
+  let battery_pack_family_guess: TeslaBatteryFamilyGuess | undefined;
+  let trim_confidence: "low" | "medium" | undefined;
+
+  if (make_guess === "Tesla") {
+    const t = inferTeslaTrimPackFromVin(vin, model_guess, year);
+    drivetrain_guess = t.drivetrain_guess;
+    trim_family_guess = t.trim_family_guess;
+    battery_pack_family_guess = t.battery_pack_family_guess;
+    trim_confidence = t.trim_confidence;
+    notes.push(...t.notes);
+  }
+
+  notes.push("VIN decode is best-effort without external databases; confirm listing details.");
+
+  return {
+    vin,
+    valid: true,
+    wmi,
+    make_guess,
+    model_guess,
+    year,
+    drivetrain_guess,
+    trim_family_guess,
+    battery_pack_family_guess,
+    trim_confidence,
+    notes,
+  };
+}
+
+2) Make the resolver optionally use trim_family_guess (MVP-safe)
+
+You don’t have to. But if you want fewer “make/year-only” matches, you can let it refine the match when your model_map.csv contains trim family rows.
+
+Add an OPTIONAL column to model_map.csv
+
+Add trim_family (keep existing trim too, if you want).
+
+make,model,year_from,year_to,trim_family,trim,chemistry,battery_kwh,platform_notes,range_row_key,recall_row_key,owner_cluster_key
+Tesla,Model 3,2018,2020,Long Range,Long Range AWD,NMC,75,"Dual motor era",Tesla Model 3 LR,Tesla Model 3,Tesla Model 3
+Tesla,Model 3,2018,2020,Standard Range,Standard Range Plus,NMC,55,"RWD era",Tesla Model 3 SR,Tesla Model 3,Tesla Model 3
+Tesla,Model 3,2018,2020,Performance,Performance,NMC,75,"Perf trim",Tesla Model 3 P,Tesla Model 3,Tesla Model 3
+Tesla,Model 3,2021,2025,Standard Range,Standard Range (LFP),LFP,60,"LFP common in later SR",Tesla Model 3 SR,LTesla Model 3,Tesla Model 3
+Tesla,Model Y,2020,2025,Long Range,Long Range,NMC,75,"Popular AWD crossover",Tesla Model Y LR,Tesla Model Y,Tesla Model Y
+Tesla,Model Y,2020,2025,Performance,Performance,NMC,75,"Perf trim",Tesla Model Y P,Tesla Model Y,Tesla Model Y
+
+Patch lib/vehicle_resolver.ts VIN matching to prefer trim_family when available
+
+In the VIN block where you pick row = modelMap.find(...), add:
+
+// If trim family guess exists and the CSV has trim_family, prefer matching it
+const trimOk = (decoded.trim_family_guess && (r as any).trim_family)
+  ? ((r as any).trim_family === decoded.trim_family_guess)
+  : true;
+
+
+Then include it in the return condition:
+
+return makeOk && yearOk && modelOk && trimOk;
+
+
+And if you want to expose it in the resolved output, add:
+
+trim_family_guess from decoded into resolution_notes or a new field.
+
+3) How to use this in scoring (light-touch, safe)
+
+Don’t hard-penalize based on this. Use it as:
+
+report messaging, and
+
+chemistry default selection when mapping is missing.
+
+Example inside scoreV1():
+
+// If mapping didn’t set chemistry, use Tesla battery family guess
+if (!resolved.chemistry && decoded.battery_pack_family_guess === "LFP-likely") chemistry = "LFP";
+
+
+Or simply add a bullet in Battery Risk section:
+
+“VIN suggests likely drivetrain: AWD (medium confidence).”
+
+“Battery pack family: LFP-likely (low/medium confidence).”
+
+That builds trust because you’re transparent.
+
+4) Quick note on Payments (Phase 3)
+
+No change needed: this doesn’t affect Stripe. You’re still:
+
+mode: "payment"
+
+one-time unit_amount: 1500
+
+no recurring pricing

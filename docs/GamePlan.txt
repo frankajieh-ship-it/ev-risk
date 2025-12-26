@@ -1,0 +1,195 @@
+🚀 PROJECT KICKOFF: EV RELIABILITY COPILOT (MVP)
+Product Codename (Internal)
+
+EV-Risk™
+(Public name can come later — don’t block on branding)
+
+🎯 LOCKED MVP (Non-Negotiable)
+
+Single job to be done:
+
+Tell a used-EV buyer whether a specific EV is a good or risky purchase for THEIR situation.
+
+Output:
+🟢 / 🟡 / 🔴 Buy Confidence Score + reasons
+
+Everything else waits.
+
+🧱 PHASE 1 — FOUNDATION (Days 1–5)
+1️⃣ Define the Scoring Spine (Day 1–2)
+
+You will implement rules-first intelligence (not ML yet).
+
+v1 Scoring Components (Weighted):
+
+Battery Risk (40%)
+
+Chemistry type
+
+Age & mileage bands
+
+Climate stress factor
+
+Platform Risk (30%)
+
+Model year maturity
+
+Recall density
+
+Known failure modes
+
+Ownership Fit (30%)
+
+Real-world range vs daily miles
+
+Charging dependency risk
+
+Climate penalty
+
+Output:
+Numerical score → mapped to 🟢 / 🟡 / 🔴
+
+This is your IP surface. Document assumptions.
+
+2️⃣ Data Assembly (Day 2–3)
+
+You do NOT need perfection. You need directionally correct.
+
+Initial sources:
+
+Public battery degradation studies (chemistry-based)
+
+EPA vs real-world range deltas
+
+Recall databases
+
+Owner-reported issue clustering
+
+ZIP-level climate classification
+
+Charger density (high-level only)
+
+Store as:
+
+Static JSON / CSV
+
+Versioned (v1.0 assumptions)
+
+3️⃣ Simple Backend Logic (Day 3–5)
+
+Input:
+
+VIN OR (Model + Year + Trim)
+
+ZIP
+
+Daily miles
+
+Home charging (Y/N)
+
+Risk tolerance
+
+Output:
+
+Score
+
+Verdict
+
+Top 3 reasons
+
+1–2 red flags
+
+“What to verify before buying”
+
+No accounts. No dashboards.
+
+🖥️ PHASE 2 — MVP UI (Days 6–10)
+4️⃣ One-Page Web App
+
+Above the fold:
+
+“Before you buy a used EV — check battery & reliability risk in 2 minutes.”
+
+Inputs → Submit → Result screen
+
+Result Screen Must Include:
+
+Big 🟢 / 🟡 / 🔴 indicator
+
+One-sentence verdict
+
+Bullet reasons (plain English)
+
+CTA:
+
+“Unlock full report + negotiation checklist ($15)”
+
+5️⃣ Paid Report (Day 9–10)
+
+Deliverable:
+
+PDF or web view
+
+Sections:
+
+Summary verdict
+
+Battery risk explanation
+
+Platform & recall risk
+
+Ownership fit analysis
+
+What to ask the dealer
+
+When to walk away
+
+This is where trust converts to cash.
+
+💰 PHASE 3 — MONETIZATION + LAUNCH (Days 11–14)
+6️⃣ Payments (Fast)
+
+Stripe one-time payment
+
+No subscriptions
+
+7️⃣ Soft Launch Channels
+
+Google Search Ads (high intent only)
+
+Facebook Marketplace & EV groups
+
+Reddit (helpful answers → link)
+
+Message discipline:
+
+“Buying a used EV? Don’t guess the battery. Check risk before you commit.”
+
+Visual: 14-Day Execution Roadmap
+4
+📊 SUCCESS METRICS (FIRST 30 DAYS)
+
+You are NOT optimizing vanity metrics.
+
+Track only:
+
+Reports generated
+
+Paid conversions
+
+Buyer feedback (“this saved me from X”)
+
+False positives / false negatives
+
+PMF signal:
+Users forward reports to spouses / dealers.
+
+🧠 FOUNDER GUIDANCE (Important)
+
+Do not chase ML yet
+
+Do not add more EV features
+
+Do not polish branding early
+
+Your edge is judgment under uncertainty, not UI.

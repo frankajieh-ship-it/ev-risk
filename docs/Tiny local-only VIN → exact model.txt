@@ -1,0 +1,215 @@
+tiny, local-only VIN → exact model heuristic that reliably reduces “make/year-only” cases for:
+
+Tesla Model 3 / Model Y (and will also recognize S/X if you want)
+
+Chevy Bolt EV vs Bolt EUV
+
+Nissan Leaf
+
+No external APIs. Just known VIN prefix/VDS patterns.
+
+1) Update lib/vin.ts to include model_guess (and better Tesla coverage)
+lib/vin.ts (replace your current file with this)
+export type VinDecoded = {
+  vin: string;
+  valid: boolean;
+  wmi?: string;
+  make_guess?: string;
+  model_guess?: string;   // NEW
+  year?: number;
+  notes: string[];
+};
+
+const VIN_RE = /^[A-HJ-NPR-Z0-9]{17}$/i;
+
+// Minimal WMI make guesses (expand over time)
+const WMI_TO_MAKE: Record<string, string> = {
+  "5YJ": "Tesla",
+  "7SA": "Tesla", // Tesla updated WMI for some models/years
+  "1G1": "Chevrolet",
+  "1N4": "Nissan",
+  "KMH": "Hyundai",
+  "KMF": "Hyundai",
+};
+
+// VIN year code table (modern years)
+const YEAR_CODE: Record<string, number> = {
+  A: 2010, B: 2011, C: 2012, D: 2013, E: 2014, F: 2015, G: 2016, H: 2017,
+  J: 2018, K: 2019, L: 2020, M: 2021, N: 2022, P: 2023, R: 2024, S: 2025,
+  T: 2026, V: 2027, W: 2028, X: 2029, Y: 2030,
+  "1": 2031, "2": 2032, "3": 2033, "4": 2034, "5": 2035, "6": 2036, "7": 2037, "8": 2038, "9": 2039,
+};
+
+function normalizeVin(vin: string) {
+  return vin.trim().toUpperCase();
+}
+
+/**
+ * Tiny heuristics to get exact model (not trim) without external APIs.
+ * These are intentionally narrow and only for our MVP targets.
+ */
+function inferModelFromVin(vin: string): { make?: string; model?: string; notes: string[] } {
+  const notes: string[] = [];
+  const wmi = vin.slice(0, 3);
+  const vds3 = vin.slice(0, 7);  // first 7 chars often enough for our patterns
+  const pos4 = vin[3];           // 4th character (index 3)
+
+  // --- TESLA ---
+  // Tesla often encodes model in 4th character for 5YJ* VINs:
+  // 5YJ3... => Model 3, 5YJY... => Model Y (also 5YJS/5YJX exist)
+  if (wmi === "5YJ" || wmi === "7SA") {
+    const make = "Tesla";
+    if (pos4 === "3") return { make, model: "Model 3", notes: ["Heuristic: Tesla VIN 4th char '3' → Model 3."] };
+    if (pos4 === "Y") return { make, model: "Model Y", notes: ["Heuristic: Tesla VIN 4th char 'Y' → Model Y."] };
+    if (pos4 === "S") return { make, model: "Model S", notes: ["Heuristic: Tesla VIN 4th char 'S' → Model S."] };
+    if (pos4 === "X") return { make, model: "Model X", notes: ["Heuristic: Tesla VIN 4th char 'X' → Model X."] };
+    notes.push("Tesla WMI detected but model char not recognized; add mapping if needed.");
+    return { make, notes };
+  }
+
+  // --- CHEVROLET BOLT (EV vs EUV) ---
+  // Common observed patterns:
+  // 1G1FW6... => Bolt EV
+  // 1G1FZ6... => Bolt EUV
+  if (wmi === "1G1") {
+    const make = "Chevrolet";
+    if (vds3.startsWith("1G1FW6")) return { make, model: "Bolt EV", notes: ["Heuristic: VIN starts 1G1FW6 → Bolt EV."] };
+    if (vds3.startsWith("1G1FZ6")) return { make, model: "Bolt EUV", notes: ["Heuristic: VIN starts 1G1FZ6 → Bolt EUV."] };
+    return { make, notes };
+  }
+
+  // --- NISSAN LEAF ---
+  // Common Leaf prefix:
+  // 1N4AZ0C... (many Leaf VINs begin with 1N4AZ0CP...)
+  if (wmi === "1N4") {
+    const make = "Nissan";
+    if (vin.startsWith("1N4AZ0C")) return { make, model: "Leaf", notes: ["Heuristic: VIN starts 1N4AZ0C → Nissan Leaf."] };
+    return { make, notes };
+  }
+
+  return { notes };
+}
+
+/**
+ * Stub decoder:
+ * - validates format (17 chars, no I/O/Q)
+ * - identifies WMI + make guess
+ * - decodes model year from VIN position 10
+ * - applies tiny heuristics to infer exact model for Tesla 3/Y and Bolt/Leaf
+ */
+export function decodeVinStub(vinRaw: string): VinDecoded {
+  const notes: string[] = [];
+  const vin = normalizeVin(vinRaw);
+
+  const valid = VIN_RE.test(vin);
+  if (!valid) {
+    return { vin, valid: false, notes: ["VIN invalid format (must be 17 chars, no I/O/Q)."] };
+  }
+
+  const wmi = vin.slice(0, 3);
+
+  // Best-effort make from WMI
+  const make_guess = WMI_TO_MAKE[wmi];
+  if (!make_guess) notes.push(`Unknown WMI: ${wmi} (expand mapping as needed).`);
+
+  // Year decode (10th char)
+  const yearCode = vin[9];
+  const year = YEAR_CODE[yearCode];
+  if (!year) notes.push(`Could not decode year from VIN code '${yearCode}'.`);
+
+  // Tiny model heuristic layer
+  const inferred = inferModelFromVin(vin);
+  if (inferred.make && inferred.make !== make_guess) {
+    notes.push(`Heuristic make '${inferred.make}' differs from WMI make '${make_guess ?? "unknown"}'. Using heuristic make.`);
+  }
+
+  const finalMake = inferred.make ?? make_guess;
+  const model_guess = inferred.model;
+  notes.push(...(inferred.notes ?? []));
+
+  // Guardrail note
+  notes.push("VIN decode is best-effort without external databases; confirm listing details.");
+
+  return { vin, valid: true, wmi, make_guess: finalMake, model_guess, year, notes };
+}
+
+2) Update resolver to use model_guess (so it hits your model_map.csv)
+lib/vehicle_resolver.ts (minimal patch)
+
+Find your VIN path block and replace the “match row by make + year” logic with this:
+
+// If we have make + year, try to match a row by make + model (if known) + year
+if (decoded.make_guess && decoded.year) {
+  const row = modelMap.find((r) => {
+    const yf = Number(r.year_from);
+    const yt = Number(r.year_to);
+
+    const makeOk = r.make === decoded.make_guess;
+    const yearOk = decoded.year! >= yf && decoded.year! <= yt;
+
+    // If model_guess exists, require it. Otherwise allow make/year-only match.
+    const modelOk = decoded.model_guess ? (r.model === decoded.model_guess) : true;
+
+    return makeOk && yearOk && modelOk;
+  });
+
+  // ... keep remainder same
+}
+
+
+That’s it — now VINs like:
+
+5YJ3... resolve to Tesla Model 3
+
+5YJY... resolve to Tesla Model Y
+
+1G1FW6... resolves to Chevrolet Bolt EV
+
+1G1FZ6... resolves to Chevrolet Bolt EUV
+
+1N4AZ0C... resolves to Nissan Leaf
+
+…and your joins (range_row_key, recall_row_key, owner_cluster_key) become consistent.
+
+3) Make sure model_map.csv uses those exact model strings
+
+Update your mapping models to match the heuristic outputs:
+
+Tesla: Model 3, Model Y
+
+Chevy: Bolt EV, Bolt EUV
+
+Nissan: Leaf
+
+Example row keys (you can keep whatever you used earlier):
+
+make,model,year_from,year_to,trim,chemistry,battery_kwh,platform_notes,range_row_key,recall_row_key,owner_cluster_key
+Tesla,Model 3,2018,2020,Standard Range Plus,NMC,55,"Early platform maturity",Tesla Model 3,Tesla Model 3,Tesla Model 3
+Tesla,Model Y,2020,2025,Long Range,NMC,75,"High demand; verify build year",Tesla Model Y,Tesla Model Y,Tesla Model Y
+Chevrolet,Bolt EV,2017,2023,LT,NMC,60,"Verify recall completion",Chevy Bolt,Chevy Bolt,Chevy Bolt
+Chevrolet,Bolt EUV,2022,2023,LT,NMC,65,"Verify recall completion",Chevy Bolt EUV,Chevy Bolt EUV,Chevy Bolt EUV
+Nissan,Leaf,2011,2025,S,LMO,30,"Air-cooled pack; heat sensitive",Nissan Leaf,Nissan Leaf,Nissan Leaf
+
+PHASE 3 — Payments (Fast): Stripe One-Time Payment (No Subscriptions)
+
+You’re already on the right path. The only “must” to enforce no subscription is:
+
+mode: "payment"
+
+unit_amount: 1500 (or your price)
+
+no recurring price IDs
+
+If you want a minimal hardened /api/checkout signature, change it to accept only:
+
+reportId
+
+payload (or ideally store server-side and only pass reportId)
+
+And set:
+
+mode: "payment",
+line_items: [{ price_data: { currency: "usd", unit_amount: 1500, product_data: { name: "EV-Risk™ Report" }}, quantity: 1 }],
+
+
+No subscriptions will be created.
