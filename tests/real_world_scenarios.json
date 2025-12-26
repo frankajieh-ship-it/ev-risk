@@ -1,0 +1,72 @@
+[
+  {
+    "label": "2018 Nissan Leaf – AZ (High Risk Expected)",
+    "model": "Nissan Leaf",
+    "year": 2018,
+    "trim": "SV",
+    "currentMileage": 60000,
+    "zipCode": "85001",
+    "dailyMiles": 35,
+    "homeCharging": true,
+    "riskTolerance": "moderate",
+    "expected_verdict": "RED",
+    "expected_score_range": "25-45",
+    "reasoning": "Air-cooled battery chemistry + extreme Arizona heat + 7 years old + moderate mileage = significant degradation expected. Known battery longevity issues in hot climates."
+  },
+  {
+    "label": "2020 Chevy Bolt – MI (Moderate Risk Expected)",
+    "model": "Chevrolet Bolt EV",
+    "year": 2020,
+    "trim": "LT",
+    "currentMileage": 42000,
+    "zipCode": "48201",
+    "dailyMiles": 30,
+    "homeCharging": true,
+    "riskTolerance": "moderate",
+    "expected_verdict": "YELLOW",
+    "expected_score_range": "50-65",
+    "reasoning": "Battery recall era (21V-650, 21V-861 critical fire risk). Cold Michigan climate adds stress. Moderate mileage. Should flag critical recalls and suggest verification of recall completion."
+  },
+  {
+    "label": "2021 Tesla Model 3 – CA (Good Buy Expected)",
+    "model": "Tesla Model 3 Long Range",
+    "year": 2021,
+    "trim": "Long Range",
+    "currentMileage": 35000,
+    "zipCode": "94103",
+    "dailyMiles": 25,
+    "homeCharging": true,
+    "riskTolerance": "moderate",
+    "expected_verdict": "GREEN",
+    "expected_score_range": "75-90",
+    "reasoning": "LFP or NMC811 chemistry, mild Bay Area climate (excellent infrastructure), low mileage for age (~9k/year), home charging. Strong reliability track record. Should score high."
+  },
+  {
+    "label": "2019 BMW i3 – NY (Moderate Risk Expected)",
+    "model": "BMW i3",
+    "year": 2019,
+    "trim": "120 Ah",
+    "currentMileage": 48000,
+    "zipCode": "10001",
+    "dailyMiles": 40,
+    "homeCharging": false,
+    "riskTolerance": "moderate",
+    "expected_verdict": "YELLOW",
+    "expected_score_range": "55-70",
+    "reasoning": "Small 42kWh battery pack + 40 mi/day (high range ratio) + NO home charging in NYC = ownership fit penalty. Cold climate stress. Age/mileage acceptable. Should flag charging infrastructure dependency."
+  },
+  {
+    "label": "2022 Mustang Mach-E – TX (Borderline Expected)",
+    "model": "Ford Mustang Mach-E",
+    "year": 2022,
+    "trim": "Premium Extended Range",
+    "currentMileage": 28000,
+    "zipCode": "78701",
+    "dailyMiles": 35,
+    "homeCharging": true,
+    "riskTolerance": "moderate",
+    "expected_verdict": "YELLOW or GREEN",
+    "expected_score_range": "70-80",
+    "reasoning": "Newer platform (3 years old), but Texas heat stress. Moderate mileage. Some early production quality concerns but no critical recalls. Should be borderline GREEN/YELLOW depending on climate penalty weight."
+  }
+]

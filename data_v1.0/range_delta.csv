@@ -1,0 +1,27 @@
+model,year,epa_range_mi,real_world_range_mi,delta_percent,chemistry,battery_kwh
+Tesla Model 3 Standard Range,2022,272,250,-8.1,LFP,60
+Tesla Model 3 Long Range,2023,358,333,-7.0,NMC811,82
+Tesla Model 3 Performance,2023,315,291,-7.6,NMC811,82
+Tesla Model Y Long Range,2023,330,303,-8.2,NMC811,81
+Tesla Model Y Performance,2023,303,280,-7.6,NMC811,81
+Tesla Model S Long Range,2023,405,375,-7.4,NMC811,100
+Tesla Model X Long Range,2023,348,320,-8.0,NMC811,100
+Chevrolet Bolt EV,2022,259,247,-4.6,NMC,66
+Chevrolet Bolt EUV,2023,247,235,-4.9,NMC,65
+Ford Mustang Mach-E Select RWD,2023,247,230,-6.9,NMC,70
+Ford Mustang Mach-E Premium AWD,2023,277,255,-7.9,NMC,88
+Ford F-150 Lightning Standard,2023,240,205,-14.6,NMC,98
+Ford F-150 Lightning Extended,2023,320,270,-15.6,NMC,131
+Hyundai Ioniq 5 SE Standard,2023,220,200,-9.1,NMC,58
+Hyundai Ioniq 5 SEL Long Range,2023,303,277,-8.6,NMC,77.4
+Kia EV6 Light Long Range,2023,310,282,-9.0,NMC,77.4
+Volkswagen ID.4 Standard,2023,206,190,-7.8,NMC,62
+Volkswagen ID.4 Pro,2023,275,250,-9.1,NMC,82
+Nissan Leaf S,2023,149,130,-12.8,NMC,40
+Nissan Leaf SV Plus,2023,212,185,-12.7,NMC,60
+Rivian R1T Large Pack,2023,314,280,-10.8,NMC811,135
+Rivian R1S Large Pack,2023,321,285,-11.2,NMC811,135
+BMW iX xDrive50,2023,324,290,-10.5,NMC,111.5
+Mercedes EQS 450+,2023,350,315,-10.0,NMC,107.8
+Lucid Air Pure,2023,419,380,-9.3,NMC811,88
+Polestar 2 Long Range,2023,270,245,-9.3,NMC,78

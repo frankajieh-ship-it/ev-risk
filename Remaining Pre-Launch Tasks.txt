@@ -1,0 +1,37 @@
+Remaining Pre-Launch Tasks
+
+Critical (Do Before Launch):
+Stripe Integration (2-3 hours)
+Create Stripe account
+Install SDK
+Implement checkout session
+Add webhook for payment confirmation
+
+Email Capture (1 hour)
+Add email field before upsell CTA
+"Enter email to save your report"
+Builds retargeting list even if they don't buy
+
+Analytics (30 min)
+Add Google Analytics or Posthog
+Track conversion funnel: Form → Report → Upsell Click → Purchase
+
+Nice-to-Have (Post-Launch):
+PDF generation (use jsPDF or puppeteer)
+Email delivery after purchase
+Comparison feature ("Compare 2 EVs side-by-side")
+VIN decoder API integration
+Price recommendation based on risk score
+
+Should Fix Before Scaling:
+Add email capture for free report users
+Add comparison feature - compare 2 vehicles
+Add "worst case" scenario toggle - show risks
+Add VIN decoder (optional but powerful)
+Mobile optimization - check on actual phones
+
+Nice to Have (Post-Launch):
+User testimonials on landing page
+Sample report preview
+Dealer pricing data integration
+Battery warranty checker

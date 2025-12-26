@@ -7,16 +7,16 @@
 
 import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
-import { renderToBuffer } from "@react-pdf/renderer";
+import ReactPDF from "@react-pdf/renderer";
 import { ReportPdf, type ReportPayload } from "@/lib/pdf/ReportPdf";
 
 export const runtime = "nodejs"; // Required for @react-pdf/renderer
 
 export async function GET(
   _req: Request,
-  { params }: { params: { reportId: string } }
+  { params }: { params: Promise<{ reportId: string }> }
 ) {
-  const { reportId } = params;
+  const { reportId } = await params;
 
   try {
     // Load report from database
@@ -52,7 +52,8 @@ export async function GET(
     );
 
     // Generate PDF
-    const pdfBuffer = await renderToBuffer(<ReportPdf data={pdfData} />);
+    const pdfDoc = ReactPDF.createElement(ReportPdf, { data: pdfData });
+    const pdfBuffer = await ReactPDF.renderToBuffer(pdfDoc);
 
     // Create filename
     const year = report.vehicle_year || "Unknown";

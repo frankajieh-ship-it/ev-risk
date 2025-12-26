@@ -1,0 +1,17 @@
+manufacturer,model,year_start,year_end,recall_id,issue_type,severity,description,units_affected
+Chevrolet,Bolt EV,2017,2019,21V-650,Battery Fire,Critical,Battery fire risk due to manufacturing defects,68667
+Chevrolet,Bolt EV,2019,2022,21V-861,Battery Fire,Critical,Battery fire risk - expanded recall,73000
+Hyundai,Kona Electric,2019,2020,21V-224,Battery Fire,Critical,Battery fire risk - LG battery cells,76000
+Ford,Mustang Mach-E,2021,2022,22S-27,Overheating,High,Overheating in electric motors,48924
+Tesla,Model S,2021,2022,22V-047,Display,Medium,Center touchscreen failure,130000
+Tesla,Model X,2021,2022,22V-047,Display,Medium,Center touchscreen failure,130000
+Tesla,Model 3,2017,2020,22V-353,Suspension,High,Rear suspension link failure,356309
+Nissan,Leaf,2013,2016,16V-036,Software,Medium,ABS software issue,46871
+BMW,i3,2014,2016,16V-708,Fire,High,Engine compartment fire risk,223
+Volkswagen,ID.4,2021,2022,22V-391,Airbag,High,Airbag may not deploy properly,62000
+Rivian,R1T,2022,2023,22V-989,Fastener,Medium,Front passenger seat fastener loose,13000
+Lucid,Air,2022,2022,22V-729,Display,Low,Instrument cluster display failure,1117
+Polestar,2,2021,2022,22S-48,Software,Medium,12V battery drain,2200
+Kia,EV6,2022,2023,23V-142,Charging,High,PE inverter may cause loss of drive power,18000
+Genesis,GV60,2023,2023,23V-142,Charging,High,PE inverter may cause loss of drive power,1300
+GMC,Hummer EV,2022,2023,23V-221,Software,Medium,Instrument cluster software issue,3461

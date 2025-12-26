@@ -1,0 +1,70 @@
+{
+  "chemistry_map": {
+    "NCA": {
+      "name": "Nickel Cobalt Aluminum",
+      "manufacturers": ["Tesla (2012-2020)", "Panasonic"],
+      "degradation_rate_per_year": 2.3,
+      "description": "High energy density, moderate longevity"
+    },
+    "NMC": {
+      "name": "Nickel Manganese Cobalt",
+      "manufacturers": ["GM", "Ford", "Volkswagen", "BMW", "Hyundai", "Kia"],
+      "degradation_rate_per_year": 2.0,
+      "description": "Balanced performance and longevity"
+    },
+    "LFP": {
+      "name": "Lithium Iron Phosphate",
+      "manufacturers": ["Tesla (2021+)", "BYD", "Rivian (Standard Range)"],
+      "degradation_rate_per_year": 1.5,
+      "description": "Lower energy density, excellent longevity"
+    },
+    "NMC811": {
+      "name": "Nickel Manganese Cobalt (8:1:1 ratio)",
+      "manufacturers": ["Tesla (Model 3/Y LR)", "Lucid", "Rivian (Max Pack)"],
+      "degradation_rate_per_year": 1.8,
+      "description": "High nickel content, good energy density"
+    }
+  },
+  "thresholds": {
+    "green": {
+      "max_degradation_percent": 15,
+      "description": "Minimal battery degradation"
+    },
+    "yellow": {
+      "min_degradation_percent": 15,
+      "max_degradation_percent": 25,
+      "description": "Moderate degradation, monitor closely"
+    },
+    "red": {
+      "min_degradation_percent": 25,
+      "description": "Significant degradation, high replacement risk"
+    }
+  },
+  "replacement_cost_estimates": {
+    "compact": {
+      "kwh_range": "40-60",
+      "typical_cost": 8000,
+      "examples": ["Nissan Leaf", "Chevy Bolt"]
+    },
+    "midsize": {
+      "kwh_range": "60-80",
+      "typical_cost": 12000,
+      "examples": ["Tesla Model 3 SR", "Volkswagen ID.4"]
+    },
+    "large": {
+      "kwh_range": "80-100",
+      "typical_cost": 16000,
+      "examples": ["Tesla Model 3 LR", "Ford Mustang Mach-E", "Hyundai Ioniq 5"]
+    },
+    "premium": {
+      "kwh_range": "100+",
+      "typical_cost": 22000,
+      "examples": ["Tesla Model S/X", "Rivian R1T/R1S", "Lucid Air"]
+    }
+  },
+  "warranty_reference": {
+    "standard_coverage": "8 years / 100,000 miles",
+    "degradation_threshold": "70% capacity retention",
+    "note": "Most manufacturers warranty covers battery failure below 70% capacity within warranty period"
+  }
+}

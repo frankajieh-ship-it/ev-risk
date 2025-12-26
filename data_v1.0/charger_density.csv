@@ -1,0 +1,28 @@
+zip_prefix,state,region,dcfc_per_100k_pop,l2_per_100k_pop,density_score,description
+"100",NY,New York Metro,45,120,Excellent,Dense urban charging
+"900",CA,Los Angeles,38,95,Excellent,High EV adoption area
+"941",CA,Bay Area,52,140,Excellent,Highest density in US
+"022",MA,Boston,35,85,Good,Strong metro infrastructure
+"331",FL,Miami,28,65,Good,Growing network
+"770",GA,Atlanta,25,60,Moderate,Expanding network
+"752",TX,Houston,22,50,Moderate,Limited outside metro
+"787",TX,Austin,30,70,Good,Tech hub good coverage
+"850",AZ,Phoenix,32,75,Good,Sun belt expansion
+"891",NV,Las Vegas,35,80,Good,Tourist corridor coverage
+"606",IL,Chicago,28,70,Good,Urban core strong
+"481",MI,Detroit,20,55,Moderate,Auto industry investment
+"554",MN,Minneapolis,25,60,Moderate,Growing slowly
+"802",CO,Denver,30,75,Good,Mountain corridor focus
+"980",WA,Seattle,48,110,Excellent,PNW leadership
+"971",OR,Portland,42,100,Excellent,High adoption
+"840",UT,Salt Lake City,22,50,Moderate,Limited rural
+"870",KS,Kansas City,15,40,Poor,Sparse outside city
+"631",NY,Long Island,32,75,Good,Suburban buildout
+"191",PA,Philadelphia,30,70,Good,Mid-Atlantic corridor
+"483",MI,Oakland County,20,55,Moderate,Detroit suburbs
+"440",OH,Cleveland,18,50,Moderate,Great Lakes region
+"600",IL,Chicago suburbs,28,70,Good,Chicagoland area
+"900",CA,Los Angeles,38,95,Excellent,SoCal metro
+"945",CA,Oakland,50,135,Excellent,East Bay
+"950",CA,San Jose,48,130,Excellent,Silicon Valley
+"300",GA,North Georgia,20,50,Moderate,Atlanta suburbs

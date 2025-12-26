@@ -1,0 +1,199 @@
+{
+  "Tesla Model 3": {
+    "common_issues": [
+      {
+        "category": "Build Quality",
+        "frequency": "High",
+        "issues": ["Panel gaps", "Paint defects", "Trim misalignment"],
+        "severity": "Low",
+        "typical_age": "0-2 years"
+      },
+      {
+        "category": "Suspension",
+        "frequency": "Medium",
+        "issues": ["Control arm failure", "Ball joint wear"],
+        "severity": "High",
+        "typical_age": "3-5 years"
+      },
+      {
+        "category": "Touchscreen",
+        "frequency": "Low",
+        "issues": ["MCU1 failure (2017-2018)", "Yellow border issue"],
+        "severity": "Medium",
+        "typical_age": "3+ years"
+      }
+    ],
+    "reliability_score": 7.5
+  },
+  "Tesla Model S": {
+    "common_issues": [
+      {
+        "category": "Drive Unit",
+        "frequency": "High",
+        "issues": ["Drive unit replacement (2012-2016)", "Drivetrain noise"],
+        "severity": "Critical",
+        "typical_age": "5-8 years"
+      },
+      {
+        "category": "Suspension",
+        "frequency": "Medium",
+        "issues": ["Air suspension failure", "Upper control arm"],
+        "severity": "High",
+        "typical_age": "5+ years"
+      },
+      {
+        "category": "Touchscreen",
+        "frequency": "High",
+        "issues": ["MCU degradation", "Touchscreen failure"],
+        "severity": "High",
+        "typical_age": "4+ years"
+      }
+    ],
+    "reliability_score": 6.0
+  },
+  "Chevrolet Bolt": {
+    "common_issues": [
+      {
+        "category": "Battery",
+        "frequency": "Medium",
+        "issues": ["Battery fire risk (recall)", "Degradation in extreme heat"],
+        "severity": "Critical",
+        "typical_age": "3-5 years"
+      },
+      {
+        "category": "Charging",
+        "frequency": "Low",
+        "issues": ["Onboard charger failure", "Slow charging speed"],
+        "severity": "Medium",
+        "typical_age": "4+ years"
+      }
+    ],
+    "reliability_score": 7.0
+  },
+  "Nissan Leaf": {
+    "common_issues": [
+      {
+        "category": "Battery",
+        "frequency": "High",
+        "issues": ["Rapid degradation in hot climates", "No active thermal management"],
+        "severity": "High",
+        "typical_age": "3+ years"
+      },
+      {
+        "category": "Charging",
+        "frequency": "Medium",
+        "issues": ["CHAdeMO limited availability", "Slow fast charging"],
+        "severity": "Medium",
+        "typical_age": "All ages"
+      }
+    ],
+    "reliability_score": 6.5
+  },
+  "Ford Mustang Mach-E": {
+    "common_issues": [
+      {
+        "category": "Software",
+        "frequency": "Medium",
+        "issues": ["SYNC system freezes", "OTA update failures"],
+        "severity": "Medium",
+        "typical_age": "0-2 years"
+      },
+      {
+        "category": "12V Battery",
+        "frequency": "Medium",
+        "issues": ["12V battery drain", "Vehicle won't start"],
+        "severity": "High",
+        "typical_age": "1-3 years"
+      }
+    ],
+    "reliability_score": 7.0
+  },
+  "Hyundai Ioniq 5": {
+    "common_issues": [
+      {
+        "category": "Charging",
+        "frequency": "Low",
+        "issues": ["Charging speed throttling", "ICCU failure"],
+        "severity": "Medium",
+        "typical_age": "0-2 years"
+      },
+      {
+        "category": "Software",
+        "frequency": "Low",
+        "issues": ["Infotainment glitches", "BlueLinkconnectivity"],
+        "severity": "Low",
+        "typical_age": "0-2 years"
+      }
+    ],
+    "reliability_score": 8.0
+  },
+  "Kia EV6": {
+    "common_issues": [
+      {
+        "category": "Charging",
+        "frequency": "Low",
+        "issues": ["ICCU recall", "Charging port issues"],
+        "severity": "High",
+        "typical_age": "0-2 years"
+      },
+      {
+        "category": "Build Quality",
+        "frequency": "Low",
+        "issues": ["Wind noise", "Minor rattles"],
+        "severity": "Low",
+        "typical_age": "0-2 years"
+      }
+    ],
+    "reliability_score": 8.0
+  },
+  "Volkswagen ID.4": {
+    "common_issues": [
+      {
+        "category": "Software",
+        "frequency": "Medium",
+        "issues": ["Infotainment lag", "Touch sensitivity issues"],
+        "severity": "Medium",
+        "typical_age": "0-2 years"
+      },
+      {
+        "category": "12V Battery",
+        "frequency": "Medium",
+        "issues": ["12V battery drain", "Auxiliary systems failure"],
+        "severity": "Medium",
+        "typical_age": "1-2 years"
+      }
+    ],
+    "reliability_score": 7.0
+  },
+  "Rivian R1T": {
+    "common_issues": [
+      {
+        "category": "Build Quality",
+        "frequency": "Medium",
+        "issues": ["Tonneau cover issues", "Body panel alignment"],
+        "severity": "Low",
+        "typical_age": "0-1 years"
+      },
+      {
+        "category": "Software",
+        "frequency": "Low",
+        "issues": ["OTA update issues", "Infotainment bugs"],
+        "severity": "Low",
+        "typical_age": "0-2 years"
+      }
+    ],
+    "reliability_score": 7.5
+  },
+  "BMW iX": {
+    "common_issues": [
+      {
+        "category": "Software",
+        "frequency": "Medium",
+        "issues": ["iDrive system glitches", "Connectivity issues"],
+        "severity": "Medium",
+        "typical_age": "0-2 years"
+      }
+    ],
+    "reliability_score": 7.5
+  }
+}

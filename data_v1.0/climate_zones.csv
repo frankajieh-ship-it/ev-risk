@@ -1,0 +1,22 @@
+zip_prefix,state,city,zone,avg_temp_f,extreme_heat_days,extreme_cold_days,description
+"100",NY,New York,Moderate,55,15,25,Northeastern urban
+"900",CA,Los Angeles,Hot,64,35,0,Southern California coast
+"941",CA,San Francisco,Mild,57,5,0,Bay Area moderate
+"922",CA,Palm Springs,Extreme Hot,75,120,0,Desert climate
+"022",MA,Boston,Cold,51,10,35,New England winters
+"331",FL,Miami,Hot Humid,77,90,0,Tropical climate
+"770",GA,Atlanta,Hot Humid,62,45,10,Southeastern humid subtropical
+"752",TX,Houston,Hot Humid,70,75,2,Gulf Coast hot humid
+"787",TX,Austin,Hot,69,85,5,Central Texas hot
+"850",AZ,Phoenix,Extreme Hot,75,145,0,Desert extreme heat
+"891",NV,Las Vegas,Extreme Hot,70,130,0,Mojave Desert
+"606",IL,Chicago,Cold,50,15,40,Great Lakes cold winters
+"481",MI,Detroit,Cold,49,12,42,Northern cold climate
+"554",MN,Minneapolis,Extreme Cold,46,10,65,Upper Midwest frigid
+"802",CO,Denver,Cold,50,15,35,High altitude cold
+"980",WA,Seattle,Mild,52,5,8,Pacific Northwest mild
+"971",OR,Portland,Mild,54,8,10,Temperate maritime
+"840",UT,Salt Lake City,Cold,52,25,30,Mountain cold
+"870",KS,Kansas City,Moderate,55,30,30,Central plains variable
+"631",NY,Long Island,Moderate,54,18,22,Coastal moderate
+"191",PA,Philadelphia,Moderate,56,20,25,Mid-Atlantic
