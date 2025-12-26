@@ -53,6 +53,10 @@ export default async function ReportPage({
 
   } catch (error) {
     console.error("Error loading report:", error);
+    console.error("Report ID:", reportId);
+    console.error("Error details:", error instanceof Error ? error.message : String(error));
+    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
+
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -62,6 +66,11 @@ export default async function ReportPage({
           <p className="text-gray-600 mb-4">
             Unable to load report. Please try again later.
           </p>
+          {process.env.NODE_ENV === 'development' && (
+            <pre className="mt-4 p-4 bg-red-50 text-left text-xs text-red-900 rounded">
+              {error instanceof Error ? error.message : String(error)}
+            </pre>
+          )}
           <a
             href="/"
             className="text-blue-600 hover:text-blue-700 underline"
