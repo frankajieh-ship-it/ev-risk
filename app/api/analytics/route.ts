@@ -32,16 +32,20 @@ export async function GET(request: NextRequest) {
 
     // Calculate date filter
     let dateFilter = "";
+    let feedbackDateFilter = "";
     const now = new Date();
     if (period === "today") {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       dateFilter = `AND created_at >= '${today.toISOString()}'`;
+      feedbackDateFilter = `AND f.created_at >= '${today.toISOString()}'`;
     } else if (period === "week") {
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       dateFilter = `AND created_at >= '${weekAgo.toISOString()}'`;
+      feedbackDateFilter = `AND f.created_at >= '${weekAgo.toISOString()}'`;
     } else if (period === "month") {
       const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       dateFilter = `AND created_at >= '${monthAgo.toISOString()}'`;
+      feedbackDateFilter = `AND f.created_at >= '${monthAgo.toISOString()}'`;
     }
 
     // 1. Overall statistics
@@ -104,8 +108,8 @@ export async function GET(request: NextRequest) {
           (COUNT(CASE WHEN would_recommend = true THEN 1 END)::NUMERIC /
            NULLIF(COUNT(CASE WHEN would_recommend IS NOT NULL THEN 1 END), 0) * 100), 2
         ) as recommendation_rate
-      FROM feedback
-      WHERE 1=1 ${dateFilter ? sql.unsafe(dateFilter) : sql``}
+      FROM feedback f
+      WHERE 1=1 ${feedbackDateFilter ? sql.unsafe(feedbackDateFilter) : sql``}
     `;
 
     // 6. Rating distribution
@@ -113,8 +117,8 @@ export async function GET(request: NextRequest) {
       SELECT
         rating,
         COUNT(*) as count
-      FROM feedback
-      WHERE rating IS NOT NULL ${dateFilter ? sql.unsafe(dateFilter) : sql``}
+      FROM feedback f
+      WHERE rating IS NOT NULL ${feedbackDateFilter ? sql.unsafe(feedbackDateFilter) : sql``}
       GROUP BY rating
       ORDER BY rating DESC
     `;
@@ -130,7 +134,7 @@ export async function GET(request: NextRequest) {
         r.vehicle_model
       FROM feedback f
       LEFT JOIN reports r ON f.report_id = r.id
-      WHERE f.feedback_text IS NOT NULL ${dateFilter ? sql.unsafe(dateFilter) : sql``}
+      WHERE f.feedback_text IS NOT NULL ${feedbackDateFilter ? sql.unsafe(feedbackDateFilter) : sql``}
       ORDER BY f.created_at DESC
       LIMIT 10
     `;
