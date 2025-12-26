@@ -56,6 +56,15 @@ export default function Home() {
       <div className="max-w-2xl mx-auto px-4 py-16">
         {/* Header */}
         <div className="text-center mb-12">
+          {/* OFFO Lab Logo */}
+          <div className="flex justify-center mb-6">
+            <img
+              src="/offo-lab-logo.png"
+              alt="OFFO Lab Consulting"
+              className="h-16 w-auto"
+            />
+          </div>
+
           <h1 className="text-5xl font-bold text-gray-900 mb-4">
             EV-Risk™
           </h1>
@@ -307,6 +316,31 @@ export default function Home() {
             <br />
             This tool provides guidance only and does not replace professional inspection.
           </p>
+
+          {/* OFFO Lab Footer */}
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <div className="flex justify-center mb-3">
+              <img
+                src="/offo-lab-logo.png"
+                alt="OFFO Lab Consulting"
+                className="h-10 w-auto opacity-80"
+              />
+            </div>
+            <p className="text-xs text-gray-500">
+              Powered by{" "}
+              <a
+                href="https://offolab.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-700 font-medium"
+              >
+                OFFO Lab Consulting
+              </a>
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              © {new Date().getFullYear()} All rights reserved.
+            </p>
+          </div>
         </div>
       </div>
     </div>
