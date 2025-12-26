@@ -625,7 +625,11 @@ function ReportContent() {
                     })
                   });
                   setFeedbackSubmitted(true);
-                  setTimeout(() => setShowFeedbackModal(false), 2000);
+
+                  // Redirect to homepage after 3 seconds
+                  setTimeout(() => {
+                    window.location.href = '/';
+                  }, 3000);
                 } catch (error) {
                   console.error('Feedback error:', error);
                 }
@@ -677,7 +681,13 @@ function ReportContent() {
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setShowFeedbackModal(false)}
+                    onClick={() => {
+                      setShowFeedbackModal(false);
+                      // Redirect to homepage after skipping
+                      setTimeout(() => {
+                        window.location.href = '/';
+                      }, 500);
+                    }}
                     className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Skip
@@ -706,6 +716,7 @@ function ReportContent() {
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Thank You!</h3>
             <p className="text-gray-600">Your feedback helps us improve EV-Risk for everyone.</p>
+            <p className="text-sm text-gray-500 mt-4">Redirecting to homepage in 3 seconds...</p>
           </div>
         </div>
       )}
