@@ -3,6 +3,7 @@ import { Block, clamp01, RenderCtx } from "@/core/content";
 import { personalizationValueProp, confidencePresets, labelFromConfidence, downgradeGuidanceIfNeeded } from "@/core/templates";
 import { buildSignals as buildSignalsAdapter, getSignal, hasAllSignals, type SignalKey } from "@/core/signals";
 import type { VehicleData, UserInputs } from "@/types";
+import { shouldShowApartmentChargingContext } from "@/lib/apartment-detection";
 
 // Re-export buildSignals for backward compatibility
 export { buildSignals } from "@/core/signals";
@@ -110,6 +111,40 @@ export function getBlocks(ctx: RenderCtx): Block[] {
 
         // No "urgent". Calibrated.
         return `We recommend confirming recall completion before purchase. ${recalls.length} open recalls detected.${criticalText}`;
+      },
+    });
+  }
+
+  // Phase 0.5: Apartment Charging Context (Interpretive Language Only)
+  // Trigger: Apartment-dense ZIP + No home charging
+  // NO data collection, NO scores - just reframing
+  if (shouldShowApartmentChargingContext(inputs?.zipCode, inputs?.hasHomeCharging)) {
+    blocks.push({
+      id: "charging.fit.apartment.context.v1",
+      kind: "text",
+      title: "Charging Fit Note (Apartment Context)",
+      tier: 4, // Interpretive/educational
+      priority: 45,
+      guidanceLevel: 3, // "Here's how to evaluate"
+
+      requiredSignals: ["zip_code", "home_charging"] as SignalKey[],
+
+      confidence: () => 0.7, // Contextual guidance, not predictive
+      confidenceFrame: () => ({
+        label: "medium" as const,
+        practical: "This guidance is based on common patterns we observe among apartment EV owners, not on specific data about your building or charging infrastructure.",
+        basedOn: ["your ZIP code area density", "no home charging access"],
+        missing: [],
+        affects: ["charging routine sustainability", "ownership satisfaction"],
+        notAffects: ["vehicle reliability", "battery health"],
+      }),
+
+      urgency: () => ({ level: "none" }),
+
+      render: () => {
+        // Phase 0.5: Pure interpretive language
+        // NO ask, NO data collection, NO scores
+        return "For apartment EV owners, success depends less on total range and more on how predictably charging fits into your routine. Vehicles fail owners when charging becomes something you have to remember, worry about, or work around — not when chargers are unavailable.";
       },
     });
   }
