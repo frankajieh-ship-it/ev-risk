@@ -63,6 +63,9 @@ interface ReportData {
   input: {
     model: string;
     year: number;
+    trim?: string;
+    vin?: string;
+    currentMileage?: number;
     zipCode: string;
     dailyMiles: number;
     homeCharging: boolean;
