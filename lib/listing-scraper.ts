@@ -44,6 +44,29 @@ export function detectListingSource(url: string): VehicleData['dataSource'] {
 }
 
 /**
+ * Checks if URL is a search/listing page vs individual vehicle page
+ */
+function isSearchPage(url: string): boolean {
+  const urlLower = url.toLowerCase();
+
+  // AutoTrader search pages
+  if (urlLower.includes('autotrader.com') &&
+      (urlLower.includes('/cars-for-sale/') || urlLower.includes('searchresults')) &&
+      !urlLower.includes('vehicledetails')) {
+    return true;
+  }
+
+  // CarGurus search pages
+  if (urlLower.includes('cargurus.com') &&
+      (urlLower.includes('/shopping/results') || urlLower.includes('/cars')) &&
+      !urlLower.includes('/details/')) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Extracts vehicle data from AutoTrader URL
  *
  * AutoTrader URL patterns:
@@ -163,6 +186,16 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
         data: null,
         error: 'Invalid URL format',
         warnings,
+      };
+    }
+
+    // Check if this is a search page (multiple listings) vs individual listing
+    if (isSearchPage(url)) {
+      return {
+        success: false,
+        data: null,
+        error: 'This appears to be a search results page with multiple vehicles. Please paste the URL of a specific vehicle listing instead.',
+        warnings: ['Click on a specific car from the search results to get its individual listing URL'],
       };
     }
 
