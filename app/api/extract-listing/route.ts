@@ -1,0 +1,107 @@
+/**
+ * Listing Extraction API
+ *
+ * POST /api/extract-listing
+ * Extracts vehicle data from marketplace listing URLs
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import { extractVehicleData } from "@/lib/listing-scraper";
+import { extractionRateLimiter, getClientIP } from "@/lib/rate-limiter";
+
+export async function POST(request: NextRequest) {
+  try {
+    // Rate limiting
+    const clientIP = getClientIP(request);
+    const rateLimit = extractionRateLimiter.check(clientIP);
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Rate limit exceeded. Please try again later.',
+          resetAt: new Date(rateLimit.resetAt).toISOString(),
+        },
+        { status: 429 }
+      );
+    }
+
+    // Parse request body with error handling
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('Request body parse error:', parseError);
+      return NextResponse.json(
+        { success: false, error: 'Invalid request format' },
+        { status: 400 }
+      );
+    }
+
+    const { url } = body;
+
+    // Validate input
+    if (!url || typeof url !== 'string') {
+      return NextResponse.json(
+        { success: false, error: 'URL is required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch (urlError) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid URL format' },
+        { status: 400 }
+      );
+    }
+
+    // Extract vehicle data with comprehensive error handling
+    let result;
+    try {
+      result = await extractVehicleData(url);
+    } catch (extractError) {
+      console.error('Extraction error:', extractError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: extractError instanceof Error ? extractError.message : 'Failed to extract listing data',
+          warnings: [],
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: result.error || 'Failed to extract listing data',
+          warnings: result.warnings || [],
+        },
+        { status: 400 }
+      );
+    }
+
+    // Return extracted data
+    return NextResponse.json({
+      success: true,
+      data: result.data,
+      warnings: result.warnings || [],
+    });
+
+  } catch (error) {
+    // Final catch-all for any unexpected errors
+    console.error('Unexpected listing extraction error:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'An unexpected error occurred',
+        warnings: [],
+      },
+      { status: 500 }
+    );
+  }
+}
