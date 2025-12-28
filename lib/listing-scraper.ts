@@ -98,13 +98,23 @@ async function extractFromAutoTrader(html: string): Promise<Partial<VehicleData>
 async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> {
   const data: Partial<VehicleData> = {};
 
+  // Try to extract from embedded JSON data (for when page loads)
+  // CarGurus embeds listing data in __NEXT_DATA__ or similar script tags
+  const jsonDataMatch = html.match(/"year":(\d{4}).*?"make":"([^"]+)".*?"model":"([^"]+)".*?"mileage":(\d+)/i);
+  if (jsonDataMatch) {
+    data.year = parseInt(jsonDataMatch[1]);
+    data.make = jsonDataMatch[2];
+    data.model = jsonDataMatch[3];
+    data.mileage = parseInt(jsonDataMatch[4]);
+  }
+
   // Extract from title
   const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
   if (titleMatch) {
     const title = titleMatch[1];
-    // Example: "Used 2021 Tesla Model Y Long Range AWD for Sale..."
-    const vehicleMatch = title.match(/(?:Used\s+)?(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)\s+(?:for\s+Sale|AWD|RWD)/i);
-    if (vehicleMatch) {
+    // Example: "2013 Ford Focus Electric Hatchback - $4,999 - CarGurus"
+    const vehicleMatch = title.match(/(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)\s+(?:Hatchback|Sedan|SUV|Coupe|Wagon|Convertible|Minivan|Truck|-)/i);
+    if (vehicleMatch && !data.year) {
       data.year = parseInt(vehicleMatch[1]);
       data.make = vehicleMatch[2];
       data.model = vehicleMatch[3].trim();
@@ -119,14 +129,16 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
 
   // Extract mileage - look for structured data or meta description
   // Example meta: "Silver with 49,385 miles"
-  const metaMileageMatch = html.match(/with\s+(\d+(?:,\d{3})*)\s+miles/i);
-  if (metaMileageMatch) {
-    data.mileage = parseInt(metaMileageMatch[1].replace(/,/g, ''));
-  } else {
-    // Fallback: Look for "Mileage:</span><span>49,385 mi</span>" pattern
-    const mileageStructured = html.match(/Mileage[^>]*>[\s\S]{0,100}?(\d+(?:,\d{3})*)\s*mi/i);
-    if (mileageStructured) {
-      data.mileage = parseInt(mileageStructured[1].replace(/,/g, ''));
+  if (!data.mileage) {
+    const metaMileageMatch = html.match(/with\s+(\d+(?:,\d{3})*)\s+miles/i);
+    if (metaMileageMatch) {
+      data.mileage = parseInt(metaMileageMatch[1].replace(/,/g, ''));
+    } else {
+      // Fallback: Look for "Mileage:</span><span>49,385 mi</span>" pattern
+      const mileageStructured = html.match(/Mileage[^>]*>[\s\S]{0,100}?(\d+(?:,\d{3})*)\s*mi/i);
+      if (mileageStructured) {
+        data.mileage = parseInt(mileageStructured[1].replace(/,/g, ''));
+      }
     }
   }
 
@@ -164,6 +176,9 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Referer': 'https://www.google.com/',
       },
     });
 
@@ -177,6 +192,17 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     }
 
     const html = await response.text();
+
+    // Check if we got a blocked/captcha page
+    const isBlocked = html.includes('captcha') ||
+                      html.includes('bot detection') ||
+                      html.includes('cg-mobileHome') || // CarGurus homepage
+                      html.length < 10000; // Suspiciously short response
+
+    if (isBlocked) {
+      warnings.push('This marketplace may be blocking automated data extraction');
+      warnings.push('Please try entering the vehicle details manually for best results');
+    }
 
     // Extract based on source
     let extractedData: Partial<VehicleData> = {};
