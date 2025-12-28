@@ -72,10 +72,15 @@ async function extractFromAutoTrader(html: string): Promise<Partial<VehicleData>
     data.price = parseInt(priceMatch[1].replace(/,/g, ''));
   }
 
-  // Extract mileage
-  const mileageMatch = html.match(/(?:mileage|odometer)["']?\s*:\s*["']?(\d+(?:,\d{3})*)/i);
+  // Extract mileage - try multiple patterns
+  // Pattern 1: JSON-like "mileage": "49385" or "odometer": "49,385"
+  let mileageMatch = html.match(/(?:mileage|odometer)["']?\s*:\s*["']?(\d+(?:,\d{3})*)/i);
   if (mileageMatch) {
-    data.mileage = parseInt(mileageMatch[1].replace(/,/g, ''));
+    const mileageValue = parseInt(mileageMatch[1].replace(/,/g, ''));
+    // Sanity check: mileage should be reasonable (100 - 300,000)
+    if (mileageValue >= 100 && mileageValue <= 300000) {
+      data.mileage = mileageValue;
+    }
   }
 
   // Extract VIN
@@ -106,16 +111,23 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
     }
   }
 
-  // Extract price
+  // Extract price from title or meta description
   const priceMatch = html.match(/\$(\d+(?:,\d{3})*)/);
   if (priceMatch) {
     data.price = parseInt(priceMatch[1].replace(/,/g, ''));
   }
 
-  // Extract mileage
-  const mileageMatch = html.match(/(\d+(?:,\d{3})*)\s*(?:mi|miles)/i);
-  if (mileageMatch) {
-    data.mileage = parseInt(mileageMatch[1].replace(/,/g, ''));
+  // Extract mileage - look for structured data or meta description
+  // Example meta: "Silver with 49,385 miles"
+  const metaMileageMatch = html.match(/with\s+(\d+(?:,\d{3})*)\s+miles/i);
+  if (metaMileageMatch) {
+    data.mileage = parseInt(metaMileageMatch[1].replace(/,/g, ''));
+  } else {
+    // Fallback: Look for "Mileage:</span><span>49,385 mi</span>" pattern
+    const mileageStructured = html.match(/Mileage[^>]*>[\s\S]{0,100}?(\d+(?:,\d{3})*)\s*mi/i);
+    if (mileageStructured) {
+      data.mileage = parseInt(mileageStructured[1].replace(/,/g, ''));
+    }
   }
 
   return data;
