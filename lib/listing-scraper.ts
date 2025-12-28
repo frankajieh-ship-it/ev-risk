@@ -17,7 +17,7 @@ export interface VehicleData {
   location?: string;
 
   // Data quality tracking
-  dataSource: 'autotrader' | 'cargurus' | 'cars.com' | 'unknown';
+  dataSource: 'autotrader' | 'cargurus' | 'cars.com' | 'carvana' | 'unknown';
   confidence: 'high' | 'medium' | 'low';
   extractedFields: string[];
   missingFields: string[];
@@ -39,9 +39,15 @@ export function detectListingSource(url: string): VehicleData['dataSource'] {
   if (urlLower.includes('autotrader.com')) return 'autotrader';
   if (urlLower.includes('cargurus.com')) return 'cargurus';
   if (urlLower.includes('cars.com')) return 'cars.com';
+  if (urlLower.includes('carvana.com')) return 'carvana';
 
   return 'unknown';
 }
+
+/**
+ * Type definition for data sources
+ */
+type DataSource = 'autotrader' | 'cargurus' | 'cars.com' | 'carvana' | 'unknown';
 
 /**
  * Checks if URL is a search/listing page vs individual vehicle page
@@ -229,6 +235,16 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     });
 
     if (!response.ok) {
+      // Special handling for Carvana 403 (Cloudflare blocking)
+      if (dataSource === 'carvana' && response.status === 403) {
+        return {
+          success: false,
+          data: null,
+          error: 'Carvana actively blocks automated data extraction. Please enter vehicle details manually.',
+          warnings: ['Carvana uses Cloudflare protection to prevent automated access', 'Manual entry provides better accuracy anyway'],
+        };
+      }
+
       return {
         success: false,
         data: null,
@@ -243,7 +259,19 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     const isBlocked = html.includes('captcha') ||
                       html.includes('bot detection') ||
                       html.includes('cg-mobileHome') || // CarGurus homepage
+                      html.includes('Just a moment') || // Cloudflare challenge
+                      html.includes('challenge-platform') || // Cloudflare
                       html.length < 10000; // Suspiciously short response
+
+    // Special handling for known blocking sites
+    if (dataSource === 'carvana' && isBlocked) {
+      return {
+        success: false,
+        data: null,
+        error: 'Carvana actively blocks automated data extraction. Please enter vehicle details manually.',
+        warnings: ['Carvana uses Cloudflare protection to prevent automated access', 'Manual entry provides better accuracy anyway'],
+      };
+    }
 
     if (isBlocked) {
       warnings.push('This marketplace may be blocking automated data extraction');
