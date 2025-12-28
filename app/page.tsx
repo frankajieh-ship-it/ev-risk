@@ -7,9 +7,10 @@ export default function Home() {
   const router = useRouter();
   const [formData, setFormData] = useState({
     model: "",
-    year: new Date().getFullYear() - 3, // Default to 3 years old (realistic used EV)
-    trim: "", // Battery size/trim (Standard, Long Range, Performance, etc.)
-    currentMileage: 36000, // Default ~12k miles/year for 3 years
+    year: new Date().getFullYear() - 3,
+    trim: "",
+    vin: "",
+    currentMileage: 36000,
     zipCode: "",
     dailyMiles: 30,
     homeCharging: true,
@@ -17,6 +18,81 @@ export default function Home() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [listingUrl, setListingUrl] = useState("");
+  const [extracting, setExtracting] = useState(false);
+  const [extractionWarnings, setExtractionWarnings] = useState<string[]>([]);
+  const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
+  const [showAutoFillInfo, setShowAutoFillInfo] = useState(false);
+  const [usedUrlExtraction, setUsedUrlExtraction] = useState(false);
+
+  const handleExtractListing = async () => {
+    if (!listingUrl) return;
+
+    setExtracting(true);
+    setError("");
+    setExtractionWarnings([]);
+
+    try {
+      const response = await fetch("/api/extract-listing", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: listingUrl }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to extract listing data");
+      }
+
+      // Populate form with extracted data
+      const { data, warnings } = result;
+      const filledFields = new Set<string>();
+
+      // Only update fields that were successfully extracted
+      const updates: any = {};
+
+      if (data.make && data.model) {
+        updates.model = `${data.make} ${data.model}`;
+        filledFields.add('model');
+      }
+
+      if (data.year) {
+        updates.year = data.year;
+        filledFields.add('year');
+      }
+
+      if (data.trim) {
+        updates.trim = data.trim;
+        filledFields.add('trim');
+      }
+
+      if (data.vin) {
+        updates.vin = data.vin;
+        filledFields.add('vin');
+      }
+
+      if (data.mileage) {
+        updates.currentMileage = data.mileage;
+        filledFields.add('currentMileage');
+      }
+
+      setFormData(prev => ({ ...prev, ...updates }));
+      setAutoFilledFields(filledFields);
+      setUsedUrlExtraction(true); // Track that URL extraction was used
+
+      if (warnings && warnings.length > 0) {
+        setExtractionWarnings(warnings);
+      }
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to extract listing");
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +105,11 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          dataSource: usedUrlExtraction ? 'url_extraction' : 'manual_entry',
+          autoFilledFields: Array.from(autoFilledFields),
+        }),
       });
 
       const data = await response.json();
@@ -38,7 +118,6 @@ export default function Home() {
         throw new Error(data.error || "Failed to calculate score");
       }
 
-      // Navigate to results page with score data
       const queryParams = new URLSearchParams({
         data: JSON.stringify(data),
       });
@@ -56,12 +135,11 @@ export default function Home() {
       <div className="max-w-2xl mx-auto px-4 py-16">
         {/* Header */}
         <div className="text-center mb-12">
-          {/* OFFO Lab Logo */}
           <div className="flex justify-center mb-6">
             <img
               src="/offo-lab-logo.png"
               alt="OFFO Lab Consulting"
-              className="h-16 w-auto"
+              className="h-24 w-auto"
             />
           </div>
 
@@ -98,11 +176,156 @@ export default function Home() {
 
         {/* Form Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+          {/* URL Input Section - NEW */}
+          <div className="mb-8 pb-8 border-b border-gray-200">
+            <div className="bg-gradient-to-r from-blue-50 to-green-50 p-6 rounded-lg mb-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <div className="ml-3 flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Quick Start: Paste a Listing URL
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Paste a link from AutoTrader, CarGurus, or Cars.com to auto-fill vehicle details
+                  </p>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={listingUrl}
+                      onChange={(e) => setListingUrl(e.target.value)}
+                      placeholder="https://www.autotrader.com/cars-for-sale/..."
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      disabled={extracting}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleExtractListing}
+                      disabled={!listingUrl || extracting}
+                      className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+                    >
+                      {extracting ? "Extracting..." : "Auto-Fill"}
+                    </button>
+                  </div>
+
+                  {extractionWarnings.length > 0 && (
+                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start">
+                        <svg className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-blue-900 mb-2">
+                            We couldn't verify all details automatically — this is common
+                          </p>
+                          <p className="text-xs text-blue-800 mb-3">
+                            Some listings don't expose vehicle-specific data (like trim or battery size). Adding a few details manually improves accuracy and confidence.
+                          </p>
+                          {autoFilledFields.size > 0 && (
+                            <div className="mb-2">
+                              <p className="text-xs font-semibold text-blue-900 mb-1">✓ Auto-verified:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {autoFilledFields.has('model') && (
+                                  <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+                                    Model
+                                  </span>
+                                )}
+                                {autoFilledFields.has('year') && (
+                                  <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+                                    Year
+                                  </span>
+                                )}
+                                {autoFilledFields.has('currentMileage') && (
+                                  <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+                                    Mileage
+                                  </span>
+                                )}
+                                {autoFilledFields.has('trim') && (
+                                  <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+                                    Trim
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          <p className="text-xs text-blue-800 mb-3">
+                            <span className="font-semibold">⚠ Needs confirmation:</span> Please review and complete the fields below.
+                          </p>
+
+                          {/* Screenshot Upload Fallback */}
+                          <div className="pt-3 border-t border-blue-200">
+                            <p className="text-xs text-blue-800 mb-2">
+                              <span className="font-semibold">Prefer not to type?</span>
+                            </p>
+                            <button
+                              type="button"
+                              disabled
+                              className="inline-flex items-center px-3 py-1.5 bg-gray-100 border border-gray-300 text-gray-500 text-xs font-medium rounded cursor-not-allowed opacity-60"
+                            >
+                              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              Screenshot upload (beta – coming next)
+                            </button>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Screenshot extraction will be available soon
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Micro-Education Moment */}
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setShowAutoFillInfo(!showAutoFillInfo)}
+                className="inline-flex items-center text-xs text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Why some listings don't auto-fill
+              </button>
+
+              {showAutoFillInfo && (
+                <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg text-left">
+                  <p className="text-xs text-gray-700 leading-relaxed">
+                    <span className="font-semibold">Many marketplaces intentionally hide battery-specific details.</span> EV-Risk highlights these gaps because they affect real-world ownership risk. This transparency helps you ask the right questions before buying.
+                  </p>
+                </div>
+              )}
+
+              <p className="text-xs text-gray-500 mt-2">
+                Or fill out the form manually below
+              </p>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Rest of the form - same as original */}
             {/* Model Input */}
             <div>
-              <label htmlFor="model" className="block text-sm font-semibold text-gray-700 mb-2">
+              <label htmlFor="model" className={`block text-sm font-semibold mb-2 flex items-center ${
+                autoFilledFields.has('model') ? 'text-gray-500' : 'text-gray-700'
+              }`}>
                 EV Model
+                {autoFilledFields.has('model') && (
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Auto-verified
+                  </span>
+                )}
               </label>
               <input
                 type="text"
@@ -111,36 +334,74 @@ export default function Home() {
                 onChange={(e) => setFormData({ ...formData, model: e.target.value })}
                 placeholder="e.g., Tesla Model 3 Long Range"
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={autoFilledFields.has('model')}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  autoFilledFields.has('model') ? 'border-green-300 bg-green-50 cursor-not-allowed' : 'border-gray-300'
+                }`}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Enter the full model name (e.g., "Tesla Model 3 Long Range", "Chevy Bolt EV")
+                {autoFilledFields.has('model')
+                  ? 'Automatically extracted from listing'
+                  : 'Enter the full model name (e.g., "Tesla Model 3 Long Range", "Chevy Bolt EV")'
+                }
               </p>
             </div>
 
             {/* Year Input */}
             <div>
-              <label htmlFor="year" className="block text-sm font-semibold text-gray-700 mb-2">
+              <label htmlFor="year" className={`block text-sm font-semibold mb-2 flex items-center ${
+                autoFilledFields.has('year') ? 'text-gray-500' : 'text-gray-700'
+              }`}>
                 Model Year
+                {autoFilledFields.has('year') && (
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Auto-verified
+                  </span>
+                )}
               </label>
               <select
                 id="year"
                 value={formData.year}
                 onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value) })}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                disabled={autoFilledFields.has('year')}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white ${
+                  autoFilledFields.has('year') ? 'border-green-300 bg-green-50 cursor-not-allowed' : 'border-gray-300'
+                }`}
               >
                 <option value="">Select Year</option>
                 {Array.from({ length: new Date().getFullYear() - 2009 }, (_, i) => new Date().getFullYear() - i).map(year => (
                   <option key={year} value={year}>{year}</option>
                 ))}
               </select>
+              <p className="text-xs text-gray-500 mt-1">
+                {autoFilledFields.has('year') && 'Automatically extracted from listing'}
+              </p>
             </div>
 
             {/* Trim/Battery Size Input */}
             <div>
-              <label htmlFor="trim" className="block text-sm font-semibold text-gray-700 mb-2">
+              <label htmlFor="trim" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
                 Trim / Battery Size
+                {autoFilledFields.has('trim') && (
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Auto-verified
+                  </span>
+                )}
+                {!autoFilledFields.has('trim') && (
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded border border-blue-200">
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                    Improves confidence
+                  </span>
+                )}
               </label>
               <input
                 type="text"
@@ -148,17 +409,72 @@ export default function Home() {
                 value={formData.trim}
                 onChange={(e) => setFormData({ ...formData, trim: e.target.value })}
                 placeholder="e.g., Long Range, Standard Range, Performance"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  autoFilledFields.has('trim') ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                }`}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Optional - helps refine battery chemistry and range estimate
+                <span className="font-semibold">Optional</span> — <span className="font-semibold">Why provide?</span> Improves battery chemistry and degradation estimates for more accurate risk scoring
+              </p>
+            </div>
+
+            {/* VIN Input - OPTIONAL */}
+            <div>
+              <label htmlFor="vin" className={`block text-sm font-semibold mb-2 flex items-center ${
+                autoFilledFields.has('vin') ? 'text-gray-500' : 'text-gray-700'
+              }`}>
+                VIN (Optional)
+                {autoFilledFields.has('vin') && (
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Auto-verified
+                  </span>
+                )}
+                {!autoFilledFields.has('vin') && (
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-medium rounded border border-blue-200">
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                    Improves confidence
+                  </span>
+                )}
+              </label>
+              <input
+                type="text"
+                id="vin"
+                value={formData.vin}
+                onChange={(e) => setFormData({ ...formData, vin: e.target.value.toUpperCase() })}
+                placeholder="e.g., 5YJ3E1EA1JF000001"
+                maxLength={17}
+                disabled={autoFilledFields.has('vin')}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono ${
+                  autoFilledFields.has('vin') ? 'border-green-300 bg-green-50 cursor-not-allowed' : 'border-gray-300'
+                }`}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {autoFilledFields.has('vin')
+                  ? 'Automatically extracted from listing'
+                  : 'Improves recall and warranty verification'
+                }
               </p>
             </div>
 
             {/* Current Mileage Input */}
             <div>
-              <label htmlFor="currentMileage" className="block text-sm font-semibold text-gray-700 mb-2">
+              <label htmlFor="currentMileage" className={`block text-sm font-semibold mb-2 flex items-center ${
+                autoFilledFields.has('currentMileage') ? 'text-gray-500' : 'text-gray-700'
+              }`}>
                 Current Odometer (miles)
+                {autoFilledFields.has('currentMileage') && (
+                  <span className="ml-2 inline-flex items-center px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                    <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Auto-verified
+                  </span>
+                )}
               </label>
               <input
                 type="number"
@@ -167,12 +483,18 @@ export default function Home() {
                 onChange={(e) => setFormData({ ...formData, currentMileage: parseInt(e.target.value) })}
                 min={0}
                 max={300000}
-                step={1000}
+                step={1}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={autoFilledFields.has('currentMileage')}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  autoFilledFields.has('currentMileage') ? 'border-green-300 bg-green-50 cursor-not-allowed' : 'border-gray-300'
+                }`}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Current mileage on the vehicle - affects battery degradation estimate
+                {autoFilledFields.has('currentMileage')
+                  ? 'Automatically extracted from listing'
+                  : 'Current mileage on the vehicle - affects battery degradation estimate'
+                }
               </p>
             </div>
 
@@ -192,7 +514,7 @@ export default function Home() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Used to assess climate impact and charging infrastructure
+                <span className="font-semibold">Why?</span> Helps us assess climate impact and local charging infrastructure availability
               </p>
             </div>
 
@@ -212,7 +534,7 @@ export default function Home() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Current value: {formData.dailyMiles} miles/day (~{(formData.dailyMiles * 365).toLocaleString()} miles/year)
+                <span className="font-semibold">Why?</span> So we can check if the EV's range works for your typical day — Currently: {formData.dailyMiles} miles/day (~{(formData.dailyMiles * 365).toLocaleString()} miles/year)
               </p>
             </div>
 
@@ -223,7 +545,7 @@ export default function Home() {
                   Home Charging Available?
                 </label>
                 <p className="text-xs text-gray-500 mt-1">
-                  Do you have access to a home charger (Level 2 or 110V)?
+                  <span className="font-semibold">Why?</span> Affects which EVs are practical for your situation and ownership costs (~60% savings vs. public charging)
                 </p>
               </div>
               <input
@@ -237,9 +559,12 @@ export default function Home() {
 
             {/* Risk Tolerance Radio */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Your Risk Tolerance
               </label>
+              <p className="text-xs text-gray-500 mb-3">
+                <span className="font-semibold">Why?</span> Calibrates recommendations to match your comfort level with battery degradation and ownership costs
+              </p>
               <div className="space-y-3">
                 <label className="flex items-start p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
