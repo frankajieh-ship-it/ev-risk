@@ -49,11 +49,16 @@ export function detectListingSource(url: string): VehicleData['dataSource'] {
 function isSearchPage(url: string): boolean {
   const urlLower = url.toLowerCase();
 
-  // AutoTrader search pages
-  if (urlLower.includes('autotrader.com') &&
-      (urlLower.includes('/cars-for-sale/') || urlLower.includes('searchresults')) &&
-      !urlLower.includes('vehicledetails')) {
-    return true;
+  // AutoTrader search pages (exclude individual vehicle pages)
+  if (urlLower.includes('autotrader.com')) {
+    // Individual vehicle pages have /vehicledetails.xhtml or /vehicle/XXXXXX
+    const hasVehicleDetails = urlLower.includes('vehicledetails');
+    const hasVehicleId = /\/vehicle\/\d+/.test(urlLower);
+
+    if (!hasVehicleDetails && !hasVehicleId &&
+        (urlLower.includes('/cars-for-sale/') || urlLower.includes('searchresults'))) {
+      return true;
+    }
   }
 
   // CarGurus search pages
@@ -71,17 +76,25 @@ function isSearchPage(url: string): boolean {
  *
  * AutoTrader URL patterns:
  * - https://www.autotrader.com/cars-for-sale/vehicledetails.xhtml?listingId=XXX
+ * - https://www.autotrader.com/cars-for-sale/vehicle/XXXXXXXX
  * - Contains structured data in HTML meta tags
  */
 async function extractFromAutoTrader(html: string): Promise<Partial<VehicleData>> {
   const data: Partial<VehicleData> = {};
 
   // Extract from title meta tag
-  const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
   if (titleMatch) {
     const title = titleMatch[1];
-    // Example: "2022 Tesla Model 3 Long Range for Sale in..."
-    const vehicleMatch = title.match(/(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)\s+for\s+Sale/i);
+
+    // New format: "Used 2024 Chevrolet Equinox EV RS for sale in..."
+    let vehicleMatch = title.match(/(?:Used\s+)?(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)\s+(?:for\s+sale|RS|LT|EX|SE|LE|Limited|Premium|Sport)/i);
+
+    // Old format: "2022 Tesla Model 3 Long Range for Sale in..."
+    if (!vehicleMatch) {
+      vehicleMatch = title.match(/(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)\s+for\s+Sale/i);
+    }
+
     if (vehicleMatch) {
       data.year = parseInt(vehicleMatch[1]);
       data.make = vehicleMatch[2];
