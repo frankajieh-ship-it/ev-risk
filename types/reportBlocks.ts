@@ -6,6 +6,8 @@
  * Solution: Semantic IDs derived from block meaning, not position
  */
 
+import type { ConfidenceTier } from "@/lib/confidence-hysteresis";
+
 export type BlockKind =
   | "summary"
   | "risk"
@@ -16,7 +18,8 @@ export type BlockKind =
   | "personalization"
   | "battery_context"
   | "ownership_fit"
-  | "trust_calibration";
+  | "trust_calibration"
+  | "recalls";
 
 export interface ReportBlock {
   id: string; // Stable key (never changes for same semantic block)
@@ -35,7 +38,7 @@ export interface ReportBlock {
  */
 export interface ReportContext {
   confidence: number; // Overall confidence (0-1)
-  confidenceTier: number; // Stable tier (0-3)
+  confidenceTier: ConfidenceTier; // Stable tier (0-3)
   inputs: {
     model?: string;
     year?: number;
@@ -46,6 +49,7 @@ export interface ReportContext {
     zipCode?: string;
     trim?: string;
     vin?: string;
+    recalls?: Array<{ isSafetyRelated: boolean; description: string; estimatedTimeline: string }>;
   };
   scores: {
     overall: number;

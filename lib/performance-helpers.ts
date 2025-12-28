@@ -149,7 +149,7 @@ export function optimizeBundle<P = {}>(
   loader: Loader<P>,
   options?: DynamicOptions<P>
 ) {
-  debugLog("🔧 Code splitting:", loader.name || "anonymous");
+  debugLog("🔧 Code splitting:", (loader as any).name || "anonymous");
 
   return dynamic(loader, {
     ssr: options?.ssr ?? false,

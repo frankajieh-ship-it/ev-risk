@@ -9,6 +9,8 @@
  * Usage: Add ?debug=1 to URL in development
  */
 
+import React from "react";
+
 /**
  * Check if debug mode is enabled
  *

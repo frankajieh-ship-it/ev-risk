@@ -79,13 +79,15 @@ export const BlockRenderer: React.FC<Props> = ({ block, ctx, onProvide }) => {
               </>
             ) : (
               <p className={isDegraded ? "text-slate-600 italic" : ""}>
-                <span className="font-medium">
-                  {guidancePrefix(
-                    isDegraded
-                      ? Math.max(block.guidanceLevel, 3) as 1 | 2 | 3 // Force to "evaluate" when degraded
-                      : block.guidanceLevel
-                  )}:{" "}
-                </span>
+                {block.kind === "text" && block.guidanceLevel && (
+                  <span className="font-medium">
+                    {guidancePrefix(
+                      isDegraded
+                        ? Math.max(block.guidanceLevel, 3) as 1 | 2 | 3 // Force to "evaluate" when degraded
+                        : block.guidanceLevel
+                    )}:{" "}
+                  </span>
+                )}
                 {isDegraded && block.degradedRender
                   ? block.degradedRender(ctx, gating.missing)
                   : block.render(ctx)}

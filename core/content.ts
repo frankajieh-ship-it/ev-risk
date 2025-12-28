@@ -63,7 +63,7 @@ export type BlockBase = {
   priority: number;       // stable ordering within tier
   requiredSignals?: SignalKey[]; // Now using SignalKey union for type safety
   missingPolicy?: MissingPolicy; // default "withhold"
-  guidanceLevel: GuidanceLevel;
+  guidanceLevel?: GuidanceLevel; // Only required for TextBlocks
 
   // Strategic honesty
   withhold?: (ctx: RenderCtx) => WithholdReason | undefined;
@@ -88,6 +88,7 @@ export type BlockBase = {
 export type TextBlock = BlockBase & {
   kind: "text";
   title: string;
+  guidanceLevel: GuidanceLevel; // Required for text blocks (guidance prefixes)
   render: (ctx: RenderCtx) => string;
   degradedRender?: (ctx: RenderCtx, missing: SignalKey[]) => string;
 };

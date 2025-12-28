@@ -193,5 +193,6 @@ export function generateConfidenceData(inputs: ConfidenceInputs) {
     missing: result.missing,
     level: getConfidenceLevel(result.current),
     shouldShowPhase05: shouldActivatePhase05(result.personalizationCount),
+    personalizationCount: result.personalizationCount,
   };
 }

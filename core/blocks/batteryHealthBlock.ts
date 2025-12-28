@@ -14,6 +14,14 @@ import { personalizationValueProp } from "@/core/templates";
  */
 
 export function createBatteryHealthBlock(): Block {
+  // Extract confidence calculation so it can be reused
+  const calculateConfidence = (ctx: RenderCtx) => {
+    let c = baseFromSource(ctx.signals.battery_confidence_source);
+    c = addIfPresent(c, ctx.signals.has_annual_mileage, 0.1);
+    c = penalizeIfMissing(c, !ctx.signals.has_battery_health_report, 0.25);
+    return c;
+  };
+
   return {
     id: "battery.health.metric.v1",
     kind: "metric",
@@ -23,15 +31,10 @@ export function createBatteryHealthBlock(): Block {
     requiredSignals: ["has_battery_data"],
     missingPolicy: "withhold", // Critical data missing → withhold
 
-    confidence: (ctx) => {
-      let c = baseFromSource(ctx.signals.battery_confidence_source);
-      c = addIfPresent(c, ctx.signals.has_annual_mileage, 0.1);
-      c = penalizeIfMissing(c, !ctx.signals.has_battery_health_report, 0.25);
-      return c;
-    },
+    confidence: calculateConfidence,
 
     confidenceFrame: (ctx) => {
-      const conf = (this as any).confidence(ctx); // Calculate confidence
+      const conf = calculateConfidence(ctx); // Reuse the extracted function
       const hasReport = ctx.signals.has_battery_health_report;
       const hasMileage = ctx.signals.has_annual_mileage;
 

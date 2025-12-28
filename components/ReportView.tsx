@@ -1,7 +1,7 @@
 // components/ReportView.tsx
 import React, { useEffect, useMemo, useRef } from "react";
 import { BlockRenderer } from "@/components/BlockRenderer";
-import { RenderCtx } from "@/core/content";
+import { RenderCtx, Block } from "@/core/content";
 import { getBlocks, buildSignals } from "@/core/blocks/sampleBlocks";
 import { lintVoice } from "@/debug/voiceLinter";
 import { confTrace, isDebugEnabled, voiceTrace } from "@/debug/confTrace";
@@ -90,11 +90,11 @@ export const ReportView: React.FC<ReportViewProps> = ({ vehicle, userInputs, onP
   );
 };
 
-function missingSignalsFromBlocks(blocks: any[], ctx: RenderCtx): string[] {
+function missingSignalsFromBlocks(blocks: Block[], ctx: RenderCtx): string[] {
   const missing = new Set<string>();
   for (const b of blocks) {
     for (const req of (b.requiredSignals ?? [])) {
-      const present = Boolean(ctx.signals?.[req]) || Boolean(ctx.vehicle?.[req]) || Boolean(ctx.inputs?.[req]);
+      const present = Boolean(ctx.signals?.[req]);
       if (!present) missing.add(req);
     }
   }
