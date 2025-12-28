@@ -1,0 +1,317 @@
+What we need to build (system primitives)
+1) Report = ordered “Decision Blocks” with tier + certainty + templates
+
+Every visible sentence should come from a block that has:
+
+tier (1–4) → drives language weight
+
+guidanceLevel (1–3) → “We recommend” / “Most buyers…” / “Here’s how to evaluate…”
+
+confidence (0–1) + explanation block
+
+required signals (what data the block depends on)
+
+withhold conditions (true unknown / risk tolerance / legal gray zone)
+
+urgency calibration (before purchase / safety / time-sensitive) with required calibration payload
+
+Type model
+// core/content.ts
+export type Tier = 1 | 2 | 3 | 4;
+
+export type GuidanceLevel = 1 | 2 | 3; 
+// 1: "We recommend", 2: "Most buyers...", 3: "Here's how to evaluate"
+
+export type Urgency =
+  | { level: "before_purchase"; whyNow: string; timeline?: string }
+  | { level: "safety_related"; probability: string; consequence: string }
+  | { level: "time_sensitive"; timeline: string; impact: string }
+  | { level: "none" };
+
+export type WithholdReason =
+  | { kind: "true_unknown"; missing: string; why: string }
+  | { kind: "risk_tolerance"; why: string }
+  | { kind: "legal_gray"; missing: string; why: string };
+
+export type ConfidenceFrame = {
+  label: "high" | "medium" | "low";
+  practical: string;
+  basedOn: string[];
+  missing: string[];
+  affects: string[];
+  notAffects: string[];
+};
+
+export type Block = {
+  id: string;
+  tier: Tier;
+  priority: number;                 // stable ordering within tier
+  guidanceLevel: GuidanceLevel;
+  confidence: number;               // 0..1
+  confidenceFrame: ConfidenceFrame; // must always exist when block is user-visible
+  urgency: Urgency;
+  withhold?: WithholdReason;
+  requiredSignals: string[];
+  render: (ctx: RenderCtx) => string; // returns final text
+};
+
+export type RenderCtx = {
+  inputs: Record<string, any>;
+  signals: Record<string, any>;
+  confidence: number;
+};
+
+
+This structure guarantees:
+
+hierarchy-aware weighting (tier)
+
+guidance ladder logic (guidanceLevel)
+
+confidence explanation required (confidenceFrame always attached)
+
+withholding language enforced (withhold reason produces “We cannot advise…” copy)
+
+2) Central “Language Engine” that enforces banned/required patterns
+
+We should not rely on humans remembering banned phrases. We enforce via:
+
+template functions that only output allowed patterns
+
+a dev-only linter that scans generated output for banned tokens (“Probably”, “Urgent”, “Consider” without evaluation block)
+
+Template helpers
+// core/templates.ts
+export function guidancePrefix(level: GuidanceLevel) {
+  if (level === 1) return "We recommend";
+  if (level === 2) return "Most buyers in your situation";
+  return "Here's how to evaluate";
+}
+
+export function withholdText(w: WithholdReason): string {
+  if (w.kind === "true_unknown") {
+    return `We cannot advise here because ${w.why} Without ${w.missing}, any recommendation would be speculative.`;
+  }
+  if (w.kind === "legal_gray") {
+    return `We cannot advise here because ${w.why} Without ${w.missing}, any recommendation would be speculative.`;
+  }
+  return `This comes down to your tolerance for uncertainty. ${w.why}`;
+}
+
+export function confidenceText(cf: ConfidenceFrame): string {
+  return `${cap(cf.label)} confidence means ${cf.practical}. ` +
+    `This estimate is based on ${cf.basedOn.join(", ")}, not ${cf.missing.join(", ")}. ` +
+    `This typically affects ${cf.affects.join(", ")}, but not ${cf.notAffects.join(", ")}.`;
+}
+
+function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+export function personalizationValueProp(args: {
+  dataPoint: string;
+  analysis: string;
+  outcome: string;
+  range: string; // quantified range
+}) {
+  return `Share ${args.dataPoint} → We'll ${args.analysis} → which adjusts ${args.outcome} by roughly ${args.range}.`;
+}
+
+3) Guidance ladder + tier weighting as code (not copywriting)
+
+We encode:
+
+Tier 1 overrides Tier 2/3/4 positives
+
+tier decides firmness (firm → flexible)
+
+guidanceLevel decides framing (recommend vs social context vs evaluation)
+
+Example: tier-to-language weight
+// core/weighting.ts
+export function firmnessByTier(tier: 1|2|3|4) {
+  return tier === 1 ? "firm" : tier === 2 ? "structured" : tier === 3 ? "practical" : "flexible";
+}
+
+// optional: adjust guidance level ceilings by tier
+export function maxGuidanceLevelForTier(tier: 1|2|3|4) {
+  // Tier 1 should rarely be Level 3
+  if (tier === 1) return 2;
+  return 3;
+}
+
+4) Strategic withholding is a first-class block outcome
+
+If critical signals are missing, we emit a withholding block, not a watered-down recommendation.
+
+Withhold block example (battery report missing)
+const blockBatteryLife: Block = {
+  id: "battery.lifespan.v1",
+  tier: 2,
+  priority: 10,
+  guidanceLevel: 2,
+  requiredSignals: ["battery_health_report"],
+  confidence: 0.35,
+  confidenceFrame: {
+    label: "medium",
+    practical: "our direction is reliable, but based on population averages rather than your actual usage",
+    basedOn: ["model-year patterns", "typical degradation curves"],
+    missing: ["a battery health report", "your annual mileage"],
+    affects: ["replacement timing estimates", "long-term cost exposure"],
+    notAffects: ["immediate safety"],
+  },
+  urgency: { level: "none" },
+  withhold: { kind: "true_unknown", missing: "a battery health report", why: "battery lifespan varies widely between vehicles with similar odometer readings" },
+  render: (ctx) => withholdText({ kind: "true_unknown", missing: "a battery health report", why: "battery lifespan varies widely between vehicles with similar odometer readings" }),
+};
+
+
+If requiredSignals missing ⇒ show withholdText() instead of “may” language.
+
+Instrumentation to protect the voice (dev + CI)
+1) Dev-only “Voice Linter”
+
+Run on every report build in dev/preview.
+
+flags banned phrases
+
+ensures each confidence label has required framework parts
+
+ensures urgency “urgent” never appears
+
+ensures “consider” appears only inside “Here’s how to evaluate” blocks
+
+// debug/voiceLinter.ts
+const banned = [
+  /\bProbably\b/i,
+  /\bUrgent\b/i,
+  /\bBetter estimates\b/i,
+  /\bMay limit\b/i,
+  /\bConsider\b/i,
+];
+
+export function lintReportText(text: string) {
+  const hits = banned.filter(rx => rx.test(text)).map(rx => rx.toString());
+  return { ok: hits.length === 0, hits };
+}
+
+
+Hook this behind debug=1 and also in CI for report template tests.
+
+Implementing “confidence state visibility” aligned to v1.0
+
+We should log not just confidence number, but why:
+
+which signals present
+
+which missing
+
+which tier is currently dominating the guidance
+
+which block flipped due to threshold/hysteresis
+
+// debug/confTrace.ts
+export function traceConfidenceChange(args: {
+  from: number;
+  to: number;
+  missingSignals: string[];
+  dominantTier: 1|2|3|4;
+  changedBlocks: string[];
+}) {
+  // dev only
+  console.log("[CONF]", args);
+}
+
+
+This will be crucial when copy “feels wrong” — we can see if logic or thresholds are misfiring.
+
+Performance pass that won’t break restraint
+
+Rule: performance work cannot change meaning, only delivery.
+
+Likely biggest bottleneck for your system: recomposition/re-render of blocks when inputs change.
+
+So we do:
+
+stable block keys (id)
+
+memoized composition
+
+throttle personalization commits (useTransition / debounce)
+
+avoid late-loading layout shifts (min-heights for blocks + consistent typography line-height)
+
+Plus: measure CLS/FCP/LCP/INP in dev with web-vitals as previously described.
+
+What I’m starting this week (engineering task list)
+Task A — “Decision Block Engine” skeleton (1 day)
+
+Create Block model + template helpers
+
+Convert 3 existing report sections into blocks:
+
+Tier 1 recall/safety block
+
+Tier 2 battery trajectory block
+
+Confidence explanation block (required on each)
+
+Acceptance:
+
+Report renders from blocks (not ad-hoc JSX strings)
+
+Blocks have stable ids and deterministic ordering
+
+Task B — Voice enforcement (0.5–1 day)
+
+Add dev-only voice linter
+
+Add CI test that fails if banned phrases appear in any generated report sample
+
+Acceptance:
+
+npm test fails if “Urgent / Probably / May limit / Better estimates / Consider” appears
+
+Task C — Confidence + Tier trace logs (0.5 day)
+
+Add confidence change tracing including dominant tier & missing signals
+
+Acceptance:
+
+When personalization input changes, console logs show:
+
+confidence before/after
+
+missingSignals
+
+dominantTier
+
+changedBlocks
+
+Task D — Rendering stability pass (1 day)
+
+Ensure block key = block.id everywhere
+
+Add minimal min-height per block kind to reduce CLS
+
+Add hysteresis for guidance threshold flips
+
+Acceptance:
+
+No visible “jumping text” when personalization updates the report
+
+Task E — Mobile performance pass (1 day)
+
+Add web-vitals dev reporter
+
+Identify single worst metric (usually CLS or INP)
+
+Ship one targeted fix:
+
+debounce/transition personalization commits OR
+
+dynamic import heavy components OR
+
+lock image/font sizing
+
+Acceptance:
+
+One metric meaningfully improves on mobile emulation / real device

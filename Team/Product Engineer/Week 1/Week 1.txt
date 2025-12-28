@@ -1,0 +1,216 @@
+Below is a one-week execution plan written from the Product Owner perspective.
+It is intentionally focused, restraint-driven, and outcome-oriented, aligned with OFFO / EV Risk’s philosophy.
+
+This is not a backlog dump.
+These are the only tasks that matter this week.
+
+OFFO / EV Risk — Weekly Execution Plan
+
+Product Owner Assignment (Week 1)
+
+Weekly Theme
+
+Reduce uncertainty before adding capability.
+
+This week is about:
+
+tightening the core report experience
+
+improving trust signals
+
+removing friction that causes doubt
+
+No new features unless they directly support clarity or confidence.
+
+1️⃣ Product Owner (You)
+Primary Objective
+
+Establish shared clarity on how reports are generated, how confidence changes, and where trust is currently being lost.
+
+Tasks
+1. Report Walkthrough & Audit (Mandatory)
+
+Walk through the entire report flow as a first-time user:
+
+Phase 0.5 (zero / minimal data)
+
+Phase 1 (personalization prompts)
+
+Post-personalization state
+
+Document:
+
+Where confidence increases
+
+Where explanations feel weak or implicit
+
+Where users might think “wait… how did you get that?”
+
+Deliverable:
+A 1–2 page internal memo:
+
+“What the system knows”
+
+“What the system infers”
+
+“What the system does not know (but should admit)”
+
+2. Confidence Model Clarification
+
+Work with engineering to explicitly define:
+
+Inputs → confidence score changes
+
+Thresholds that change language or recommendations
+
+Identify any areas where:
+
+Confidence appears higher than it should
+
+Language is not aligned with confidence level
+
+Deliverable:
+A simple confidence → language mapping table (internal use).
+
+3. Decide What NOT to Build
+
+Review open ideas, features, or requests
+
+Explicitly mark:
+
+❌ “Do not build yet”
+
+⏳ “Defer”
+
+✅ “Essential to trust”
+
+Deliverable:
+A short “Not Yet” list shared with the team.
+
+2️⃣ Product Engineer (Full-Stack)
+Primary Objective
+
+Improve report clarity and performance without adding surface complexity.
+
+Tasks
+1. Report Rendering Stability
+
+Audit report re-rendering behavior as confidence changes
+
+Fix:
+
+Layout shifts
+
+Inconsistent language blocks
+
+Mobile instability
+
+Success Criteria:
+No noticeable visual or logical “jumps” when personalization updates the report.
+
+2. Confidence State Visibility (Internal)
+
+Add internal logging or dev-only indicators for:
+
+Confidence before personalization
+
+Confidence after each user input
+
+No UI exposure yet — this is for correctness and debugging.
+
+3. Performance Pass (Mobile First)
+
+Measure:
+
+FCP
+
+TTI
+
+CLS
+
+Address the single biggest bottleneck, not all of them.
+
+Success Criteria:
+One measurable performance improvement that impacts user perception.
+
+3️⃣ UX / Content Systems Designer
+Primary Objective
+
+Make the system feel calmer, more honest, and more intentional.
+
+Tasks
+1. Language Friction Audit
+
+Review:
+
+Report summaries
+
+“Why this matters” sections
+
+Personalization prompts
+
+Flag:
+
+Anything that sounds like marketing
+
+Any sentence that implies certainty where none exists
+
+2. Rewrite One High-Impact Section
+
+Choose one:
+
+Report summary
+
+Confidence explanation
+
+Personalization prompt
+
+Rewrite it to:
+
+Explicitly state uncertainty
+
+Clarify what changes if the user provides more info
+
+Reduce word count if possible
+
+Success Criteria:
+The section feels more intelligent while saying less.
+
+4️⃣ CMO (Light Touch This Week)
+Primary Objective
+
+Align messaging with actual system behavior.
+
+Tasks
+
+Review rewritten report language
+
+Confirm:
+
+No over-promising
+
+No claims the system can’t justify
+
+Flag any disconnect between marketing narrative and product reality
+
+Weekly Non-Goals (Important)
+
+❌ No new features
+❌ No new scoring dimensions
+❌ No UI polish for its own sake
+❌ No “cool ideas” without trust impact
+
+End-of-Week Review Questions
+
+At week’s end, we should be able to answer:
+
+Is the system more honest than it was last week?
+
+Did we remove at least one source of user doubt?
+
+Did performance or clarity measurably improve?
+
+Do we now better understand what not to build?
+
+If yes → good week.
+If no → we slowed down in the wrong places.

@@ -1,0 +1,329 @@
+Product Development Plan
+
+Shipping Phases Overview
+Phase	Goal	User Count Target
+Phase 0	Core trust wedge	50–100
+Phase 1 (MVP)	Credible, repeatable decisions	500–2,000
+Phase 2	Personalized decision system	5k–20k
+Phase 3	Retention + moat	20k+
+PHASE 0 — Foundation & Trust (Ship First)
+
+Goal: make the product feel intentional, honest, and safe even when automation fails.
+
+These files must ship first because they define behavior, not features.
+
+✅ Ship in Phase 0
+1. Progressive Disclosure.js
+
+Why first: This controls when questions appear and prevents survey-fatigue
+
+Risk if delayed: You’ll accidentally ask too much too early
+
+Status: Foundational logic
+
+
+1. Progressive Disclosure
+
+2. Value-First Communication.js
+
+Why: Explains why every question is asked
+
+Impact: Immediate trust increase, lower drop-off
+
+Non-negotiable: Every question must reference this
+
+
+4. Value-First Communication
+
+3. Responsive Considerations.css
+
+Why: Most EV buyers browse listings on mobile
+
+Impact: Prevents cognitive overload and abandonment
+
+Ship now: Even if UI isn’t final
+
+
+Responsive Considerations
+
+❌ Do NOT ship yet
+
+Any personalization UI
+
+Any profile or dashboard concepts
+
+PHASE 1 — MVP Personalization (Ship Once Core Works)
+
+Goal: personalization that clearly improves confidence without feeling like onboarding.
+
+✅ Ship in Phase 1
+4. Driving Pattern Module (Entry Point)
+
+Why: Highest signal, lowest friction
+
+When shown: Inline after initial risk report
+
+Impact: Changes risk interpretation meaningfully
+
+
+1. Driving Pattern Module (Entr…
+
+5. Smart Defaults & Auto-Complete System.js
+
+Why: Reduces friction while preserving honesty
+
+Rule: Defaults must be labeled as “assumed”
+
+Impact: Makes system feel intelligent without lying
+
+
+6. Smart Defaults & Auto-Comple…
+
+6. Lifestyle & Needs Module (Contextual Pop-up)
+
+Why: Only appears when vehicle limitations clash with lifestyle
+
+Impact: Avoids generic questionnaires
+
+Critical: Must be triggered, not always shown
+
+
+2. Lifestyle & Needs Module (Co…
+
+❌ Do NOT ship yet
+
+Financial modules
+
+Tech comfort assessment
+
+Profile dashboards
+
+PHASE 2 — Decision Quality & Personal Fit (Major Differentiator)
+
+Goal: move from “vehicle risk” → “is this right for me?”
+
+✅ Ship in Phase 2
+7. Financial Reality Check (Optional Progressive)
+
+Why: High trust, prevents regret
+
+Placement: Optional expansion after report
+
+Never blocking
+
+
+3. Financial Reality Check (Opt…
+
+8. Technology Comfort Assessment (Gamified)
+
+Why: Hidden EV deal-breaker most platforms ignore
+
+Impact: Changes language, warnings, tone
+
+Rule: Should not affect raw risk score
+
+
+4. Technology Comfort Assessmen…
+
+9. Personalization Results Display.jsx
+
+Why: This is the payoff
+
+Critical dependency: Must reflect actual inputs
+
+Warning: Do not show percentages yet
+
+
+7. Personalization Results Disp…
+
+🚫 Blockers before shipping
+
+If report language doesn’t change → don’t ship
+
+If users can’t see “before vs after” → delay
+
+PHASE 3 — Retention, Memory & Moat
+
+Goal: make EV Risk sticky and compounding.
+
+✅ Ship in Phase 3
+10. Complete User Profile Builder (Progressive Dashboard)
+
+Why: Only useful once users analyze multiple vehicles
+
+Trigger: After ≥2 reports or explicit “save preferences”
+
+Risk if early: Feels like admin work
+
+
+5. Complete User Profile Builde…
+
+11. Key Innovation.js (Learning & Adaptation)
+
+Why: Long-term intelligence & defensibility
+
+Rule: Log first, adapt later
+
+Do not auto-change flows silently
+
+
+Key Innovation
+
+One-Glance Shipping Table
+Document	Phase	Ship?
+Progressive Disclosure.js	Phase 0	✅
+Value-First Communication.js	Phase 0	✅
+Responsive Considerations.css	Phase 0	✅
+Driving Pattern Module	Phase 1	✅
+Smart Defaults & Auto-Complete	Phase 1	✅
+Lifestyle & Needs Module	Phase 1	✅
+Financial Reality Check	Phase 2	✅
+Tech Comfort Assessment	Phase 2	✅
+Personalization Results Display	Phase 2	✅
+Profile Builder Dashboard	Phase 3	⏳
+Learning / Adaptation Logic	Phase 3	⏳
+Final Product Owner Direction (Important)
+
+Ship behavior before sophistication.
+Ship explanation before intelligence.
+Ship confidence before optimization.
+
+Your architecture is strong.
+Your advantage now is restraint and sequencing.
+
+3️⃣ Phase-by-Phase Adjustments (Clean, Updated Plan)
+🟦 Phase 0 (Unchanged, but instrumented)
+
+Add:
+
+Performance budgets (you called this out correctly)
+
+FCP < 1.5s (3G)
+
+TTI < 3s
+
+No layout shift during inputs
+
+Reason: trust dies on mobile before logic matters.
+
+🟨 Phase 0.5 (NEW — Must Add)
+
+Purpose: Protect value for zero-data users.
+
+Ship:
+
+“What we could tell you…” section
+
+Explicit confidence explanation
+
+One trust-calibration moment:
+
+What’s missing
+
+Why it matters
+
+How confidence improves (65% → 95%)
+
+This phase exists solely to prevent silent failure.
+
+🟩 Phase 1 (Refined)
+
+Key adjustment: Timing of the driving pattern question.
+
+Your suggestion is correct.
+
+Revised flow:
+
+Extract range from listing
+
+Show generic implication
+
+Ask driving pattern
+
+Immediately re-render insight
+
+This maximizes perceived payoff.
+
+🟧 Phase 2 (Tighter Triggers)
+Financial Reality Check → Rename + Gate
+
+Rename to: “True Cost Calculator”
+
+Only trigger when:
+
+Vehicle price > $30k OR
+
+Electricity impact > $500/yr OR
+
+Incentive eligibility unclear
+
+This avoids the “optional but ignored” trap.
+
+🟥 Phase 3 (Profile Builder — Adjusted Trigger)
+
+You’re right: “2 reports” may be too strict.
+
+Revised trigger:
+
+After any personalization input, show:
+
+✨ We’ve saved your driving pattern
+Want to save this so you don’t have to re-enter it next time?
+
+This frames the profile as convenience, not admin.
+
+4️⃣ Anti-Pattern Protections (Hard Rules)
+
+You should codify these, not just discuss them.
+
+✅ Question Budget (Hard Limit)
+
+Phase 1: max 2 questions
+
+Phase 2: +3 (total 5)
+
+Phase 3: profile unlocks more
+
+No exceptions without PM sign-off.
+
+✅ False Personalization Guard
+
+Every input must change at least one:
+
+Risk score (±5 pts)
+
+Recommendation
+
+Warning/insight language
+
+If not → don’t ship.
+
+✅ Privacy Tier Enforcement
+
+Anonymous → Pseudo → Identifiable
+Each tier requires 2× visible value before escalation.
+
+5️⃣ One Critical Engineering Warning (Very Important)
+
+Do not start Phase 2 until the report content system can support dynamic language.
+
+If your report is:
+
+static strings
+
+hard-coded sections
+
+not composable
+
+Phase 2 will fail even if the logic is right.
+
+This is the highest technical risk left.
+
+Final Call
+
+Your instincts are exceptionally strong.
+This feedback doesn’t expose a weak plan — it exposes a plan worth hardening.
+
+If I had to summarize the adjustment in one line:
+
+You’re no longer just shipping features — you’re now shipping proof of value at every step.

@@ -8,6 +8,10 @@ import type { VehicleData, UserInputs } from "@/types";
  * Using a const array ensures exhaustiveness checking and runtime validation.
  */
 export const SIGNAL_KEYS = [
+  // Context & Re-validation
+  "context_trigger",
+  "has_context_trigger",
+
   // Battery & Powertrain
   "has_battery_data",
   "has_battery_health_report",
@@ -23,6 +27,14 @@ export const SIGNAL_KEYS = [
   "daily_commute_miles",
   "has_home_charging",
   "home_charging",
+
+  // Charging Fit (Mental Overhead)
+  "charging_access",
+  "has_charging_access",
+  "charging_reliability",
+  "has_charging_reliability",
+  "weekly_charging_moments",
+  "has_weekly_charging_moments",
 
   // Safety & Recalls
   "has_recalls",
@@ -94,6 +106,10 @@ export function buildSignals(vehicle: VehicleData, inputs?: UserInputs): SignalM
   const criticalRecalls = recalls.filter(r => r.priority === "high");
 
   return {
+    // Context & Re-validation
+    context_trigger: inputs?.contextTrigger,
+    has_context_trigger: inputs?.contextTrigger != null,
+
     // Battery & Powertrain
     has_battery_data: vehicle?.batteryData != null,
     has_battery_health_report: vehicle?.batteryHealthReport != null,
@@ -109,6 +125,14 @@ export function buildSignals(vehicle: VehicleData, inputs?: UserInputs): SignalM
     daily_commute_miles: inputs?.dailyCommute,
     has_home_charging: inputs?.hasHomeCharging != null,
     home_charging: inputs?.hasHomeCharging,
+
+    // Charging Fit (Mental Overhead)
+    charging_access: inputs?.chargingAccess,
+    has_charging_access: inputs?.chargingAccess != null,
+    charging_reliability: inputs?.chargingReliability,
+    has_charging_reliability: inputs?.chargingReliability != null,
+    weekly_charging_moments: inputs?.weeklyChargingMoments,
+    has_weekly_charging_moments: inputs?.weeklyChargingMoments != null,
 
     // Safety & Recalls
     has_recalls: recalls.length > 0,

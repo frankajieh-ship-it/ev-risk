@@ -24,3 +24,57 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Mobile optimizations - Progressive Disclosure */
+@media (max-width: 768px) {
+  /* Form step containers */
+  .personalization-step {
+    padding: 1rem;
+  }
+
+  /* Visual selectors scale down on mobile */
+  .visual-selector {
+    transform: scale(0.9);
+    margin: 0 -1rem;
+  }
+
+  /* Single column layout for options */
+  .option-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Larger touch targets for mobile */
+  .context-card,
+  .option-card {
+    min-height: 60px;
+    padding: 1rem;
+    font-size: 1rem;
+  }
+
+  /* Simplified progress indicator */
+  .progress-indicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+  }
+
+  /* Better spacing for form fields on mobile */
+  form > div {
+    margin-bottom: 1.5rem;
+  }
+
+  /* Auto-fill info boxes more compact on mobile */
+  .bg-blue-50.border-blue-200 {
+    font-size: 0.875rem;
+    padding: 0.75rem;
+  }
+
+  /* Badges scale appropriately */
+  .bg-green-100,
+  .bg-blue-50 {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+}

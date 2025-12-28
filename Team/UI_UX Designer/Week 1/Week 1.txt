@@ -1,0 +1,188 @@
+Welcome to OFFO / EV Risk
+It’s great to have you with us. You’re stepping into a role that doesn’t just build features—it builds trust.
+
+Here’s What You Should Know on Day One
+We are not a dashboard company.
+We are a decision intelligence company. Our job is to help someone make a better, clearer choice when buying a used EV—a decision filled with financial and emotional stakes.
+
+Our product’s success depends entirely on whether the user believes the system is thinking with them, not just processing their data.
+
+Your Role in This Mission
+As the UX / Content Systems Designer (Part-Time / Contract), you are not here to make things pretty.
+You are here to design how the system explains itself.
+
+Your Core Responsibility:
+Design the voice of intelligence.
+Every word, every explanation, every prompt must feel:
+
+Calm — never frantic or salesy
+
+Clear — never clever or ambiguous
+
+Honest — never overconfident or misleading
+
+What That Means in Practice:
+You will own:
+
+Report language templates
+
+“Why this matters” explanations
+
+Trust-calibration copy (e.g., “We don’t know this yet, but here’s why it matters”)
+
+Microcopy for personalization flows
+
+The narrative flow from zero-data to personalized insight
+
+You will NOT own:
+
+Visual design, colors, or UI polish
+
+Marketing or promotional copy
+
+Feature concepts in isolation
+
+How to Start Thinking Like Us
+Before you write a single sentence, ask:
+Does this reduce uncertainty?
+If it doesn’t help the user understand the risk or the recommendation better, it’s noise.
+
+Does this make the system feel more honest?
+Admitting uncertainty builds more trust than pretending to know everything.
+
+Does this respect the user’s time and intelligence?
+We ask for personalization only when it meaningfully improves confidence—and we explain why.
+
+Your North Star:
+Good copy here is not persuasive—it is clarifying.
+If it feels like marketing, it’s wrong. If it feels like a thoughtful expert explaining something complex simply, it’s right.
+
+Your First 30–60 Days
+First 30 Days:
+Immerse yourself in the existing report flows and language
+
+Identify where users likely feel doubt, confusion, or friction
+
+Rewrite one key report section to be clearer and build more trust
+
+Partner with the Product Engineer to understand the confidence model
+
+By 60 Days:
+Establish a consistent, calm, intelligent voice across the product
+
+Improve personalization opt-in rates through better explanation
+
+Reduce “Why are you asking this?” friction without adding more text
+
+How We’ll Measure Your Success
+Drop-off rates decrease at key explanation points
+
+Support tickets about confusion drop
+
+Personalization opt-in rates increase
+
+User feedback indicates higher perceived clarity and trust
+
+A Final Note
+You are not here to make the product sound smart.
+You are here to make it feel trustworthy.
+
+If a user finishes a report and thinks:
+“This system understands the problem—and respects me.”
+
+Then you’ve done your job.
+
+We’re excited to have you shape this with us. Let’s build something that matters.
+
+Welcome to the team,
+
+The OFFO / EV Risk Team
+
+As UX/UI designer assign task for the week
+Week 1: UX/Content Systems Designer - Onboarding & Foundation
+🎯 This Week's Objective
+Establish understanding of our voice and identify the highest-impact clarity improvements.
+
+📋 Weekly Tasks
+1. Deep Dive & Audit (Days 1-2)
+Review 3 existing EV Risk reports (example cases provided)
+
+Map the user journey: Phase 0.5 (no data) → Phase 1 (personalization) → Full report
+
+Create a "voice audit" document identifying:
+
+Where language feels uncertain vs. overconfident
+
+Where explanations feel technical vs. accessible
+
+Where the system "asks" vs. "explains why it's asking"
+
+2. Trust Calibration Analysis (Day 3)
+Identify 3-5 "confidence statements" in reports that need calibration
+
+Propose rewrites that:
+
+Acknowledge uncertainty where appropriate
+
+Explain inference logic simply
+
+Maintain authority without arrogance
+
+3. Personalization Prompt Review (Day 4)
+Audit all personalization prompts (where we ask for user input)
+
+Score each on clarity:
+
+"Why are we asking this?" (explanation quality)
+
+"What changes if I answer?" (value clarity)
+
+"Can I skip this?" (permission clarity)
+
+Flag top 2 prompts for immediate improvement
+
+4. Microcopy Framework (Day 5)
+Draft a "Content Principles" one-pager including:
+
+Our voice attributes (calm, clear, honest)
+
+Sentence structure guidelines
+
+Uncertainty communication framework
+
+"What not to do" examples
+
+Share with Product Engineer & CEO for alignment
+
+🔍 Focus Areas for This Week
+Listen For:
+Where do you feel doubt as a new user?
+
+Where does the system feel like it's "showing off" vs. helping?
+
+Where would you want more explanation before proceeding?
+
+Ask Specifically:
+"What's the biggest risk if we get this language wrong?"
+
+"Which report section causes the most support questions?"
+
+"What's one thing the system says now that should never be said?"
+
+📊 Deliverables by EOW
+Voice Audit Document (Notion/Google Doc)
+
+Top 3 Rewrites for confidence-calibration statements
+
+Personalization Prompt Improvement Plan for 2 key prompts
+
+Draft Content Principles one-pager
+
+🎪 Weekly Check-in
+Friday, 3 PM - 30 minutes with CEO & Product Engineer
+
+Share your most surprising finding
+
+Present your top rewrite example
+
+Get alignment on content principles

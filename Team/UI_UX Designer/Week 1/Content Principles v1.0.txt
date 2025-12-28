@@ -1,0 +1,213 @@
+CONTENT PRINCIPLES v1.0
+EV Risk Voice & Guidance System
+
+1.0 CORE PURPOSE
+EV Risk exists to guide decisions, not just report data.
+
+The system prioritizes safety, long-term viability, and clarity over convenience or optimism.
+
+When certainty is high, we guide clearly.
+When certainty is moderate, we contextualize socially.
+When certainty is low, we explain boundaries honestly.
+
+Our voice is calm, specific, and explicit about what we know — and what we do not.
+
+2.0 DECISION HIERARCHY (INTERNAL LOGIC)
+The system always reasons in this order of importance:
+
+Tier 1: Safety & Immediate Reliability
+Open recalls affecting power, braking, or high-voltage systems
+
+Known failure modes that can strand the vehicle
+
+Structural or safety-critical issues
+
+Tier 2: Battery Health & Degradation Trajectory
+Remaining useful life estimates
+
+Replacement cost risk horizon
+
+Performance degradation patterns
+
+Tier 3: Cost & Financial Exposure
+Purchase price vs. remaining value
+
+Near-term maintenance probability and cost
+
+Warranty coverage gaps
+
+Tier 4: Convenience & Fit
+Charging compatibility vs. user's infrastructure
+
+Range adequacy for typical usage
+
+Feature availability and condition
+
+Hierarchy Rules:
+Higher-tier risks override lower-tier positives
+
+A great price never neutralizes a safety concern
+
+Language weight follows tier priority (firm → flexible)
+
+3.0 GUIDANCE LADDER
+Level 1: High Certainty → "We recommend"
+When to use:
+
+Known safety issues
+
+Open recalls requiring action
+
+Clear mismatches between vehicle capability and user needs
+
+Example:
+"We recommend resolving this recall before purchase, as it affects high-voltage power delivery and can lead to sudden loss of propulsion."
+
+Level 2: Medium Certainty → "Most buyers in your situation"
+When to use:
+
+Battery trajectory estimates
+
+Cost exposure projections
+
+Usage-fit questions based on available data
+
+Example:
+"Most buyers with similar driving patterns would expect to charge every 2–3 days with this range."
+
+Level 3: Low Certainty → "Here's how to evaluate"
+When to use:
+
+Personal tolerance decisions
+
+Convenience tradeoffs
+
+Lifestyle preference evaluations
+
+Example:
+"Here's how to evaluate whether this charging limitation matters for you: compare your typical daily mileage against the available range with a 20% safety buffer."
+
+4.0 CONFIDENCE EXPLANATION FRAMEWORK
+Every confidence label must include:
+
+What it means practically
+
+What it's based on
+
+What's missing
+
+How it affects the decision
+
+Template:
+text
+[Confidence Level] confidence means [practical interpretation]. 
+This estimate is based on [data sources], not [what's missing]. 
+This typically affects [specific outcomes] but not [what's unaffected].
+Example (Medium):
+Medium confidence means our recommendation is directionally reliable, but based on population averages rather than your actual usage. This typically affects long-term cost and replacement timing estimates, not immediate safety.
+
+5.0 PERSONALIZATION VALUE PROPOSITION
+Every ask must answer, inline:
+"Because this changes X, which affects Y, by roughly Z."
+
+Formula:
+text
+Share [data point] → We'll [specific analysis] → which adjusts [outcome] by [quantified range]
+Example:
+Share your annual mileage → We'll distinguish between highway (gentler) and city (more taxing) wear patterns → which adjusts the battery replacement timeline by up to ±2 years.
+
+6.0 URGENCY CALIBRATION
+Never use alarmist language without calibration.
+
+Allowed urgency levels:
+Term	When to Use	Required Calibration
+Before purchase	Affects transaction feasibility	Explain why it matters now
+Safety-related	Addresses safety system	Explain risk probability and consequence
+Time-sensitive	Affects near-term outcome	Provide realistic timeline
+Example Transformation:
+Before: "Urgent action recommended."
+After: "This recall requires attention before purchase as it can delay registration and typically takes 3–7 days to resolve at a dealer."
+
+7.0 WITHHOLDING GUIDANCE (STRATEGIC HONESTY)
+When we explicitly withhold:
+True Unknowns – missing critical data
+
+Personal Risk Tolerance – no "right" answer
+
+Legal/Safety Gray Zones – insufficient documentation
+
+Required Language:
+"We cannot advise here because…"
+
+"Without X, any recommendation would be speculative."
+
+"This comes down to your tolerance for uncertainty."
+
+Example:
+"Without a battery health report, we can't reliably estimate remaining lifespan. Any recommendation here would be speculative."
+
+8.0 BANNED & REQUIRED LANGUAGE
+❌ Banned Phrases:
+"Consider…" (without evaluation framework)
+
+"May limit…" (without probability or impact)
+
+"Better estimates" (without explaining what improves)
+
+"Urgent" (without cause and resolution)
+
+"Probably" (to soften uncertainty)
+
+Vague confidence labels without explanation
+
+✅ Required Patterns:
+"This matters because…"
+
+"Without X, we estimate using Y, which affects Z"
+
+"Most buyers in your situation…"
+
+"We cannot advise here because…"
+
+"Here's how to evaluate…"
+
+9.0 VOICE ATTRIBUTES
+Calm Expert Advisor:
+Explains, doesn't alarm
+
+Admits uncertainty where it exists
+
+Prioritizes user's long-term interest over short-term optimism
+
+Speaks plainly about complex topics
+
+Not These Voices:
+Scientist (reporting metrics)
+
+Clerk (requesting data)
+
+Alarmist (creating urgency)
+
+Marketer (persuading)
+
+10.0 TEMPLATIZATION PRIORITIES
+For Product Engineer collaboration:
+
+Confidence explanation blocks (reusable templates)
+
+Personalization value proposition formula (structured data → text)
+
+Guidance ladder logic (certainty level → phrasing pattern)
+
+Hierarchy-aware weighting (tier influences language strength)
+
+KEY METRIC FOR SUCCESS
+Users don't just get information — they understand:
+
+What matters most
+
+What we know vs. what we don't
+
+What they should do next
+
+Why they can trust this guidance

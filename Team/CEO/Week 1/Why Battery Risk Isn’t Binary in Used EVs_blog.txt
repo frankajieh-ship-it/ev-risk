@@ -1,0 +1,165 @@
+1️⃣ Why Battery Risk Isn’t Binary in Used EVs
+
+One of the biggest misconceptions about used EVs is that the battery is either “good” or “bad.”
+
+That framing comes from how we think about engines. If an engine is failing, you usually feel it. With batteries, degradation is quieter, slower, and more contextual — which makes it harder to reason about, not easier.
+
+Here’s the uncomfortable truth:
+Battery risk is not a yes/no question. It’s a trajectory question.
+
+Two EVs with the same mileage can have very different futures.
+
+Why?
+
+Because battery aging depends less on how old the car is and more on how it’s been used.
+
+Some examples most listings won’t explain:
+
+Highway miles age batteries differently than short, frequent city trips
+
+Fast charging frequency matters more than total mileage
+
+Climate exposure (heat especially) compounds degradation over time
+
+Software limits and buffers vary by manufacturer and year
+
+So when a listing says:
+
+“Battery degradation estimated at 12%”
+
+That number alone doesn’t tell you much unless you understand:
+
+What assumptions were used
+
+Whether that degradation is stable or accelerating
+
+How that degradation interacts with your driving needs
+
+A 12% degraded battery can be:
+
+Totally fine for a 20-mile daily commute
+
+A long-term problem for someone who depends on fast charging
+
+A near-term issue if the degradation curve is steepening
+
+That’s why blanket advice like:
+
+“Anything under 15% is fine”
+
+…isn’t actually advice. It’s a shortcut.
+
+The better question isn’t:
+
+“Is the battery bad?”
+
+It’s:
+
+“Given what we know, where is this battery headed — and does that path work for me?”
+
+That’s a harder question. It requires admitting uncertainty and explaining tradeoffs instead of pretending there’s a clean threshold.
+
+Most tools don’t do that. Listings definitely don’t.
+
+I built a tool to sanity-check used EV listings by focusing on trajectory and context, not binary labels — because that’s how these decisions actually work.
+
+2️⃣ What Used EV Listings Don’t Tell You (And Why)
+
+Used EV listings look detailed. They have range numbers, mileage, sometimes even charts.
+
+And yet, they routinely leave out the information that actually determines risk.
+
+Not because sellers are malicious — but because listings are designed to describe a car, not explain ownership outcomes.
+
+Here are a few things listings almost never tell you clearly:
+
+1. Whether a “recall” actually matters for a buyer
+
+Listings might show:
+
+“Open recall”
+
+But they won’t tell you:
+
+Is this software or hardware?
+
+Does it affect safety, reliability, or convenience?
+
+Has it already been fixed on similar vehicles?
+
+Does it change how you should evaluate the price?
+
+An unresolved recall can be anything from:
+
+A minor infotainment update
+to
+
+A high-voltage issue that affects propulsion
+
+Those are very different risks — but they’re usually presented the same way.
+
+2. What “range” means outside of a lab
+
+Listings show EPA range. Real life does not.
+
+What’s missing:
+
+How range changes with speed
+
+How degradation compounds that loss
+
+How winter or heat affects usable range
+
+Whether charging behavior will become inconvenient over time
+
+A 220-mile EV can be perfectly usable — or frustrating — depending entirely on how it’s used.
+
+Listings can’t tell you that. They don’t know how you drive.
+
+3. How uncertainty should change your decision
+
+This is the biggest omission.
+
+When information is missing — battery health reports, service history, charging patterns — listings don’t explain what that uncertainty means.
+
+They don’t say:
+
+What’s estimated vs. verified
+
+How confident those estimates are
+
+What would meaningfully improve confidence
+
+Whether uncertainty affects safety, cost, or just convenience
+
+So buyers are left to guess.
+
+And guessing feels bad when you’re making a five-figure decision.
+
+The Pattern
+
+Listings describe attributes.
+Buyers need help with implications.
+
+That gap is where most anxiety comes from — and where most bad decisions happen.
+
+What people actually want isn’t certainty.
+It’s clarity about what’s known, what isn’t, and what matters most.
+
+That’s hard to do in a listing.
+
+I built a tool to sanity-check used EV listings by explaining the implications behind the numbers — and being honest about uncertainty instead of hiding it.
+
+How to Use These Immediately
+
+Post one on Reddit today, one later this week
+
+Lightly adapt for LinkedIn (shorter paragraphs)
+
+Use excerpts as:
+
+Trust content on the site
+
+Onboarding copy
+
+“Why this matters” sections in reports

@@ -1,0 +1,215 @@
+Phase 0.5 — “What’s Missing / Why It Matters / Confidence”
+
+Purpose:
+Prevent silent failure for zero-data users and create the primary conversion trigger without fear or upsell pressure.
+
+This section must exist even when the user provides nothing.
+
+1️⃣ Functional Requirements (WHAT must exist)
+A. “What’s Missing” (Explicit, Concrete)
+
+The report must enumerate missing inputs, not vaguely imply them.
+
+Examples (dynamic):
+
+Battery health report
+
+Climate exposure history
+
+Charging behavior profile
+
+Warranty status
+
+Usage pattern (commute vs high-load)
+
+Rules
+
+Plain language
+
+No blame
+
+No technical jargon
+
+Bad
+
+“Insufficient data available”
+
+Correct
+
+“This listing doesn’t include battery health history or charging behavior.”
+
+B. “Why It Matters” (Causal Explanation)
+
+Each missing item must have a 1–2 sentence explanation answering:
+
+“What decision risk does this uncertainty introduce?”
+
+Example Mapping
+
+Missing battery health →
+“Battery degradation affects range consistency and resale value.”
+
+Missing climate history →
+“Heat exposure accelerates long-term capacity loss.”
+
+Rules
+
+Explain consequence, not catastrophe
+
+Avoid worst-case language
+
+Educational tone
+
+C. Confidence Improvement Indicator (Quantified, Visual)
+
+Show current confidence and potential confidence if missing info is added.
+
+Example
+
+Confidence: 65% → 92%
+“Based on typical buyer uncertainty patterns.”
+
+Rules
+
+This is confidence in the decision, not vehicle quality
+
+Range can be heuristic (does not need ML v1)
+
+Must be visually obvious
+
+2️⃣ Product Logic (HOW it works)
+A. Confidence Model (V1 – Simple & Safe)
+
+Use a weighted completeness model, not AI inference.
+
+Base confidence: 55–70% (depends on listing completeness)
+
+Each missing category adds:
++5–12% confidence if provided
+
+Cap at ~95%
+Never show 100%
+
+
+Example
+
+Battery history missing: +12%
+
+Climate history missing: +8%
+
+Charging behavior missing: +7%
+
+Total possible improvement = +27%
+
+B. Zero-Data User Handling (Critical)
+
+If the user provides no extra info:
+
+Section still renders
+
+Confidence still shows improvement range
+
+Language explicitly states:
+
+“This estimate is based on typical used EV listings.”
+
+This is Phase 0.5’s entire reason for existing.
+
+3️⃣ UI / UX REQUIREMENTS (MINIMUM)
+Section Placement
+
+Immediately after the main summary
+
+Before any upsell or save/share CTA
+
+Visual Structure
+--------------------------------
+WHAT’S MISSING
+• Battery health history
+• Climate exposure data
+• Charging behavior profile
+
+WHY IT MATTERS
+Short explanations under each
+
+CONFIDENCE
+[ 65%  ───────▶  92% ]
+“Add 2–3 details to improve confidence”
+--------------------------------
+
+Copy Rules
+
+No “unlock”
+
+No “upgrade”
+
+No “AI”
+
+No urgency language
+
+CTA (if present):
+
+“Improve confidence”
+
+4️⃣ Data & Engineering Checklist
+Backend / Logic
+
+ Missing-fields detector
+
+ Confidence calculation function
+
+ Explanation map per missing field
+
+ Safe defaults for zero-input users
+
+Frontend
+
+ Section renders for all users
+
+ Confidence delta visualized
+
+ Copy uses approved language only
+
+ Mobile readable in <5 seconds
+
+Analytics (Required)
+
+Track:
+
+Section viewed
+
+Time spent on section
+
+Clicks on “Improve confidence”
+
+Scroll depth past this section
+
+5️⃣ QA / Acceptance Criteria (PASS–FAIL)
+
+This ships only if all are true:
+
+ Zero-data users still see full section
+
+ Confidence is never 100%
+
+ Missing items are explicit, not generic
+
+ “Why it matters” explains causality
+
+ No banned language appears
+
+ Section feels explanatory, not salesy
+
+If any fail → do not ship.
+
+6️⃣ Why This Matters (Internal Reminder)
+
+This section is:
+
+Your trust calibration layer
+
+Your conversion engine
+
+Your legal and expectation buffer
+
+If this is weak, marketing will fail no matter how good traffic is.

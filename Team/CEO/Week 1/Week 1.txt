@@ -1,0 +1,192 @@
+CEO Weekly To-Do List (High-Leverage Only)
+🔴 PRIORITY 1 — Product & Trust (Non-Negotiable)
+1️⃣ Lock Phase 0.5 Requirements (2–3 hrs)
+
+Outcome: Engineering clarity, no ambiguity.
+
+Finalize Phase 0.5 components:
+
+“What we could tell you…” section
+
+Confidence explanation logic (current vs potential)
+
+Trust-calibration moment (what’s missing / why / how to improve)
+
+Write a one-page spec and freeze it for this sprint
+
+Explicitly state what is out of scope for Phase 0.5
+
+✅ Deliverable: Phase 0.5 spec shared with engineer
+
+2️⃣ Review Full Report End-to-End (1–2 hrs)
+
+Outcome: Catch trust leaks before users do.
+
+Walk through:
+
+Zero-data report
+
+Partially personalized report
+
+Look for:
+
+Overconfident language
+
+Vague explanations
+
+Any “why are you asking this?” moments
+
+✏️ Make copy notes, not code notes.
+
+3️⃣ Greenlight Odometer & Upload Fixes (30 min)
+
+Outcome: Remove obvious friction.
+
+Confirm:
+
+Odometer accepts any realistic integer
+
+Screenshot upload is either working or clearly labeled “coming next”
+
+No roadmap alerts allowed in UI
+
+🟠 PRIORITY 2 — Team Alignment & Execution
+4️⃣ Kickoff With Product Engineer (1 hr)
+
+Outcome: Shared mental model.
+
+Agenda:
+
+What EV Risk is not
+
+Why trust > automation
+
+Phase 0.5 success criteria
+
+Performance expectations (mobile first)
+
+End with:
+
+“Tell me what you think we should not build yet.”
+
+This tests judgment.
+
+5️⃣ Align UX / Content Systems Designer (45 min)
+
+Outcome: Language consistency.
+
+Share:
+
+Phase 0.5 copy goals
+
+Report sections that matter most
+
+Ask for:
+
+Rewrites of confidence & “what’s missing” sections
+
+1–2 alternative tones (calm vs explanatory)
+
+6️⃣ Re-scope Independent Contractor Tasks (30 min)
+
+Outcome: Protect core logic.
+
+Move IC away from:
+
+personalization logic
+
+report architecture
+
+Focus IC on:
+
+parsing improvements
+
+QA edge cases
+
+regression testing
+
+🟡 PRIORITY 3 — GTM & Signal Gathering
+7️⃣ Publish 1 Founder Post (1 hr)
+
+Outcome: Demand signal, not promotion.
+
+Topic example:
+
+“Why used EV listings hide the most important risk”
+
+Include:
+
+one anonymized report screenshot
+
+one insight, no CTA
+
+Post on:
+
+Reddit
+
+LinkedIn (founder account)
+
+8️⃣ Collect 5 Real Listings for Testing (30 min)
+
+Outcome: Reality check.
+
+Grab 5 diverse listings:
+
+Tesla
+
+Non-Tesla
+
+High mileage
+
+Low mileage
+
+Run through full flow
+
+Note confusion points
+
+🟢 PRIORITY 4 — Measurement & Future Prep
+9️⃣ Define 3 Metrics That Matter This Week (30 min)
+
+Outcome: Focus.
+
+Pick only 3:
+
+% users who scroll past Phase 0.5
+
+% zero-data users who click “Add your info”
+
+Time spent on report
+
+Ignore everything else for now.
+
+🔟 Write “What We Won’t Build This Month” (30 min)
+
+Outcome: Prevent scope creep.
+
+Examples:
+
+No VIN requirement
+
+No ML battery diagnostics
+
+No dealer dashboards
+
+No ads
+
+Share with team.
+
+End-of-Week CEO Check (15 min)
+
+Ask yourself:
+
+Did we increase trust?
+
+Did we remove friction?
+
+Did anything ship that shouldn’t have?
+
+If yes → adjust immediately.
+
+CEO Rule for the Week (Important)
+
+If a task does not directly improve user confidence, remove friction, or validate demand — it waits.

@@ -4,6 +4,9 @@ import { personalizationValueProp, confidencePresets, labelFromConfidence, downg
 import { buildSignals as buildSignalsAdapter, getSignal, hasAllSignals, type SignalKey } from "@/core/signals";
 import type { VehicleData, UserInputs } from "@/types";
 import { shouldShowApartmentChargingContext } from "@/lib/apartment-detection";
+import { createChargingFitBlock } from "./chargingFitBlock";
+import { createAssumptionDriftBlock } from "./assumptionDriftBlock";
+import { createOutcomePathsBlock } from "./outcomePathsBlock";
 
 // Re-export buildSignals for backward compatibility
 export { buildSignals } from "@/core/signals";
@@ -148,6 +151,20 @@ export function getBlocks(ctx: RenderCtx): Block[] {
       },
     });
   }
+
+  // Mental Overhead v1: Assumption Drift Block (Re-validation only)
+  // Shows when context_trigger indicates re-validation scenario
+  if (signals.context_trigger && signals.context_trigger !== "just_rechecking") {
+    blocks.push(createAssumptionDriftBlock());
+  }
+
+  // Mental Overhead v1: Charging Fit Block
+  // Always shown (degrades gracefully without inputs)
+  blocks.push(createChargingFitBlock());
+
+  // Mental Overhead v1: Outcome Paths Block
+  // Final decision framework block (always shown)
+  blocks.push(createOutcomePathsBlock());
 
   return blocks.sort((a, b) => (a.tier - b.tier) || (a.priority - b.priority));
 }

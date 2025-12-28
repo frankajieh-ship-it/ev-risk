@@ -1,0 +1,332 @@
+1) Report Rendering Stability (no visual/logical jumps)
+A. Lock down “block identity” (most common cause of jumpiness)
+
+If blocks are generated from logic and you use index as the React key, blocks will “swap” when the list changes (looks like jumping/inconsistent text).
+
+Fix: give every block a stable id derived from its semantic meaning.
+
+// types/reportBlocks.ts
+export type ReportBlock = {
+  id: string;                 // stable key
+  kind: "summary" | "risk" | "why" | "next_steps" | "cta";
+  priority: number;           // stable ordering
+  content: string;
+  confidenceMin?: number;     // gating
+};
+
+// report/composeReport.ts
+import { ReportBlock } from "@/types/reportBlocks";
+
+export function composeReportBlocks(ctx: {
+  confidence: number;
+  inputs: Record<string, any>;
+}): ReportBlock[] {
+  const blocks: ReportBlock[] = [
+    {
+      id: "summary.v1",
+      kind: "summary",
+      priority: 10,
+      content: /* ... */,
+    },
+    {
+      id: "riskScore.v1",
+      kind: "risk",
+      priority: 20,
+      content: /* ... */,
+    },
+    {
+      id: "why.confidence.v1",
+      kind: "why",
+      priority: 30,
+      confidenceMin: 0,
+      content: /* ... */,
+    },
+    {
+      id: "nextSteps.v1",
+      kind: "next_steps",
+      priority: 40,
+      confidenceMin: 0.35,
+      content: /* ... */,
+    },
+  ];
+
+  return blocks
+    .filter(b => b.confidenceMin == null || ctx.confidence >= b.confidenceMin)
+    .sort((a, b) => a.priority - b.priority);
+}
+
+// report/ReportView.tsx
+export function ReportView({ blocks }: { blocks: ReportBlock[] }) {
+  return (
+    <div className="space-y-3">
+      {blocks.map((b) => (
+        <ReportBlockView key={b.id} block={b} />
+      ))}
+    </div>
+  );
+}
+
+
+✅ This alone removes a big chunk of “logical jumps.”
+
+B. Make layout height stable during updates
+
+When content changes, the page shifts; on mobile that feels like “instability.”
+
+Fix options (pick 1):
+
+Reserve space per block using min-height by kind
+
+Freeze scroll anchor to the block being edited
+
+Animate height changes gently (avoid reflow shock)
+
+Minimal, safe approach: min-height per block kind.
+
+function ReportBlockView({ block }: { block: ReportBlock }) {
+  const minH =
+    block.kind === "summary" ? "min-h-[120px]" :
+    block.kind === "risk" ? "min-h-[140px]" :
+    "min-h-[90px]";
+
+  return (
+    <section className={`rounded-xl border bg-white p-4 ${minH}`}>
+      <div className="text-sm leading-6 whitespace-pre-wrap">{block.content}</div>
+    </section>
+  );
+}
+
+C. Prevent “re-render storms” during typing / multi-input updates
+
+If personalization updates every keystroke, the report can recompose repeatedly and jank.
+
+Fix: debounce input updates OR use useTransition so UI stays responsive.
+
+import { useTransition } from "react";
+
+function PersonalizationField({ onCommit }: { onCommit: (v: string) => void }) {
+  const [isPending, startTransition] = useTransition();
+
+  return (
+    <input
+      className="w-full rounded-lg border p-3"
+      onChange={(e) => {
+        const value = e.target.value;
+        startTransition(() => onCommit(value)); // updates report in low priority
+      }}
+    />
+  );
+}
+
+D. Ensure “language blocks” don’t flicker between variants
+
+If you have alternate phrasings depending on confidence thresholds, tiny confidence changes can cause text to flip back and forth.
+
+Fix: add hysteresis (sticky thresholds), so once a block crosses a threshold it doesn’t revert unless confidence drops meaningfully.
+
+// confidence/hysteresis.ts
+export function stableTier(prevTier: number, nextConf: number) {
+  // tiers 0..3 based on confidence
+  const nextTier =
+    nextConf >= 0.75 ? 3 :
+    nextConf >= 0.5 ? 2 :
+    nextConf >= 0.25 ? 1 : 0;
+
+  // hysteresis: require a bigger drop to go down
+  if (prevTier > nextTier) {
+    const downgradeThreshold =
+      prevTier === 3 ? 0.68 :
+      prevTier === 2 ? 0.42 :
+      0.18;
+    return nextConf < downgradeThreshold ? nextTier : prevTier;
+  }
+  return nextTier;
+}
+
+2) Confidence State Visibility (internal only)
+
+Goal: devs can see confidence changes without exposing UI.
+
+A. Add a small debug logger (dev + opt-in)
+
+enabled only when:
+
+process.env.NODE_ENV !== "production" OR
+
+query param ?debug=1 AND a NEXT_PUBLIC_DEBUG_OK=1
+
+// debug/debug.ts
+export function isDebugEnabled(): boolean {
+  if (typeof window === "undefined") return false;
+  const qp = new URLSearchParams(window.location.search);
+  const byQuery = qp.get("debug") === "1";
+  const allow = process.env.NEXT_PUBLIC_DEBUG_OK === "1";
+  return (process.env.NODE_ENV !== "production" && byQuery) || (allow && byQuery);
+}
+
+export function debugLog(...args: any[]) {
+  if (!isDebugEnabled()) return;
+  // eslint-disable-next-line no-console
+  console.log("[EV-RISK DEBUG]", ...args);
+}
+
+B. Log confidence “before personalization” and “after each input”
+
+Assuming you have a reducer/store for inputs:
+
+// confidence/computeConfidence.ts
+export function computeConfidence(inputs: Record<string, any>): number {
+  // deterministic scoring here
+  // return 0..1
+  return 0.42;
+}
+
+// report/useReportState.ts
+import { useEffect, useMemo, useRef } from "react";
+import { debugLog } from "@/debug/debug";
+import { computeConfidence } from "@/confidence/computeConfidence";
+import { composeReportBlocks } from "@/report/composeReport";
+
+export function useReportState(inputs: Record<string, any>) {
+  const prevConfidenceRef = useRef<number | null>(null);
+
+  const confidence = useMemo(() => computeConfidence(inputs), [inputs]);
+  const blocks = useMemo(() => composeReportBlocks({ confidence, inputs }), [confidence, inputs]);
+
+  useEffect(() => {
+    const prev = prevConfidenceRef.current;
+    if (prev == null) {
+      debugLog("Confidence (initial):", confidence, { inputs });
+    } else if (prev !== confidence) {
+      debugLog("Confidence changed:", { from: prev, to: confidence, inputs });
+    }
+    prevConfidenceRef.current = confidence;
+  }, [confidence, inputs]);
+
+  return { confidence, blocks };
+}
+
+
+No UI exposure, but your team can trace exactly why content changed.
+
+Optional: if you want “dev-only indicator” without user exposure, render a tiny badge only in dev builds behind debug=1.
+
+3) Performance Pass (mobile-first) — measure + fix the single biggest bottleneck
+A. Add Web Vitals capture (FCP/TTI/CLS focus)
+
+Next.js supports reportWebVitals in pages/_app.tsx (Pages Router).
+If you’re on App Router, we’ll do a lightweight web-vitals hook.
+
+App Router approach:
+
+npm i web-vitals
+
+// app/_components/VitalsReporter.tsx
+"use client";
+
+import { useEffect } from "react";
+import { onCLS, onFCP, onINP, onLCP, Metric } from "web-vitals";
+import { debugLog, isDebugEnabled } from "@/debug/debug";
+
+function send(metric: Metric) {
+  // For now: log only. Later: POST to /api/vitals
+  debugLog("WEB_VITAL", metric.name, metric.value, metric);
+}
+
+export function VitalsReporter() {
+  useEffect(() => {
+    if (!isDebugEnabled()) return;
+    onCLS(send);
+    onFCP(send);
+    onLCP(send);
+    onINP(send);
+  }, []);
+
+  return null;
+}
+
+
+Then include it at the top of your report page layout (dev-only when debug=1).
+
+// app/report/page.tsx
+import { VitalsReporter } from "@/app/_components/VitalsReporter";
+
+export default function ReportPage() {
+  return (
+    <>
+      <VitalsReporter />
+      {/* report UI */}
+    </>
+  );
+}
+
+
+Now you can test on your phone (or Chrome mobile emulation) and see CLS/FCP/LCP.
+
+B. Typical “single biggest bottleneck” candidates (and the fixes)
+Candidate 1: Heavy report composition on every render
+
+Fix: memoize, split compute from render, avoid recomputing blocks for unrelated state.
+
+You already saw the useMemo pattern above. Also ensure your inputs object reference is stable (don’t recreate it each render).
+
+Candidate 2: Large client bundle (charts, markdown, heavy UI libs)
+
+Fix: dynamically import the expensive parts.
+
+import dynamic from "next/dynamic";
+
+const ReportChart = dynamic(() => import("./ReportChart"), { ssr: false });
+
+Candidate 3: Layout shift from late-loading fonts/images
+
+Fix: set explicit image sizes + use Next Image, avoid “unknown height” content.
+
+import Image from "next/image";
+
+<Image src="/hero.png" alt="" width={1200} height={630} priority />
+
+Candidate 4: Too many rerenders from input typing
+
+Fix: useTransition + debounce commits (commit on blur / pause, not every keystroke).
+
+What I would implement first (order of operations this week)
+Day 1–2: Stability foundation
+
+Stable block ids + stable ordering (priority)
+
+Eliminate index keys everywhere
+
+Add min-height by block kind to reduce visible shifts
+
+Day 3: Confidence visibility
+
+Add debug=1 internal logging
+
+Add “confidence changed” logs + (optional) hidden dev badge
+
+Day 4–5: Mobile performance pass
+
+Add vitals logging (CLS/FCP/LCP/INP)
+
+Identify the worst metric on the report page
+
+Ship one fix:
+
+dynamic import heavy components, OR
+
+memoize/report compute, OR
+
+fix late-loading asset/layout shift
+
+Fast handoff: tell me what you have and I’ll map this exactly
+
+If you paste one of these, I’ll tailor the code to your repo structure immediately (no extra questions):
+
+your ReportView component (or equivalent)
+
+your “compose report” function (or how you build language blocks)
+
+the personalization input handler / state store
+
+Even without that, the snippets above are safe defaults you can implement today.

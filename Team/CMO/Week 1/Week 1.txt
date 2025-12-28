@@ -1,0 +1,303 @@
+DAY 1 — FOUNDATION & MESSAGE LOCK (MONDAY)
+Goal
+
+Lock messaging and prep assets so nothing feels improvised.
+
+Tasks
+
+1️⃣ Lock Core Messaging (2 hrs)
+Create a 1-page internal doc with:
+
+One-sentence positioning
+
+3 phrases you WILL use
+
+5 phrases you will NEVER use
+
+Example:
+
+✅ “Decision intelligence”
+
+❌ “Battery diagnostics”
+
+❌ “AI-powered analysis”
+
+Owner: Founder / CMO
+Output: Internal “Language Guardrails” doc
+
+2️⃣ Finalize Phase 0.5 Report Section (2 hrs)
+Add (or verify) the following appears in the report:
+
+“What’s missing”
+
+“Why it matters”
+
+Confidence improvement (e.g., 65% → 92%)
+
+This is your conversion engine.
+
+Owner: Product / Eng
+Output: Live in product or mocked if needed
+
+3️⃣ Instrument Analytics (1–2 hrs)
+Track behavioral signals, not vanity metrics:
+
+Time on report
+
+Scroll depth
+
+Clicks on “Why this matters”
+
+Save / share clicks
+
+Owner: Eng
+Output: Verified tracking events
+
+DAY 2 — TRUST CONTENT CREATION (TUESDAY)
+Goal
+
+Create explainers you can reuse everywhere.
+
+Tasks
+
+1️⃣ Write 2 Cornerstone Posts (3–4 hrs)
+No SEO fluff. Written like Reddit answers.
+
+Titles:
+
+“Why Battery Risk Isn’t Binary in Used EVs”
+
+“What Used EV Listings Don’t Tell You (And Why)”
+
+Rules:
+
+No AI talk
+
+No product pitch until final paragraph
+
+End with: “I built a tool to sanity-check this.”
+
+Owner: Founder
+Output: 2 long-form posts (blog or Notion)
+
+2️⃣ Create 3 Report Screenshots (1 hr)
+Screenshots showing:
+
+Missing info
+
+Confidence jump
+
+Plain-English explanation
+
+Blur sensitive data.
+These will fuel Reddit & comments all week.
+
+Owner: Founder / Design
+Output: 3 clean images
+
+DAY 3 — REDDIT & COMMUNITY ENTRY (WEDNESDAY)
+Goal
+
+Insert yourself into existing anxiety, quietly.
+
+Tasks
+
+1️⃣ Identify 10 High-Signal Threads (1 hr)
+Search Reddit for:
+
+“Should I buy this EV”
+
+“Used Tesla advice”
+
+“Dealer won’t give battery report”
+
+Save links. No posting yet.
+
+Owner: Founder
+Output: Thread list
+
+2️⃣ Respond to 5 Threads (2–3 hrs)
+Comment style:
+
+Helpful
+
+Calm
+
+No links initially
+
+Then follow-up reply:
+
+“I actually built a tool to sanity-check listings like this — happy to run it if useful.”
+
+Owner: Founder
+Output: 5 genuine conversations
+
+3️⃣ Soft Link Drop (Selective)
+Only when asked or clearly relevant.
+
+Success Signal Today
+
+Replies
+
+DMs
+
+Curiosity, not clicks
+
+DAY 4 — FUNNEL & LEAD CAPTURE (THURSDAY)
+Goal
+
+Turn curiosity into light commitment.
+
+Tasks
+
+1️⃣ Add Email Capture (2 hrs)
+Trigger after:
+
+Report completion
+
+Save / share attempt
+
+Copy:
+
+“Want to save this or compare another listing?”
+
+No discounts. No urgency.
+
+Owner: Product
+Output: Live capture
+
+2️⃣ Create Simple Lead Magnet (2 hrs)
+PDF or page:
+“Used EV Risk Checklist”
+
+10 questions buyers should ask
+
+Last line: “Most listings can’t answer these.”
+
+Owner: Founder
+Output: Downloadable asset
+
+DAY 5 — PROOF & FEEDBACK LOOP (FRIDAY)
+Goal
+
+Listen harder than you talk.
+
+Tasks
+
+1️⃣ Analyze First 20–30 Users (2 hrs)
+Look for:
+
+Where they pause
+
+What they click
+
+Where they hesitate
+
+Write down exact phrases users react to.
+
+Owner: Founder / CMO
+Output: Insight notes
+
+2️⃣ DM 5 Users for Feedback (1 hr)
+Message:
+
+“I’m refining how we explain this — what part was most helpful or confusing?”
+
+No surveys. Human conversation.
+
+3️⃣ Adjust Messaging (1 hr)
+Update:
+
+Headings
+
+CTA phrasing
+
+Confidence explanation
+
+Owner: Founder
+Output: Minor copy refinements
+
+DAY 6 — SECOND PUSH & SHARE LOOP (SATURDAY)
+Goal
+
+Test repeatability.
+
+Tasks
+
+1️⃣ Post 1 Original Reddit Thread (2 hrs)
+Example:
+
+“I keep seeing used EV deals that look safe — but hide the same 3 risks.”
+
+Include:
+
+1 screenshot
+
+1 explanation
+
+Invite discussion, not clicks
+
+2️⃣ Add “Share This Report” CTA (1 hr)
+Copy:
+
+“Show this to a friend or inspector.”
+
+Sharing = trust multiplier.
+
+DAY 7 — REVIEW & DECISION (SUNDAY)
+Goal
+
+Decide what to double down on.
+
+Tasks
+
+1️⃣ Weekly Review (1–2 hrs)
+Answer:
+
+Which phrase caused the most engagement?
+
+Where did users hesitate?
+
+Did anyone ask for more depth?
+
+2️⃣ Decide Next Week’s Focus
+Choose ONE:
+
+More Reddit depth
+
+SEO article expansion
+
+Inspector outreach
+
+Report clarity improvements
+
+No multitasking.
+
+📊 WEEK 1 SUCCESS METRICS (REALISTIC)
+
+50–100 listings analyzed
+
+≥20% save/share rate
+
+≥10 unsolicited “Can you check mine?” signals
+
+Clear language winner identified
+
+CMO CLOSING
+
+This week is not about growth.
+It’s about earning the right to grow.
+
+If this week feels calm, slow, and thoughtful — you’re doing it right.
+
+If you want, next I can:
+
+Turn this into a Notion task board
+
+Assign roles & owners
+
+Design exact Reddit post copy
+
+Plan Week 2: Inspector soft-entry
+
+Just tell me how you want to operationalize it.

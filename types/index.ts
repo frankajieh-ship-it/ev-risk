@@ -56,9 +56,45 @@ export interface VehicleData {
 }
 
 /**
+ * Context Trigger - Why the user is checking
+ */
+export type ContextTrigger =
+  | "moved_home"
+  | "changed_commute"
+  | "changed_schedule"
+  | "charging_changed"
+  | "just_rechecking";
+
+/**
+ * Charging Access Type
+ */
+export type ChargingAccess =
+  | "home_l2"
+  | "apartment_shared_l2"
+  | "public_l2"
+  | "dc_fast_primary"
+  | "mixed";
+
+/**
+ * Charging Reliability
+ */
+export type Reliability =
+  | "usually_available"
+  | "sometimes_available"
+  | "unpredictable";
+
+/**
+ * Weekly Charging Moments
+ */
+export type WeeklyChargingMoments = "1_2" | "3_4" | "5_plus";
+
+/**
  * User Inputs Types
  */
 export interface UserInputs {
+  // Context
+  contextTrigger?: ContextTrigger;
+
   // Driving patterns
   annualMileage?: number;
   dailyCommute?: number;
@@ -67,6 +103,11 @@ export interface UserInputs {
   // Charging
   hasHomeCharging?: boolean;
   chargingPatterns?: "daily_overnight" | "opportunistic" | "dc_fast";
+
+  // Charging Fit (Mental Overhead v1)
+  chargingAccess?: ChargingAccess;
+  chargingReliability?: Reliability;
+  weeklyChargingMoments?: WeeklyChargingMoments;
 
   // Location
   zipCode?: string;

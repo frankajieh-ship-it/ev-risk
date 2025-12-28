@@ -1,0 +1,258 @@
+EV RISK — PHASE 0.5 PRODUCT SPEC
+
+Status: 🔒 FROZEN FOR CURRENT SPRINT
+Owner: CEO
+Audience: Product Engineer, UX / Content Systems Designer
+Purpose: Prevent silent failure for zero-data users while preserving trust
+
+1. Phase 0.5 Objective (Why This Exists)
+
+Phase 0.5 exists to protect value for users who provide zero personalization data.
+
+Without Phase 0.5:
+
+Users receive a report
+
+Do not understand its limitations
+
+Do not understand how to improve it
+
+Leave quietly (silent failure)
+
+Phase 0.5 ensures that every user—regardless of input—leaves with:
+
+A useful risk report
+
+Clear awareness of uncertainty
+
+Clear understanding of what personalization unlocks
+
+A natural, optional next step
+
+This phase is about trust calibration, not data collection.
+
+2. Activation Rule (Non-Negotiable)
+
+Phase 0.5 components MUST render when:
+
+personalizationInputs.count === 0
+
+
+The moment any personalization input is provided:
+
+Phase 0.5 components MUST hide
+
+Report language MUST switch to “Based on what you shared…”
+
+3. Phase 0.5 Components (Must Ship Together)
+COMPONENT A — “What We Could Tell You With 2 Minutes of Info”
+
+Purpose:
+Expose latent value without asking questions yet.
+
+Placement
+
+Inside the report
+
+Immediately after the initial risk summary
+
+Before any “Proceed / Walk Away” or save/share CTAs
+
+Required Copy Structure
+
+Heading
+
+🔍 What we could tell you with 2 minutes of info
+
+Body
+
+We analyzed this vehicle using listing data only.
+A few details about you would let us be much more precise.
+
+Dynamic Bullet List (Vehicle-Driven)
+Bullets MUST be conditional, not static.
+
+Examples:
+
+“Whether this range comfortably covers your commute”
+
+“How your charging access changes ownership risk”
+
+“How battery degradation affects your driving pattern”
+
+CTA
+
+➕ Add your info →
+
+Rules
+
+CTA scrolls inline (no navigation)
+
+CTA is dismissible
+
+No modal
+
+No blocking behavior
+
+COMPONENT B — Confidence Explanation (Current vs Potential)
+
+Purpose:
+Make uncertainty explicit and explainable.
+
+Display Requirement
+
+Confidence Label
+
+🔐 Assessment Confidence: Medium (~65%)
+
+Explanation Block
+
+This assessment is based on:
+• Vehicle age and mileage from the listing
+• Model-level battery degradation patterns
+• Typical ownership assumptions
+
+We could not verify:
+• Battery health report
+• Charging behavior
+• Driving intensity
+
+Confidence Improvement Indicator (Required)
+
+📈 With basic driving and charging details, confidence typically improves to ~95%
+
+Rules
+
+Use ranges (~65%, ~95%) only
+
+No decimals
+
+No promises of certainty
+
+Deterministic logic only (no ML claims)
+
+COMPONENT C — Trust-Calibration Moment
+
+(Most Important Component)
+
+Purpose:
+Build credibility by explicitly stating what’s missing, why it matters, and how to resolve it.
+
+Required Structure
+
+Title
+
+⚠️ What’s missing — and why it matters
+
+Generated Explanation
+Example:
+
+We couldn’t verify this vehicle’s battery health report.
+
+Without it, we estimate risk using:
+• 45,000 miles (from listing)
+• 4 years of age
+• Average degradation curves for this model
+
+Resolution Path
+
+Obtaining a battery report or sharing how you plan to use the vehicle would significantly narrow this estimate.
+
+Rules
+
+Never blame the user
+
+Never say “data unavailable”
+
+Always explain:
+
+what’s missing
+
+why it matters
+
+how confidence improves
+
+4. Confidence Logic (Phase 0.5 Only)
+
+Phase 0.5 uses deterministic confidence, not ML.
+
+Baseline Model (Example)
+confidence = 50;
+
+if (listing.age) confidence += 10;
+if (listing.mileage) confidence += 10;
+if (model.hasKnownPatterns) confidence += 5;
+
+if (user.drivingPattern) confidence += 10;
+if (user.chargingAccess) confidence += 10;
+
+confidence = Math.min(confidence, 95);
+
+
+Phase 0.5 shows:
+
+current confidence
+
+potential confidence
+
+NOT the full breakdown UI
+
+5. Explicitly OUT OF SCOPE for Phase 0.5
+
+These MUST NOT be built or partially implemented:
+
+❌ No mandatory personalization
+❌ No VIN requirement
+❌ No profile creation
+❌ No ML-based scoring
+❌ No inspection marketplace
+❌ No gating reports behind inputs
+❌ No modals or blocking dialogs
+❌ No ads, upsells, or pricing prompts
+
+If it does not increase clarity or trust, it waits.
+
+6. Analytics Requirements (Required)
+
+Engineering must instrument:
+
+phase05_viewed
+
+phase05_scrolled
+
+phase05_add_info_clicked
+
+confidence_explanation_viewed
+
+Success Benchmarks
+
+≥60% of zero-data users scroll past Phase 0.5
+
+≥25% click “Add your info”
+
+0 support tickets asking “why are you asking this?”
+
+7. Acceptance Criteria (Go / No-Go)
+
+Phase 0.5 is complete ONLY if:
+
+All three components render together
+
+Report still delivers value with zero personalization
+
+Confidence is explicit and explainable
+
+Users can proceed without providing data
+
+Copy reads calm, honest, non-defensive
+
+If any one of these fails → do not ship.
+
+8. Final Directive (Frozen)
+
+Phase 0.5 is a trust layer, not a growth feature.
+If a user leaves without personalizing, they should still leave thinking:
+“This system was honest—and I see exactly how it could be better.”
+
+This spec is frozen for the sprint.
+Any changes require CEO sign-off.

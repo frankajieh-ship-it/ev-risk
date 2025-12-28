@@ -1,0 +1,1203 @@
+features are required to make the product credible, sticky, and monetizable.
+
+1️⃣ Risk History & Session Save (Critical)
+Why this matters
+
+Users rarely evaluate just one car.
+They compare 3–7 listings before deciding.
+
+Feature
+
+Auto-save analyzed listings per session
+
+Allow:
+
+“Compare risks”
+
+“Return to previous analysis”
+
+User Value
+
+“Which of these EVs is the least risky, not just cheapest?”
+
+PO Priority
+
+🔴 Non-negotiable
+
+2️⃣ EV Model / Year Risk Profiles (Static Knowledge Layer)
+Why
+
+Your risk engine needs a baseline memory, not just listing parsing.
+
+Feature
+
+Internal database of:
+
+Known degradation patterns
+
+Recall sensitivity
+
+Climate sensitivity
+
+Warranty quirks
+
+Display as:
+
+“Known considerations for this model/year”
+
+User Value
+
+“Is this risk coming from this car or this model?”
+
+PO Note
+
+This can be:
+
+Curated manually at first
+
+Rules-based
+
+Updated incrementally
+
+No ML required initially.
+
+3️⃣ “What This Listing Is Not Telling You” Section
+Why
+
+This is your killer differentiator.
+
+Feature
+
+Explicit section in report:
+
+Missing battery report
+
+No charging history
+
+No warranty confirmation
+
+Generic health claims
+
+User Value
+
+“Oh — that’s what I should be worried about.”
+
+This is what makes people share the product.
+
+4️⃣ Dealer Question Generator (High Conversion)
+Why
+
+Buyers don’t know what to ask.
+
+Feature
+
+Auto-generate:
+
+5–7 dealer questions
+
+Specific to the listing’s gaps
+
+Example:
+
+“Can you provide a vehicle-specific battery health report (not a fleet average)?”
+
+User Value
+
+Immediate, actionable leverage.
+
+5️⃣ Confidence Indicator (Trust Feature)
+Why
+
+Users must understand how much to trust the output.
+
+Feature
+
+Show:
+
+Confidence: High / Medium / Low
+
+Why confidence is what it is
+
+What would raise confidence
+
+User Value
+
+Trust without false certainty.
+
+PHASE 2 — STRONG DIFFERENTIATORS (60–120 Days)
+
+These turn EV Risk from a tool into a decision system.
+
+6️⃣ Multi-Listing Comparison View
+Feature
+
+Compare:
+
+Risk band
+
+Missing info
+
+Verification burden
+
+Estimated “effort to verify”
+
+User Value
+
+“This one is cheaper, but this one is safer with less hassle.”
+
+7️⃣ Evidence Upload Expansion (Vision + Docs)
+Feature
+
+Let users upload:
+
+Battery screenshots
+
+OBD logs (where supported)
+
+Dealer inspection PDFs
+
+Re-run analysis when new evidence is added.
+
+User Value
+
+“As I learn more, the risk picture updates.”
+
+8️⃣ “Proceed / Proceed with Inspection / Walk Away” Engine
+Why
+
+Users want guidance, not analysis paralysis.
+
+Feature
+
+Recommendation states:
+
+Proceed
+
+Proceed with inspection
+
+Walk away unless verified
+
+Backed by reasons, not authority.
+
+9️⃣ Inspection Hand-Off (EV Inspectors Ready)
+Feature
+
+“Send this report to an inspector”
+
+“Find inspection partners near me”
+
+No exclusivity. No lock-in.
+
+Strategic Value
+
+Partnership leverage
+
+Revenue share later
+
+Reduced liability
+
+PHASE 3 — SCALE & MOAT (Later)
+
+These are not required now, but define long-term value.
+
+🔹 10️⃣ User Profiles & Ownership Context
+
+Track:
+
+First-time EV buyer vs experienced
+
+Risk tolerance
+
+Typical use case
+
+Personalize recommendations accordingly.
+
+🔹 11️⃣ Learning Loop (Outcome Feedback)
+
+Let users mark:
+
+“I bought this”
+
+“I walked away”
+
+“Inspection found issues”
+
+This becomes:
+
+Model refinement
+
+Pattern detection
+
+Long-term moat
+
+🔹 12️⃣ Expert Escalation (Hybrid AI + Human)
+
+For high-risk cases:
+
+Paid expert review
+
+Second opinion
+
+This is where monetization matures.
+
+What You Should Explicitly NOT Build Yet
+
+🚫 Full battery diagnostics
+🚫 OEM API dependency
+🚫 Real-time telematics
+🚫 Marketplace integrations
+🚫 Ads / lead marketplaces
+
+These increase complexity without increasing trust early.
+
+Feature Priority Stack (Condensed)
+CORE WEDGE
+│
+├─ Paste Listing → Risk Report  ✅ (Now)
+├─ Risk History & Compare       🔴
+├─ Model-Year Risk Profiles     🔴
+├─ Missing Info Detection       🔴
+├─ Dealer Question Generator    🔴
+│
+├─ Multi-Listing Comparison     🟡
+├─ Evidence Re-Analysis         🟡
+├─ Proceed / Walk Away Engine   🟡
+│
+└─ Partnerships & Human Review  🟢
+
+Product Owner Bottom Line
+
+To win, EV Risk must become:
+
+“The thing you check before you emotionally commit to a used EV.”
+
+Not:
+
+another listing site
+
+another inspection
+
+another battery app
+
+But a decision firewall.
+
+ Core Product Features (Next 3-6 Months)
+1. VIN Decoding & OEM Integration
+javascript
+// Critical for battery-specific data
+const VINService = {
+  decode: async (vin) => {
+    // Returns: battery capacity, cooling type, chemistry, original warranty
+    // Sources: NHTSA API, EV-Database, manufacturer APIs
+  }
+};
+Why: Battery specs vary wildly even within same model/year.
+
+2. Battery Health Estimation Engine
+javascript
+const BatteryHealthEstimator = {
+  calculateSOH: (vehicle, climate, mileage, chargingPattern) => {
+    // Industry models:
+    // - Tesla degradation curves (public data)
+    // - Geotab's battery degradation study
+    // - Machine learning on fleet data
+    return {
+      estimatedRangeLoss: '15-25%',
+      confidenceInterval: '75%',
+      replacementTimeline: '2-4 years'
+    };
+  }
+};
+Why: Users need "what's my likely range today?" not just "battery ages".
+
+3. Market Price Analysis
+javascript
+const PriceAnalyzer = {
+  compare: (vehicle, listingPrice) => {
+    // Cross-reference:
+    // - KBB EV-specific pricing (when available)
+    // - Manheim auction data (partnership needed)
+    // - Similar listings with battery reports
+    return {
+      fairPriceRange: '$28k-$32k',
+      listingPremium: '+$1,500 for claimed battery',
+      negotiationLevers: ['No health report', 'High-climate history']
+    };
+  }
+};
+Why: Risk needs price context. Overpaying for risky battery = double loss.
+
+4. Recall & TSB Integration
+javascript
+const SafetyChecker = {
+  check: (vin) => {
+    // Integrate:
+    // - NHTSA recalls (battery fires, BMS updates)
+    // - Technical Service Bulletins (TSBs)
+    // - Class action settlements (e.g., Hyundai/Kia battery)
+    return {
+      openRecalls: 2,
+      batteryRelated: true,
+      repairCompletionRate: '65%'
+    };
+  }
+};
+Why: Safety issues trump degradation concerns.
+
+🔌 Ecosystem Features
+5. Dealer/OEM Partnership Pathways
+text
+User Flow:
+1. Report indicates "unknown: battery health"
+2. Button: "Request dealer health report"
+3. System emails dealer with VIN + request template
+4. Dealer uploads OBD report → Report updates
+Why: Creates business model (lead gen) and improves data quality.
+
+6. OBD2 Report Upload & Parsing
+javascript
+const OBD2Parser = {
+  parse: (imageOrPDF) => {
+    // OCR for:
+    // - State of Health (SOH)
+    // - State of Charge (SOC)
+    // - Cell voltage variance
+    // - Full charge capacity history
+    // Support: Tesla service reports, LeafSpy, Recurrent
+  }
+};
+Why: Moves from estimation to actual data.
+
+7. Charging History Reconstruction
+python
+# Infer from mileage patterns
+def infer_charging_pattern(vehicle, location_history):
+    """
+    - High mileage + single location = likely L2 home charging
+    - Cross-country trips = Supercharger usage
+    - Urban delivery pattern = DC fast charging
+    """
+    if avg_daily_mileage > 200:
+        return "high_fast_charge_risk"
+    elif has_regular_600_mile_days:
+        return "likely_road_trip_vehicle"
+Why: Fast charging >80% degrades batteries 2-3x faster.
+
+📊 Data & Intelligence Features
+8. Regional Battery Degradation Database
+text
+Aggregate anonymous data:
+- Climate zone + model year = average degradation
+- "2018 Nissan Leafs in Arizona average 70% SOH"
+- "2019 Tesla Model 3 in Michigan average 88% SOH"
+Why: Network effects—more users → better predictions.
+
+9. Battery Replacement Cost Estimator
+javascript
+const ReplacementCost = {
+  estimate: (vehicle, region) => {
+    // Sources:
+    // - OEM parts + labor ($15k-$25k)
+    // - Third-party refurbished ($8k-$15k)
+    // - Salvage yard with warranty
+    // - Battery module replacement only
+    return {
+      oemReplacement: '$22,500',
+      thirdPartyOption: '$12,000',
+      laborHours: 8,
+      warrantyIncluded: true
+    };
+  }
+};
+Why: Makes risk concrete in dollar terms.
+
+10. Resale Value Projection
+javascript
+const ResaleProjector = {
+  project: (vehicle, healthEstimate) => {
+    // "This 2020 Model 3 at 85% SOH will be worth:
+    // - $18k in 2 years (if degradation continues)
+    // - $22k if battery replaced under warranty"
+  }
+};
+Why: EVs have different depreciation curves than ICE vehicles.
+
+👥 User Experience Features
+11. Saved Reports & Comparison
+text
+User can:
+- Save reports (email required)
+- Compare 2-3 vehicles side-by-side
+- See risk scores comparison
+Why: Shopping is comparative.
+
+12. "Questions to Ask the Dealer" Generator
+javascript
+const QuestionGenerator = {
+  generate: (report) => {
+    // Based on unknowns:
+    // - "Can you provide a battery health report from OBD2?"
+    // - "Has the battery cooling system been serviced?"
+    // - "Is the 8-year battery warranty transferable?"
+    // - "Any DC fast charging receipts available?"
+  }
+};
+Why: Empowers negotiation.
+
+13. PPI (Pre-Purchase Inspection) Checklist
+text
+Battery-specific inspection items:
+- Check for battery warning lights (even if cleared)
+- Inspect charging port for wear/burn marks
+- Test maximum charging rate
+- Check cabin heater operation (uses battery)
+Why: Guides next physical inspection step.
+
+🛡️ Trust & Compliance Features
+14. "Why We Know This" Transparency Layer
+text
+Every claim is cited:
+- "Battery capacity: 75 kWh (source: EPA filing)"
+- "Cooling type: liquid (source: service manual)"
+- "Average degradation: 2.3%/year (source: Geotab study)"
+Why: Builds credibility for serious buyers.
+
+15. Confidence Scoring & Disclosure
+text
+Confidence levels:
+- High: Based on uploaded OBD2 report
+- Medium: Based on VIN + mileage + climate
+- Low: Based on model-year averages only
+
+With disclaimer: "This is not a diagnostic"
+Why: Legal protection and manage expectations.
+
+16. Audit Trail for Report Updates
+text
+When new data arrives:
+- "Report updated: Battery health report uploaded"
+- "Price adjusted: Market data refreshed"
+- "Risk recalculated: User confirmed hot climate"
+Why: Shows system learning.
+
+📈 Business Model Features
+17. Dealer Dashboard
+text
+Dealers can:
+- See how their listings score
+- Upload batch battery reports
+- Get "EV Certified Listing" badge
+- Pay for premium analytics
+Why: Monetization path.
+
+18. Insurance Partner Integration
+text
+Output: "Insurance risk profile"
+- Battery replacement cost
+- Fire risk assessment (certain models)
+- Theft risk (based on location + model)
+Why: B2B revenue stream.
+
+19. Financing & Warranty Recommendations
+javascript
+const FinancingAdvisor = {
+  recommend: (vehicle, riskScore) => {
+    // "Consider extended warranty from X provider"
+    // "Bank Y offers EV-specific loans with battery protection"
+    // "Warranty transfer service Z: $300"
+  }
+};
+Why: Completes the buying journey.
+
+🔬 Advanced Technical Features
+20. Image Analysis for Wear & Tear
+text
+Analyze listing photos for:
+- Charging port condition
+- Dashboard warning lights (enhanced)
+- Tire wear patterns (alignment issues affect battery)
+- Body damage near battery pack
+Why: Leverage existing listing images.
+
+21. Service Record OCR & Analysis
+python
+# Parse service invoices
+extract_battery_services(['cell replacement', 'coolant flush', 'BMS update'])
+# Flag: "Last battery service 40k miles ago"
+Why: Maintenance history matters for batteries.
+
+22. Competitor Price Monitoring
+javascript
+// Track similar listings over time
+if (priceDrops30percentIn7days) {
+  flag("potential_battery_issue_motivating_sale");
+}
+Why: Pricing anomalies signal hidden problems.
+
+🚀 Implementation Priority Matrix
+Phase 1 (MVP - Current) ✓
+URL parsing
+
+Basic extraction
+
+Simple risk assessment
+
+User prompts
+
+Phase 2 (Critical - Month 2-3)
+VIN decoding (unlocks battery specs)
+
+Health estimation engine (core value)
+
+OBD2 upload (moves from guess to data)
+
+Saved reports (user retention)
+
+Phase 3 (Differentiation - Month 4-6)
+Market price analysis (price + risk)
+
+Dealer integration (business model)
+
+Regional degradation database (network effects)
+
+Recall/TSB integration (safety credibility)
+
+Phase 4 (Scale - Month 7-12)
+Insurance/financing partnerships (revenue)
+
+Image analysis (competitive moat)
+
+Advanced pattern recognition (AI/ML)
+
+OEM data partnerships (industry standard)
+
+💡 Key Insight
+The single most important feature after MVP is OBD2 report parsing. It:
+
+Moves from estimation to measurement
+
+Creates immediate user value ("upload your report")
+
+Starts building ground-truth dataset
+
+Can be monetized fastest (premium parsing)
+
+🎯 Ultimate Vision
+This isn't just a "risk report" tool—it's becoming the Carfax for EV batteries. The moat isn't the URL parsing; it's the proprietary degradation models, the largest database of actual battery health reports, and the industry partnerships that make the data flow both ways.
+
+Would you like me to deep dive into the architecture for any of these specific feature areas? The OBD2 parsing and health estimation engine would be particularly impactful next steps.
+
+Personalization Data Layers
+1. Driving Pattern Analysis
+javascript
+const DrivingPatternMatcher = {
+  analyzeFit: (customerProfile, vehicle) => {
+    // Customer inputs their weekly driving
+    return {
+      suitabilityScore: 85,
+      warnings: [
+        "Your 80-mile daily commute exceeds this vehicle's 120-mile winter range",
+        "You'll need to charge daily instead of weekly"
+      ],
+      recommendations: [
+        "Consider 250+ mile range vehicles",
+        "Look for heat pump (better winter efficiency)"
+      ]
+    };
+  }
+};
+Customer Inputs:
+
+text
+- Daily commute distance (round trip)
+- Weekly errands/side trips
+- Monthly road trip frequency
+- Access to charging (home/work/public)
+- Typical passenger/cargo load
+Analysis Output:
+
+"This EV fits 95% of your driving, but you'll need rental car for 2 annual road trips"
+
+"With your 40-mile commute, even degraded battery is fine"
+
+"No home charging? This slow-charging EV is a poor fit"
+
+2. Climate & Geography Matching
+javascript
+const ClimateAdvisor = {
+  match: (customerZip, vehicleHistory) => {
+    // Compare vehicle's history to buyer's climate
+    if (vehicle.hotClimate && customer.coldClimate) {
+      return "Battery moving from hot to cold climate - may show temporary range increase";
+    }
+    if (vehicle.coldClimate && customer.hotClimate) {
+      return "⚠️ Critical: Battery moving to hot climate - degradation will accelerate";
+    }
+  }
+};
+Customer Inputs:
+
+Current location (zip code)
+
+Parking situation (garage/driveway/street)
+
+Future relocation plans
+
+Analysis:
+
+"This Arizona-lived EV will degrade faster in your Florida heat"
+
+"Garage parking extends battery life 20% vs street parking"
+
+"Moving to Colorado? Heat pump is mandatory for winter range"
+
+3. Financial Fit Analysis
+javascript
+const FinancialFitCalculator = {
+  calculate: (customerFinances, vehicle) => {
+    const totalCostOfOwnership = 
+      purchasePrice +
+      insurance (personalized quote) +
+      chargingCosts (based on local electricity rates) +
+      maintenance (adjusted for climate) +
+      depreciation (personalized risk adjusted);
+    
+    return {
+      affordabilityIndex: (customerBudget / totalCostOfOwnership) * 100,
+      hiddenCosts: [
+        "Your high electricity rate ($0.35/kWh) makes charging expensive",
+        "Your area has few free chargers - expect $120/month charging"
+      ],
+      financingAdvice: [
+        "With your 720 credit score, qualify for 5.9% EV loan",
+        "Your state offers $2,500 EV rebate - vehicle qualifies"
+      ]
+    };
+  }
+};
+Customer Inputs:
+
+Budget range (not just purchase price)
+
+Local electricity rate (zip code based)
+
+Insurance profile (age, driving record)
+
+Tax situation (income for credits)
+
+Financing preferences (loan/lease/cash)
+
+Output:
+
+"With your high electric rate, this inefficient EV costs $500/year more"
+
+"You qualify for $4,000 tax credit on this model"
+
+"Lease might be better given battery warranty expiration"
+
+4. Lifestyle & Use Case Matching
+javascript
+const LifestyleMatcher = {
+  match: (customerLifestyle, vehicle) => {
+    const mismatches = [];
+    
+    if (customer.hasKids && vehicle.hasLowRoof) {
+      mismatches.push("Car seat access difficult");
+    }
+    if (customer.tows && vehicle.maxTowing < customer.needs) {
+      mismatches.push("Cannot tow your boat");
+    }
+    if (customer.accessibleNeeds && vehicle.hasHighStepIn) {
+      mismatches.push("Not suitable for mobility needs");
+    }
+    
+    return mismatches;
+  }
+};
+Customer Inputs:
+
+Family size/ages
+
+Hobbies (biking, skiing, camping)
+
+Accessibility needs
+
+Pet transportation
+
+Home improvement/hauling needs
+
+Analysis:
+
+"With 3 kids, consider 3-row Model Y instead of Model 3"
+
+"Your ski trips require AWD and roof rack compatibility"
+
+"Dog owner? Leather seats handle wear better than vegan 'leather'"
+
+5. Charging Infrastructure Alignment
+python
+class ChargingInfrastructureAnalyzer:
+    def analyze(self, customer_address, vehicle_charging_speed):
+        # Get local charging network
+        nearby_chargers = get_chargers(customer_address)
+        
+        if vehicle_charging_speed == "slow" and len(nearby_dc_fast) == 0:
+            return "⚠️ No home charging + slow vehicle + no fast chargers = range anxiety"
+        
+        if vehicle_charging_speed == "fast" and customer.electric_panel == "100A":
+            return "⚠️ Home charging upgrade needed: $1,500-$3,000"
+Customer Inputs:
+
+Home electrical panel capacity
+
+Work charging availability
+
+Nearby public charger types
+
+Willingness to install charger
+
+Output:
+
+"Your 100A panel needs $2,000 upgrade for Level 2 charging"
+
+"3 DC fast chargers within 5 miles - good backup"
+
+"No work charging? This short-range EV is risky"
+
+6. Technology Comfort & Feature Needs
+javascript
+const TechComfortAnalyzer = {
+  assess: (customerTechProfile, vehicle) => {
+    if (customer.techAnxious && vehicle.hasComplexTouchscreen) {
+      return {
+        warning: "All controls are touchscreen - test drive recommended",
+        trainingNeeded: ["Regen braking", "One-pedal driving", "App control"]
+      };
+    }
+    
+    if (customer.wantsAdvanced && !vehicle.hasAutopilot) {
+      return "Misses your desired autopilot feature";
+    }
+  }
+};
+Customer Inputs:
+
+Technology comfort level (1-10)
+
+Desired features (CarPlay, autopilot, app control)
+
+Willingness to learn new interfaces
+
+Output:
+
+"Tech score: 3/10 → This minimalist EV interface is perfect"
+
+"You want CarPlay but this Tesla doesn't have it"
+
+"One-pedal driving has learning curve but saves brakes"
+
+7. Environmental & Ethical Alignment
+javascript
+const ValuesMatcher = {
+  match: (customerValues, vehicle) => {
+    const matches = [];
+    
+    if (customer.prioritizesEthics && vehicle.cobaltSource == "questionable") {
+      matches.push("⚠️ Battery uses Congolese cobalt - ethical concerns");
+    }
+    
+    if (customer.wantsLocal && vehicle.manufacturedIn == "China") {
+      matches.push("Imported vehicle - higher carbon footprint");
+    }
+    
+    return matches;
+  }
+};
+Customer Inputs:
+
+Ethical sourcing importance
+
+Local manufacturing preference
+
+Carbon footprint sensitivity
+
+Company values alignment
+
+Output:
+
+"This manufacturer uses blockchain for ethical mineral sourcing"
+
+"Made in Germany vs made in China comparison"
+
+"Company's labor practices rating: B+"
+
+🎯 Implementation Strategy
+Phase 1: Quick Win Personalization
+text
+Step 1: "Tell us about your driving" (3 questions)
+- Weekly miles
+- Charging access
+- Climate
+
+Immediate value: "This EV matches 80% of your needs"
+Phase 2: Financial Personalization
+text
+Step 2: "Help us calculate true cost" (optional)
+- Local electricity rate
+- Insurance profile
+- Tax situation
+
+Output: "Actual monthly cost: $XXX vs listing price"
+Phase 3: Full Profile
+text
+Step 3: Create "EV Buyer Profile"
+- Lifestyle needs
+- Technology preferences
+- Environmental values
+- Future plans
+
+Result: "Your perfect EV match score: 92/100"
+📱 User Experience Flow
+javascript
+const PersonalizedOnboarding = {
+  steps: [
+    {
+      id: 'driving',
+      question: "What's your typical week?",
+      inputs: ['dailyMiles', 'roadTripsPerYear', 'chargingAccess'],
+      time: '60 seconds'
+    },
+    {
+      id: 'lifestyle',
+      question: "What do you need to carry?",
+      inputs: ['passengers', 'cargo', 'towing'],
+      time: '45 seconds'
+    },
+    {
+      id: 'financial',
+      question: "What's your budget reality?",
+      inputs: ['maxPayment', 'electricityRate', 'taxCreditEligible'],
+      optional: true,
+      time: '90 seconds'
+    }
+  ],
+  
+  // Progressive disclosure
+  showRelevantQuestions: (vehicle) => {
+    // If vehicle has low towing, skip towing questions
+    // If expensive, show financial questions
+  }
+};
+🏆 Competitive Advantages
+1. Beyond Generic Listings
+text
+Marketplace: "2019 Tesla Model 3 - $32,000"
+Us: "This Model 3 fits YOUR 75-mile commute perfectly, but battery degradation means winter range drops to 90 miles - risky for your occasional ski trips"
+2. Prevent Buyer's Remorse
+text
+We catch: "You want to tow → This EV can't"
+          "No home charging → This slow charger is pain"
+          "Tech hesitant → This all-touchscreen frustrates"
+3. Build Trust Through Personalization
+text
+Customer feels: "They understand MY needs"
+                "Not just selling any EV, but the RIGHT EV for me"
+                "Saving me from expensive mistakes"
+4. Data Network Effects
+text
+As more customers share profiles:
+- Learn what features matter to which demographics
+- Build "people like you bought X" recommendations
+- Refine matching algorithms
+💰 Business Model Integration
+Personalized Upsells:
+text
+After analysis:
+- "For your long commute, we recommend extended warranty: $1,200"
+- "Your electrical panel needs upgrade: Get quotes from 3 electricians"
+- "Need home charger installation? Partner discount: 15% off"
+Dealer Matchmaking:
+text
+"We found 3 EVs within 50 miles that match your profile:
+1. 95% match - needs battery check
+2. 88% match - great price
+3. 92% match - certified pre-owned"
+
+Dealer pays for qualified leads that match inventory.
+🔮 Future Evolution
+Machine Learning Personalization:
+python
+# Over time, learn patterns
+if customer_profile matches_pattern("suburban_parent"):
+    prioritize_these_features = ['safety', 'space', 'reliability']
+    
+if customer_profile matches_pattern("tech_early_adopter"):
+    prioritize_these_features = ['autonomy', 'updates', 'performance']
+Integration with Other Life Events:
+text
+- "Moving to new city? EV suitability changes"
+- "Having a baby? Need different EV features"
+- "Retiring? Driving patterns shift"
+Social/Community Features:
+text
+"Join other buyers with similar profiles"
+"See what vehicles people like you chose"
+"Ask questions to similar-profile owners"
+
+Customer-Specific Feature Set (High-Leverage, Low Friction)
+1️⃣ Usage Profile (Foundational – Build Early)
+What you ask (3–5 questions max)
+
+Daily commute distance (ranges, not exact)
+
+Typical trip pattern:
+
+Short city trips
+
+Mixed
+
+Long highway
+
+Annual mileage estimate
+
+Home charging access (yes / no / unsure)
+
+Why this matters
+
+Degradation risk depends heavily on use intensity
+
+Range anxiety is situational, not absolute
+
+A “borderline” battery may be fine for one user and a deal-breaker for another
+
+How it changes the analysis
+
+The same EV might be:
+
+✅ “Low risk for your usage”
+
+⚠️ “Acceptable only with verification”
+
+❌ “High mismatch for your driving pattern”
+
+This is huge perceived value.
+
+2️⃣ Climate + Geography Fit (Low Effort, High Impact)
+What you ask
+
+Primary state / region
+
+Garage vs street parking
+
+Cold vs heat exposure (self-reported)
+
+Why this matters
+
+Climate amplifies or dampens battery risk
+
+Cold affects range predictability
+
+Heat affects degradation speed
+
+Output shift
+
+Instead of:
+
+“This model has average degradation”
+
+You say:
+
+“For your climate and parking situation, this model’s known risks are amplified / muted.”
+
+This is where AutoTrader completely fails.
+
+3️⃣ Charging Behavior Profile (Critical Differentiator)
+What you ask
+
+Expected charging pattern:
+
+Mostly home Level 2
+
+Mix of home + fast charging
+
+Mostly public fast charging
+
+Willingness to avoid DC fast charging if needed (yes/no)
+
+Why this matters
+
+DC fast charging frequency is one of the strongest degradation accelerants
+
+Buyers almost never factor this in before purchase
+
+How it improves decisions
+
+EV Risk can say:
+
+“This vehicle is acceptable only if you commit to mostly home charging.”
+
+That’s honest, actionable, and rare.
+
+4️⃣ Risk Tolerance Slider (Psychological Fit)
+What you ask (single slider)
+
+“How comfortable are you with uncertainty?”
+
+Options:
+
+I want maximum certainty
+
+I’m okay with some unknowns
+
+I’m optimizing for price/value
+
+Why this matters
+
+Two buyers see the same unknown and react differently.
+
+How it affects output
+
+Conservative users → stricter recommendations
+
+Value seekers → conditional approvals with negotiation advice
+
+This avoids one-size-fits-all fear.
+
+5️⃣ Ownership Horizon (Often Overlooked)
+What you ask
+
+How long do you expect to keep this EV?
+
+< 2 years
+
+3–5 years
+
+5+ years
+
+Why this matters
+
+Degradation risk compounds with time
+
+Warranty relevance depends on ownership horizon
+
+Output example
+
+“Given your 2-year ownership plan, battery degradation risk is less relevant than warranty transferability.”
+
+This is very powerful framing.
+
+6️⃣ Budget Flexibility & Downside Sensitivity
+What you ask
+
+Maximum comfortable repair / loss exposure:
+
+<$2k
+
+$2k–$5k
+
+$5k+
+
+Why this matters
+
+Risk isn’t just probability — it’s impact.
+
+How EV Risk uses it
+
+Same issue flagged as:
+
+“Minor inconvenience” for one buyer
+
+“Financially unacceptable” for another
+
+This reframes risk as personal consequence, not abstract danger.
+
+7️⃣ Fit Score (This Is the Edge)
+
+Once you have the above, you can compute:
+
+Two parallel outputs
+
+Vehicle Risk Score (objective, evidence-based)
+
+Personal Fit Score (subjective, buyer-specific)
+
+Example
+
+Vehicle Risk: Moderate
+Personal Fit: Poor (long commute + limited charging + low risk tolerance)
+
+AutoTrader cannot do this. Inspectors don’t do this.
+This is your moat.
+
+How This Fits Into the Product Flow (Clean UX)
+After listing analysis:
+
+You prompt:
+
+“Want to see if this EV fits your life?”
+
+Then:
+
+5–7 quick questions
+
+No signup required initially
+
+Results update in place
+
+This feels like insight, not onboarding.
+
+Feature Rollout Priority (Product Owner View)
+MVP+ (Soon)
+
+Usage profile
+
+Climate
+
+Charging access
+
+Risk tolerance
+
+Phase 2
+
+Ownership horizon
+
+Budget sensitivity
+
+Fit score visualization
+
+Phase 3
+
+Personalized recommendations across multiple listings
+
+“Best fit among these options”
+
+Why This Is Defensible
+
+Marketplaces can’t do this without scaring sellers
+
+Dealers won’t do this because it filters buyers
+
+Inspectors focus on vehicles, not lifestyles
+
+You own the buyer’s decision context.
+
+Final Product Owner Framing
+
+EV Risk should evolve from:
+
+“Is this EV risky?”
+
+to:
+
+“Is this EV risky for you?”
+
+That single shift:
+
+increases trust
+
+increases stickiness
+
+increases willingness to pay
+
+reduces liability
+

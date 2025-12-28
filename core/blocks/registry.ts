@@ -166,6 +166,58 @@ export const blockRegistry: Record<string, BlockMetadata> = {
     ],
     testCoverage: false,
   },
+
+  // Re-validation & Decision Support Blocks
+  "charging.fit.text.v1": {
+    id: "charging.fit.text.v1",
+    tier: 4,
+    description: "Charging Fit assessment with routine friction analysis (Mental Overhead v1)",
+    signalsRequired: [],
+    personalizationSignals: ["chargingAccess", "chargingReliability", "weeklyChargingMoments"],
+    lastUpdated: "2025-12-28",
+    status: "implemented",
+    version: 1,
+    examples: [
+      "Home L2 with reliable availability (low friction)",
+      "DC fast primary + unpredictable (high friction)",
+      "Apartment shared L2 with 5+ weekly charges (scheduling overhead)",
+    ],
+    testCoverage: false,
+  },
+
+  "assumption.drift.text.v1": {
+    id: "assumption.drift.text.v1",
+    tier: 4,
+    description: "Assumption drift summary for re-validation scenarios",
+    signalsRequired: ["contextTrigger"],
+    personalizationSignals: ["chargingAccess", "dailyCommute"],
+    lastUpdated: "2025-12-28",
+    status: "implemented",
+    version: 1,
+    examples: [
+      "Moved home: charging access changed from home to public",
+      "Changed commute: range buffer recalculation needed",
+      "Charging changed: reliability decreased to unpredictable",
+    ],
+    testCoverage: false,
+  },
+
+  "outcome.paths.text.v1": {
+    id: "outcome.paths.text.v1",
+    tier: 4,
+    description: "Non-transactional outcome paths for decision clarity",
+    signalsRequired: [],
+    personalizationSignals: ["contextTrigger", "chargingAccess", "chargingReliability"],
+    lastUpdated: "2025-12-28",
+    status: "implemented",
+    version: 1,
+    examples: [
+      "Stay and adjust routine (highlighted for good charging fit)",
+      "Change charging strategy (highlighted for high friction)",
+      "All 4 options shown, 1-2 highlighted based on context",
+    ],
+    testCoverage: false,
+  },
 };
 
 /**

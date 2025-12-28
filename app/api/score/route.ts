@@ -8,13 +8,24 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { calculateBuyConfidence, generateRiskBreakdown, type ScoringInput } from "@/lib/scoring";
+import { RiskAssessor } from "@/lib/risk-assessor";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
     // Validate input
-    const { model, year, currentMileage, zipCode, dailyMiles, homeCharging, riskTolerance } = body;
+    const {
+      model,
+      year,
+      currentMileage,
+      zipCode,
+      dailyMiles,
+      homeCharging,
+      riskTolerance,
+      dataSource,
+      autoFilledFields
+    } = body;
 
     if (!model || typeof model !== "string") {
       return NextResponse.json(
@@ -80,12 +91,44 @@ export async function POST(request: NextRequest) {
     const confidence = calculateBuyConfidence(scoringInput);
     const breakdown = generateRiskBreakdown(confidence);
 
+    // Generate data quality analysis
+    const vehicleData = {
+      year,
+      make: model.split(' ')[0], // Extract make from model string
+      model: model.split(' ').slice(1).join(' '), // Rest is model
+      mileage: currentMileage,
+      dataSource: 'user_provided' as const,
+      confidence: 'medium' as const,
+    };
+
+    const userInputs = {
+      zipCode,
+      dailyMiles,
+      homeCharging,
+      riskTolerance,
+    };
+
+    const dataQualityAnalysis = RiskAssessor.assess(vehicleData, userInputs);
+
+    // Add metadata about data source and confidence adjustment
+    const confidenceMetadata = {
+      dataSource: dataSource || 'manual_entry',
+      autoFilledFields: autoFilledFields || [],
+      confidenceNote: dataSource === 'url_extraction' && autoFilledFields?.length < 3
+        ? 'Some vehicle details were entered manually or inferred due to listing limitations.'
+        : undefined,
+    };
+
     // Return response
     return NextResponse.json({
       success: true,
       input: scoringInput,
       confidence,
       breakdown,
+      dataQuality: {
+        ...dataQualityAnalysis,
+        ...confidenceMetadata,
+      },
       timestamp: new Date().toISOString(),
     });
 

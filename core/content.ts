@@ -31,10 +31,20 @@ export type ConfidenceFrame = {
   notAffects: string[];
 };
 
+/**
+ * Language Mode
+ *
+ * Determines tone/framing based on user intent:
+ * - "purchase": Original purchase decision (default)
+ * - "revalidation": Re-evaluating existing ownership due to context change
+ */
+export type LanguageMode = "purchase" | "revalidation";
+
 export type RenderCtx = {
   vehicle: VehicleData;
   inputs?: UserInputs;
   signals: SignalMap;
+  mode?: LanguageMode; // Default: "purchase"
 };
 
 export type MetricPayload = {

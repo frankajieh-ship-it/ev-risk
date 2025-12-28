@@ -1,0 +1,117 @@
+OFFO EV Risk™
+Language Guardrails (Internal Only)
+
+Purpose
+Ensure every word we use compounds trust, avoids category confusion, and reinforces our position as decision intelligence, not diagnostics or hype.
+
+This document is non-negotiable for marketing, product copy, sales conversations, and founder posts.
+
+1️⃣ One-Sentence Positioning (Canonical)
+
+OFFO EV Risk™ provides pre-purchase decision intelligence for used EV buyers by explaining what’s missing, why it matters, and how confident you should be before buying.
+
+If a sentence cannot be traced back to this, it does not belong.
+
+2️⃣ Phrases We WILL Use (Approved Language)
+
+These phrases reinforce judgment, clarity, and trust.
+
+Decision intelligence
+
+Signals judgment, not raw data
+
+Differentiates from diagnostics and reports
+
+Contextual risk
+
+Reinforces that battery risk is not binary
+
+Explains nuance without fear
+
+Confidence improvement
+
+Shifts the user’s goal from “perfect data” to “better decisions”
+
+Anchors conversion without pressure
+
+Optional supporting phrases (use sparingly):
+
+“What’s missing — and why it matters”
+
+“Second-opinion clarity”
+
+“Pre-purchase insight”
+
+3️⃣ Phrases We Will NEVER Use (Hard Bans)
+
+These words destroy trust, confuse the category, or invite legal/expectation risk.
+
+❌ Battery diagnostics
+
+Implies hardware testing or inspection
+
+Creates false expectations and legal exposure
+
+❌ AI-powered / AI-driven analysis
+
+Sounds like hype
+
+Reduces credibility in a high-stakes decision
+
+❌ Battery health score
+
+Over-simplifies a complex reality
+
+Positions us as definitive when we are contextual
+
+❌ Inspection / Inspection replacement
+
+We do not replace inspections
+
+We exist before inspections
+
+❌ Dealer verification / Dealer fraud language
+
+Adversarial framing kills future partnerships
+
+We explain gaps; we don’t accuse
+
+If any of these appear in copy, UI, or posts → rewrite immediately.
+
+4️⃣ Tone Rules (Implicit but Critical)
+
+Explain, don’t alarm
+
+Clarify, don’t conclude
+
+Invite judgment, don’t assert authority
+
+Sound like a calm expert friend — not a platform
+
+Bad tone:
+
+“This EV could have serious hidden battery issues.”
+
+Correct tone:
+
+“Here’s what the listing doesn’t tell you — and why buyers often overlook it.”
+
+5️⃣ Quick Self-Check (Before Anything Goes Live)
+
+Ask these three questions:
+
+Does this help the buyer feel more oriented, not more afraid?
+
+Does this explain why uncertainty exists, not pretend we removed it?
+
+Does this sound like judgment, not automation?
+
+If any answer is “no” → revise.
+
+6️⃣ Internal Reminder (CMO Note)
+
+We are not trying to sound impressive.
+We are trying to sound reliable.
+
+Trust is our moat.
+Language is how we build it.

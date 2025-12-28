@@ -1,0 +1,255 @@
+What We Have Now (Actual State)
+Currently shipping / in-progress
+
+Paste Listing → Risk Report (core wedge)
+
+Basic listing parsing (AutoTrader-first)
+
+Structured report output (snapshot, risk framing, next steps)
+
+What this means
+
+Right now, EV Risk is:
+
+A single-use analysis tool
+
+Valuable, but not yet sticky
+
+Lacking personalization and memory
+
+Not yet monetizable without trust scaffolding
+
+This is expected at this stage.
+
+2️⃣ Product Phases & Target Users
+
+EV Risk should scale in credibility layers, not feature bloat.
+
+Phase	Goal	Target Users	What You’re Proving
+Phase 0	Ship wedge	50–100	Do users understand & trust output?
+Phase 1 (MVP)	Become repeatable	500–2,000	Do users analyze multiple listings?
+Phase 2 (Decision System)	Become indispensable	5k–20k	Does EV Risk change decisions?
+Phase 3 (Moat)	Become category	50k+	Data flywheel + partnerships
+3️⃣ Feature Rollout Plan (Aligned to Your Updated Doc)
+🔹 Phase 0 — Core Wedge (Now → 2 weeks)
+
+Objective:
+Deliver value fast without overpromising.
+
+Features
+
+Paste listing URL → risk report
+
+Graceful fallback (screenshots/manual)
+
+Explicit uncertainty language
+
+“Not diagnostic” framing
+
+Why stop here
+At this stage, you’re validating:
+
+comprehension
+
+tone
+
+trust
+
+❌ No accounts
+❌ No personalization
+❌ No ML claims
+
+🔴 Phase 1 — Credible MVP (Weeks 2–6)
+
+This phase is non-negotiable per your document 
+
+features required
+
+.
+
+Features to build (in this order)
+
+1️⃣ Risk History & Session Save
+
+Save analyzed listings per session
+
+Enable “return” + “compare later”
+Why: Users compare 3–7 cars 
+
+features required
+
+2️⃣ EV Model / Year Risk Profiles (Static Knowledge Layer)
+
+Known degradation patterns
+
+Recall sensitivity
+
+Climate sensitivity
+Why: Baseline memory beyond listings 
+
+features required
+
+3️⃣ “What This Listing Is Not Telling You”
+
+Missing battery report
+
+Generic health claims
+
+Warranty ambiguity
+Why: Core differentiator & share trigger 
+
+features required
+
+4️⃣ Dealer Question Generator
+
+5–7 tailored questions
+Why: Converts insight → action 
+
+features required
+
+5️⃣ Confidence Indicator
+
+High / Medium / Low
+
+Why confidence is what it is
+Why: Trust & legal safety 
+
+features required
+
+🎯 MVP Success Criteria
+
+≥25% of users analyze 2+ listings
+
+≥40% say “this helped me decide what to ask or do”
+
+🟡 Phase 2 — Decision System (Months 2–4)
+
+This is where EV Risk stops being a tool and becomes a workflow.
+
+Features
+
+6️⃣ Multi-Listing Comparison View
+
+Risk band
+
+Missing info
+
+Verification effort
+Why: Shopping is comparative 
+
+features required
+
+7️⃣ Evidence Upload + Re-analysis
+
+Battery reports
+
+Dealer PDFs
+
+Screenshots
+Why: Move from inference → evidence 
+
+features required
+
+8️⃣ Proceed / Proceed w Inspection / Walk Away Engine
+
+Recommendation with reasons
+Why: Reduce analysis paralysis 
+
+features required
+
+9️⃣ Inspection Hand-Off
+
+Send report to inspector
+
+Find partners
+Why: Partnership + liability reduction 
+
+features required
+
+🎯 Phase 2 Success Criteria
+
+Users upload evidence
+
+Users share reports
+
+Inspectors see inbound value
+
+4️⃣ Where Personalization Fits (Your New Edge)
+
+This is critical: personalization should NOT precede trust.
+
+Personalization rollout timing
+MVP+ (late Phase 1)
+
+Lightweight, optional, 3–4 questions max:
+
+Driving pattern (short/mixed/long)
+
+Climate
+
+Charging access
+
+Risk tolerance
+
+Used to adjust:
+
+Warnings
+
+Language
+
+Recommendations
+
+Phase 2
+
+Expand to:
+
+Ownership horizon
+
+Budget sensitivity
+
+Personal Fit Score (parallel to Vehicle Risk)
+
+This aligns perfectly with your updated personalization framework and avoids overwhelming early users.
+
+5️⃣ What NOT to Build Yet (Explicit Guardrails)
+
+Per your document and product reality 
+
+features required
+
+:
+
+🚫 Full battery diagnostics
+🚫 OEM live APIs
+🚫 Real-time telematics
+🚫 Dealer dashboards
+🚫 Insurance / financing integrations
+🚫 ML-heavy SOH claims
+
+These add:
+
+legal risk
+
+engineering drag
+
+false expectations
+
+They belong after Phase 2 traction.
+
+6️⃣ One-Page Executive Summary
+
+EV Risk Feature Rollout Strategy
+
+Start with clarity, not certainty
+
+Win by exposing what listings hide
+
+Add memory → comparison → evidence → guidance
+
+Layer personalization after trust is earned
+
+Build toward partnerships, not around them
+
+North Star
+
+“The thing you check before you emotionally commit to a used EV.”
