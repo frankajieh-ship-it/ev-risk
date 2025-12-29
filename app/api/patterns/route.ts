@@ -9,10 +9,48 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { BehavioralPatternRecord } from "@/types/behavioralPatterns";
+import fs from "fs";
+import path from "path";
 
-// In-memory storage for MVP (replace with database later)
-// TODO: Move to Airtable/Notion/PostgreSQL for production
-const patterns: BehavioralPatternRecord[] = [];
+// File-based storage for persistence
+const PATTERNS_FILE = path.join(process.cwd(), "data", "patterns.json");
+
+// Ensure data directory exists
+function ensureDataDirectory() {
+  const dataDir = path.join(process.cwd(), "data");
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+}
+
+// Load patterns from file
+function loadPatterns(): BehavioralPatternRecord[] {
+  ensureDataDirectory();
+
+  if (!fs.existsSync(PATTERNS_FILE)) {
+    return [];
+  }
+
+  try {
+    const data = fs.readFileSync(PATTERNS_FILE, "utf-8");
+    return JSON.parse(data);
+  } catch (error) {
+    console.error("[Pattern Storage] Error loading patterns:", error);
+    return [];
+  }
+}
+
+// Save patterns to file
+function savePatterns(patterns: BehavioralPatternRecord[]) {
+  ensureDataDirectory();
+
+  try {
+    fs.writeFileSync(PATTERNS_FILE, JSON.stringify(patterns, null, 2), "utf-8");
+  } catch (error) {
+    console.error("[Pattern Storage] Error saving patterns:", error);
+    throw error;
+  }
+}
 
 /**
  * POST /api/patterns
@@ -50,7 +88,9 @@ export async function POST(req: NextRequest) {
     };
 
     // Store pattern
+    const patterns = loadPatterns();
     patterns.push(pattern);
+    savePatterns(patterns);
 
     console.log(`[Pattern Tracking] New pattern recorded: ${id}`, {
       source: pattern.source,
@@ -97,6 +137,7 @@ export async function GET(req: NextRequest) {
     const ownership_stage = searchParams.get("ownership_stage");
     const tag = searchParams.get("tag");
 
+    const patterns = loadPatterns();
     let filteredPatterns = [...patterns];
 
     if (source) {

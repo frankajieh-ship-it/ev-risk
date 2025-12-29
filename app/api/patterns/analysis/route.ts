@@ -12,13 +12,25 @@ import type {
   HousingType,
   Region,
 } from "@/types/behavioralPatterns";
+import fs from "fs";
+import path from "path";
 
-// Import from parent route (in production, use shared database)
-// For MVP, we'll need to fetch from the main endpoint
-async function fetchPatterns(adminKey: string): Promise<BehavioralPatternRecord[]> {
-  // In production, this would query the database directly
-  // For now, return empty array (will be populated via POST to /api/patterns)
-  return [];
+// File-based storage for persistence (shared with main patterns route)
+const PATTERNS_FILE = path.join(process.cwd(), "data", "patterns.json");
+
+// Load patterns from file
+function loadPatterns(): BehavioralPatternRecord[] {
+  if (!fs.existsSync(PATTERNS_FILE)) {
+    return [];
+  }
+
+  try {
+    const data = fs.readFileSync(PATTERNS_FILE, "utf-8");
+    return JSON.parse(data);
+  } catch (error) {
+    console.error("[Pattern Analysis] Error loading patterns:", error);
+    return [];
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -31,7 +43,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const patterns = await fetchPatterns(adminKey);
+    const patterns = loadPatterns();
 
     // Analyze patterns and create clusters
     const analyses = generatePatternAnalyses(patterns);
