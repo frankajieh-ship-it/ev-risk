@@ -76,11 +76,18 @@ export default function QuickPatternCapture({ onSubmit, onCancel }: QuickPattern
   const [selectedBehavioralSignals, setSelectedBehavioralSignals] = useState<string[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
 
-  // Context fields
+  // Context fields (legacy)
   const [housing, setHousing] = useState("apartment");
   const [chargingAccess, setChargingAccess] = useState("public_only");
   const [region, setRegion] = useState("Northeast");
   const [ownershipStage, setOwnershipStage] = useState("3_6_months");
+
+  // CMO Phase 2 - Structured Context (required)
+  const [structuredHousing, setStructuredHousing] = useState("");
+  const [regionType, setRegionType] = useState("");
+  const [structuredOwnership, setStructuredOwnership] = useState("");
+  const [vehicleClass, setVehicleClass] = useState("");
+  const [structuredOutcome, setStructuredOutcome] = useState("");
 
   // Analysis fields
   const [assumption, setAssumption] = useState("");
@@ -99,6 +106,13 @@ export default function QuickPatternCapture({ onSubmit, onCancel }: QuickPattern
   const [analysisAssumptionFailed, setAnalysisAssumptionFailed] = useState("");
   const [analysisOverheadCreated, setAnalysisOverheadCreated] = useState("");
   const [analysisWhatWouldHelp, setAnalysisWhatWouldHelp] = useState("");
+
+  // CMO Phase 2.5 - Structured Analysis Dropdowns
+  const [behavioralFailureMode, setBehavioralFailureMode] = useState("");
+  const [assumptionFailedStructured, setAssumptionFailedStructured] = useState("");
+  const [assumptionFailedCustom, setAssumptionFailedCustom] = useState("");
+  const [regretReduction, setRegretReduction] = useState("");
+  const [regretReductionCustom, setRegretReductionCustom] = useState("");
 
   const toggleEmotion = (tag: string) => {
     if (selectedEmotions.includes(tag)) {
@@ -148,6 +162,11 @@ export default function QuickPatternCapture({ onSubmit, onCancel }: QuickPattern
         region,
         ownership_stage: ownershipStage,
         charging_access: chargingAccess,
+        structured_housing: structuredHousing,
+        region_type: regionType,
+        structured_ownership_stage: structuredOwnership,
+        vehicle_class: vehicleClass,
+        structured_outcome: structuredOutcome,
       },
       behavioral_pattern: {
         pre_purchase_assumption: assumption,
@@ -161,6 +180,11 @@ export default function QuickPatternCapture({ onSubmit, onCancel }: QuickPattern
         analysis_assumption_failed: analysisAssumptionFailed,
         analysis_mental_overhead_created: analysisOverheadCreated,
         analysis_what_would_help: analysisWhatWouldHelp,
+        behavioral_failure_mode: behavioralFailureMode,
+        assumption_failed_structured: assumptionFailedStructured,
+        assumption_failed_custom: assumptionFailedStructured === "custom" ? assumptionFailedCustom : undefined,
+        regret_reduction: regretReduction,
+        regret_reduction_custom: regretReduction === "custom" ? regretReductionCustom : undefined,
       },
       tags: selectedEmotions.length > 0 ? selectedEmotions : ["mental_overhead"],
       behavioral_signal_tags: selectedBehavioralSignals,
@@ -282,66 +306,93 @@ Example:
         <div className="space-y-4">
           <h3 className="font-medium">User Context</h3>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Housing Type</label>
-              <select
-                value={housing}
-                onChange={(e) => setHousing(e.target.value)}
-                className="w-full p-2 border rounded"
-              >
-                <option value="apartment">🏢 Apartment</option>
-                <option value="condo">🏘️ Condo</option>
-                <option value="single_family_home">🏠 Single Family Home</option>
-                <option value="townhouse">🏘️ Townhouse</option>
-              </select>
-            </div>
+          {/* CMO Phase 2 - Structured Context (Required) */}
+          <div className="bg-green-50 border-2 border-green-300 rounded-lg p-4 mb-4">
+            <h4 className="font-semibold text-green-900 mb-3">📊 Structured Context (Required)</h4>
+            <p className="text-xs text-gray-700 mb-3">Turns anecdotes into patternable data</p>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Charging Access</label>
-              <select
-                value={chargingAccess}
-                onChange={(e) => setChargingAccess(e.target.value)}
-                className="w-full p-2 border rounded"
-              >
-                <option value="home_l2">⚡ Home L2</option>
-                <option value="apartment_shared_l2">🏢 Apartment Shared L2</option>
-                <option value="dcfc_primary">⚡⚡ DCFC Primary</option>
-                <option value="public_l2_primary">🅿️ Public L2 Primary</option>
-                <option value="public_only">🚗 Public Only</option>
-              </select>
-            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Housing Type *</label>
+                <select
+                  value={structuredHousing}
+                  onChange={(e) => setStructuredHousing(e.target.value)}
+                  className="w-full p-2 border-2 rounded"
+                >
+                  <option value="">Select housing...</option>
+                  <option value="apartment_no_charger">Apartment (no charger)</option>
+                  <option value="apartment_shared_l2">Apartment (shared L2)</option>
+                  <option value="apartment_dedicated">Apartment (dedicated)</option>
+                  <option value="sfh_l1">SFH (L1)</option>
+                  <option value="sfh_l2">SFH (L2)</option>
+                </select>
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Region</label>
-              <select
-                value={region}
-                onChange={(e) => setRegion(e.target.value)}
-                className="w-full p-2 border rounded"
-              >
-                <option value="Northeast">Northeast</option>
-                <option value="Southeast">Southeast</option>
-                <option value="Midwest">Midwest</option>
-                <option value="West">West</option>
-                <option value="Pacific_Northwest">Pacific Northwest</option>
-              </select>
-            </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Region Type *</label>
+                <select
+                  value={regionType}
+                  onChange={(e) => setRegionType(e.target.value)}
+                  className="w-full p-2 border-2 rounded"
+                >
+                  <option value="">Select region type...</option>
+                  <option value="urban">Urban</option>
+                  <option value="suburban">Suburban</option>
+                  <option value="rural">Rural</option>
+                </select>
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Ownership Stage</label>
-              <select
-                value={ownershipStage}
-                onChange={(e) => setOwnershipStage(e.target.value)}
-                className="w-full p-2 border rounded"
-              >
-                <option value="considering">🤔 Considering</option>
-                <option value="first_month">🆕 First Month</option>
-                <option value="3_6_months">📅 3-6 Months</option>
-                <option value="1_2_years">📆 1-2 Years</option>
-                <option value="2_plus_years">📅 2+ Years</option>
-              </select>
+              <div>
+                <label className="block text-sm font-medium mb-1">Ownership Stage *</label>
+                <select
+                  value={structuredOwnership}
+                  onChange={(e) => setStructuredOwnership(e.target.value)}
+                  className="w-full p-2 border-2 rounded"
+                >
+                  <option value="">Select stage...</option>
+                  <option value="considering">Considering</option>
+                  <option value="less_than_3_months">&lt;3 months</option>
+                  <option value="3_to_12_months">3–12 months</option>
+                  <option value="1_plus_years">1+ year</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Vehicle Class *</label>
+                <select
+                  value={vehicleClass}
+                  onChange={(e) => setVehicleClass(e.target.value)}
+                  className="w-full p-2 border-2 rounded"
+                >
+                  <option value="">Select vehicle class...</option>
+                  <option value="standard_range">Standard range</option>
+                  <option value="long_range">Long range</option>
+                  <option value="tesla_compatible">Tesla-compatible</option>
+                  <option value="non_tesla_compatible">Non-Tesla compatible</option>
+                </select>
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1">Outcome *</label>
+                <select
+                  value={structuredOutcome}
+                  onChange={(e) => setStructuredOutcome(e.target.value)}
+                  className="w-full p-2 border-2 rounded"
+                >
+                  <option value="">Select outcome...</option>
+                  <option value="effortless">Effortless</option>
+                  <option value="friction">Friction</option>
+                  <option value="regret">Regret</option>
+                </select>
+              </div>
             </div>
           </div>
+
+          {/* Legacy fields (hidden, kept for compatibility) */}
+          <input type="hidden" value={housing} />
+          <input type="hidden" value={chargingAccess} />
+          <input type="hidden" value={region} />
+          <input type="hidden" value={ownershipStage} />
 
           <div className="flex gap-2">
             <button
@@ -352,11 +403,23 @@ Example:
             </button>
             <button
               onClick={() => setStep("analysis")}
-              className="flex-1 bg-blue-600 text-white px-4 py-3 rounded hover:bg-blue-700"
+              disabled={
+                !structuredHousing ||
+                !regionType ||
+                !structuredOwnership ||
+                !vehicleClass ||
+                !structuredOutcome
+              }
+              className="flex-1 bg-blue-600 text-white px-4 py-3 rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               Next: Analysis →
             </button>
           </div>
+          {(!structuredHousing || !regionType || !structuredOwnership || !vehicleClass || !structuredOutcome) && (
+            <p className="text-sm text-red-600 text-center">
+              ⚠️ All structured context fields required to continue
+            </p>
+          )}
         </div>
       )}
 
@@ -446,15 +509,92 @@ Example:
             )}
           </div>
 
-          {/* CMO Phase 2 - 3-Line Structured Analysis (Enforced) */}
-          <div className="bg-purple-50 border-2 border-purple-300 rounded-lg p-4">
-            <h4 className="font-semibold text-purple-900 mb-2">🔍 Structured Analysis (Required)</h4>
-            <p className="text-xs text-gray-700 mb-3">Answer all three questions to complete the pattern.</p>
+          {/* CMO Phase 2.5 - Structured Analysis Dropdowns (Discipline Enforcement) */}
+          <div className="bg-indigo-50 border-2 border-indigo-300 rounded-lg p-4">
+            <h4 className="font-semibold text-indigo-900 mb-2">🎯 Structured Analysis (Required)</h4>
+            <p className="text-xs text-gray-700 mb-3">Force discipline - turns insight into product logic</p>
 
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  1. What assumption failed? *
+                  Behavioral Failure Mode *
+                </label>
+                <select
+                  value={behavioralFailureMode}
+                  onChange={(e) => setBehavioralFailureMode(e.target.value)}
+                  className="w-full p-2 border-2 rounded text-sm"
+                >
+                  <option value="">Select failure mode...</option>
+                  <option value="charging_unpredictability">Charging unpredictability</option>
+                  <option value="routine_disruption">Routine disruption</option>
+                  <option value="backup_plan_absence">Backup plan absence</option>
+                  <option value="edge_case_dominance">Edge-case dominance</option>
+                  <option value="cognitive_load_planning_fatigue">Cognitive load / planning fatigue</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  What assumption failed? *
+                </label>
+                <select
+                  value={assumptionFailedStructured}
+                  onChange={(e) => setAssumptionFailedStructured(e.target.value)}
+                  className="w-full p-2 border-2 rounded text-sm"
+                >
+                  <option value="">Select assumption...</option>
+                  <option value="chargers_would_usually_be_available">Chargers would usually be available</option>
+                  <option value="range_mattered_more_than_routine">Range mattered more than routine</option>
+                  <option value="fast_charging_could_be_primary">Fast charging could be primary</option>
+                  <option value="custom">Custom (enter below)</option>
+                </select>
+                {assumptionFailedStructured === "custom" && (
+                  <textarea
+                    value={assumptionFailedCustom}
+                    onChange={(e) => setAssumptionFailedCustom(e.target.value)}
+                    placeholder="Enter custom assumption that failed..."
+                    className="w-full p-2 border-2 rounded mt-2 text-sm h-16"
+                  />
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  What would have reduced regret? *
+                </label>
+                <select
+                  value={regretReduction}
+                  onChange={(e) => setRegretReduction(e.target.value)}
+                  className="w-full p-2 border-2 rounded text-sm"
+                >
+                  <option value="">Select intervention...</option>
+                  <option value="better_expectation_setting">Better expectation setting</option>
+                  <option value="different_vehicle_class">Different vehicle class</option>
+                  <option value="mixed_car_strategy">Mixed-car strategy</option>
+                  <option value="not_buying_yet">Not buying yet</option>
+                  <option value="custom">Custom (enter below)</option>
+                </select>
+                {regretReduction === "custom" && (
+                  <textarea
+                    value={regretReductionCustom}
+                    onChange={(e) => setRegretReductionCustom(e.target.value)}
+                    placeholder="Enter custom regret reduction..."
+                    className="w-full p-2 border-2 rounded mt-2 text-sm h-16"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* CMO Phase 2 - 3-Line Freeform Analysis (Optional) */}
+          <div className="bg-purple-50 border-2 border-purple-300 rounded-lg p-4">
+            <h4 className="font-semibold text-purple-900 mb-2">📝 Freeform Analysis (Optional)</h4>
+            <p className="text-xs text-gray-700 mb-3">Additional context beyond structured fields</p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  1. What assumption failed? (optional)
                 </label>
                 <textarea
                   value={analysisAssumptionFailed}
@@ -466,7 +606,7 @@ Example:
 
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  2. What mental overhead did this create? *
+                  2. What mental overhead did this create? (optional)
                 </label>
                 <textarea
                   value={analysisOverheadCreated}
@@ -478,7 +618,7 @@ Example:
 
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  3. What would have reduced this earlier? *
+                  3. What would have reduced this earlier? (optional)
                 </label>
                 <textarea
                   value={analysisWhatWouldHelp}
@@ -645,9 +785,11 @@ Example:
                 !patternType ||
                 productSurfaces.length === 0 ||
                 selectedBehavioralSignals.length === 0 ||
-                !analysisAssumptionFailed ||
-                !analysisOverheadCreated ||
-                !analysisWhatWouldHelp
+                !behavioralFailureMode ||
+                !assumptionFailedStructured ||
+                (assumptionFailedStructured === "custom" && !assumptionFailedCustom) ||
+                !regretReduction ||
+                (regretReduction === "custom" && !regretReductionCustom)
               }
               className="flex-1 bg-green-600 text-white px-4 py-3 rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >

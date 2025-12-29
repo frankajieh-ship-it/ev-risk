@@ -25,6 +25,33 @@ export type HousingType =
   | "townhouse"
   | "other";
 
+/**
+ * CMO Phase 2 - Structured Housing Type (enforced dropdowns)
+ */
+export type StructuredHousingType =
+  | "apartment_no_charger"
+  | "apartment_shared_l2"
+  | "apartment_dedicated"
+  | "sfh_l1"
+  | "sfh_l2";
+
+/**
+ * CMO Phase 2 - Region Type (enforced)
+ */
+export type RegionType =
+  | "urban"
+  | "suburban"
+  | "rural";
+
+/**
+ * CMO Phase 2 - Vehicle Class (enforced)
+ */
+export type VehicleClass =
+  | "standard_range"
+  | "long_range"
+  | "tesla_compatible"
+  | "non_tesla_compatible";
+
 export type Region =
   | "Northeast"
   | "Southeast"
@@ -46,6 +73,23 @@ export type OwnershipStage =
   | "6_12_months"
   | "1_2_years"
   | "2_plus_years";
+
+/**
+ * CMO Phase 2 - Structured Ownership Stage (enforced)
+ */
+export type StructuredOwnershipStage =
+  | "considering"
+  | "less_than_3_months"
+  | "3_to_12_months"
+  | "1_plus_years";
+
+/**
+ * CMO Phase 2 - Structured Outcome (forced choice)
+ */
+export type StructuredOutcome =
+  | "effortless"
+  | "friction"
+  | "regret";
 
 export type ChargingAccess =
   | "home_l2"
@@ -93,6 +137,36 @@ export type BehavioralSignalTag =
   | "habit_success";
 
 /**
+ * CMO Phase 2 - Behavioral Failure Mode (enforced dropdown)
+ * Replaces freeform analysis with structured pattern recognition
+ */
+export type BehavioralFailureMode =
+  | "charging_unpredictability"
+  | "routine_disruption"
+  | "backup_plan_absence"
+  | "edge_case_dominance"
+  | "cognitive_load_planning_fatigue";
+
+/**
+ * CMO Phase 2 - What Assumption Failed (enforced dropdown)
+ */
+export type AssumptionFailed =
+  | "chargers_would_usually_be_available"
+  | "range_mattered_more_than_routine"
+  | "fast_charging_could_be_primary"
+  | "custom";
+
+/**
+ * CMO Phase 2 - What Would Have Reduced Regret (enforced dropdown)
+ */
+export type RegretReduction =
+  | "better_expectation_setting"
+  | "different_vehicle_class"
+  | "mixed_car_strategy"
+  | "not_buying_yet"
+  | "custom";
+
+/**
  * Behavioral Pattern Type (CMO Phase 2 - Required Field)
  * Maps patterns directly to product blocks
  */
@@ -128,6 +202,13 @@ export interface UserContext {
   vehicle_model?: string;
   daily_miles?: number;
   commute_distance?: number;
+
+  // CMO Phase 2 - Structured Context (enforced dropdowns)
+  structured_housing?: StructuredHousingType;
+  region_type?: RegionType;
+  structured_ownership_stage?: StructuredOwnershipStage;
+  vehicle_class?: VehicleClass;
+  structured_outcome?: StructuredOutcome;
 }
 
 /**
@@ -166,6 +247,13 @@ export interface BehavioralPattern {
   analysis_assumption_failed?: string; // What assumption failed?
   analysis_mental_overhead_created?: string; // What mental overhead did this create?
   analysis_what_would_help?: string; // What would have reduced this earlier?
+
+  // CMO Phase 2.5 - Structured Analysis Dropdowns (discipline enforcement)
+  behavioral_failure_mode?: BehavioralFailureMode;
+  assumption_failed_structured?: AssumptionFailed;
+  assumption_failed_custom?: string; // If "custom" selected
+  regret_reduction?: RegretReduction;
+  regret_reduction_custom?: string; // If "custom" selected
 }
 
 /**
