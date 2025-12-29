@@ -18,10 +18,19 @@ const PATTERNS_FILE = path.join(process.cwd(), "data", "patterns.json");
 // In-memory fallback for serverless environments (Vercel, Netlify, etc.)
 let inMemoryPatterns: BehavioralPatternRecord[] = [];
 
-// Detect if we're in a serverless/read-only environment
-const isServerless = process.env.VERCEL || process.env.NETLIFY || !canWriteToFileSystem();
+// Lazy-evaluated serverless detection
+let _isServerless: boolean | null = null;
 
-function canWriteToFileSystem(): boolean {
+function isServerless(): boolean {
+  if (_isServerless !== null) return _isServerless;
+
+  // Check environment variables first
+  if (process.env.VERCEL || process.env.NETLIFY) {
+    _isServerless = true;
+    return true;
+  }
+
+  // Test if we can write to file system
   try {
     const testDir = path.join(process.cwd(), "data");
     if (!fs.existsSync(testDir)) {
@@ -30,15 +39,17 @@ function canWriteToFileSystem(): boolean {
     const testFile = path.join(testDir, ".write-test");
     fs.writeFileSync(testFile, "test", "utf-8");
     fs.unlinkSync(testFile);
-    return true;
-  } catch {
+    _isServerless = false;
     return false;
+  } catch {
+    _isServerless = true;
+    return true;
   }
 }
 
 // Ensure data directory exists (only works in non-serverless environments)
 function ensureDataDirectory() {
-  if (isServerless) return;
+  if (isServerless()) return;
 
   const dataDir = path.join(process.cwd(), "data");
   if (!fs.existsSync(dataDir)) {
@@ -48,7 +59,7 @@ function ensureDataDirectory() {
 
 // Load patterns from file (or in-memory fallback)
 function loadPatterns(): BehavioralPatternRecord[] {
-  if (isServerless) {
+  if (isServerless()) {
     console.log("[Pattern Storage] Using in-memory storage (serverless environment)");
     return inMemoryPatterns;
   }
@@ -70,7 +81,7 @@ function loadPatterns(): BehavioralPatternRecord[] {
 
 // Save patterns to file (or in-memory fallback)
 function savePatterns(patterns: BehavioralPatternRecord[]) {
-  if (isServerless) {
+  if (isServerless()) {
     inMemoryPatterns = patterns;
     console.log(`[Pattern Storage] Saved ${patterns.length} patterns to in-memory storage`);
     console.warn("[Pattern Storage] ⚠️  WARNING: Using in-memory storage. Data will be lost on server restart. Please configure a database for production.");
