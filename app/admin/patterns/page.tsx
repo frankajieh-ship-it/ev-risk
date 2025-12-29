@@ -9,6 +9,8 @@
 
 import { useState, useEffect } from "react";
 import type { BehavioralPatternRecord, PatternAnalysis } from "@/types/behavioralPatterns";
+import QuickPatternCapture from "./components/QuickPatternCapture";
+import InsightCards from "./components/InsightCards";
 
 interface PatternAnalysisResponse {
   success: boolean;
@@ -38,23 +40,6 @@ export default function PatternAnalysisDashboard() {
   const [analysis, setAnalysis] = useState<PatternAnalysisResponse | null>(null);
   const [patterns, setPatterns] = useState<BehavioralPatternRecord[]>([]);
   const [activeTab, setActiveTab] = useState<"analysis" | "patterns" | "submit">("analysis");
-
-  // Form state for submitting new patterns
-  const [newPattern, setNewPattern] = useState({
-    source: "reddit_electricvehicles",
-    source_url: "",
-    housing: "apartment",
-    region: "Northeast",
-    ownership_stage: "considering",
-    charging_access: "public_only",
-    pre_purchase_assumption: "",
-    actual_experience: "",
-    root_cause: "",
-    cognitive_load_rating: 3,
-    outcome: "ongoing_friction",
-    tags: [] as string[],
-    notes: "",
-  });
 
   const authenticate = () => {
     if (!apiKey.trim()) {
@@ -100,55 +85,23 @@ export default function PatternAnalysisDashboard() {
     }
   };
 
-  const submitPattern = async () => {
-    if (!newPattern.pre_purchase_assumption || !newPattern.actual_experience || !newPattern.root_cause) {
-      setError("Please fill in all required fields (assumption, experience, root cause)");
-      return;
-    }
-
+  const submitPattern = async (patternData: any) => {
     try {
       const res = await fetch("/api/patterns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source: newPattern.source,
-          source_url: newPattern.source_url || undefined,
-          user_context: {
-            housing: newPattern.housing,
-            region: newPattern.region,
-            ownership_stage: newPattern.ownership_stage,
-            charging_access: newPattern.charging_access,
-          },
-          behavioral_pattern: {
-            pre_purchase_assumption: newPattern.pre_purchase_assumption,
-            actual_experience: newPattern.actual_experience,
-            root_cause: newPattern.root_cause,
-            cognitive_load_rating: newPattern.cognitive_load_rating,
-            outcome: newPattern.outcome,
-            confidence: "high",
-          },
-          tags: newPattern.tags.length > 0 ? newPattern.tags : ["mental_overhead"],
-          extracted_by: "manual",
-          notes: newPattern.notes || undefined,
-        }),
+        body: JSON.stringify(patternData),
       });
 
       const data = await res.json();
 
       if (data.success) {
-        alert(`Pattern recorded: ${data.pattern_id}`);
-        // Reset form
-        setNewPattern({
-          ...newPattern,
-          source_url: "",
-          pre_purchase_assumption: "",
-          actual_experience: "",
-          root_cause: "",
-          notes: "",
-        });
+        alert(`✓ Pattern recorded: ${data.pattern_id}`);
         // Reload data
         loadAnalysis();
         loadPatterns();
+        // Switch to analysis tab to see new pattern
+        setActiveTab("analysis");
       } else {
         setError("Failed to submit pattern: " + data.error);
       }
@@ -291,52 +244,13 @@ export default function PatternAnalysisDashboard() {
             )}
 
             {/* Pattern Clusters */}
-            {analysis.pattern_clusters && analysis.pattern_clusters.length > 0 ? (
-              analysis.pattern_clusters.map((cluster, idx) => (
-                <div key={idx} className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-lg font-bold mb-4">{cluster.pattern_cluster}</h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Frequency: {cluster.frequency} patterns | Avg Cognitive Load:{" "}
-                    {cluster.avg_cognitive_load?.toFixed(1) ?? "—"}/5
-                  </p>
-
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <h4 className="font-medium mb-2">Common Root Causes</h4>
-                    <ul className="text-sm space-y-1">
-                      {cluster.common_root_causes.map((cause, i) => (
-                        <li key={i} className="text-gray-700">
-                          • {cause}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-2">Outcomes</h4>
-                    <ul className="text-sm space-y-1">
-                      <li>Adapted: {cluster.outcome_distribution.adapted_successfully}</li>
-                      <li>Ongoing Friction: {cluster.outcome_distribution.ongoing_friction}</li>
-                      <li>Regret: {cluster.outcome_distribution.regret}</li>
-                      <li>Resolved: {cluster.outcome_distribution.resolved}</li>
-                    </ul>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-medium mb-2">Sample Quotes</h4>
-                  {cluster.sample_quotes.slice(0, 3).map((quote, i) => (
-                    <p key={i} className="text-sm text-gray-600 italic mb-2">
-                      "{quote}"
-                    </p>
-                  ))}
-                </div>
-              </div>
-              ))
-            ) : (
-              <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
-                No pattern clusters identified yet. Submit patterns to see analysis.
-              </div>
-            )}
+            <div>
+              <h2 className="text-xl font-bold mb-4">Pattern Insights</h2>
+              <InsightCards
+                clusters={analysis.pattern_clusters || []}
+                totalPatterns={analysis.total_patterns}
+              />
+            </div>
           </div>
         )}
 
@@ -401,152 +315,10 @@ export default function PatternAnalysisDashboard() {
         {/* Submit Pattern Tab */}
         {activeTab === "submit" && (
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold mb-6">Submit New Behavioral Pattern</h2>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Source</label>
-                  <select
-                    value={newPattern.source}
-                    onChange={(e) => setNewPattern({ ...newPattern, source: e.target.value })}
-                    className="w-full p-2 border rounded"
-                  >
-                    <option value="reddit_electricvehicles">r/electricvehicles</option>
-                    <option value="reddit_evs">r/evs</option>
-                    <option value="reddit_teslamotors">r/teslamotors</option>
-                    <option value="user_feedback">User Feedback</option>
-                    <option value="direct_interview">Direct Interview</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Source URL (optional)</label>
-                  <input
-                    type="url"
-                    value={newPattern.source_url}
-                    onChange={(e) => setNewPattern({ ...newPattern, source_url: e.target.value })}
-                    className="w-full p-2 border rounded"
-                    placeholder="https://reddit.com/..."
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Housing</label>
-                  <select
-                    value={newPattern.housing}
-                    onChange={(e) => setNewPattern({ ...newPattern, housing: e.target.value })}
-                    className="w-full p-2 border rounded"
-                  >
-                    <option value="apartment">Apartment</option>
-                    <option value="condo">Condo</option>
-                    <option value="single_family_home">Single Family Home</option>
-                    <option value="townhouse">Townhouse</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Charging Access</label>
-                  <select
-                    value={newPattern.charging_access}
-                    onChange={(e) => setNewPattern({ ...newPattern, charging_access: e.target.value })}
-                    className="w-full p-2 border rounded"
-                  >
-                    <option value="home_l2">Home L2</option>
-                    <option value="apartment_shared_l2">Apartment Shared L2</option>
-                    <option value="dcfc_primary">DCFC Primary</option>
-                    <option value="public_l2_primary">Public L2 Primary</option>
-                    <option value="public_only">Public Only</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Pre-Purchase Assumption *</label>
-                <textarea
-                  value={newPattern.pre_purchase_assumption}
-                  onChange={(e) =>
-                    setNewPattern({ ...newPattern, pre_purchase_assumption: e.target.value })
-                  }
-                  className="w-full p-2 border rounded"
-                  rows={3}
-                  placeholder="What did the user believe before buying?"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Actual Experience *</label>
-                <textarea
-                  value={newPattern.actual_experience}
-                  onChange={(e) =>
-                    setNewPattern({ ...newPattern, actual_experience: e.target.value })
-                  }
-                  className="w-full p-2 border rounded"
-                  rows={3}
-                  placeholder="What actually happened?"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Root Cause (Your Analysis) *</label>
-                <textarea
-                  value={newPattern.root_cause}
-                  onChange={(e) => setNewPattern({ ...newPattern, root_cause: e.target.value })}
-                  className="w-full p-2 border rounded"
-                  rows={2}
-                  placeholder="What's the underlying cause of the gap?"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Cognitive Load</label>
-                  <select
-                    value={newPattern.cognitive_load_rating}
-                    onChange={(e) =>
-                      setNewPattern({ ...newPattern, cognitive_load_rating: parseInt(e.target.value) })
-                    }
-                    className="w-full p-2 border rounded"
-                  >
-                    <option value={1}>1 - Low</option>
-                    <option value={2}>2 - Mild</option>
-                    <option value={3}>3 - Moderate</option>
-                    <option value={4}>4 - High</option>
-                    <option value={5}>5 - Extreme</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Outcome</label>
-                  <select
-                    value={newPattern.outcome}
-                    onChange={(e) => setNewPattern({ ...newPattern, outcome: e.target.value })}
-                    className="w-full p-2 border rounded"
-                  >
-                    <option value="adapted_successfully">Adapted Successfully</option>
-                    <option value="ongoing_friction">Ongoing Friction</option>
-                    <option value="regret">Regret</option>
-                    <option value="resolved">Resolved</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Notes (optional)</label>
-                <textarea
-                  value={newPattern.notes}
-                  onChange={(e) => setNewPattern({ ...newPattern, notes: e.target.value })}
-                  className="w-full p-2 border rounded"
-                  rows={2}
-                  placeholder="Additional context..."
-                />
-              </div>
-
-              <button
-                onClick={submitPattern}
-                className="w-full bg-blue-600 text-white px-4 py-3 rounded hover:bg-blue-700"
-              >
-                Submit Pattern
-              </button>
-            </div>
+            <QuickPatternCapture
+              onSubmit={submitPattern}
+              onCancel={() => setActiveTab("analysis")}
+            />
           </div>
         )}
       </div>
