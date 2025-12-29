@@ -8,9 +8,13 @@ import {
 import { personalizationValueProp } from "@/core/templates";
 
 /**
- * Battery Health Block Example
+ * Battery Health Block (CMO Phase 1 - Used EV Context)
  *
- * Demonstrates all three missing policies and confidence primitives usage.
+ * Language directive:
+ * - De-emphasize mileage
+ * - Emphasize battery condition vs expectations
+ * - Use ICE analogs for uncertainty: "like buying a used car without service records"
+ * - Focus on "what's missing / why it matters" framing
  */
 
 export function createBatteryHealthBlock(): Block {
@@ -60,7 +64,7 @@ export function createBatteryHealthBlock(): Block {
         return {
           kind: "true_unknown",
           missing: "battery health data",
-          why: "battery lifespan varies widely between vehicles with similar mileage",
+          why: "battery condition varies widely regardless of mileage. This is like buying a used car without service records",
         };
       }
       return undefined;
@@ -69,14 +73,15 @@ export function createBatteryHealthBlock(): Block {
     urgency: () => ({ level: "none" }),
 
     ask: (ctx) => {
-      if (ctx.signals.has_annual_mileage) return undefined;
+      // De-emphasize mileage per CMO directive - only ask if we have battery data
+      if (ctx.signals.has_annual_mileage || !ctx.signals.has_battery_data) return undefined;
       return {
         key: "annual_mileage",
         message: personalizationValueProp({
-          dataPoint: "your annual mileage",
-          analysis: "separate gentle vs. taxing usage patterns",
-          outcome: "the battery replacement timeline",
-          range: "±2 years",
+          dataPoint: "your usage patterns",
+          analysis: "distinguish gentle vs. taxing battery cycling",
+          outcome: "battery condition expectations",
+          range: "meaningfully",
         }),
       };
     },
@@ -87,13 +92,14 @@ export function createBatteryHealthBlock(): Block {
     }),
 
     render: (ctx) => {
+      // CMO Phase 1: Emphasize battery condition vs expectations
       if (ctx.signals.has_battery_health_report) {
-        return "This projection is based on direct battery health testing.";
+        return "This assessment is based on direct battery condition testing, not estimates from mileage or age.";
       }
       if (ctx.signals.has_annual_mileage) {
-        return "This projection reflects your usage context, making the timeline estimate more reliable.";
+        return "Battery condition depends more on usage patterns than total mileage. Your usage context helps set realistic expectations.";
       }
-      return "Without your usage data, we estimate using population averages, which mainly affects long-term replacement timing.";
+      return "Without battery condition data, this is like buying a used car without service records. Population averages mainly affect long-term replacement timing, not immediate reliability.";
     },
 
     degradedRender: (ctx, missing) => {
