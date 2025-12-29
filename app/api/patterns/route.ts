@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
       user_context: body.user_context,
       behavioral_pattern: body.behavioral_pattern,
       tags: body.tags || [],
+      behavioral_signal_tags: body.behavioral_signal_tags || [],
       extracted_by: body.extracted_by || "manual",
       notes: body.notes,
       created_at: timestamp,

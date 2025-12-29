@@ -289,12 +289,24 @@ export default function PatternAnalysisDashboard() {
                         </div>
                         {pattern.behavioral_pattern.product_surfaces_impacted &&
                          pattern.behavioral_pattern.product_surfaces_impacted.length > 0 && (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 mb-2">
                             <span className="text-xs font-semibold">Product Surfaces:</span>
                             <div className="flex gap-1 flex-wrap">
                               {pattern.behavioral_pattern.product_surfaces_impacted.map((surface, i) => (
                                 <span key={i} className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded border border-orange-200">
                                   {surface.replace(/_/g, " ")}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {pattern.behavioral_signal_tags && pattern.behavioral_signal_tags.length > 0 && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold">Behavioral Signals:</span>
+                            <div className="flex gap-1 flex-wrap">
+                              {pattern.behavioral_signal_tags.map((signal, i) => (
+                                <span key={i} className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-200">
+                                  {signal.replace(/_/g, " ")}
                                 </span>
                               ))}
                             </div>
@@ -319,6 +331,32 @@ export default function PatternAnalysisDashboard() {
                       <strong>Root Cause:</strong>{" "}
                       <span className="text-gray-700">{pattern.behavioral_pattern.root_cause}</span>
                     </div>
+
+                    {/* CMO Phase 2 - Structured Analysis */}
+                    {pattern.behavioral_pattern.analysis_assumption_failed && (
+                      <div className="bg-purple-50 border-l-4 border-purple-400 p-3 my-2">
+                        <div className="text-xs font-semibold text-purple-900 mb-1">Structured Analysis:</div>
+                        <div className="space-y-1 text-xs text-gray-800">
+                          <div>
+                            <span className="font-medium">Assumption Failed:</span>{" "}
+                            {pattern.behavioral_pattern.analysis_assumption_failed}
+                          </div>
+                          {pattern.behavioral_pattern.analysis_mental_overhead_created && (
+                            <div>
+                              <span className="font-medium">Mental Overhead:</span>{" "}
+                              {pattern.behavioral_pattern.analysis_mental_overhead_created}
+                            </div>
+                          )}
+                          {pattern.behavioral_pattern.analysis_what_would_help && (
+                            <div>
+                              <span className="font-medium">What Would Help:</span>{" "}
+                              {pattern.behavioral_pattern.analysis_what_would_help}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex gap-4 text-xs text-gray-600">
                       <span>Cognitive Load: {pattern.behavioral_pattern.cognitive_load_rating}/5</span>
                       <span>Outcome: {pattern.behavioral_pattern.outcome}</span>

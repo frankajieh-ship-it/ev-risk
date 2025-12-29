@@ -26,6 +26,17 @@ const emotionTags = [
   { emoji: "🤔", label: "Confusion", tag: "mental_overhead" },
 ];
 
+const behavioralSignalTags = [
+  { label: "Predictability failure", tag: "predictability_failure" },
+  { label: "Mental overhead", tag: "mental_overhead" },
+  { label: "Planning fatigue", tag: "planning_fatigue" },
+  { label: "False sense of availability", tag: "false_sense_of_availability" },
+  { label: "Backup-plan dependency", tag: "backup_plan_dependency" },
+  { label: "Edge-case fixation", tag: "edge_case_fixation" },
+  { label: "Routine mismatch", tag: "routine_mismatch" },
+  { label: "Habit success", tag: "habit_success" },
+];
+
 const commonRootCauses = [
   "Unpredictable availability, not quantity",
   "Mental planning overhead, not physical access",
@@ -62,6 +73,7 @@ export default function QuickPatternCapture({ onSubmit, onCancel }: QuickPattern
   const [step, setStep] = useState<"quote" | "context" | "analysis">("quote");
   const [quote, setQuote] = useState("");
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>([]);
+  const [selectedBehavioralSignals, setSelectedBehavioralSignals] = useState<string[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
 
   // Context fields
@@ -83,6 +95,11 @@ export default function QuickPatternCapture({ onSubmit, onCancel }: QuickPattern
   const [patternType, setPatternType] = useState("");
   const [productSurfaces, setProductSurfaces] = useState<string[]>([]);
 
+  // CMO Phase 2 - Structured Analysis (3-line enforced)
+  const [analysisAssumptionFailed, setAnalysisAssumptionFailed] = useState("");
+  const [analysisOverheadCreated, setAnalysisOverheadCreated] = useState("");
+  const [analysisWhatWouldHelp, setAnalysisWhatWouldHelp] = useState("");
+
   const toggleEmotion = (tag: string) => {
     if (selectedEmotions.includes(tag)) {
       setSelectedEmotions(selectedEmotions.filter((t) => t !== tag));
@@ -96,6 +113,14 @@ export default function QuickPatternCapture({ onSubmit, onCancel }: QuickPattern
       setProductSurfaces(productSurfaces.filter((s) => s !== surface));
     } else {
       setProductSurfaces([...productSurfaces, surface]);
+    }
+  };
+
+  const toggleBehavioralSignal = (signal: string) => {
+    if (selectedBehavioralSignals.includes(signal)) {
+      setSelectedBehavioralSignals(selectedBehavioralSignals.filter((s) => s !== signal));
+    } else {
+      setSelectedBehavioralSignals([...selectedBehavioralSignals, signal]);
     }
   };
 
@@ -133,8 +158,12 @@ export default function QuickPatternCapture({ onSubmit, onCancel }: QuickPattern
         confidence: "high",
         pattern_type: patternType,
         product_surfaces_impacted: productSurfaces,
+        analysis_assumption_failed: analysisAssumptionFailed,
+        analysis_mental_overhead_created: analysisOverheadCreated,
+        analysis_what_would_help: analysisWhatWouldHelp,
       },
       tags: selectedEmotions.length > 0 ? selectedEmotions : ["mental_overhead"],
+      behavioral_signal_tags: selectedBehavioralSignals,
       notes: quote ? `Original quote: "${quote}"` : undefined,
       extracted_by: "manual",
     };
@@ -191,7 +220,7 @@ Example:
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Quick Tags (select all that apply)</label>
+            <label className="block text-sm font-medium mb-2">Emotional Tags (optional)</label>
             <div className="flex flex-wrap gap-2">
               {emotionTags.map((tag) => (
                 <button
@@ -210,14 +239,41 @@ Example:
             </div>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Behavioral Signal Tags * <span className="text-xs text-gray-600">(product relevance - at least one required)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {behavioralSignalTags.map((tag) => (
+                <button
+                  key={tag.tag}
+                  onClick={() => toggleBehavioralSignal(tag.tag)}
+                  className={`px-3 py-2 rounded border-2 text-sm transition-all ${
+                    selectedBehavioralSignals.includes(tag.tag)
+                      ? "border-purple-600 bg-purple-50 text-purple-800 font-medium"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  {tag.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex gap-2">
             <button
               onClick={() => setStep("context")}
-              className="flex-1 bg-blue-600 text-white px-4 py-3 rounded hover:bg-blue-700"
+              disabled={selectedBehavioralSignals.length === 0}
+              className="flex-1 bg-blue-600 text-white px-4 py-3 rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               Next: Add Context →
             </button>
           </div>
+          {selectedBehavioralSignals.length === 0 && (
+            <p className="text-sm text-red-600 text-center">
+              ⚠️ Select at least one behavioral signal tag to continue
+            </p>
+          )}
         </div>
       )}
 
@@ -390,6 +446,50 @@ Example:
             )}
           </div>
 
+          {/* CMO Phase 2 - 3-Line Structured Analysis (Enforced) */}
+          <div className="bg-purple-50 border-2 border-purple-300 rounded-lg p-4">
+            <h4 className="font-semibold text-purple-900 mb-2">🔍 Structured Analysis (Required)</h4>
+            <p className="text-xs text-gray-700 mb-3">Answer all three questions to complete the pattern.</p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  1. What assumption failed? *
+                </label>
+                <textarea
+                  value={analysisAssumptionFailed}
+                  onChange={(e) => setAnalysisAssumptionFailed(e.target.value)}
+                  placeholder="Example: The user assumed charger count implied availability."
+                  className="w-full p-2 border-2 rounded text-sm h-16"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  2. What mental overhead did this create? *
+                </label>
+                <textarea
+                  value={analysisOverheadCreated}
+                  onChange={(e) => setAnalysisOverheadCreated(e.target.value)}
+                  placeholder="Example: This created constant monitoring behavior (checking PlugShare 3-4x per day)."
+                  className="w-full p-2 border-2 rounded text-sm h-16"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  3. What would have reduced this earlier? *
+                </label>
+                <textarea
+                  value={analysisWhatWouldHelp}
+                  onChange={(e) => setAnalysisWhatWouldHelp(e.target.value)}
+                  placeholder="Example: Explicitly surfacing predictability vs availability would have recalibrated expectations."
+                  className="w-full p-2 border-2 rounded text-sm h-16"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Cognitive Load</label>
@@ -538,7 +638,17 @@ Example:
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!assumption || !experience || !rootCause || !patternType || productSurfaces.length === 0}
+              disabled={
+                !assumption ||
+                !experience ||
+                !rootCause ||
+                !patternType ||
+                productSurfaces.length === 0 ||
+                selectedBehavioralSignals.length === 0 ||
+                !analysisAssumptionFailed ||
+                !analysisOverheadCreated ||
+                !analysisWhatWouldHelp
+              }
               className="flex-1 bg-green-600 text-white px-4 py-3 rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               ✓ Submit Pattern

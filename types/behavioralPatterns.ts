@@ -79,6 +79,20 @@ export type PatternTag =
   | "behavioral_workaround";
 
 /**
+ * Behavioral Signal Tags (CMO Phase 2 - Second Tag Layer)
+ * Purpose: Filter by product relevance, not emotion
+ */
+export type BehavioralSignalTag =
+  | "predictability_failure"
+  | "mental_overhead"
+  | "planning_fatigue"
+  | "false_sense_of_availability"
+  | "backup_plan_dependency"
+  | "edge_case_fixation"
+  | "routine_mismatch"
+  | "habit_success";
+
+/**
  * Behavioral Pattern Type (CMO Phase 2 - Required Field)
  * Maps patterns directly to product blocks
  */
@@ -147,6 +161,11 @@ export interface BehavioralPattern {
   // CMO Phase 2 - Required Fields
   pattern_type: BehavioralPatternType; // Maps directly to product blocks
   product_surfaces_impacted: ProductSurface[]; // Multi-select - must have at least one
+
+  // CMO Phase 2 - Structured Analysis (3-line enforced)
+  analysis_assumption_failed?: string; // What assumption failed?
+  analysis_mental_overhead_created?: string; // What mental overhead did this create?
+  analysis_what_would_help?: string; // What would have reduced this earlier?
 }
 
 /**
@@ -159,7 +178,8 @@ export interface BehavioralPatternRecord {
   source_url?: string; // Link to Reddit post, YouTube comment, etc.
   user_context: UserContext;
   behavioral_pattern: BehavioralPattern;
-  tags: PatternTag[];
+  tags: PatternTag[]; // Emotional tags (legacy)
+  behavioral_signal_tags: BehavioralSignalTag[]; // Product-relevance tags (required)
 
   // Metadata
   extracted_by?: string; // "claude" | "manual" | "automated"
@@ -216,6 +236,9 @@ export const examplePattern: BehavioralPatternRecord = {
     confidence: "high",
     pattern_type: "charging_predictability_failure",
     product_surfaces_impacted: ["charging_fit_block", "phase_0_5_messaging"],
+    analysis_assumption_failed: "The user assumed charger count implied availability.",
+    analysis_mental_overhead_created: "This created constant monitoring behavior (checking PlugShare 3-4x per day).",
+    analysis_what_would_help: "Explicitly surfacing predictability vs availability would have recalibrated expectations.",
   },
   tags: [
     "charging_anxiety",
@@ -223,6 +246,11 @@ export const examplePattern: BehavioralPatternRecord = {
     "perception_gap",
     "predictability_issue",
     "mental_overhead",
+  ],
+  behavioral_signal_tags: [
+    "predictability_failure",
+    "mental_overhead",
+    "false_sense_of_availability",
   ],
   extracted_by: "claude",
   notes:
