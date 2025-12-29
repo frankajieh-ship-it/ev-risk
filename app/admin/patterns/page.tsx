@@ -243,24 +243,36 @@ export default function PatternAnalysisDashboard() {
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-bold mb-4">Summary</h2>
               <p className="text-gray-700 mb-4">{analysis.insights.summary}</p>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600">Avg Cognitive Load</p>
-                  <p className="text-2xl font-bold">{analysis.insights.avg_cognitive_load.toFixed(1)}/5</p>
+              {analysis.total_patterns > 0 ? (
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Avg Cognitive Load</p>
+                    <p className="text-2xl font-bold">
+                      {analysis.insights.avg_cognitive_load?.toFixed(1) ?? "—"}/5
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Perception Gap Rate</p>
+                    <p className="text-2xl font-bold">
+                      {analysis.insights.perception_gap_rate != null
+                        ? (analysis.insights.perception_gap_rate * 100).toFixed(0)
+                        : "—"}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Adaptation Success</p>
+                    <p className="text-2xl font-bold">
+                      {analysis.insights.adaptation_success_rate != null
+                        ? (analysis.insights.adaptation_success_rate * 100).toFixed(0)
+                        : "—"}%
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-600">Perception Gap Rate</p>
-                  <p className="text-2xl font-bold">
-                    {(analysis.insights.perception_gap_rate * 100).toFixed(0)}%
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Adaptation Success</p>
-                  <p className="text-2xl font-bold">
-                    {(analysis.insights.adaptation_success_rate * 100).toFixed(0)}%
-                  </p>
-                </div>
-              </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">
+                  No patterns collected yet. Submit your first pattern using the &quot;Submit New Pattern&quot; tab.
+                </p>
+              )}
             </div>
 
             {/* Recommendations */}
@@ -279,13 +291,14 @@ export default function PatternAnalysisDashboard() {
             )}
 
             {/* Pattern Clusters */}
-            {analysis.pattern_clusters.map((cluster, idx) => (
-              <div key={idx} className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-bold mb-4">{cluster.pattern_cluster}</h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  Frequency: {cluster.frequency} patterns | Avg Cognitive Load:{" "}
-                  {cluster.avg_cognitive_load.toFixed(1)}/5
-                </p>
+            {analysis.pattern_clusters && analysis.pattern_clusters.length > 0 ? (
+              analysis.pattern_clusters.map((cluster, idx) => (
+                <div key={idx} className="bg-white rounded-lg shadow p-6">
+                  <h3 className="text-lg font-bold mb-4">{cluster.pattern_cluster}</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Frequency: {cluster.frequency} patterns | Avg Cognitive Load:{" "}
+                    {cluster.avg_cognitive_load?.toFixed(1) ?? "—"}/5
+                  </p>
 
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
@@ -318,7 +331,12 @@ export default function PatternAnalysisDashboard() {
                   ))}
                 </div>
               </div>
-            ))}
+              ))
+            ) : (
+              <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+                No pattern clusters identified yet. Submit patterns to see analysis.
+              </div>
+            )}
           </div>
         )}
 
