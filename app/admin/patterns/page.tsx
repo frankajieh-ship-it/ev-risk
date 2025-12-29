@@ -276,6 +276,33 @@ export default function PatternAnalysisDashboard() {
                     </span>
                   </div>
                   <div className="space-y-2 text-sm">
+                    {/* CMO Phase 2 - Pattern Classification */}
+                    {pattern.behavioral_pattern.pattern_type && (
+                      <div className="mb-3 pb-2 border-b">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-semibold bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                            Pattern Type
+                          </span>
+                          <span className="text-sm text-gray-700">
+                            {pattern.behavioral_pattern.pattern_type.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                        {pattern.behavioral_pattern.product_surfaces_impacted &&
+                         pattern.behavioral_pattern.product_surfaces_impacted.length > 0 && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold">Product Surfaces:</span>
+                            <div className="flex gap-1 flex-wrap">
+                              {pattern.behavioral_pattern.product_surfaces_impacted.map((surface, i) => (
+                                <span key={i} className="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded border border-orange-200">
+                                  {surface.replace(/_/g, " ")}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div>
                       <strong>Assumption:</strong>{" "}
                       <span className="text-gray-700">

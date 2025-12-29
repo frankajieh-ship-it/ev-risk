@@ -79,11 +79,23 @@ export default function QuickPatternCapture({ onSubmit, onCancel }: QuickPattern
   const [outcome, setOutcome] = useState("ongoing_friction");
   const [sourceUrl, setSourceUrl] = useState("");
 
+  // CMO Phase 2 - Required Fields
+  const [patternType, setPatternType] = useState("");
+  const [productSurfaces, setProductSurfaces] = useState<string[]>([]);
+
   const toggleEmotion = (tag: string) => {
     if (selectedEmotions.includes(tag)) {
       setSelectedEmotions(selectedEmotions.filter((t) => t !== tag));
     } else {
       setSelectedEmotions([...selectedEmotions, tag]);
+    }
+  };
+
+  const toggleProductSurface = (surface: string) => {
+    if (productSurfaces.includes(surface)) {
+      setProductSurfaces(productSurfaces.filter((s) => s !== surface));
+    } else {
+      setProductSurfaces([...productSurfaces, surface]);
     }
   };
 
@@ -119,6 +131,8 @@ export default function QuickPatternCapture({ onSubmit, onCancel }: QuickPattern
         cognitive_load_rating: cognitiveLoad,
         outcome,
         confidence: "high",
+        pattern_type: patternType,
+        product_surfaces_impacted: productSurfaces,
       },
       tags: selectedEmotions.length > 0 ? selectedEmotions : ["mental_overhead"],
       notes: quote ? `Original quote: "${quote}"` : undefined,
@@ -416,6 +430,105 @@ Example:
             </div>
           </div>
 
+          {/* CMO Phase 2 - Required Fields */}
+          <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4">
+            <h4 className="font-semibold text-orange-900 mb-3">🔧 Required Pattern Classification</h4>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">
+                Behavioral Pattern Type * <span className="text-xs text-gray-600">(maps directly to product blocks)</span>
+              </label>
+              <select
+                value={patternType}
+                onChange={(e) => setPatternType(e.target.value)}
+                className="w-full p-2 border-2 rounded text-sm"
+              >
+                <option value="">Select pattern type...</option>
+                <option value="charging_predictability_failure">Charging predictability failure</option>
+                <option value="routine_friction_planning_burden">Routine friction / planning burden</option>
+                <option value="edge_case_dominance">Edge-case dominance</option>
+                <option value="battery_uncertainty_amplification">Battery uncertainty amplification</option>
+                <option value="infrastructure_uncertainty">Infrastructure uncertainty</option>
+                <option value="expectation_mismatch">Expectation mismatch</option>
+                <option value="successful_low_overhead_fit">Successful low-overhead fit</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Product Surface Impacted * <span className="text-xs text-gray-600">(select all that apply - at least one required)</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleProductSurface("phase_0_5_messaging")}
+                  className={`px-3 py-2 rounded border-2 text-sm text-left transition-all ${
+                    productSurfaces.includes("phase_0_5_messaging")
+                      ? "border-orange-600 bg-orange-100 text-orange-900"
+                      : "border-gray-300 hover:border-gray-400"
+                  }`}
+                >
+                  Phase 0.5 messaging
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleProductSurface("charging_fit_block")}
+                  className={`px-3 py-2 rounded border-2 text-sm text-left transition-all ${
+                    productSurfaces.includes("charging_fit_block")
+                      ? "border-orange-600 bg-orange-100 text-orange-900"
+                      : "border-gray-300 hover:border-gray-400"
+                  }`}
+                >
+                  Charging Fit block
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleProductSurface("battery_health_block")}
+                  className={`px-3 py-2 rounded border-2 text-sm text-left transition-all ${
+                    productSurfaces.includes("battery_health_block")
+                      ? "border-orange-600 bg-orange-100 text-orange-900"
+                      : "border-gray-300 hover:border-gray-400"
+                  }`}
+                >
+                  Battery Health block
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleProductSurface("decision_state_summary")}
+                  className={`px-3 py-2 rounded border-2 text-sm text-left transition-all ${
+                    productSurfaces.includes("decision_state_summary")
+                      ? "border-orange-600 bg-orange-100 text-orange-900"
+                      : "border-gray-300 hover:border-gray-400"
+                  }`}
+                >
+                  Decision State Summary
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleProductSurface("language_terminology")}
+                  className={`px-3 py-2 rounded border-2 text-sm text-left transition-all ${
+                    productSurfaces.includes("language_terminology")
+                      ? "border-orange-600 bg-orange-100 text-orange-900"
+                      : "border-gray-300 hover:border-gray-400"
+                  }`}
+                >
+                  Language / terminology
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleProductSurface("do_not_ship_guardrail")}
+                  className={`px-3 py-2 rounded border-2 text-sm text-left transition-all ${
+                    productSurfaces.includes("do_not_ship_guardrail")
+                      ? "border-orange-600 bg-orange-100 text-orange-900"
+                      : "border-gray-300 hover:border-gray-400"
+                  }`}
+                >
+                  Do-not-ship guardrail
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="flex gap-2">
             <button
               onClick={() => setStep("context")}
@@ -425,7 +538,7 @@ Example:
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!assumption || !experience || !rootCause}
+              disabled={!assumption || !experience || !rootCause || !patternType || productSurfaces.length === 0}
               className="flex-1 bg-green-600 text-white px-4 py-3 rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               ✓ Submit Pattern

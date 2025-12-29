@@ -79,6 +79,31 @@ export type PatternTag =
   | "behavioral_workaround";
 
 /**
+ * Behavioral Pattern Type (CMO Phase 2 - Required Field)
+ * Maps patterns directly to product blocks
+ */
+export type BehavioralPatternType =
+  | "charging_predictability_failure"
+  | "routine_friction_planning_burden"
+  | "edge_case_dominance"
+  | "battery_uncertainty_amplification"
+  | "infrastructure_uncertainty"
+  | "expectation_mismatch"
+  | "successful_low_overhead_fit";
+
+/**
+ * Product Surface Impacted (CMO Phase 2 - Required Field)
+ * Ensures insights land in product decisions
+ */
+export type ProductSurface =
+  | "phase_0_5_messaging"
+  | "charging_fit_block"
+  | "battery_health_block"
+  | "decision_state_summary"
+  | "language_terminology"
+  | "do_not_ship_guardrail";
+
+/**
  * User Context: Situational factors
  */
 export interface UserContext {
@@ -118,6 +143,10 @@ export interface BehavioralPattern {
 
   // Evidence strength
   confidence: "high" | "medium" | "low"; // How confident are we in this pattern extraction?
+
+  // CMO Phase 2 - Required Fields
+  pattern_type: BehavioralPatternType; // Maps directly to product blocks
+  product_surfaces_impacted: ProductSurface[]; // Multi-select - must have at least one
 }
 
 /**
@@ -185,6 +214,8 @@ export const examplePattern: BehavioralPatternRecord = {
     outcome: "ongoing_friction",
     when_discovered: "first month",
     confidence: "high",
+    pattern_type: "charging_predictability_failure",
+    product_surfaces_impacted: ["charging_fit_block", "phase_0_5_messaging"],
   },
   tags: [
     "charging_anxiety",
