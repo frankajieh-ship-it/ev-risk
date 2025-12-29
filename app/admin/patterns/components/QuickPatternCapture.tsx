@@ -325,6 +325,7 @@ Example:
                   <option value="apartment_dedicated">Apartment (dedicated)</option>
                   <option value="sfh_l1">SFH (L1)</option>
                   <option value="sfh_l2">SFH (L2)</option>
+                  <option value="unknown">Unknown</option>
                 </select>
               </div>
 
@@ -339,6 +340,7 @@ Example:
                   <option value="urban">Urban</option>
                   <option value="suburban">Suburban</option>
                   <option value="rural">Rural</option>
+                  <option value="unknown">Unknown</option>
                 </select>
               </div>
 
@@ -354,6 +356,7 @@ Example:
                   <option value="less_than_3_months">&lt;3 months</option>
                   <option value="3_to_12_months">3–12 months</option>
                   <option value="1_plus_years">1+ year</option>
+                  <option value="unknown">Unknown</option>
                 </select>
               </div>
 
@@ -369,6 +372,7 @@ Example:
                   <option value="long_range">Long range</option>
                   <option value="tesla_compatible">Tesla-compatible</option>
                   <option value="non_tesla_compatible">Non-Tesla compatible</option>
+                  <option value="unknown">Unknown</option>
                 </select>
               </div>
 
@@ -383,6 +387,7 @@ Example:
                   <option value="effortless">Effortless</option>
                   <option value="friction">Friction</option>
                   <option value="regret">Regret</option>
+                  <option value="unknown">Unknown</option>
                 </select>
               </div>
             </div>
