@@ -18,8 +18,22 @@ import path from "path";
 // File-based storage for persistence (shared with main patterns route)
 const PATTERNS_FILE = path.join(process.cwd(), "data", "patterns.json");
 
-// Load patterns from file
+// Detect if we're in a serverless/read-only environment
+const isServerless = process.env.VERCEL || process.env.NETLIFY;
+
+// Load patterns from file (with serverless environment handling)
 function loadPatterns(): BehavioralPatternRecord[] {
+  // In serverless environments, we need to fetch from the API endpoint
+  // since we can't share in-memory state across serverless function invocations
+  // For now, check if file exists locally (will work in local dev)
+
+  if (isServerless) {
+    // In production serverless, return empty array
+    // This will be populated when we add database support
+    console.warn("[Pattern Analysis] Running in serverless mode - file storage not available");
+    return [];
+  }
+
   if (!fs.existsSync(PATTERNS_FILE)) {
     return [];
   }

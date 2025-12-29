@@ -12,19 +12,47 @@ import { BehavioralPatternRecord } from "@/types/behavioralPatterns";
 import fs from "fs";
 import path from "path";
 
-// File-based storage for persistence
+// File-based storage for persistence (local development only)
 const PATTERNS_FILE = path.join(process.cwd(), "data", "patterns.json");
 
-// Ensure data directory exists
+// In-memory fallback for serverless environments (Vercel, Netlify, etc.)
+let inMemoryPatterns: BehavioralPatternRecord[] = [];
+
+// Detect if we're in a serverless/read-only environment
+const isServerless = process.env.VERCEL || process.env.NETLIFY || !canWriteToFileSystem();
+
+function canWriteToFileSystem(): boolean {
+  try {
+    const testDir = path.join(process.cwd(), "data");
+    if (!fs.existsSync(testDir)) {
+      fs.mkdirSync(testDir, { recursive: true });
+    }
+    const testFile = path.join(testDir, ".write-test");
+    fs.writeFileSync(testFile, "test", "utf-8");
+    fs.unlinkSync(testFile);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Ensure data directory exists (only works in non-serverless environments)
 function ensureDataDirectory() {
+  if (isServerless) return;
+
   const dataDir = path.join(process.cwd(), "data");
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
 }
 
-// Load patterns from file
+// Load patterns from file (or in-memory fallback)
 function loadPatterns(): BehavioralPatternRecord[] {
+  if (isServerless) {
+    console.log("[Pattern Storage] Using in-memory storage (serverless environment)");
+    return inMemoryPatterns;
+  }
+
   ensureDataDirectory();
 
   if (!fs.existsSync(PATTERNS_FILE)) {
@@ -40,15 +68,26 @@ function loadPatterns(): BehavioralPatternRecord[] {
   }
 }
 
-// Save patterns to file
+// Save patterns to file (or in-memory fallback)
 function savePatterns(patterns: BehavioralPatternRecord[]) {
+  if (isServerless) {
+    inMemoryPatterns = patterns;
+    console.log(`[Pattern Storage] Saved ${patterns.length} patterns to in-memory storage`);
+    console.warn("[Pattern Storage] ⚠️  WARNING: Using in-memory storage. Data will be lost on server restart. Please configure a database for production.");
+    return;
+  }
+
   ensureDataDirectory();
 
   try {
-    fs.writeFileSync(PATTERNS_FILE, JSON.stringify(patterns, null, 2), "utf-8");
-  } catch (error) {
+    const jsonData = JSON.stringify(patterns, null, 2);
+    fs.writeFileSync(PATTERNS_FILE, jsonData, "utf-8");
+    console.log(`[Pattern Storage] Successfully saved ${patterns.length} patterns to ${PATTERNS_FILE}`);
+  } catch (error: any) {
     console.error("[Pattern Storage] Error saving patterns:", error);
-    throw error;
+    console.error("[Pattern Storage] File path:", PATTERNS_FILE);
+    console.error("[Pattern Storage] Working directory:", process.cwd());
+    throw new Error(`Failed to write patterns file: ${error.message}`);
   }
 }
 
@@ -88,17 +127,23 @@ export async function POST(req: NextRequest) {
     };
 
     // Store pattern
-    const patterns = loadPatterns();
-    patterns.push(pattern);
-    savePatterns(patterns);
+    try {
+      const patterns = loadPatterns();
+      patterns.push(pattern);
+      savePatterns(patterns);
 
-    console.log(`[Pattern Tracking] New pattern recorded: ${id}`, {
-      source: pattern.source,
-      housing: pattern.user_context.housing,
-      ownership_stage: pattern.user_context.ownership_stage,
-      cognitive_load: pattern.behavioral_pattern.cognitive_load_rating,
-      tags: pattern.tags,
-    });
+      console.log(`[Pattern Tracking] New pattern recorded: ${id}`, {
+        source: pattern.source,
+        housing: pattern.user_context.housing,
+        ownership_stage: pattern.user_context.ownership_stage,
+        cognitive_load: pattern.behavioral_pattern.cognitive_load_rating,
+        tags: pattern.tags,
+      });
+    } catch (storageError: any) {
+      console.error("[Pattern Tracking] Storage error:", storageError);
+      console.error("[Pattern Tracking] Pattern data:", JSON.stringify(pattern, null, 2));
+      throw new Error(`Storage failed: ${storageError.message}`);
+    }
 
     return NextResponse.json(
       {
