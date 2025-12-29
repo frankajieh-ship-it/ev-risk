@@ -8,12 +8,18 @@ import {
 import { personalizationValueProp } from "@/core/templates";
 
 /**
- * Battery Health Block (CMO Phase 1 - Used EV Context)
+ * Battery Health Block (Phase 1.5 - Anxiety Multiplier Framing)
+ *
+ * Architecture:
+ * - Battery health = base condition (standalone block)
+ * - Charging fit = routine stress (separate block)
+ * - Anxiety = interaction effect (explained, not computed)
  *
  * Language directive:
  * - De-emphasize mileage
  * - Emphasize battery condition vs expectations
  * - Use ICE analogs for uncertainty: "like buying a used car without service records"
+ * - Frame as uncertainty amplifier, not just degradation metric
  * - Focus on "what's missing / why it matters" framing
  */
 
@@ -64,7 +70,7 @@ export function createBatteryHealthBlock(): Block {
         return {
           kind: "true_unknown",
           missing: "battery health data",
-          why: "battery condition varies widely regardless of mileage. This is like buying a used car without service records",
+          why: "battery uncertainty increases planning overhead — especially when charging is unpredictable. This is like buying a used car without service records",
         };
       }
       return undefined;
@@ -92,14 +98,14 @@ export function createBatteryHealthBlock(): Block {
     }),
 
     render: (ctx) => {
-      // CMO Phase 1: Emphasize battery condition vs expectations
+      // Phase 1.5: Frame battery as uncertainty amplifier
       if (ctx.signals.has_battery_health_report) {
-        return "This assessment is based on direct battery condition testing, not estimates from mileage or age.";
+        return "This assessment is based on direct battery condition testing, not estimates from mileage or age. This removes one major unknown from your ownership assessment.";
       }
       if (ctx.signals.has_annual_mileage) {
-        return "Battery condition depends more on usage patterns than total mileage. Your usage context helps set realistic expectations.";
+        return "Battery condition depends more on usage patterns than total mileage. Your usage context helps set realistic expectations — especially when combined with charging fit data.";
       }
-      return "Without battery condition data, this is like buying a used car without service records. Population averages mainly affect long-term replacement timing, not immediate reliability.";
+      return "Without battery condition data, this is like buying a used car without service records. Battery uncertainty amplifies charging concerns: if charging is already unpredictable, unknown battery condition creates compounding planning overhead.";
     },
 
     degradedRender: (ctx, missing) => {

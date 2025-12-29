@@ -7,6 +7,7 @@ import { shouldShowApartmentChargingContext } from "@/lib/apartment-detection";
 import { createChargingFitBlock } from "./chargingFitBlock";
 import { createAssumptionDriftBlock } from "./assumptionDriftBlock";
 import { createOutcomePathsBlock } from "./outcomePathsBlock";
+import { createConfidenceDeltaBlock } from "./confidenceDeltaBlock";
 
 // Re-export buildSignals for backward compatibility
 export { buildSignals } from "@/core/signals";
@@ -161,6 +162,10 @@ export function getBlocks(ctx: RenderCtx): Block[] {
   // Mental Overhead v1: Charging Fit Block
   // Always shown (degrades gracefully without inputs)
   blocks.push(createChargingFitBlock());
+
+  // Phase 1.5: Confidence Delta Explainer
+  // Shows what data would improve decision confidence (65% → 95%)
+  blocks.push(createConfidenceDeltaBlock());
 
   // Mental Overhead v1: Outcome Paths Block
   // Final decision framework block (always shown)

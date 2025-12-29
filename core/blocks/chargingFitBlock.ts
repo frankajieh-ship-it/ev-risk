@@ -130,15 +130,31 @@ export function createChargingFitBlock(): Block {
 
       // FAILURE MODE: DC Fast Primary + Unpredictable
       if (chargingAccess === "dc_fast_primary" && chargingReliability === "unpredictable") {
-        return (
+        // Check if battery health is also uncertain (anxiety multiplier)
+        const batteryUncertain = !ctx.signals.has_battery_health_report && !ctx.signals.has_battery_data;
+
+        let message = (
           "This pattern is where most apartment EV frustration occurs. " +
           "DC fast charging as your primary method with unpredictable availability creates high mental overhead. " +
-          "Most buyers in this situation need a backup plan within 10-15 minutes (another DCFC location or L2 option). " +
+          "Most buyers in this situation need a backup plan within 10-15 minutes (another DCFC location or L2 option)."
+        );
+
+        // Add battery uncertainty multiplier if applicable
+        if (batteryUncertain) {
+          message += (
+            " Because battery health is uncertain, this charging unpredictability carries more planning overhead. " +
+            "With clearer battery data, this same charging setup would feel lower stress."
+          );
+        }
+
+        message += (
           "\n\n" +
           "Here's how to evaluate: Track one week of actual charging experiences. " +
           "If you find yourself adjusting your schedule or driving out of your way more than twice, " +
           "this setup will likely become a friction point."
         );
+
+        return message;
       }
 
       // HOME L2 - Generally excellent
