@@ -1,0 +1,28 @@
+Structure I'm Implementing Today:
+
+javascript
+// Database Schema (Airtable/Notion)
+{
+  source: "Reddit/r/electricvehicles",
+  timestamp: "2024-03-15",
+  user_context: {
+    housing: "apartment",
+    region: "Northeast",
+    ownership_stage: "considering",
+    charging_access: "public only"
+  },
+  behavioral_pattern: {
+    pre_purchase_assumption: "More chargers = less anxiety",
+    actual_experience: "Still anxious despite many chargers",
+    root_cause: "Unpredictable availability, not quantity",
+    cognitive_load_rating: "High" // 1-5 scale
+  },
+  tags: ["charging_anxiety", "apartment_living", "perception_gap"]
+}
+Collection Method (This Week):
+
+Reddit/Twitter Scraper (Manual for now, Simple Python script)
+
+Template for manual entry (Google Form → Airtable)
+
+Weekly synthesis meeting (Friday, 30 min)

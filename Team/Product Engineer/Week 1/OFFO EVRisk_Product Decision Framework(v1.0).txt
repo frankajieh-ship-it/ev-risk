@@ -1,0 +1,142 @@
+OFFO — Product Decision Framework (v1.0)
+
+Purpose
+This framework is mandatory for evaluating all product features, experiments, and roadmap proposals at OFFO.
+
+It exists to enforce our operating system:
+
+OFFO reduces EV regret by making behavioral mismatch visible early.
+We reduce mental load.
+We improve predictability.
+We clarify routine fit.
+
+Any feature that does not serve this purpose does not ship.
+
+Feature Evaluation Template (Required)
+
+Every feature proposal must complete all sections below.
+Incomplete frameworks are automatically deprioritized.
+
+1️⃣ Feature Name
+
+Plain-English name.
+No internal jargon. No marketing language.
+
+Example: “Charging Fit Explanation Block”
+
+2️⃣ Behavioral Problem Addressed
+
+What human behavior, routine failure, or decision breakdown does this feature address?
+
+This must describe a lived experience, not a system capability.
+
+Good examples
+
+Users underestimate planning burden when charging is unpredictable.
+
+Battery uncertainty amplifies anxiety when routines are already fragile.
+
+Edge-case trips dominate perceived risk despite low frequency.
+
+Not acceptable
+
+Improves user experience
+
+Adds insight
+
+Increases engagement
+
+If the behavioral problem is unclear → feature fails review.
+
+3️⃣ Mental Overhead Reduced (Explicit)
+
+What thinking, planning, or cognitive burden does this feature reduce for the user?
+
+Be concrete. Name the mental load being removed.
+
+Examples
+
+Reduces need to mentally track charger availability.
+
+Reduces anxiety caused by unknown battery condition.
+
+Reduces planning required for routine charging.
+
+If mental overhead reduction cannot be stated clearly → feature fails review.
+
+4️⃣ Predictability Improved (Explicit)
+
+What becomes more predictable, stable, or foreseeable for the user as a result of this feature?
+
+Predictability is about expectations, not infrastructure.
+
+Examples
+
+Predictability of weekly charging moments.
+
+Predictability of routine disruption.
+
+Predictability of decision outcomes under common conditions.
+
+If predictability does not improve → feature fails review.
+
+5️⃣ Failure Modes Surfaced (Yes / No)
+
+Does this feature make a potential failure mode visible earlier than it would be otherwise?
+
+Answer Yes or No, then briefly explain.
+
+Valid failure modes
+
+Apartment charging unpredictability
+
+DC fast charging as primary fuel
+
+Battery uncertainty + cold climate
+
+Edge-case usage dominating risk perception
+
+If No, the feature must justify why it still materially reduces regret.
+
+Auto-Deprioritization Rule (Enforced)
+
+A feature is automatically deprioritized if:
+
+Any section above is incomplete
+
+Mental overhead reduction is vague or implied
+
+Predictability improvement is indirect or speculative
+
+Behavioral problem is framed in technical or spec-based terms
+
+No exceptions.
+
+Explicit Non-Goals (Framework Guardrails)
+
+This framework explicitly blocks features whose primary purpose is:
+
+Selling EVs
+
+Optimizing specs
+
+Comparing vehicles
+
+Counting chargers
+
+Evangelizing EV adoption
+
+Introducing scores prematurely
+
+Such proposals should not proceed to discussion.
+
+Final Check (Required Before Review)
+
+Before submission, ask:
+
+Does this feature help a user say:
+“I understand why this feels stressful — and what actually matters now”?
+
+If not, it does not align with OFFO’s product mandate.
+
+Status: Draft v1.0

@@ -1,0 +1,138 @@
+OFFO — Behavioral Framework Mapping (Internal)
+
+Scope: Current blocks only
+Purpose: Validate alignment, identify redundancies, gaps, and overreach
+Status: Draft for internal review
+
+1️⃣ Phase 0.5 — “What’s Missing / Why It Matters / Confidence”
+Dimension	Assessment
+Behavioral problem addressed	Users experience uncertainty and anxiety when key decision inputs are missing but cannot tell which gaps matter most.
+Mental overhead reduced	Reduces unstructured worry by explicitly naming unknowns and explaining their impact. Prevents users from mentally “filling gaps” with worst-case assumptions.
+Predictability clarified	Clarifies how confident the system can be given current information and what would change that confidence. Predictability of guidance support improves, not outcome predictability.
+Failure modes surfaced	✔ Missing battery data
+✔ Unknown charging context
+✔ Typical used-EV information gaps
+Notes
+
+Strength: Excellent trust calibration; works even for zero-data users.
+
+Risk: If overused later, could feel repetitive — should remain an entry layer, not repeated downstream.
+
+Verdict: Well-aligned. Foundational. No change needed.
+
+2️⃣ Battery Health Block
+Dimension	Assessment
+Behavioral problem addressed	Users anchor on mileage or age and misjudge long-term risk when battery condition is uncertain or poorly explained.
+Mental overhead reduced	Reduces anxiety caused by abstract battery metrics by translating uncertainty into planning implications (e.g., range buffer, resale, longevity).
+Predictability clarified	Clarifies predictability of long-term ownership assumptions (replacement horizon, degradation expectations).
+Failure modes surfaced	✔ Missing battery health data
+✔ Degraded battery + long-term ownership
+✔ Battery uncertainty amplifying other stresses
+Notes
+
+Strength: High salience; users intuitively care about this.
+
+Gap: Needs consistent framing that battery uncertainty amplifies routine stress, not just cost or range.
+
+Overreach risk: None, as long as it avoids predicting failure or lifespan.
+
+Verdict: Correctly standalone. Needs language alignment, not structural change.
+
+3️⃣ Charging Fit Block (Mental Overhead / Routine Friction)
+Dimension	Assessment
+Behavioral problem addressed	Users underestimate how charging predictability affects daily planning burden and long-term satisfaction.
+Mental overhead reduced	Reduces repeated micro-decisions around when and where to charge by explaining routine friction patterns.
+Predictability clarified	Clarifies predictability of charging as a habit (background vs foreground task).
+Failure modes surfaced	✔ Apartment/shared charging unpredictability
+✔ DC fast charging as primary fuel
+✔ Lack of nearby backup options
+Notes
+
+Strength: Directly operationalizes the “mental overhead” insight.
+
+Gap: Needs clearer reference to how battery uncertainty multiplies charging stress.
+
+Overreach risk: Must avoid drifting into recommendations or scoring.
+
+Verdict: Strong but incomplete without cross-reference to battery certainty.
+
+Cross-Block Analysis
+🔁 Redundancies (Manage, Don’t Remove)
+
+Phase 0.5 & Battery Health
+
+Both discuss missing battery data.
+
+This is acceptable because:
+
+Phase 0.5 = existence of uncertainty
+
+Battery Health = implications of that uncertainty
+
+Phase 0.5 & Charging Fit
+
+Both mention missing charging context.
+
+Acceptable if Phase 0.5 remains high-level and Charging Fit becomes concrete.
+
+Action:
+Avoid repeating identical phrasing; keep each block’s role distinct.
+
+🕳️ Gaps (Must Address Next)
+
+Decision State Summary
+
+No block currently answers:
+
+“Where does this leave me, overall?”
+
+Users must synthesize mentally.
+
+Assumption Drift Visibility
+
+Re-check scenarios (“I moved”) lack a clear “what changed” explanation.
+
+Battery × Charging Interaction
+
+Interaction is understood internally but only partially surfaced.
+
+Should be explained narratively (multiplier effect), not structurally merged.
+
+⚠️ Overreach Risks (Watch Closely)
+
+Charging Fit drifting into:
+
+“You should switch vehicles”
+
+Implicit recommendations
+
+Battery Health drifting into:
+
+Lifespan predictions
+
+Outcome guarantees
+
+Guardrail:
+Explain stress patterns, not outcomes.
+
+Summary Table (One-Glance)
+Block	Alignment	Action
+Phase 0.5	Strong	Keep as-is
+Battery Health	Strong	Update language (anxiety amplification)
+Charging Fit	Strong but partial	Add battery interaction reference
+Overall System	Incomplete	Add decision state + closure
+Final Internal Conclusion
+
+The blocks are individually sound and philosophically aligned.
+
+What’s missing is:
+
+synthesis
+
+interaction explanation
+
+closure
+
+No block needs removal.
+No block needs merging.
+The system needs connective tissue, not expansion.

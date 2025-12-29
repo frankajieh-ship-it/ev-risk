@@ -1,0 +1,148 @@
+OFFO — Decision Confidence (Internal Definition v1.0)
+
+Status: Locked
+Scope: Internal use only
+Applies to: Phase 0.5 and Phase 1
+Purpose: Prevent semantic drift, overclaiming, and accidental judgment
+
+1️⃣ What Decision Confidence Is
+
+Decision Confidence is:
+
+The degree to which OFFO can stand behind its guidance given what is known, what is unknown, and how sensitive the decision is to those unknowns.
+
+It reflects:
+
+completeness of relevant information
+
+clarity of assumptions
+
+visibility of failure modes
+
+stability of guidance under common conditions
+
+Decision Confidence answers:
+
+“How well-supported is this guidance, given the current information?”
+
+It does not answer:
+
+“Is this a good car?”
+“Should you buy it?”
+“Will this work for you?”
+
+2️⃣ What Decision Confidence Is Not
+
+Decision Confidence is not:
+
+A judgment of vehicle quality
+
+A prediction of satisfaction or success
+
+A probability of regret
+
+A recommendation to act
+
+A score of “how good” an EV is
+
+A measure of EV superiority vs ICE
+
+Any usage implying the above is out of bounds.
+
+3️⃣ How Decision Confidence Is Communicated (Allowed)
+
+Decision Confidence may be communicated as:
+
+Plain-language explanations
+
+Confidence ranges or deltas (e.g., 65% → 95%)
+
+Statements about uncertainty sources
+
+Statements about what would reduce uncertainty
+
+Example (acceptable):
+
+“Decision confidence is limited because battery health data is missing. With that information, uncertainty around long-term planning would be reduced.”
+
+4️⃣ How Decision Confidence Must Not Be Communicated
+
+Decision Confidence must not be communicated as:
+
+A final verdict
+
+A quality rating
+
+A buying signal (“green light”)
+
+A comparative rank
+
+A standalone number without explanation
+
+Example (not acceptable):
+
+“77/100 confidence — good buy”
+
+“High confidence EV”
+
+5️⃣ Alignment with Phase 0.5 Confidence Deltas
+
+Phase 0.5 confidence deltas (e.g., 65% → 95%) represent:
+
+The range of confidence OFFO could achieve if specific unknowns were resolved.
+
+They indicate:
+
+where uncertainty comes from
+
+how much clarity additional information could provide
+
+They do not indicate:
+
+improvement in vehicle quality
+
+increased likelihood of a positive outcome
+
+6️⃣ Non-Judgmental Framing Rule (Mandatory)
+
+All Decision Confidence language must:
+
+Describe uncertainty without blame
+
+Avoid implying user error
+
+Avoid implying a “wrong” choice
+
+Frame missing data as normal, not negligent
+
+Example framing:
+
+“This estimate reflects typical used EV listings and common information gaps.”
+
+7️⃣ Enforcement (Forward-Looking)
+
+Starting next sprint:
+
+Decision Confidence language must be selected from approved templates
+
+Any new copy referencing confidence must map to this definition
+
+Voice linter rules will flag violations (e.g., “high confidence EV”)
+
+This week:
+
+No code changes
+
+Alignment only
+
+8️⃣ Final Internal Check (Required)
+
+Before using “confidence” in any product or content surface, ask:
+
+“Is this describing support for guidance — or judging the decision?”
+
+If it is judging, reword or remove.
+
+One-Line Internal Summary (Use This)
+
+Decision confidence measures how well we can explain our guidance — not how good the EV is.

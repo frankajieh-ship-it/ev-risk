@@ -1,0 +1,94 @@
+1. Information Hierarchy Redesign
+Based on Content Principles v1.0, here's the new report structure:
+
+jsx
+// Report Structure (Top to Bottom)
+<EVRiskReport>
+  {/* TIER 1: Safety & Immediate Reliability */}
+  <SafetySection>
+    <Recalls />
+    <StrandingRisks />
+    <SafetyCriticalIssues />
+  </SafetySection>
+
+  {/* TIER 2: Battery & Long-term Planning */}
+  <BatterySection>
+    <BehavioralExplanation>
+      How battery uncertainty affects your weekly planning
+    </BehavioralExplanation>
+    <LongTermImplications>
+      What this means for ownership duration
+    </LongTermImplications>
+  </BatterySection>
+
+  {/* TIER 3: Routine Fit */}
+  <RoutineFitSection>
+    <ChargingPredictability>
+      How charging fits (or doesn't) into your routine
+    </ChargingPredictability>
+    <MentalOverloadIndicators>
+      Where additional planning is required
+    </MentalOverloadIndicators>
+  </RoutineFitSection>
+
+  {/* TIER 4: Cost & Convenience */}
+  <CostSection>
+    <FinancialExposure />
+    <ConvenienceTradeoffs />
+  </CostSection>
+</EVRiskReport>
+2. Confidence Display Framework
+Problem: Current design might imply judgment
+Solution: Confidence as "explanation quality" not "vehicle quality"
+
+jsx
+// New Confidence Component
+<ConfidenceExplanation>
+  <Heading>How well we can explain this EV's fit</Heading>
+  
+  <ConfidenceLevel level={confidence}>
+    {/* Visual: Not a score, but a completeness indicator */}
+    <CompletenessIndicator>
+      <Segment filled={has_battery_data} />
+      <Segment filled={has_charging_context} />
+      <Segment filled={has_usage_pattern} />
+      <Segment filled={has_climate_data} />
+    </CompletenessIndicator>
+    
+    <Explanation>
+      {confidence === 'high' && "We have enough information to explain how this EV fits into daily life"}
+      {confidence === 'medium' && "We can explain general patterns, but personal context would clarify"}
+      {confidence === 'low' && "Key information is missing, making specific guidance limited"}
+    </Explanation>
+    
+    <MissingData>
+      {!has_battery_data && "• Battery health data"}
+      {!has_charging_context && "• Your charging situation"}
+    </MissingData>
+  </ConfidenceLevel>
+</ConfidenceExplanation>
+3. Personalization Request Redesign
+Current risk: Feels like registration
+New approach: Inline, value-driven, optional
+
+jsx
+// Inline Personalization Request
+<InlineContextRequest>
+  <Trigger>Want more specific guidance?</Trigger>
+  
+  <ValueProposition>
+    <Bullet>Share your commute → See exact charging frequency</Bullet>
+    <Bullet>Add your parking → Understand planning burden</Bullet>
+    <Bullet>Skip → Get general patterns</Bullet>
+  </ValueProposition>
+  
+  <QuickInputs>
+    <SingleInput 
+      question="Typical weekly miles?" 
+      options={["Under 100", "100-200", "200+"]}
+      onAnswer={updateAnalysis}
+    />
+  </QuickInputs>
+  
+  <SkipOption>Skip for now → Show general patterns</SkipOption>
+</InlineContextRequest>

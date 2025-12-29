@@ -1,0 +1,208 @@
+Product Engineer — Weekly Task List
+
+Objective: Establish structural clarity for behavioral-fit execution.
+Constraint: Structure only. No feature expansion. No scoring. No build creep.
+Oversight: CEO review required before any downstream build.
+
+🔒 PRIORITY 0 — Operating Discipline (Daily)
+
+Status: Ongoing
+
+Re-anchor all decisions to the locked north star:
+
+Reduce mental overhead
+
+Improve predictability
+
+Clarify routine fit
+
+Reject any idea or request that cannot satisfy all three.
+
+Keep this week definition-only; no “quick builds.”
+
+1️⃣ Create Product Decision Framework (MANDATORY)
+
+Owner: Me
+Due: End of week
+CEO Review: Required
+
+Tasks
+
+Draft a 1-page Product Decision Framework containing:
+
+Feature name
+
+Behavioral problem addressed
+
+Mental overhead reduced (explicit)
+
+Predictability improved (explicit)
+
+Failure modes surfaced (yes/no)
+
+Ensure language is:
+
+behavioral
+
+non-technical
+
+enforceable
+
+Add a short “auto-deprioritize rule” for features that fail any section.
+
+Output
+
+Markdown / Notion-ready doc
+
+Circulated internally
+
+Submitted to CEO for sign-off
+
+2️⃣ Define Phase 1 Feature Scope (NO BUILD)
+
+Owner: Me
+Due: End of week
+CEO Review: Required
+
+Tasks
+
+Write a Phase 1 Scope Definition document that includes:
+
+Inputs we already infer or lightly ask for (no new user burden)
+
+Outputs defined only in plain English
+
+Explicit prohibitions (no scores, no recommendations, no marketplaces)
+
+Clearly articulate what Charging Predictability and Routine Fit would mean conceptually, without implementing them.
+
+Output
+
+Plain-English definitions
+
+Clear “not building yet” section
+
+Ready for CEO approval
+
+3️⃣ Lock Decision Confidence Definition (Internal)
+
+Owner: Me
+Due: Mid–week
+
+Tasks
+
+Write and lock a single internal definition of Decision Confidence:
+
+What it is
+
+What it is not
+
+Ensure it aligns with:
+
+Phase 0.5 confidence deltas
+
+Non-judgmental framing
+
+Prepare to enforce via templates later (no code this week).
+
+Output
+
+Short internal spec
+
+Shared with product + content for alignment
+
+4️⃣ Map Existing Blocks to Behavioral Framework
+
+Owner: Me
+Due: End of week
+
+Tasks
+
+Audit current blocks:
+
+Phase 0.5
+
+Battery Health
+
+Charging Fit
+
+For each block, document:
+
+Behavioral problem addressed
+
+Mental overhead reduced
+
+Predictability clarified
+
+Failure modes surfaced
+
+Identify:
+
+Redundancies
+
+Gaps
+
+Overreach
+
+Output
+
+Internal mapping table
+
+Inputs for next sprint (post-approval)
+
+5️⃣ Prepare CEO Review Packet
+
+Owner: Me
+Due: End of week
+
+Tasks
+
+Assemble a single review packet containing:
+
+Product Decision Framework (1 page)
+
+Phase 1 Scope Definition
+
+Decision Confidence Definition
+
+Block-to-behavior mapping summary
+
+Keep it concise, structured, and non-technical.
+
+Output
+
+CEO-ready document
+
+Explicit callouts where approval is required
+
+Clear “no-build” confirmation
+
+🚫 Explicitly Not Doing This Week
+
+(To avoid accidental scope creep)
+
+No new features
+
+No scoring systems
+
+No Charging Predictability metrics
+
+No Routine Fit calculations
+
+No UI polish
+
+No monetization paths
+
+No marketplace integrations
+
+🧭 Weekly Success Criteria (Self-Evaluation)
+
+By end of week:
+
+We have a clear product operating system
+
+Feature discussions are gated, not generative
+
+Phase 1 is defined, not built
+
+CEO can say: “Yes — this is disciplined execution.”

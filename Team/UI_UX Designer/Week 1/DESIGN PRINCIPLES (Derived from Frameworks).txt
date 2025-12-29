@@ -1,0 +1,43 @@
+DESIGN PRINCIPLES (Derived from Frameworks)
+Principle 1: Make Invisible Mismatches Visible
+jsx
+// Instead of: "Battery health: 85%"
+// Show: 
+<BehavioralImpact>
+  <Icon>🧠</Icon>
+  This adds 15 miles of mental buffer to your daily planning
+</BehavioralImpact>
+Principle 2: Explain, Don't Judge
+jsx
+// Instead of: "Poor charging situation"
+// Show:
+<RoutineFriction>
+  <Heading>How charging affects your routine:</Heading>
+  <Explanation>
+    Public charging requires planning each week, 
+    which adds cognitive load compared to home charging
+  </Explanation>
+</RoutineFriction>
+Principle 3: Show Uncertainty Granularly
+jsx
+// Instead of: "Low confidence"
+// Show:
+<UncertaintyBreakdown>
+  <Certain>
+    <Checkmark /> We know: Range, age, basic specs
+  </Certain>
+  <Uncertain>
+    <QuestionMark /> We don't know: How battery health affects your commute
+  </Uncertain>
+</UncertaintyBreakdown>
+Principle 4: Progressive Disclosure of Complexity
+jsx
+// Layer 1: High-level fit assessment
+<HighLevelFit>This EV requires moderate planning effort</HighLevelFit>
+
+// Layer 2 (on tap/click): Details
+<DetailedBreakdown>
+  <Factor>Charging: Requires weekly planning</Factor>
+  <Factor>Range: Covers typical week</Factor>
+  <Factor>Battery: Adds planning buffer</Factor>
+</DetailedBreakdown>

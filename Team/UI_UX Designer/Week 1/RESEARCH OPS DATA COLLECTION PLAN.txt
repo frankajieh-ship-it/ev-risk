@@ -1,0 +1,45 @@
+📊 RESEARCH OPS: DATA COLLECTION PLAN
+Week 1-2: Pattern Identification
+markdown
+# Research Focus Areas
+1. **Apartment Dwellers** (highest anxiety)
+   - How do they describe charging planning?
+   - What surprises them post-purchase?
+   - Language they use for "predictability"
+
+2. **First-time EV Buyers** 
+   - What assumptions were wrong?
+   - What mental load wasn't anticipated?
+   - When do they feel regret vs satisfaction?
+
+3. **Cold Climate Owners**
+   - How does winter change routine?
+   - What planning adjustments are needed?
+   - Language for "buffer" and "margin"
+Data Collection Methods:
+javascript
+// Method 1: Social Listening (Automated)
+const socialListening = {
+  platforms: ["Reddit", "Twitter", "EV forums"],
+  keywords: [
+    "EV regret", "charging stress", "range anxiety",
+    "wish I knew", "surprised by", "didn't expect"
+  ],
+  output: "Behavioral patterns database"
+};
+
+// Method 2: Interview Script (5 users this week)
+const interviewScript = {
+  opening: "Tell me about your EV decision process",
+  probe_1: "What felt uncertain during research?",
+  probe_2: "What surprised you after purchase?",
+  probe_3: "How does charging fit into your routine?",
+  close: "What would have helped you feel more confident?"
+};
+
+// Method 3: Survey (Linked from report)
+const postReportSurvey = {
+  question: "Did this help you understand behavioral fit?",
+  follow_up: "What still feels uncertain?",
+  purpose: "Identify gaps in our explanations"
+};

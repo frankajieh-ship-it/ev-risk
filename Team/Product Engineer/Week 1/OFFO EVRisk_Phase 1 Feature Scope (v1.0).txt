@@ -1,0 +1,221 @@
+OFFO — Phase 1 Feature Scope Definition (v1.0)
+
+Purpose
+Phase 1 exists to explain behavioral fit and mental overhead using information we already have or can ask for lightly.
+It is not a scoring phase. It is not a recommendation phase. It is not a shopping phase.
+
+Phase 1 answers one question:
+
+“Does this EV still fit my routine — and why or why not?”
+
+1️⃣ Inputs (What Phase 1 Is Allowed to Use)
+
+Phase 1 may only use inputs that meet both conditions:
+
+Do not materially increase user burden
+
+Do not require new infrastructure, APIs, or inference systems
+
+A. Context Inputs (Lightweight, Explicit)
+
+Reason for re-checking:
+
+Moved home
+
+Charging situation changed
+
+Commute changed
+
+Schedule changed
+
+Just re-checking
+
+These inputs exist to frame interpretation, not to compute outcomes.
+
+B. Charging Context (Self-Reported, Simple)
+
+Primary charging access:
+
+Home (dedicated)
+
+Apartment / shared
+
+Public L2
+
+Public DC fast charging
+
+Mixed
+
+Perceived reliability:
+
+Usually available
+
+Sometimes available
+
+Unpredictable
+
+Weekly charging frequency:
+
+1–2 times
+
+3–4 times
+
+5+ times
+
+These inputs capture perceived predictability, not objective infrastructure quality.
+
+C. Vehicle & Listing Data (Already Available)
+
+Presence or absence of battery health data
+
+Known recalls
+
+Warranty status (known / unknown)
+
+Vehicle class (sedan, SUV, truck)
+
+Range class (standard / extended)
+
+Phase 1 treats missing data as first-class information, not errors.
+
+2️⃣ Outputs (What Phase 1 Produces)
+
+Phase 1 outputs are language-based explanations only.
+They are meant to reduce mental overhead, not resolve decisions.
+
+A. Behavioral Explanations
+
+Examples:
+
+“Charging may feel mentally demanding because availability is unpredictable.”
+
+“Battery uncertainty amplifies planning effort when charging isn’t routine.”
+
+“This setup works best when charging is a background habit, not a recurring task.”
+
+Outputs describe why something feels stressful, not whether it is “good” or “bad.”
+
+B. Heuristic Labels (Non-Numeric)
+
+Phase 1 may use descriptive categories, such as:
+
+Low routine friction
+
+Moderate routine friction
+
+High routine friction
+
+Predictable charging
+
+Fragile charging setup
+
+Battery uncertainty present
+
+These are labels, not scores.
+
+C. Failure Mode Visibility
+
+Phase 1 must explicitly surface when common mismatch patterns apply, including:
+
+Apartment charging with unpredictable access
+
+Reliance on DC fast charging as primary fuel
+
+Edge-case usage dominating mental load
+
+Battery uncertainty combined with cold climate or long trips
+
+Failure modes are named calmly, without urgency or alarm.
+
+D. Decision Confidence (Explained, Not Scored)
+
+Phase 1 may explain confidence as:
+
+What is known
+
+What is unknown
+
+What would reduce uncertainty
+
+Example:
+
+“Decision confidence is limited by missing battery health data. With that information, uncertainty around long-term planning would be reduced.”
+
+Confidence is never a judgment of vehicle quality.
+
+3️⃣ What Charging Predictability Means (Conceptual Only)
+
+Charging Predictability refers to:
+
+How reliably charging fits into a user’s normal routine without requiring active planning or repeated adjustments.
+
+Conceptually, charging is predictable when:
+
+Access is usually available at expected times
+
+Charging can be treated as a background habit
+
+Backup options exist within reasonable distance
+
+Missed charging events do not create cascading stress
+
+Phase 1 does not calculate predictability.
+It explains conditions that increase or decrease it.
+
+4️⃣ What Routine Fit Means (Conceptual Only)
+
+Routine Fit refers to:
+
+How well EV ownership aligns with a user’s daily and weekly life without creating ongoing cognitive load.
+
+Conceptually, routine fit is strong when:
+
+Charging aligns with existing habits
+
+Energy needs are predictable week to week
+
+Edge cases are rare or mentally discounted
+
+Planning is front-loaded, not continuous
+
+Phase 1 does not judge fit.
+It helps users recognize fit or mismatch themselves.
+
+5️⃣ Explicit Prohibitions (Non-Negotiable)
+
+Phase 1 must not include:
+
+Numeric scores (predictability, fit, anxiety, etc.)
+
+Rankings or grades
+
+Vehicle recommendations
+
+Trade-in or switching prompts
+
+Marketplace links
+
+EV vs ICE comparisons
+
+Spec optimization language
+
+Charger counts or map-based claims
+
+Any proposal including these is out of Phase 1 scope and requires CEO approval.
+
+6️⃣ Phase Discipline Statement (Locked)
+
+Phase 1 explains behavior.
+It does not decide for the user.
+
+Scoring, optimization, and recommendations are future phases and must not leak into Phase 1 through wording, visuals, or implication.
+
+7️⃣ Final Validation Question (Required)
+
+Before considering Phase 1 complete, we must be able to say:
+
+“A user can now understand why their EV feels easy or stressful — without being told what to buy or do.”
+
+If this is not true, Phase 1 has overreached or under-explained.
+
+Status: Draft v1.0

@@ -1,0 +1,107 @@
+Here's how these translate to immediate UI/UX changes:
+
+1. "More chargers = less anxiety"
+Design Fix:
+
+Never show charger counts without context
+
+Instead: "Charging predictability" visualization
+
+jsx
+// UI Component: Charging Predictability Indicator
+<ChargingContext>
+  <PredictabilityIndicator 
+    value={user_has_dedicated_home_charging ? "High" : "Variable"}
+    explanation={
+      user_has_dedicated_home_charging 
+      ? "Charging fits naturally into your routine"
+      : "Charging requires active planning each week"
+    }
+  />
+</ChargingContext>
+2. "Range anxiety = daily concern"
+Design Fix:
+
+Distinguish between routine vs edge-case anxiety
+
+Visualize: "Your typical week" vs "Your occasional trips"
+
+jsx
+// Component: Range Contextualizer
+<RangeAnalysis>
+  <TypicalUse>
+    <Checkmark /> Covers 95% of your weekly driving
+    <Note>40-mile commute fits easily</Note>
+  </TypicalUse>
+  <EdgeCase>
+    <Warning /> Requires planning for occasional trips
+    <Note>Your 2x/year 200-mile trip needs charging stop</Note>
+  </EdgeCase>
+</RangeAnalysis>
+3. "EV vs ICE is binary"
+Design Fix:
+
+Comparative framing without comparison
+
+Show: "How EV ownership changes your routine"
+
+jsx
+// Component: Routine Shift Explanation
+<RoutineShift>
+  <Heading>How this changes your refueling habit:</Heading>
+  <Comparison>
+    <ICE>Gas station every 7-10 days (5-10 min)</ICE>
+    <EV>Plug in every 2-3 days (30 sec at home)</EV>
+  </Comparison>
+  <Insight>
+    Less time spent, but requires consistent access
+  </Insight>
+</RoutineShift>
+4. "Fast charging solves everything"
+Design Fix:
+
+Surface the mental overhead of DC reliance
+
+Visualize: "Planning burden" vs "convenience"
+
+jsx
+// Component: Charging Type Burden
+<ChargingBurden>
+  <PrimaryMethod method={user.primary_charging}>
+    {user.primary_charging === 'dc_fast' ? (
+      <Warning>
+        <Icon>⏰</Icon>
+        Requires 30-45 min planning blocks weekly
+      </Warning>
+    ) : (
+      <Success>
+        <Icon>🏠</Icon>
+        Fits into existing home routines
+      </Success>
+    )}
+  </PrimaryMethod>
+</ChargingBurden>
+5. "Battery % = certainty"
+Design Fix:
+
+Never show battery health as standalone number
+
+Always contextualize: "What this means for your planning"
+
+jsx
+// Component: Battery Health Translator
+<BatteryContext>
+  <HealthValue value={battery_health_percentage}>
+    {battery_health_percentage}% estimated capacity
+  </HealthValue>
+  <PracticalImplication>
+    <PlanningImpact>
+      Adds {calculate_buffer_needed(battery_health_percentage)} 
+      miles of planning buffer to your routine
+    </PlanningImpact>
+    <MentalLoad>
+      {battery_health_percentage > 85 ? "Low" : "Moderate"} 
+      additional planning effort
+    </MentalLoad>
+  </PracticalImplication>
+</BatteryContext>
