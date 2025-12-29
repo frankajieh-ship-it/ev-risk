@@ -74,9 +74,13 @@ export default function AdminDashboard() {
   const [apiKey, setApiKey] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [visitorStats, setVisitorStats] = useState<any>(null);
+  const [eventStats, setEventStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [period, setPeriod] = useState("all");
+  const [visitorTimeframe, setVisitorTimeframe] = useState("30d");
+  const [eventTimeframe, setEventTimeframe] = useState("30d");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [showCustomDate, setShowCustomDate] = useState(false);
@@ -118,11 +122,39 @@ export default function AdminDashboard() {
 
       // Store API key in session storage for convenience
       sessionStorage.setItem("admin_api_key", key);
+
+      // Fetch visitor stats and event stats
+      await fetchVisitorStats(visitorTimeframe);
+      await fetchEventStats(eventTimeframe);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
       setAnalytics(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchVisitorStats = async (timeframe: string = visitorTimeframe) => {
+    try {
+      const response = await fetch(`/api/track-visitor?timeframe=${timeframe}`);
+      if (response.ok) {
+        const data = await response.json();
+        setVisitorStats(data.stats);
+      }
+    } catch (err) {
+      console.error("Failed to fetch visitor stats:", err);
+    }
+  };
+
+  const fetchEventStats = async (timeframe: string = eventTimeframe) => {
+    try {
+      const response = await fetch(`/api/track-event?timeframe=${timeframe}`);
+      if (response.ok) {
+        const data = await response.json();
+        setEventStats(data.stats);
+      }
+    } catch (err) {
+      console.error("Failed to fetch event stats:", err);
     }
   };
 
@@ -315,6 +347,344 @@ export default function AdminDashboard() {
             icon="⭐"
           />
         </div>
+
+        {/* User Event Analytics Section */}
+        {eventStats && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">📊 User Event Analytics</h2>
+              <div className="flex gap-2">
+                {["24h", "7d", "30d", "all"].map((tf) => (
+                  <button
+                    key={tf}
+                    onClick={() => {
+                      setEventTimeframe(tf);
+                      fetchEventStats(tf);
+                    }}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                      eventTimeframe === tf
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    {tf === "24h" ? "24 Hours" : tf === "7d" ? "7 Days" : tf === "30d" ? "30 Days" : "All Time"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Form Submissions */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-2">Form Submissions</h3>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="bg-blue-50 p-4 rounded">
+                  <p className="text-sm text-gray-600">Total Attempts</p>
+                  <p className="text-2xl font-bold">{eventStats.formSubmissions?.total_attempts || 0}</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded">
+                  <p className="text-sm text-gray-600">Successful</p>
+                  <p className="text-2xl font-bold text-green-600">{eventStats.formSubmissions?.successful || 0}</p>
+                </div>
+                <div className="bg-red-50 p-4 rounded">
+                  <p className="text-sm text-gray-600">Failed</p>
+                  <p className="text-2xl font-bold text-red-600">{eventStats.formSubmissions?.failed || 0}</p>
+                </div>
+                <div className="bg-purple-50 p-4 rounded">
+                  <p className="text-sm text-gray-600">Success Rate</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {eventStats.formSubmissions?.total_attempts > 0
+                      ? ((eventStats.formSubmissions.successful / eventStats.formSubmissions.total_attempts) * 100).toFixed(1)
+                      : 0}%
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* URL Autofill */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-2">URL Autofill</h3>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="bg-blue-50 p-4 rounded">
+                  <p className="text-sm text-gray-600">Total Attempts</p>
+                  <p className="text-2xl font-bold">{eventStats.urlAutofill?.total_attempts || 0}</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded">
+                  <p className="text-sm text-gray-600">Successful</p>
+                  <p className="text-2xl font-bold text-green-600">{eventStats.urlAutofill?.successful || 0}</p>
+                </div>
+                <div className="bg-red-50 p-4 rounded">
+                  <p className="text-sm text-gray-600">Failed</p>
+                  <p className="text-2xl font-bold text-red-600">{eventStats.urlAutofill?.failed || 0}</p>
+                </div>
+                <div className="bg-purple-50 p-4 rounded">
+                  <p className="text-sm text-gray-600">Success Rate</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {eventStats.urlAutofill?.total_attempts > 0
+                      ? ((eventStats.urlAutofill.successful / eventStats.urlAutofill.total_attempts) * 100).toFixed(1)
+                      : 0}%
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Blog Clicks */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-2">Blog Engagement</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-orange-50 p-4 rounded">
+                  <p className="text-sm text-gray-600">Total Blog Clicks</p>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {eventStats.blogClicks?.reduce((sum: number, item: any) => sum + parseInt(item.total_clicks || 0), 0) || 0}
+                  </p>
+                </div>
+                <div className="bg-orange-50 p-4 rounded">
+                  <p className="text-sm text-gray-600">Unique Users</p>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {eventStats.blogClicks?.reduce((sum: number, item: any) => sum + parseInt(item.unique_users || 0), 0) || 0}
+                  </p>
+                </div>
+                <div className="bg-orange-50 p-4 rounded">
+                  <p className="text-sm text-gray-600">Click Sources</p>
+                  <p className="text-2xl font-bold text-orange-600">{eventStats.blogClicks?.length || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Conversion Funnel */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-2">Conversion Funnel</h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                  <span>Total Visitors</span>
+                  <span className="font-bold">{eventStats.conversionFunnel?.totalVisitors || 0}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded">
+                  <span>Tried URL Autofill</span>
+                  <span className="font-bold">
+                    {eventStats.conversionFunnel?.triedAutofill || 0} ({eventStats.conversionFunnel?.autofillConversion || 0}%)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-green-50 rounded">
+                  <span>Submitted Form</span>
+                  <span className="font-bold">
+                    {eventStats.conversionFunnel?.submittedForm || 0} ({eventStats.conversionFunnel?.formConversion || 0}%)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-purple-50 rounded">
+                  <span>Generated Report</span>
+                  <span className="font-bold">
+                    {eventStats.conversionFunnel?.generatedReport || 0} ({eventStats.conversionFunnel?.reportConversion || 0}%)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-orange-50 rounded">
+                  <span>Clicked Blog</span>
+                  <span className="font-bold">
+                    {eventStats.conversionFunnel?.clickedBlog || 0} ({eventStats.conversionFunnel?.blogConversion || 0}%)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Extracted Data Summary */}
+            {eventStats.extractedDataSummary && eventStats.extractedDataSummary.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-2">Most Extracted Vehicles (URL Autofill)</h3>
+                <div className="space-y-2">
+                  {eventStats.extractedDataSummary.slice(0, 10).map((item: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                      <span className="font-medium">
+                        {item.make} {item.model}
+                      </span>
+                      <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                        {item.count} extractions
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recent Events */}
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Recent Events (Last 50)</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Event</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Details</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Visitor ID</th>
+                      <th className="px-4 py-2 text-left font-medium text-gray-700">Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {eventStats.recentEvents?.slice(0, 50).map((event: any, idx: number) => (
+                      <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="px-4 py-2 font-medium">
+                          {event.event_name === "form_submit" && "📝 Form Submit"}
+                          {event.event_name === "url_autofill_attempt" && "🔗 URL Autofill"}
+                          {event.event_name === "blog_link_click" && "📖 Blog Click"}
+                          {event.event_name === "button_click" && "🖱️ Button Click"}
+                          {event.event_name === "report_generated" && "📊 Report Generated"}
+                        </td>
+                        <td className="px-4 py-2 text-gray-700 truncate max-w-[300px]">
+                          {event.event_name === "form_submit" && (
+                            <span className={event.event_data?.success ? "text-green-600" : "text-red-600"}>
+                              {event.event_data?.success ? "✓ Success" : "✗ Failed"}
+                              {event.event_data?.formData?.model && ` - ${event.event_data.formData.model}`}
+                            </span>
+                          )}
+                          {event.event_name === "url_autofill_attempt" && (
+                            <span className={event.event_data?.success ? "text-green-600" : "text-red-600"}>
+                              {event.event_data?.success ? "✓ Success" : "✗ Failed"}
+                              {event.event_data?.extractedData?.make && ` - ${event.event_data.extractedData.make} ${event.event_data.extractedData.model}`}
+                            </span>
+                          )}
+                          {event.event_name === "blog_link_click" && (
+                            <span className="text-orange-600">
+                              {event.event_data?.source} → {event.event_data?.destination}
+                            </span>
+                          )}
+                          {event.event_name === "button_click" && (
+                            <span className="text-blue-600">{event.event_data?.buttonName}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 font-mono text-xs text-gray-600 truncate max-w-[150px]">
+                          {event.visitor_id?.substring(0, 16)}...
+                        </td>
+                        <td className="px-4 py-2 text-gray-600">
+                          {new Date(event.timestamp).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Visitor Stats Section */}
+        {visitorStats && (
+          <>
+            <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-gray-900">🌐 Website Visitor Tracking</h2>
+                <div className="flex gap-2">
+                  {["24h", "7d", "30d", "all"].map((tf) => (
+                    <button
+                      key={tf}
+                      onClick={() => {
+                        setVisitorTimeframe(tf);
+                        fetchVisitorStats(tf);
+                      }}
+                      className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                        visitorTimeframe === tf
+                          ? "bg-purple-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {tf === "24h" ? "24 Hours" : tf === "7d" ? "7 Days" : tf === "30d" ? "30 Days" : "All Time"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Visitor Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-purple-50 rounded-xl p-4">
+                  <p className="text-sm text-purple-600 font-medium mb-1">Unique Visitors</p>
+                  <p className="text-3xl font-bold text-purple-900">{visitorStats.uniqueVisitors || 0}</p>
+                  <p className="text-xs text-purple-700 mt-1">
+                    {visitorTimeframe === "24h" ? "Last 24 hours" : visitorTimeframe === "7d" ? "Last 7 days" : visitorTimeframe === "30d" ? "Last 30 days" : "All time"}
+                  </p>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-4">
+                  <p className="text-sm text-blue-600 font-medium mb-1">Total Page Views</p>
+                  <p className="text-3xl font-bold text-blue-900">{visitorStats.totalPageViews || 0}</p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    Avg {visitorStats.uniqueVisitors > 0 ? (visitorStats.totalPageViews / visitorStats.uniqueVisitors).toFixed(1) : 0} views/visitor
+                  </p>
+                </div>
+                <div className="bg-green-50 rounded-xl p-4">
+                  <p className="text-sm text-green-600 font-medium mb-1">Top Page</p>
+                  <p className="text-lg font-bold text-green-900 truncate">
+                    {visitorStats.topPages?.[0]?.page_path || "/"}
+                  </p>
+                  <p className="text-xs text-green-700 mt-1">
+                    {visitorStats.topPages?.[0]?.view_count || 0} views
+                  </p>
+                </div>
+              </div>
+
+              {/* Recent Visitors Table */}
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-3">Recent Visitors (Last 20)</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-2 text-left font-medium text-gray-700">Visitor ID</th>
+                        <th className="px-4 py-2 text-left font-medium text-gray-700">Page</th>
+                        <th className="px-4 py-2 text-left font-medium text-gray-700">Referrer</th>
+                        <th className="px-4 py-2 text-left font-medium text-gray-700">First Visit</th>
+                        <th className="px-4 py-2 text-left font-medium text-gray-700">Last Visit</th>
+                        <th className="px-4 py-2 text-left font-medium text-gray-700">Visits</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visitorStats.recentVisitors?.slice(0, 20).map((visitor: any, idx: number) => (
+                        <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="px-4 py-2 font-mono text-xs text-gray-600 truncate max-w-[150px]">
+                            {visitor.visitor_id?.substring(0, 16)}...
+                          </td>
+                          <td className="px-4 py-2 text-gray-900 font-medium">{visitor.page_path || "/"}</td>
+                          <td className="px-4 py-2 text-gray-600 truncate max-w-[200px]">
+                            {visitor.referrer ? new URL(visitor.referrer).hostname : "Direct"}
+                          </td>
+                          <td className="px-4 py-2 text-gray-600">
+                            {new Date(visitor.first_visit).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-2 text-gray-600">
+                            {new Date(visitor.last_visit).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-2 text-center">
+                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                              {visitor.visit_count}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Top Pages */}
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-3">Top Pages</h3>
+                <div className="space-y-2">
+                  {visitorStats.topPages?.slice(0, 5).map((page: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl font-bold text-gray-400">{idx + 1}</span>
+                        <div>
+                          <p className="font-mono text-sm font-medium text-gray-900">{page.page_path}</p>
+                          <p className="text-xs text-gray-600">
+                            {page.unique_visitors} unique visitors
+                          </p>
+                        </div>
+                      </div>
+                      <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+                        {page.view_count} views
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
