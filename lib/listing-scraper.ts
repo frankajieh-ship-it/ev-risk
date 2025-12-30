@@ -462,14 +462,24 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
       }, 10000);
 
       try {
-        // Construct full URL for proxy API (works both locally and on production)
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
-                        process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
-                        process.env.NETLIFY_URL ? process.env.NETLIFY_URL :
-                        'http://localhost:3000';
+        // Construct proxy URL based on environment
+        // On server-side Next.js, we need a full URL for fetch()
+        let proxyUrl: string;
 
-        const proxyUrl = `${baseUrl}/api/proxy-fetch`;
-        console.log('[Listing Scraper] Using proxy URL:', proxyUrl);
+        if (typeof window === 'undefined') {
+          // Server-side: need full URL
+          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
+                          (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+                          process.env.NETLIFY_URL ||
+                          'http://localhost:3000';
+
+          proxyUrl = `${baseUrl}/api/proxy-fetch`;
+          console.log('[Listing Scraper] Server-side proxy URL:', proxyUrl);
+        } else {
+          // Client-side: relative URL works fine
+          proxyUrl = '/api/proxy-fetch';
+          console.log('[Listing Scraper] Client-side proxy URL:', proxyUrl);
+        }
 
         const proxyResponse = await fetch(proxyUrl, {
           method: 'POST',
