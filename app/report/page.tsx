@@ -8,6 +8,8 @@ import DataQualityDecisionConfidence from "@/components/DataQualityDecisionConfi
 import WhatsMissingModule from "@/components/WhatsMissingModule";
 import DecisionStateSummary from "@/components/DecisionStateSummary";
 import { VehicleContextFactors } from "@/components/VehicleContextFactors";
+import { WhatWeKnowSection } from "@/components/WhatWeKnowSection";
+import { ChargingFitMentalLoad } from "@/components/ChargingFitMentalLoad";
 import { generateConfidenceData, type ConfidenceInputs } from "@/lib/confidence-calculator";
 import { generateMissingDataExplanations, getPrimaryMissingExplanation, generatePersonalizationOpportunities } from "@/lib/missing-data-generator";
 import type { KnownDataPoint, UnknownDataPoint, RiskFactor } from "@/types/report";
@@ -322,9 +324,23 @@ function ReportContent() {
           ownershipFit={confidence.ownership_fit}
         />
 
+        {/* What We Know vs What We Don't - Trust Builder */}
+        <WhatWeKnowSection
+          hasPersonalization={false}
+        />
+
         {/* REMOVED: Legacy scoring sections (Why This Score + Score Interpretation Guide)
             Violations: overall_score thresholds, green/yellow/red coding, "good/bad" language
             Replaced by Phase 0.5 modules above */}
+
+        {/* Charging Fit & Mental Load - Key Differentiator */}
+        <ChargingFitMentalLoad
+          homeCharging={input.homeCharging}
+          dailyMiles={input.dailyMiles}
+          realWorldRange={250}
+          chargerDensity={confidence.ownership_fit.charger_density}
+          zipCode={input.zipCode}
+        />
 
         {/* Detailed Breakdown */}
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-100">

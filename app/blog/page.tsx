@@ -25,6 +25,16 @@ export default function BlogPage() {
 
       {/* Blog Posts List */}
       <main className="max-w-4xl mx-auto px-4 py-12">
+        {/* Context Box */}
+        <div className="bg-blue-50 border-l-4 border-blue-600 rounded-lg p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Why this exists</h3>
+          <p className="text-gray-700 leading-relaxed">
+            After analyzing dozens of real EV regret stories, a pattern kept repeating:
+            the problem wasn't range — it was routine mismatch. These posts explore the
+            behavioral patterns behind high-stakes decisions and how to make them less stressful.
+          </p>
+        </div>
+
         <div className="space-y-8">
           {/* Featured Post */}
           <article className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 hover:shadow-xl transition-shadow">

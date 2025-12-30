@@ -13,6 +13,7 @@ import {
 export default function Home() {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLElement>(null);
 
   // Track visitor on homepage (offolab.com)
   useVisitorTracking({
@@ -220,7 +221,7 @@ export default function Home() {
               <img
                 src="/offo-lab-logo.png"
                 alt="OFFO Lab Consulting"
-                className="h-16 w-auto"
+                className="h-12 md:h-16 lg:h-20 w-auto"
               />
               <div>
                 <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
@@ -239,7 +240,7 @@ export default function Home() {
               </a>
               <button
                 onClick={() => {
-                  containerRef.current?.scrollIntoView({ behavior: 'smooth' });
+                  formRef.current?.scrollIntoView({ behavior: 'smooth' });
                   trackButtonClick("Run a quick sanity-check", "nav");
                 }}
                 className="px-4 py-2 bg-gradient-to-r from-blue-600 to-green-600 text-white text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5"
@@ -360,7 +361,7 @@ export default function Home() {
       </section>
 
       {/* Main Form Section */}
-      <section className="max-w-4xl mx-auto px-6 pb-20">
+      <section ref={formRef} className="max-w-4xl mx-auto px-6 pb-20">
         <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
           {/* Form Header */}
           <div className="p-8 border-b border-gray-100">
