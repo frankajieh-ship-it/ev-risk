@@ -11,6 +11,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
 import { ReportPdf, type ReportPayload } from "@/lib/pdf/ReportPdf";
 import { securityLogger } from "@/lib/security-logger";
+import { calculateRoutineFitClient } from "@/lib/routine-fit-client";
 
 export const runtime = "nodejs"; // Required for @react-pdf/renderer
 
@@ -112,6 +113,22 @@ function transformReportForPDF(
   const level: "green" | "yellow" | "red" =
     score >= 70 ? "green" : score >= 40 ? "yellow" : "red";
 
+  // Calculate routine fit for FREE VERSION components
+  let routineFit = undefined;
+  if (reportData.input) {
+    try {
+      routineFit = calculateRoutineFitClient({
+        dailyMiles: reportData.input.dailyMiles || 30,
+        homeCharging: reportData.input.homeCharging || false,
+        chargerDensity: reportData.confidence?.ownership_fit?.charger_density || "unknown",
+        realWorldRange: 250, // TODO: Get from range data
+        overall_score: score
+      });
+    } catch (error) {
+      console.error("Failed to calculate routine fit for PDF:", error);
+    }
+  }
+
   return {
     reportId,
     level,
@@ -121,6 +138,9 @@ function transformReportForPDF(
     summaryVerdict:
       reportData.confidence?.recommendation ||
       "Unable to generate recommendation",
+
+    // FREE VERSION: Routine Fit Assessment
+    routineFit,
 
     // Battery risk section
     batteryRiskExplanation: [

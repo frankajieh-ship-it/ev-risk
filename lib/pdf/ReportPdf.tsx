@@ -26,6 +26,20 @@ export interface ReportPayload {
   walkAwayTriggers: string[];
   vehicleYear?: number;
   vehicleModel?: string;
+
+  // FREE VERSION: Routine Fit Assessment
+  routineFit?: {
+    verdict: 'good-fit' | 'conditional-fit' | 'high-friction';
+    condition?: string;
+    mental_load: 'low' | 'medium' | 'high';
+    reasons: Array<{
+      text: string;
+      type: 'positive' | 'neutral' | 'negative';
+    }>;
+    confidence_current: number;
+    confidence_with_battery_data: number;
+    missing_data: string[];
+  };
 }
 
 // Color scheme
@@ -145,6 +159,37 @@ export const ReportPdf: React.FC<{ data: ReportPayload }> = ({ data }) => {
       ? "MEDIUM RISK"
       : "HIGH RISK";
 
+  // Routine fit verdict config
+  const verdictConfig = data.routineFit ? {
+    'good-fit': {
+      emoji: '✅',
+      title: 'Good Fit',
+      description: 'This EV is likely to fit your routine with low ongoing friction.',
+      color: COLORS.green
+    },
+    'conditional-fit': {
+      emoji: '⚠️',
+      title: 'Conditional Fit',
+      description: data.routineFit.condition
+        ? `This EV can work, but only if you ${data.routineFit.condition} consistently.`
+        : 'This EV can work with certain conditions met.',
+      color: COLORS.yellow
+    },
+    'high-friction': {
+      emoji: '❌',
+      title: 'High Friction Risk',
+      description: 'This setup is likely to become annoying or stressful over time.',
+      color: COLORS.red
+    }
+  }[data.routineFit.verdict] : null;
+
+  // Mental load config
+  const mentalLoadConfig = data.routineFit ? {
+    'low': { emoji: '🟢', label: 'Low mental overhead' },
+    'medium': { emoji: '🟡', label: 'Ongoing planning required' },
+    'high': { emoji: '🔴', label: 'Frequent attention required' }
+  }[data.routineFit.mental_load] : null;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -157,7 +202,64 @@ export const ReportPdf: React.FC<{ data: ReportPayload }> = ({ data }) => {
           <Text style={styles.reportId}>Report ID: {data.reportId}</Text>
         </View>
 
-        {/* Score Section */}
+        {/* FREE VERSION: ROUTINE FIT ASSESSMENT */}
+        {data.routineFit && verdictConfig && (
+          <>
+            {/* 1️⃣ ONE-LINE VERDICT */}
+            <View style={styles.scoreSection}>
+              <Text style={[styles.scoreTitle, { color: verdictConfig.color }]}>
+                {verdictConfig.emoji} {verdictConfig.title}
+              </Text>
+              <Text style={styles.verdict}>{verdictConfig.description}</Text>
+              <Text style={[styles.bulletPoint, { fontSize: 9, marginTop: 8, paddingLeft: 0 }]}>
+                ⚠️ This is not a recommendation to buy or avoid — it's a routine fit signal.
+              </Text>
+            </View>
+
+            {/* 2️⃣ WHY THIS RESULT */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Why This Result</Text>
+              {data.routineFit.reasons.map((reason, index) => {
+                const icon = reason.type === 'positive' ? '✓' : reason.type === 'negative' ? '✗' : '•';
+                return (
+                  <View key={index} style={styles.bulletPoint}>
+                    <Text style={styles.bulletSymbol}>{icon}</Text>
+                    <Text>{reason.text}</Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* 3️⃣ MENTAL LOAD INDICATOR */}
+            {mentalLoadConfig && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Mental Load Indicator</Text>
+                <View style={styles.bulletPoint}>
+                  <Text style={styles.bulletSymbol}>{mentalLoadConfig.emoji}</Text>
+                  <Text style={{ fontWeight: 'bold' }}>{mentalLoadConfig.label}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* 4️⃣ WHAT'S MISSING - Trust Builder */}
+            <View style={[styles.section, { marginBottom: 30 }]}>
+              <Text style={styles.sectionTitle}>What's Missing</Text>
+              <Text style={[styles.bulletPoint, { paddingLeft: 0, marginBottom: 10 }]}>
+                Current confidence: {data.routineFit.confidence_current}% → With battery data: {data.routineFit.confidence_with_battery_data}%
+                ({data.routineFit.confidence_with_battery_data - data.routineFit.confidence_current}% increase)
+              </Text>
+              <Text style={[styles.scoreTitle, { fontSize: 11, marginBottom: 6 }]}>Missing data points:</Text>
+              {data.routineFit.missing_data.map((item, index) => (
+                <View key={index} style={styles.bulletPoint}>
+                  <Text style={styles.bulletSymbol}>•</Text>
+                  <Text>{item}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* LEGACY Score Section - Will be deprecated in Phase 0.5 full implementation */}
         <View style={styles.scoreSection}>
           <Text style={styles.scoreTitle}>Overall Risk Score</Text>
           <Text style={[styles.scoreValue, { color: scoreColor }]}>

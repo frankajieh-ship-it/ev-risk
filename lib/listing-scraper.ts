@@ -462,7 +462,16 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
       }, 10000);
 
       try {
-        const proxyResponse = await fetch('/api/proxy-fetch', {
+        // Construct full URL for proxy API (works both locally and on production)
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
+                        process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
+                        process.env.NETLIFY_URL ? process.env.NETLIFY_URL :
+                        'http://localhost:3000';
+
+        const proxyUrl = `${baseUrl}/api/proxy-fetch`;
+        console.log('[Listing Scraper] Using proxy URL:', proxyUrl);
+
+        const proxyResponse = await fetch(proxyUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
