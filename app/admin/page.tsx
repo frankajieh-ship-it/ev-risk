@@ -76,11 +76,14 @@ export default function AdminDashboard() {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [visitorStats, setVisitorStats] = useState<any>(null);
   const [eventStats, setEventStats] = useState<any>(null);
+  const [appFeedback, setAppFeedback] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [period, setPeriod] = useState("all");
   const [visitorTimeframe, setVisitorTimeframe] = useState("30d");
   const [eventTimeframe, setEventTimeframe] = useState("30d");
+  const [feedbackLimit, setFeedbackLimit] = useState(50);
+  const [feedbackType, setFeedbackType] = useState<string | null>(null);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [showCustomDate, setShowCustomDate] = useState(false);
@@ -123,9 +126,10 @@ export default function AdminDashboard() {
       // Store API key in session storage for convenience
       sessionStorage.setItem("admin_api_key", key);
 
-      // Fetch visitor stats and event stats
+      // Fetch visitor stats, event stats, and app feedback
       await fetchVisitorStats(visitorTimeframe);
       await fetchEventStats(eventTimeframe);
+      await fetchAppFeedback(feedbackLimit, feedbackType);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
       setAnalytics(null);
@@ -155,6 +159,29 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error("Failed to fetch event stats:", err);
+    }
+  };
+
+  const fetchAppFeedback = async (limit: number = feedbackLimit, type: string | null = feedbackType) => {
+    try {
+      const storedKey = sessionStorage.getItem("admin_api_key");
+      if (!storedKey) return;
+
+      let url = `/api/feedback?limit=${limit}`;
+      if (type) url += `&type=${type}`;
+
+      const response = await fetch(url, {
+        headers: {
+          "x-api-key": storedKey,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAppFeedback(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch app feedback:", err);
     }
   };
 
@@ -829,9 +856,9 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Recent Feedback */}
+        {/* Recent Feedback (Report-specific) */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Feedback</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Report Feedback</h2>
           <div className="space-y-4">
             {analytics.recent_feedback.map((feedback, idx) => (
               <div key={idx} className="border-b pb-4 last:border-b-0">
@@ -862,6 +889,157 @@ export default function AdminDashboard() {
             ))}
           </div>
         </div>
+
+        {/* Application Feedback (New System) */}
+        {appFeedback && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">📣 Application Feedback</h2>
+              <div className="flex gap-2">
+                <select
+                  value={feedbackType || "all"}
+                  onChange={(e) => {
+                    const type = e.target.value === "all" ? null : e.target.value;
+                    setFeedbackType(type);
+                    fetchAppFeedback(feedbackLimit, type);
+                  }}
+                  className="px-3 py-1 rounded-lg text-sm border border-gray-300 focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Types</option>
+                  <option value="general">General</option>
+                  <option value="bug">Bug Reports</option>
+                  <option value="feature">Feature Requests</option>
+                  <option value="accuracy">Accuracy Issues</option>
+                  <option value="ux">UX Feedback</option>
+                </select>
+                <select
+                  value={feedbackLimit}
+                  onChange={(e) => {
+                    const limit = parseInt(e.target.value);
+                    setFeedbackLimit(limit);
+                    fetchAppFeedback(limit, feedbackType);
+                  }}
+                  className="px-3 py-1 rounded-lg text-sm border border-gray-300 focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="20">20</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="200">200</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Summary Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">Total Feedback</p>
+                <p className="text-2xl font-bold">{appFeedback.count || 0}</p>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm text-blue-600">General</p>
+                <p className="text-2xl font-bold text-blue-900">
+                  {appFeedback.feedback?.filter((f: any) => f.feedback_type === "general").length || 0}
+                </p>
+              </div>
+              <div className="bg-red-50 p-4 rounded-lg">
+                <p className="text-sm text-red-600">Bugs</p>
+                <p className="text-2xl font-bold text-red-900">
+                  {appFeedback.feedback?.filter((f: any) => f.feedback_type === "bug").length || 0}
+                </p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <p className="text-sm text-green-600">Features</p>
+                <p className="text-2xl font-bold text-green-900">
+                  {appFeedback.feedback?.filter((f: any) => f.feedback_type === "feature").length || 0}
+                </p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <p className="text-sm text-purple-600">Accuracy</p>
+                <p className="text-2xl font-bold text-purple-900">
+                  {appFeedback.feedback?.filter((f: any) => f.feedback_type === "accuracy").length || 0}
+                </p>
+              </div>
+            </div>
+
+            {/* Feedback Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">Type</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">Email</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">Feedback</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">IP</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-700">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {appFeedback.feedback?.map((item: any, idx: number) => (
+                    <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-2">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            item.feedback_type === "bug"
+                              ? "bg-red-100 text-red-800"
+                              : item.feedback_type === "feature"
+                              ? "bg-green-100 text-green-800"
+                              : item.feedback_type === "accuracy"
+                              ? "bg-purple-100 text-purple-800"
+                              : item.feedback_type === "ux"
+                              ? "bg-orange-100 text-orange-800"
+                              : "bg-blue-100 text-blue-800"
+                          }`}
+                        >
+                          {item.feedback_type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-gray-700 truncate max-w-[150px]">
+                        {item.email || <span className="text-gray-400">No email</span>}
+                      </td>
+                      <td className="px-4 py-2 text-gray-900">
+                        <details className="cursor-pointer">
+                          <summary className="font-medium">View Details</summary>
+                          <div className="mt-2 p-3 bg-gray-50 rounded text-xs space-y-2">
+                            {item.helpful && (
+                              <div>
+                                <strong className="text-gray-700">Helpful?</strong>
+                                <p className="text-gray-600">{item.helpful}</p>
+                              </div>
+                            )}
+                            {item.missing && (
+                              <div>
+                                <strong className="text-gray-700">Missing/Inaccurate:</strong>
+                                <p className="text-gray-600">{item.missing}</p>
+                              </div>
+                            )}
+                            {item.additional_data && (
+                              <div>
+                                <strong className="text-gray-700">Additional Data Needed:</strong>
+                                <p className="text-gray-600">{item.additional_data}</p>
+                              </div>
+                            )}
+                            {item.comments && (
+                              <div>
+                                <strong className="text-gray-700">Comments:</strong>
+                                <p className="text-gray-600">{item.comments}</p>
+                              </div>
+                            )}
+                          </div>
+                        </details>
+                      </td>
+                      <td className="px-4 py-2 font-mono text-xs text-gray-600 truncate max-w-[120px]">
+                        {item.ip_address}
+                      </td>
+                      <td className="px-4 py-2 text-gray-600">
+                        {new Date(item.created_at).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Daily Trend */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
