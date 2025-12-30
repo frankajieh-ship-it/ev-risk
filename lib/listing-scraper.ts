@@ -224,19 +224,37 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
       warnings.push('Unrecognized listing source - extraction may be incomplete');
     }
 
-    // Fetch HTML
+    // Log extraction attempt for debugging
+    console.log('[Listing Scraper] Attempting extraction:', {
+      url,
+      dataSource,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Fetch HTML with enhanced headers to avoid bot detection
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
         'Referer': 'https://www.google.com/',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'cross-site',
+        'Upgrade-Insecure-Requests': '1',
+        'Cache-Control': 'max-age=0',
       },
+      redirect: 'follow',
     });
+
+    // Log response status for debugging
+    console.log('[Listing Scraper] Response status:', response.status, response.statusText);
 
     if (!response.ok) {
       // Special handling for Carvana 403 (Cloudflare blocking)
       if (dataSource === 'carvana' && response.status === 403) {
+        console.log('[Listing Scraper] Carvana blocked request (403)');
         return {
           success: false,
           data: null,
@@ -245,15 +263,19 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
         };
       }
 
+      console.log('[Listing Scraper] HTTP error:', response.status);
       return {
         success: false,
         data: null,
-        error: `Failed to fetch listing (${response.status})`,
-        warnings,
+        error: `Unable to access listing (Error ${response.status}). The site may be blocking automated requests. Please try entering the details manually.`,
+        warnings: ['Many car listing sites protect against automated access', 'Manual entry is often more reliable'],
       };
     }
 
     const html = await response.text();
+
+    // Log HTML length for debugging (helps identify if we got blocked)
+    console.log('[Listing Scraper] HTML received, length:', html.length);
 
     // Check if we got a blocked/captcha page
     const isBlocked = html.includes('captcha') ||
@@ -336,6 +358,23 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
       warnings.push('Some details require manual confirmation - this helps improve accuracy');
     }
 
+    // Log extraction result for debugging
+    console.log('[Listing Scraper] Extraction complete:', {
+      success: true,
+      dataSource,
+      confidence,
+      extractedFields,
+      missingFields,
+      hasData: extractedFields.length > 0,
+    });
+
+    // If we didn't extract ANY data, this might indicate a problem
+    if (extractedFields.length === 0) {
+      console.warn('[Listing Scraper] No data extracted - possible blocking or parsing failure');
+      warnings.push('Unable to extract vehicle data automatically. This listing may require manual entry.');
+      warnings.push('Tip: Copy the year, make, model, and mileage from the listing page');
+    }
+
     return {
       success: true,
       data: vehicleData,
@@ -343,6 +382,7 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     };
 
   } catch (error) {
+    console.error('[Listing Scraper] Extraction error:', error);
     return {
       success: false,
       data: null,
