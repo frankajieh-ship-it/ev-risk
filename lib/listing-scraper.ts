@@ -454,53 +454,78 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     let fetchMethod = 'proxy';
 
     try {
-      // Try proxy fetch first (better for avoiding bot detection)
-      const proxyResponse = await fetch('/api/proxy-fetch', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url, timeout: 15000 }),
-      });
+      // Try proxy fetch first with aggressive timeout (10 seconds max)
+      const proxyController = new AbortController();
+      const proxyTimeoutId = setTimeout(() => {
+        console.log('[Listing Scraper] Proxy fetch timeout after 10s, falling back');
+        proxyController.abort();
+      }, 10000);
 
-      // Check if response is JSON before parsing
-      const contentType = proxyResponse.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.log('[Listing Scraper] Proxy returned non-JSON response, falling back to direct fetch');
-        throw new Error('Proxy returned non-JSON response');
-      }
+      try {
+        const proxyResponse = await fetch('/api/proxy-fetch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url, timeout: 8000 }), // Shorter timeout for proxy
+          signal: proxyController.signal,
+        });
 
-      const proxyResult = await proxyResponse.json();
+        clearTimeout(proxyTimeoutId);
 
-      if (proxyResult.success && proxyResult.html) {
-        html = proxyResult.html;
-        console.log('[Listing Scraper] Proxy fetch successful, HTML length:', html.length);
-      } else {
-        // Proxy failed, fall back to direct fetch
-        fetchMethod = 'direct';
-        console.log('[Listing Scraper] Proxy fetch failed, falling back to direct fetch:', proxyResult.error);
-        throw new Error('Proxy fetch failed');
+        // Check if response is JSON before parsing
+        const contentType = proxyResponse.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          console.log('[Listing Scraper] Proxy returned non-JSON response, falling back to direct fetch');
+          throw new Error('Proxy returned non-JSON response');
+        }
+
+        const proxyResult = await proxyResponse.json();
+
+        if (proxyResult.success && proxyResult.html) {
+          html = proxyResult.html;
+          console.log('[Listing Scraper] Proxy fetch successful, HTML length:', html.length);
+        } else {
+          // Proxy failed, fall back to direct fetch
+          fetchMethod = 'direct';
+          console.log('[Listing Scraper] Proxy fetch failed, falling back to direct fetch:', proxyResult.error);
+          throw new Error('Proxy fetch failed');
+        }
+      } catch (proxyFetchError) {
+        clearTimeout(proxyTimeoutId);
+        throw proxyFetchError;
       }
     } catch (proxyError) {
       // Fallback to direct fetch if proxy fails
       fetchMethod = 'direct';
       console.log('[Listing Scraper] Using direct fetch as fallback');
 
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Referer': 'https://www.google.com/',
-          'Sec-Fetch-Dest': 'document',
-          'Sec-Fetch-Mode': 'navigate',
-          'Sec-Fetch-Site': 'cross-site',
-          'Upgrade-Insecure-Requests': '1',
-          'Cache-Control': 'max-age=0',
-        },
-        redirect: 'follow',
-      });
+      // Add timeout to direct fetch (10 seconds max)
+      const directController = new AbortController();
+      const directTimeoutId = setTimeout(() => {
+        console.log('[Listing Scraper] Direct fetch timeout after 10s');
+        directController.abort();
+      }, 10000);
+
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': 'https://www.google.com/',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'cross-site',
+            'Upgrade-Insecure-Requests': '1',
+            'Cache-Control': 'max-age=0',
+          },
+          redirect: 'follow',
+          signal: directController.signal,
+        });
+
+        clearTimeout(directTimeoutId);
 
       // Log response status for debugging
       console.log('[Listing Scraper] Direct fetch response status:', response.status, response.statusText);
@@ -526,8 +551,23 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
         };
       }
 
-      html = await response.text();
-      console.log('[Listing Scraper] Direct fetch HTML received, length:', html.length);
+        html = await response.text();
+        console.log('[Listing Scraper] Direct fetch HTML received, length:', html.length);
+      } catch (directFetchError) {
+        clearTimeout(directTimeoutId);
+        // If direct fetch also fails, return error with helpful message
+        console.error('[Listing Scraper] Direct fetch failed:', directFetchError);
+        return {
+          success: false,
+          data: null,
+          error: 'Unable to fetch listing. The site may be blocking automated requests or the connection timed out.',
+          warnings: [
+            'Both proxy and direct fetch methods failed',
+            'The site may have strict bot protection',
+            'Try copying the vehicle details manually from the listing page'
+          ],
+        };
+      }
     }
 
     console.log('[Listing Scraper] Fetch method used:', fetchMethod);
