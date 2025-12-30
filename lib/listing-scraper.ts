@@ -474,13 +474,16 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
 
         if (typeof window === 'undefined') {
           // Server-side: need full URL
+          // Netlify uses URL or DEPLOY_URL, Vercel uses VERCEL_URL
           const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
+                          process.env.URL ||  // Netlify production URL
+                          process.env.DEPLOY_URL ||  // Netlify deploy preview URL
                           (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-                          process.env.NETLIFY_URL ||
                           'http://localhost:3000';
 
           proxyUrl = `${baseUrl}/api/proxy-fetch`;
           console.log('[Listing Scraper] Server-side proxy URL:', proxyUrl);
+          console.log('[Listing Scraper] Using base URL:', baseUrl);
         } else {
           // Client-side: relative URL works fine
           proxyUrl = '/api/proxy-fetch';
