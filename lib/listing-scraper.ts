@@ -466,6 +466,12 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
         // On server-side Next.js, we need a full URL for fetch()
         let proxyUrl: string;
 
+        console.log('[Listing Scraper] DEBUG - Environment check:');
+        console.log('  - typeof window:', typeof window);
+        console.log('  - NEXT_PUBLIC_BASE_URL:', process.env.NEXT_PUBLIC_BASE_URL || 'not set');
+        console.log('  - VERCEL_URL:', process.env.VERCEL_URL || 'not set');
+        console.log('  - NETLIFY_URL:', process.env.NETLIFY_URL || 'not set');
+
         if (typeof window === 'undefined') {
           // Server-side: need full URL
           const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
@@ -481,6 +487,9 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
           console.log('[Listing Scraper] Client-side proxy URL:', proxyUrl);
         }
 
+        console.log('[Listing Scraper] Fetching from proxy:', proxyUrl);
+        console.log('[Listing Scraper] Target URL:', url);
+
         const proxyResponse = await fetch(proxyUrl, {
           method: 'POST',
           headers: {
@@ -492,26 +501,39 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
 
         clearTimeout(proxyTimeoutId);
 
+        console.log('[Listing Scraper] Proxy response status:', proxyResponse.status, proxyResponse.statusText);
+        console.log('[Listing Scraper] Proxy response headers:', Object.fromEntries(proxyResponse.headers.entries()));
+
         // Check if response is JSON before parsing
         const contentType = proxyResponse.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-          console.log('[Listing Scraper] Proxy returned non-JSON response, falling back to direct fetch');
+          console.error('[Listing Scraper] Proxy returned non-JSON response');
+          console.error('[Listing Scraper] Content-Type:', contentType);
+          const text = await proxyResponse.text();
+          console.error('[Listing Scraper] Response text (first 500 chars):', text.substring(0, 500));
           throw new Error('Proxy returned non-JSON response');
         }
 
         const proxyResult = await proxyResponse.json();
+        console.log('[Listing Scraper] Proxy result:', {
+          success: proxyResult.success,
+          error: proxyResult.error,
+          htmlLength: proxyResult.html?.length || 0,
+          blocked: proxyResult.blocked
+        });
 
         if (proxyResult.success && proxyResult.html) {
           html = proxyResult.html;
-          console.log('[Listing Scraper] Proxy fetch successful, HTML length:', html.length);
+          console.log('[Listing Scraper] ✅ Proxy fetch successful, HTML length:', html.length);
         } else {
           // Proxy failed, fall back to direct fetch
           fetchMethod = 'direct';
-          console.log('[Listing Scraper] Proxy fetch failed, falling back to direct fetch:', proxyResult.error);
-          throw new Error('Proxy fetch failed');
+          console.error('[Listing Scraper] ❌ Proxy fetch failed:', proxyResult.error);
+          throw new Error(`Proxy fetch failed: ${proxyResult.error}`);
         }
       } catch (proxyFetchError) {
         clearTimeout(proxyTimeoutId);
+        console.error('[Listing Scraper] Proxy fetch error:', proxyFetchError);
         throw proxyFetchError;
       }
     } catch (proxyError) {

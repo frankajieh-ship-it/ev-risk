@@ -62,11 +62,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract vehicle data with comprehensive error handling
+    console.log('[Extract Listing API] Starting extraction for URL:', url);
+    console.log('[Extract Listing API] Request headers:', Object.fromEntries(request.headers.entries()));
+
     let result;
     try {
       result = await extractVehicleData(url);
+      console.log('[Extract Listing API] Extraction result:', {
+        success: result.success,
+        error: result.error,
+        dataSource: result.data?.dataSource,
+        extractedFields: result.data?.extractedFields?.length || 0,
+        warningsCount: result.warnings?.length || 0
+      });
     } catch (extractError) {
-      console.error('Extraction error:', extractError);
+      console.error('[Extract Listing API] Extraction error:', extractError);
+      console.error('[Extract Listing API] Error stack:', extractError instanceof Error ? extractError.stack : 'No stack trace');
       return NextResponse.json(
         {
           success: false,
