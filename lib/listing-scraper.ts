@@ -449,17 +449,27 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
       timestamp: new Date().toISOString(),
     });
 
+    console.log('[Listing Scraper] CHECKPOINT 1 - Starting proxy fetch logic');
+
     // Use proxy fetch for better success rate (server-side fetch with rotating user agents)
     let html: string;
     let fetchMethod = 'proxy';
 
+    console.log('[Listing Scraper] CHECKPOINT 2 - About to enter try block');
+
     try {
+      console.log('[Listing Scraper] CHECKPOINT 3 - Inside try block');
+
       // Try proxy fetch first with aggressive timeout (10 seconds max)
       const proxyController = new AbortController();
+      console.log('[Listing Scraper] CHECKPOINT 4 - Created AbortController');
+
       const proxyTimeoutId = setTimeout(() => {
         console.log('[Listing Scraper] Proxy fetch timeout after 10s, falling back');
         proxyController.abort();
       }, 10000);
+
+      console.log('[Listing Scraper] CHECKPOINT 5 - Set timeout, now constructing proxy URL');
 
       try {
         // Construct proxy URL based on environment
@@ -470,7 +480,8 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
         console.log('  - typeof window:', typeof window);
         console.log('  - NEXT_PUBLIC_BASE_URL:', process.env.NEXT_PUBLIC_BASE_URL || 'not set');
         console.log('  - VERCEL_URL:', process.env.VERCEL_URL || 'not set');
-        console.log('  - NETLIFY_URL:', process.env.NETLIFY_URL || 'not set');
+        console.log('  - URL (Netlify):', process.env.URL || 'not set');
+        console.log('  - DEPLOY_URL (Netlify):', process.env.DEPLOY_URL || 'not set');
 
         if (typeof window === 'undefined') {
           // Server-side: need full URL
