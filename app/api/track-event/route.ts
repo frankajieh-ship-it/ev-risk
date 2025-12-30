@@ -69,22 +69,7 @@ export async function GET(req: NextRequest) {
     const timeframe = searchParams.get("timeframe") || "30d";
     const eventName = searchParams.get("event");
 
-    // Helper function to build queries based on timeframe
-    const buildQuery = (baseQuery: string, includeEventFilter = false) => {
-      const eventFilter = eventName ? `AND event_name = '${eventName}'` : '';
-
-      if (timeframe === "24h") {
-        return sql.unsafe(`${baseQuery} WHERE timestamp > NOW() - INTERVAL '24 hours' ${includeEventFilter ? eventFilter : ''}`);
-      } else if (timeframe === "7d") {
-        return sql.unsafe(`${baseQuery} WHERE timestamp > NOW() - INTERVAL '7 days' ${includeEventFilter ? eventFilter : ''}`);
-      } else if (timeframe === "30d") {
-        return sql.unsafe(`${baseQuery} WHERE timestamp > NOW() - INTERVAL '30 days' ${includeEventFilter ? eventFilter : ''}`);
-      } else {
-        return sql.unsafe(`${baseQuery} ${includeEventFilter && eventFilter ? `WHERE ${eventFilter.substring(4)}` : ''}`);
-      }
-    };
-
-    // Build queries based on timeframe (without sql.unsafe)
+    // Build queries based on timeframe
     let totalEvents, eventsByName, formSubmissions, urlAutofill, blogClicks, funnelData;
 
     if (timeframe === "24h") {
