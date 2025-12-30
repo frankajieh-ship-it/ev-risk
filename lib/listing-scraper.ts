@@ -57,24 +57,152 @@ function isSearchPage(url: string): boolean {
 
   // AutoTrader search pages (exclude individual vehicle pages)
   if (urlLower.includes('autotrader.com')) {
-    // Individual vehicle pages have /vehicledetails.xhtml or /vehicle/XXXXXX
+    // Individual vehicle pages have /vehicledetails.xhtml or /vehicle/XXXXXX or listingId=
     const hasVehicleDetails = urlLower.includes('vehicledetails');
     const hasVehicleId = /\/vehicle\/\d+/.test(urlLower);
+    const hasListingId = /listingid=/i.test(urlLower);
 
-    if (!hasVehicleDetails && !hasVehicleId &&
+    if (!hasVehicleDetails && !hasVehicleId && !hasListingId &&
         (urlLower.includes('/cars-for-sale/') || urlLower.includes('searchresults'))) {
       return true;
     }
   }
 
   // CarGurus search pages
-  if (urlLower.includes('cargurus.com') &&
-      (urlLower.includes('/shopping/results') || urlLower.includes('/cars')) &&
-      !urlLower.includes('/details/')) {
-    return true;
+  if (urlLower.includes('cargurus.com')) {
+    // Individual pages have /details/ or /listing/
+    if (urlLower.includes('/details/') || urlLower.includes('/listing/')) {
+      return false;
+    }
+    // Search pages have /shopping/results or /Cars/
+    if (urlLower.includes('/shopping/results') || urlLower.includes('/cars/')) {
+      return true;
+    }
+  }
+
+  // Cars.com search pages
+  if (urlLower.includes('cars.com')) {
+    if (urlLower.includes('/vehicledetail/')) {
+      return false; // Individual listing
+    }
+    if (urlLower.includes('/for-sale/search') || urlLower.includes('/for-sale/searchresults')) {
+      return true; // Search page
+    }
   }
 
   return false;
+}
+
+/**
+ * Extract structured data from JSON-LD (works across all marketplaces)
+ * This is the most reliable extraction method when available
+ */
+function extractStructuredData(html: string): Partial<VehicleData> {
+  const data: Partial<VehicleData> = {};
+
+  // Try to extract JSON-LD data (most reliable)
+  const jsonLdMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  if (jsonLdMatches) {
+    for (const match of jsonLdMatches) {
+      try {
+        const jsonMatch = match.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+        if (jsonMatch) {
+          const jsonStr = jsonMatch[1].trim();
+          const jsonData = JSON.parse(jsonStr);
+
+          // Check if it's vehicle data
+          if (jsonData['@type'] === 'Vehicle' || jsonData['@type'] === 'Car' ||
+              (Array.isArray(jsonData['@type']) && (jsonData['@type'].includes('Vehicle') || jsonData['@type'].includes('Car')))) {
+
+            // Extract vehicle name/model
+            if (jsonData.name) {
+              const nameMatch = jsonData.name.match(/(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)(?:\s+([\w\s]+))?$/i);
+              if (nameMatch) {
+                data.year = data.year || parseInt(nameMatch[1]);
+                data.make = data.make || nameMatch[2];
+                data.model = data.model || nameMatch[3].trim();
+                if (nameMatch[4]) data.trim = nameMatch[4].trim();
+              }
+            }
+
+            // Extract individual fields
+            data.year = data.year || jsonData.productionDate || jsonData.modelDate || jsonData.vehicleModelDate;
+            data.make = data.make || jsonData.manufacturer?.name || jsonData.brand?.name;
+            data.model = data.model || jsonData.model;
+            data.trim = data.trim || jsonData.trim || jsonData.vehicleTrim;
+
+            // Extract mileage
+            if (jsonData.mileageFromOdometer) {
+              if (typeof jsonData.mileageFromOdometer === 'object') {
+                data.mileage = jsonData.mileageFromOdometer.value;
+              } else if (typeof jsonData.mileageFromOdometer === 'string') {
+                const mileageMatch = jsonData.mileageFromOdometer.match(/(\d+)/);
+                if (mileageMatch) data.mileage = parseInt(mileageMatch[1]);
+              }
+            }
+
+            // Extract price
+            if (jsonData.offers) {
+              if (Array.isArray(jsonData.offers)) {
+                data.price = data.price || jsonData.offers[0]?.price;
+              } else {
+                data.price = data.price || jsonData.offers.price || jsonData.offers.lowPrice;
+              }
+            }
+            data.price = data.price || jsonData.price;
+
+            // Extract VIN
+            data.vin = data.vin || jsonData.vehicleIdentificationNumber;
+          }
+        }
+      } catch (e) {
+        // Silently continue to next JSON-LD block
+        console.log('[Structured Data] Failed to parse JSON-LD block:', e);
+      }
+    }
+  }
+
+  return data;
+}
+
+/**
+ * Validate extracted data for reasonableness
+ */
+function validateVehicleData(data: Partial<VehicleData>): Partial<VehicleData> {
+  const validated = { ...data };
+
+  // Year validation
+  if (validated.year) {
+    const currentYear = new Date().getFullYear();
+    if (validated.year < 1900 || validated.year > currentYear + 1) {
+      console.warn('[Validation] Invalid year:', validated.year);
+      delete validated.year;
+    }
+  }
+
+  // Mileage validation
+  if (validated.mileage) {
+    if (validated.mileage < 0 || validated.mileage > 500000) {
+      console.warn('[Validation] Suspicious mileage:', validated.mileage);
+      // Don't delete, but flag it
+    }
+  }
+
+  // Price validation
+  if (validated.price) {
+    if (validated.price < 100 || validated.price > 5000000) {
+      console.warn('[Validation] Suspicious price:', validated.price);
+      // Don't delete, but flag it
+    }
+  }
+
+  // VIN validation
+  if (validated.vin && !/^[A-HJ-NPR-Z0-9]{17}$/i.test(validated.vin)) {
+    console.warn('[Validation] Invalid VIN format:', validated.vin);
+    delete validated.vin;
+  }
+
+  return validated;
 }
 
 /**
@@ -86,91 +214,131 @@ function isSearchPage(url: string): boolean {
  * - Contains structured data in HTML meta tags
  */
 async function extractFromAutoTrader(html: string): Promise<Partial<VehicleData>> {
-  const data: Partial<VehicleData> = {};
+  // Try structured data first
+  let data = extractStructuredData(html);
 
-  // Extract from title meta tag
-  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  if (titleMatch) {
-    const title = titleMatch[1];
+  // If we didn't get enough data, try AutoTrader-specific patterns
+  if (!data.year || !data.make || !data.model) {
+    // Extract from title meta tag
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (titleMatch) {
+      const title = titleMatch[1];
 
-    // New format: "Used 2024 Chevrolet Equinox EV RS for sale in..."
-    let vehicleMatch = title.match(/(?:Used\s+)?(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)\s+(?:for\s+sale|RS|LT|EX|SE|LE|Limited|Premium|Sport)/i);
+      // New format: "Used 2024 Chevrolet Equinox EV RS for sale in..."
+      let vehicleMatch = title.match(/(?:Used\s+)?(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)\s+(?:for\s+sale|RS|LT|EX|SE|LE|Limited|Premium|Sport)/i);
 
-    // Old format: "2022 Tesla Model 3 Long Range for Sale in..."
-    if (!vehicleMatch) {
-      vehicleMatch = title.match(/(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)\s+for\s+Sale/i);
-    }
+      // Old format: "2022 Tesla Model 3 Long Range for Sale in..."
+      if (!vehicleMatch) {
+        vehicleMatch = title.match(/(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)\s+for\s+Sale/i);
+      }
 
-    if (vehicleMatch) {
-      data.year = parseInt(vehicleMatch[1]);
-      data.make = vehicleMatch[2];
-      data.model = vehicleMatch[3].trim();
-    }
-  }
-
-  // Extract price
-  const priceMatch = html.match(/(?:price|listPrice)["']?\s*:\s*["']?\$?(\d+(?:,\d{3})*)/i);
-  if (priceMatch) {
-    data.price = parseInt(priceMatch[1].replace(/,/g, ''));
-  }
-
-  // Extract mileage - try multiple patterns
-  // Pattern 1: JSON-like "mileage": "49385" or "odometer": "49,385"
-  let mileageMatch = html.match(/(?:mileage|odometer)["']?\s*:\s*["']?(\d+(?:,\d{3})*)/i);
-  if (mileageMatch) {
-    const mileageValue = parseInt(mileageMatch[1].replace(/,/g, ''));
-    // Sanity check: mileage should be reasonable (100 - 300,000)
-    if (mileageValue >= 100 && mileageValue <= 300000) {
-      data.mileage = mileageValue;
+      if (vehicleMatch) {
+        data.year = data.year || parseInt(vehicleMatch[1]);
+        data.make = data.make || vehicleMatch[2];
+        data.model = data.model || vehicleMatch[3].trim();
+      }
     }
   }
 
-  // Extract VIN
-  const vinMatch = html.match(/VIN["']?\s*:\s*["']?([A-HJ-NPR-Z0-9]{17})/i);
-  if (vinMatch) {
-    data.vin = vinMatch[1];
+  // Extract price if not found in structured data
+  if (!data.price) {
+    const priceMatch = html.match(/(?:price|listPrice)["']?\s*:\s*["']?\$?(\d+(?:,\d{3})*)/i);
+    if (priceMatch) {
+      data.price = parseInt(priceMatch[1].replace(/,/g, ''));
+    }
   }
 
-  return data;
+  // Extract mileage if not found in structured data
+  if (!data.mileage) {
+    const mileageMatch = html.match(/(?:mileage|odometer)["']?\s*:\s*["']?(\d+(?:,\d{3})*)/i);
+    if (mileageMatch) {
+      const mileageValue = parseInt(mileageMatch[1].replace(/,/g, ''));
+      // Sanity check: mileage should be reasonable (100 - 500,000)
+      if (mileageValue >= 100 && mileageValue <= 500000) {
+        data.mileage = mileageValue;
+      }
+    }
+  }
+
+  // Extract VIN if not found in structured data
+  if (!data.vin) {
+    const vinMatch = html.match(/VIN["']?\s*:\s*["']?([A-HJ-NPR-Z0-9]{17})/i);
+    if (vinMatch) {
+      data.vin = vinMatch[1];
+    }
+  }
+
+  // Validate and return
+  return validateVehicleData(data);
 }
 
 /**
  * Extracts vehicle data from CarGurus URL
  */
 async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> {
-  const data: Partial<VehicleData> = {};
+  // Try structured data first
+  let data = extractStructuredData(html);
 
-  // Try to extract from embedded JSON data (for when page loads)
-  // CarGurus embeds listing data in __NEXT_DATA__ or similar script tags
-  const jsonDataMatch = html.match(/"year":(\d{4}).*?"make":"([^"]+)".*?"model":"([^"]+)".*?"mileage":(\d+)/i);
-  if (jsonDataMatch) {
-    data.year = parseInt(jsonDataMatch[1]);
-    data.make = jsonDataMatch[2];
-    data.model = jsonDataMatch[3];
-    data.mileage = parseInt(jsonDataMatch[4]);
-  }
+  // CarGurus-specific: Try __NEXT_DATA__ extraction
+  const nextDataMatch = html.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+  if (nextDataMatch) {
+    try {
+      const nextData = JSON.parse(nextDataMatch[1]);
+      // Navigate through the nested structure to find listing data
+      const listing = nextData.props?.pageProps?.listing ||
+                     nextData.props?.initialProps?.pageProps?.listing ||
+                     nextData.props?.pageProps?.listingDetails;
 
-  // Extract from title
-  const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-  if (titleMatch) {
-    const title = titleMatch[1];
-    // Example: "2013 Ford Focus Electric Hatchback - $4,999 - CarGurus"
-    const vehicleMatch = title.match(/(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)\s+(?:Hatchback|Sedan|SUV|Coupe|Wagon|Convertible|Minivan|Truck|-)/i);
-    if (vehicleMatch && !data.year) {
-      data.year = parseInt(vehicleMatch[1]);
-      data.make = vehicleMatch[2];
-      data.model = vehicleMatch[3].trim();
+      if (listing) {
+        data.year = data.year || listing.year;
+        data.make = data.make || listing.make;
+        data.model = data.model || listing.model;
+        data.trim = data.trim || listing.trim;
+        data.price = data.price || listing.price || listing.listPrice;
+        data.mileage = data.mileage || listing.mileage;
+        data.vin = data.vin || listing.vin;
+        data.location = data.location || listing.dealer?.cityState;
+      }
+    } catch (e) {
+      console.log('[CarGurus] Failed to parse __NEXT_DATA__:', e);
     }
   }
 
-  // Extract price from title or meta description
-  const priceMatch = html.match(/\$(\d+(?:,\d{3})*)/);
-  if (priceMatch) {
-    data.price = parseInt(priceMatch[1].replace(/,/g, ''));
+  // Try to extract from embedded JSON data (fallback pattern)
+  if (!data.year || !data.make || !data.model) {
+    const jsonDataMatch = html.match(/"year":(\d{4}).*?"make":"([^"]+)".*?"model":"([^"]+)".*?"mileage":(\d+)/i);
+    if (jsonDataMatch) {
+      data.year = data.year || parseInt(jsonDataMatch[1]);
+      data.make = data.make || jsonDataMatch[2];
+      data.model = data.model || jsonDataMatch[3];
+      data.mileage = data.mileage || parseInt(jsonDataMatch[4]);
+    }
   }
 
-  // Extract mileage - look for structured data or meta description
-  // Example meta: "Silver with 49,385 miles"
+  // Extract from title if still missing data
+  if (!data.year || !data.make || !data.model) {
+    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+    if (titleMatch) {
+      const title = titleMatch[1];
+      // Example: "2013 Ford Focus Electric Hatchback - $4,999 - CarGurus"
+      const vehicleMatch = title.match(/(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)\s+(?:Hatchback|Sedan|SUV|Coupe|Wagon|Convertible|Minivan|Truck|-)/i);
+      if (vehicleMatch) {
+        data.year = data.year || parseInt(vehicleMatch[1]);
+        data.make = data.make || vehicleMatch[2];
+        data.model = data.model || vehicleMatch[3].trim();
+      }
+    }
+  }
+
+  // Extract price if not found
+  if (!data.price) {
+    const priceMatch = html.match(/\$(\d+(?:,\d{3})*)/);
+    if (priceMatch) {
+      data.price = parseInt(priceMatch[1].replace(/,/g, ''));
+    }
+  }
+
+  // Extract mileage if not found
   if (!data.mileage) {
     const metaMileageMatch = html.match(/with\s+(\d+(?:,\d{3})*)\s+miles/i);
     if (metaMileageMatch) {
@@ -184,41 +352,15 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
     }
   }
 
-  return data;
+  // Validate and return
+  return validateVehicleData(data);
 }
 
 async function extractFromCars(html: string): Promise<Partial<VehicleData>> {
-  const data: Partial<VehicleData> = {};
+  // Try structured data first (uses the common extractStructuredData function)
+  let data = extractStructuredData(html);
 
-  // Cars.com uses structured data and meta tags
-  // Try to extract from JSON-LD structured data first
-  const jsonLdMatch = html.match(/<script type="application\/ld\+json">([\s\S]+?)<\/script>/i);
-  if (jsonLdMatch) {
-    try {
-      const jsonData = JSON.parse(jsonLdMatch[1]);
-      if (jsonData.name) {
-        // Example: "2020 Nissan Leaf SV Plus"
-        const nameMatch = jsonData.name.match(/(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)(?:\s+([A-Za-z0-9\s]+))?$/i);
-        if (nameMatch) {
-          data.year = parseInt(nameMatch[1]);
-          data.make = nameMatch[2];
-          data.model = nameMatch[3].trim();
-          if (nameMatch[4]) data.trim = nameMatch[4].trim();
-        }
-      }
-      if (jsonData.mileageFromOdometer) {
-        const mileageMatch = jsonData.mileageFromOdometer.match(/(\d+)/);
-        if (mileageMatch) data.mileage = parseInt(mileageMatch[1]);
-      }
-      if (jsonData.offers?.price) {
-        data.price = parseInt(jsonData.offers.price);
-      }
-    } catch (e) {
-      console.log('[Cars.com] Failed to parse JSON-LD:', e);
-    }
-  }
-
-  // Extract from title tag
+  // Extract from title tag if needed
   if (!data.year || !data.make || !data.model) {
     const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
     if (titleMatch) {
@@ -259,7 +401,8 @@ async function extractFromCars(html: string): Promise<Partial<VehicleData>> {
     }
   }
 
-  return data;
+  // Validate and return
+  return validateVehicleData(data);
 }
 
 /**
