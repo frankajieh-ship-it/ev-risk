@@ -539,8 +539,21 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
         if (proxyResult.success && proxyResult.html) {
           html = proxyResult.html;
           console.log('[Listing Scraper] ✅ Proxy fetch successful, HTML length:', html.length);
+        } else if (proxyResult.blocked) {
+          // Site is actively blocking - don't fallback, return error immediately
+          console.error('[Listing Scraper] 🚫 Site is blocking automated requests (Akamai/Cloudflare detected)');
+          return {
+            success: false,
+            data: null,
+            error: `${dataSource === 'autotrader' ? 'AutoTrader' : 'This site'} is actively blocking automated data extraction. Please enter vehicle details manually for best results.`,
+            warnings: [
+              'The marketplace has enhanced bot detection (Akamai/Cloudflare)',
+              'Manual entry ensures accurate data and avoids extraction issues',
+              'Copy the vehicle information from the listing page'
+            ],
+          };
         } else {
-          // Proxy failed, fall back to direct fetch
+          // Proxy failed for other reasons, fall back to direct fetch
           fetchMethod = 'direct';
           console.error('[Listing Scraper] ❌ Proxy fetch failed:', proxyResult.error);
           throw new Error(`Proxy fetch failed: ${proxyResult.error}`);
@@ -633,6 +646,8 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
                       html.includes('cg-mobileHome') || // CarGurus homepage
                       html.includes('Just a moment') || // Cloudflare challenge
                       html.includes('challenge-platform') || // Cloudflare
+                      html.includes('akamai-block') || // Akamai block page
+                      html.includes('Autotrader - page unavailable') || // AutoTrader Akamai block
                       html.length < 10000; // Suspiciously short response
 
     // Special handling for known blocking sites
@@ -642,6 +657,21 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
         data: null,
         error: 'Carvana actively blocks automated data extraction. Please enter vehicle details manually.',
         warnings: ['Carvana uses Cloudflare protection to prevent automated access', 'Manual entry provides better accuracy anyway'],
+      };
+    }
+
+    // AutoTrader with Akamai blocking
+    if (dataSource === 'autotrader' && isBlocked) {
+      console.log('[Listing Scraper] 🚫 AutoTrader block detected in HTML');
+      return {
+        success: false,
+        data: null,
+        error: 'AutoTrader is actively blocking automated data extraction. Please enter vehicle details manually for best results.',
+        warnings: [
+          'AutoTrader uses Akamai protection to prevent automated access',
+          'Manual entry ensures accurate data and avoids extraction issues',
+          'Copy: Year, Make, Model, Trim, Mileage, Price, and VIN from the listing'
+        ],
       };
     }
 
