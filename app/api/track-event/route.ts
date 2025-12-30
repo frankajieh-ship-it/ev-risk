@@ -24,6 +24,8 @@ export async function POST(req: NextRequest) {
     const userAgent = req.headers.get("user-agent") || null;
 
     // Log event
+    const eventTimestamp = timestamp ? new Date(timestamp).toISOString() : new Date().toISOString();
+
     await sql`
       INSERT INTO user_events (
         event_name,
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
         ${pagePath},
         ${ip},
         ${userAgent},
-        ${timestamp ? new Date(timestamp) : new Date()}
+        ${eventTimestamp}
       )
     `;
 
