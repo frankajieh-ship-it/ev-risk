@@ -187,6 +187,81 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
   return data;
 }
 
+async function extractFromCars(html: string): Promise<Partial<VehicleData>> {
+  const data: Partial<VehicleData> = {};
+
+  // Cars.com uses structured data and meta tags
+  // Try to extract from JSON-LD structured data first
+  const jsonLdMatch = html.match(/<script type="application\/ld\+json">([\s\S]+?)<\/script>/i);
+  if (jsonLdMatch) {
+    try {
+      const jsonData = JSON.parse(jsonLdMatch[1]);
+      if (jsonData.name) {
+        // Example: "2020 Nissan Leaf SV Plus"
+        const nameMatch = jsonData.name.match(/(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)(?:\s+([A-Za-z0-9\s]+))?$/i);
+        if (nameMatch) {
+          data.year = parseInt(nameMatch[1]);
+          data.make = nameMatch[2];
+          data.model = nameMatch[3].trim();
+          if (nameMatch[4]) data.trim = nameMatch[4].trim();
+        }
+      }
+      if (jsonData.mileageFromOdometer) {
+        const mileageMatch = jsonData.mileageFromOdometer.match(/(\d+)/);
+        if (mileageMatch) data.mileage = parseInt(mileageMatch[1]);
+      }
+      if (jsonData.offers?.price) {
+        data.price = parseInt(jsonData.offers.price);
+      }
+    } catch (e) {
+      console.log('[Cars.com] Failed to parse JSON-LD:', e);
+    }
+  }
+
+  // Extract from title tag
+  if (!data.year || !data.make || !data.model) {
+    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+    if (titleMatch) {
+      const title = titleMatch[1];
+      // Example: "Used 2020 Nissan Leaf SV Plus for Sale - $18,999 | Cars.com"
+      const vehicleMatch = title.match(/(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)(?:\s+for\s+Sale|-|\|)/i);
+      if (vehicleMatch) {
+        data.year = data.year || parseInt(vehicleMatch[1]);
+        data.make = data.make || vehicleMatch[2];
+        data.model = data.model || vehicleMatch[3].trim();
+      }
+    }
+  }
+
+  // Extract price from title or page
+  if (!data.price) {
+    const priceMatch = html.match(/\$(\d+(?:,\d{3})*)/);
+    if (priceMatch) {
+      data.price = parseInt(priceMatch[1].replace(/,/g, ''));
+    }
+  }
+
+  // Extract mileage from page content
+  if (!data.mileage) {
+    // Look for mileage in structured format
+    const mileageMatch = html.match(/mileage["\s:]+(\d+(?:,\d{3})*)/i) ||
+                        html.match(/(\d+(?:,\d{3})*)\s+miles/i);
+    if (mileageMatch) {
+      data.mileage = parseInt(mileageMatch[1].replace(/,/g, ''));
+    }
+  }
+
+  // Extract VIN if available
+  if (!data.vin) {
+    const vinMatch = html.match(/VIN[:\s]+([A-HJ-NPR-Z0-9]{17})/i);
+    if (vinMatch) {
+      data.vin = vinMatch[1];
+    }
+  }
+
+  return data;
+}
+
 /**
  * Main extraction function
  * Fetches URL and extracts vehicle data
@@ -244,6 +319,13 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
         },
         body: JSON.stringify({ url, timeout: 15000 }),
       });
+
+      // Check if response is JSON before parsing
+      const contentType = proxyResponse.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.log('[Listing Scraper] Proxy returned non-JSON response, falling back to direct fetch');
+        throw new Error('Proxy returned non-JSON response');
+      }
 
       const proxyResult = await proxyResponse.json();
 
@@ -339,6 +421,9 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
         break;
       case 'cargurus':
         extractedData = await extractFromCarGurus(html);
+        break;
+      case 'cars.com':
+        extractedData = await extractFromCars(html);
         break;
       default:
         // Generic extraction

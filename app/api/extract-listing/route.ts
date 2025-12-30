@@ -9,6 +9,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractVehicleData } from "@/lib/listing-scraper";
 import { extractionRateLimiter, getClientIP } from "@/lib/rate-limiter";
 
+// Configure route to allow longer execution time for slow listing sites
+export const maxDuration = 30; // 30 seconds for Netlify/Vercel
+
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting

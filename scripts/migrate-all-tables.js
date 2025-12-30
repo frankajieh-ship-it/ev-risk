@@ -22,6 +22,7 @@ async function migrateAllTables() {
         ip_address TEXT,
         user_agent TEXT,
         referrer TEXT,
+        page_path TEXT,
         country TEXT,
         city TEXT,
         first_visit TIMESTAMP DEFAULT NOW(),
