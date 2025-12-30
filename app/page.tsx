@@ -216,17 +216,17 @@ export default function Home() {
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-4">
               <img
                 src="/offo-lab-logo.png"
                 alt="OFFO Lab Consulting"
-                className="h-10 w-auto"
+                className="h-16 w-auto"
               />
               <div>
-                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
+                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
                   EV-Risk™
                 </span>
-                <p className="text-xs text-gray-500 font-medium">by OFFO Lab</p>
+                <p className="text-sm text-gray-500 font-medium">by OFFO Lab</p>
               </div>
             </div>
             <div className="flex items-center space-x-6">
@@ -257,7 +257,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-grid-slate-100/50 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
         <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-white to-transparent" />
 
-        <div className="relative max-w-7xl mx-auto px-6 pt-20 pb-16">
+        <div className="relative max-w-7xl mx-auto px-6 pt-32 pb-24">
           <div className="text-center max-w-3xl mx-auto">
             {/* Badge */}
             <motion.div
@@ -308,12 +308,11 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto mb-12"
+              className="grid grid-cols-3 gap-4 max-w-3xl mx-auto mb-12"
             >
               {[
                 { icon: Car, label: "EV Models", value: "150+", color: "blue" },
                 { icon: Users, label: "Owner Reports", value: "10,000+", color: "green" },
-                { icon: Shield, label: "Accuracy", value: `${stats.accuracyRate}%`, color: "purple" },
                 { icon: Star, label: "Updated", value: "Jan 2025", color: "amber" },
               ].map((stat, index) => (
                 <div key={index} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
@@ -349,10 +348,6 @@ export default function Home() {
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Check Any Used EV</h2>
                 <p className="text-gray-600 mt-1">Get a comprehensive risk analysis in under 2 minutes</p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Zap className="w-5 h-5 text-amber-500" />
-                <span className="text-sm font-medium text-gray-700">AI-Powered</span>
               </div>
             </div>
 
