@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
       LIMIT 20
     `;
 
-    // 5. Feedback metrics
+    // 5. Feedback metrics (from report_feedback table)
     const feedbackStats = await sql`
       SELECT
         COUNT(*) as total_feedback,
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
           (COUNT(CASE WHEN would_recommend = true THEN 1 END)::NUMERIC /
            NULLIF(COUNT(CASE WHEN would_recommend IS NOT NULL THEN 1 END), 0) * 100), 2
         ) as recommendation_rate
-      FROM feedback f
+      FROM report_feedback f
       WHERE 1=1 ${feedbackDateFilter ? sql.unsafe(feedbackDateFilter) : sql``}
     `;
 
@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
       SELECT
         rating,
         COUNT(*) as count
-      FROM feedback f
+      FROM report_feedback f
       WHERE rating IS NOT NULL ${feedbackDateFilter ? sql.unsafe(feedbackDateFilter) : sql``}
       GROUP BY rating
       ORDER BY rating DESC
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
         f.created_at,
         r.vehicle_year,
         r.vehicle_model
-      FROM feedback f
+      FROM report_feedback f
       LEFT JOIN reports r ON f.report_id = r.id
       WHERE f.feedback_text IS NOT NULL ${feedbackDateFilter ? sql.unsafe(feedbackDateFilter) : sql``}
       ORDER BY f.created_at DESC
