@@ -10,8 +10,13 @@ import DecisionStateSummary from "@/components/DecisionStateSummary";
 import { VehicleContextFactors } from "@/components/VehicleContextFactors";
 import { WhatWeKnowSection } from "@/components/WhatWeKnowSection";
 import { ChargingFitMentalLoad } from "@/components/ChargingFitMentalLoad";
+import { RoutineFitVerdict } from "@/components/RoutineFitVerdict";
+import { WhyThisResult } from "@/components/WhyThisResult";
+import { MentalLoadIndicator } from "@/components/MentalLoadIndicator";
+import { WhatsMissing } from "@/components/WhatsMissing";
 import { generateConfidenceData, type ConfidenceInputs } from "@/lib/confidence-calculator";
 import { generateMissingDataExplanations, getPrimaryMissingExplanation, generatePersonalizationOpportunities } from "@/lib/missing-data-generator";
+import { calculateRoutineFitClient } from "@/lib/routine-fit-client";
 import type { KnownDataPoint, UnknownDataPoint, RiskFactor } from "@/types/report";
 
 interface BatteryRisk {
@@ -168,6 +173,15 @@ function ReportContent() {
 
   const phase05Data = generateConfidenceData(confidenceInputs);
 
+  // Calculate routine fit assessment for FREE VERSION
+  const routineFit = calculateRoutineFitClient({
+    dailyMiles: input.dailyMiles,
+    homeCharging: input.homeCharging,
+    chargerDensity: confidence.ownership_fit.charger_density,
+    realWorldRange: 250, // TODO: Get from range data
+    overall_score: confidence.overall_score
+  });
+
   // Vehicle context for missing data generation
   const vehicleContext = {
     model: input.model,
@@ -291,6 +305,31 @@ function ReportContent() {
             - "Proceed with caution" judgment
             - Battery/Platform/Ownership sub-scores
             Phase 0.5 modules below replace this functionality */}
+
+        {/* FREE VERSION: ROUTINE FIT ASSESSMENT */}
+
+        {/* 1️⃣ ONE-LINE VERDICT - Top of Page */}
+        <RoutineFitVerdict
+          level={routineFit.verdict}
+          condition={routineFit.condition}
+        />
+
+        {/* 2️⃣ WHY THIS RESULT - 3-Bullet Explanation */}
+        <WhyThisResult
+          reasons={routineFit.reasons}
+        />
+
+        {/* 3️⃣ MENTAL LOAD INDICATOR - Visual */}
+        <MentalLoadIndicator
+          level={routineFit.mental_load}
+        />
+
+        {/* 4️⃣ WHAT'S MISSING - Trust Builder */}
+        <WhatsMissing
+          currentConfidence={routineFit.confidence_current}
+          potentialConfidence={routineFit.confidence_with_battery_data}
+          missingDataPoints={routineFit.missing_data}
+        />
 
         {/* SPRINT 1: Phase 0.5 GLOBAL RULES Compliant Modules */}
 
