@@ -886,7 +886,7 @@ export default function Home() {
               <img
                 src="/offo-lab-logo.png"
                 alt="OFFO Lab Consulting"
-                className="h-10 w-auto opacity-80"
+                className="h-20 w-auto opacity-80"
               />
             </div>
             <p className="text-xs text-gray-500">
