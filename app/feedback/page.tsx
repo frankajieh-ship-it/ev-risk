@@ -19,12 +19,33 @@ export default function FeedbackPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // TODO: Implement actual feedback submission (e.g., to database or email service)
-    // For now, we'll simulate a submission
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
 
-    setSubmitted(true);
-    setIsSubmitting(false);
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to submit feedback");
+      }
+
+      console.log("Feedback submitted successfully:", result.feedbackId);
+      setSubmitted(true);
+    } catch (error) {
+      console.error("Feedback submission error:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to submit feedback. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (

@@ -1,8 +1,8 @@
 /**
- * Feedback API
+ * Feedback Submission API
  *
  * POST /api/feedback
- * Stores user feedback for reports
+ * Saves user feedback to database for application improvement
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -10,68 +10,220 @@ import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.POSTGRES_URL!);
 
+// Rate limiting map (in-memory, per instance)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): { allowed: boolean; resetAt: number } {
+  const now = Date.now();
+  const limit = rateLimitMap.get(ip);
+
+  // Reset if expired
+  if (limit && now > limit.resetAt) {
+    rateLimitMap.delete(ip);
+  }
+
+  const current = rateLimitMap.get(ip) || { count: 0, resetAt: now + 60000 }; // 1 minute window
+
+  if (current.count >= 3) {
+    // Max 3 submissions per minute
+    return { allowed: false, resetAt: current.resetAt };
+  }
+
+  current.count++;
+  rateLimitMap.set(ip, current);
+  return { allowed: true, resetAt: current.resetAt };
+}
+
+function getClientIP(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const realIP = request.headers.get("x-real-ip");
+  return forwarded?.split(",")[0] || realIP || "unknown";
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { reportId, rating, feedbackText, wouldRecommend } = body;
+    // Get client IP
+    const clientIP = getClientIP(request);
 
-    // Validate required fields
-    if (!reportId) {
+    // Rate limiting
+    const rateLimit = checkRateLimit(clientIP);
+    if (!rateLimit.allowed) {
       return NextResponse.json(
-        { error: "Report ID is required" },
+        {
+          success: false,
+          error: "Rate limit exceeded. Please try again in a minute.",
+          resetAt: new Date(rateLimit.resetAt).toISOString(),
+        },
+        { status: 429 }
+      );
+    }
+
+    // Parse request body
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error("[Feedback API] Parse error:", parseError);
+      return NextResponse.json(
+        { success: false, error: "Invalid request format" },
         { status: 400 }
       );
     }
 
-    // Validate rating if provided
-    if (rating !== undefined && (rating < 1 || rating > 5)) {
+    const { email, feedbackType, helpful, missing, additionalData, comments } =
+      body;
+
+    // Validate required field
+    if (!feedbackType) {
       return NextResponse.json(
-        { error: "Rating must be between 1 and 5" },
+        { success: false, error: "Feedback type is required" },
         { status: 400 }
       );
     }
 
-    // Store feedback in database
-    await sql`
+    // Validate feedback type
+    const validTypes = ["general", "bug", "feature", "accuracy", "ux"];
+    if (!validTypes.includes(feedbackType)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid feedback type" },
+        { status: 400 }
+      );
+    }
+
+    // Optional: Validate email format if provided
+    if (email && email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid email format" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Get user agent
+    const userAgent = request.headers.get("user-agent") || "unknown";
+
+    // Insert feedback into database
+    console.log("[Feedback API] Saving feedback:", {
+      feedbackType,
+      hasEmail: !!email,
+      ip: clientIP,
+    });
+
+    const result = await sql`
       INSERT INTO feedback (
-        report_id,
-        rating,
-        feedback_text,
-        would_recommend
+        email,
+        feedback_type,
+        helpful,
+        missing,
+        additional_data,
+        comments,
+        user_agent,
+        ip_address
+      ) VALUES (
+        ${email || null},
+        ${feedbackType},
+        ${helpful || null},
+        ${missing || null},
+        ${additionalData || null},
+        ${comments || null},
+        ${userAgent},
+        ${clientIP}
       )
-      VALUES (
-        ${reportId},
-        ${rating || null},
-        ${feedbackText || null},
-        ${wouldRecommend !== undefined ? wouldRecommend : null}
-      )
+      RETURNING id, created_at
     `;
 
-    console.log(`✅ Feedback received for report ${reportId}:`, {
-      rating,
-      wouldRecommend,
-      hasText: !!feedbackText,
-    });
+    console.log("[Feedback API] Feedback saved successfully:", result[0].id);
 
     return NextResponse.json({
       success: true,
       message: "Thank you for your feedback!",
+      feedbackId: result[0].id,
     });
   } catch (error) {
-    console.error("Feedback submission error:", error);
+    console.error("[Feedback API] Error:", error);
 
-    if (error instanceof Error) {
+    // Check if it's a database error (table doesn't exist)
+    if (error instanceof Error && error.message.includes("relation")) {
       return NextResponse.json(
         {
-          error: "Failed to submit feedback",
-          details: error.message,
+          success: false,
+          error: "Feedback system not initialized. Please contact support.",
         },
-        { status: 500 }
+        { status: 503 }
       );
     }
 
     return NextResponse.json(
-      { error: "Failed to submit feedback" },
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to submit feedback",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// GET endpoint to retrieve feedback (admin only - requires API key)
+export async function GET(request: NextRequest) {
+  try {
+    // Check for admin API key
+    const apiKey = request.headers.get("x-api-key");
+    if (apiKey !== process.env.ADMIN_API_KEY) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // Get query parameters
+    const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const offset = parseInt(searchParams.get("offset") || "0");
+    const type = searchParams.get("type");
+
+    // Build query
+    let query;
+    if (type) {
+      query = sql`
+        SELECT * FROM feedback
+        WHERE feedback_type = ${type}
+        ORDER BY created_at DESC
+        LIMIT ${limit}
+        OFFSET ${offset}
+      `;
+    } else {
+      query = sql`
+        SELECT * FROM feedback
+        ORDER BY created_at DESC
+        LIMIT ${limit}
+        OFFSET ${offset}
+      `;
+    }
+
+    const feedback = await query;
+
+    return NextResponse.json({
+      success: true,
+      feedback,
+      count: feedback.length,
+      limit,
+      offset,
+    });
+  } catch (error) {
+    console.error("[Feedback API] GET error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to retrieve feedback",
+      },
       { status: 500 }
     );
   }
