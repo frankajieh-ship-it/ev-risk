@@ -220,16 +220,11 @@ export default function Home() {
 
             {/* Brand */}
             <div className="flex items-center gap-2 min-w-0 flex-shrink">
-              <img
-                src="/offo-lab-logo.png"
-                alt="OFFO Lab Consulting"
-                className="hidden lg:block h-8 shrink-0"
-              />
               <div className="min-w-0">
-                <div className="truncate text-sm md:text-base lg:text-lg font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
+                <div className="truncate text-xl md:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
                   EV-Risk™
                 </div>
-                <div className="hidden sm:block truncate text-xs text-gray-500 font-medium">by OFFO Lab</div>
+                <div className="truncate text-xs md:text-sm text-gray-500 font-medium">by OFFO Lab</div>
               </div>
             </div>
 
