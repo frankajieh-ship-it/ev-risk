@@ -1,0 +1,52 @@
+--- a/app/page.tsx
++++ b/app/page.tsx
+@@ -304,27 +304,32 @@ export default function Home() {
+               Check battery risk and charging fit in 2 minutes. See what listings don't tell you about real-world EV ownership.
+             </motion.p>
+
+-            {/* Live Stats */}
++            {/* Key Insight - Above the Fold */}
+             <motion.div
+               initial={{ opacity: 0, y: 20 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ duration: 0.6, delay: 0.3 }}
++              className="max-w-2xl mx-auto mb-8"
++            >
++              <div className="bg-gradient-to-br from-blue-50 to-green-50 border border-blue-100 rounded-2xl p-6 text-center">
++                <p className="text-lg font-semibold text-gray-900 mb-2">
++                  Most EV regret isn't about range.
++                </p>
++                <p className="text-base text-gray-700 mb-3">
++                  It's about charging predictability and routine fit.
++                </p>
++                <p className="text-sm text-gray-600">
++                  (Based on real owner experiences)
++                </p>
++              </div>
++            </motion.div>
++
++            {/* Live Stats */}
++            <motion.div
++              initial={{ opacity: 0, y: 20 }}
++              animate={{ opacity: 1, y: 0 }}
++              transition={{ duration: 0.6, delay: 0.4 }}
+               className="grid grid-cols-3 gap-4 max-w-3xl mx-auto mb-12"
+             >
+@@ -341,14 +346,6 @@ export default function Home() {
+                 </div>
+               ))}
+             </motion.div>
+-
+-            {/* Blog Link */}
+-            <div className="flex justify-center mb-6">
+-              <a
+-                href="/blog"
+-                onClick={() => trackBlogLinkClick("hero", "/blog")}
+-                className="text-blue-600 hover:text-blue-700 font-medium text-sm underline"
+-              >
+-                Read: Why EV regret isn't about range →
+-              </a>
+-            </div>
+           </div>
+         </div>
+       </section>
