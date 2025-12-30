@@ -217,24 +217,24 @@ export default function Home() {
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
               <img
                 src="/offo-lab-logo.png"
                 alt="OFFO Lab Consulting"
-                className="h-12 md:h-16 lg:h-20 w-auto"
+                className="h-10 sm:h-12 md:h-14 lg:h-16 w-auto"
               />
               <div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
+                <span className="text-lg sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
                   EV-Risk™
                 </span>
-                <p className="text-sm text-gray-500 font-medium">by OFFO Lab</p>
+                <p className="hidden sm:block text-xs md:text-sm text-gray-500 font-medium">by OFFO Lab</p>
               </div>
             </div>
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-6">
               <a
                 href="/blog"
                 onClick={() => trackBlogLinkClick("nav", "/blog")}
-                className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                className="hidden sm:block text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
               >
                 Insights
               </a>
@@ -243,9 +243,10 @@ export default function Home() {
                   formRef.current?.scrollIntoView({ behavior: 'smooth' });
                   trackButtonClick("Run a quick sanity-check", "nav");
                 }}
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-green-600 text-white text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5"
+                className="px-3 py-2 sm:px-4 bg-gradient-to-r from-blue-600 to-green-600 text-white text-xs sm:text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 whitespace-nowrap"
               >
-                Run a quick sanity-check
+                <span className="hidden sm:inline">Run a quick sanity-check</span>
+                <span className="sm:hidden">Check EV</span>
               </button>
             </div>
           </div>
