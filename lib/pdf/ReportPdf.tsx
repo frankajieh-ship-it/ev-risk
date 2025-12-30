@@ -131,6 +131,32 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
   },
+  feedbackSection: {
+    marginTop: 20,
+    marginBottom: 15,
+    padding: 15,
+    backgroundColor: COLORS.lightGray,
+    borderRadius: 8,
+    borderLeft: `4px solid ${COLORS.green}`,
+  },
+  feedbackTitle: {
+    fontSize: 12,
+    fontWeight: "bold",
+    marginBottom: 8,
+    color: COLORS.darkGray,
+  },
+  feedbackText: {
+    fontSize: 10,
+    lineHeight: 1.5,
+    color: COLORS.darkGray,
+    marginBottom: 6,
+  },
+  feedbackLink: {
+    fontSize: 10,
+    color: "#2563eb",
+    textDecoration: "underline",
+    marginTop: 4,
+  },
   footer: {
     position: "absolute",
     bottom: 30,
@@ -328,6 +354,26 @@ export const ReportPdf: React.FC<{ data: ReportPayload }> = ({ data }) => {
               <Text>{item}</Text>
             </View>
           ))}
+        </View>
+
+        {/* Feedback Section */}
+        <View style={styles.feedbackSection}>
+          <Text style={styles.feedbackTitle}>📣 Help Us Improve</Text>
+          <Text style={styles.feedbackText}>
+            Your feedback helps us make EV-Risk™ more accurate and useful for everyone.
+          </Text>
+          <Text style={styles.feedbackText}>
+            • Was this report helpful in your decision-making process?
+          </Text>
+          <Text style={styles.feedbackText}>
+            • Did you find any information missing or inaccurate?
+          </Text>
+          <Text style={styles.feedbackText}>
+            • What additional data points would have been valuable?
+          </Text>
+          <Text style={styles.feedbackLink}>
+            Share your feedback: https://offolab.com/feedback
+          </Text>
         </View>
 
         {/* Footer */}
