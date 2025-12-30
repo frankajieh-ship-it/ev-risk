@@ -71,11 +71,14 @@ export default function Home() {
   const handleExtractListing = async () => {
     if (!listingUrl) return;
 
+    console.log('[Frontend] Starting extraction for URL:', listingUrl);
+
     setExtracting(true);
     setError("");
     setExtractionWarnings([]);
 
     try {
+      console.log('[Frontend] Calling /api/extract-listing');
       const response = await fetch("/api/extract-listing", {
         method: "POST",
         headers: {
@@ -84,9 +87,17 @@ export default function Home() {
         body: JSON.stringify({ url: listingUrl }),
       });
 
+      console.log('[Frontend] Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
       const result = await response.json();
+      console.log('[Frontend] Response JSON:', result);
 
       if (!result.success) {
+        console.error('[Frontend] Extraction failed:', result.error);
         throw new Error(result.error || "Failed to extract listing data");
       }
 
@@ -143,6 +154,12 @@ export default function Home() {
       });
 
     } catch (err) {
+      console.error('[Frontend] Extraction error:', err);
+      console.error('[Frontend] Error details:', {
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined
+      });
+
       setError(err instanceof Error ? err.message : "Failed to extract listing");
 
       // Track failed URL autofill
