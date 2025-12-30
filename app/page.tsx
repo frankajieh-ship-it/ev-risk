@@ -215,26 +215,30 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/20 to-white" ref={containerRef}>
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-4">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+
+            {/* Brand */}
+            <div className="flex items-center gap-3 min-w-0">
               <img
                 src="/offo-lab-logo.png"
                 alt="OFFO Lab Consulting"
-                className="h-10 sm:h-12 md:h-14 lg:h-16 w-auto"
+                className="h-10 md:h-12 lg:h-14 shrink-0"
               />
-              <div>
-                <span className="text-lg sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
+              <div className="min-w-0">
+                <div className="truncate text-lg md:text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
                   EV-Risk™
-                </span>
-                <p className="hidden sm:block text-xs md:text-sm text-gray-500 font-medium">by OFFO Lab</p>
+                </div>
+                <div className="truncate text-xs md:text-sm text-gray-500 font-medium">by OFFO Lab</div>
               </div>
             </div>
-            <div className="flex items-center space-x-2 sm:space-x-3 md:space-x-6">
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 md:justify-end">
               <a
                 href="/blog"
                 onClick={() => trackBlogLinkClick("nav", "/blog")}
-                className="hidden sm:block text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors hover:underline"
               >
                 Insights
               </a>
@@ -243,12 +247,12 @@ export default function Home() {
                   formRef.current?.scrollIntoView({ behavior: 'smooth' });
                   trackButtonClick("Run a quick sanity-check", "nav");
                 }}
-                className="px-3 py-2 sm:px-4 bg-gradient-to-r from-blue-600 to-green-600 text-white text-xs sm:text-sm font-semibold rounded-lg hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 whitespace-nowrap"
+                className="inline-flex w-full md:w-auto justify-center rounded-lg px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-green-600 hover:shadow-lg transition-all duration-300"
               >
-                <span className="hidden sm:inline">Run a quick sanity-check</span>
-                <span className="sm:hidden">Check EV</span>
+                Run a quick sanity-check
               </button>
             </div>
+
           </div>
         </div>
       </nav>
@@ -259,26 +263,28 @@ export default function Home() {
         <div className="absolute inset-0 bg-grid-slate-100/50 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]" />
         <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-white to-transparent" />
 
-        <div className="relative max-w-7xl mx-auto px-6 pt-32 pb-24">
+        <div className="relative max-w-7xl mx-auto px-4 pt-10 pb-10 md:pt-20 md:pb-16 lg:pt-24 lg:pb-20">
           <div className="text-center max-w-3xl mx-auto">
             {/* Badge */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-50 to-green-50 border border-blue-100 rounded-full mb-8"
-            >
-              <Shield className="w-4 h-4 text-blue-600 mr-2" />
-              <span className="text-sm font-semibold text-blue-900">Trusted by {stats.vehiclesAnalyzed.toLocaleString()}+ EV buyers</span>
-              <TrendingUp className="w-4 h-4 text-green-600 ml-2" />
-            </motion.div>
+            <div className="flex justify-center mb-6 md:mb-8">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                className="inline-flex items-center px-3 py-2 md:px-4 bg-gradient-to-r from-blue-50 to-green-50 border border-blue-100 rounded-full"
+              >
+                <Shield className="w-3 h-3 md:w-4 md:h-4 text-blue-600 mr-2" />
+                <span className="text-xs md:text-sm font-semibold text-blue-900">Trusted by {stats.vehiclesAnalyzed.toLocaleString()}+ EV buyers</span>
+                <TrendingUp className="w-3 h-3 md:w-4 md:h-4 text-green-600 ml-2" />
+              </motion.div>
+            </div>
 
             {/* Main headline */}
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight"
+              className="text-3xl leading-tight sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4 md:mb-6"
             >
               Don't guess if an EV{" "}
               <span className="relative">
@@ -286,7 +292,7 @@ export default function Home() {
                   fits your life
                 </span>
                 <motion.div
-                  className="absolute -bottom-2 left-0 right-0 h-3 bg-blue-100/50 rounded-full"
+                  className="absolute -bottom-1 md:-bottom-2 left-0 right-0 h-2 md:h-3 bg-blue-100/50 rounded-full"
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: 1 }}
                   transition={{ duration: 1, delay: 0.5 }}
@@ -300,7 +306,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto"
+              className="text-base md:text-lg lg:text-xl text-gray-600 mb-6 md:mb-10 max-w-2xl mx-auto"
             >
               Check battery risk and charging fit in 2 minutes. See what listings don't tell you about real-world EV ownership.
             </motion.p>
