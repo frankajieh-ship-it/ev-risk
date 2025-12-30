@@ -2,9 +2,27 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useVisitorTracking } from "@/hooks/useVisitorTracking";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 export default function Home() {
   const router = useRouter();
+
+  // Track visitor on homepage (offolab.com)
+  useVisitorTracking({
+    enabled: true,
+    trackPageViews: true,
+    trackSessionDuration: true,
+  });
+
+  // Track user events
+  const {
+    trackFormSubmit,
+    trackUrlAutofillAttempt,
+    trackBlogLinkClick,
+    trackButtonClick,
+  } = useEventTracking();
+
   const [formData, setFormData] = useState({
     model: "",
     year: new Date().getFullYear() - 3,
@@ -87,8 +105,27 @@ export default function Home() {
         setExtractionWarnings(warnings);
       }
 
+      // Track successful URL autofill
+      trackUrlAutofillAttempt(listingUrl, true, {
+        make: data.make,
+        model: data.model,
+        year: data.year,
+        trim: data.trim,
+        vin: data.vin,
+        mileage: data.mileage,
+        fieldsExtracted: Array.from(filledFields),
+      });
+
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to extract listing");
+
+      // Track failed URL autofill
+      trackUrlAutofillAttempt(
+        listingUrl,
+        false,
+        null,
+        err instanceof Error ? err.message : "Unknown error"
+      );
     } finally {
       setExtracting(false);
     }
@@ -121,10 +158,28 @@ export default function Home() {
       const queryParams = new URLSearchParams({
         data: JSON.stringify(data),
       });
+
+      // Track successful form submission
+      trackFormSubmit(true, {
+        model: formData.model,
+        year: formData.year,
+        dailyMiles: formData.dailyMiles,
+        homeCharging: formData.homeCharging,
+        usedUrlExtraction,
+        autoFilledFields: Array.from(autoFilledFields),
+      });
+
       router.push(`/report?${queryParams.toString()}`);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
+
+      // Track failed form submission
+      trackFormSubmit(
+        false,
+        { model: formData.model, year: formData.year },
+        err instanceof Error ? err.message : "Unknown error"
+      );
     } finally {
       setLoading(false);
     }
@@ -152,7 +207,7 @@ export default function Home() {
           <p className="text-xl font-semibold text-gray-800 mb-3">
             Don't guess the battery. Check any used EV's risk in 2 minutes.
           </p>
-          <div className="flex justify-center items-center gap-6 text-sm text-gray-500">
+          <div className="flex justify-center items-center gap-6 text-sm text-gray-500 mb-4">
             <div className="flex items-center">
               <svg className="w-4 h-4 mr-1 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -171,6 +226,17 @@ export default function Home() {
               </svg>
               <span>Updated Jan 2025</span>
             </div>
+          </div>
+
+          {/* Blog Link */}
+          <div className="flex justify-center">
+            <a
+              href="/blog"
+              onClick={() => trackBlogLinkClick("homepage", "/blog")}
+              className="text-blue-600 hover:text-blue-700 font-medium text-sm underline"
+            >
+              Read: Why EV regret isn't about range →
+            </a>
           </div>
         </div>
 
@@ -622,6 +688,7 @@ export default function Home() {
             <button
               type="submit"
               disabled={loading}
+              onClick={() => trackButtonClick("Get My Risk Score", "main_form")}
               className="w-full bg-gradient-to-r from-blue-600 to-green-600 text-white font-semibold py-4 px-6 rounded-lg hover:from-blue-700 hover:to-green-700 focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {loading ? "Calculating Score..." : "Get My Risk Score →"}

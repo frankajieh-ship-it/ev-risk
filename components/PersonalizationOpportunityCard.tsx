@@ -75,7 +75,7 @@ export default function PersonalizationOpportunityCard({
         </div>
         <div className="flex-1">
           <h3 className="text-2xl font-bold text-gray-900 mb-2">
-            What we could tell you with 2 minutes of info
+            With 2 minutes of info, we could also tell you:
           </h3>
           <p className="text-sm text-gray-700 leading-relaxed">
             We analyzed this vehicle using listing data only.{" "}

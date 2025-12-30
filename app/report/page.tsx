@@ -4,8 +4,9 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState, useRef } from "react";
 import DataQualitySection from "@/components/DataQualitySection";
 import PersonalizationOpportunityCard from "@/components/PersonalizationOpportunityCard";
-import ConfidenceExplanationBox from "@/components/ConfidenceExplanationBox";
-import TrustCalibrationSection from "@/components/TrustCalibrationSection";
+import DataQualityDecisionConfidence from "@/components/DataQualityDecisionConfidence";
+import WhatsMissingModule from "@/components/WhatsMissingModule";
+import DecisionStateSummary from "@/components/DecisionStateSummary";
 import { generateConfidenceData, type ConfidenceInputs } from "@/lib/confidence-calculator";
 import { generateMissingDataExplanations, getPrimaryMissingExplanation, generatePersonalizationOpportunities } from "@/lib/missing-data-generator";
 import type { KnownDataPoint, UnknownDataPoint, RiskFactor } from "@/types/report";
@@ -249,14 +250,14 @@ function ReportContent() {
               onClick={() => {
                 const shareData = {
                   title: `EV-Risk™ Report: ${input.year} ${input.model}`,
-                  text: `Risk Score: ${confidence.overall_score}/100 (${confidence.rating})`,
+                  text: `⚠️ This report explains fit and uncertainty. It does not rate vehicles or recommend purchases.\n\nEV ownership context report for ${input.year} ${input.model}\n\n${window.location.href}`,
                   url: window.location.href,
                 };
                 if (navigator.share) {
                   navigator.share(shareData);
                 } else {
-                  navigator.clipboard.writeText(window.location.href);
-                  alert("Link copied to clipboard!");
+                  navigator.clipboard.writeText(shareData.text);
+                  alert("Report link with disclaimer copied to clipboard!");
                 }
               }}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -279,228 +280,81 @@ function ReportContent() {
           </p>
         </div>
 
-        {/* Main Score Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-10 mb-8 border border-gray-200">
-          <div className="text-center mb-8">
-            <div className="text-8xl mb-4">{confidence.emoji}</div>
-            <div className={`text-7xl font-bold ${scoreColorClass} mb-2`}>
-              {confidence.overall_score}/100
-            </div>
-            <div className="text-sm text-gray-500 mb-4">
-              {confidence.overall_score >= 80 ? "Better than 75% of similar vehicles" :
-               confidence.overall_score >= 65 ? "Better than 50% of similar vehicles" :
-               confidence.overall_score >= 50 ? "Average for this model year" :
-               "Below average - proceed with caution"}
-            </div>
-            <div className={`inline-block px-6 py-2 rounded-full border-2 ${badgeColorClass} text-xl font-semibold mb-4`}>
-              {confidence.rating} BUY CONFIDENCE
-            </div>
-            <p className="text-lg text-gray-700 max-w-2xl mx-auto">
-              {confidence.recommendation}
-            </p>
-          </div>
+        {/* REMOVED: Main Score Card - MAJOR GLOBAL RULES VIOLATIONS
+            - overall_score/100 display
+            - Green/yellow/red emoji (🟢🟡🔴)
+            - "BUY CONFIDENCE" rating
+            - "Better than X%" comparative language
+            - "Proceed with caution" judgment
+            - Battery/Platform/Ownership sub-scores
+            Phase 0.5 modules below replace this functionality */}
 
-          {/* Score Breakdown */}
-          <div className="grid md:grid-cols-3 gap-6 mt-10">
-            {/* Battery Risk */}
-            <div className="text-center p-6 bg-gray-50 rounded-xl">
-              <h3 className="text-sm font-semibold text-gray-600 uppercase mb-2">
-                Battery Risk
-              </h3>
-              <div className="text-4xl font-bold text-gray-900 mb-2">
-                {confidence.battery_risk.score}
-              </div>
-              <div className="text-xs text-gray-500 mb-3">
-                Weight: {confidence.battery_risk.weight * 100}%
-              </div>
-              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-600 rounded-full"
-                  style={{ width: `${confidence.battery_risk.score}%` }}
-                />
-              </div>
-            </div>
+        {/* SPRINT 1: Phase 0.5 GLOBAL RULES Compliant Modules */}
 
-            {/* Platform Risk */}
-            <div className="text-center p-6 bg-gray-50 rounded-xl">
-              <h3 className="text-sm font-semibold text-gray-600 uppercase mb-2">
-                Platform Risk
-              </h3>
-              <div className="text-4xl font-bold text-gray-900 mb-2">
-                {confidence.platform_risk.score}
-              </div>
-              <div className="text-xs text-gray-500 mb-3">
-                Weight: {confidence.platform_risk.weight * 100}%
-              </div>
-              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-purple-600 rounded-full"
-                  style={{ width: `${confidence.platform_risk.score}%` }}
-                />
-              </div>
-            </div>
+        {/* Module 1A: Data Quality & Decision Confidence (ALWAYS RENDERED) */}
+        <DataQualityDecisionConfidence
+          confidenceInputs={confidenceInputs}
+          vehicleYear={input.year}
+          vehicleModel={input.model}
+        />
 
-            {/* Ownership Fit */}
-            <div className="text-center p-6 bg-gray-50 rounded-xl">
-              <h3 className="text-sm font-semibold text-gray-600 uppercase mb-2">
-                Ownership Fit
-              </h3>
-              <div className="text-4xl font-bold text-gray-900 mb-2">
-                {confidence.ownership_fit.score}
-              </div>
-              <div className="text-xs text-gray-500 mb-3">
-                Weight: {confidence.ownership_fit.weight * 100}%
-              </div>
-              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-green-600 rounded-full"
-                  style={{ width: `${confidence.ownership_fit.score}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Module 1B: What's Missing (Honest Uncertainty) */}
+        <WhatsMissingModule confidenceInputs={confidenceInputs} />
 
-        {/* Phase 0.5: Zero-Data Value Protection Layer */}
+        {/* Module 1C: Personalization Opportunity (2-Minute Gain) */}
         {phase05Data.shouldShowPhase05 && (
-          <>
-            {/* PersonalizationOpportunityCard */}
-            <PersonalizationOpportunityCard
-              vehicleData={{
-                range: vehicleContext.range,
-                age: vehicleContext.age,
-                hasChargingInfo: vehicleContext.hasChargingInfo,
-              }}
-              onAddInfo={scrollToPersonalization}
-            />
-
-            {/* ConfidenceExplanationBox */}
-            <ConfidenceExplanationBox
-              confidence={{
-                current: phase05Data.current,
-                potential: phase05Data.potential,
-                basedOn: phase05Data.basedOn,
-                missing: phase05Data.missing,
-              }}
-            />
-
-            {/* TrustCalibrationSection */}
-            <TrustCalibrationSection
-              vehicleData={vehicleContext}
-              missingData={missingDataPoints}
-            />
-          </>
+          <PersonalizationOpportunityCard
+            vehicleData={{
+              range: vehicleContext.range,
+              age: vehicleContext.age,
+              hasChargingInfo: vehicleContext.hasChargingInfo,
+            }}
+            onAddInfo={scrollToPersonalization}
+          />
         )}
 
-        {/* Assessment Confidence - NEW SECTION A */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-blue-200">
-          <div className="flex items-start">
-            <div className="flex-shrink-0 mr-4">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
-                reportData.dataQuality?.overallConfidence === 'high' ? 'bg-green-100' :
-                reportData.dataQuality?.overallConfidence === 'low' ? 'bg-orange-100' : 'bg-yellow-100'
-              }`}>
-                <svg className="w-8 h-8 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-            <div className="flex-1">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Assessment Confidence: {reportData.dataQuality?.overallConfidence === 'high' ? 'High' :
-                                       reportData.dataQuality?.overallConfidence === 'low' ? 'Low' : 'Medium'}
-              </h3>
-              <p className="text-gray-700 leading-relaxed mb-3">
-                This assessment is based on {reportData.dataQuality?.dataSource === 'url_extraction' ? 'listing data' : 'user-provided information'},
-                owner-reported patterns, and inferred battery behavior based on {input.year} {input.model} characteristics.
-              </p>
-              <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-                <p className="text-sm text-blue-900">
-                  <span className="font-semibold">Confidence would increase with:</span> A vehicle-specific battery health report (SOH%),
-                  VIN-verified service history, or dealer diagnostic scan showing actual battery capacity and charging cycles.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Why This Score - NEW NARRATIVE SECTION E */}
-        <div className="bg-gradient-to-r from-blue-600 to-green-600 rounded-2xl shadow-xl p-8 mb-8 text-white">
-          <h3 className="text-2xl font-bold mb-4 flex items-center">
-            <svg className="w-7 h-7 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Why This Is {confidence.overall_score >= 75 ? 'Low Risk' : confidence.overall_score >= 50 ? 'Moderate Risk' : 'High Risk'}
-          </h3>
-          <p className="text-lg leading-relaxed text-blue-50">
-            {confidence.overall_score >= 75 ? (
-              <>This vehicle scores as <span className="font-bold text-white">low risk</span> primarily due to its {new Date().getFullYear() - input.year}-year age,
-              {confidence.battery_risk.chemistry} battery chemistry, and {(input.currentMileage || 0).toLocaleString()}-mile history.
-              The main unknown is battery health verification, which is common for used EV listings and can be resolved with a simple diagnostic report or pre-purchase inspection.
-              Your {input.dailyMiles} miles/day usage pattern is well within this vehicle's capabilities, even accounting for normal degradation.</>
-            ) : confidence.overall_score >= 50 ? (
-              <>This vehicle scores as <span className="font-bold text-white">moderate risk</span> due to a combination of age, mileage,
-              and potential degradation factors. While not a deal-breaker, we recommend obtaining a battery health report before purchase.
-              The good news: your {input.dailyMiles} miles/day usage is manageable, and {input.homeCharging ? 'home charging access significantly reduces ownership costs' : 'investing in home charging would improve ownership economics'}.</>
-            ) : (
-              <>This vehicle scores as <span className="font-bold text-white">higher risk</span> primarily due to advanced age or high mileage.
-              Battery replacement may be needed within 2-3 years. However, if priced accordingly (factor in ${confidence.battery_risk.estimated_replacement_cost.toLocaleString()} for future replacement),
-              it could still make sense for your {input.dailyMiles} miles/day needs. We strongly recommend a pre-purchase battery diagnostic.</>
-            )}
-          </p>
-        </div>
-
-        {/* Score Interpretation Guide */}
-        <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-2xl p-6 mb-8 border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Understanding Your Score</h3>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="bg-white p-4 rounded-lg border-l-4 border-green-500">
-              <div className="flex items-center mb-2">
-                <span className="text-2xl mr-2">🟢</span>
-                <span className="font-bold text-green-700">75-100: Low Risk</span>
-              </div>
-              <p className="text-sm text-gray-600">
-                Good purchase candidate. Battery health is strong, minimal recalls, good ownership fit.
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg border-l-4 border-yellow-500">
-              <div className="flex items-center mb-2">
-                <span className="text-2xl mr-2">🟡</span>
-                <span className="font-bold text-yellow-700">50-74: Moderate Risk</span>
-              </div>
-              <p className="text-sm text-gray-600">
-                Consider carefully. Get battery health report and budget for potential repairs within 2-3 years.
-              </p>
-            </div>
-            <div className="bg-white p-4 rounded-lg border-l-4 border-red-500">
-              <div className="flex items-center mb-2">
-                <span className="text-2xl mr-2">🔴</span>
-                <span className="font-bold text-red-700">0-49: High Risk</span>
-              </div>
-              <p className="text-sm text-gray-600">
-                Proceed with caution. Likely needs battery replacement or major repairs soon. Negotiate price accordingly.
-              </p>
-            </div>
-          </div>
-        </div>
+        {/* REMOVED: Legacy scoring sections (Why This Score + Score Interpretation Guide)
+            Violations: overall_score thresholds, green/yellow/red coding, "good/bad" language
+            Replaced by Phase 0.5 modules above */}
 
         {/* Detailed Breakdown */}
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-8 border border-gray-100">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            Detailed Risk Analysis
+            Battery & Platform Considerations
           </h2>
 
-          {/* Battery Risk Details */}
+          {/* Battery Considerations */}
           <div className="mb-6 pb-6 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
               <span className="w-2 h-2 bg-blue-600 rounded-full mr-3"></span>
-              Battery Risk ({confidence.battery_risk.score}/100)
+              Battery Considerations
             </h3>
             <p className="text-gray-700 mb-2">{confidence.battery_risk.details}</p>
+
+            {/* HARD BLOCKER #2: Battery Uncertainty Amplification (Failure Mode) */}
+            {!confidenceInputs.batteryHealth.hasSOHReport && (
+              <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-lg mb-4">
+                <h4 className="font-semibold text-orange-900 mb-2">
+                  Battery Uncertainty Amplification
+                </h4>
+                <p className="text-sm text-orange-800">
+                  Without a battery health report, degradation estimates are based on age and mileage patterns.
+                  Actual battery condition could be significantly better or worse than typical. This uncertainty
+                  compounds over time—what feels manageable now may become friction later if degradation
+                  accelerates unexpectedly.
+                </p>
+              </div>
+            )}
+
             <div className="grid md:grid-cols-2 gap-4 mt-3">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-sm font-semibold text-gray-700">Estimated Degradation</p>
                 <p className="text-2xl font-bold text-blue-600">{confidence.battery_risk.degradation_percent}%</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  {confidenceInputs.batteryHealth.hasSOHReport
+                    ? "Based on battery health report"
+                    : "Based on typical age/mileage patterns"}
+                </p>
               </div>
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-sm font-semibold text-gray-700">Replacement Cost Estimate</p>
@@ -512,13 +366,29 @@ function ReportContent() {
             </div>
           </div>
 
-          {/* Platform Risk Details */}
+          {/* Platform Considerations */}
           <div className="mb-6 pb-6 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
               <span className="w-2 h-2 bg-purple-600 rounded-full mr-3"></span>
-              Platform Risk ({confidence.platform_risk.score}/100)
+              Platform Considerations
             </h3>
             <p className="text-gray-700 mb-2">{confidence.platform_risk.details}</p>
+
+            {/* HARD BLOCKER #2: Edge-Case Dominance (Failure Mode - Critical Recalls) */}
+            {confidence.platform_risk.critical_recalls > 0 && (
+              <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-lg mb-4">
+                <h4 className="font-semibold text-orange-900 mb-2">
+                  Edge-Case Dominance
+                </h4>
+                <p className="text-sm text-orange-800">
+                  This model has {confidence.platform_risk.critical_recalls} critical recall(s).
+                  Even if rare, critical recalls can create disproportionate friction—what seems like
+                  a small probability becomes your reality if it happens. Verify completion status
+                  before purchase to avoid surprise service interruptions.
+                </p>
+              </div>
+            )}
+
             <div className="grid md:grid-cols-3 gap-4 mt-3">
               <div className="bg-purple-50 p-4 rounded-lg">
                 <p className="text-sm font-semibold text-gray-700">Total Recalls</p>
@@ -528,10 +398,7 @@ function ReportContent() {
                 <p className="text-sm font-semibold text-gray-700">Critical Recalls</p>
                 <p className="text-2xl font-bold text-purple-600">{confidence.platform_risk.critical_recalls}</p>
               </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <p className="text-sm font-semibold text-gray-700">Reliability Score</p>
-                <p className="text-2xl font-bold text-purple-600">{confidence.platform_risk.reliability_score}/10</p>
-              </div>
+              {/* REMOVED: Reliability Score /10 - scoring violation */}
             </div>
           </div>
 
@@ -539,7 +406,7 @@ function ReportContent() {
           <div>
             <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
               <span className="w-2 h-2 bg-green-600 rounded-full mr-3"></span>
-              Ownership Fit ({confidence.ownership_fit.score}/100)
+              Ownership Fit for Your Usage
             </h3>
             <p className="text-gray-700 mb-2">{confidence.ownership_fit.details}</p>
 
@@ -562,7 +429,7 @@ function ReportContent() {
                       <p className="flex items-start">
                         <span className="text-green-600 mr-2">✓</span>
                         <span><strong>Degradation Buffer:</strong> Even with {confidence.battery_risk.degradation_percent}% estimated degradation,
-                        this vehicle remains a {degradedUsagePercent < 40 ? 'excellent' : degradedUsagePercent < 60 ? 'good' : 'viable'} fit for your needs ({degradedUsagePercent}% of degraded range)</span>
+                        your daily usage would be {degradedUsagePercent}% of the degraded range</span>
                       </p>
                       <p className="flex items-start">
                         <span className="text-green-600 mr-2">✓</span>
@@ -635,7 +502,7 @@ function ReportContent() {
                   </svg>
                   <p className="text-sm text-gray-700">
                     <strong>For your usage:</strong> At {input.dailyMiles} miles/day (~{Math.round(input.dailyMiles * 365)} miles/year),
-                    replacement risk within the next 3–5 years is {confidence.battery_risk.score >= 85 ? 'very low' : confidence.battery_risk.score >= 70 ? 'low' : 'moderate'}
+                    replacement timing depends on actual battery health data and your specific usage patterns
                   </p>
                 </div>
               </div>
@@ -855,10 +722,17 @@ function ReportContent() {
           </div>
         </div>
 
+        {/* HARD BLOCKER #1: Decision State Summary (Report Closure) */}
+        <DecisionStateSummary
+          confidenceInputs={confidenceInputs}
+          vehicleAge={input.year ? new Date().getFullYear() - input.year : undefined}
+          vehicleModel={input.model}
+        />
+
         {/* Next Steps */}
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Next Steps (Free Version)
+            Due Diligence Steps
           </h2>
           <ul className="space-y-3">
             <li className="flex items-start">
@@ -881,7 +755,7 @@ function ReportContent() {
             </li>
             <li className="flex items-start">
               <span className="text-blue-600 mr-3 mt-1">✓</span>
-              <span className="text-gray-700">Consider extended warranty if available and vehicle score is Yellow/Red</span>
+              <span className="text-gray-700">Consider extended warranty if available based on your tolerance for uncertainty</span>
             </li>
           </ul>
         </div>
