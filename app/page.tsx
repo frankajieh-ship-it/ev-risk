@@ -215,30 +215,30 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/20 to-white" ref={containerRef}>
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="max-w-7xl mx-auto px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
 
             {/* Brand */}
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-shrink">
               <img
                 src="/offo-lab-logo.png"
                 alt="OFFO Lab Consulting"
-                className="h-10 md:h-12 lg:h-14 shrink-0"
+                className="hidden lg:block h-8 shrink-0"
               />
               <div className="min-w-0">
-                <div className="truncate text-lg md:text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
+                <div className="truncate text-sm md:text-base lg:text-lg font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
                   EV-Risk™
                 </div>
-                <div className="truncate text-xs md:text-sm text-gray-500 font-medium">by OFFO Lab</div>
+                <div className="hidden sm:block truncate text-xs text-gray-500 font-medium">by OFFO Lab</div>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-3 md:justify-end">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <a
                 href="/blog"
                 onClick={() => trackBlogLinkClick("nav", "/blog")}
-                className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors hover:underline"
+                className="hidden sm:block text-xs md:text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors whitespace-nowrap"
               >
                 Insights
               </a>
@@ -247,9 +247,10 @@ export default function Home() {
                   formRef.current?.scrollIntoView({ behavior: 'smooth' });
                   trackButtonClick("Run a quick sanity-check", "nav");
                 }}
-                className="inline-flex w-full md:w-auto justify-center rounded-lg px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-green-600 hover:shadow-lg transition-all duration-300"
+                className="rounded-lg px-2 sm:px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-green-600 hover:shadow-lg transition-all whitespace-nowrap"
               >
-                Run a quick sanity-check
+                <span className="hidden sm:inline">Run a quick sanity-check</span>
+                <span className="sm:hidden">Check EV</span>
               </button>
             </div>
 
