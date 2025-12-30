@@ -231,51 +231,81 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
       timestamp: new Date().toISOString(),
     });
 
-    // Fetch HTML with enhanced headers to avoid bot detection
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Referer': 'https://www.google.com/',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'cross-site',
-        'Upgrade-Insecure-Requests': '1',
-        'Cache-Control': 'max-age=0',
-      },
-      redirect: 'follow',
-    });
+    // Use proxy fetch for better success rate (server-side fetch with rotating user agents)
+    let html: string;
+    let fetchMethod = 'proxy';
 
-    // Log response status for debugging
-    console.log('[Listing Scraper] Response status:', response.status, response.statusText);
+    try {
+      // Try proxy fetch first (better for avoiding bot detection)
+      const proxyResponse = await fetch('/api/proxy-fetch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url, timeout: 15000 }),
+      });
 
-    if (!response.ok) {
-      // Special handling for Carvana 403 (Cloudflare blocking)
-      if (dataSource === 'carvana' && response.status === 403) {
-        console.log('[Listing Scraper] Carvana blocked request (403)');
+      const proxyResult = await proxyResponse.json();
+
+      if (proxyResult.success && proxyResult.html) {
+        html = proxyResult.html;
+        console.log('[Listing Scraper] Proxy fetch successful, HTML length:', html.length);
+      } else {
+        // Proxy failed, fall back to direct fetch
+        fetchMethod = 'direct';
+        console.log('[Listing Scraper] Proxy fetch failed, falling back to direct fetch:', proxyResult.error);
+        throw new Error('Proxy fetch failed');
+      }
+    } catch (proxyError) {
+      // Fallback to direct fetch if proxy fails
+      fetchMethod = 'direct';
+      console.log('[Listing Scraper] Using direct fetch as fallback');
+
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Referer': 'https://www.google.com/',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'cross-site',
+          'Upgrade-Insecure-Requests': '1',
+          'Cache-Control': 'max-age=0',
+        },
+        redirect: 'follow',
+      });
+
+      // Log response status for debugging
+      console.log('[Listing Scraper] Direct fetch response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        // Special handling for Carvana 403 (Cloudflare blocking)
+        if (dataSource === 'carvana' && response.status === 403) {
+          console.log('[Listing Scraper] Carvana blocked request (403)');
+          return {
+            success: false,
+            data: null,
+            error: 'Carvana actively blocks automated data extraction. Please enter vehicle details manually.',
+            warnings: ['Carvana uses Cloudflare protection to prevent automated access', 'Manual entry provides better accuracy anyway'],
+          };
+        }
+
+        console.log('[Listing Scraper] HTTP error:', response.status);
         return {
           success: false,
           data: null,
-          error: 'Carvana actively blocks automated data extraction. Please enter vehicle details manually.',
-          warnings: ['Carvana uses Cloudflare protection to prevent automated access', 'Manual entry provides better accuracy anyway'],
+          error: `Unable to access listing (Error ${response.status}). The site may be blocking automated requests. Please try entering the details manually.`,
+          warnings: ['Many car listing sites protect against automated access', 'Manual entry is often more reliable'],
         };
       }
 
-      console.log('[Listing Scraper] HTTP error:', response.status);
-      return {
-        success: false,
-        data: null,
-        error: `Unable to access listing (Error ${response.status}). The site may be blocking automated requests. Please try entering the details manually.`,
-        warnings: ['Many car listing sites protect against automated access', 'Manual entry is often more reliable'],
-      };
+      html = await response.text();
+      console.log('[Listing Scraper] Direct fetch HTML received, length:', html.length);
     }
 
-    const html = await response.text();
-
-    // Log HTML length for debugging (helps identify if we got blocked)
-    console.log('[Listing Scraper] HTML received, length:', html.length);
+    console.log('[Listing Scraper] Fetch method used:', fetchMethod);
 
     // Check if we got a blocked/captcha page
     const isBlocked = html.includes('captcha') ||
