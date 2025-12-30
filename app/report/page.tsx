@@ -7,6 +7,7 @@ import PersonalizationOpportunityCard from "@/components/PersonalizationOpportun
 import DataQualityDecisionConfidence from "@/components/DataQualityDecisionConfidence";
 import WhatsMissingModule from "@/components/WhatsMissingModule";
 import DecisionStateSummary from "@/components/DecisionStateSummary";
+import { VehicleContextFactors } from "@/components/VehicleContextFactors";
 import { generateConfidenceData, type ConfidenceInputs } from "@/lib/confidence-calculator";
 import { generateMissingDataExplanations, getPrimaryMissingExplanation, generatePersonalizationOpportunities } from "@/lib/missing-data-generator";
 import type { KnownDataPoint, UnknownDataPoint, RiskFactor } from "@/types/report";
@@ -312,6 +313,14 @@ function ReportContent() {
             onAddInfo={scrollToPersonalization}
           />
         )}
+
+
+        {/* Vehicle Context Factors - Shows calculated scores in context-aware way */}
+        <VehicleContextFactors
+          batteryRisk={confidence.battery_risk}
+          platformRisk={confidence.platform_risk}
+          ownershipFit={confidence.ownership_fit}
+        />
 
         {/* REMOVED: Legacy scoring sections (Why This Score + Score Interpretation Guide)
             Violations: overall_score thresholds, green/yellow/red coding, "good/bad" language
