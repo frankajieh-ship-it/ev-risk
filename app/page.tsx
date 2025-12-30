@@ -897,8 +897,26 @@ export default function Home() {
             This tool provides guidance only and does not replace professional inspection.
           </p>
 
-          {/* OFFO Lab Footer */}
+          {/* Feedback Section */}
           <div className="mt-8 pt-6 border-t border-gray-200">
+            <div className="bg-gradient-to-r from-blue-50 to-green-50 border-l-4 border-green-500 rounded-lg p-6 mb-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                📣 Help Us Improve
+              </h3>
+              <p className="text-sm text-gray-700 mb-4">
+                Your feedback helps us make EV-Risk™ more accurate and useful for everyone.
+              </p>
+              <a
+                href="/feedback"
+                className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-lg hover:from-blue-700 hover:to-green-700 transition-all font-semibold text-sm"
+              >
+                Share Your Feedback
+              </a>
+            </div>
+          </div>
+
+          {/* OFFO Lab Footer */}
+          <div className="mt-4 pt-6 border-t border-gray-200">
             <p className="text-xs text-gray-500">
               Powered by{" "}
               <a
