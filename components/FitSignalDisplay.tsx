@@ -19,6 +19,7 @@ export default function FitSignalDisplay({
   const normalizedSignal = fitSignal.startsWith("Good Fit") ? "Good Fit" : fitSignal;
 
   // Styling based on fit signal
+  type ConfigKey = "Good Fit" | "Conditional Fit" | "High Friction";
   const config = {
     "Good Fit": {
       icon: CheckCircle,
@@ -44,7 +45,7 @@ export default function FitSignalDisplay({
       iconColor: "text-red-600",
       badgeColor: "bg-red-100 text-red-800 border-red-300",
     },
-  }[normalizedSignal];
+  }[normalizedSignal as ConfigKey];
 
   const Icon = config.icon;
 

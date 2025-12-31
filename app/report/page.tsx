@@ -47,22 +47,22 @@ interface PlatformRisk {
 interface OwnershipFit {
   score: number;
   weight: number;
-  climate_impact: string;
+  climate_impact: "Favorable" | "Moderate" | "Challenging";
   charger_density: string;
-  annual_miles_fit: string;
+  annual_miles_fit: "Good" | "Moderate" | "Poor";
   details: string;
 }
 
 interface BuyConfidence {
   overall_score: number;
   rating: "GREEN" | "YELLOW" | "RED"; // DEPRECATED: Use fit_signal instead
-  fit_signal: "Good Fit" | "Conditional Fit" | "High Friction";
+  fit_signal: "Good Fit" | "Good Fit — with conditions" | "Conditional Fit" | "High Friction";
   emoji: "🟢" | "🟡" | "🔴";
   recommendation: string;
   one_sentence_verdict: string;
   becomes_annoying_if: string;
   what_breaks_first: string[];
-  confidence: "HIGH" | "MEDIUM" | "LOW";
+  confidence: "High" | "Medium" | "Low"; // Changed from ALL CAPS to Title Case
   confidence_note: string;
   confidence_why: string[];
   top_drivers: Array<{ label: string; impact: "HIGH" | "MEDIUM" | "LOW" }>;
