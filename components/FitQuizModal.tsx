@@ -4,11 +4,16 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronRight, ChevronLeft, Battery, Home, Zap, Clock, DollarSign } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface FitQuizModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialData?: Partial<QuizAnswers>;
+  initialData?: Partial<QuizAnswers> & {
+    batteryInfoAvailable?: boolean;
+    dataSource?: 'url-extraction' | 'manual-entry';
+    missingFields?: string[];
+  };
 }
 
 interface QuizAnswers {
@@ -111,6 +116,7 @@ const questions = [
 
 export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizModalProps) {
   const router = useRouter();
+  const { trackEvent } = useEventTracking();
   const [textInput, setTextInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -190,6 +196,13 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
       return;
     }
 
+    // Track report generation with source
+    trackEvent("report_generated", {
+      source: initialData?.dataSource || 'url_extraction',
+      has_battery_info: initialData?.batteryInfoAvailable !== undefined ? initialData.batteryInfoAvailable : true,
+      missing_fields_count: initialData?.missingFields?.length || 0,
+    });
+
     // Create properly formatted data for the scoring API
     const reportData = {
       model: answers.model,
@@ -200,6 +213,10 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
       homeCharging: answers.homeCharging,
       riskTolerance: answers.riskTolerance,
       source: "fit-quiz",
+      // Pass through manual entry metadata if available
+      ...(initialData?.batteryInfoAvailable !== undefined && { batteryInfoAvailable: initialData.batteryInfoAvailable }),
+      ...(initialData?.dataSource && { dataSource: initialData.dataSource }),
+      ...(initialData?.missingFields && initialData.missingFields.length > 0 && { missingFields: initialData.missingFields }),
     };
 
     console.log('[Fit Quiz] Submitting data:', reportData);

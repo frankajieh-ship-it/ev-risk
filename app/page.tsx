@@ -10,6 +10,8 @@ import FitQuizModal from "@/components/FitQuizModal";
 import ListingUrlForm from "@/components/ListingUrlForm";
 import TrustMicrocopy from "@/components/TrustMicrocopy";
 import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
+import VehicleInputTabs from "@/components/VehicleInputTabs";
+import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 
 export default function Home() {
   const router = useRouter();
@@ -21,7 +23,7 @@ export default function Home() {
     trackSessionDuration: true,
   });
 
-  const { trackButtonClick, trackUrlAutofillAttempt } = useEventTracking();
+  const { trackButtonClick, trackUrlAutofillAttempt, trackEvent } = useEventTracking();
 
   const [stats, setStats] = useState({
     vehiclesAnalyzed: 12547,
@@ -129,6 +131,31 @@ export default function Home() {
     trackButtonClick("manual_entry_success", "homepage");
   };
 
+  const handleManualEntryInline = async (manualData: ManualEntryData) => {
+    console.log('[Frontend] Manual entry inline submitted:', manualData);
+
+    // Track manual entry submit event
+    trackEvent("manual_entry_submit", {
+      context: "homepage",
+      has_mileage: !!manualData.mileage,
+      has_battery_info: manualData.batteryInfoAvailable,
+      missing_fields_count: manualData.missingFields.length,
+    });
+
+    // Build extracted vehicle data structure
+    setExtractedVehicleData({
+      model: `${manualData.make} ${manualData.model}`,
+      year: manualData.year,
+      currentMileage: manualData.mileage || 0,
+      batteryInfoAvailable: manualData.batteryInfoAvailable,
+      dataSource: 'manual-entry',
+      missingFields: manualData.missingFields,
+    });
+
+    // Open quiz with pre-filled data
+    setQuizOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/20 to-white">
       {/* Navigation */}
@@ -186,14 +213,14 @@ export default function Home() {
         </div>
       </section>
 
-      {/* URL Scanner Section - Above the Fold */}
+      {/* Vehicle Input Section - Above the Fold */}
       <section className="max-w-3xl mx-auto px-4 pb-6 md:pb-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
         >
-          <ListingUrlForm
+          <VehicleInputTabs
             onExtract={handleExtractListing}
             extracting={extracting}
             error={extractError}
@@ -208,6 +235,7 @@ export default function Home() {
               setShowExtractedData(false);
               setExtractError(null);
             }}
+            onManualSubmit={handleManualEntryInline}
           />
         </motion.div>
       </section>

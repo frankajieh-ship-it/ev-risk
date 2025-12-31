@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Link2, Loader2, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
+import PhotoUploadPlaceholder from "./PhotoUploadPlaceholder";
 
 interface ListingUrlFormProps {
   onExtract: (url: string) => Promise<void>;
@@ -208,6 +209,9 @@ export default function ListingUrlForm({
             </p>
           </div>
         )}
+
+        {/* Photo Upload Placeholder */}
+        <PhotoUploadPlaceholder />
       </form>
     </div>
   );

@@ -28,6 +28,10 @@ export interface ScoringInput {
   dailyMiles: number;
   homeCharging: boolean;
   riskTolerance: "conservative" | "moderate" | "aggressive";
+  // Optional metadata for manual entry tracking
+  batteryInfoAvailable?: boolean;
+  dataSource?: 'url-extraction' | 'manual-entry';
+  missingFields?: string[];
 }
 
 // ---------- Output Types ----------
@@ -395,6 +399,11 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
     }
 
     confidence_note = `Based on ${battery_risk.chemistry} battery chemistry, ${platform_risk.total_recalls} recall record, and charging infrastructure.`;
+
+    // Add note about missing battery info improving confidence
+    if (input.batteryInfoAvailable === false) {
+      confidence_note += " Note: Confidence would improve with battery state of health data.";
+    }
   } else if (adjusted_score >= 50) {
     rating = "YELLOW";
     fit_signal = "Conditional Fit";
@@ -475,6 +484,20 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
   if (!input.homeCharging && charger_density === "Low") {
     confidence_why.push("Local charging competition varies by time of day");
   }
+
+  // Handle missing battery info flag from manual entry
+  if (input.batteryInfoAvailable === false) {
+    confidence_why.push("Battery health data not available - using age-based estimates");
+  }
+
+  // Handle other missing fields from manual entry
+  if (input.missingFields && input.missingFields.length > 0) {
+    const fieldsToReport = input.missingFields.filter(f => f !== 'battery health'); // Already handled above
+    if (fieldsToReport.length > 0) {
+      confidence_why.push(`Missing: ${fieldsToReport.join(', ')}`);
+    }
+  }
+
   if (confidence_why.length === 0) {
     confidence_why.push(`Based on ${battery_risk.chemistry} battery chemistry and ${charger_density.toLowerCase()} charger density`);
   }

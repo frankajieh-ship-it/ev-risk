@@ -24,7 +24,9 @@ export async function POST(request: NextRequest) {
       homeCharging,
       riskTolerance,
       dataSource,
-      autoFilledFields
+      autoFilledFields,
+      batteryInfoAvailable,
+      missingFields
     } = body;
 
     if (!model || typeof model !== "string") {
@@ -85,6 +87,10 @@ export async function POST(request: NextRequest) {
       dailyMiles,
       homeCharging,
       riskTolerance,
+      // Pass through manual entry metadata
+      ...(batteryInfoAvailable !== undefined && { batteryInfoAvailable }),
+      ...(dataSource && { dataSource: dataSource as 'url-extraction' | 'manual-entry' }),
+      ...(missingFields && missingFields.length > 0 && { missingFields }),
     };
 
     // Calculate score
