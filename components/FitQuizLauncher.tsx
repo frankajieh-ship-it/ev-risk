@@ -18,10 +18,10 @@ export default function FitQuizLauncher({ onClick }: FitQuizLauncherProps) {
         </div>
         <div>
           <h3 className="text-xl font-bold text-gray-900">
-            5-Question Fit Check
+            7-Question Fit Check
           </h3>
           <p className="text-sm text-gray-600">
-            No vehicle in mind yet? Start here
+            Quick assessment with vehicle details
           </p>
         </div>
       </div>
@@ -29,21 +29,21 @@ export default function FitQuizLauncher({ onClick }: FitQuizLauncherProps) {
       <div className="space-y-2 mb-4">
         <div className="flex items-center gap-2 text-sm text-gray-700">
           <div className="w-1.5 h-1.5 bg-green-600 rounded-full"></div>
-          <span>Analyze your daily routine</span>
+          <span>Enter vehicle + usage details</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-700">
           <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
-          <span>Check charging fit</span>
+          <span>Get instant fit assessment</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-700">
           <div className="w-1.5 h-1.5 bg-purple-600 rounded-full"></div>
-          <span>Get personalized recommendations</span>
+          <span>See what might break first</span>
         </div>
       </div>
 
       <div className="flex items-center justify-between pt-4 border-t border-gray-100">
         <span className="text-sm font-medium text-gray-600">
-          Takes 30 seconds
+          Takes 1-2 minutes
         </span>
         <div className="flex items-center gap-1 text-sm font-semibold text-green-600 group-hover:gap-2 transition-all">
           Start Quiz

@@ -1,0 +1,325 @@
+Strategic Content Partnerships Plan
+
+Goal: Turn trusted creators and communities into distribution surfaces for clarity, not ads
+North Star: Credibility → Context → Quiet conversion
+
+1. Partnership Philosophy (Lock This In)
+
+We are not buying attention.
+We are embedding analysis into places where decisions already happen.
+
+Our role in every partnership:
+
+Analyst
+
+Data contributor
+
+Sanity-check layer
+
+Regret-prevention lens
+
+Hard rules:
+
+No affiliate links
+
+No “sponsored by”
+
+No CTA in the content itself
+
+OFFO mentioned only as source, not product
+
+2. Primary Channel: EV YouTube Creators (Used EV Focus)
+Target Profile (Very Specific)
+
+You are not looking for:
+
+EV hype channels
+
+First-drive reviewers
+
+“Top 10 EVs” content
+
+You want creators who:
+
+Review used EVs
+
+Talk about ownership tradeoffs
+
+Cover battery health, depreciation, real-life use
+
+Have trust, not massive reach (5K–100K subs is ideal)
+
+Examples of segment types (not creators):
+
+“Is this used Model 3 still worth it?”
+
+“Living with a used Leaf in 2025”
+
+“What I’d check before buying this EV”
+
+Partnership Offer (Exact Pitch Framing)
+
+What you offer:
+
+A free, independent analysis of the specific EV they’re reviewing
+
+Clear risks, fit conditions, and failure modes
+
+Plain English, not marketing
+
+What you do NOT offer:
+
+Payment
+
+Scripts
+
+Talking points
+
+Endorsements
+
+Outreach Pitch (Template)
+
+I’m not selling anything — I work on EV decision analysis.
+
+If you’re reviewing a used EV, I can run an independent fit + risk analysis on that exact model/listing and send you a one-page summary you can reference in your video.
+
+Totally free. If it’s useful, feel free to cite it as “analysis courtesy of OFFO Labs.” If not, no worries at all.
+
+This framing:
+
+Removes pressure
+
+Signals confidence
+
+Makes them curious
+
+Keeps control with the creator
+
+How It Appears in Their Content
+
+Acceptable mentions:
+
+“We had an independent analysis done…”
+
+“According to OFFO Labs’ analysis…”
+
+“Data provided by OFFO Labs”
+
+Not acceptable:
+
+“Check out this tool”
+
+“Sponsored by”
+
+Links in description unless they ask
+
+Your win is:
+
+Spoken credibility
+
+Screenshot of analysis
+
+Source attribution
+
+Internal Workflow (So You Don’t Burn Out)
+
+Creator agrees → sends model/listing
+
+You generate:
+
+30-second summary
+
+“What breaks first”
+
+Fit conditions
+
+Deliver as:
+
+1-page PDF
+
+Or shareable report link (anonymous)
+
+Archive it internally as:
+
+“Creator Analysis – Model X – Date”
+
+Later, these become:
+
+Case studies
+
+Pattern libraries
+
+Landing-page proof
+
+3. Secondary Channel: Guest Writing (Blogs / Newsletters)
+Target Publications
+
+Not mainstream EV news.
+
+Look for:
+
+Niche EV newsletters
+
+Used-car buyer newsletters
+
+Energy / sustainability blogs with thoughtful audiences
+
+Apartment-living / urban mobility blogs
+
+Audience should already be thinking, not browsing.
+
+Content Angle (Do Not Pitch Product)
+
+You pitch ideas, not tools.
+
+Example Article Titles
+
+“Why Range Anxiety Is the Wrong Question for Used EV Buyers”
+
+“The Hidden Cost of Unpredictable Charging”
+
+“When an EV Is the Right Car — Just Not for You”
+
+Your role:
+
+Data contributor / analyst
+
+Bio line:
+
+Contributor to OFFO Labs, which studies EV–lifestyle fit and ownership risk.
+
+No CTA.
+No signup push.
+
+Why This Works
+
+Editors want insight, not ads
+
+You become a cited source
+
+Readers self-select later when they’re unsure
+
+This builds slow trust, which matches your product.
+
+4. Community Wikis & Forums (Long-Tail Authority)
+Target Surfaces
+
+EV model-specific forums
+
+Owner wikis
+
+Community-maintained guides
+
+Enthusiast documentation
+
+Examples of contribution types:
+
+“Used EV Buying Checklist”
+
+“Charging Predictability Considerations”
+
+“Apartment Ownership Caveats”
+
+How to Contribute (Important)
+
+You do NOT link to a tool.
+
+You:
+
+Share frameworks
+
+Share decision logic
+
+Share failure modes
+
+Attribution line:
+
+Analysis framework contributed by OFFO Labs
+
+This creates:
+
+Durable authority
+
+Search surface
+
+Long-term discovery
+
+5. Measurement (What Success Actually Looks Like)
+
+Do not track success as:
+
+Clicks
+
+Signups
+
+Follower growth
+
+Track:
+
+How often OFFO is cited without prompting
+
+DMs that start with “I saw you mentioned…”
+
+People pasting listings and asking “does this fit?”
+
+Early win benchmarks (realistic):
+
+2–3 creator collaborations in 60 days
+
+1 guest article published
+
+3–5 unsolicited inbound questions
+
+That’s a strong signal for this category.
+
+6. Guardrails (Avoid This at All Costs)
+
+🚫 No mass outreach
+🚫 No “media kits”
+🚫 No influencer marketplaces
+🚫 No tracking pixels in shared reports
+🚫 No retargeting
+
+Anything that smells like growth hacking will destroy trust.
+
+7. 30-Day Execution Plan
+Week 1
+
+Identify 10 creators (used EV focus)
+
+Draft 1-page sample analysis (generic model)
+
+Prepare outreach template
+
+Week 2
+
+Reach out to 5 creators (max)
+
+Pitch guest article to 2 publications
+
+Week 3
+
+Deliver first free analysis
+
+Observe what creators react to / question
+
+Week 4
+
+Refine analysis language
+
+Document patterns
+
+Decide whether to scale or pause
+
+Final Framing (For You Internally)
+
+This strategy is not about reach.
+It’s about placing calm intelligence next to noisy decisions.
+
+If done right:
+
+OFFO becomes “the people who tell the uncomfortable truth”
+
+Creators trust you
+
+Users come to you already believing
