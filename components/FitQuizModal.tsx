@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronRight, ChevronLeft, Battery, Home, Zap, Clock, DollarSign } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 interface FitQuizModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialData?: Partial<QuizAnswers>;
 }
 
 interface QuizAnswers {
@@ -39,10 +40,11 @@ const questions = [
     type: "options" as const,
     options: Array.from({ length: 12 }, (_, i) => {
       const year = currentYear - i;
+      const ageLabel = i === 0 ? "(0 yrs)" : i === 1 ? "(1 yr)" : `(${i} yrs)`;
       return {
         value: year,
         label: year.toString(),
-        description: i === 0 ? "Brand new" : i < 3 ? "Nearly new" : i < 7 ? "Mid-age" : "Older vehicle"
+        description: ageLabel
       };
     }),
   },
@@ -53,11 +55,23 @@ const questions = [
     description: "Approximate mileage on the vehicle",
     type: "options" as const,
     options: [
-      { value: 5000, label: "Under 10k miles", description: "Very low mileage" },
-      { value: 20000, label: "10k - 30k miles", description: "Low mileage" },
-      { value: 45000, label: "30k - 60k miles", description: "Average mileage" },
-      { value: 75000, label: "60k - 90k miles", description: "Higher mileage" },
-      { value: 100000, label: "90k+ miles", description: "High mileage" },
+      { value: 5000, label: "Under 10k miles", description: "" },
+      { value: 20000, label: "10k - 30k miles", description: "" },
+      { value: 45000, label: "30k - 60k miles", description: "" },
+      { value: 75000, label: "60k - 90k miles", description: "" },
+      { value: 100000, label: "90k+ miles", description: "" },
+    ],
+  },
+  {
+    id: "riskTolerance",
+    title: "Risk comfort level",
+    icon: DollarSign,
+    description: "How do you approach vehicle ownership decisions?",
+    type: "options" as const,
+    options: [
+      { value: "conservative", label: "Conservative", description: "Prefer newer, proven, low-risk options" },
+      { value: "moderate", label: "Moderate", description: "Balance risk and value" },
+      { value: "aggressive", label: "Adventurous", description: "Willing to take on higher risk for better deals" },
     ],
   },
   {
@@ -68,6 +82,7 @@ const questions = [
     type: "text" as const,
     placeholder: "e.g., 94102",
     pattern: "\\d{5}",
+    helperText: "Used to factor in climate + charging reliability patterns.",
   },
   {
     id: "dailyMiles",
@@ -89,29 +104,46 @@ const questions = [
     type: "options" as const,
     options: [
       { value: true, label: "Yes", description: "I have a garage or driveway with outlet access" },
-      { value: false, label: "No", description: "I rely on public charging only" },
-    ],
-  },
-  {
-    id: "riskTolerance",
-    title: "Risk comfort level",
-    icon: DollarSign,
-    description: "How do you approach vehicle ownership decisions?",
-    type: "options" as const,
-    options: [
-      { value: "conservative", label: "Conservative", description: "Prefer newer, proven, low-risk options" },
-      { value: "moderate", label: "Moderate", description: "Balance risk and value" },
-      { value: "aggressive", label: "Adventurous", description: "Willing to take on higher risk for better deals" },
+      { value: false, label: "No", description: "Charging depends on shared/public chargers" },
     ],
   },
 ];
 
-export default function FitQuizModal({ isOpen, onClose }: FitQuizModalProps) {
+export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizModalProps) {
   const router = useRouter();
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<Partial<QuizAnswers>>({});
   const [textInput, setTextInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answers, setAnswers] = useState<Partial<QuizAnswers>>({});
+
+  // Initialize answers with initialData when modal opens
+  useEffect(() => {
+    if (isOpen && initialData) {
+      setAnswers(initialData);
+    }
+  }, [isOpen, initialData]);
+
+  // Find first unanswered question (skip auto-filled questions)
+  const findFirstUnansweredQuestion = () => {
+    const currentAnswers = initialData || {};
+    for (let i = 0; i < questions.length; i++) {
+      const questionId = questions[i].id as keyof QuizAnswers;
+      if (!currentAnswers[questionId]) {
+        return i;
+      }
+    }
+    return 0; // Default to first question if all are answered
+  };
+
+  // Jump to first unanswered question when modal opens with initial data
+  useEffect(() => {
+    if (isOpen && initialData) {
+      console.log('[FitQuizModal] Initial data received:', initialData);
+      const firstUnanswered = findFirstUnansweredQuestion();
+      console.log('[FitQuizModal] Jumping to question index:', firstUnanswered, 'Question:', questions[firstUnanswered]?.id);
+      setCurrentQuestion(firstUnanswered);
+    }
+  }, [isOpen, initialData]);
 
   const currentQ = questions[currentQuestion];
   const Icon = currentQ.icon;
@@ -186,6 +218,13 @@ export default function FitQuizModal({ isOpen, onClose }: FitQuizModalProps) {
   const canProceed = isTextQuestion ? textInput.trim().length > 0 : !!currentAnswer;
   const canSubmit = Object.keys(answers).length === questions.length;
 
+  // Debug logging
+  if (isLastQuestion) {
+    console.log('[FitQuizModal] On last question. Answers:', answers);
+    console.log('[FitQuizModal] Answer count:', Object.keys(answers).length, 'Required:', questions.length);
+    console.log('[FitQuizModal] canSubmit:', canSubmit);
+  }
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -259,20 +298,35 @@ export default function FitQuizModal({ isOpen, onClose }: FitQuizModalProps) {
                       {/* Input Type */}
                       {isTextQuestion ? (
                         <div className="space-y-4">
-                          <input
-                            type="text"
-                            value={textInput}
-                            onChange={(e) => setTextInput(e.target.value)}
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter' && canProceed) {
-                                handleTextSubmit();
-                              }
-                            }}
-                            placeholder={currentQ.placeholder}
-                            pattern={currentQ.pattern}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all text-lg"
-                            autoFocus
-                          />
+                          <div>
+                            <input
+                              type="text"
+                              value={textInput || (currentAnswer as string) || ""}
+                              onChange={(e) => setTextInput(e.target.value)}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter' && canProceed) {
+                                  handleTextSubmit();
+                                }
+                              }}
+                              placeholder={currentQ.placeholder}
+                              pattern={currentQ.pattern}
+                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all text-lg"
+                              autoFocus
+                            />
+                            {(currentQ as any).helperText && (
+                              <p className="text-sm text-gray-600 mt-2">
+                                {(currentQ as any).helperText}
+                              </p>
+                            )}
+                            {currentAnswer && !textInput && (
+                              <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Auto-filled from listing
+                              </p>
+                            )}
+                          </div>
                           <button
                             onClick={handleTextSubmit}
                             disabled={!canProceed}
@@ -283,6 +337,14 @@ export default function FitQuizModal({ isOpen, onClose }: FitQuizModalProps) {
                         </div>
                       ) : (
                         <div className="space-y-3">
+                          {currentAnswer && initialData && initialData[currentQ.id as keyof QuizAnswers] && (
+                            <p className="text-sm text-green-600 mb-3 flex items-center gap-1">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Auto-filled from listing
+                            </p>
+                          )}
                           {currentQ.options?.map((option, idx) => {
                             const isSelected = currentAnswer === option.value;
 

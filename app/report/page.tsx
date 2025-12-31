@@ -15,9 +15,15 @@ import { WhyThisResult } from "@/components/WhyThisResult";
 import { MentalLoadIndicator } from "@/components/MentalLoadIndicator";
 import { WhatsMissing } from "@/components/WhatsMissing";
 import FitSignalDisplay from "@/components/FitSignalDisplay";
+import ThirtySecondSummary from "@/components/ThirtySecondSummary";
+import ShareDropdown from "@/components/ShareDropdown";
+import SaveForLaterModal from "@/components/SaveForLaterModal";
+import DebugPanel from "@/components/DebugPanel";
 import { generateConfidenceData, type ConfidenceInputs } from "@/lib/confidence-calculator";
+import { generateDebugData } from "@/lib/debug-helpers";
 import { generateMissingDataExplanations, getPrimaryMissingExplanation, generatePersonalizationOpportunities } from "@/lib/missing-data-generator";
 import { calculateRoutineFitClient } from "@/lib/routine-fit-client";
+import { useEventTracking } from "@/hooks/useEventTracking";
 import type { KnownDataPoint, UnknownDataPoint, RiskFactor } from "@/types/report";
 
 interface BatteryRisk {
@@ -54,7 +60,13 @@ interface BuyConfidence {
   emoji: "🟢" | "🟡" | "🔴";
   recommendation: string;
   one_sentence_verdict: string;
+  becomes_annoying_if: string;
+  what_breaks_first: string[];
+  confidence: "HIGH" | "MEDIUM" | "LOW";
   confidence_note: string;
+  confidence_why: string[];
+  top_drivers: Array<{ label: string; impact: "HIGH" | "MEDIUM" | "LOW" }>;
+  plan_b: string[];
   battery_risk: BatteryRisk;
   platform_risk: PlatformRisk;
   ownership_fit: OwnershipFit;
@@ -98,9 +110,17 @@ function ReportContent() {
   const [reportId, setReportId] = useState<string | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showFullReport, setShowFullReport] = useState(false);
+
+  // Event tracking
+  const { trackButtonClick } = useEventTracking();
 
   // Ref for scrolling to personalization section (must be at top level)
   const personalizationRef = useRef<HTMLDivElement>(null);
+
+  // Check for debug mode
+  const isDebugMode = searchParams.get("debug") === "1";
 
   useEffect(() => {
     // Check for 'data' param (normal flow) or 'payload' param (after payment)
@@ -109,18 +129,62 @@ function ReportContent() {
     const paidParam = searchParams.get("paid");
     const reportIdParam = searchParams.get("reportId");
 
+    console.log("[Report Page] useEffect triggered:", { dataParam: !!dataParam, payloadParam: !!payloadParam });
+
     // Set paid status and reportId
     setIsPaid(paidParam === "true");
     setReportId(reportIdParam);
 
     if (dataParam) {
-      try {
-        const parsed = JSON.parse(dataParam) as ReportData;
-        setReportData(parsed);
-      } catch (e) {
-        console.error("Failed to parse report data:", e);
-        router.push("/");
-      }
+      const loadData = async () => {
+        try {
+          const parsed = JSON.parse(dataParam);
+          console.log("[Report Page] Successfully parsed data:", parsed);
+
+          // Check if it's raw vehicle data or full report data
+          if (!parsed.confidence || !parsed.input) {
+            // Raw vehicle data - need to score it with defaults
+            console.log("[Report Page] Detected raw vehicle data, generating score with defaults");
+
+            // Call scoring API with defaults for missing user context
+            const scoringResponse = await fetch("/api/score", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: parsed.model || "Unknown Vehicle",
+                year: parsed.year || new Date().getFullYear(),
+                currentMileage: parsed.currentMileage || 0,
+                zipCode: "00000", // Default - will show as missing data
+                dailyMiles: 40, // Average default
+                homeCharging: false, // Conservative default
+                riskTolerance: "moderate", // Default
+              }),
+            });
+
+            if (!scoringResponse.ok) {
+              throw new Error("Failed to generate score");
+            }
+
+            const scoredData = await scoringResponse.json();
+            console.log("[Report Page] Generated score:", scoredData);
+            setReportData(scoredData);
+
+            // Track report_view event
+            trackButtonClick("report_view", "report-page");
+            return;
+          }
+
+          setReportData(parsed as ReportData);
+
+          // Track report_view event
+          trackButtonClick("report_view", "report-page");
+        } catch (e) {
+          console.error("Failed to parse report data:", e);
+          router.push("/");
+        }
+      };
+
+      loadData();
     } else if (payloadParam) {
       try {
         // Decode base64 payload (with Unicode support)
@@ -131,12 +195,17 @@ function ReportContent() {
             .join('')
         );
         const parsed = JSON.parse(decoded) as ReportData;
+        console.log("[Report Page] Successfully parsed payload data:", parsed);
         setReportData(parsed);
+
+        // Track report_view event
+        trackButtonClick("report_view", "report-page");
       } catch (e) {
         console.error("Failed to parse payload:", e);
         router.push("/");
       }
     } else {
+      console.log("[Report Page] No data or payload found, redirecting to home");
       router.push("/");
     }
   }, [searchParams, router]);
@@ -153,6 +222,18 @@ function ReportContent() {
   }
 
   const { confidence, input, breakdown } = reportData;
+
+  // Additional safety check for input data
+  if (!input || !confidence) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading report data...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Phase 0.5: Calculate confidence and determine activation
   const confidenceInputs: ConfidenceInputs = {
@@ -250,6 +331,7 @@ function ReportContent() {
               <a
                 href={`/api/report/${reportId}/pdf`}
                 download
+                onClick={() => trackButtonClick("report_save_click", "report-page")}
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -259,7 +341,10 @@ function ReportContent() {
               </a>
             )}
             <button
-              onClick={() => window.print()}
+              onClick={() => {
+                trackButtonClick("report_save_click", "report-page");
+                window.print();
+              }}
               className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -267,36 +352,29 @@ function ReportContent() {
               </svg>
               Print / Save PDF
             </button>
-            <button
-              onClick={() => {
-                const shareData = {
-                  title: `EV-Risk™ Report: ${input.year} ${input.model}`,
-                  text: `⚠️ This report explains fit and uncertainty. It does not rate vehicles or recommend purchases.\n\nEV ownership context report for ${input.year} ${input.model}\n\n${window.location.href}`,
-                  url: window.location.href,
-                };
-                if (navigator.share) {
-                  navigator.share(shareData);
-                } else {
-                  navigator.clipboard.writeText(shareData.text);
-                  alert("Report link with disclaimer copied to clipboard!");
-                }
-              }}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
-              Share
-            </button>
+            <ShareDropdown
+              vehicle={`${input.year} ${input.model}`}
+              fitSignal={confidence.fit_signal}
+              oneLiner={confidence.one_sentence_verdict}
+              becomesAnnoyingIf={confidence.becomes_annoying_if}
+              whatBreaksFirst={confidence.what_breaks_first}
+              onShare={() => trackButtonClick("report_share_click", "report-page")}
+            />
           </div>
+          <p className="text-xs text-gray-500 text-center mt-3">
+            Share to sanity-check opinions — no personal info included
+          </p>
         </div>
 
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          <h1 className="text-4xl font-bold text-gray-900 mb-1">
             EV-Risk™ Report
           </h1>
-          <p className="text-gray-600">
+          <p className="text-sm text-gray-500 mb-2 italic">
+            Explains fit and uncertainty — not recommendations
+          </p>
+          <p className="text-gray-600 text-lg font-medium">
             {input.year} {input.model}
           </p>
         </div>
@@ -310,15 +388,161 @@ function ReportContent() {
             - Battery/Platform/Ownership sub-scores
             Phase 0.5 modules below replace this functionality */}
 
+        {/* 30-SECOND SUMMARY - Above the Fold */}
+        <ThirtySecondSummary
+          fitSignal={confidence.fit_signal}
+          oneLiner={confidence.one_sentence_verdict}
+          becomesAnnoyingIf={confidence.becomes_annoying_if}
+          whatBreaksFirst={confidence.what_breaks_first}
+          confidence={confidence.confidence}
+          confidenceWhy={confidence.confidence_why}
+          topDrivers={confidence.top_drivers}
+          planB={confidence.plan_b}
+        />
+
+        {/* GET FULL REPORT CTA - Positioned right after Conditional Fit */}
+        {!showFullReport && (
+        <>
+        {/* Soft divider */}
+        <div className="mt-8 border-t border-gray-200 pt-8">
+          <div className="bg-gradient-to-br from-blue-50/30 to-green-50/30 rounded-xl p-6 border border-gray-200">
+            <div className="max-w-3xl mx-auto">
+              <h3 className="text-lg font-semibold text-gray-700 mb-3 text-center">
+                If you want deeper detail (optional)
+              </h3>
+              <p className="text-gray-600 text-center mb-6 text-sm">
+                Get the full 12-page report — <span className="font-semibold text-green-600">Free during early access</span>
+              </p>
+
+            {/* What's Included */}
+            <div className="bg-white rounded-xl p-6 mb-6">
+              <h4 className="font-bold text-gray-900 mb-4">What's Included:</h4>
+              <div className="grid md:grid-cols-2 gap-3">
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm text-gray-700">Complete battery health analysis</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm text-gray-700">Platform reliability scores</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm text-gray-700">Detailed cost projections</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm text-gray-700">Ownership timeline breakdown</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm text-gray-700">Regional risk factors</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm text-gray-700">Resale value predictions</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Why Upgrade */}
+            <div className="text-center mb-6">
+              <p className="text-sm text-gray-600 mb-4">
+                <strong>Why upgrade?</strong> Get detailed insights that help you negotiate better, plan maintenance, and avoid costly surprises.
+              </p>
+            </div>
+
+            {/* CTA Button */}
+            <div className="text-center">
+              <button
+                onClick={() => {
+                  setShowFullReport(true);
+                  trackButtonClick("view_full_report", "report-page");
+                  // Scroll to top to see the full report
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-green-600 text-white font-bold text-lg rounded-lg hover:shadow-lg transition-all transform hover:scale-105"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Get Full Report
+              </button>
+              <p className="mt-3 text-xs text-gray-500">
+                Available during early access — helping us refine the analysis
+              </p>
+            </div>
+          </div>
+        </div>
+        </div>
+        </>
+        )}
+
+        {/* SAVE FOR LATER - Progressive Engagement */}
+        {!showFullReport && (
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => setShowSaveModal(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:border-blue-500 hover:text-blue-600 transition-all"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            </svg>
+            Save for Later
+          </button>
+        </div>
+        )}
+
+        {/*
+        ============================================================
+        FULL REPORT SECTIONS
+        ============================================================
+        These sections are shown when user clicks "Get Full Report"
+        ============================================================
+        */}
+
+        {/* Full detailed sections - shown when user requests full report */}
+        {showFullReport && (
+          <>
+        {/* Back to Summary Button */}
+        <div className="mt-8 text-center">
+          <button
+            onClick={() => {
+              setShowFullReport(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gray-100 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 transition-all"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Summary
+          </button>
+        </div>
+
         {/* FREE VERSION: ROUTINE FIT ASSESSMENT */}
 
-        {/* FIT SIGNAL - Primary Assessment (Replaces Risk Rating) */}
-        <FitSignalDisplay
-          fitSignal={confidence.fit_signal}
-          oneSentenceVerdict={confidence.one_sentence_verdict}
-          confidenceNote={confidence.confidence_note}
-          score={confidence.overall_score}
-        />
+        {/* FIT SIGNAL - Primary Assessment (For backward compatibility) */}
+        <div className="mt-8">
+          <FitSignalDisplay
+            fitSignal={confidence.fit_signal}
+            oneSentenceVerdict={confidence.one_sentence_verdict}
+            confidenceNote={confidence.confidence_note}
+            score={confidence.overall_score}
+          />
+        </div>
 
         {/* 1️⃣ ONE-LINE VERDICT - Top of Page */}
         <RoutineFitVerdict
@@ -869,6 +1093,9 @@ function ReportContent() {
             <strong>Always obtain a pre-purchase inspection</strong> from a certified EV technician before purchasing.
           </p>
         </div>
+          </>
+        )}
+        {/* END HIDDEN SECTIONS */}
       </div>
 
       {/* Feedback Modal */}
@@ -1014,6 +1241,39 @@ function ReportContent() {
           </div>
         </div>
       )}
+
+      {/* Save for Later Modal */}
+      {reportData && input && (
+        <SaveForLaterModal
+          isOpen={showSaveModal}
+          onClose={() => setShowSaveModal(false)}
+          reportUrl={typeof window !== 'undefined' ? window.location.href : ''}
+          vehicle={`${input.year} ${input.model}`}
+        />
+      )}
+
+      {/* Debug Panel (only visible with ?debug=1) */}
+      {isDebugMode && reportData && input && confidence && (() => {
+        const debugData = generateDebugData({
+          model: input.model,
+          year: input.year,
+          currentMileage: (input as any).currentMileage || 0,
+          zipCode: input.zipCode,
+          dailyMiles: input.dailyMiles,
+          homeCharging: input.homeCharging,
+          riskTolerance: input.riskTolerance as "conservative" | "moderate" | "aggressive",
+        }, confidence);
+
+        return (
+          <DebugPanel
+            normalizedInputs={debugData.normalizedInputs}
+            derivedFeatures={debugData.derivedFeatures}
+            ruleTriggers={debugData.ruleTriggers}
+            inputHash={debugData.inputHash}
+            confidence={confidence}
+          />
+        );
+      })()}
     </div>
   );
 }

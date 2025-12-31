@@ -3,7 +3,7 @@
 import { CheckCircle, AlertTriangle, XCircle } from "lucide-react";
 
 interface FitSignalDisplayProps {
-  fitSignal: "Good Fit" | "Conditional Fit" | "High Friction";
+  fitSignal: "Good Fit" | "Good Fit — with conditions" | "Conditional Fit" | "High Friction";
   oneSentenceVerdict: string;
   confidenceNote: string;
   score: number;
@@ -15,6 +15,9 @@ export default function FitSignalDisplay({
   confidenceNote,
   score,
 }: FitSignalDisplayProps) {
+  // Normalize fit signal for config lookup (treat qualified "Good Fit" same as regular)
+  const normalizedSignal = fitSignal.startsWith("Good Fit") ? "Good Fit" : fitSignal;
+
   // Styling based on fit signal
   const config = {
     "Good Fit": {
@@ -41,7 +44,7 @@ export default function FitSignalDisplay({
       iconColor: "text-red-600",
       badgeColor: "bg-red-100 text-red-800 border-red-300",
     },
-  }[fitSignal];
+  }[normalizedSignal];
 
   const Icon = config.icon;
 

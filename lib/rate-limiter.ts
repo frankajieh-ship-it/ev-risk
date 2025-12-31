@@ -78,7 +78,7 @@ class RateLimiter {
 // Singleton instances for different endpoints
 export const extractionRateLimiter = new RateLimiter(
   15 * 60 * 1000, // 15 minutes
-  10 // 10 extractions per 15 min
+  100 // 100 extractions per 15 min (generous for development)
 );
 
 export const reportRateLimiter = new RateLimiter(

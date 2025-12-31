@@ -89,13 +89,22 @@ export async function POST(request: NextRequest) {
     }
 
     if (!result.success) {
+      // Determine which fields are missing
+      const missingFields: string[] = [];
+      if (!result.data?.make) missingFields.push('make');
+      if (!result.data?.model) missingFields.push('model');
+      if (!result.data?.year) missingFields.push('year');
+      if (!result.data?.mileage) missingFields.push('mileage');
+
       return NextResponse.json(
         {
           success: false,
+          needsMoreInfo: true,
+          missing: missingFields.length > 0 ? missingFields : ['make', 'model', 'year'],
           error: result.error || 'Failed to extract listing data',
           warnings: result.warnings || [],
         },
-        { status: 400 }
+        { status: 200 } // Return 200 so frontend can handle gracefully
       );
     }
 

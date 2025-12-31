@@ -7,9 +7,9 @@ import { useEventTracking } from "@/hooks/useEventTracking";
 import { motion } from "framer-motion";
 import { Shield, TrendingUp } from "lucide-react";
 import FitQuizModal from "@/components/FitQuizModal";
-import FitQuizLauncher from "@/components/FitQuizLauncher";
 import ListingUrlForm from "@/components/ListingUrlForm";
 import TrustMicrocopy from "@/components/TrustMicrocopy";
+import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
 
 export default function Home() {
   const router = useRouter();
@@ -30,13 +30,23 @@ export default function Home() {
   // Fit Quiz Modal
   const [quizOpen, setQuizOpen] = useState(false);
 
+  // Manual Entry Modal
+  const [manualEntryOpen, setManualEntryOpen] = useState(false);
+  const [manualEntryMissingFields, setManualEntryMissingFields] = useState<string[]>([]);
+  const [originalUrl, setOriginalUrl] = useState<string>("");
+
   // URL Extraction
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [extractWarnings, setExtractWarnings] = useState<string[]>([]);
+  const [extractedVehicleData, setExtractedVehicleData] = useState<any>(null);
+  const [showExtractedData, setShowExtractedData] = useState(false);
 
   const handleExtractListing = async (url: string) => {
     console.log('[Frontend] Starting extraction for URL:', url);
+
+    // Track home_scan_submit event
+    trackButtonClick("home_scan_submit", "homepage");
 
     setExtracting(true);
     setExtractError(null);
@@ -53,30 +63,46 @@ export default function Home() {
       console.log('[Frontend] Extraction result:', result);
 
       if (!result.success) {
-        setExtractError(result.error || "Failed to extract listing data");
-        setExtractWarnings(result.warnings || []);
-        trackUrlAutofillAttempt(url, false, null, result.error);
+        // Check if this is a parse failure that needs manual entry
+        if (result.needsMoreInfo && result.missing) {
+          // Open manual entry modal
+          setOriginalUrl(url);
+          setManualEntryMissingFields(result.missing);
+          setManualEntryOpen(true);
+          trackUrlAutofillAttempt(url, false, null, "Parse failure - manual entry required");
+        } else {
+          // Show error message
+          setExtractError(result.error || "Failed to extract listing data");
+          setExtractWarnings(result.warnings || []);
+          trackUrlAutofillAttempt(url, false, null, result.error);
+        }
         return;
       }
 
       // Track successful extraction
       trackUrlAutofillAttempt(url, true, result.data);
 
-      // Navigate to report with extracted data
-      const queryParams = new URLSearchParams({
-        data: JSON.stringify({
-          model: result.data.model || "",
-          year: result.data.year || new Date().getFullYear(),
-          trim: result.data.trim || "",
-          vin: result.data.vin || "",
-          currentMileage: result.data.mileage || 0,
-          price: result.data.price || 0,
-          source: "url-scan",
-          extractedFrom: url,
-        }),
+      // Map mileage to quiz range
+      const mileage = result.data.mileage || 0;
+      let mileageRange: number;
+      if (mileage < 10000) mileageRange = 5000;
+      else if (mileage < 30000) mileageRange = 20000;
+      else if (mileage < 60000) mileageRange = 45000;
+      else if (mileage < 90000) mileageRange = 75000;
+      else mileageRange = 100000;
+
+      // Store extracted vehicle data and show confirmation
+      setExtractedVehicleData({
+        model: result.data.model || "",
+        year: result.data.year || new Date().getFullYear(),
+        currentMileage: mileageRange, // Use mapped range for quiz
+        actualMileage: mileage, // Store actual mileage for display
+        price: result.data.price || 0,
+        vin: result.data.vin || "",
       });
 
-      router.push(`/report?${queryParams.toString()}`);
+      setShowExtractedData(true);
+      trackButtonClick("url_scan_success", "homepage");
 
     } catch (err) {
       console.error('[Frontend] Extraction error:', err);
@@ -86,6 +112,21 @@ export default function Home() {
     } finally {
       setExtracting(false);
     }
+  };
+
+  const handleManualEntry = async (manualData: ManualVehicleData) => {
+    console.log('[Frontend] Manual entry submitted:', manualData);
+
+    // Store manually entered vehicle data and open quiz modal
+    setExtractedVehicleData({
+      model: `${manualData.make} ${manualData.model}`,
+      year: manualData.year,
+      currentMileage: manualData.mileage || 0,
+    });
+
+    setManualEntryOpen(false);
+    setQuizOpen(true);
+    trackButtonClick("manual_entry_success", "homepage");
   };
 
   return (
@@ -115,63 +156,29 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* Hero Section */}
+      {/* Hero Section - Compact for mobile */}
       <section className="relative overflow-hidden">
-        <div className="relative max-w-7xl mx-auto px-4 pt-12 pb-8 md:pt-16 md:pb-12">
+        <div className="relative max-w-7xl mx-auto px-4 pt-6 pb-4 md:pt-12 md:pb-8">
           <div className="text-center max-w-4xl mx-auto">
-            {/* Badge */}
-            <div className="flex justify-center mb-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-50 to-green-50 border border-blue-100 rounded-full"
-              >
-                <Shield className="w-4 h-4 text-blue-600 mr-2" />
-                <span className="text-sm font-semibold text-blue-900">
-                  Trusted by {stats.vehiclesAnalyzed.toLocaleString()}+ EV buyers
-                </span>
-                <TrendingUp className="w-4 h-4 text-green-600 ml-2" />
-              </motion.div>
-            </div>
-
-            {/* Main headline */}
+            {/* Main headline - Compact on mobile */}
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6"
+              transition={{ duration: 0.6 }}
+              className="text-2xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 md:mb-6"
             >
               Don't guess if an EV{" "}
-              <span className="relative">
-                <span className="relative z-10 bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-                  fits your life
-                </span>
-                <motion.div
-                  className="absolute -bottom-2 left-0 right-0 h-3 bg-blue-100/50 rounded-full"
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ duration: 1, delay: 0.5 }}
-                />
+              <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
+                fits your life
               </span>
             </motion.h1>
 
-            {/* Subheadline */}
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-lg md:text-xl text-gray-600 mb-8"
-            >
-              Check charging fit and routine compatibility in 30 seconds.
-            </motion.p>
-
-            {/* Trust Microcopy */}
+            {/* Trust Microcopy - Compact on mobile */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="mb-8"
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="mb-4 md:mb-6"
             >
               <TrustMicrocopy />
             </motion.div>
@@ -179,37 +186,30 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Two-Card Section - Above the Fold */}
-      <section className="max-w-5xl mx-auto px-4 pb-12">
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Card 1: Listing URL Scanner */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-          >
-            <ListingUrlForm
-              onExtract={handleExtractListing}
-              extracting={extracting}
-              error={extractError}
-              warnings={extractWarnings}
-            />
-          </motion.div>
-
-          {/* Card 2: 5-Question Fit Check */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.5 }}
-          >
-            <FitQuizLauncher
-              onClick={() => {
-                setQuizOpen(true);
-                trackButtonClick("fit-quiz-launcher", "homepage");
-              }}
-            />
-          </motion.div>
-        </div>
+      {/* URL Scanner Section - Above the Fold */}
+      <section className="max-w-3xl mx-auto px-4 pb-6 md:pb-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
+          <ListingUrlForm
+            onExtract={handleExtractListing}
+            extracting={extracting}
+            error={extractError}
+            warnings={extractWarnings}
+            extractedData={showExtractedData ? extractedVehicleData : null}
+            onConfirm={() => {
+              setShowExtractedData(false);
+              setQuizOpen(true);
+            }}
+            onReset={() => {
+              setExtractedVehicleData(null);
+              setShowExtractedData(false);
+              setExtractError(null);
+            }}
+          />
+        </motion.div>
       </section>
 
       {/* Key Insight Section */}
@@ -233,7 +233,26 @@ export default function Home() {
       </section>
 
       {/* Fit Quiz Modal */}
-      <FitQuizModal isOpen={quizOpen} onClose={() => setQuizOpen(false)} />
+      <FitQuizModal
+        isOpen={quizOpen}
+        onClose={() => {
+          setQuizOpen(false);
+          setExtractedVehicleData(null);
+        }}
+        initialData={extractedVehicleData ? {
+          model: extractedVehicleData.model,
+          year: extractedVehicleData.year,
+          currentMileage: extractedVehicleData.currentMileage,
+        } : undefined}
+      />
+
+      {/* Manual Entry Modal */}
+      <ManualEntryModal
+        isOpen={manualEntryOpen}
+        onClose={() => setManualEntryOpen(false)}
+        onSubmit={handleManualEntry}
+        missingFields={manualEntryMissingFields}
+      />
     </div>
   );
 }

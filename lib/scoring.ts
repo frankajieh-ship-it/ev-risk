@@ -62,11 +62,17 @@ export interface OwnershipFitScore {
 export interface BuyConfidence {
   overall_score: number; // 0-100
   rating: "GREEN" | "YELLOW" | "RED"; // DEPRECATED: Use fit_signal instead
-  fit_signal: "Good Fit" | "Conditional Fit" | "High Friction";
+  fit_signal: "Good Fit" | "Good Fit — with conditions" | "Conditional Fit" | "High Friction";
   emoji: "🟢" | "🟡" | "🔴";
   recommendation: string;
-  one_sentence_verdict: string; // New: "Fits if X stays true... becomes annoying if Y changes"
-  confidence_note: string; // New: Why this confidence level
+  one_sentence_verdict: string; // "Fits if X stays true..."
+  becomes_annoying_if: string; // "...becomes annoying if Y changes"
+  what_breaks_first: string[]; // ["Weeknight charging predictability", "Backup option reliability"]
+  confidence: "High" | "Medium" | "Low"; // Changed from ALL CAPS to Title Case
+  confidence_note: string; // Why this confidence level
+  confidence_why: string[]; // ["Listing data incomplete", "Local charging competition varies"]
+  top_drivers: Array<{ label: string; impact: "HIGH" | "MEDIUM" | "LOW" }>;
+  plan_b: string[]; // ["Identify a backup L2 within 10-15 minutes", ...]
   battery_risk: BatteryRiskScore;
   platform_risk: PlatformRiskScore;
   ownership_fit: OwnershipFitScore;
@@ -357,7 +363,7 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
 
   // Determine rating and fit signal
   let rating: "GREEN" | "YELLOW" | "RED";
-  let fit_signal: "Good Fit" | "Conditional Fit" | "High Friction";
+  let fit_signal: "Good Fit" | "Good Fit — with conditions" | "Conditional Fit" | "High Friction";
   let emoji: "🟢" | "🟡" | "🔴";
   let recommendation: string;
   let one_sentence_verdict: string;
@@ -365,18 +371,30 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
 
   if (adjusted_score >= 75) {
     rating = "GREEN";
-    fit_signal = "Good Fit";
+
+    // Check for HIGH impact conditions that require qualifier
+    const hasNoHomeCharging = !input.homeCharging;
+    const hasHighMileage = input.dailyMiles > 70;
+    const hasLowChargerDensity = ownership_fit.charger_density === "Low";
+
+    // Add "with conditions" qualifier if there are HIGH impact friction points
+    if (hasNoHomeCharging || (hasHighMileage && hasLowChargerDensity)) {
+      fit_signal = "Good Fit — with conditions";
+    } else {
+      fit_signal = "Good Fit";
+    }
+
     emoji = "🟢";
     recommendation = "Low Risk - Good purchase candidate. Proceed with standard pre-purchase inspection.";
 
     // Generate one-sentence verdict based on context
     if (input.homeCharging) {
-      one_sentence_verdict = `Fits well if your routine stays consistent... becomes annoying if you lose home charging access.`;
+      one_sentence_verdict = `Fits well if your routine stays consistent.`;
     } else {
-      one_sentence_verdict = `Fits if public charging stays reliable... becomes friction if charger availability drops.`;
+      one_sentence_verdict = `Fits if public charging stays predictable.`;
     }
 
-    confidence_note = `High confidence based on ${battery_risk.chemistry} battery chemistry, ${platform_risk.total_recalls} recall record, and favorable charging setup.`;
+    confidence_note = `Based on ${battery_risk.chemistry} battery chemistry, ${platform_risk.total_recalls} recall record, and charging infrastructure.`;
   } else if (adjusted_score >= 50) {
     rating = "YELLOW";
     fit_signal = "Conditional Fit";
@@ -407,6 +425,110 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
     confidence_note = `Lower confidence - multiple risk factors present. Professional battery inspection strongly recommended before purchase.`;
   }
 
+  // Generate becomes_annoying_if
+  let becomes_annoying_if = "";
+  if (fit_signal === "Good Fit") {
+    becomes_annoying_if = input.homeCharging
+      ? "you lose home charging access or daily routine becomes unpredictable"
+      : "public charger availability becomes less reliable";
+  } else if (fit_signal === "Conditional Fit") {
+    becomes_annoying_if = "daily routine changes or charging becomes less predictable";
+  } else {
+    becomes_annoying_if = "circumstances don't improve significantly";
+  }
+
+  // Get charger density from ownership_fit
+  const charger_density = ownership_fit.charger_density;
+
+  // Generate what_breaks_first
+  const what_breaks_first: string[] = [];
+  if (!input.homeCharging) {
+    what_breaks_first.push("Weeknight charging predictability");
+  }
+  if (battery_risk.score < 60) {
+    what_breaks_first.push("Battery degradation timeline");
+  }
+  if (charger_density === "Low") {
+    what_breaks_first.push("Backup charging option reliability");
+  }
+  if (input.dailyMiles > 70) {
+    what_breaks_first.push("Range anxiety on longer days");
+  }
+
+  // Ensure at least one item
+  if (what_breaks_first.length === 0) {
+    what_breaks_first.push("Charging routine predictability");
+  }
+
+  // Generate confidence level
+  const confidence_level: "High" | "Medium" | "Low" =
+    adjusted_score >= 75 ? "High" : adjusted_score >= 50 ? "Medium" : "Low";
+
+  // Generate confidence_why
+  const confidence_why: string[] = [];
+  if (!input.currentMileage || input.currentMileage === 0) {
+    confidence_why.push("Listing data incomplete (manual details used)");
+  }
+  if (battery_risk.chemistry === "Unknown") {
+    confidence_why.push("Battery chemistry could not be determined");
+  }
+  if (!input.homeCharging && charger_density === "Low") {
+    confidence_why.push("Local charging competition varies by time of day");
+  }
+  if (confidence_why.length === 0) {
+    confidence_why.push(`Based on ${battery_risk.chemistry} battery chemistry and ${charger_density.toLowerCase()} charger density`);
+  }
+
+  // Generate top_drivers
+  const top_drivers: Array<{ label: string; impact: "HIGH" | "MEDIUM" | "LOW" }> = [];
+  if (!input.homeCharging) {
+    top_drivers.push({ label: "No home charging", impact: "HIGH" });
+  }
+  if (input.dailyMiles > 70) {
+    top_drivers.push({ label: "Long daily miles", impact: "MEDIUM" });
+  }
+  if (battery_risk.score < 60) {
+    top_drivers.push({ label: "Battery age/degradation", impact: "HIGH" });
+  }
+  if (platform_risk.critical_recalls > 0) {
+    top_drivers.push({ label: `${platform_risk.critical_recalls} critical recall(s)`, impact: "HIGH" });
+  }
+  if (charger_density === "Low") {
+    top_drivers.push({ label: "Low charger density", impact: "MEDIUM" });
+  }
+
+  // Ensure at least one driver
+  if (top_drivers.length === 0) {
+    top_drivers.push({ label: "Standard EV ownership factors", impact: "MEDIUM" });
+  }
+
+  // Generate plan_b
+  const plan_b: string[] = [];
+  if (!input.homeCharging) {
+    plan_b.push("Identify a backup L2 within 10-15 minutes");
+    plan_b.push("Pick 2 recurring charging windows you can protect weekly");
+    plan_b.push("Avoid relying on DCFC as routine charging");
+  }
+  if (battery_risk.score < 60) {
+    plan_b.push("Get a professional battery health inspection before purchase");
+    plan_b.push("Budget $8,000-15,000 for potential battery replacement");
+  }
+  if (input.dailyMiles > 70) {
+    plan_b.push("Map out 2-3 reliable charging locations along your route");
+    plan_b.push("Consider workplace charging if available");
+  }
+  if (charger_density === "Low") {
+    plan_b.push("Download multiple charging apps to maximize options");
+    plan_b.push("Identify 24/7 charging locations for emergencies");
+  }
+
+  // Ensure at least one plan B item
+  if (plan_b.length === 0) {
+    plan_b.push("Monitor battery health regularly");
+    plan_b.push("Keep charging routine consistent");
+    plan_b.push("Have backup charging options identified");
+  }
+
   return {
     overall_score: adjusted_score,
     rating,
@@ -414,7 +536,13 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
     emoji,
     recommendation,
     one_sentence_verdict,
+    becomes_annoying_if,
+    what_breaks_first,
+    confidence: confidence_level,
     confidence_note,
+    confidence_why,
+    top_drivers,
+    plan_b,
     battery_risk,
     platform_risk,
     ownership_fit,
