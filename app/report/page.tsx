@@ -14,6 +14,7 @@ import { RoutineFitVerdict } from "@/components/RoutineFitVerdict";
 import { WhyThisResult } from "@/components/WhyThisResult";
 import { MentalLoadIndicator } from "@/components/MentalLoadIndicator";
 import { WhatsMissing } from "@/components/WhatsMissing";
+import FitSignalDisplay from "@/components/FitSignalDisplay";
 import { generateConfidenceData, type ConfidenceInputs } from "@/lib/confidence-calculator";
 import { generateMissingDataExplanations, getPrimaryMissingExplanation, generatePersonalizationOpportunities } from "@/lib/missing-data-generator";
 import { calculateRoutineFitClient } from "@/lib/routine-fit-client";
@@ -48,9 +49,12 @@ interface OwnershipFit {
 
 interface BuyConfidence {
   overall_score: number;
-  rating: "GREEN" | "YELLOW" | "RED";
+  rating: "GREEN" | "YELLOW" | "RED"; // DEPRECATED: Use fit_signal instead
+  fit_signal: "Good Fit" | "Conditional Fit" | "High Friction";
   emoji: "🟢" | "🟡" | "🔴";
   recommendation: string;
+  one_sentence_verdict: string;
+  confidence_note: string;
   battery_risk: BatteryRisk;
   platform_risk: PlatformRisk;
   ownership_fit: OwnershipFit;
@@ -307,6 +311,14 @@ function ReportContent() {
             Phase 0.5 modules below replace this functionality */}
 
         {/* FREE VERSION: ROUTINE FIT ASSESSMENT */}
+
+        {/* FIT SIGNAL - Primary Assessment (Replaces Risk Rating) */}
+        <FitSignalDisplay
+          fitSignal={confidence.fit_signal}
+          oneSentenceVerdict={confidence.one_sentence_verdict}
+          confidenceNote={confidence.confidence_note}
+          score={confidence.overall_score}
+        />
 
         {/* 1️⃣ ONE-LINE VERDICT - Top of Page */}
         <RoutineFitVerdict

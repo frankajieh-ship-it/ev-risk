@@ -61,9 +61,12 @@ export interface OwnershipFitScore {
 
 export interface BuyConfidence {
   overall_score: number; // 0-100
-  rating: "GREEN" | "YELLOW" | "RED";
+  rating: "GREEN" | "YELLOW" | "RED"; // DEPRECATED: Use fit_signal instead
+  fit_signal: "Good Fit" | "Conditional Fit" | "High Friction";
   emoji: "🟢" | "🟡" | "🔴";
   recommendation: string;
+  one_sentence_verdict: string; // New: "Fits if X stays true... becomes annoying if Y changes"
+  confidence_note: string; // New: Why this confidence level
   battery_risk: BatteryRiskScore;
   platform_risk: PlatformRiskScore;
   ownership_fit: OwnershipFitScore;
@@ -352,30 +355,66 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
   }
   adjusted_score = Math.max(0, Math.min(100, adjusted_score));
 
-  // Determine rating
+  // Determine rating and fit signal
   let rating: "GREEN" | "YELLOW" | "RED";
+  let fit_signal: "Good Fit" | "Conditional Fit" | "High Friction";
   let emoji: "🟢" | "🟡" | "🔴";
   let recommendation: string;
+  let one_sentence_verdict: string;
+  let confidence_note: string;
 
   if (adjusted_score >= 75) {
     rating = "GREEN";
+    fit_signal = "Good Fit";
     emoji = "🟢";
     recommendation = "Low Risk - Good purchase candidate. Proceed with standard pre-purchase inspection.";
+
+    // Generate one-sentence verdict based on context
+    if (input.homeCharging) {
+      one_sentence_verdict = `Fits well if your routine stays consistent... becomes annoying if you lose home charging access.`;
+    } else {
+      one_sentence_verdict = `Fits if public charging stays reliable... becomes friction if charger availability drops.`;
+    }
+
+    confidence_note = `High confidence based on ${battery_risk.chemistry} battery chemistry, ${platform_risk.total_recalls} recall record, and favorable charging setup.`;
   } else if (adjusted_score >= 50) {
     rating = "YELLOW";
+    fit_signal = "Conditional Fit";
     emoji = "🟡";
     recommendation = "Moderate Risk - Consider carefully. Get detailed battery health report and extended warranty if available.";
+
+    // Identify the main friction point
+    const mainFriction = battery_risk.score < 60 ? "battery degradation" :
+                        !input.homeCharging ? "public charging dependency" :
+                        "platform reliability concerns";
+
+    one_sentence_verdict = `Fits if you can manage ${mainFriction}... becomes annoying if daily routine changes.`;
+    confidence_note = `Moderate confidence - ${mainFriction} is the primary concern. Additional battery health data would improve accuracy.`;
   } else {
     rating = "RED";
+    fit_signal = "High Friction";
     emoji = "🔴";
     recommendation = "High Risk - Proceed with caution. Budget for potential battery replacement or major repairs within 2-3 years.";
+
+    // Identify multiple friction points
+    const frictions: string[] = [];
+    if (battery_risk.score < 40) frictions.push("battery degradation");
+    if (!input.homeCharging) frictions.push("no home charging");
+    if (platform_risk.critical_recalls > 0) frictions.push("critical recalls");
+
+    const frictionList = frictions.length > 0 ? frictions.join(" + ") : "multiple risk factors";
+    one_sentence_verdict = `High friction due to ${frictionList}... likely becomes annoying quickly unless circumstances improve.`;
+    confidence_note = `Lower confidence - multiple risk factors present. Professional battery inspection strongly recommended before purchase.`;
   }
 
   return {
     overall_score: adjusted_score,
     rating,
+    fit_signal,
     emoji,
     recommendation,
+    one_sentence_verdict,
+    confidence_note,
     battery_risk,
     platform_risk,
     ownership_fit,
