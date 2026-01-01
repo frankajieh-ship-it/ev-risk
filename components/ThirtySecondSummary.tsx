@@ -90,7 +90,7 @@ export default function ThirtySecondSummary({
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-green-600 px-6 py-4">
         <h2 className="text-2xl font-bold text-white">30-Second Summary</h2>
-        <p className="text-blue-100 text-sm">Everything you need to know, above the fold</p>
+        <p className="text-blue-100 text-sm">How this vehicle's history will feel in your routine — not just what happened</p>
       </div>
 
       <div className="p-6 space-y-6">

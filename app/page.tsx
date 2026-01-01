@@ -200,11 +200,22 @@ export default function Home() {
               </span>
             </motion.h1>
 
+            {/* META FRAMING: Philosophy Tagline */}
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-base md:text-lg text-gray-600 mb-4 md:mb-6 max-w-2xl mx-auto"
+            >
+              Used EVs aren't just vehicles — they're <span className="font-semibold text-gray-900">usage histories</span>.{" "}
+              You're not buying miles; you're buying <span className="font-semibold text-gray-900">patterns</span>.
+            </motion.p>
+
             {/* Trust Microcopy - Compact on mobile */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
               className="mb-4 md:mb-6"
             >
               <TrustMicrocopy />

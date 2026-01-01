@@ -81,6 +81,10 @@ export interface BuyConfidence {
   platform_risk: PlatformRiskScore;
   ownership_fit: OwnershipFitScore;
   routine_fit?: RoutineFitAssessment;
+  history_routine_signals?: HistoryRoutineSignal[];
+  battery_health_context?: BatteryHealthContext;
+  ev_history_flags?: EVHistoryFlag[];
+  confidence_drivers?: ConfidenceDriver[];
 }
 
 export interface RoutineFitAssessment {
@@ -96,7 +100,347 @@ export interface RoutineFitAssessment {
   missing_data: string[];
 }
 
+export interface HistoryRoutineSignal {
+  type: "friction" | "buffer" | "low-stress";
+  headline: string;
+  explanation: string;
+  impact: "HIGH" | "MEDIUM" | "LOW";
+}
+
+export interface BatteryHealthContext {
+  currentHealth: number; // Percentage (0-100)
+  assessment: "typical" | "above-average" | "below-average" | "unusually-strong" | "faster-decline";
+  comparisonText: string; // "92% after 3 years = typical"
+  benchmarkNote: string; // "Compared to similar vehicles of this age and usage pattern"
+}
+
+export interface EVHistoryFlag {
+  type: "warning" | "caution" | "neutral";
+  flag: string;
+  explanation: string;
+  probability: "inferred" | "likely" | "observed";
+}
+
+export interface ConfidenceDriver {
+  category: "data-completeness" | "history-clarity" | "routine-predictability";
+  strength: "high" | "medium" | "low";
+  reason: string;
+}
+
 // ---------- Scoring Logic ----------
+
+/**
+ * Generate Battery Health Contextualization
+ * Converts absolute battery health % into relative assessment
+ */
+function generateBatteryHealthContext(degradation_percent: number, vehicleAge: number, chemistry: string): BatteryHealthContext {
+  // Calculate current health (inverse of degradation)
+  const currentHealth = Math.max(0, 100 - degradation_percent);
+
+  // Expected degradation ranges by age
+  // For NMC/NCM (most EVs): ~2% per year
+  // For LFP: ~1.5% per year
+  // For air-cooled (Nissan Leaf pre-2023): ~3% per year
+  let expectedDegradation = 0;
+  let typicalMin = 0;
+  let typicalMax = 0;
+
+  if (chemistry === "NMC" || chemistry === "NCM" || chemistry === "Unknown") {
+    expectedDegradation = vehicleAge * 2; // 2% per year
+    typicalMin = vehicleAge * 1.5;
+    typicalMax = vehicleAge * 3;
+  } else if (chemistry === "LFP") {
+    expectedDegradation = vehicleAge * 1.5; // 1.5% per year
+    typicalMin = vehicleAge * 1;
+    typicalMax = vehicleAge * 2.5;
+  } else {
+    // Air-cooled or other
+    expectedDegradation = vehicleAge * 3; // 3% per year
+    typicalMin = vehicleAge * 2;
+    typicalMax = vehicleAge * 4;
+  }
+
+  // Determine assessment
+  let assessment: "typical" | "above-average" | "below-average" | "unusually-strong" | "faster-decline";
+  let comparisonText = "";
+
+  if (degradation_percent < typicalMin) {
+    // Better than expected
+    if (degradation_percent < typicalMin * 0.5) {
+      assessment = "unusually-strong";
+      comparisonText = `${currentHealth.toFixed(0)}% after ${vehicleAge} year${vehicleAge !== 1 ? 's' : ''} = unusually strong`;
+    } else {
+      assessment = "above-average";
+      comparisonText = `${currentHealth.toFixed(0)}% after ${vehicleAge} year${vehicleAge !== 1 ? 's' : ''} = slightly above average`;
+    }
+  } else if (degradation_percent > typicalMax) {
+    // Worse than expected
+    assessment = "faster-decline";
+    comparisonText = `${currentHealth.toFixed(0)}% after ${vehicleAge} year${vehicleAge !== 1 ? 's' : ''} = faster than expected decline`;
+  } else if (degradation_percent >= typicalMin - 1 && degradation_percent <= expectedDegradation + 1) {
+    // Within normal range
+    assessment = "typical";
+    comparisonText = `${currentHealth.toFixed(0)}% after ${vehicleAge} year${vehicleAge !== 1 ? 's' : ''} = typical`;
+  } else if (degradation_percent < expectedDegradation) {
+    assessment = "above-average";
+    comparisonText = `${currentHealth.toFixed(0)}% after ${vehicleAge} year${vehicleAge !== 1 ? 's' : ''} = slightly above average`;
+  } else {
+    assessment = "below-average";
+    comparisonText = `${currentHealth.toFixed(0)}% after ${vehicleAge} year${vehicleAge !== 1 ? 's' : ''} = slightly below average`;
+  }
+
+  return {
+    currentHealth,
+    assessment,
+    comparisonText,
+    benchmarkNote: "Compared to similar vehicles of this age and usage pattern.",
+  };
+}
+
+/**
+ * Generate EV-Specific History Flags
+ * Non-mechanical risk flags specific to EVs (not covered by traditional Carfax)
+ */
+function generateEVHistoryFlags(input: ScoringInput, battery_risk: BatteryRiskScore): EVHistoryFlag[] {
+  const flags: EVHistoryFlag[] = [];
+  const age = new Date().getFullYear() - input.year;
+  const avgMilesPerYear = age > 0 ? input.currentMileage / age : 0;
+
+  // High DCFC dependency (inferred from no home charging + high miles)
+  if (!input.homeCharging && input.dailyMiles > 40) {
+    flags.push({
+      type: "warning",
+      flag: "High DCFC dependency (inferred)",
+      explanation: "Without home charging and high daily miles, this vehicle likely relied heavily on fast charging, which accelerates battery degradation 2-3x faster than L2 charging.",
+      probability: "inferred",
+    });
+  }
+
+  // Long idle periods (inferred from low annual miles on older vehicle)
+  if (age >= 3 && avgMilesPerYear < 5000) {
+    flags.push({
+      type: "caution",
+      flag: "Likely long idle periods at unknown SOC",
+      explanation: `Averaging ${Math.round(avgMilesPerYear).toLocaleString()} miles/year suggests extended periods of non-use. If stored at low state of charge, this accelerates degradation.`,
+      probability: "likely",
+    });
+  }
+
+  // Repeated deep discharge patterns (inferred from high degradation + no home charging)
+  if (battery_risk.degradation_percent > 20 && age < 5 && !input.homeCharging) {
+    flags.push({
+      type: "warning",
+      flag: "Possible repeated deep discharge patterns",
+      explanation: `${battery_risk.degradation_percent.toFixed(0)}% degradation in ${age} years without home charging suggests frequent deep discharge cycles, which stress the battery.`,
+      probability: "inferred",
+    });
+  }
+
+  // Ownership churn correlated with charging access (inferred from age vs typical ownership)
+  if (age <= 2 && input.currentMileage < 15000) {
+    flags.push({
+      type: "neutral",
+      flag: "Early ownership transfer (neutral)",
+      explanation: "Vehicle changed hands early in its life with low mileage. Could indicate charging access issues, relocation, or simply buyer preference change.",
+      probability: "inferred",
+    });
+  }
+
+  // Extreme climate exposure compounded by chemistry
+  const climateZone = getClimateZoneByZip(input.zipCode);
+  const normalizedModel = input.model.toLowerCase();
+  if (climateZone?.zone === "Extreme Hot" && normalizedModel.includes("leaf") && input.year <= 2022) {
+    flags.push({
+      type: "warning",
+      flag: "Air-cooled battery + extreme heat exposure",
+      explanation: "Pre-2023 Nissan Leaf lacks active thermal management. Combined with extreme heat climate, this vehicle likely experienced accelerated degradation (2x normal rate).",
+      probability: "likely",
+    });
+  }
+
+  // Low-risk indicator: Home charging + moderate use
+  if (input.homeCharging && input.dailyMiles >= 20 && input.dailyMiles <= 50 && avgMilesPerYear >= 8000 && avgMilesPerYear <= 15000) {
+    flags.push({
+      type: "neutral",
+      flag: "Consistent moderate use pattern (positive indicator)",
+      explanation: "Home charging access and moderate daily miles suggest healthy, consistent use pattern with minimal fast charging stress.",
+      probability: "inferred",
+    });
+  }
+
+  return flags;
+}
+
+/**
+ * Generate Confidence Drivers
+ * Explains why we're confident (or not) in this assessment
+ */
+function generateConfidenceDrivers(input: ScoringInput, battery_risk: BatteryRiskScore, confidence_level: "High" | "Medium" | "Low"): ConfidenceDriver[] {
+  const drivers: ConfidenceDriver[] = [];
+
+  // Data Completeness
+  let dataStrength: "high" | "medium" | "low" = "medium";
+  let dataReason = "";
+
+  if (input.currentMileage > 0 && input.zipCode && input.dailyMiles && typeof input.homeCharging === 'boolean') {
+    if (input.batteryInfoAvailable !== false) {
+      dataStrength = "high";
+      dataReason = "Complete vehicle data with user context (mileage, location, routine). Battery health data would further improve confidence.";
+    } else {
+      dataStrength = "medium";
+      dataReason = "Good vehicle and routine data available. Missing: actual battery state of health report.";
+    }
+  } else {
+    dataStrength = "low";
+    dataReason = "Limited vehicle data. Using estimates for missing fields (mileage, location, or routine).";
+  }
+
+  drivers.push({
+    category: "data-completeness",
+    strength: dataStrength,
+    reason: dataReason,
+  });
+
+  // History Clarity
+  let historyStrength: "high" | "medium" | "low" = "medium";
+  let historyReason = "";
+
+  const age = new Date().getFullYear() - input.year;
+  if (battery_risk.chemistry !== "Unknown" && input.currentMileage > 0) {
+    historyStrength = "high";
+    historyReason = `Battery chemistry identified (${battery_risk.chemistry}) and ${age}-year history with ${input.currentMileage.toLocaleString()} miles provides clear degradation baseline.`;
+  } else if (battery_risk.chemistry === "Unknown") {
+    historyStrength = "low";
+    historyReason = "Battery chemistry could not be determined. Using conservative estimates, which may be less accurate.";
+  } else {
+    historyStrength = "medium";
+    historyReason = "Some history details available, but gaps remain (e.g., charging habits, storage conditions).";
+  }
+
+  drivers.push({
+    category: "history-clarity",
+    strength: historyStrength,
+    reason: historyReason,
+  });
+
+  // Routine Predictability
+  let routineStrength: "high" | "medium" | "low" = "medium";
+  let routineReason = "";
+
+  if (input.homeCharging && input.dailyMiles >= 20 && input.dailyMiles <= 70) {
+    routineStrength = "high";
+    routineReason = "Home charging access and moderate daily miles create a predictable, low-friction ownership pattern.";
+  } else if (!input.homeCharging && input.dailyMiles > 70) {
+    routineStrength = "low";
+    routineReason = "No home charging + high daily miles creates variable routine with dependency on public charger availability.";
+  } else if (input.homeCharging || input.dailyMiles < 30) {
+    routineStrength = "medium";
+    routineReason = "Routine has some predictability, but variability in charging access or daily miles introduces uncertainty.";
+  } else {
+    routineStrength = "medium";
+    routineReason = "Routine predictability depends on maintaining current charging access and mileage patterns.";
+  }
+
+  drivers.push({
+    category: "routine-predictability",
+    strength: routineStrength,
+    reason: routineReason,
+  });
+
+  return drivers;
+}
+
+/**
+ * Generate History × Routine Interaction Signals
+ * This explains how the car's history will feel in the user's daily life
+ */
+function generateHistoryRoutineSignals(input: ScoringInput, battery_risk: BatteryRiskScore, ownership_fit: OwnershipFitScore): HistoryRoutineSignal[] {
+  const signals: HistoryRoutineSignal[] = [];
+  const age = new Date().getFullYear() - input.year;
+  const chargerDensity = ownership_fit.charger_density;
+
+  // Friction: Frequent fast charging + no home charging
+  if (!input.homeCharging && input.dailyMiles > 50) {
+    signals.push({
+      type: "friction",
+      headline: "Frequent fast charging + no home charging = higher routine friction",
+      explanation: "Without home charging, you'll rely on public DCFC frequently. This creates daily planning overhead, charger competition stress, and faster battery degradation from repeated fast charging cycles.",
+      impact: "HIGH",
+    });
+  }
+
+  // Buffer reduced: Cold climate history + long daily miles
+  if (ownership_fit.climate_impact === "Challenging" && input.dailyMiles > 70) {
+    signals.push({
+      type: "buffer",
+      headline: "Cold-climate operation + long daily miles = reduced buffer in winter",
+      explanation: "Cold temperatures reduce range by 20-40%. Combined with long commutes, you'll have little margin for error on cold days. This creates range anxiety and forces more frequent charging stops.",
+      impact: "HIGH",
+    });
+  }
+
+  // Low stress: Short-trip urban history + predictable home charging
+  if (input.homeCharging && input.dailyMiles < 40 && chargerDensity !== "Low") {
+    signals.push({
+      type: "low-stress",
+      headline: "Short-trip urban history + predictable home charging = low stress",
+      explanation: "Home charging covers most of your routine. Short daily miles mean you can skip charging days without worry. This is the lowest-friction EV ownership pattern.",
+      impact: "LOW",
+    });
+  }
+
+  // Friction: High mileage + aging battery + no home charging
+  if (input.currentMileage > 75000 && age > 5 && !input.homeCharging) {
+    signals.push({
+      type: "friction",
+      headline: "High mileage + aging battery + public charging = compounding friction",
+      explanation: `At ${input.currentMileage.toLocaleString()} miles and ${age} years old, battery capacity has likely degraded 15-25%. Without home charging, you'll feel this loss more acutely through reduced range and more frequent public charging stops.`,
+      impact: "HIGH",
+    });
+  }
+
+  // Buffer: Moderate use + home charging + good charger density
+  if (input.homeCharging && input.dailyMiles >= 30 && input.dailyMiles <= 60 && chargerDensity === "High") {
+    signals.push({
+      type: "buffer",
+      headline: "Moderate use + home charging + good infrastructure = healthy buffer",
+      explanation: "Your daily miles fit well within typical EV range. Home charging handles routine needs, and local charger density provides backup options. You have flexibility for occasional longer trips.",
+      impact: "MEDIUM",
+    });
+  }
+
+  // Friction: Low charger density + no home charging
+  if (!input.homeCharging && chargerDensity === "Low") {
+    signals.push({
+      type: "friction",
+      headline: "Low charger density + no home charging = daily planning burden",
+      explanation: "Limited public charging options mean you'll spend mental energy planning charging windows, competing for stations, and building your routine around charger availability rather than your schedule.",
+      impact: "HIGH",
+    });
+  }
+
+  // Low stress: New battery + low daily miles
+  if (age <= 2 && input.dailyMiles < 30) {
+    signals.push({
+      type: "low-stress",
+      headline: "Newer battery + minimal daily miles = years of low-maintenance operation",
+      explanation: `At ${age} year(s) old with light daily use, the battery should maintain 90%+ capacity for 5+ more years. Range anxiety is minimal, and charging frequency stays low.`,
+      impact: "LOW",
+    });
+  }
+
+  // If no signals generated, add a default neutral signal
+  if (signals.length === 0) {
+    signals.push({
+      type: "buffer",
+      headline: "Standard EV ownership pattern - routine dependent",
+      explanation: "Your history and routine create a typical EV ownership experience. Friction will depend mostly on maintaining consistent charging access and avoiding major routine changes.",
+      impact: "MEDIUM",
+    });
+  }
+
+  return signals;
+}
 
 /**
  * Calculate battery degradation risk
@@ -552,6 +896,23 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
     plan_b.push("Have backup charging options identified");
   }
 
+  // Generate history × routine interaction signals
+  const history_routine_signals = generateHistoryRoutineSignals(input, battery_risk, ownership_fit);
+
+  // Generate battery health contextualization
+  const vehicleAge = new Date().getFullYear() - input.year;
+  const battery_health_context = generateBatteryHealthContext(
+    battery_risk.degradation_percent,
+    vehicleAge,
+    battery_risk.chemistry
+  );
+
+  // Generate EV-specific history flags
+  const ev_history_flags = generateEVHistoryFlags(input, battery_risk);
+
+  // Generate confidence drivers
+  const confidence_drivers = generateConfidenceDrivers(input, battery_risk, confidence_level);
+
   return {
     overall_score: adjusted_score,
     rating,
@@ -569,6 +930,10 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
     battery_risk,
     platform_risk,
     ownership_fit,
+    history_routine_signals,
+    battery_health_context,
+    ev_history_flags,
+    confidence_drivers,
   };
 }
 

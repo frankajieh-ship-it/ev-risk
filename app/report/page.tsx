@@ -16,6 +16,11 @@ import { MentalLoadIndicator } from "@/components/MentalLoadIndicator";
 import { WhatsMissing } from "@/components/WhatsMissing";
 import FitSignalDisplay from "@/components/FitSignalDisplay";
 import ThirtySecondSummary from "@/components/ThirtySecondSummary";
+import HistoryRoutineInteraction from "@/components/HistoryRoutineInteraction";
+import BatteryHealthContext from "@/components/BatteryHealthContext";
+import WhatSellersHide from "@/components/WhatSellersHide";
+import EVHistoryFlags from "@/components/EVHistoryFlags";
+import ConfidenceDriversPanel from "@/components/ConfidenceDriversPanel";
 import ShareDropdown from "@/components/ShareDropdown";
 import SaveForLaterModal from "@/components/SaveForLaterModal";
 import DebugPanel from "@/components/DebugPanel";
@@ -53,6 +58,33 @@ interface OwnershipFit {
   details: string;
 }
 
+interface HistoryRoutineSignal {
+  type: "friction" | "buffer" | "low-stress";
+  headline: string;
+  explanation: string;
+  impact: "HIGH" | "MEDIUM" | "LOW";
+}
+
+interface BatteryHealthContext {
+  currentHealth: number;
+  assessment: "typical" | "above-average" | "below-average" | "unusually-strong" | "faster-decline";
+  comparisonText: string;
+  benchmarkNote: string;
+}
+
+interface EVHistoryFlag {
+  type: "warning" | "caution" | "neutral";
+  flag: string;
+  explanation: string;
+  probability: "inferred" | "likely" | "observed";
+}
+
+interface ConfidenceDriver {
+  category: "data-completeness" | "history-clarity" | "routine-predictability";
+  strength: "high" | "medium" | "low";
+  reason: string;
+}
+
 interface BuyConfidence {
   overall_score: number;
   rating: "GREEN" | "YELLOW" | "RED"; // DEPRECATED: Use fit_signal instead
@@ -70,6 +102,10 @@ interface BuyConfidence {
   battery_risk: BatteryRisk;
   platform_risk: PlatformRisk;
   ownership_fit: OwnershipFit;
+  history_routine_signals?: HistoryRoutineSignal[];
+  battery_health_context?: BatteryHealthContext;
+  ev_history_flags?: EVHistoryFlag[];
+  confidence_drivers?: ConfidenceDriver[];
 }
 
 interface DataQuality {
@@ -374,8 +410,13 @@ function ReportContent() {
           <p className="text-sm text-gray-500 mb-2 italic">
             Explains fit and uncertainty — not recommendations
           </p>
-          <p className="text-gray-600 text-lg font-medium">
+          <p className="text-gray-600 text-lg font-medium mb-3">
             {input.year} {input.model}
+          </p>
+          {/* META FRAMING: Philosophy Statement */}
+          <p className="text-sm text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            You're not just buying a vehicle — you're inheriting a <span className="font-semibold text-gray-900">usage history</span>.
+            This report bridges the gap between what happened (Carfax) and what it will <span className="font-semibold text-gray-900">feel like</span> in your routine.
           </p>
         </div>
 
@@ -567,6 +608,24 @@ function ReportContent() {
           missingDataPoints={routineFit.missing_data}
         />
 
+        {/* MUST-ADD: HISTORY × ROUTINE INTERACTION - Top-Level Addition */}
+        {confidence.history_routine_signals && confidence.history_routine_signals.length > 0 && (
+          <HistoryRoutineInteraction signals={confidence.history_routine_signals} />
+        )}
+
+        {/* FEATURE 4: EV-Specific History Signals */}
+        {confidence.ev_history_flags && confidence.ev_history_flags.length > 0 && (
+          <EVHistoryFlags flags={confidence.ev_history_flags} />
+        )}
+
+        {/* FEATURE 5: Confidence Drivers Transparency Panel */}
+        {confidence.confidence_drivers && confidence.confidence_drivers.length > 0 && (
+          <ConfidenceDriversPanel
+            drivers={confidence.confidence_drivers}
+            overallConfidence={confidence.confidence}
+          />
+        )}
+
         {/* SPRINT 1: Phase 0.5 GLOBAL RULES Compliant Modules */}
 
         {/* Module 1A: Data Quality & Decision Confidence (ALWAYS RENDERED) */}
@@ -629,6 +688,19 @@ function ReportContent() {
               <span className="w-2 h-2 bg-blue-600 rounded-full mr-3"></span>
               Battery Considerations
             </h3>
+
+            {/* FEATURE 2: Battery Health Contextualization */}
+            {confidence.battery_health_context && (
+              <div className="mb-4">
+                <BatteryHealthContext
+                  currentHealth={confidence.battery_health_context.currentHealth}
+                  assessment={confidence.battery_health_context.assessment}
+                  comparisonText={confidence.battery_health_context.comparisonText}
+                  benchmarkNote={confidence.battery_health_context.benchmarkNote}
+                />
+              </div>
+            )}
+
             <p className="text-gray-700 mb-2">{confidence.battery_risk.details}</p>
 
             {/* HARD BLOCKER #2: Battery Uncertainty Amplification (Failure Mode) */}
@@ -1251,6 +1323,9 @@ function ReportContent() {
           vehicle={`${input.year} ${input.model}`}
         />
       )}
+
+      {/* FEATURE 3: What Sellers Don't Disclose - Collapsible Checklist */}
+      <WhatSellersHide />
 
       {/* Debug Panel (only visible with ?debug=1) */}
       {isDebugMode && reportData && input && confidence && (() => {
