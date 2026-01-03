@@ -133,6 +133,18 @@ export default function VehicleInputTabs({
             <ManualEntryInlineForm onSubmit={onManualSubmit} />
           )}
         </motion.div>
+
+        {/* Microcopy beneath CTAs */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="mt-4 pt-4 border-t border-gray-100 text-center"
+        >
+          <p className="text-sm text-gray-600 italic">
+            Even if the ad looks amazing — we tell you what sellers often don't.
+          </p>
+        </motion.div>
       </div>
     </div>
   );

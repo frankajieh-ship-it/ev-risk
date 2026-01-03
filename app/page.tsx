@@ -194,21 +194,21 @@ export default function Home() {
               transition={{ duration: 0.6 }}
               className="text-2xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 md:mb-6"
             >
-              Don't guess if an EV{" "}
+              Is this EV a{" "}
               <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-                fits your life
+                good fit for me
               </span>
+              ?
             </motion.h1>
 
-            {/* META FRAMING: Philosophy Tagline */}
+            {/* Sub-headline */}
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
               className="text-base md:text-lg text-gray-600 mb-4 md:mb-6 max-w-2xl mx-auto"
             >
-              Used EVs aren't just vehicles — they're <span className="font-semibold text-gray-900">usage histories</span>.{" "}
-              You're not buying miles; you're buying <span className="font-semibold text-gray-900">patterns</span>.
+              The real match is between your routine and the vehicle's real-world behavior.
             </motion.p>
 
             {/* Trust Microcopy - Compact on mobile */}
