@@ -441,6 +441,16 @@ function ReportContent() {
           planB={confidence.plan_b}
         />
 
+        {/* Area Charging Context - Minimal Display */}
+        {confidence.area_charging_context &&
+         confidence.area_charging_context.contentionLevel !== "minimal" && (
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-900">
+              <span className="font-semibold">Area context:</span> {confidence.area_charging_context.summary}
+            </p>
+          </div>
+        )}
+
         {/* GET FULL REPORT CTA - Positioned right after Conditional Fit */}
         {!showFullReport && (
         <>

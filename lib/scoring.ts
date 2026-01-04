@@ -16,6 +16,7 @@ import {
   getChargerDensityByZip,
   inferBatteryChemistry,
   type RecallRow,
+  type ChargerDensityRow,
 } from "./data";
 
 // ---------- Input Types ----------
@@ -63,6 +64,12 @@ export interface OwnershipFitScore {
   details: string;
 }
 
+export interface AreaChargingContext {
+  contentionLevel: "minimal" | "low" | "moderate" | "high";
+  summary: string; // One-line explanation
+  confidenceImpact: "reduces" | "neutral";
+}
+
 export interface BuyConfidence {
   overall_score: number; // 0-100
   rating: "GREEN" | "YELLOW" | "RED"; // DEPRECATED: Use fit_signal instead
@@ -85,6 +92,7 @@ export interface BuyConfidence {
   battery_health_context?: BatteryHealthContext;
   ev_history_flags?: EVHistoryFlag[];
   confidence_drivers?: ConfidenceDriver[];
+  area_charging_context?: AreaChargingContext;
 }
 
 export interface RoutineFitAssessment {
@@ -269,6 +277,62 @@ function generateEVHistoryFlags(input: ScoringInput, battery_risk: BatteryRiskSc
   }
 
   return flags;
+}
+
+/**
+ * Calculate Area Charging Context
+ *
+ * Combines charger density + public charging dependency
+ * to provide one line of interpretive context.
+ *
+ * NOT infrastructure intelligence - just interpretation support.
+ */
+function calculateAreaChargingContext(
+  input: ScoringInput,
+  chargerDensity: ChargerDensityRow | null
+): AreaChargingContext {
+  const hasPublicDependency = !input.homeCharging;
+
+  // Case 1: No charger data OR poor density
+  if (!chargerDensity || chargerDensity.density_score === "Poor") {
+    if (hasPublicDependency) {
+      return {
+        contentionLevel: "high",
+        summary: "High shared-charging contention risk in your area",
+        confidenceImpact: "reduces"
+      };
+    }
+    return {
+      contentionLevel: "low",
+      summary: "Home charging buffers against area-level charger contention",
+      confidenceImpact: "neutral"
+    };
+  }
+
+  // Case 2: Moderate density + public dependency
+  if (hasPublicDependency && chargerDensity.density_score === "Moderate") {
+    return {
+      contentionLevel: "moderate",
+      summary: "Moderate shared-charging contention risk (Confidence 68%)",
+      confidenceImpact: "reduces"
+    };
+  }
+
+  // Case 3: Good/Excellent density + public dependency
+  if (hasPublicDependency && (chargerDensity.density_score === "Good" || chargerDensity.density_score === "Excellent")) {
+    return {
+      contentionLevel: "low",
+      summary: "Low shared-charging contention risk in your area",
+      confidenceImpact: "neutral"
+    };
+  }
+
+  // Case 4: Home charging exists (minimal contention relevance)
+  return {
+    contentionLevel: "minimal",
+    summary: "Home charging provides buffer against area-level charger contention",
+    confidenceImpact: "neutral"
+  };
 }
 
 /**
@@ -913,6 +977,15 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
   // Generate confidence drivers
   const confidence_drivers = generateConfidenceDrivers(input, battery_risk, confidence_level);
 
+  // Calculate area charging context
+  const chargerDensityData = getChargerDensityByZip(input.zipCode);
+  const area_charging_context = calculateAreaChargingContext(input, chargerDensityData);
+
+  // Add area context to confidence explanation if it reduces confidence
+  if (area_charging_context.confidenceImpact === "reduces") {
+    confidence_why.push("Public charger reliability and queueing can't be predicted precisely");
+  }
+
   return {
     overall_score: adjusted_score,
     rating,
@@ -934,6 +1007,7 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
     battery_health_context,
     ev_history_flags,
     confidence_drivers,
+    area_charging_context,
   };
 }
 
