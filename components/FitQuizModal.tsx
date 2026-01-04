@@ -8,10 +8,10 @@ import { useEventTracking } from "@/hooks/useEventTracking";
 import {
   selectFrictionSentences,
   calculateFitContext,
-  mapToScoringInput,
-  type SanityCheckAnswers
+  mapToScoringInput
+  
 } from "@/lib/sanity-check-logic";
-import { CLOSING_LINE } from "@/lib/sanity-check-sentences";
+import { CLOSING_LINE, type SanityCheckAnswers } from "@/lib/sanity-check-sentences";
 
 interface FitQuizModalProps {
   isOpen: boolean;

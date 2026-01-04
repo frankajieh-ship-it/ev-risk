@@ -85,6 +85,12 @@ interface ConfidenceDriver {
   reason: string;
 }
 
+interface AreaChargingContext {
+  contentionLevel: "minimal" | "low" | "moderate" | "high";
+  summary: string;
+  confidenceImpact: "reduces" | "neutral";
+}
+
 interface BuyConfidence {
   overall_score: number;
   rating: "GREEN" | "YELLOW" | "RED"; // DEPRECATED: Use fit_signal instead
@@ -106,6 +112,7 @@ interface BuyConfidence {
   battery_health_context?: BatteryHealthContext;
   ev_history_flags?: EVHistoryFlag[];
   confidence_drivers?: ConfidenceDriver[];
+  area_charging_context?: AreaChargingContext;
 }
 
 interface DataQuality {

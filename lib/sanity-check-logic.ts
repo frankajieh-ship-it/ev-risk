@@ -106,6 +106,16 @@ export function calculateFitContext(answers: SanityCheckAnswers): "Good Fit" | "
     return "High Friction";
   }
 
+  // Good Fit (check before Conditional to allow variable schedule)
+  if (
+    answers.dependency === "full_control" &&
+    answers.chargingAccess === "home" &&
+    (answers.schedule === "predictable" || answers.schedule === "variable") &&
+    answers.backup !== "none"
+  ) {
+    return "Good Fit";
+  }
+
   // Conditional
   if (
     answers.dependency === "shared" ||
@@ -114,16 +124,6 @@ export function calculateFitContext(answers: SanityCheckAnswers): "Good Fit" | "
     answers.schedule === "variable"
   ) {
     return "Conditional";
-  }
-
-  // Good Fit
-  if (
-    answers.dependency === "full_control" &&
-    answers.chargingAccess === "home" &&
-    (answers.schedule === "predictable" || answers.schedule === "variable") &&
-    answers.backup !== "none"
-  ) {
-    return "Good Fit";
   }
 
   // Default to Conditional
