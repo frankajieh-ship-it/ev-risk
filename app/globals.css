@@ -520,3 +520,50 @@ body {
   background: rgba(31, 41, 55, 0.95);
   border-color: #4b5563;
 }
+
+/* ============================================
+   FIX: Force visible text colors for production
+   Issue: White text appearing on white backgrounds
+   ============================================ */
+
+/* Force dark text in light mode */
+body:not(.dark) {
+  color: #1f2937 !important;
+}
+
+/* Ensure all inputs have visible text */
+body:not(.dark) input[type="text"],
+body:not(.dark) input[type="url"],
+body:not(.dark) input[type="email"],
+body:not(.dark) input[type="number"],
+body:not(.dark) input[type="tel"],
+body:not(.dark) textarea,
+body:not(.dark) select {
+  color: #111827 !important;
+  background-color: white !important;
+}
+
+/* Visible placeholders */
+body:not(.dark) input::placeholder,
+body:not(.dark) textarea::placeholder {
+  color: #6b7280 !important;
+  opacity: 1 !important;
+}
+
+/* Dark headings */
+body:not(.dark) h1,
+body:not(.dark) h2,
+body:not(.dark) h3,
+body:not(.dark) h4,
+body:not(.dark) h5,
+body:not(.dark) h6 {
+  color: #111827 !important;
+}
+
+/* Ensure all text content is visible */
+body:not(.dark) p,
+body:not(.dark) span:not(.text-white),
+body:not(.dark) label,
+body:not(.dark) div:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-gradient"]) {
+  color: #374151 !important;
+}
