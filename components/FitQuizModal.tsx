@@ -42,7 +42,10 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
   useEffect(() => {
     if (isOpen) {
       setPhase("questions");
-      setSanityAnswers({});
+      setSanityAnswers({
+      executionUncertaintyTolerance: "medium",
+      downtimeRecoveryTolerance: "medium"
+    });
       setZipCode("");
       setSubmitting(false);
       setShowCopySuccess(false);
@@ -73,6 +76,10 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
       schedule: sanityAnswers.schedule,
       backup: sanityAnswers.backup,
       dependency: sanityAnswers.dependency,
+      executionUncertaintyTolerance: sanityAnswers.executionUncertaintyTolerance,
+      downtimeRecoveryTolerance: sanityAnswers.downtimeRecoveryTolerance,
+      risk_execution_uncertainty: sanityAnswers.executionUncertaintyTolerance === "low",
+      risk_recovery_downtime: sanityAnswers.downtimeRecoveryTolerance === "low",
     });
 
     setPhase("output");
@@ -146,6 +153,8 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
       sanityAnswers.schedule &&
       sanityAnswers.backup &&
       sanityAnswers.dependency &&
+      sanityAnswers.executionUncertaintyTolerance &&
+      sanityAnswers.downtimeRecoveryTolerance &&
       zipCode.trim();
 
     return (
@@ -153,7 +162,7 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
         <div className="mb-4">
           <h3 className="text-xl font-bold text-gray-900 mb-2">Quick routine check</h3>
           <p className="text-sm text-gray-600">
-            5 questions to understand how an EV might fit your situation
+            7 questions to understand how an EV might fit your situation
           </p>
         </div>
 
@@ -262,7 +271,61 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
           </div>
         </div>
 
-        {/* Question 5: ZIP Code */}
+        {/* Question 5: Execution-time uncertainty tolerance */}
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-gray-900">
+            When something doesn't start immediately (charging/app/session), how disruptive is that for you?
+          </label>
+          <div className="space-y-2">
+            {[
+              { value: "low", label: "Low tolerance", sub: "I need it to work reliably / delays stress me" },
+              { value: "medium", label: "Medium", sub: "I can handle occasional hiccups" },
+              { value: "high", label: "High tolerance", sub: "I'm fine troubleshooting or waiting sometimes" }
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleAnswerChange("executionUncertaintyTolerance", option.value)}
+                className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                  sanityAnswers.executionUncertaintyTolerance === option.value
+                    ? "border-blue-600 bg-blue-50 text-blue-900"
+                    : "border-gray-200 hover:border-gray-300 text-gray-700"
+                }`}
+              >
+                <div className="font-medium">{option.label}</div>
+                <div className="text-xs text-gray-600 mt-1">{option.sub}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Question 6: Downtime / recovery tolerance */}
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-gray-900">
+            If unexpected service downtime happens, how disruptive would that be to your routine?
+          </label>
+          <div className="space-y-2">
+            {[
+              { value: "low", label: "Low tolerance", sub: "Very disruptive / I rely on this vehicle daily" },
+              { value: "medium", label: "Medium", sub: "Manageable with planning" },
+              { value: "high", label: "High tolerance", sub: "I have flexibility or alternatives" }
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleAnswerChange("downtimeRecoveryTolerance", option.value)}
+                className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                  sanityAnswers.downtimeRecoveryTolerance === option.value
+                    ? "border-blue-600 bg-blue-50 text-blue-900"
+                    : "border-gray-200 hover:border-gray-300 text-gray-700"
+                }`}
+              >
+                <div className="font-medium">{option.label}</div>
+                <div className="text-xs text-gray-600 mt-1">{option.sub}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Question 7: ZIP Code */}
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-gray-900">
             What's your ZIP code?

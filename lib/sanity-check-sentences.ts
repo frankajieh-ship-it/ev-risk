@@ -10,6 +10,10 @@ export interface SanityCheckAnswers {
   schedule: "predictable" | "variable" | "unpredictable";
   backup: "easy" | "occasional" | "none";
   dependency: "full_control" | "shared" | "public";
+
+  // Tolerance fields (added for execution-time and downtime friction analysis)
+  executionUncertaintyTolerance: "low" | "medium" | "high";
+  downtimeRecoveryTolerance: "low" | "medium" | "high";
 }
 
 export interface FrictionSentence {
@@ -19,10 +23,11 @@ export interface FrictionSentence {
 }
 
 /**
- * Friction Sentences (10 total)
+ * Friction Sentences (17 total: 10 original + 7 new tolerance-based)
  * Each sentence has specific trigger conditions based on user answers.
  */
 export const FRICTION_SENTENCES: FrictionSentence[] = [
+  // Original 10 sentences
   {
     id: "shared_competition",
     text: "Primary reliance on shared charging often introduces delays, queueing, or competition that isn't visible until you're living with it.",
@@ -97,6 +102,59 @@ export const FRICTION_SENTENCES: FrictionSentence[] = [
     triggers: [
       { dependency: "public", schedule: "unpredictable" }
     ]
+  },
+
+  // New 7 tolerance-based sentences
+  {
+    id: "execution_uncertainty_low",
+    text: "If things don't start cleanly (apps, sessions, billing), even small delays can add stress — especially when you're tired, late, or it's cold.",
+    triggers: [
+      { executionUncertaintyTolerance: "low" }
+    ]
+  },
+  {
+    id: "execution_uncertainty_high",
+    text: "If you're comfortable with occasional hiccups, execution-time friction (apps, sessions, retries) tends to feel less heavy.",
+    triggers: [
+      { executionUncertaintyTolerance: "high" }
+    ]
+  },
+  {
+    id: "execution_shared_public",
+    text: "Relying on shared/public charging can create 'standing at the charger' uncertainty (apps, tariffs, session starts). Low tolerance for that uncertainty tends to amplify stress.",
+    triggers: [
+      { executionUncertaintyTolerance: "low", dependency: "shared" },
+      { executionUncertaintyTolerance: "low", dependency: "public" },
+      { executionUncertaintyTolerance: "low", chargingAccess: "apartment_shared" },
+      { executionUncertaintyTolerance: "low", chargingAccess: "work_shared" },
+      { executionUncertaintyTolerance: "low", chargingAccess: "public_mixed" }
+    ]
+  },
+  {
+    id: "downtime_recovery_low",
+    text: "If unexpected downtime would be disruptive, the hardest part is often uncertainty (how long, how to fix, how to get back to normal), not the failure itself.",
+    triggers: [
+      { downtimeRecoveryTolerance: "low" }
+    ]
+  },
+  {
+    id: "downtime_no_backup",
+    text: "Limited backup options can turn minor issues into major disruptions. When downtime tolerance is low, this tends to feel heavier in the first months.",
+    triggers: [
+      { downtimeRecoveryTolerance: "low", backup: "none" }
+    ]
+  },
+  {
+    id: "downtime_unpredictable",
+    text: "Unpredictable schedules + low tolerance for downtime can make disruptions feel costly because they remove your ability to 'plan around it.'",
+    triggers: [
+      { downtimeRecoveryTolerance: "low", schedule: "unpredictable" }
+    ]
+  },
+  {
+    id: "why_not_100",
+    text: "Why not 100%: this depends on how often you hit 'execution-time' moments (apps/session starts) and how disruptive downtime would be when life gets busy.",
+    triggers: []
   }
 ];
 

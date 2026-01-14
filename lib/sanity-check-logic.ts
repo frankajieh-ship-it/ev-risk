@@ -16,14 +16,25 @@ import {
  * Matches user answers against trigger conditions and returns 3-6 sentences.
  *
  * Priority Rules:
- * 1. Multi-match sentences first (match multiple answer fields)
- * 2. Deduplicate by ID
- * 3. Target 3-6 sentences
- * 4. Add baselines if fewer than 3 matched
- * 5. Exclude conflicting sentences (e.g., don't show stability with high friction)
+ * 1. Priority-based sorting (interaction sentences > generic sentences)
+ * 2. Limit to at most 1 execution and 1 recovery sentence
+ * 3. Multi-match sentences preferred within each category
+ * 4. Target 3-6 sentences total
+ * 5. Add baselines if fewer than 3 matched
+ * 6. Exclude conflicting sentences (e.g., don't show stability with high friction)
  */
 export function selectFrictionSentences(answers: SanityCheckAnswers): string[] {
-  const matchedSentences: Array<{ sentence: FrictionSentence; matchCount: number }> = [];
+  const matchedSentences: Array<{ sentence: FrictionSentence; matchCount: number; priority: number }> = [];
+
+  // Priority map (higher = more important)
+  const priorityMap: Record<string, number> = {
+    "execution_shared_public": 100,  // S_EXEC_003 - Interaction sentence
+    "downtime_no_backup": 95,        // S_REC_002 - Interaction sentence
+    "downtime_unpredictable": 95,    // S_REC_003 - Interaction sentence
+    "execution_uncertainty_low": 50,  // S_EXEC_001 - Generic
+    "downtime_recovery_low": 50,      // S_REC_001 - Generic
+    "execution_uncertainty_high": 30  // S_EXEC_002 - Optional positive
+  };
 
   // Check each sentence against user answers
   for (const sentence of FRICTION_SENTENCES) {
@@ -40,22 +51,38 @@ export function selectFrictionSentences(answers: SanityCheckAnswers): string[] {
     }
 
     if (matchCount > 0) {
-      matchedSentences.push({ sentence, matchCount });
+      const priority = priorityMap[sentence.id] || 0;
+      matchedSentences.push({ sentence, matchCount, priority });
     }
   }
 
-  // Sort by match count (descending) - prefer multi-match sentences
-  matchedSentences.sort((a, b) => b.matchCount - a.matchCount);
+  // Sort by priority first, then match count
+  matchedSentences.sort((a, b) => {
+    if (a.priority !== b.priority) return b.priority - a.priority;
+    return b.matchCount - a.matchCount;
+  });
 
-  // Deduplicate by ID and extract text
-  const uniqueSentences = new Map<string, string>();
+  // Limit to at most 1 execution bullet and 1 recovery bullet
+  let executionCount = 0;
+  let recoveryCount = 0;
+  const filteredSentences: string[] = [];
+
   for (const { sentence } of matchedSentences) {
-    if (!uniqueSentences.has(sentence.id)) {
-      uniqueSentences.set(sentence.id, sentence.text);
+    if (sentence.id.startsWith("execution_")) {
+      if (executionCount < 1) {
+        filteredSentences.push(sentence.text);
+        executionCount++;
+      }
+    } else if (sentence.id.startsWith("downtime_")) {
+      if (recoveryCount < 1) {
+        filteredSentences.push(sentence.text);
+        recoveryCount++;
+      }
+    } else {
+      // Include all non-tolerance sentences (original 10)
+      filteredSentences.push(sentence.text);
     }
   }
-
-  let selectedSentences = Array.from(uniqueSentences.values());
 
   // Check if high friction scenario (exclude stability sentence)
   const hasHighFriction =
@@ -63,9 +90,10 @@ export function selectFrictionSentences(answers: SanityCheckAnswers): string[] {
     answers.schedule === "unpredictable" &&
     (answers.backup === "none" || answers.backup === "occasional");
 
+  let selectedSentences = filteredSentences;
   if (hasHighFriction) {
     const stabilityText = FRICTION_SENTENCES.find(s => s.id === "full_control_stability")?.text;
-    selectedSentences = selectedSentences.filter(s => s !== stabilityText);
+    selectedSentences = filteredSentences.filter(s => s !== stabilityText);
   }
 
   // Add baselines if fewer than 3 matched
@@ -95,39 +123,69 @@ export function selectFrictionSentences(answers: SanityCheckAnswers): string[] {
  * - "High Friction": public + unpredictable + (none|occasional backup)
  * - "Conditional": shared/public OR variable schedule OR occasional backup
  * - "Good Fit": full_control + home + predictable/variable + backup available
+ *
+ * NEW: Includes tolerance-based modifiers:
+ * - Conditional → High Friction if low execution tolerance + shared/public
+ * - Good Fit → Conditional if low downtime tolerance + no backup
  */
 export function calculateFitContext(answers: SanityCheckAnswers): "Good Fit" | "Conditional" | "High Friction" {
+  // Determine base label
+  let baseLabel: "Good Fit" | "Conditional" | "High Friction";
+
   // High Friction
   if (
     answers.dependency === "public" &&
     answers.schedule === "unpredictable" &&
     (answers.backup === "none" || answers.backup === "occasional")
   ) {
-    return "High Friction";
+    baseLabel = "High Friction";
   }
-
   // Good Fit (check before Conditional to allow variable schedule)
-  if (
+  else if (
     answers.dependency === "full_control" &&
     answers.chargingAccess === "home" &&
     (answers.schedule === "predictable" || answers.schedule === "variable") &&
     answers.backup !== "none"
   ) {
-    return "Good Fit";
+    baseLabel = "Good Fit";
   }
-
   // Conditional
-  if (
+  else if (
     answers.dependency === "shared" ||
     answers.dependency === "public" ||
     answers.backup === "occasional" ||
     answers.schedule === "variable"
   ) {
+    baseLabel = "Conditional";
+  }
+  // Default to Conditional
+  else {
+    baseLabel = "Conditional";
+  }
+
+  // NEW MODIFIER 1: Conditional + low execution tolerance + shared/public → High Friction
+  if (
+    baseLabel === "Conditional" &&
+    answers.executionUncertaintyTolerance === "low" &&
+    (answers.dependency === "shared" ||
+     answers.dependency === "public" ||
+     answers.chargingAccess === "apartment_shared" ||
+     answers.chargingAccess === "work_shared" ||
+     answers.chargingAccess === "public_mixed")
+  ) {
+    return "High Friction";
+  }
+
+  // NEW MODIFIER 2: Good Fit + low downtime tolerance + no backup → Conditional
+  if (
+    baseLabel === "Good Fit" &&
+    answers.downtimeRecoveryTolerance === "low" &&
+    answers.backup === "none"
+  ) {
     return "Conditional";
   }
 
-  // Default to Conditional
-  return "Conditional";
+  return baseLabel;
 }
 
 /**
@@ -140,6 +198,7 @@ export function calculateFitContext(answers: SanityCheckAnswers): "Good Fit" | "
  * - schedule → dailyMiles (number)
  * - backup → riskTolerance (string)
  * - dependency → used for sentence selection only (not mapped)
+ * - tolerance fields → used for sentence selection and fit modifiers only (not mapped)
  */
 export function mapToScoringInput(
   answers: SanityCheckAnswers,
