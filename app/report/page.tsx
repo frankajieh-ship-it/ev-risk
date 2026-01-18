@@ -24,6 +24,7 @@ import ConfidenceDriversPanel from "@/components/ConfidenceDriversPanel";
 import ShareDropdown from "@/components/ShareDropdown";
 import SaveForLaterModal from "@/components/SaveForLaterModal";
 import DebugPanel from "@/components/DebugPanel";
+import WhyCheckpointCard from "@/components/WhyCheckpointCard";
 import { generateConfidenceData, type ConfidenceInputs } from "@/lib/confidence-calculator";
 import { generateDebugData } from "@/lib/debug-helpers";
 import { generateMissingDataExplanations, getPrimaryMissingExplanation, generatePersonalizationOpportunities } from "@/lib/missing-data-generator";
@@ -457,6 +458,9 @@ function ReportContent() {
             </p>
           </div>
         )}
+
+        {/* WHY CHECKPOINT - Optional intent signal capture */}
+        <WhyCheckpointCard reportId={reportId || undefined} />
 
         {/* GET FULL REPORT CTA - Positioned right after Conditional Fit */}
         {!showFullReport && (

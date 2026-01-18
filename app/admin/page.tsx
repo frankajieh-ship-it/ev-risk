@@ -87,6 +87,13 @@ export default function AdminDashboard() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [showCustomDate, setShowCustomDate] = useState(false);
+  const [whyCheckpointStats, setWhyCheckpointStats] = useState<{
+    shown: number;
+    submitted: number;
+    skipped: number;
+    submitRate: string;
+    choiceCounts: Record<string, number>;
+  } | null>(null);
 
   const fetchAnalytics = async (
     key: string,
@@ -126,10 +133,11 @@ export default function AdminDashboard() {
       // Store API key in session storage for convenience
       sessionStorage.setItem("admin_api_key", key);
 
-      // Fetch visitor stats, event stats, and app feedback
+      // Fetch visitor stats, event stats, app feedback, and why checkpoint stats
       await fetchVisitorStats(visitorTimeframe);
       await fetchEventStats(eventTimeframe);
       await fetchAppFeedback(feedbackLimit, feedbackType);
+      await fetchWhyCheckpointStats(eventTimeframe);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
       setAnalytics(null);
@@ -182,6 +190,42 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error("Failed to fetch app feedback:", err);
+    }
+  };
+
+  const fetchWhyCheckpointStats = async (timeframe: string = eventTimeframe) => {
+    try {
+      const response = await fetch(`/api/track-event?timeframe=${timeframe}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Filter for why_checkpoint events from recent events
+        const whyEvents = data.stats.recentEvents?.filter(
+          (e: { event_name: string }) => e.event_name.startsWith('why_checkpoint_')
+        ) || [];
+
+        const shown = whyEvents.filter((e: { event_name: string }) => e.event_name === 'why_checkpoint_shown').length;
+        const submitted = whyEvents.filter((e: { event_name: string }) => e.event_name === 'why_checkpoint_submitted').length;
+        const skipped = whyEvents.filter((e: { event_name: string }) => e.event_name === 'why_checkpoint_skipped').length;
+
+        // Count choices from submitted events
+        const choiceCounts: Record<string, number> = {};
+        whyEvents
+          .filter((e: { event_name: string }) => e.event_name === 'why_checkpoint_submitted')
+          .forEach((e: { event_data?: { why_choice?: string } }) => {
+            const choice = e.event_data?.why_choice || 'unknown';
+            choiceCounts[choice] = (choiceCounts[choice] || 0) + 1;
+          });
+
+        setWhyCheckpointStats({
+          shown,
+          submitted,
+          skipped,
+          submitRate: shown > 0 ? ((submitted / shown) * 100).toFixed(1) : '0',
+          choiceCounts,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch why checkpoint stats:", err);
     }
   };
 
@@ -588,6 +632,81 @@ export default function AdminDashboard() {
                 </table>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Why Checkpoint Section */}
+        {whyCheckpointStats && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">🎯 Why Checkpoint</h2>
+              <div className="flex gap-2">
+                {["24h", "7d", "30d", "all"].map((tf) => (
+                  <button
+                    key={tf}
+                    onClick={() => {
+                      fetchWhyCheckpointStats(tf);
+                    }}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                      eventTimeframe === tf
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    {tf === "24h" ? "24 Hours" : tf === "7d" ? "7 Days" : tf === "30d" ? "30 Days" : "All Time"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Checkpoint Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-blue-50 rounded-xl p-4">
+                <p className="text-sm text-blue-600 font-medium mb-1">Shown</p>
+                <p className="text-3xl font-bold text-blue-900">{whyCheckpointStats.shown}</p>
+              </div>
+              <div className="bg-green-50 rounded-xl p-4">
+                <p className="text-sm text-green-600 font-medium mb-1">Submitted</p>
+                <p className="text-3xl font-bold text-green-900">{whyCheckpointStats.submitted}</p>
+              </div>
+              <div className="bg-gray-100 rounded-xl p-4">
+                <p className="text-sm text-gray-600 font-medium mb-1">Skipped</p>
+                <p className="text-3xl font-bold text-gray-900">{whyCheckpointStats.skipped}</p>
+              </div>
+              <div className="bg-purple-50 rounded-xl p-4">
+                <p className="text-sm text-purple-600 font-medium mb-1">Submit Rate</p>
+                <p className="text-3xl font-bold text-purple-900">{whyCheckpointStats.submitRate}%</p>
+              </div>
+            </div>
+
+            {/* Choice Distribution */}
+            {Object.keys(whyCheckpointStats.choiceCounts).length > 0 && (
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-3">Choice Distribution</h3>
+                <div className="space-y-2">
+                  {Object.entries(whyCheckpointStats.choiceCounts)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([choice, count]) => (
+                      <div key={choice} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <span className="font-medium capitalize text-gray-900">
+                          {choice.replace(/_/g, ' ')}
+                        </span>
+                        <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                          {count}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {Object.keys(whyCheckpointStats.choiceCounts).length === 0 && whyCheckpointStats.shown > 0 && (
+              <p className="text-gray-500 text-sm">No submissions yet - users have only seen or skipped the checkpoint.</p>
+            )}
+
+            {whyCheckpointStats.shown === 0 && (
+              <p className="text-gray-500 text-sm">No checkpoint data yet. Checkpoints appear on the report view page.</p>
+            )}
           </div>
         )}
 

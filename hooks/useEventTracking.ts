@@ -130,6 +130,22 @@ export function useEventTracking() {
     [trackEvent]
   );
 
+  const trackWhyCheckpoint = useCallback(
+    (action: 'shown' | 'skipped' | 'submitted' | 'error', data?: {
+      placement?: string;
+      why_choice?: string;
+      why_other_text?: string;
+      report_id?: string;
+      error_code?: string;
+    }) => {
+      trackEvent(`why_checkpoint_${action}`, {
+        placement: data?.placement || 'report_view',
+        ...data,
+      });
+    },
+    [trackEvent]
+  );
+
   return {
     trackEvent,
     trackFormSubmit,
@@ -137,5 +153,6 @@ export function useEventTracking() {
     trackBlogLinkClick,
     trackReportGenerated,
     trackButtonClick,
+    trackWhyCheckpoint,
   };
 }
