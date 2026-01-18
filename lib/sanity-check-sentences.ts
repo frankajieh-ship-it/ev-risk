@@ -18,8 +18,18 @@ export interface SanityCheckAnswers {
 
 export interface FrictionSentence {
   id: string;
-  text: string;
+  text: string | { US: string; UK?: string };  // UK optional, falls back to US
   triggers: Partial<SanityCheckAnswers>[];
+}
+
+/**
+ * Helper to get the correct regional text from a FrictionSentence
+ */
+export function getSentenceText(sentence: FrictionSentence, region: "US" | "UK" = "US"): string {
+  if (typeof sentence.text === "string") {
+    return sentence.text;
+  }
+  return sentence.text[region] ?? sentence.text.US;
 }
 
 /**
@@ -39,7 +49,10 @@ export const FRICTION_SENTENCES: FrictionSentence[] = [
   },
   {
     id: "public_variability",
-    text: "When charging depends on the public network, reliability and availability can vary day to day, which makes routines harder to lock in.",
+    text: {
+      US: "When charging depends on the public network, reliability and availability can vary day to day, which makes routines harder to lock in.",
+      UK: "When charging depends on the public network, reliability at motorway services and rural areas can vary, which makes routines harder to lock in."
+    },
     triggers: [
       { chargingAccess: "public_mixed" },
       { dependency: "public" }
@@ -98,7 +111,10 @@ export const FRICTION_SENTENCES: FrictionSentence[] = [
   },
   {
     id: "public_unpredictable_peak",
-    text: "Public charging combined with unpredictable hours is where EV routines break most often, not because of range, but because of timing.",
+    text: {
+      US: "Public charging combined with unpredictable hours is where EV routines break most often, not because of range, but because of timing.",
+      UK: "Relying on motorway services or public chargers with unpredictable hours is where EV routines break most often, not because of range, but because of timing."
+    },
     triggers: [
       { dependency: "public", schedule: "unpredictable" }
     ]
@@ -163,6 +179,15 @@ export const FRICTION_SENTENCES: FrictionSentence[] = [
  * Displayed after friction sentences in the output screen.
  */
 export const CLOSING_LINE = "These frictions most often surface during routine setup or after a disruption—such as a move, schedule change, charger outage, or seasonal shift—rather than on day one.";
+
+export const CLOSING_LINE_BY_REGION = {
+  US: "These frictions usually show up in the first 3–6 months — especially after a move, schedule change, or seasonal shift.",
+  UK: "These frictions usually show up in the first 1–3 months — especially through winter, motorway service stops, or unplanned detours."
+};
+
+export function getClosingLine(region: "US" | "UK" = "US"): string {
+  return CLOSING_LINE_BY_REGION[region];
+}
 
 /**
  * Optional "Why Not 100%" Text

@@ -7,8 +7,10 @@
 import {
   FRICTION_SENTENCES,
   type SanityCheckAnswers,
-  type FrictionSentence
+  type FrictionSentence,
+  getSentenceText
 } from "./sanity-check-sentences";
+import type { Region } from "./regionCopy";
 
 /**
  * Select Friction Sentences
@@ -23,7 +25,7 @@ import {
  * 5. Add baselines if fewer than 3 matched
  * 6. Exclude conflicting sentences (e.g., don't show stability with high friction)
  */
-export function selectFrictionSentences(answers: SanityCheckAnswers): string[] {
+export function selectFrictionSentences(answers: SanityCheckAnswers, region: Region = "US"): string[] {
   const matchedSentences: Array<{ sentence: FrictionSentence; matchCount: number; priority: number }> = [];
 
   // Priority map (higher = more important)
@@ -68,19 +70,20 @@ export function selectFrictionSentences(answers: SanityCheckAnswers): string[] {
   const filteredSentences: string[] = [];
 
   for (const { sentence } of matchedSentences) {
+    const text = getSentenceText(sentence, region);
     if (sentence.id.startsWith("execution_")) {
       if (executionCount < 1) {
-        filteredSentences.push(sentence.text);
+        filteredSentences.push(text);
         executionCount++;
       }
     } else if (sentence.id.startsWith("downtime_")) {
       if (recoveryCount < 1) {
-        filteredSentences.push(sentence.text);
+        filteredSentences.push(text);
         recoveryCount++;
       }
     } else {
       // Include all non-tolerance sentences (original 10)
-      filteredSentences.push(sentence.text);
+      filteredSentences.push(text);
     }
   }
 
@@ -92,21 +95,30 @@ export function selectFrictionSentences(answers: SanityCheckAnswers): string[] {
 
   let selectedSentences = filteredSentences;
   if (hasHighFriction) {
-    const stabilityText = FRICTION_SENTENCES.find(s => s.id === "full_control_stability")?.text;
-    selectedSentences = filteredSentences.filter(s => s !== stabilityText);
+    const stabilitySentence = FRICTION_SENTENCES.find(s => s.id === "full_control_stability");
+    if (stabilitySentence) {
+      const stabilityText = getSentenceText(stabilitySentence, region);
+      selectedSentences = filteredSentences.filter(s => s !== stabilityText);
+    }
   }
 
   // Add baselines if fewer than 3 matched
   if (selectedSentences.length < 3) {
-    const sharedCompetition = FRICTION_SENTENCES.find(s => s.id === "shared_competition")?.text;
-    const publicVariability = FRICTION_SENTENCES.find(s => s.id === "public_variability")?.text;
+    const sharedCompetitionSentence = FRICTION_SENTENCES.find(s => s.id === "shared_competition");
+    const publicVariabilitySentence = FRICTION_SENTENCES.find(s => s.id === "public_variability");
 
-    if (sharedCompetition && !selectedSentences.includes(sharedCompetition)) {
-      selectedSentences.push(sharedCompetition);
+    if (sharedCompetitionSentence) {
+      const sharedCompetition = getSentenceText(sharedCompetitionSentence, region);
+      if (!selectedSentences.includes(sharedCompetition)) {
+        selectedSentences.push(sharedCompetition);
+      }
     }
 
-    if (selectedSentences.length < 3 && publicVariability && !selectedSentences.includes(publicVariability)) {
-      selectedSentences.push(publicVariability);
+    if (selectedSentences.length < 3 && publicVariabilitySentence) {
+      const publicVariability = getSentenceText(publicVariabilitySentence, region);
+      if (!selectedSentences.includes(publicVariability)) {
+        selectedSentences.push(publicVariability);
+      }
     }
   }
 

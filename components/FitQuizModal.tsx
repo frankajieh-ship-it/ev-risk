@@ -9,9 +9,11 @@ import {
   selectFrictionSentences,
   calculateFitContext,
   mapToScoringInput
-  
+
 } from "@/lib/sanity-check-logic";
-import { CLOSING_LINE, type SanityCheckAnswers } from "@/lib/sanity-check-sentences";
+import { CLOSING_LINE, getClosingLine, type SanityCheckAnswers } from "@/lib/sanity-check-sentences";
+import { resolveRegion, type RegionSelection } from "@/lib/resolveRegion";
+import { getCopy } from "@/lib/getCopy";
 
 interface FitQuizModalProps {
   isOpen: boolean;
@@ -37,6 +39,16 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
   const [zipCode, setZipCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showCopySuccess, setShowCopySuccess] = useState(false);
+  const [regionSelection, setRegionSelection] = useState<RegionSelection>("AUTO");
+
+  // Resolve region and get copy
+  const regionResolved = resolveRegion(regionSelection);
+  const copy = getCopy(regionResolved);
+
+  // ZIP/Postcode validation pattern
+  const zipPattern = regionResolved === "UK"
+    ? /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i  // UK postcode
+    : /^\d{5}$/;  // US ZIP
 
   // Reset state when modal opens
   useEffect(() => {
@@ -64,9 +76,12 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
       return;
     }
 
-    // Validate ZIP code
-    if (!/^\d{5}$/.test(zipCode)) {
-      alert("Please enter a valid 5-digit ZIP code");
+    // Validate ZIP/Postcode
+    if (!zipPattern.test(zipCode)) {
+      const errorMsg = regionResolved === "UK"
+        ? "Please enter a valid UK postcode (e.g., SW1A 1AA)"
+        : "Please enter a valid 5-digit ZIP code";
+      alert(errorMsg);
       return;
     }
 
@@ -80,6 +95,7 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
       downtimeRecoveryTolerance: sanityAnswers.downtimeRecoveryTolerance,
       risk_execution_uncertainty: sanityAnswers.executionUncertaintyTolerance === "low",
       risk_recovery_downtime: sanityAnswers.downtimeRecoveryTolerance === "low",
+      region: regionResolved,
     });
 
     setPhase("output");
@@ -325,18 +341,31 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
           </div>
         </div>
 
-        {/* Question 7: ZIP Code */}
+        {/* Question 7: ZIP/Postcode with Region Selector */}
         <div className="space-y-3">
-          <label className="block text-sm font-semibold text-gray-900">
-            What's your ZIP code?
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-semibold text-gray-900">
+              What's your {copy.labels.zip}?
+            </label>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500">Region:</label>
+              <select
+                value={regionSelection}
+                onChange={(e) => setRegionSelection(e.target.value as RegionSelection)}
+                className="text-sm border border-gray-300 rounded px-2 py-1 focus:border-blue-600 focus:outline-none"
+              >
+                <option value="AUTO">Auto</option>
+                <option value="US">United States</option>
+                <option value="UK">United Kingdom</option>
+              </select>
+            </div>
+          </div>
           <input
             type="text"
             value={zipCode}
             onChange={(e) => setZipCode(e.target.value)}
-            placeholder="12345"
-            pattern="\d{5}"
-            maxLength={5}
+            placeholder={copy.helper.zipPlaceholder}
+            maxLength={regionResolved === "UK" ? 8 : 5}
             className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-blue-600 focus:outline-none"
           />
           <p className="text-xs text-gray-500">
@@ -361,9 +390,10 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
   };
 
   const renderOutput = () => {
-    const sentences = selectFrictionSentences(sanityAnswers as SanityCheckAnswers);
+    const sentences = selectFrictionSentences(sanityAnswers as SanityCheckAnswers, regionResolved);
     const fitContext = calculateFitContext(sanityAnswers as SanityCheckAnswers);
-    const copyText = sentences.join("\n") + "\n\n" + CLOSING_LINE;
+    const closingLine = getClosingLine(regionResolved);
+    const copyText = sentences.join("\n") + "\n\n" + closingLine;
 
     return (
       <div className="p-6 space-y-6">
@@ -381,7 +411,7 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
 
         {/* Closing Line */}
         <p className="text-sm text-gray-600 italic leading-relaxed border-t pt-4 mt-4">
-          {CLOSING_LINE}
+          {closingLine}
         </p>
 
         {/* Optional Fit Context (de-emphasized) */}
