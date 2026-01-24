@@ -68,6 +68,22 @@ interface AnalyticsData {
     free: number;
     paid: number;
   }>;
+  vehicle_checkouts: Array<{
+    year: string | null;
+    model: string | null;
+    checkout_count: number;
+  }>;
+  report_downloads: Array<{
+    year: string | null;
+    model: string | null;
+    status: string | null;
+    download_count: number;
+  }>;
+  download_summary: {
+    total_downloads: number;
+    free_downloads: number;
+    paid_downloads: number;
+  };
 }
 
 export default function AdminDashboard() {
@@ -94,6 +110,214 @@ export default function AdminDashboard() {
     submitRate: string;
     choiceCounts: Record<string, number>;
   } | null>(null);
+  const [sessionAnalytics, setSessionAnalytics] = useState<{
+    overview: {
+      total_sessions: number;
+      completed_sessions: number;
+      viewed_results: number;
+      with_resolution: number;
+      completion_rate: number;
+      resolution_rate: number;
+    };
+    decision_outcomes: Array<{ outcome: string; count: number; label: string }>;
+    fit_signals: Array<{ signal: string; count: number; label: string }>;
+    sources: Array<{ source: string; count: number }>;
+    regions: Array<{ region: string; count: number }>;
+    surfaced_tradeoff: { yes: number; no: number; total: number; rate: number };
+    recent_sessions: Array<{
+      id: string;
+      created_at: string;
+      fit_signal: string | null;
+      decision_outcome: string | null;
+      surfaced_new_tradeoff: boolean | null;
+      region: string;
+      source: string;
+      vehicle_model: string | null;
+    }>;
+    daily_trend: Array<{ date: string; total: number; completed: number; resolved: number }>;
+  } | null>(null);
+  const [exportPeriod, setExportPeriod] = useState<"today" | "week" | "month">("today");
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Generate export summary data
+  const generateExportSummary = () => {
+    if (!analytics || !visitorStats || !eventStats) return null;
+
+    const summary = {
+      period: exportPeriod,
+      generatedAt: new Date().toISOString(),
+      // Overview
+      totalReports: analytics.overview.total_reports,
+      freeReports: analytics.overview.free_reports,
+      paidReports: analytics.overview.paid_reports,
+      uniqueCustomers: analytics.overview.unique_customers,
+      // Conversion
+      conversionRate: analytics.conversion.conversion_rate,
+      totalGenerated: analytics.conversion.total_generated,
+      convertedToPaid: analytics.conversion.converted_to_paid,
+      // Revenue
+      totalRevenue: analytics.revenue.total_revenue,
+      paidCount: analytics.revenue.paid_count,
+      // Feedback
+      avgRating: analytics.feedback.avg_rating,
+      totalFeedback: analytics.feedback.total_feedback,
+      recommendationRate: analytics.feedback.recommendation_rate,
+      // Visitors
+      totalVisitors: visitorStats.totalVisits || visitorStats.totalPageViews || 0,
+      uniqueVisitors: visitorStats.uniqueVisitors || 0,
+      // Events
+      formSubmissions: eventStats.formSubmissions?.total_attempts || 0,
+      formSuccessRate: eventStats.formSubmissions?.total_attempts > 0
+        ? ((eventStats.formSubmissions.successful / eventStats.formSubmissions.total_attempts) * 100).toFixed(1)
+        : "0",
+      urlAutofillAttempts: eventStats.urlAutofill?.total_attempts || 0,
+      urlAutofillSuccessRate: eventStats.urlAutofill?.total_attempts > 0
+        ? ((eventStats.urlAutofill.successful / eventStats.urlAutofill.total_attempts) * 100).toFixed(1)
+        : "0",
+      // Why Checkpoint
+      whyCheckpointShown: whyCheckpointStats?.shown || 0,
+      whyCheckpointSubmitted: whyCheckpointStats?.submitted || 0,
+      whyCheckpointSubmitRate: whyCheckpointStats?.submitRate || "0",
+    };
+
+    return summary;
+  };
+
+  // Export as CSV
+  const exportToCSV = async () => {
+    setIsExporting(true);
+
+    // Fetch fresh data for the selected period
+    const storedKey = sessionStorage.getItem("admin_api_key");
+    if (!storedKey) {
+      setIsExporting(false);
+      return;
+    }
+
+    // Map export period to API period
+    const apiPeriod = exportPeriod === "today" ? "today" : exportPeriod === "week" ? "week" : "month";
+    const timeframe = exportPeriod === "today" ? "24h" : exportPeriod === "week" ? "7d" : "30d";
+
+    try {
+      // Fetch all data for the period
+      await fetchAnalytics(storedKey, apiPeriod);
+      await fetchVisitorStats(timeframe);
+      await fetchEventStats(timeframe);
+      await fetchWhyCheckpointStats(timeframe);
+
+      // Wait a bit for state to update
+      setTimeout(() => {
+        const summary = generateExportSummary();
+        if (!summary) {
+          setIsExporting(false);
+          return;
+        }
+
+        // Create CSV content
+        const csvRows = [
+          ["EV-Risk Analytics Summary"],
+          ["Export Period", exportPeriod.charAt(0).toUpperCase() + exportPeriod.slice(1)],
+          ["Generated At", new Date().toLocaleString()],
+          [""],
+          ["=== OVERVIEW ==="],
+          ["Total Reports", summary.totalReports],
+          ["Free Reports", summary.freeReports],
+          ["Paid Reports", summary.paidReports],
+          ["Unique Customers", summary.uniqueCustomers],
+          [""],
+          ["=== CONVERSION ==="],
+          ["Conversion Rate", `${summary.conversionRate}%`],
+          ["Total Generated", summary.totalGenerated],
+          ["Converted to Paid", summary.convertedToPaid],
+          [""],
+          ["=== REVENUE ==="],
+          ["Total Revenue", `$${summary.totalRevenue}`],
+          ["Paid Report Count", summary.paidCount],
+          [""],
+          ["=== FEEDBACK ==="],
+          ["Average Rating", summary.avgRating.toFixed(1)],
+          ["Total Feedback", summary.totalFeedback],
+          ["Recommendation Rate", `${summary.recommendationRate}%`],
+          [""],
+          ["=== VISITORS ==="],
+          ["Total Visits", summary.totalVisitors],
+          ["Unique Visitors", summary.uniqueVisitors],
+          [""],
+          ["=== USER EVENTS ==="],
+          ["Form Submissions", summary.formSubmissions],
+          ["Form Success Rate", `${summary.formSuccessRate}%`],
+          ["URL Autofill Attempts", summary.urlAutofillAttempts],
+          ["URL Autofill Success Rate", `${summary.urlAutofillSuccessRate}%`],
+          [""],
+          ["=== WHY CHECKPOINT ==="],
+          ["Shown", summary.whyCheckpointShown],
+          ["Submitted", summary.whyCheckpointSubmitted],
+          ["Submit Rate", `${summary.whyCheckpointSubmitRate}%`],
+        ];
+
+        const csvContent = csvRows.map(row => row.join(",")).join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `ev-risk-summary-${exportPeriod}-${new Date().toISOString().split("T")[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        setIsExporting(false);
+      }, 500);
+    } catch (err) {
+      console.error("Export failed:", err);
+      setIsExporting(false);
+    }
+  };
+
+  // Export as JSON
+  const exportToJSON = async () => {
+    setIsExporting(true);
+
+    const storedKey = sessionStorage.getItem("admin_api_key");
+    if (!storedKey) {
+      setIsExporting(false);
+      return;
+    }
+
+    const apiPeriod = exportPeriod === "today" ? "today" : exportPeriod === "week" ? "week" : "month";
+    const timeframe = exportPeriod === "today" ? "24h" : exportPeriod === "week" ? "7d" : "30d";
+
+    try {
+      await fetchAnalytics(storedKey, apiPeriod);
+      await fetchVisitorStats(timeframe);
+      await fetchEventStats(timeframe);
+      await fetchWhyCheckpointStats(timeframe);
+
+      setTimeout(() => {
+        const summary = generateExportSummary();
+        if (!summary) {
+          setIsExporting(false);
+          return;
+        }
+
+        const jsonContent = JSON.stringify(summary, null, 2);
+        const blob = new Blob([jsonContent], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `ev-risk-summary-${exportPeriod}-${new Date().toISOString().split("T")[0]}.json`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        setIsExporting(false);
+      }, 500);
+    } catch (err) {
+      console.error("Export failed:", err);
+      setIsExporting(false);
+    }
+  };
 
   const fetchAnalytics = async (
     key: string,
@@ -133,11 +357,12 @@ export default function AdminDashboard() {
       // Store API key in session storage for convenience
       sessionStorage.setItem("admin_api_key", key);
 
-      // Fetch visitor stats, event stats, app feedback, and why checkpoint stats
+      // Fetch visitor stats, event stats, app feedback, why checkpoint stats, and session analytics
       await fetchVisitorStats(visitorTimeframe);
       await fetchEventStats(eventTimeframe);
       await fetchAppFeedback(feedbackLimit, feedbackType);
       await fetchWhyCheckpointStats(eventTimeframe);
+      await fetchSessionAnalytics();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
       setAnalytics(null);
@@ -226,6 +451,26 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error("Failed to fetch why checkpoint stats:", err);
+    }
+  };
+
+  const fetchSessionAnalytics = async () => {
+    try {
+      const storedKey = sessionStorage.getItem("admin_api_key");
+      if (!storedKey) return;
+
+      const response = await fetch(`/api/session/analytics?period=30`, {
+        headers: {
+          Authorization: `Bearer ${storedKey}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSessionAnalytics(data.session_analytics);
+      }
+    } catch (err) {
+      console.error("Failed to fetch session analytics:", err);
     }
   };
 
@@ -348,6 +593,59 @@ export default function AdminDashboard() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Export Summary Section */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Export Summary</h3>
+                <div className="flex gap-2">
+                  {(["today", "week", "month"] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setExportPeriod(p)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        exportPeriod === p
+                          ? "bg-indigo-600 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {p === "today" ? "Today" : p === "week" ? "This Week" : "This Month"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={exportToCSV}
+                  disabled={isExporting}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isExporting ? (
+                    <span className="animate-spin">...</span>
+                  ) : (
+                    <span>CSV</span>
+                  )}
+                  Export CSV
+                </button>
+                <button
+                  onClick={exportToJSON}
+                  disabled={isExporting}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isExporting ? (
+                    <span className="animate-spin">...</span>
+                  ) : (
+                    <span>JSON</span>
+                  )}
+                  Export JSON
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Download a summary of all analytics data for the selected period
+            </p>
           </div>
 
           {/* Custom Date Range Picker */}
@@ -931,6 +1229,258 @@ export default function AdminDashboard() {
             </table>
           </div>
         </div>
+
+        {/* Vehicle Checkouts (from tracking) */}
+        {analytics.vehicle_checkouts && analytics.vehicle_checkouts.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Top Vehicles Checked Out (Last 30 Days)
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Vehicles users have viewed/analyzed on the report page
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4">Vehicle</th>
+                    <th className="text-center py-3 px-4">Year</th>
+                    <th className="text-center py-3 px-4">Checkouts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {analytics.vehicle_checkouts.slice(0, 15).map((vehicle, idx) => (
+                    <tr key={idx} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-4 font-medium">{vehicle.model || "Unknown"}</td>
+                      <td className="py-3 px-4 text-center">{vehicle.year || "N/A"}</td>
+                      <td className="py-3 px-4 text-center">
+                        <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                          {vehicle.checkout_count}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Report Downloads */}
+        {analytics.download_summary && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Report Downloads (Last 30 Days)
+            </h2>
+
+            {/* Download Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-indigo-50 rounded-xl p-4">
+                <p className="text-sm text-indigo-600 font-medium mb-1">Total Downloads</p>
+                <p className="text-3xl font-bold text-indigo-900">{analytics.download_summary.total_downloads}</p>
+              </div>
+              <div className="bg-gray-100 rounded-xl p-4">
+                <p className="text-sm text-gray-600 font-medium mb-1">Free Reports</p>
+                <p className="text-3xl font-bold text-gray-900">{analytics.download_summary.free_downloads}</p>
+              </div>
+              <div className="bg-green-50 rounded-xl p-4">
+                <p className="text-sm text-green-600 font-medium mb-1">Paid Reports</p>
+                <p className="text-3xl font-bold text-green-900">{analytics.download_summary.paid_downloads}</p>
+              </div>
+            </div>
+
+            {/* Downloads by Vehicle */}
+            {analytics.report_downloads && analytics.report_downloads.length > 0 && (
+              <>
+                <h3 className="text-lg font-semibold mb-3">Downloads by Vehicle</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-4">Vehicle</th>
+                        <th className="text-center py-3 px-4">Year</th>
+                        <th className="text-center py-3 px-4">Status</th>
+                        <th className="text-center py-3 px-4">Downloads</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analytics.report_downloads.slice(0, 15).map((download, idx) => (
+                        <tr key={idx} className="border-b hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium">{download.model || "Unknown"}</td>
+                          <td className="py-3 px-4 text-center">{download.year || "N/A"}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                download.status === "paid"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
+                              {download.status || "unknown"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">
+                              {download.download_count}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Session Analytics (Decision Resolution) */}
+        {sessionAnalytics && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Session Analytics (Last 30 Days)
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Tracking decision resolution from the EV Routine Check
+            </p>
+
+            {/* Overview Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-blue-50 rounded-xl p-4">
+                <p className="text-sm text-blue-600 font-medium mb-1">Total Sessions</p>
+                <p className="text-2xl font-bold text-blue-900">{sessionAnalytics.overview.total_sessions}</p>
+              </div>
+              <div className="bg-green-50 rounded-xl p-4">
+                <p className="text-sm text-green-600 font-medium mb-1">Completed</p>
+                <p className="text-2xl font-bold text-green-900">{sessionAnalytics.overview.completed_sessions}</p>
+                <p className="text-xs text-green-600">{sessionAnalytics.overview.completion_rate}% rate</p>
+              </div>
+              <div className="bg-purple-50 rounded-xl p-4">
+                <p className="text-sm text-purple-600 font-medium mb-1">Viewed Results</p>
+                <p className="text-2xl font-bold text-purple-900">{sessionAnalytics.overview.viewed_results}</p>
+              </div>
+              <div className="bg-orange-50 rounded-xl p-4">
+                <p className="text-sm text-orange-600 font-medium mb-1">With Resolution</p>
+                <p className="text-2xl font-bold text-orange-900">{sessionAnalytics.overview.with_resolution}</p>
+                <p className="text-xs text-orange-600">{sessionAnalytics.overview.resolution_rate}% of viewed</p>
+              </div>
+            </div>
+
+            {/* Decision Outcomes */}
+            {sessionAnalytics.decision_outcomes.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3">Decision Outcomes</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {sessionAnalytics.decision_outcomes.map((outcome, idx) => (
+                    <div key={idx} className="bg-gray-50 rounded-lg p-3 text-center">
+                      <p className="text-2xl font-bold text-gray-900">{outcome.count}</p>
+                      <p className="text-xs text-gray-600">{outcome.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Fit Signals Distribution */}
+            {sessionAnalytics.fit_signals.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3">Fit Signal Distribution</h3>
+                <div className="flex flex-wrap gap-3">
+                  {sessionAnalytics.fit_signals.map((signal, idx) => (
+                    <div
+                      key={idx}
+                      className={`rounded-lg px-4 py-2 ${
+                        signal.signal === "GOOD"
+                          ? "bg-green-100 text-green-800"
+                          : signal.signal === "CONDITIONAL"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      <span className="font-bold">{signal.count}</span>
+                      <span className="ml-2 text-sm">{signal.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Surfaced New Tradeoff */}
+            {sessionAnalytics.surfaced_tradeoff.total > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3">Surfaced New Tradeoff?</h3>
+                <div className="flex items-center gap-4">
+                  <div className="bg-green-50 rounded-lg px-4 py-2">
+                    <span className="font-bold text-green-800">{sessionAnalytics.surfaced_tradeoff.yes}</span>
+                    <span className="ml-2 text-sm text-green-700">Yes</span>
+                  </div>
+                  <div className="bg-gray-100 rounded-lg px-4 py-2">
+                    <span className="font-bold text-gray-800">{sessionAnalytics.surfaced_tradeoff.no}</span>
+                    <span className="ml-2 text-sm text-gray-700">No</span>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    ({sessionAnalytics.surfaced_tradeoff.rate}% surfaced new considerations)
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Recent Sessions with Resolution */}
+            {sessionAnalytics.recent_sessions.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Recent Sessions with Resolution</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2 px-3">Date</th>
+                        <th className="text-left py-2 px-3">Fit Signal</th>
+                        <th className="text-left py-2 px-3">Decision</th>
+                        <th className="text-center py-2 px-3">New Tradeoff?</th>
+                        <th className="text-left py-2 px-3">Source</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sessionAnalytics.recent_sessions.slice(0, 10).map((session, idx) => (
+                        <tr key={idx} className="border-b hover:bg-gray-50">
+                          <td className="py-2 px-3 text-gray-600">
+                            {new Date(session.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="py-2 px-3">
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-medium ${
+                                session.fit_signal === "GOOD"
+                                  ? "bg-green-100 text-green-800"
+                                  : session.fit_signal === "CONDITIONAL"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : session.fit_signal === "HIGH_FRICTION"
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-gray-100 text-gray-600"
+                              }`}
+                            >
+                              {session.fit_signal || "N/A"}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-gray-900">
+                            {session.decision_outcome?.replace(/_/g, " ").toLowerCase() || "N/A"}
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            {session.surfaced_new_tradeoff === true
+                              ? "✅"
+                              : session.surfaced_new_tradeoff === false
+                              ? "❌"
+                              : "—"}
+                          </td>
+                          <td className="py-2 px-3 text-gray-600">{session.source}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Willingness to Pay Analysis */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">

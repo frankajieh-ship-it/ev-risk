@@ -73,7 +73,8 @@ export async function POST(request: NextRequest) {
         error: result.error,
         dataSource: result.data?.dataSource,
         extractedFields: result.data?.extractedFields?.length || 0,
-        warningsCount: result.warnings?.length || 0
+        warningsCount: result.warnings?.length || 0,
+        diagnostics: result.diagnostics,
       });
     } catch (extractError) {
       console.error('[Extract Listing API] Extraction error:', extractError);
@@ -83,6 +84,13 @@ export async function POST(request: NextRequest) {
           success: false,
           error: extractError instanceof Error ? extractError.message : 'Failed to extract listing data',
           warnings: [],
+          diagnostics: {
+            failureReason: "unknown",
+            domain: null,
+            extractedFieldCount: 0,
+            fetchMethod: null,
+            durationMs: 0,
+          },
         },
         { status: 500 }
       );
@@ -103,6 +111,7 @@ export async function POST(request: NextRequest) {
           missing: missingFields.length > 0 ? missingFields : ['make', 'model', 'year'],
           error: result.error || 'Failed to extract listing data',
           warnings: result.warnings || [],
+          diagnostics: result.diagnostics,
         },
         { status: 200 } // Return 200 so frontend can handle gracefully
       );
@@ -113,6 +122,7 @@ export async function POST(request: NextRequest) {
       success: true,
       data: result.data,
       warnings: result.warnings || [],
+      diagnostics: result.diagnostics,
     });
 
   } catch (error) {

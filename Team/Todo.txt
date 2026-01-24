@@ -1,0 +1,93 @@
+Recommended Next Steps (Prioritized)
+🔴 P0 — Fix Language Gating (No New Features)
+
+Goal: Never describe friction that the user explicitly ruled out.
+
+Actions:
+
+Add hard exclusions in summary generation:
+
+If home_charging = true AND infra_dependency = low → no public-charging language
+
+If schedule_control = high → no “unpredictable schedule” phrasing
+
+Explicitly name stability when present:
+
+“Because you have reliable home charging and a flexible schedule, most EV friction fades into the background.”
+
+This is the fastest trust win.
+
+🔴 P0 — Clarify Question Intent (Minimal UI change)
+
+Split or clarify:
+
+“Predictable schedule” →
+
+“Do you control your schedule?”
+
+“Do your driving days/times change week to week?”
+
+This resolves the retired / commuter confusion cleanly.
+
+🟠 P1 — Reframe Climate Language
+
+Replace “favorable climate” with:
+
+factual condition (“cold winters, hot summers”)
+
+paired tolerance statement
+
+Example:
+
+“Cold winters reduce efficiency, but you’ve indicated high tolerance for this.”
+
+🟠 P1 — Vehicle Info Reframing
+
+If vehicle info remains:
+
+Make it optional
+
+Add helper text:
+
+“This does not change your fit result — it’s for context only.”
+
+Remove photo upload entirely unless justified by a future feature.
+
+🟡 P2 — Add “Software / Platform Maturity Tolerance”
+
+Future question (non-alarmist):
+
+“How comfortable are you with occasional software updates or system issues in your vehicle?”
+
+This becomes a major differentiator over time.
+
+Strategic Insight (Important)
+
+This feedback proves something critical:
+
+Users will forgive uncertainty.
+They will not forgive misrepresentation.
+
+OFFO’s power is not prediction — it is accurate self-recognition.
+
+Your next phase is about:
+
+tightening mapping
+
+honoring user inputs with surgical precision
+
+naming when things are stable, not just risky
+
+Consultant Bottom Line
+
+You do not need more features.
+You do not need more traffic.
+You need tighter language-to-logic alignment.
+
+Fix that, and:
+
+trust compounds
+
+Reddit pull increases naturally
+
+the tool becomes something people reference, not just try

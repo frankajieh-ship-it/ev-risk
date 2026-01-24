@@ -1,0 +1,10 @@
+export interface SanityCheckAnswers {
+  chargingAccess: "home" | "apartment_shared" | "work_shared" | "public_mixed";
+  schedule: "predictable" | "variable" | "unpredictable";
+  backup: "easy" | "occasional" | "none";
+  dependency: "full_control" | "shared" | "public";
+
+  // Tolerance fields (added for execution-time and downtime friction analysis)
+  executionUncertaintyTolerance: "low" | "medium" | "high";
+  downtimeRecoveryTolerance: "low" | "medium" | "high";
+}

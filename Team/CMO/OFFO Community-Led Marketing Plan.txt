@@ -1,0 +1,274 @@
+OFFO Community-Led Marketing Plan
+
+Channels: r/EVRoutine, r/EVOwnershipReality
+Primary KPI: Trust density (engagement per member), not raw growth
+
+PHASE 0 — FOUNDATION (0 → ~300 members per community)
+Objective
+
+Establish credibility and vocabulary before visibility.
+
+What success looks like
+
+5–10 regular commenters per subreddit
+
+Posts averaging:
+
+r/EVRoutine: 5–15 comments
+
+r/EVOwnershipReality: 10–25 comments
+
+Your account(s) have positive karma from discussion, not links
+
+Content themes (ONLY these)
+
+Mental overhead
+
+Routine fit vs flexibility
+
+Predictability > availability
+
+“Why this worked / why this didn’t” stories
+
+Apartment vs home charging nuance
+
+Example post types
+
+“What surprised you after 3 months of EV ownership?”
+
+“What part of EV ownership requires the most planning?”
+
+“When does charging stop being background noise?”
+
+Rules
+
+❌ No product mentions
+
+❌ No links
+
+❌ No OFFO branding
+
+✅ Ask follow-up questions on every post
+
+✅ Reflect user language back to them
+
+Why this phase matters:
+This builds the language moat. Without it, later product mentions feel extractive.
+
+PHASE 1 — PATTERN RECOGNITION (300 → ~1,000 members)
+Objective
+
+Shift from anecdotes to shared frameworks without product reference.
+
+What success looks like
+
+Users start using phrases like:
+
+“mental overhead”
+
+“routine fit”
+
+“predictability”
+
+People tag others into threads
+
+Karma growth accelerates organically
+
+New content themes (additive)
+
+Failure modes (stacking risks)
+
+Adaptation paths (“this works if…”)
+
+Why similar people have opposite experiences
+
+Why EV debates feel contradictory
+
+Introduce named frameworks (still no product)
+
+“Routine-first vs flexibility-first drivers”
+
+“Edge-case dominance”
+
+“Battery uncertainty as a multiplier”
+
+“Charging predictability vs charger count”
+
+Example posts
+
+“Why two people in the same city can have opposite EV experiences”
+
+“When does an EV become a project instead of a car?”
+
+“What makes EV ownership disappear into the background?”
+
+Rules
+
+Still ❌ no links
+
+Still ❌ no calls to action
+
+You are teaching people how to think, not what to buy
+
+PHASE 2 — SOFT PRODUCT INTRODUCTION (1,000 → ~3,000 members)
+Objective
+
+Introduce OFFO as a tool that reflects what the community already believes.
+
+Trigger to enter Phase 2
+
+People ask:
+
+“Is there a way to sanity-check this?”
+
+“How would you evaluate my situation?”
+
+You find yourself repeating the same explanations
+
+How to introduce the product (very specific)
+Allowed phrasing (use exactly this tone)
+
+“We’ve been building a small tool that walks through this exact kind of routine fit.”
+
+“This isn’t a recommendation or score — it just makes the mismatch visible.”
+
+“It’s basically the same questions we keep discussing here, structured.”
+
+First product mentions
+
+Only in comments, not posts
+
+Only when directly relevant
+
+Link once, then stop
+
+Content focus
+
+Show example outputs, not features
+
+Share anonymized walkthroughs
+
+Emphasize:
+
+What it does NOT do
+
+Why it withholds judgment
+
+Community reaction you want
+
+“This actually matches what we’ve been saying”
+
+“This explains why my EV feels annoying”
+
+“I wish I had this before buying”
+
+If you see skepticism → slow down.
+
+PHASE 3 — COMMUNITY-ALIGNED MONETIZATION (3,000 → ~10,000 members)
+Objective
+
+Monetize without violating trust.
+
+What NOT to monetize
+
+Access
+
+Reports
+
+Basic checks
+
+Scores
+
+What can be monetized (aligned)
+
+Deep re-checks
+
+“I moved / job changed / lease ending”
+
+Battery clarity
+
+Interpreting third-party battery reports
+
+Scenario comparison
+
+“What changes if I switch charging setup / vehicle class?”
+
+How to introduce monetization
+
+As optional clarity, not gating
+
+Language like:
+
+“If you want to go deeper”
+
+“For people on the fence”
+
+“If the uncertainty is costing you time or stress”
+
+Community announcement style
+
+Pinned post example:
+
+“Some of you asked if there’s a way to go deeper than the free check. We added an optional deeper analysis for people making near-term decisions. Nothing here is paywalled — this just saves time if you’re stuck.”
+
+PHASE 4 — DEALER / B2B BRIDGE (After trust is established)
+
+This is where r/EVOwnershipReality becomes crucial.
+
+Objective
+
+Position OFFO as:
+
+“Helping buyers self-select better → fewer unhappy customers.”
+
+How to test this safely
+
+Invite dealers to observe, not promote
+
+Ask:
+
+“Where do buyers get surprised?”
+
+“Which EV returns frustrate you most?”
+
+Monetization here is separate and later:
+
+Dealer education
+
+Fit-screening tools
+
+Expectation-setting aids
+
+Do not mix this with consumer monetization early.
+
+METRICS THAT MATTER (Not Vanity)
+
+Track:
+
+Comments per post (not upvotes)
+
+Repeat commenters
+
+Language adoption
+
+Ratio of questions to assertions
+
+“This explains…” responses
+
+Ignore:
+
+Subscriber count spikes
+
+Karma farming
+
+Hot takes
+
+ONE INTERNAL RULE TO LOCK
+
+We earn the right to mention the product only after the community starts asking for it.
+
+That’s the difference between:
+
+a trusted decision partner
+
+and “yet another EV tool”

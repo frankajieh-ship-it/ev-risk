@@ -120,3 +120,108 @@ export interface UserInputs {
   // Verification
   dealerVerification?: boolean;
 }
+
+// ============================================
+// P0/P1: SEASONAL SENSITIVITY TYPES
+// ============================================
+
+/**
+ * Climate Seasonality - User's area climate type
+ */
+export type ClimateSeasonality =
+  | "MILD"
+  | "COLD_WINTER"
+  | "HOT_SUMMER"
+  | "MIXED"
+  | "UNKNOWN";
+
+/**
+ * Winter Long Days - Frequency of long driving days in winter
+ */
+export type WinterLongDays =
+  | "RARE"
+  | "MONTHLY"
+  | "WEEKLY"
+  | "UNKNOWN";
+
+/**
+ * Parked Outside - Cold-soak sensitivity proxy
+ */
+export type ParkedOutside =
+  | "YES"
+  | "NO"
+  | "SOMETIMES"
+  | "UNKNOWN";
+
+/**
+ * Seasonal Sensitivity Level - Engine output
+ */
+export type SeasonalSensitivity = "LOW" | "MEDIUM" | "HIGH";
+
+/**
+ * Seasonal Trigger Tags - Specific seasonal friction indicators
+ */
+export type SeasonalTriggerTag =
+  | "WINTER_BUFFER_COMPRESSION"
+  | "COLD_RECOVERY_RISK"
+  | "COLD_START_PRECONDITIONING"
+  | "SUMMER_HEAT_DEGRADATION";
+
+// ============================================
+// P0/P1: PREDICTABILITY TYPES
+// ============================================
+
+/**
+ * Charging Anchor Type - Primary charging location
+ */
+export type ChargingAnchorType =
+  | "HOME"
+  | "WORK"
+  | "DESTINATION"
+  | "PUBLIC_ANCHOR"
+  | "NONE";
+
+/**
+ * Backup Option - Reliability of backup charging
+ */
+export type BackupOption =
+  | "YES_RELIABLE"
+  | "MAYBE"
+  | "NONE"
+  | "UNKNOWN";
+
+/**
+ * Public Anchor Reliability - For public charging anchor users
+ */
+export type PublicAnchorReliability =
+  | "HIGH"
+  | "MEDIUM"
+  | "LOW"
+  | "UNKNOWN";
+
+/**
+ * Predictability Level - Engine output
+ */
+export type PredictabilityLevel = "HIGH" | "MEDIUM" | "LOW";
+
+// ============================================
+// P0/P1: PLANNING & THREAD TYPES
+// ============================================
+
+/**
+ * Planning Tolerance - Derived from execution/downtime tolerance
+ */
+export type PlanningTolerance = "LOW" | "MEDIUM" | "HIGH";
+
+/**
+ * Thread Type - Reddit thread context for analytics
+ */
+export type ThreadType =
+  | "first_ev"
+  | "no_home_charging"
+  | "comparison"
+  | "relocation"
+  | "winter"
+  | "battery_health"
+  | "company_car"
+  | "general";

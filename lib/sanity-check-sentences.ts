@@ -5,6 +5,15 @@
  * All sentence text is locked and must not be modified without Product approval.
  */
 
+import type {
+  ClimateSeasonality,
+  WinterLongDays,
+  ParkedOutside,
+  ChargingAnchorType,
+  BackupOption,
+  PublicAnchorReliability,
+} from "@/types";
+
 export interface SanityCheckAnswers {
   chargingAccess: "home" | "apartment_shared" | "work_shared" | "public_mixed";
   schedule: "predictable" | "variable" | "unpredictable";
@@ -14,6 +23,16 @@ export interface SanityCheckAnswers {
   // Tolerance fields (added for execution-time and downtime friction analysis)
   executionUncertaintyTolerance: "low" | "medium" | "high";
   downtimeRecoveryTolerance: "low" | "medium" | "high";
+
+  // P0/P1: Seasonal inputs
+  climateSeasonality?: ClimateSeasonality;
+  winterLongDays?: WinterLongDays;
+  parkedOutside?: ParkedOutside;
+
+  // P0/P1: Predictability inputs
+  chargingAnchorType?: ChargingAnchorType;
+  backupOption?: BackupOption;
+  publicAnchorReliability?: PublicAnchorReliability;
 }
 
 export interface FrictionSentence {
@@ -171,6 +190,63 @@ export const FRICTION_SENTENCES: FrictionSentence[] = [
     id: "why_not_100",
     text: "Why not 100%: this depends on how often you hit 'execution-time' moments (apps/session starts) and how disruptive downtime would be when life gets busy.",
     triggers: []
+  },
+
+  // P0/P1: Seasonal friction sentences
+  {
+    id: "winter_buffer_compression",
+    text: {
+      US: "This setup is stable most of the year, but winter months are where planning tends to resurface.",
+      UK: "This setup is stable most of the year, but winter months — especially on motorway trips — are where planning tends to resurface."
+    },
+    triggers: [
+      { climateSeasonality: "COLD_WINTER", dependency: "public" },
+      { climateSeasonality: "COLD_WINTER", dependency: "shared" }
+    ]
+  },
+  {
+    id: "cold_recovery_risk",
+    text: "Cold weather reduces range buffer, making recovery from missed charges harder. Low planning tolerance amplifies this.",
+    triggers: [
+      { climateSeasonality: "COLD_WINTER", backup: "none" }
+    ]
+  },
+  {
+    id: "winter_long_days_weekly",
+    text: "Weekly long driving days in winter can compress your buffer more often than expected, even with home charging.",
+    triggers: [
+      { winterLongDays: "WEEKLY", climateSeasonality: "COLD_WINTER" }
+    ]
+  },
+
+  // P0/P1: Predictability friction sentences
+  {
+    id: "low_predictability_public_routine",
+    text: "Your setup is limited mainly by predictability (reliable anchors + backups), not charger count.",
+    triggers: [
+      { chargingAnchorType: "PUBLIC_ANCHOR" },
+      { chargingAnchorType: "NONE" }
+    ]
+  },
+  {
+    id: "no_backup_anchor",
+    text: "Without a reliable backup option, minor disruptions at your primary anchor can cascade into larger planning headaches.",
+    triggers: [
+      { backupOption: "NONE", chargingAnchorType: "WORK" },
+      { backupOption: "NONE", chargingAnchorType: "DESTINATION" },
+      { backupOption: "NONE", chargingAnchorType: "PUBLIC_ANCHOR" }
+    ]
+  },
+
+  // P0/P1: Planning tolerance as first-class driver
+  {
+    id: "planning_tolerance_friction",
+    text: "This setup works, but it asks you to plan a bit more often than many people enjoy.",
+    triggers: [
+      { executionUncertaintyTolerance: "low", dependency: "public" },
+      { executionUncertaintyTolerance: "low", dependency: "shared" },
+      { downtimeRecoveryTolerance: "low", dependency: "public" }
+    ]
   }
 ];
 

@@ -1,0 +1,173 @@
+As Lead Marketing & Content Manager, my recommended next steps are about sequencing and discipline, not doing more at once. You’re in a strong position — the key is to compound clarity.
+
+1. Lock the Content Spine (This Week)
+
+Before publishing anything else, formally lock this as your core editorial spine:
+
+The EV Ownership Reality Curve
+Months 0–3 → Months 4–12 → Year 1+
+
+Everything you publish for the next 8–12 weeks should map to one of these phases.
+
+Why this matters
+
+Prevents topic drift
+
+Makes OFFO feel intentional, not reactive
+
+Lets readers self-identify (“I’m in this phase”)
+
+Action
+
+Create an internal tag system: PHASE_1, PHASE_2, PHASE_3
+
+Every post must declare its phase before writing
+
+2. Publish Phase 1 Anchor Post (Week 1)
+
+Start with Months 0–3, because:
+
+It’s emotionally safe
+
+It resonates with both buyers and owners
+
+It doesn’t trigger defensiveness
+
+Primary blog (already outlined):
+
+“The First 90 Days of EV Ownership: Why Everyone Charges Too Early at First”
+
+Distribution
+
+Publish on OFFO blog
+
+Share as:
+
+a Reddit-native long comment (not a link post)
+
+a short reflection post in r/EVRoutine
+
+Goal
+
+Establish OFFO as “the people who understand early EV anxiety without hype”
+
+3. Run Reddit as a Listening Engine, Not a Megaphone (Weeks 1–4)
+
+For the next month:
+
+Do
+
+Comment using phase language:
+
+“That’s very Month 2 behavior — totally normal.”
+
+“This is usually where Month 6 friction shows up.”
+
+Ask reflective questions tied to phases:
+
+“Did this fade for you after a few months, or did it stick?”
+
+Do NOT
+
+Link the blog unless someone asks
+
+Introduce the tool unless uncertainty is explicit
+
+Why
+You are seeding language, not clicks.
+
+4. Phase 2 Content Is the Conversion Engine (Weeks 3–6)
+
+Once Phase 1 is live and circulating, move to Months 4–12.
+
+This is where:
+
+regret begins quietly
+
+planning tolerance is tested
+
+winter / disruption shows up
+
+Key Phase 2 post
+
+“If an EV Still Feels High-Maintenance After 6 Months, Here’s Why”
+
+This is your highest-intent content.
+
+Tool intro rule (important)
+
+Only introduce OFFO here
+
+Only after naming friction
+
+Always with permission
+
+Example:
+
+“If you want structure to tell whether this is temporary or structural, we’ve built a short routine check.”
+
+5. Build One Canonical Page (Quietly)
+
+Create one evergreen page on the site:
+
+Title
+
+“How EV Ownership Actually Evolves Over Time”
+
+This page:
+
+summarizes the 3 phases
+
+has no CTA at the top
+
+links to each phase blog
+
+becomes your “explain OFFO” destination
+
+This is what you link when asked.
+
+6. Start Capturing “Phase Language Reuse” (Metric Shift)
+
+Begin tracking a new qualitative metric:
+
+Are users repeating OFFO’s framing unprompted?
+
+Examples:
+
+“This feels like setup anxiety”
+
+“It technically works but it’s mentally expensive”
+
+“Charging hasn’t faded into the background”
+
+This is more important than traffic.
+
+7. Defer Everything Else (Very Important)
+
+For now, explicitly do not:
+
+launch email capture
+
+expand to new platforms
+
+optimize SEO
+
+push monetization
+
+add new content themes
+
+You are still teaching the market how to think.
+
+Executive Content North Star
+
+If every piece of content makes someone think:
+
+“Oh… that explains what I’ve been feeling.”
+
+You’re winning.
+
+If it makes them think:
+
+“Is this telling me what to buy?”
+
+You’re off-strategy.

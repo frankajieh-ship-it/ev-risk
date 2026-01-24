@@ -1,0 +1,231 @@
+Reddit Community Reply Operator — Contract Model (Aligned to OFFO Goals)
+
+Role Name (use this):
+Community Intelligence & Response Operator (Reddit)
+
+You keep:
+
+Posting
+
+Topic selection
+
+Direction
+
+Final product mentions cadence
+
+They handle:
+
+High-quality replies
+
+Follow-up questions
+
+Conversation extension
+
+Community warmth + continuity
+
+1️⃣ What This Person Is Actually Responsible For
+
+This is not a social media manager.
+
+They are responsible for:
+
+Responding to comments in:
+
+r/EVRoutine
+
+r/EVOwnershipReality
+
+Selected external EV threads you approve
+
+Reflecting user language back accurately
+
+Asking one thoughtful follow-up question in every reply
+
+Never evangelizing
+
+Never selling
+
+Never defending EVs emotionally
+
+Think: conversation steward, not promoter.
+
+2️⃣ Payment Model — Pay Per Qualified User Interaction (Recommended)
+❌ Do NOT pay per reply
+
+That incentivizes noise.
+
+❌ Do NOT pay hourly
+
+That incentivizes overwork, not insight.
+
+✅ Pay per Qualified Engagement Unit (QEU)
+Definition: Qualified Engagement Unit (QEU)
+
+A reply counts only if it meets ALL criteria:
+
+At least 1 upvote or a reply from another user
+
+Contains:
+
+Reflection of the commenter’s point
+
+Neutral, non-judgmental tone
+
+A genuine follow-up question
+
+Does not include:
+
+Product link (unless explicitly approved)
+
+Evangelism
+
+Spec talk
+
+Buying advice
+
+Suggested Pay Rates (Contract)
+
+Base Rate:
+
+$3–$5 per Qualified Engagement Unit
+
+This sounds low until you realize:
+
+10–15 high-quality replies/day is plenty
+
+That’s ~$150–$300/week
+
+This scales cleanly without spam
+
+Bonus Multipliers (Quality-Controlled)
+
+You can add bonuses, not penalties:
+
+Trigger	Bonus
+Reply gets ≥5 upvotes	+$2
+Reply sparks a 3+ comment thread	+$3
+User uses OFFO language later (“routine fit,” “mental overhead”)	+$5
+User joins r/EVRoutine organically	+$5
+
+⚠️ Bonuses should be manually approved weekly to prevent gaming.
+
+3️⃣ Guardrails (Non-Negotiable)
+
+Include these in the contract:
+
+❌ No arguing
+
+❌ No dunking
+
+❌ No sarcasm
+
+❌ No “educating” tone
+
+❌ No linking unless explicitly approved
+
+Allowed language only:
+
+“That makes sense”
+
+“What you’re describing sounds like…”
+
+“Where this usually breaks down is…”
+
+“Out of curiosity…”
+
+If they violate tone → immediate review.
+
+4️⃣ Metrics You Should Track Weekly (Simple, Powerful)
+
+Ignore vanity metrics. Track these instead:
+
+Core Metrics
+
+Replies posted
+
+Qualified Engagement Units (QEUs)
+
+Avg upvotes per reply
+
+Avg replies per reply (conversation depth)
+
+Trust Signals (Most Important)
+
+Repeat commenters replying to them
+
+Users tagging others into threads
+
+Users asking follow-up questions
+
+Language adoption (“mental overhead,” “routine fit”)
+
+Community Growth (Secondary)
+
+r/EVRoutine member growth
+
+% growth from comment replies (not posts)
+
+5️⃣ Trial Structure (Highly Recommended)
+Week 1–2: Shadow + Calibration
+
+They draft replies
+
+You approve before posting
+
+You correct tone and framing
+
+Week 3–4: Autonomous Replies
+
+You audit daily
+
+Weekly review + bonus payout
+
+After 30 days:
+
+Decide:
+
+keep contractor
+
+increase volume
+
+add second operator (only if needed)
+
+6️⃣ Who You Should Hire (Profile)
+
+Look for:
+
+Former moderator
+
+Long-time Redditor (5+ years)
+
+Writes clearly, calmly
+
+Not an EV maximalist
+
+Comfortable with ambiguity
+
+Curious, not persuasive
+
+Avoid:
+
+Growth hackers
+
+Social media managers
+
+Brand marketers
+
+Anyone who wants to “optimize engagement”
+
+7️⃣ One-Line Internal Rule (Lock This)
+
+We pay for understanding and conversation, not visibility.
+
+This keeps OFFO aligned with trust-first growth.
+
+Draft the job description
+
+Create a reply style guide (1 pager)
+
+Write example “gold standard” replies
+
+Design a weekly review scorecard

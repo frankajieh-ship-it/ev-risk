@@ -1,0 +1,118 @@
+What you SHOULD write now (safe topics)
+
+These are translation posts — they reflect what the community already said.
+
+✅ Category 1: Pattern Naming (Best)
+
+Examples:
+
+“Why EV regret usually isn’t about range”
+
+“Predictability vs availability: what actually reduces EV friction”
+
+“Why EV ownership feels harder when routines change”
+
+Tone:
+
+Observational
+
+Neutral
+
+No recommendations
+
+✅ Category 2: Vocabulary Builders
+
+Posts that give people language:
+
+“What EV owners mean when they say ‘this mostly works, except…’”
+
+“The hidden mental load of EV ownership”
+
+“Why execution-time failures matter more than specs”
+
+These posts often get quoted, not clicked — which is ideal.
+
+✅ Category 3: Experience Synthesis
+
+Summaries of what you’ve seen (without calling it research):
+
+“What apartment EV owners consistently mention”
+
+“Common friction patterns after switching brands”
+
+“What surprises people after the first 3–6 months”
+
+Frame as:
+
+“Based on recurring community discussions…”
+
+Never as:
+
+“Our analysis shows…”
+
+What a GOOD blog post looks like (structure)
+
+Length: 600–1,000 words
+Structure:
+
+One clear framing sentence
+
+3–4 patterns (not tips)
+
+Neutral examples (no anecdotes with brands)
+
+A single closing reflection question
+
+Example closing line:
+
+“Whether this works well or poorly usually has less to do with the vehicle and more to do with how stable your routine really is.”
+
+No CTA. No signup.
+
+Where blogs can be shared (selectively)
+Allowed:
+
+Linked privately when someone asks
+
+Referenced in comments only after trust is established
+
+Used as internal onboarding material
+
+Linked from your site for cold traffic (X/MSN)
+
+Not allowed (yet):
+
+Reddit top-level posts
+
+Crossposts
+
+“I wrote about this” replies
+
+SEO pushes
+
+The timing rule (lock this in)
+
+Write now.
+Share only when someone asks a question the post already answers.
+
+If the blog exists before the question appears, you’re ahead.
+If you share it before permission, you’re selling.
+
+Strategic upside (why this is smart now)
+
+Prepares you for scale without changing tone
+
+Gives engineers/product shared language
+
+Makes future monetization feel inevitable, not forced
+
+Protects you from having to “explain again” later
+
+Bottom line
+
+Yes — start writing.
+No — do not start “blogging.”
+
+Treat posts as:
+
+Quiet documentation of hard-earned insight.

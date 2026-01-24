@@ -1,0 +1,229 @@
+OFFO Reddit Response Assistant (Internal Tool)
+What it is
+
+A lightweight internal tool that takes a Reddit post/comment + context and outputs:
+
+Recommended reply draft (OFFO voice)
+
+Tool-intro decision (Yes/No + why)
+
+One reflective question to ask
+
+Risk flags (brand war / low-intent / moderator risk / off-scope)
+
+Tags for learning (“apartment”, “winter”, “company car”, “PHEV vs EV”, etc.)
+
+What it is NOT
+
+Auto-posting to Reddit (do not automate posting)
+
+Bulk commenting
+
+Engagement farming
+
+Recommendations/spec tables
+
+Inputs
+Required
+
+Post text (title + body)
+
+Top comments (optional but helpful)
+
+Subreddit name
+
+OP follow-up (if any)
+
+Region guess (UK/US/CA/EU) from context
+
+Optional
+
+Employee’s “goal” (helpful reply / ask question / de-escalate / offer structure)
+
+Any constraints mentioned (budget, no home charging, winter, commute miles)
+
+Outputs (exact structure)
+A) “Should we reply?” (Gate)
+
+✅ Reply / ⚠️ Reply cautiously / ❌ Don’t reply
+With one-line reason.
+
+B) Tool introduction
+
+Introduce tool? Yes / No
+
+Reason: based on your locked rules (uncertainty signals present, user asked for structure, etc.)
+
+If Yes: permission-based sentence (no link unless asked)
+
+C) Draft reply (2 versions)
+
+Short reply (Reddit-native, 4–8 lines)
+
+Expanded reply (if OP is highly engaged)
+
+D) One reflective question
+
+Single question only.
+
+E) “Do NOT say”
+
+A short list of things to avoid for this thread (e.g., “don’t mention Tesla”, “don’t debate incentives”, “don’t recommend models”).
+
+F) Tags + learning capture
+
+Tags from a controlled list
+
+“New pattern?” free text
+
+The Decision Logic (the heart)
+1) When to introduce the tool
+
+Return YES only if one or more:
+
+User expresses uncertainty (“not sure”, “should I”, “will this work”)
+
+User asks for structure/checklist
+
+User is comparing two options and seems stuck
+
+User has fragile charging setup (apartment, public-only, relocation)
+
+Return NO if:
+
+Thread is brand war / ideology
+
+User is confident and just chatting
+
+It’s purely news/tech hype
+
+Question is purely about cheapest tariffs or apps (give practical info, no tool)
+
+2) When to include the link
+
+Return link only if:
+
+user explicitly asks (“can you share?” “what is it?” “send link?”)
+
+OR the assistant reply includes an explicit permission ask and the user already accepted
+
+Otherwise: offer without link.
+
+Core templates (baked into the tool)
+Reply template skeleton
+
+Validate
+
+Name hidden trade-off (predictability / mental overhead)
+
+Reframe away from specs
+
+Ask 1 reflective question
+
+Optional tool offer by permission
+
+Tool offer sentence (approved)
+
+“If you want, we built a quick sanity-check that surfaces the routine trade-offs listings don’t show. Happy to share if that would help.”
+
+De-escalation line (for skeptics)
+
+“That makes sense — a lot of EV frustration isn’t range, it’s how often charging interrupts your week.”
+
+UI concept (simple)
+
+A single screen with:
+
+Paste box for Reddit post + comments
+
+Subreddit selector
+
+“Generate response”
+Outputs in cards:
+
+Gate decision
+
+Draft reply
+
+Tool-intro recommendation
+
+Copy buttons
+
+Add an “Edit” field for the operator to tweak before posting.
+
+Tracking & QA (very important)
+
+Each generated response should store:
+
+Thread type tags
+
+Whether tool was offered
+
+Whether link was included
+
+Outcome (manual, later): OP replied? asked for tool? ignored?
+
+This is how you improve both:
+
+employee performance
+
+product language
+
+Build approach (fastest path)
+Option A (fastest): Internal web page
+
+Next.js page inside your admin
+
+Simple API route that calls your LLM prompt
+
+Store outputs in Supabase table reply_assists
+
+Option B (even faster): Notion-like prompt + form
+
+Airtable/Supabase form + webhook to generate replies
+
+But less integrated
+
+Safety/Policy guardrails
+
+No auto-posting
+
+No impersonation
+
+Always disclose affiliation if asked
+
+Never generate aggressive CTAs
+
+Never recommend a vehicle unless asked
+
+Always respect subreddit rules
+
+What to build first (MVP in 2–4 days)
+
+Reply Gate (should we reply?)
+
+Draft reply (short)
+
+Tool intro Yes/No
+
+“Do not say” list
+
+Copy buttons
+
+Logging to Supabase
+
+Then add:
+
+comparison mode
+
+UK/US language toggles
+
+thread classification
+
+If you tell me what your new employee’s workflow is (desktop vs mobile, how they collect threads, whether you want them to paste links or text), I can provide:
+
+the exact prompt spec for the LLM
+
+the Supabase table schema
+
+and the UI wireframe + route structure for your codebase.

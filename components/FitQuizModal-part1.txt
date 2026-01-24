@@ -1,0 +1,263 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, Copy, CheckCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEventTracking } from "@/hooks/useEventTracking";
+import {
+  selectFrictionSentences,
+  calculateFitContext,
+  mapToScoringInput
+  
+} from "@/lib/sanity-check-logic";
+import { CLOSING_LINE, type SanityCheckAnswers } from "@/lib/sanity-check-sentences";
+
+interface FitQuizModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  initialData?: {
+    model?: string;
+    year?: number;
+    currentMileage?: number;
+    batteryInfoAvailable?: boolean;
+    dataSource?: 'url-extraction' | 'manual-entry';
+    missingFields?: string[];
+  };
+}
+
+type Phase = "questions" | "output";
+
+export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizModalProps) {
+  const router = useRouter();
+  const { trackEvent } = useEventTracking();
+
+  const [phase, setPhase] = useState<Phase>("questions");
+  const [sanityAnswers, setSanityAnswers] = useState<Partial<SanityCheckAnswers>>({});
+  const [zipCode, setZipCode] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [showCopySuccess, setShowCopySuccess] = useState(false);
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setPhase("questions");
+      setSanityAnswers({});
+      setZipCode("");
+      setSubmitting(false);
+      setShowCopySuccess(false);
+    }
+  }, [isOpen]);
+
+  const handleAnswerChange = (field: keyof SanityCheckAnswers, value: any) => {
+    setSanityAnswers(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleContinueToOutput = () => {
+    // Validate all 5 answers present
+    if (!sanityAnswers.chargingAccess || !sanityAnswers.schedule ||
+        !sanityAnswers.backup || !sanityAnswers.dependency || !zipCode.trim()) {
+      alert("Please answer all questions");
+      return;
+    }
+
+    // Validate ZIP code
+    if (!/^\d{5}$/.test(zipCode)) {
+      alert("Please enter a valid 5-digit ZIP code");
+      return;
+    }
+
+    // Track sanity check completion
+    trackEvent("sanity_check_completed", {
+      chargingAccess: sanityAnswers.chargingAccess,
+      schedule: sanityAnswers.schedule,
+      backup: sanityAnswers.backup,
+      dependency: sanityAnswers.dependency,
+    });
+
+    setPhase("output");
+  };
+
+  const handleCopy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setShowCopySuccess(true);
+      setTimeout(() => setShowCopySuccess(false), 2000);
+
+      const sentences = selectFrictionSentences(sanityAnswers as SanityCheckAnswers);
+      trackEvent("friction_sentences_copied", {
+        sentenceCount: sentences.length
+      });
+    } catch (err) {
+      console.error("Copy failed:", err);
+      alert("Could not copy to clipboard. Please copy manually.");
+    }
+  };
+
+  const handleFinalSubmit = async () => {
+    setSubmitting(true);
+
+    // Map sanity-check answers to ScoringInput
+    const mappedInputs = mapToScoringInput(sanityAnswers as SanityCheckAnswers, zipCode);
+
+    const reportData = {
+      // Vehicle data (pre-filled from URL/manual)
+      model: initialData?.model || "Unknown EV",
+      year: initialData?.year || new Date().getFullYear() - 2,
+      currentMileage: initialData?.currentMileage || 45000,
+
+      // Mapped from sanity-check
+      homeCharging: mappedInputs.homeCharging,
+      dailyMiles: mappedInputs.dailyMiles,
+      zipCode: mappedInputs.zipCode,
+      riskTolerance: mappedInputs.riskTolerance,
+
+      // Metadata preservation
+      source: "sanity-check",
+      ...(initialData?.batteryInfoAvailable !== undefined && {
+        batteryInfoAvailable: initialData.batteryInfoAvailable
+      }),
+      ...(initialData?.dataSource && { dataSource: initialData.dataSource }),
+      ...(initialData?.missingFields && {
+        missingFields: initialData.missingFields
+      }),
+    };
+
+    // Track report generation
+    trackEvent("report_generated", {
+      source: "sanity-check",
+      has_battery_info: initialData?.batteryInfoAvailable !== undefined ? initialData.batteryInfoAvailable : true,
+      missing_fields_count: initialData?.missingFields?.length || 0,
+    });
+
+    console.log('[Sanity Check] Submitting data:', reportData);
+
+    // Navigate to report
+    const queryParams = new URLSearchParams({
+      data: JSON.stringify(reportData),
+    });
+
+    router.push(`/report?${queryParams.toString()}`);
+  };
+
+  const renderQuestions = () => {
+    const allAnswered =
+      sanityAnswers.chargingAccess &&
+      sanityAnswers.schedule &&
+      sanityAnswers.backup &&
+      sanityAnswers.dependency &&
+      zipCode.trim();
+
+    return (
+      <div className="p-6 space-y-6">
+        <div className="mb-4">
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Quick routine check</h3>
+          <p className="text-sm text-gray-600">
+            5 questions to understand how an EV might fit your situation
+          </p>
+        </div>
+
+        {/* Question 1: Primary Charging Access */}
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-gray-900">
+            What's your primary charging access?
+          </label>
+          <div className="space-y-2">
+            {[
+              { value: "home", label: "Dedicated home charging (L1/L2)" },
+              { value: "apartment_shared", label: "Apartment/shared parking" },
+              { value: "work_shared", label: "Workplace/shared" },
+              { value: "public_mixed", label: "Public-only / mixed unreliable" }
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleAnswerChange("chargingAccess", option.value)}
+                className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                  sanityAnswers.chargingAccess === option.value
+                    ? "border-blue-600 bg-blue-50 text-blue-900"
+                    : "border-gray-200 hover:border-gray-300 text-gray-700"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Question 2: Schedule Predictability */}
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-gray-900">
+            How predictable is your schedule?
+          </label>
+          <div className="space-y-2">
+            {[
+              { value: "predictable", label: "Predictable" },
+              { value: "variable", label: "Some variability" },
+              { value: "unpredictable", label: "Often changes / unpredictable" }
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleAnswerChange("schedule", option.value)}
+                className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                  sanityAnswers.schedule === option.value
+                    ? "border-blue-600 bg-blue-50 text-blue-900"
+                    : "border-gray-200 hover:border-gray-300 text-gray-700"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Question 3: Backup Tolerance */}
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-gray-900">
+            What's your backup tolerance?
+          </label>
+          <div className="space-y-2">
+            {[
+              { value: "easy", label: "Easy fallback (second vehicle / rentals)" },
+              { value: "occasional", label: "Occasional fallback" },
+              { value: "none", label: "No fallback (single vehicle)" }
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleAnswerChange("backup", option.value)}
+                className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                  sanityAnswers.backup === option.value
+                    ? "border-blue-600 bg-blue-50 text-blue-900"
+                    : "border-gray-200 hover:border-gray-300 text-gray-700"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Question 4: Infrastructure Dependency */}
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-gray-900">
+            What's your infrastructure dependency?
+          </label>
+          <div className="space-y-2">
+            {[
+              { value: "full_control", label: "Full control (private access)" },
+              { value: "shared", label: "Shared chargers (apartment/work)" },
+              { value: "public", label: "Public network reliance" }
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleAnswerChange("dependency", option.value)}
+                className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                  sanityAnswers.dependency === option.value
+                    ? "border-blue-600 bg-blue-50 text-blue-900"
+                    : "border-gray-200 hover:border-gray-300 text-gray-700"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>

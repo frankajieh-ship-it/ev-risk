@@ -77,6 +77,36 @@ export async function GET(
     const shortId = reportId.slice(0, 8);
     const filename = `EV-Risk-${year}-${model}-${shortId}.pdf`;
 
+    // Track report download event
+    const userAgent = req.headers.get("user-agent") || "unknown";
+    try {
+      await sql`
+        INSERT INTO user_events (
+          event_name,
+          event_data,
+          ip_address,
+          user_agent,
+          page_path,
+          timestamp
+        ) VALUES (
+          'report_downloaded',
+          ${JSON.stringify({
+            report_id: reportId,
+            vehicle_year: report.vehicle_year,
+            vehicle_model: report.vehicle_model,
+            report_status: report.status,
+          })}::jsonb,
+          ${clientIP},
+          ${userAgent},
+          ${`/api/report/${reportId}/pdf`},
+          NOW()
+        )
+      `;
+    } catch (trackingError) {
+      // Don't fail the download if tracking fails
+      console.error("Failed to track report download:", trackingError);
+    }
+
     // Return PDF with strong cache prevention
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {

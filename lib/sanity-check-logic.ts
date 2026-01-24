@@ -11,6 +11,12 @@ import {
   getSentenceText
 } from "./sanity-check-sentences";
 import type { Region } from "./regionCopy";
+import type {
+  SeasonalSensitivity,
+  SeasonalTriggerTag,
+  PredictabilityLevel,
+  PlanningTolerance,
+} from "@/types";
 
 /**
  * Select Friction Sentences
@@ -24,9 +30,59 @@ import type { Region } from "./regionCopy";
  * 4. Target 3-6 sentences total
  * 5. Add baselines if fewer than 3 matched
  * 6. Exclude conflicting sentences (e.g., don't show stability with high friction)
+ *
+ * P0 LANGUAGE GATING:
+ * - NEVER show public/shared charging friction if user has home + full_control
+ * - NEVER show "unpredictable schedule" friction if schedule === "predictable"
+ * - ALWAYS show stability language when conditions warrant
  */
 export function selectFrictionSentences(answers: SanityCheckAnswers, region: Region = "US"): string[] {
   const matchedSentences: Array<{ sentence: FrictionSentence; matchCount: number; priority: number }> = [];
+
+  // P0 LANGUAGE GATING: Determine hard exclusions based on user inputs
+  const hasHomeCharging = answers.chargingAccess === "home";
+  const hasFullControl = answers.dependency === "full_control";
+  const hasPredictableSchedule = answers.schedule === "predictable";
+  const hasEasyBackup = answers.backup === "easy";
+
+  // Sentences to NEVER show for low-friction setups
+  const hardExclusions: string[] = [];
+
+  // If home charging + full control → exclude all public/shared friction sentences
+  if (hasHomeCharging && hasFullControl) {
+    hardExclusions.push(
+      "shared_competition",
+      "public_variability",
+      "variable_schedule_overhead",
+      "occasional_backup_fragility",
+      "apartment_no_backup_compound",
+      "work_charging_dependency",
+      "public_unpredictable_peak",
+      "execution_shared_public",
+      "low_predictability_public_routine",
+      "planning_tolerance_friction"
+    );
+  }
+
+  // If predictable schedule → exclude "unpredictable schedule" sentences
+  if (hasPredictableSchedule) {
+    hardExclusions.push(
+      "schedule_rigidity",
+      "downtime_unpredictable",
+      "public_unpredictable_peak"
+    );
+  }
+
+  // If easy backup → exclude "no backup" sentences
+  if (hasEasyBackup) {
+    hardExclusions.push(
+      "no_backup_amplification",
+      "downtime_no_backup",
+      "apartment_no_backup_compound",
+      "no_backup_anchor",
+      "cold_recovery_risk"
+    );
+  }
 
   // Priority map (higher = more important)
   const priorityMap: Record<string, number> = {
@@ -35,11 +91,17 @@ export function selectFrictionSentences(answers: SanityCheckAnswers, region: Reg
     "downtime_unpredictable": 95,    // S_REC_003 - Interaction sentence
     "execution_uncertainty_low": 50,  // S_EXEC_001 - Generic
     "downtime_recovery_low": 50,      // S_REC_001 - Generic
-    "execution_uncertainty_high": 30  // S_EXEC_002 - Optional positive
+    "execution_uncertainty_high": 30, // S_EXEC_002 - Optional positive
+    "full_control_stability": 120     // P0: Boost stability sentence for low-friction users
   };
 
   // Check each sentence against user answers
   for (const sentence of FRICTION_SENTENCES) {
+    // P0 LANGUAGE GATING: Skip hard-excluded sentences
+    if (hardExclusions.includes(sentence.id)) {
+      continue;
+    }
+
     let matchCount = 0;
 
     for (const trigger of sentence.triggers) {
@@ -103,21 +165,36 @@ export function selectFrictionSentences(answers: SanityCheckAnswers, region: Reg
   }
 
   // Add baselines if fewer than 3 matched
+  // P0 LANGUAGE GATING: Don't add public/shared baselines for home + full_control users
+  const isLowFrictionSetup = hasHomeCharging && hasFullControl;
+
   if (selectedSentences.length < 3) {
-    const sharedCompetitionSentence = FRICTION_SENTENCES.find(s => s.id === "shared_competition");
-    const publicVariabilitySentence = FRICTION_SENTENCES.find(s => s.id === "public_variability");
-
-    if (sharedCompetitionSentence) {
-      const sharedCompetition = getSentenceText(sharedCompetitionSentence, region);
-      if (!selectedSentences.includes(sharedCompetition)) {
-        selectedSentences.push(sharedCompetition);
+    // For low-friction users, add stability-affirming sentences instead
+    if (isLowFrictionSetup) {
+      const stabilitySentence = FRICTION_SENTENCES.find(s => s.id === "full_control_stability");
+      if (stabilitySentence) {
+        const stabilityText = getSentenceText(stabilitySentence, region);
+        if (!selectedSentences.includes(stabilityText)) {
+          selectedSentences.push(stabilityText);
+        }
       }
-    }
+    } else {
+      // For other users, add shared/public baselines as before
+      const sharedCompetitionSentence = FRICTION_SENTENCES.find(s => s.id === "shared_competition");
+      const publicVariabilitySentence = FRICTION_SENTENCES.find(s => s.id === "public_variability");
 
-    if (selectedSentences.length < 3 && publicVariabilitySentence) {
-      const publicVariability = getSentenceText(publicVariabilitySentence, region);
-      if (!selectedSentences.includes(publicVariability)) {
-        selectedSentences.push(publicVariability);
+      if (sharedCompetitionSentence) {
+        const sharedCompetition = getSentenceText(sharedCompetitionSentence, region);
+        if (!selectedSentences.includes(sharedCompetition)) {
+          selectedSentences.push(sharedCompetition);
+        }
+      }
+
+      if (selectedSentences.length < 3 && publicVariabilitySentence) {
+        const publicVariability = getSentenceText(publicVariabilitySentence, region);
+        if (!selectedSentences.includes(publicVariability)) {
+          selectedSentences.push(publicVariability);
+        }
       }
     }
   }
@@ -258,4 +335,185 @@ export function mapToScoringInput(
     riskTolerance,
     zipCode,
   };
+}
+
+// ============================================
+// P0/P1: SEASONAL SENSITIVITY CALCULATION
+// ============================================
+
+/**
+ * Calculate Seasonal Sensitivity
+ *
+ * Rules:
+ * - COLD_WINTER + public_dependency => sensitivity >= MEDIUM
+ * - COLD_WINTER + LOW planning tolerance + MEDIUM => HIGH
+ * - COLD_WINTER + home + !WEEKLY winter days => LOW
+ * - WEEKLY winter_long_days => bump one level
+ */
+export function calculateSeasonalSensitivity(
+  answers: SanityCheckAnswers
+): { sensitivity: SeasonalSensitivity; triggerTags: SeasonalTriggerTag[] } {
+  const triggerTags: SeasonalTriggerTag[] = [];
+  let sensitivity: SeasonalSensitivity = "LOW";
+
+  // If no climate data or mild climate, return LOW
+  if (!answers.climateSeasonality || answers.climateSeasonality === "MILD" || answers.climateSeasonality === "UNKNOWN") {
+    return { sensitivity: "LOW", triggerTags: [] };
+  }
+
+  // Hot summer has different concerns (battery degradation)
+  if (answers.climateSeasonality === "HOT_SUMMER") {
+    triggerTags.push("SUMMER_HEAT_DEGRADATION");
+    return { sensitivity: "LOW", triggerTags }; // Heat affects battery, not daily planning
+  }
+
+  // COLD_WINTER or MIXED - check winter friction
+  const isColdWinter = answers.climateSeasonality === "COLD_WINTER" || answers.climateSeasonality === "MIXED";
+
+  if (isColdWinter) {
+    // Rule 1: Cold winter + public/shared dependency => MEDIUM
+    if (
+      answers.dependency === "public" ||
+      answers.dependency === "shared" ||
+      answers.chargingAnchorType === "PUBLIC_ANCHOR" ||
+      answers.chargingAnchorType === "NONE"
+    ) {
+      sensitivity = "MEDIUM";
+      triggerTags.push("WINTER_BUFFER_COMPRESSION");
+    }
+
+    // Rule 2: Cold winter + LOW planning tolerance bumps sensitivity
+    const planningTolerance = derivePlanningTolerance(answers);
+    if (planningTolerance === "LOW" && sensitivity === "MEDIUM") {
+      sensitivity = "HIGH";
+      triggerTags.push("COLD_RECOVERY_RISK");
+    }
+
+    // Rule 3: Cold winter + home charging + not weekly long days => likely LOW
+    if (
+      answers.chargingAccess === "home" &&
+      answers.chargingAnchorType === "HOME" &&
+      answers.winterLongDays !== "WEEKLY"
+    ) {
+      sensitivity = "LOW";
+    }
+
+    // Rule 4: Weekly long days in winter bumps sensitivity
+    if (answers.winterLongDays === "WEEKLY") {
+      if (sensitivity === "LOW") sensitivity = "MEDIUM";
+      else if (sensitivity === "MEDIUM") sensitivity = "HIGH";
+      if (!triggerTags.includes("WINTER_BUFFER_COMPRESSION")) {
+        triggerTags.push("WINTER_BUFFER_COMPRESSION");
+      }
+    }
+  }
+
+  return { sensitivity, triggerTags };
+}
+
+// ============================================
+// P0/P1: PREDICTABILITY LEVEL CALCULATION
+// ============================================
+
+/**
+ * Calculate Predictability Level
+ *
+ * Rules:
+ * - HOME anchor + YES_RELIABLE backup => HIGH
+ * - WORK/DESTINATION anchor => MEDIUM
+ * - PUBLIC_ANCHOR/NONE => LOW
+ */
+export function calculatePredictabilityLevel(
+  answers: SanityCheckAnswers
+): PredictabilityLevel {
+  // High predictability: Home anchor + reliable backup
+  if (
+    answers.chargingAnchorType === "HOME" &&
+    answers.backupOption === "YES_RELIABLE"
+  ) {
+    return "HIGH";
+  }
+
+  // High predictability: Home anchor even without explicit backup (home is inherently reliable)
+  if (answers.chargingAnchorType === "HOME") {
+    return "HIGH";
+  }
+
+  // Medium predictability: Work/destination anchor
+  if (
+    answers.chargingAnchorType === "WORK" ||
+    answers.chargingAnchorType === "DESTINATION"
+  ) {
+    return "MEDIUM";
+  }
+
+  // Low predictability: Public anchor or no anchor
+  if (
+    answers.chargingAnchorType === "PUBLIC_ANCHOR" ||
+    answers.chargingAnchorType === "NONE"
+  ) {
+    return "LOW";
+  }
+
+  // Default to MEDIUM
+  return "MEDIUM";
+}
+
+// ============================================
+// P0/P1: PLANNING TOLERANCE DERIVATION
+// ============================================
+
+/**
+ * Derive Planning Tolerance from existing tolerance fields
+ *
+ * Maps executionUncertaintyTolerance + downtimeRecoveryTolerance:
+ * - Both low => LOW
+ * - Either high => HIGH
+ * - Mixed => MEDIUM
+ */
+export function derivePlanningTolerance(
+  answers: SanityCheckAnswers
+): PlanningTolerance {
+  const execTol = answers.executionUncertaintyTolerance;
+  const downTol = answers.downtimeRecoveryTolerance;
+
+  // Both low => LOW planning tolerance
+  if (execTol === "low" && downTol === "low") {
+    return "LOW";
+  }
+
+  // Either high => HIGH planning tolerance (user is flexible)
+  if (execTol === "high" || downTol === "high") {
+    return "HIGH";
+  }
+
+  // Mixed => MEDIUM
+  return "MEDIUM";
+}
+
+/**
+ * Apply Planning Tolerance as Multiplier
+ *
+ * Low planning tolerance amplifies friction from public/shared infrastructure.
+ */
+export function applyPlanningToleranceMultiplier(
+  baseRiskLevel: "LOW" | "MEDIUM" | "HIGH",
+  planningTolerance: PlanningTolerance,
+  factor: "public_dependency" | "seasonal" | "shared_competition"
+): "LOW" | "MEDIUM" | "HIGH" {
+  if (planningTolerance === "LOW") {
+    // Bump risk up one level
+    if (baseRiskLevel === "LOW") return "MEDIUM";
+    if (baseRiskLevel === "MEDIUM") return "HIGH";
+    return "HIGH";
+  }
+
+  if (planningTolerance === "HIGH") {
+    // Optionally reduce risk for non-structural factors
+    if (factor === "shared_competition" && baseRiskLevel === "HIGH") {
+      return "MEDIUM";
+    }
+  }
+
+  return baseRiskLevel;
 }

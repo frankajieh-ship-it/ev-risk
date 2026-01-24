@@ -1,0 +1,36 @@
+/* Force all body text to be dark on light backgrounds */
+body {
+  color: #1f2937 !important; /* gray-900 */
+}
+
+/* Fix input text color */
+input[type="text"],
+input[type="url"],
+input[type="email"],
+input[type="number"],
+input[type="tel"],
+textarea,
+select {
+  color: #111827 !important; /* gray-900 */
+}
+
+/* Fix placeholder text */
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280 !important; /* gray-500 */
+}
+
+/* Fix all paragraph and label text */
+p, label, span, div {
+  color: inherit;
+}
+
+/* Ensure headings are dark */
+h1, h2, h3, h4, h5, h6 {
+  color: #111827 !important; /* gray-900 */
+}
+
+/* Override any potential white text */
+.text-white:not(button):not(.btn):not([class*="bg-"]) {
+  color: #111827 !important;
+}

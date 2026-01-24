@@ -1,0 +1,104 @@
+6-MONTH COMMUNITY ENGAGEMENT CONTRACT
+
+Role: Community Intelligence & Reddit Engagement
+
+CONTRACT AGREEMENT
+
+Term: 6 months
+Role: Community & Behavioral Research Contributor
+Reports to: Product Owner / CEO
+Status: Contractor (unless otherwise specified)
+
+1. Scope of Work
+
+The Contributor will:
+
+Engage in relevant Reddit communities (EV, charging, used EVs, ownership)
+
+Respond to posts and comments using OFFO-approved framing
+
+Surface high-signal behavioral patterns
+
+Capture recurring friction, mismatch, and regret signals
+
+Escalate insights to Product / Content teams weekly
+
+The Contributor is not responsible for:
+
+Selling
+
+Lead generation
+
+Defending EVs
+
+Evangelism
+
+Arguing or persuading
+
+2. Behavioral Guardrails (Non-Negotiable)
+
+Contributor must:
+
+Remain neutral, calm, and explanatory
+
+Avoid recommendations (“you should buy”, “don’t buy”)
+
+Avoid ideological or political framing
+
+Avoid specs-first arguments
+
+Always center routine fit and predictability
+
+Contributor must always:
+
+End Reddit replies with a follow-up question
+
+Either:
+
+invite discussion, or
+
+reference a problem OFFO helps clarify (lightly, non-promotional)
+
+3. Deliverables
+
+Weekly:
+
+10–20 high-quality Reddit engagements
+
+1–2 surfaced patterns (with quotes)
+
+1 short internal summary:
+
+What confused people?
+
+What surprised them?
+
+What caused regret?
+
+Monthly:
+
+One synthesized insight memo
+
+4. Compensation
+
+[Define monthly or hourly compensation here]
+
+5. Termination
+
+Either party may terminate with 14 days written notice.
+
+Immediate termination for:
+
+NDA violation
+
+Promotional or deceptive behavior
+
+Misrepresentation of OFFO as a seller or authority
+
+6. IP & Confidentiality
+
+All work product is owned by OFFO Labs and governed by the NDA.
+
+Signed:
+OFFO Labs: ______________________ Date: ______
+Contributor: ____________________ Date: ______

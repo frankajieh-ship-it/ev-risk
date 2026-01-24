@@ -1,0 +1,38 @@
+Hi [Name],
+
+I wanted to follow up personally to say thank you for the time and thought you put into your feedback.
+
+You weren’t nitpicking — you were pointing out places where the tool’s language and framing drifted away from what you actually told us. That matters a lot for something that’s meant to build trust, not sell a decision.
+
+Based directly on your notes, we’ve made a set of updates over the past couple of weeks:
+
+* **Summary language now hard-respects inputs**
+  If someone has reliable home charging, schedule control, and backup options, the report explicitly names that stability instead of implying friction that isn’t there.
+
+* **Schedule questions were clarified**
+  We split “predictability” into *schedule variability* vs *schedule control*, which fixes the retired / self-directed schedule mismatch you called out.
+
+* **Climate framing was corrected**
+  We no longer label regions as “favorable” in a blanket way. Instead, we describe conditions (cold winters, hot summers) and pair them with the user’s stated tolerance.
+
+* **Vehicle details are now clearly contextual**
+  They no longer imply that the result is judging the car — the outcome is anchored to routine fit, as intended.
+
+* **Seasonal sensitivity is handled explicitly**
+  Not as generic range loss, but as “does this resurface mentally in certain months, or fade into the background?”
+
+Your point about software maturity and tolerance also landed — that’s now on our roadmap as its own friction axis, because you’re right: for some owners it’s background noise, for others it’s a real source of stress.
+
+I’m sharing this not to “close the loop,” but because this project only works if people who actually live with EVs feel accurately reflected — including when things *work well*.
+
+If you’re open to it, I’d love for you to:
+
+* re-run the updated version when you have a moment, and/or
+* keep telling us when something feels off
+
+And if at any point you think, “this framing would’ve helped me earlier,” that’s the bar we’re trying to clear.
+
+Thanks again for engaging at the level you did — it genuinely made the product better.
+
+Best,
+Frank

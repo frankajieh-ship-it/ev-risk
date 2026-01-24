@@ -1,6 +1,15 @@
 // lib/routine-fit-client.ts
 // Client-safe routine fit calculation (doesn't import fs-based modules)
 
+import type {
+  SeasonalSensitivity,
+  SeasonalTriggerTag,
+  PredictabilityLevel,
+  PlanningTolerance,
+  ChargingAnchorType,
+  BackupOption,
+} from "@/types";
+
 export interface RoutineFitAssessment {
   verdict: 'good-fit' | 'conditional-fit' | 'high-friction';
   condition?: string;
@@ -12,6 +21,14 @@ export interface RoutineFitAssessment {
   confidence_current: number;
   confidence_with_battery_data: number;
   missing_data: string[];
+
+  // P0/P1: New seasonal & predictability fields
+  seasonal_sensitivity?: SeasonalSensitivity;
+  seasonal_trigger_tags?: SeasonalTriggerTag[];
+  predictability_level?: PredictabilityLevel;
+  planning_tolerance?: PlanningTolerance;
+  charging_anchor_type?: ChargingAnchorType;
+  backup_option?: BackupOption;
 }
 
 interface ClientRoutineFitInput {

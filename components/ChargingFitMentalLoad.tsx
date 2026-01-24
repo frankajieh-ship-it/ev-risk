@@ -246,7 +246,9 @@ export const ChargingFitMentalLoad: React.FC<ChargingFitMentalLoadProps> = ({
             <div className="flex items-start bg-orange-50 border border-orange-200 rounded-lg p-4">
               <AlertTriangle className="w-5 h-5 text-orange-600 mr-3 mt-0.5 flex-shrink-0" />
               <div className="text-sm">
-                <p className="font-medium text-gray-900 mb-1">{chargerDensity} charging infrastructure in ZIP {zipCode}</p>
+                <p className="font-medium text-gray-900 mb-1">
+                  {chargerDensity} charging infrastructure{zipCode && zipCode !== "00000" ? ` in ZIP ${zipCode}` : " in your area"}
+                </p>
                 <p className="text-gray-700">
                   Limited nearby chargers mean you'll need backup plans. Owners in similar areas report
                   constantly monitoring charge levels and planning routes around chargers.

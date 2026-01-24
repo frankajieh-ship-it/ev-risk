@@ -1,0 +1,177 @@
+1) Current status check: you’re ready
+
+From the handoff:
+
+v1.5.0 (Build 17) is ready with Practice Mode already implemented and mode-based UI separation is a pattern in the codebase. 
+
+CONSULTANT_HANDOFF
+
+Game logic is already centralized in codeUtils.ts and the useDailyDuelMVP hook, with a mode parameter pattern across screens/components. 
+
+CONSULTANT_HANDOFF
+
+That means you can reuse:
+
+Board rules
+
+Guess evaluation
+
+Attempt limits
+
+Daily lock concepts
+
+Practice logic (random code generation)
+
+…and simply drop rewards + Supabase for Reddit.
+
+2) What to extract for Reddit (reusable “engine”)
+Extract into a shared TS module (recommended)
+
+Create a small package/folder like:
+
+/engine or /packages/codecrack-engine
+
+Include:
+
+evaluateGuess(secret, guess) (greens/yellows/grays)
+
+validateGuess(guess) (4 digits, no duplicates, no leading zero)
+
+computeGameStatus(attempts, maxAttempts)
+
+generateCodeFromSeed(seed) (for Reddit “Community Daily”)
+
+generateRandomCode() (for Reddit practice)
+
+formatShareString() (Wordle-style result output)
+
+Why this is easy:
+
+Your app already follows “pure functions for game logic” and deterministic generation patterns. 
+
+CONSULTANT_HANDOFF
+
+3) What NOT to reuse (to keep it lightweight and not create a cheat factory)
+
+Do not port:
+
+Coins system (coinService, contexts)
+
+Daily leaderboard submission (dailyLeaderboardService, Supabase)
+
+Any “per-user daily code” scheme identical to mobile
+
+Instead:
+
+Reddit version should be practice + community daily only
+
+No rewards
+
+No leaderboards
+
+Result sharing through Reddit comments (spoiler-safe)
+
+This avoids Reddit becoming an “answer oracle” for the mobile Daily Duel.
+
+4) How the Reddit React version should work
+Modes
+A) Community Daily (Reddit-only daily puzzle)
+
+Everyone on Reddit gets the same puzzle for the day
+
+Seed: reddit_daily_YYYY-MM-DD (UTC)
+
+“One play per day” enforced locally (or with Reddit user identity if available)
+
+Share string on completion
+
+B) Practice (unlimited)
+
+Random code each run
+
+Unlimited tries
+
+No rewards
+
+No leaderboard
+
+You already implemented this product split in the mobile app: Daily Duel vs Practice with “no rewards” in practice. 
+
+CONSULTANT_HANDOFF
+
+
+We’re basically porting Practice Mode logic + a Reddit-only daily.
+
+5) Minimal React component plan (what engineering will actually build)
+
+Core components:
+
+GameShell (tabs: Daily | Practice)
+
+Board (rows of guesses + feedback)
+
+Keypad (0–9 + delete + enter)
+
+Toast/InlineError (invalid guess feedback)
+
+ResultModal (share string + “Play Practice” button)
+
+State shape:
+
+mode
+
+secret
+
+attempts[]
+
+currentGuess
+
+startedAt
+
+endedAt
+
+dailyConsumed[date]=true (daily lock)
+
+Persistence:
+
+localStorage for daily lock and in-progress resume
+
+6) Build scope + timeline (realistic)
+
+Because the mobile app already solved most game design questions, Reddit build is mainly UI + packaging.
+
+Week 1 MVP (fast)
+
+Engine extraction (pure functions)
+
+React UI (board + keypad + modal)
+
+Community Daily seed generation (UTC)
+
+Practice mode (random)
+
+Share string output + copy button
+
+localStorage daily lock + resume
+
+Week 2 polish
+
+Better UX copy (“Daily counts when you start”)
+
+Minimal telemetry (start/finish/share)
+
+Edge cases: refresh mid-game, invalid input, etc.
+
+7) The only “decision” you need to lock now
+
+Do you want Reddit Daily to be:
+
+Global same puzzle for everyone on Reddit (recommended; better community conversation)
+
+Or per-user daily (less social cohesion)
+
+Given Reddit’s nature, I recommend global same puzzle.
+
+Mobile Daily Duel stays per-user unique as designed. 
+
+CONSULTANT_HANDOFF

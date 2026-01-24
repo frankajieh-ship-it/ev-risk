@@ -209,6 +209,47 @@ export async function GET(request: NextRequest) {
       ORDER BY risk_category
     `;
 
+    // 11. Vehicle checkout stats (from user_events)
+    const vehicleCheckouts = await sql`
+      SELECT
+        event_data->>'vehicle_year' as year,
+        event_data->>'vehicle_model' as model,
+        COUNT(*) as checkout_count
+      FROM user_events
+      WHERE event_name = 'vehicle_checkout'
+        AND timestamp >= NOW() - INTERVAL '30 days'
+        AND event_data->>'vehicle_model' IS NOT NULL
+      GROUP BY year, model
+      ORDER BY checkout_count DESC
+      LIMIT 20
+    `;
+
+    // 12. Report download stats (from user_events)
+    const reportDownloads = await sql`
+      SELECT
+        event_data->>'vehicle_year' as year,
+        event_data->>'vehicle_model' as model,
+        event_data->>'report_status' as status,
+        COUNT(*) as download_count
+      FROM user_events
+      WHERE event_name = 'report_downloaded'
+        AND timestamp >= NOW() - INTERVAL '30 days'
+      GROUP BY year, model, status
+      ORDER BY download_count DESC
+      LIMIT 20
+    `;
+
+    // 13. Download summary
+    const downloadSummary = await sql`
+      SELECT
+        COUNT(*) as total_downloads,
+        COUNT(CASE WHEN event_data->>'report_status' = 'free' THEN 1 END) as free_downloads,
+        COUNT(CASE WHEN event_data->>'report_status' = 'paid' THEN 1 END) as paid_downloads
+      FROM user_events
+      WHERE event_name = 'report_downloaded'
+        AND timestamp >= NOW() - INTERVAL '30 days'
+    `;
+
     // Compile all analytics data
     const analytics = {
       period,
@@ -283,6 +324,25 @@ export async function GET(request: NextRequest) {
         free: parseInt(d.free),
         paid: parseInt(d.paid),
       })),
+
+      vehicle_checkouts: vehicleCheckouts.map((v) => ({
+        year: v.year,
+        model: v.model,
+        checkout_count: parseInt(v.checkout_count),
+      })),
+
+      report_downloads: reportDownloads.map((d) => ({
+        year: d.year,
+        model: d.model,
+        status: d.status,
+        download_count: parseInt(d.download_count),
+      })),
+
+      download_summary: {
+        total_downloads: parseInt(downloadSummary[0]?.total_downloads || 0),
+        free_downloads: parseInt(downloadSummary[0]?.free_downloads || 0),
+        paid_downloads: parseInt(downloadSummary[0]?.paid_downloads || 0),
+      },
     };
 
     return NextResponse.json(analytics);

@@ -163,33 +163,8 @@ export default function DecisionStateSummary({
 
   return (
     <div className="bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 rounded-2xl shadow-xl p-8 mb-8 border-2 border-purple-200">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center mb-3">
-          <svg
-            className="w-8 h-8 mr-3 text-purple-600"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-            />
-          </svg>
-          <h2 className="text-2xl font-bold text-gray-900">
-            Where This Leaves You
-          </h2>
-        </div>
-        <p className="text-sm text-gray-600 italic">
-          Confidence reflects how supported this guidance is — not vehicle quality.
-        </p>
-      </div>
-
-      {/* Decision State */}
-      <div className="bg-white rounded-xl p-6 mb-6 border border-purple-200">
+      {/* Decision State - Minimal Display */}
+      <div className="bg-white rounded-xl p-6 border border-purple-200">
         <h3 className="text-xl font-bold text-gray-900 mb-3">
           {decisionState.title}
         </h3>
@@ -198,57 +173,6 @@ export default function DecisionStateSummary({
         </p>
         <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
           <p className="text-sm text-gray-800">{decisionState.uncertaintyContext}</p>
-        </div>
-      </div>
-
-      {/* What This Means */}
-      <div className="bg-white rounded-xl p-6 border border-purple-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          What this means for your decision:
-        </h3>
-        <div className="space-y-3">
-          {/* Always show uncertainty acknowledgment */}
-          <div className="flex items-start">
-            <span className="text-purple-600 mr-3 mt-1">•</span>
-            <p className="text-gray-700">
-              <span className="font-semibold">Uncertainty is normal.</span> All used
-              vehicle purchases involve unknowns. This report identifies them explicitly
-              rather than hiding them.
-            </p>
-          </div>
-
-          {/* Context-specific guidance */}
-          {sensitivityFactors.length > 0 && (
-            <div className="flex items-start">
-              <span className="text-purple-600 mr-3 mt-1">•</span>
-              <p className="text-gray-700">
-                <span className="font-semibold">Pay attention to stability.</span> This
-                setup depends on {sensitivityFactors[0]}. If this factor remains stable,
-                friction stays manageable.
-              </p>
-            </div>
-          )}
-
-          {!hasBatteryData && (
-            <div className="flex items-start">
-              <span className="text-purple-600 mr-3 mt-1">•</span>
-              <p className="text-gray-700">
-                <span className="font-semibold">Battery health is knowable.</span> A
-                pre-purchase inspection or diagnostic scan can resolve battery uncertainty
-                before committing.
-              </p>
-            </div>
-          )}
-
-          {/* Always show this */}
-          <div className="flex items-start">
-            <span className="text-purple-600 mr-3 mt-1">•</span>
-            <p className="text-gray-700">
-              <span className="font-semibold">Your decision, your context.</span> This
-              report explains patterns and surfaces unknowns. Only you know your tolerance
-              for uncertainty and adaptation.
-            </p>
-          </div>
         </div>
       </div>
 

@@ -113,11 +113,16 @@ export async function GET(req: NextRequest) {
     const timeframe = searchParams.get("timeframe") || "30d"; // 24h, 7d, 30d, all
 
     // Build time filter queries based on timeframe
-    let uniqueVisitors, totalPageViews, topPages;
+    let uniqueVisitors, totalVisits, totalPageViews, topPages;
 
     if (timeframe === "24h") {
       uniqueVisitors = await sql`
         SELECT COUNT(DISTINCT visitor_id) as count
+        FROM visitors
+        WHERE first_visit > NOW() - INTERVAL '24 hours'
+      `;
+      totalVisits = await sql`
+        SELECT COALESCE(SUM(visit_count), 0) as count
         FROM visitors
         WHERE first_visit > NOW() - INTERVAL '24 hours'
       `;
@@ -143,6 +148,11 @@ export async function GET(req: NextRequest) {
         FROM visitors
         WHERE first_visit > NOW() - INTERVAL '7 days'
       `;
+      totalVisits = await sql`
+        SELECT COALESCE(SUM(visit_count), 0) as count
+        FROM visitors
+        WHERE first_visit > NOW() - INTERVAL '7 days'
+      `;
       totalPageViews = await sql`
         SELECT COUNT(*) as count
         FROM page_views
@@ -162,6 +172,11 @@ export async function GET(req: NextRequest) {
     } else if (timeframe === "30d") {
       uniqueVisitors = await sql`
         SELECT COUNT(DISTINCT visitor_id) as count
+        FROM visitors
+        WHERE first_visit > NOW() - INTERVAL '30 days'
+      `;
+      totalVisits = await sql`
+        SELECT COALESCE(SUM(visit_count), 0) as count
         FROM visitors
         WHERE first_visit > NOW() - INTERVAL '30 days'
       `;
@@ -185,6 +200,10 @@ export async function GET(req: NextRequest) {
       // "all" - no time filter
       uniqueVisitors = await sql`
         SELECT COUNT(DISTINCT visitor_id) as count
+        FROM visitors
+      `;
+      totalVisits = await sql`
+        SELECT COALESCE(SUM(visit_count), 0) as count
         FROM visitors
       `;
       totalPageViews = await sql`
@@ -234,6 +253,7 @@ export async function GET(req: NextRequest) {
       timeframe,
       stats: {
         uniqueVisitors: uniqueVisitors.rows[0]?.count || 0,
+        totalVisits: parseInt(totalVisits.rows[0]?.count || '0'),
         totalPageViews: totalPageViews.rows[0]?.count || 0,
         topPages: topPages.rows,
         recentVisitors: recentVisitors.rows,
