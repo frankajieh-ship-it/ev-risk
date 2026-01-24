@@ -397,15 +397,9 @@ function ReportContent() {
 
   // LITE VIEW: Compressed 6-block view (default)
   if (!showFullReport) {
-    const handleDownloadPdf = () => {
-      if (reportId) {
-        trackButtonClick("pdf_download_click", "report-page-lite");
-        window.open(`/api/report/${reportId}/pdf`, "_blank");
-      } else {
-        // For free reports without reportId, trigger print
-        trackButtonClick("print_save_click", "report-page-lite");
-        window.print();
-      }
+    const handleViewFullReport = () => {
+      setShowFullReport(true);
+      trackButtonClick("view_full_report", "report-page-lite");
     };
 
     return (
@@ -423,10 +417,7 @@ function ReportContent() {
               New Analysis
             </button>
             <button
-              onClick={() => {
-                setShowFullReport(true);
-                trackButtonClick("view_full_report", "report-page-lite");
-              }}
+              onClick={handleViewFullReport}
               className="text-sm text-blue-600 hover:text-blue-700 underline"
             >
               View Full Report
@@ -438,8 +429,7 @@ function ReportContent() {
         <ResultPageLite
           presentation={presentation.web}
           vehicleInfo={{ year: input.year, model: input.model }}
-          onDownloadPdf={handleDownloadPdf}
-          isPaid={isPaid}
+          onViewFullReport={handleViewFullReport}
         />
       </div>
     );

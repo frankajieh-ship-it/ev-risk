@@ -21,14 +21,14 @@ import DecisionResolution from "./DecisionResolution";
 interface ResultPageLiteProps {
   presentation: WebPresentation;
   vehicleInfo: { year: number; model: string };
-  onDownloadPdf?: () => void;
+  onViewFullReport?: () => void;
   isPaid?: boolean;
 }
 
 export function ResultPageLite({
   presentation,
   vehicleInfo,
-  onDownloadPdf,
+  onViewFullReport,
   isPaid = false,
 }: ResultPageLiteProps) {
   return (
@@ -106,23 +106,21 @@ export function ResultPageLite({
         <DecisionResolution sessionId={presentation.sessionId} />
       </div>
 
-      {/* PDF Download CTA */}
-      {onDownloadPdf && (
+      {/* View Full Report CTA */}
+      {onViewFullReport && (
         <div className="mt-8 pt-6 border-t border-gray-200 text-center">
           <p className="text-sm text-gray-600 mb-4">
             Want the full explanation with detailed breakdowns?
           </p>
           <button
-            onClick={onDownloadPdf}
+            onClick={onViewFullReport}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
-            Download Full PDF Report
+            View Full Report
           </button>
-          {!isPaid && (
-            <p className="text-xs text-gray-500 mt-2">
-              Includes confidence breakdown, battery details, and more
-            </p>
-          )}
+          <p className="text-xs text-gray-500 mt-2">
+            Includes confidence breakdown, battery details, and more
+          </p>
         </div>
       )}
 
