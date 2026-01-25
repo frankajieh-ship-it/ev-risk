@@ -41,7 +41,7 @@ export interface WebPresentation {
   oneSentenceVerdict: string;
   mentalLoadLabel: MentalLoadLabel;
 
-  // Block 2: What Breaks First (MAX 3)
+  // Block 2: What Breaks First (MAX 2 - P0 Decision Card constraint)
   whatBreaksFirst: string[];
 
   // Block 3: Top Drivers (MAX 2, labels only)

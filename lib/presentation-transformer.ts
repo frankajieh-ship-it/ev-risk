@@ -94,6 +94,19 @@ const MENTAL_LOAD_WHY: Record<"low" | "medium" | "high", string> = {
 };
 
 /**
+ * P0: Enforce verdict constraints - max 1 sentence, no complex conditionals
+ */
+function enforceVerdictConstraints(verdict: string): string {
+  // Split by sentence-ending punctuation
+  const sentences = verdict.split(/[.!?]+/).filter(Boolean);
+  if (sentences.length > 1) {
+    console.warn("Verdict exceeded 1 sentence, truncating");
+    return sentences[0].trim() + ".";
+  }
+  return verdict;
+}
+
+/**
  * Transform BuyConfidence into presentation tiers
  */
 export function transformToPresentation(
@@ -117,11 +130,11 @@ function buildWebPresentation(
 ): WebPresentation {
   // Block 1: Fit Verdict
   const fitSignal = confidence.fit_signal;
-  const oneSentenceVerdict = confidence.one_sentence_verdict;
+  const oneSentenceVerdict = enforceVerdictConstraints(confidence.one_sentence_verdict);
   const mentalLoadLabel = MENTAL_LOAD_LABELS[mentalLoad];
 
-  // Block 2: What Breaks First - LIMIT TO 3
-  const whatBreaksFirst = confidence.what_breaks_first.slice(0, 3);
+  // Block 2: What Breaks First - LIMIT TO 2 (P0: Decision Card constraint)
+  const whatBreaksFirst = confidence.what_breaks_first.slice(0, 2);
 
   // Block 3: Top Drivers - LIMIT TO 2, NO BADGES (labels only)
   const topDrivers = confidence.top_drivers.slice(0, 2).map((d) => d.label);
@@ -134,9 +147,9 @@ function buildWebPresentation(
   const confidenceLevel = confidence.confidence;
   const confidenceSummary = generateConfidenceSentence(confidence);
 
-  // Assertions for limit enforcement
-  if (whatBreaksFirst.length > 3) {
-    console.warn("whatBreaksFirst exceeded limit of 3, truncating");
+  // Assertions for limit enforcement (P0: Decision Card constraints)
+  if (confidence.what_breaks_first.length > 2) {
+    console.warn("whatBreaksFirst exceeded limit of 2, truncating");
   }
   if (topDrivers.length > 2) {
     console.warn("topDrivers exceeded limit of 2, truncating");
