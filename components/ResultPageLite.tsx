@@ -22,14 +22,12 @@ interface ResultPageLiteProps {
   presentation: WebPresentation;
   vehicleInfo: { year: number; model: string };
   onViewFullReport?: () => void;
-  isPaid?: boolean;
 }
 
 export function ResultPageLite({
   presentation,
   vehicleInfo,
   onViewFullReport,
-  isPaid = false,
 }: ResultPageLiteProps) {
   return (
     <motion.div
@@ -55,7 +53,7 @@ export function ResultPageLite({
           mentalLoad={presentation.mentalLoadLabel}
         />
 
-        {/* Block 2: What Breaks First (MAX 3 bullets) */}
+        {/* Block 2: What Breaks First (MAX 2 bullets - P0 Decision Card) */}
         <WhatBreaksFirstBlock items={presentation.whatBreaksFirst} />
 
         {/* Block 3: Top Drivers (MAX 2, no badges) */}
@@ -106,11 +104,11 @@ export function ResultPageLite({
         <DecisionResolution sessionId={presentation.sessionId} />
       </div>
 
-      {/* View Full Report CTA */}
+      {/* View Full Report CTA - P1: Reframed for negotiation/planning/peace of mind */}
       {onViewFullReport && (
         <div className="mt-8 pt-6 border-t border-gray-200 text-center">
           <p className="text-sm text-gray-600 mb-4">
-            Want the full explanation with detailed breakdowns?
+            Want the deeper analysis for negotiation, planning, or peace of mind?
           </p>
           <button
             onClick={onViewFullReport}
@@ -119,7 +117,7 @@ export function ResultPageLite({
             View Full Report
           </button>
           <p className="text-xs text-gray-500 mt-2">
-            Includes confidence breakdown, battery details, and more
+            For negotiation, long-term planning, and documentation
           </p>
         </div>
       )}
