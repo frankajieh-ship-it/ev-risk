@@ -70,6 +70,9 @@ export interface WebPresentation {
 
   // P0: Stability bullet for low-friction setups
   stabilityBullet?: string; // Only if Good Fit with home + full control
+
+  // P1: Your Situation - share-first Reddit-native paragraph
+  yourSituationSummary?: string; // Always visible, copy-to-clipboard ready
 }
 
 /**

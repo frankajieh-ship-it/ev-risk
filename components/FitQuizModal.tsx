@@ -293,6 +293,54 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
     router.push(`/report?${queryParams.toString()}`);
   };
 
+  // Calculate current question number based on answered questions
+  const getProgressInfo = () => {
+    let answered = 0;
+    let currentGroup = "Charging setup";
+    let currentOfGroup = 1;
+    let groupTotal = 3;
+
+    // Group 1: Charging setup (Q1, Q10, Q11 = chargingAccess, chargingAnchorType, backupOption)
+    if (sanityAnswers.chargingAccess) answered++;
+    if (chargingAnchorType !== null) answered++;
+    if (backupOption !== null) answered++;
+
+    // Group 2: Routine stability (Q2, Q5, Q6 = schedule, executionUncertaintyTolerance, downtimeRecoveryTolerance)
+    if (sanityAnswers.schedule) answered++;
+    if (sanityAnswers.executionUncertaintyTolerance) answered++;
+    if (sanityAnswers.downtimeRecoveryTolerance) answered++;
+
+    // Group 3: Disruption tolerance (Q3, Q4 = backup, dependency)
+    if (sanityAnswers.backup) answered++;
+    if (sanityAnswers.dependency) answered++;
+
+    // Group 4: Location & Climate (Q7, Q8, Q9 = zip, climate, winter)
+    if (skipLocation || zipCode.trim()) answered++;
+    if (climateSeasonality !== "UNKNOWN") answered++;
+    if (climateSeasonality !== "COLD_WINTER" || winterLongDays !== "UNKNOWN") answered++;
+
+    // Determine current group based on progress
+    if (answered <= 3) {
+      currentGroup = "Charging setup";
+      currentOfGroup = Math.max(1, answered);
+      groupTotal = 3;
+    } else if (answered <= 6) {
+      currentGroup = "Routine stability";
+      currentOfGroup = answered - 3;
+      groupTotal = 3;
+    } else if (answered <= 8) {
+      currentGroup = "Disruption tolerance";
+      currentOfGroup = answered - 6;
+      groupTotal = 2;
+    } else {
+      currentGroup = "Location & Climate";
+      currentOfGroup = answered - 8;
+      groupTotal = 3;
+    }
+
+    return { answered, total: 11, currentGroup, currentOfGroup, groupTotal };
+  };
+
   const renderQuestions = () => {
     const coreAnswered =
       sanityAnswers.chargingAccess &&
@@ -314,6 +362,8 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
 
     const allAnswered = coreAnswered && newInputsAnswered && winterAnswered;
 
+    const progress = getProgressInfo();
+
     return (
       <div className="p-6 space-y-6">
         <div className="mb-4">
@@ -321,6 +371,18 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
           <p className="text-sm text-gray-600">
             11 questions to understand how an EV might fit your situation
           </p>
+          {/* P1: Progress indicator with group label */}
+          <div className="mt-3 flex items-center gap-3">
+            <div className="flex-1 bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(progress.answered / progress.total) * 100}%` }}
+              />
+            </div>
+            <span className="text-xs text-gray-500 whitespace-nowrap">
+              {progress.currentGroup} ({progress.answered} of {progress.total})
+            </span>
+          </div>
         </div>
 
         {/* Region Selection - Prominent at top */}
@@ -342,6 +404,13 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
               <option value="UK">United Kingdom</option>
             </select>
           </div>
+        </div>
+
+        {/* GROUP 1: Charging Setup */}
+        <div className="border-l-4 border-blue-500 pl-4 -ml-4">
+          <p className="text-xs font-bold text-blue-600 uppercase tracking-wide mb-3">
+            Charging Setup
+          </p>
         </div>
 
         {/* Question 1: Primary Charging Access */}
@@ -371,6 +440,13 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
           </div>
         </div>
 
+        {/* GROUP 2: Routine Stability */}
+        <div className="border-l-4 border-green-500 pl-4 -ml-4 mt-6">
+          <p className="text-xs font-bold text-green-600 uppercase tracking-wide mb-3">
+            Routine Stability
+          </p>
+        </div>
+
         {/* Question 2: Schedule Predictability */}
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-gray-900">
@@ -395,6 +471,13 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
               </button>
             ))}
           </div>
+        </div>
+
+        {/* GROUP 3: Disruption Tolerance */}
+        <div className="border-l-4 border-amber-500 pl-4 -ml-4 mt-6">
+          <p className="text-xs font-bold text-amber-600 uppercase tracking-wide mb-3">
+            Disruption Tolerance
+          </p>
         </div>
 
         {/* Question 3: Backup Tolerance */}
@@ -501,6 +584,13 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
               </button>
             ))}
           </div>
+        </div>
+
+        {/* GROUP 4: Location & Climate */}
+        <div className="border-l-4 border-purple-500 pl-4 -ml-4 mt-6">
+          <p className="text-xs font-bold text-purple-600 uppercase tracking-wide mb-3">
+            Location & Climate
+          </p>
         </div>
 
         {/* Question 7: ZIP/Postcode */}

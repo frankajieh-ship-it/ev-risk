@@ -211,7 +211,100 @@ function buildWebPresentation(
     planningToleranceBullet,
     // P0: Stability bullet for low-friction setups
     stabilityBullet,
+    // P1: Your Situation - Reddit-native shareable paragraph
+    yourSituationSummary: generateYourSituationSummary(
+      routineFit?.charging_anchor_type,
+      routineFit?.predictability_level,
+      routineFit?.backup_option,
+      routineFit?.seasonal_sensitivity
+    ),
   };
+}
+
+/**
+ * P1: Generate "Your Situation" summary paragraph
+ *
+ * Hard rules:
+ * - No scores
+ * - No jargon
+ * - Must read naturally when pasted into Reddit
+ *
+ * Variables: charging control, predictability, backup availability, seasonal context
+ */
+function generateYourSituationSummary(
+  anchorType?: ChargingAnchorType,
+  predictability?: PredictabilityLevel,
+  backup?: BackupOption,
+  seasonal?: SeasonalSensitivity
+): string {
+  // Build charging control phrase
+  let chargingPhrase: string;
+  switch (anchorType) {
+    case "HOME":
+      chargingPhrase = "I have home charging";
+      break;
+    case "WORK":
+      chargingPhrase = "I charge mainly at work";
+      break;
+    case "DESTINATION":
+      chargingPhrase = "I charge at a regular destination";
+      break;
+    case "PUBLIC_ANCHOR":
+      chargingPhrase = "I rely on a specific public charger";
+      break;
+    case "NONE":
+      chargingPhrase = "I find chargers as needed";
+      break;
+    default:
+      chargingPhrase = "My charging situation varies";
+  }
+
+  // Build predictability phrase
+  let predictabilityPhrase: string;
+  switch (predictability) {
+    case "HIGH":
+      predictabilityPhrase = "and my routine is pretty predictable";
+      break;
+    case "MEDIUM":
+      predictabilityPhrase = "with some variability in my schedule";
+      break;
+    case "LOW":
+      predictabilityPhrase = "but my schedule changes often";
+      break;
+    default:
+      predictabilityPhrase = "";
+  }
+
+  // Build backup phrase
+  let backupPhrase: string;
+  switch (backup) {
+    case "YES_RELIABLE":
+      backupPhrase = "I have a reliable backup if my main charger isn't available.";
+      break;
+    case "MAYBE":
+      backupPhrase = "I might have backup options but haven't tested them.";
+      break;
+    case "NONE":
+      backupPhrase = "I don't have a backup plan if my main charger fails.";
+      break;
+    default:
+      backupPhrase = "";
+  }
+
+  // Build seasonal phrase
+  let seasonalPhrase = "";
+  if (seasonal === "HIGH" || seasonal === "MEDIUM") {
+    seasonalPhrase = " Winter could affect my range and charging routine.";
+  }
+
+  // Combine into natural paragraph
+  const parts = [chargingPhrase];
+  if (predictabilityPhrase) parts[0] += " " + predictabilityPhrase;
+  parts[0] += ".";
+  if (backupPhrase) parts.push(backupPhrase);
+  if (seasonalPhrase) parts.push(seasonalPhrase.trim());
+
+  return parts.join(" ");
 }
 
 function buildPdfPresentation(

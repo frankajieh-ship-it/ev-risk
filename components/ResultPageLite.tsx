@@ -15,6 +15,7 @@ import {
   TopDriversBlock,
   PlanBBlock,
   ConfidenceBlock,
+  YourSituationBlock,
 } from "./blocks";
 import DecisionResolution from "./DecisionResolution";
 
@@ -52,6 +53,11 @@ export function ResultPageLite({
           verdict={presentation.oneSentenceVerdict}
           mentalLoad={presentation.mentalLoadLabel}
         />
+
+        {/* P1: Your Situation - Share-first Reddit-native paragraph */}
+        {presentation.yourSituationSummary && (
+          <YourSituationBlock summary={presentation.yourSituationSummary} />
+        )}
 
         {/* Block 2: What Breaks First (MAX 2 bullets - P0 Decision Card) */}
         <WhatBreaksFirstBlock items={presentation.whatBreaksFirst} />

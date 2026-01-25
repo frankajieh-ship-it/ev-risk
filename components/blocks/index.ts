@@ -3,3 +3,4 @@ export { WhatBreaksFirstBlock } from "./WhatBreaksFirstBlock";
 export { TopDriversBlock } from "./TopDriversBlock";
 export { PlanBBlock } from "./PlanBBlock";
 export { ConfidenceBlock } from "./ConfidenceBlock";
+export { YourSituationBlock } from "./YourSituationBlock";
