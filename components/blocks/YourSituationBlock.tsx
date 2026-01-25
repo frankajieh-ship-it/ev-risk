@@ -16,10 +16,13 @@
  * - predictability
  * - backup availability
  * - seasonal context
+ *
+ * Telemetry: Tracks copy-to-clipboard usage
  */
 
 import { useState } from "react";
 import { Copy, CheckCircle } from "lucide-react";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface YourSituationBlockProps {
   summary: string;
@@ -27,12 +30,20 @@ interface YourSituationBlockProps {
 
 export function YourSituationBlock({ summary }: YourSituationBlockProps) {
   const [copied, setCopied] = useState(false);
+  const { trackEvent } = useEventTracking();
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(summary);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+
+      // P1: Track copy-to-clipboard usage
+      trackEvent("copy_to_clipboard", {
+        content_type: "your_situation_summary",
+        content_length: summary.length,
+        page: "result_page_lite",
+      });
     } catch (err) {
       console.error("Copy failed:", err);
     }
