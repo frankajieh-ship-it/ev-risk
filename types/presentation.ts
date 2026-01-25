@@ -13,6 +13,8 @@ import type {
   PlanningTolerance,
   ChargingAnchorType,
   BackupOption,
+  ConstraintContext,
+  ConstraintSignal,
 } from "./index";
 
 // Mental load labels for web display
@@ -73,6 +75,12 @@ export interface WebPresentation {
 
   // P1: Your Situation - share-first Reddit-native paragraph
   yourSituationSummary?: string; // Always visible, copy-to-clipboard ready
+
+  // Constraint Impact Layer (P0) - for vehicles with known constraints
+  constraintContext?: ConstraintContext;
+  constraintSignals?: ConstraintSignal[];  // MAX 3 targeted signals
+  constraintBanner?: string;               // One-line banner text
+  showConstraintContext: boolean;          // Whether to display constraint UI
 }
 
 /**

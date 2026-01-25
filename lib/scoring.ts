@@ -33,6 +33,8 @@ export interface ScoringInput {
   batteryInfoAvailable?: boolean;
   dataSource?: 'url-extraction' | 'manual-entry';
   missingFields?: string[];
+  // Constraint Impact Layer - capacity multiplier for constrained vehicles
+  constraintMultiplier?: number; // e.g., 0.70 for 70% cap
 }
 
 // ---------- Output Types ----------
@@ -707,7 +709,12 @@ function calculateOwnershipFit(input: ScoringInput): OwnershipFitScore {
 
   // Annual miles fit
   const annualMiles = input.dailyMiles * 365;
-  const real_world_range = rangeData?.real_world_range_mi || 250;
+  let real_world_range = rangeData?.real_world_range_mi || 250;
+
+  // Constraint Impact Layer: Apply capacity multiplier if vehicle has constraint
+  if (input.constraintMultiplier && input.constraintMultiplier < 1) {
+    real_world_range = real_world_range * input.constraintMultiplier;
+  }
 
   let annual_miles_fit: "Good" | "Moderate" | "Poor" = "Good";
   const dailyRangeRatio = input.dailyMiles / real_world_range;
@@ -731,7 +738,10 @@ function calculateOwnershipFit(input: ScoringInput): OwnershipFitScore {
 
   score = Math.max(0, Math.min(100, score));
 
-  const details = `${climate_impact} climate, ${charger_density} charging infrastructure${!input.homeCharging ? " (no home charging)" : ""}, ${annual_miles_fit.toLowerCase()} daily range fit (${input.dailyMiles} mi/day vs ${real_world_range} mi range)`;
+  const rangeNote = input.constraintMultiplier && input.constraintMultiplier < 1
+    ? `${Math.round(real_world_range)} mi effective range`
+    : `${real_world_range} mi range`;
+  const details = `${climate_impact} climate, ${charger_density} charging infrastructure${!input.homeCharging ? " (no home charging)" : ""}, ${annual_miles_fit.toLowerCase()} daily range fit (${input.dailyMiles} mi/day vs ${rangeNote})`;
 
   return {
     score: Math.round(score),

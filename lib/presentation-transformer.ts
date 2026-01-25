@@ -20,6 +20,8 @@ import type {
   PlanningTolerance,
   ChargingAnchorType,
   BackupOption,
+  ConstraintContext,
+  ConstraintSignal,
 } from "@/types";
 
 // Input types (matching report page)
@@ -107,26 +109,124 @@ function enforceVerdictConstraints(verdict: string): string {
 }
 
 /**
+ * Scoring input subset needed for constraint signal generation
+ */
+interface ScoringInputSubset {
+  dailyMiles: number;
+  homeCharging: boolean;
+  model: string;
+}
+
+/**
  * Transform BuyConfidence into presentation tiers
  */
 export function transformToPresentation(
   confidence: BuyConfidence,
   sessionId: string | null,
-  routineFit?: RoutineFitAssessment
+  routineFit?: RoutineFitAssessment,
+  constraintContext?: ConstraintContext,
+  scoringInput?: ScoringInputSubset,
+  effectiveRange?: number
 ): PresentationData {
   const mentalLoad = routineFit?.mental_load || inferMentalLoad(confidence);
 
   return {
-    web: buildWebPresentation(confidence, sessionId, mentalLoad, routineFit),
+    web: buildWebPresentation(
+      confidence,
+      sessionId,
+      mentalLoad,
+      routineFit,
+      constraintContext,
+      scoringInput,
+      effectiveRange
+    ),
     pdf: buildPdfPresentation(confidence, mentalLoad, routineFit),
   };
+}
+
+/**
+ * Generate constraint-specific signals (MAX 3)
+ *
+ * Signals:
+ * 1. Buffer Check - How the constraint affects daily buffer
+ * 2. Charging Mode Shift - Impact on charging frequency (if no home charging)
+ * 3. Disrupted Week Stress Test - Margin for schedule disruptions
+ */
+function generateConstraintSignals(
+  constraintContext: ConstraintContext | undefined,
+  dailyMiles: number,
+  effectiveRange: number,
+  homeCharging: boolean
+): ConstraintSignal[] {
+  if (!constraintContext || constraintContext.constraintType === "NONE") {
+    return [];
+  }
+
+  const signals: ConstraintSignal[] = [];
+  const dailyUsage = (dailyMiles / effectiveRange) * 100;
+
+  // Signal 1: Buffer Check (always show for CAPACITY_CAP)
+  if (constraintContext.constraintType === "CAPACITY_CAP") {
+    const capPercent = Math.round((constraintContext.usableCapacityMultiplier || 1) * 100);
+    signals.push({
+      signalType: "buffer_check",
+      headline: `${capPercent}% cap reduces your daily buffer`,
+      explanation: `With the ${constraintContext.constraintLabel}, your effective range drops. You're now using ${dailyUsage.toFixed(0)}% of usable capacity daily.`,
+      severity: dailyUsage > 60 ? "warning" : "caution",
+    });
+  }
+
+  // Signal 2: Charging Mode Shift (only if no home charging)
+  if (!homeCharging && constraintContext.constraintType === "CAPACITY_CAP") {
+    signals.push({
+      signalType: "charging_mode_shift",
+      headline: "Public charging may need to happen more often",
+      explanation: "Without home charging and with reduced effective capacity, you may need to charge more frequently or plan charging stops more carefully.",
+      severity: "caution",
+    });
+  }
+
+  // Signal 3: Disrupted Week Stress Test (if daily usage is significant)
+  if (dailyUsage > 50) {
+    signals.push({
+      signalType: "disrupted_week",
+      headline: "Less margin for disrupted weeks",
+      explanation: "If your routine gets disrupted (missed charging window, unexpected trip), the reduced capacity leaves less buffer to absorb the stress.",
+      severity: dailyUsage > 70 ? "warning" : "info",
+    });
+  }
+
+  // MAX 3 signals
+  return signals.slice(0, 3);
+}
+
+/**
+ * Generate constraint banner text
+ */
+function generateConstraintBanner(constraintContext: ConstraintContext | undefined): string | undefined {
+  if (!constraintContext || constraintContext.constraintType === "NONE") {
+    return undefined;
+  }
+
+  if (constraintContext.constraintType === "CAPACITY_CAP") {
+    return `This vehicle has a ${constraintContext.constraintLabel} — signals below reflect your adjusted effective range.`;
+  }
+
+  if (constraintContext.constraintType === "CHARGING_LIMIT") {
+    return `This vehicle has a charging limitation — ${constraintContext.constraintLabel}.`;
+  }
+
+  return undefined;
 }
 
 function buildWebPresentation(
   confidence: BuyConfidence,
   sessionId: string | null,
   mentalLoad: "low" | "medium" | "high",
-  routineFit?: RoutineFitAssessment
+  routineFit?: RoutineFitAssessment,
+  constraintContext?: ConstraintContext,
+  scoringInput?: ScoringInputSubset,
+  effectiveRange?: number
 ): WebPresentation {
   // Block 1: Fit Verdict
   const fitSignal = confidence.fit_signal;
@@ -218,6 +318,16 @@ function buildWebPresentation(
       routineFit?.backup_option,
       routineFit?.seasonal_sensitivity
     ),
+    // Constraint Impact Layer (P0)
+    constraintContext,
+    constraintSignals: generateConstraintSignals(
+      constraintContext,
+      scoringInput?.dailyMiles || 30,
+      effectiveRange || 250,
+      scoringInput?.homeCharging ?? true
+    ),
+    constraintBanner: generateConstraintBanner(constraintContext),
+    showConstraintContext: !!constraintContext && constraintContext.constraintType !== "NONE",
   };
 }
 

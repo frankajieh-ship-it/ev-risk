@@ -225,3 +225,39 @@ export type ThreadType =
   | "battery_health"
   | "company_car"
   | "general";
+
+// ============================================
+// CONSTRAINT IMPACT LAYER TYPES
+// ============================================
+
+/**
+ * Vehicle Constraint Type - Known temporary/permanent constraints
+ * Used when vehicles have manufacturer-imposed limits (e.g., battery cap)
+ */
+export type VehicleConstraintType =
+  | "CAPACITY_CAP"      // e.g., Volvo EX30 70% cap
+  | "CHARGING_LIMIT"    // e.g., reduced charging speed
+  | "FEATURE_DISABLED"  // e.g., feature locked by OTA
+  | "NONE";
+
+/**
+ * Constraint Context - Pre-filled constraints from URL/model detection
+ */
+export interface ConstraintContext {
+  constraintType: VehicleConstraintType;
+  constraintId?: string;           // e.g., "volvo_ex30_70pct_cap"
+  usableCapacityMultiplier?: number; // e.g., 0.70 for 70% cap
+  constraintLabel?: string;        // e.g., "70% charge cap"
+  constraintSource?: "url" | "model_detection" | "user_input";
+  expiryStatus?: "active" | "resolved" | "unknown";
+}
+
+/**
+ * Constraint Signal - Output signals for constrained vehicles (MAX 3)
+ */
+export interface ConstraintSignal {
+  signalType: "buffer_check" | "charging_mode_shift" | "disrupted_week";
+  headline: string;
+  explanation: string;
+  severity: "info" | "caution" | "warning";
+}

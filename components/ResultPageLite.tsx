@@ -22,6 +22,7 @@ import {
   PlanBBlock,
   ConfidenceBlock,
   YourSituationBlock,
+  ConstraintContextBlock,
 } from "./blocks";
 import DecisionResolution from "./DecisionResolution";
 import { useEventTracking } from "@/hooks/useEventTracking";
@@ -98,6 +99,15 @@ export function ResultPageLite({
         </h1>
         <p className="text-sm text-gray-500 mt-1">EV Routine Check</p>
       </header>
+
+      {/* Constraint Context Banner - P0: Shows before blocks if constraint detected */}
+      {presentation.showConstraintContext && presentation.constraintContext && (
+        <ConstraintContextBlock
+          context={presentation.constraintContext}
+          signals={presentation.constraintSignals || []}
+          banner={presentation.constraintBanner}
+        />
+      )}
 
       {/* 6 Blocks */}
       <div className="space-y-5">

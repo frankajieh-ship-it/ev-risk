@@ -4,3 +4,4 @@ export { TopDriversBlock } from "./TopDriversBlock";
 export { PlanBBlock } from "./PlanBBlock";
 export { ConfidenceBlock } from "./ConfidenceBlock";
 export { YourSituationBlock } from "./YourSituationBlock";
+export { ConstraintContextBlock } from "./ConstraintContextBlock";

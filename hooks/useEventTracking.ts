@@ -146,6 +146,28 @@ export function useEventTracking() {
     [trackEvent]
   );
 
+  // Constraint Impact Layer telemetry
+  const trackConstraintDetected = useCallback(
+    (constraintId: string, source: string, model: string) => {
+      trackEvent("constraint_detected", {
+        constraint_id: constraintId,
+        constraint_source: source,
+        model,
+      });
+    },
+    [trackEvent]
+  );
+
+  const trackConstraintSignalViewed = useCallback(
+    (signalType: string, constraintId: string) => {
+      trackEvent("constraint_signal_viewed", {
+        signal_type: signalType,
+        constraint_id: constraintId,
+      });
+    },
+    [trackEvent]
+  );
+
   return {
     trackEvent,
     trackFormSubmit,
@@ -154,5 +176,7 @@ export function useEventTracking() {
     trackReportGenerated,
     trackButtonClick,
     trackWhyCheckpoint,
+    trackConstraintDetected,
+    trackConstraintSignalViewed,
   };
 }
