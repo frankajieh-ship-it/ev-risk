@@ -28,6 +28,35 @@ function AuthCallbackContent() {
         return;
       }
 
+      // Check for hash fragment (magic link auth uses this)
+      const hash = window.location.hash;
+      if (hash && hash.includes("access_token")) {
+        // Supabase client automatically detects and processes hash fragments
+        // when detectSessionInUrl is true (which it is)
+        // Wait for the auth state to update
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.error("Session error:", sessionError);
+          setStatus("error");
+          setError(sessionError.message);
+          return;
+        }
+
+        if (session) {
+          console.log("[Auth Callback] Session found from hash:", session.user?.email);
+          setStatus("success");
+
+          const redirectTo = localStorage.getItem("auth_redirect") || "/";
+          localStorage.removeItem("auth_redirect");
+
+          setTimeout(() => {
+            router.push(redirectTo);
+          }, 1500);
+          return;
+        }
+      }
+
       // Get the code from URL (Supabase PKCE flow)
       const code = searchParams.get("code");
 
@@ -63,12 +92,22 @@ function AuthCallbackContent() {
           setStatus("error");
           setError(errorDescription || errorParam);
         } else {
-          // No code and no error - might be hash fragment auth
-          // Supabase will handle this automatically
-          setStatus("success");
-          setTimeout(() => {
+          // Wait a moment for Supabase to process any hash fragments
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          const { data: { session } } = await supabase.auth.getSession();
+
+          if (session) {
+            console.log("[Auth Callback] Session found after wait:", session.user?.email);
+            setStatus("success");
+            setTimeout(() => {
+              router.push("/");
+            }, 1500);
+          } else {
+            // No session found
+            console.log("[Auth Callback] No session found, redirecting to home");
             router.push("/");
-          }, 1500);
+          }
         }
       }
     };
