@@ -87,16 +87,16 @@ export async function GET(req: NextRequest) {
 
       formSubmissions = await sql`
         SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN (event_data->>'success')::boolean = true THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN (event_data->>'success')::boolean = false THEN 1 ELSE 0 END) as failed
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed
         FROM user_events
         WHERE event_name = 'form_submit' AND timestamp > NOW() - INTERVAL '24 hours'
       `;
 
       urlAutofill = await sql`
         SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN (event_data->>'success')::boolean = true THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN (event_data->>'success')::boolean = false THEN 1 ELSE 0 END) as failed,
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed,
           COUNT(DISTINCT event_data->>'url') as unique_urls
         FROM user_events
         WHERE event_name = 'url_autofill_attempt' AND timestamp > NOW() - INTERVAL '24 hours'
@@ -135,16 +135,16 @@ export async function GET(req: NextRequest) {
 
       formSubmissions = await sql`
         SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN (event_data->>'success')::boolean = true THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN (event_data->>'success')::boolean = false THEN 1 ELSE 0 END) as failed
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed
         FROM user_events
         WHERE event_name = 'form_submit' AND timestamp > NOW() - INTERVAL '7 days'
       `;
 
       urlAutofill = await sql`
         SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN (event_data->>'success')::boolean = true THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN (event_data->>'success')::boolean = false THEN 1 ELSE 0 END) as failed,
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed,
           COUNT(DISTINCT event_data->>'url') as unique_urls
         FROM user_events
         WHERE event_name = 'url_autofill_attempt' AND timestamp > NOW() - INTERVAL '7 days'
@@ -183,16 +183,16 @@ export async function GET(req: NextRequest) {
 
       formSubmissions = await sql`
         SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN (event_data->>'success')::boolean = true THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN (event_data->>'success')::boolean = false THEN 1 ELSE 0 END) as failed
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed
         FROM user_events
         WHERE event_name = 'form_submit' AND timestamp > NOW() - INTERVAL '30 days'
       `;
 
       urlAutofill = await sql`
         SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN (event_data->>'success')::boolean = true THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN (event_data->>'success')::boolean = false THEN 1 ELSE 0 END) as failed,
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed,
           COUNT(DISTINCT event_data->>'url') as unique_urls
         FROM user_events
         WHERE event_name = 'url_autofill_attempt' AND timestamp > NOW() - INTERVAL '30 days'
@@ -231,16 +231,16 @@ export async function GET(req: NextRequest) {
 
       formSubmissions = await sql`
         SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN (event_data->>'success')::boolean = true THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN (event_data->>'success')::boolean = false THEN 1 ELSE 0 END) as failed
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed
         FROM user_events
         WHERE event_name = 'form_submit'
       `;
 
       urlAutofill = await sql`
         SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN (event_data->>'success')::boolean = true THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN (event_data->>'success')::boolean = false THEN 1 ELSE 0 END) as failed,
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
+          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed,
           COUNT(DISTINCT event_data->>'url') as unique_urls
         FROM user_events
         WHERE event_name = 'url_autofill_attempt'
@@ -295,7 +295,7 @@ export async function GET(req: NextRequest) {
           COUNT(*) as count
         FROM user_events
         WHERE event_name = 'url_autofill_attempt'
-          AND (event_data->>'success')::boolean = true
+          AND LOWER(event_data->>'success') IN ('true', '1')
           AND timestamp > NOW() - INTERVAL '24 hours'
           AND event_data->'extractedData'->>'make' IS NOT NULL
         GROUP BY event_data->'extractedData'->>'make', event_data->'extractedData'->>'model'
@@ -310,7 +310,7 @@ export async function GET(req: NextRequest) {
           COUNT(*) as count
         FROM user_events
         WHERE event_name = 'url_autofill_attempt'
-          AND (event_data->>'success')::boolean = true
+          AND LOWER(event_data->>'success') IN ('true', '1')
           AND timestamp > NOW() - INTERVAL '7 days'
           AND event_data->'extractedData'->>'make' IS NOT NULL
         GROUP BY event_data->'extractedData'->>'make', event_data->'extractedData'->>'model'
@@ -325,7 +325,7 @@ export async function GET(req: NextRequest) {
           COUNT(*) as count
         FROM user_events
         WHERE event_name = 'url_autofill_attempt'
-          AND (event_data->>'success')::boolean = true
+          AND LOWER(event_data->>'success') IN ('true', '1')
           AND timestamp > NOW() - INTERVAL '30 days'
           AND event_data->'extractedData'->>'make' IS NOT NULL
         GROUP BY event_data->'extractedData'->>'make', event_data->'extractedData'->>'model'
@@ -340,7 +340,7 @@ export async function GET(req: NextRequest) {
           COUNT(*) as count
         FROM user_events
         WHERE event_name = 'url_autofill_attempt'
-          AND (event_data->>'success')::boolean = true
+          AND LOWER(event_data->>'success') IN ('true', '1')
           AND event_data->'extractedData'->>'make' IS NOT NULL
         GROUP BY event_data->'extractedData'->>'make', event_data->'extractedData'->>'model'
         ORDER BY count DESC

@@ -52,7 +52,7 @@ type WhyChoice = typeof WHY_CHOICES[number]["value"] | null;
 
 export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizModalProps) {
   const router = useRouter();
-  const { trackEvent } = useEventTracking();
+  const { trackEvent, trackFormSubmit } = useEventTracking();
   const { sessionId, startSession, completeSession } = useSessionTracking();
 
   const [phase, setPhase] = useState<Phase>("questions");
@@ -164,6 +164,12 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
       skipLocation,
     });
 
+    // Track why checkpoint shown
+    trackEvent("why_checkpoint_shown", {
+      region: regionResolved,
+      placement: "quiz_flow",
+    });
+
     setPhase("why");
   };
 
@@ -245,6 +251,14 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
         missingFields: initialData.missingFields
       }),
     };
+
+    // Track form submission
+    trackFormSubmit(true, {
+      source: "sanity-check",
+      model: reportData.model,
+      year: reportData.year,
+      region: regionResolved,
+    });
 
     // Track report generation
     trackEvent("report_generated", {
