@@ -7,8 +7,10 @@
 
 import { createClient, SupabaseClient, User, Session } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Hardcoded values to bypass Netlify env var injection issue
+// TODO: Revert to env vars once Netlify integration is fixed
+const supabaseUrl = "https://acbxnfhcadvrjvftmbci.supabase.co";
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjYnhuZmhjYWR2cmp2ZnRtYmNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkwMjM5NzMsImV4cCI6MjA4NDU5OTk3M30.-fwbjT1wiqZKEuaxUNv-Ipc1hn9yyk7-iiI0vQUZDT0";
 
 let supabaseAuthClient: SupabaseClient | null = null;
 
