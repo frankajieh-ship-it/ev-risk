@@ -14,6 +14,9 @@ let supabaseAuthClient: SupabaseClient | null = null;
 
 // Only initialize on client side
 if (typeof window !== "undefined" && supabaseUrl && supabaseAnonKey) {
+  // Debug: Log the Supabase URL being used (remove after confirming fix)
+  console.log("[Supabase Auth] Initializing with URL:", supabaseUrl);
+
   supabaseAuthClient = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       autoRefreshToken: true,
