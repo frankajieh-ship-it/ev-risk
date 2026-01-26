@@ -33,6 +33,10 @@ export async function GET(request: NextRequest) {
       // Node environment
       NODE_ENV: process.env.NODE_ENV || 'not set',
 
+      // Supabase (for debugging auth issues)
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'not set',
+      SUPABASE_URL_PROJECT_ID: process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/https:\/\/([^.]+)/)?.[1] || 'not set',
+
       // Netlify-specific
       NETLIFY: process.env.NETLIFY || 'not set',
       CONTEXT: process.env.CONTEXT || 'not set',  // production, deploy-preview, branch-deploy
