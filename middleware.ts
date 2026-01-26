@@ -23,7 +23,7 @@ export function middleware(request: NextRequest) {
       "img-src 'self' data: https:",
       "font-src 'self' data:",
       "frame-src https://js.stripe.com",
-      "connect-src 'self' https://api.stripe.com https://*.neon.tech",
+      "connect-src 'self' https://api.stripe.com https://*.neon.tech https://*.supabase.co",
     ].join("; ")
   );
 
