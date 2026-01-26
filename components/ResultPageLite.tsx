@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { ChevronDown } from "lucide-react";
 import type { WebPresentation } from "@/types/presentation";
 import {
   FitVerdictBlock,
@@ -42,6 +43,7 @@ export function ResultPageLite({
   const containerRef = useRef<HTMLDivElement>(null);
   const [maxScrollDepth, setMaxScrollDepth] = useState(0);
   const [accuracyFeedback, setAccuracyFeedback] = useState<"up" | "down" | null>(null);
+  const [showAppendix, setShowAppendix] = useState(false);
   const scrollTrackedRef = useRef<Set<number>>(new Set());
 
   // P1: Scroll depth tracking
@@ -202,6 +204,69 @@ export function ResultPageLite({
             <p className="text-sm text-green-800">Thanks for the feedback!</p>
           </div>
         )}
+
+        {/* Appendix Toggle - "Want to dig deeper?" */}
+        <div className="mt-4">
+          <button
+            onClick={() => {
+              setShowAppendix(!showAppendix);
+              if (!showAppendix) {
+                trackEvent("appendix_expanded", { page: "result_page_lite" });
+              }
+            }}
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ChevronDown
+              className={`w-4 h-4 transition-transform duration-200 ${showAppendix ? "rotate-180" : ""}`}
+            />
+            📚 Want to dig deeper? Expand full details
+          </button>
+
+          {showAppendix && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-4"
+            >
+              {/* Climate Assumptions */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Climate Assumptions</h4>
+                <p className="text-xs text-gray-600">
+                  Range estimates account for seasonal variation. Winter months may reduce
+                  effective range by 20-40% depending on temperature and heating use.
+                </p>
+              </div>
+
+              {/* Charging Pattern */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Charging Pattern</h4>
+                <p className="text-xs text-gray-600">
+                  Analysis assumes consistent weekly charging patterns. Disruptions
+                  (travel, schedule changes, charger outages) may require adjustment.
+                </p>
+              </div>
+
+              {/* Data Sources */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Data Sources</h4>
+                <ul className="text-xs text-gray-600 list-disc list-inside space-y-1">
+                  <li>EPA range estimates adjusted for real-world conditions</li>
+                  <li>Battery degradation models based on chemistry type</li>
+                  <li>Local charger density from public charging databases</li>
+                </ul>
+              </div>
+
+              {/* Disclaimer */}
+              <div className="pt-2 border-t border-gray-200">
+                <p className="text-xs text-gray-500 italic">
+                  This analysis is for informational purposes. Individual results vary
+                  based on driving habits, climate, and vehicle condition.
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </div>
       </div>
 
       {/* View Full Report CTA - P1: Reframed for negotiation/planning/peace of mind */}
