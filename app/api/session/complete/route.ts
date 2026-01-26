@@ -9,6 +9,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { isValidSessionId } from "@/lib/session-utils";
+import {
+  generateScenarioFingerprint,
+  generateSummaryId,
+  getEngineVersion,
+} from "@/lib/scenario-fingerprint";
 
 export async function POST(req: NextRequest) {
   // Check if Supabase is configured
@@ -50,8 +55,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Generate scenario fingerprint for IP tracking
+    let scenarioFingerprint: string | null = null;
+    let summaryId: string | null = null;
+    let isNovelScenario = false;
+    const engineVersion = getEngineVersion();
+
+    if (inputs?.model && inputs?.year && inputs?.zipCode) {
+      scenarioFingerprint = generateScenarioFingerprint({
+        model: inputs.model,
+        year: inputs.year,
+        dailyMiles: inputs.dailyMiles || 30,
+        zipCode: inputs.zipCode,
+        homeCharging: inputs.homeCharging ?? true,
+        riskTolerance: inputs.riskTolerance || "moderate",
+        constraintMultiplier: inputs.constraintMultiplier,
+      });
+      summaryId = generateSummaryId();
+
+      // Check if this is a novel scenario (first occurrence)
+      const { data: existing } = await supabase
+        .from("evroutine_sessions")
+        .select("id")
+        .eq("scenario_fingerprint", scenarioFingerprint)
+        .limit(1);
+
+      isNovelScenario = !existing || existing.length === 0;
+    }
+
     // Update session with completion data
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("evroutine_sessions")
       .update({
         inputs: inputs || {},
@@ -72,6 +105,11 @@ export async function POST(req: NextRequest) {
         public_anchor_reliability: public_anchor_reliability || null,
         predictability_level: predictability_level || null,
         planning_tolerance: planning_tolerance || null,
+        // IP Defensibility: Scenario fingerprinting
+        scenario_fingerprint: scenarioFingerprint,
+        summary_id: summaryId,
+        engine_version: engineVersion,
+        is_novel_scenario: isNovelScenario,
       })
       .eq("id", session_id)
       .select("id")

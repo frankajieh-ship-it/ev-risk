@@ -135,6 +135,11 @@ export default function AdminDashboard() {
       vehicle_model: string | null;
     }>;
     daily_trend: Array<{ date: string; total: number; completed: number; resolved: number }>;
+    ip_metrics?: {
+      unique_scenarios: number;
+      novel_scenarios: number;
+      engine_version: string;
+    };
   } | null>(null);
   const [exportPeriod, setExportPeriod] = useState<"today" | "week" | "month">("today");
   const [isExporting, setIsExporting] = useState(false);
@@ -1365,6 +1370,30 @@ export default function AdminDashboard() {
                 <p className="text-xs text-orange-600">{sessionAnalytics.overview.resolution_rate}% of viewed</p>
               </div>
             </div>
+
+            {/* IP & Scenario Metrics */}
+            {sessionAnalytics.ip_metrics && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3">IP & Scenario Metrics</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-indigo-50 rounded-xl p-4">
+                    <p className="text-sm text-indigo-600 font-medium mb-1">Unique Scenarios</p>
+                    <p className="text-2xl font-bold text-indigo-900">{sessionAnalytics.ip_metrics.unique_scenarios}</p>
+                    <p className="text-xs text-indigo-600">Distinct input combinations</p>
+                  </div>
+                  <div className="bg-teal-50 rounded-xl p-4">
+                    <p className="text-sm text-teal-600 font-medium mb-1">Novel Scenarios</p>
+                    <p className="text-2xl font-bold text-teal-900">{sessionAnalytics.ip_metrics.novel_scenarios}</p>
+                    <p className="text-xs text-teal-600">First-time combinations</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-sm text-gray-600 font-medium mb-1">Engine Version</p>
+                    <p className="text-2xl font-bold text-gray-900">v{sessionAnalytics.ip_metrics.engine_version}</p>
+                    <p className="text-xs text-gray-600">Scoring algorithm</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Decision Outcomes */}
             {sessionAnalytics.decision_outcomes.length > 0 && (

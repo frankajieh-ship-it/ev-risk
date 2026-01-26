@@ -134,6 +134,20 @@ export async function GET(req: NextRequest) {
 
     if (recentError) throw recentError;
 
+    // 9. IP Metrics: Unique scenarios and novel count
+    const { data: ipMetricsData, error: ipMetricsError } = await supabase
+      .from("evroutine_sessions")
+      .select("scenario_fingerprint, is_novel_scenario, engine_version")
+      .not("scenario_fingerprint", "is", null);
+
+    if (ipMetricsError) throw ipMetricsError;
+
+    const uniqueFingerprints = new Set(
+      ipMetricsData?.map((s) => s.scenario_fingerprint).filter(Boolean)
+    ).size;
+    const novelCount = ipMetricsData?.filter((s) => s.is_novel_scenario).length || 0;
+    const latestEngineVersion = ipMetricsData?.[0]?.engine_version || "2.1.0";
+
     // 8. Daily session trend
     const { data: dailyData, error: dailyError } = await supabase
       .from("evroutine_sessions")
@@ -215,6 +229,13 @@ export async function GET(req: NextRequest) {
       })) || [],
 
       daily_trend: dailyTrendArray,
+
+      // IP Defensibility metrics
+      ip_metrics: {
+        unique_scenarios: uniqueFingerprints,
+        novel_scenarios: novelCount,
+        engine_version: latestEngineVersion,
+      },
     };
 
     return NextResponse.json({ session_analytics: sessionAnalytics });
