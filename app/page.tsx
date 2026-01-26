@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
 import { Shield, TrendingUp } from "lucide-react";
 import FitQuizModal from "@/components/FitQuizModal";
@@ -11,10 +12,16 @@ import ListingUrlForm from "@/components/ListingUrlForm";
 import TrustMicrocopy from "@/components/TrustMicrocopy";
 import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
 import VehicleInputTabs from "@/components/VehicleInputTabs";
+import SavedScenariosList from "@/components/SavedScenariosList";
+import LoginModal from "@/components/LoginModal";
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 
 export default function Home() {
   const router = useRouter();
+
+  // Auth state for saved scenarios
+  const { isAuthenticated, logout } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Track visitor on homepage
   useVisitorTracking({
@@ -178,6 +185,21 @@ export default function Home() {
               >
                 Insights
               </a>
+              {isAuthenticated ? (
+                <button
+                  onClick={() => logout()}
+                  className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  Sign out
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowLoginModal(true)}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  Sign in
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -292,6 +314,32 @@ export default function Home() {
         onSubmit={handleManualEntry}
         missingFields={manualEntryMissingFields}
       />
+
+      {/* Login Modal */}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+      />
+
+      {/* Saved Scenarios List - Only shown to authenticated users */}
+      {isAuthenticated && (
+        <section className="max-w-3xl mx-auto px-4 pb-12">
+          <SavedScenariosList
+            maxItems={3}
+            onSelectScenario={(scenario) => {
+              // Reopen saved scenario by navigating to report with saved inputs
+              const params = new URLSearchParams({
+                data: JSON.stringify({
+                  model: scenario.vehicle_model,
+                  year: scenario.vehicle_year,
+                  ...scenario.inputs,
+                }),
+              });
+              router.push(`/report?${params.toString()}`);
+            }}
+          />
+        </section>
+      )}
     </div>
   );
 }

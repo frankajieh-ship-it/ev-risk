@@ -26,18 +26,30 @@ import {
   ConstraintContextBlock,
 } from "./blocks";
 import DecisionResolution from "./DecisionResolution";
+import SaveScenarioCTA from "./SaveScenarioCTA";
 import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface ResultPageLiteProps {
   presentation: WebPresentation;
   vehicleInfo: { year: number; model: string };
   onViewFullReport?: () => void;
+  // Account Save Flow props
+  scoringInputs?: {
+    model?: string;
+    year?: number;
+    zipCode?: string;
+    dailyMiles?: number;
+    homeCharging?: boolean;
+    riskTolerance?: string;
+    constraintMultiplier?: number;
+  };
 }
 
 export function ResultPageLite({
   presentation,
   vehicleInfo,
   onViewFullReport,
+  scoringInputs,
 }: ResultPageLiteProps) {
   const { trackEvent } = useEventTracking();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -174,6 +186,19 @@ export function ResultPageLite({
 
         {/* Block 6: Decision Capture (MANDATORY) */}
         <DecisionResolution sessionId={presentation.sessionId} />
+
+        {/* Save Scenario CTA - Account Save Flow */}
+        <SaveScenarioCTA
+          sessionId={presentation.sessionId}
+          vehicleModel={vehicleInfo.model}
+          vehicleYear={vehicleInfo.year}
+          fitSignal={presentation.fitSignal}
+          oneSentenceVerdict={presentation.oneSentenceVerdict}
+          inputs={scoringInputs || {
+            model: vehicleInfo.model,
+            year: vehicleInfo.year,
+          }}
+        />
 
         {/* P1: "Did this feel accurate?" feedback - ground truth telemetry */}
         {!accuracyFeedback && (

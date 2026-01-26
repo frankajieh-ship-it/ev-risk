@@ -430,6 +430,14 @@ function ReportContent() {
           presentation={presentation.web}
           vehicleInfo={{ year: input.year, model: input.model }}
           onViewFullReport={handleViewFullReport}
+          scoringInputs={{
+            model: input.model,
+            year: input.year,
+            zipCode: input.zipCode,
+            dailyMiles: input.dailyMiles,
+            homeCharging: input.homeCharging,
+            riskTolerance: input.riskTolerance,
+          }}
         />
       </div>
     );
