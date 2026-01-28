@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export default function LoginModal({
   redirectPath,
 }: LoginModalProps) {
   const { login, isConfigured } = useAuth();
+  const { trackEmailEntrySubmitted } = useEventTracking();
   const [email, setEmail] = useState("");
   const [state, setState] = useState<ModalState>("input");
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +60,11 @@ export default function LoginModal({
     const result = await login(email);
 
     if (result.success) {
+      // Track successful email submission (magic link sent)
+      // Hash email for privacy (simple hash, not for security)
+      const emailHash = email.split('@')[0].slice(0, 3) + '***';
+      trackEmailEntrySubmitted(emailHash);
+
       setState("sent");
       onSuccess?.();
     } else {

@@ -143,6 +143,19 @@ export default function AdminDashboard() {
   } | null>(null);
   const [exportPeriod, setExportPeriod] = useState<"today" | "week" | "month">("today");
   const [isExporting, setIsExporting] = useState(false);
+  const [emailFunnelStats, setEmailFunnelStats] = useState<{
+    email_entry_start: number;
+    email_entry_submitted: number;
+    email_confirmed: number;
+    conversion_rate: string;
+  } | null>(null);
+  const [scenarioSaveStats, setScenarioSaveStats] = useState<{
+    save_clicked: number;
+    save_clicked_authenticated: number;
+    save_success: number;
+    new_saves: number;
+    conversion_rate: string;
+  } | null>(null);
 
   // Generate export summary data
   const generateExportSummary = () => {
@@ -209,6 +222,8 @@ export default function AdminDashboard() {
       await fetchVisitorStats(timeframe);
       await fetchEventStats(timeframe);
       await fetchWhyCheckpointStats(timeframe);
+      await fetchEmailFunnelStats(timeframe);
+      await fetchScenarioSaveStats(timeframe);
 
       // Wait a bit for state to update
       setTimeout(() => {
@@ -297,6 +312,8 @@ export default function AdminDashboard() {
       await fetchVisitorStats(timeframe);
       await fetchEventStats(timeframe);
       await fetchWhyCheckpointStats(timeframe);
+      await fetchEmailFunnelStats(timeframe);
+      await fetchScenarioSaveStats(timeframe);
 
       setTimeout(() => {
         const summary = generateExportSummary();
@@ -362,11 +379,13 @@ export default function AdminDashboard() {
       // Store API key in session storage for convenience
       sessionStorage.setItem("admin_api_key", key);
 
-      // Fetch visitor stats, event stats, app feedback, why checkpoint stats, and session analytics
+      // Fetch visitor stats, event stats, app feedback, why checkpoint stats, email funnel, scenario saves, and session analytics
       await fetchVisitorStats(visitorTimeframe);
       await fetchEventStats(eventTimeframe);
       await fetchAppFeedback(feedbackLimit, feedbackType);
       await fetchWhyCheckpointStats(eventTimeframe);
+      await fetchEmailFunnelStats(eventTimeframe);
+      await fetchScenarioSaveStats(eventTimeframe);
       await fetchSessionAnalytics();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -476,6 +495,58 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error("Failed to fetch session analytics:", err);
+    }
+  };
+
+  // Fetch email funnel stats from event data
+  const fetchEmailFunnelStats = async (timeframe: string = eventTimeframe) => {
+    try {
+      const response = await fetch(`/api/track-event?timeframe=${timeframe}`);
+      if (response.ok) {
+        const data = await response.json();
+        const events = data.stats.recentEvents || [];
+
+        // Count email funnel events
+        const emailStart = events.filter((e: { event_name: string }) => e.event_name === 'email_entry_start').length;
+        const emailSubmitted = events.filter((e: { event_name: string }) => e.event_name === 'email_entry_submitted').length;
+        const emailConfirmed = events.filter((e: { event_name: string }) => e.event_name === 'email_confirmed').length;
+
+        setEmailFunnelStats({
+          email_entry_start: emailStart,
+          email_entry_submitted: emailSubmitted,
+          email_confirmed: emailConfirmed,
+          conversion_rate: emailStart > 0 ? ((emailConfirmed / emailStart) * 100).toFixed(1) : '0',
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch email funnel stats:", err);
+    }
+  };
+
+  // Fetch scenario save stats from event data
+  const fetchScenarioSaveStats = async (timeframe: string = eventTimeframe) => {
+    try {
+      const response = await fetch(`/api/track-event?timeframe=${timeframe}`);
+      if (response.ok) {
+        const data = await response.json();
+        const events = data.stats.recentEvents || [];
+
+        // Count scenario save events
+        const saveClicked = events.filter((e: { event_name: string }) => e.event_name === 'scenario_save_clicked');
+        const saveClickedAuth = saveClicked.filter((e: { event_data?: { is_authenticated?: boolean } }) => e.event_data?.is_authenticated === true).length;
+        const saveSuccess = events.filter((e: { event_name: string }) => e.event_name === 'scenario_save_success');
+        const newSaves = saveSuccess.filter((e: { event_data?: { is_new?: boolean } }) => e.event_data?.is_new === true).length;
+
+        setScenarioSaveStats({
+          save_clicked: saveClicked.length,
+          save_clicked_authenticated: saveClickedAuth,
+          save_success: saveSuccess.length,
+          new_saves: newSaves,
+          conversion_rate: saveClicked.length > 0 ? ((saveSuccess.length / saveClicked.length) * 100).toFixed(1) : '0',
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch scenario save stats:", err);
     }
   };
 
@@ -949,6 +1020,8 @@ export default function AdminDashboard() {
                     key={tf}
                     onClick={() => {
                       fetchWhyCheckpointStats(tf);
+                      fetchEmailFunnelStats(tf);
+                      fetchScenarioSaveStats(tf);
                     }}
                     className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                       eventTimeframe === tf
@@ -1012,6 +1085,77 @@ export default function AdminDashboard() {
             )}
           </div>
         )}
+
+        {/* Email Funnel Section */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">📧 Email Funnel</h2>
+          <p className="text-sm text-gray-500 mb-4">Login modal opens → Magic link sent → Auth confirmed</p>
+
+          {emailFunnelStats ? (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 rounded-xl p-4">
+                <p className="text-sm text-blue-600 font-medium mb-1">Modal Opened</p>
+                <p className="text-3xl font-bold text-blue-900">{emailFunnelStats.email_entry_start}</p>
+                <p className="text-xs text-blue-700 mt-1">Login modal views</p>
+              </div>
+              <div className="bg-purple-50 rounded-xl p-4">
+                <p className="text-sm text-purple-600 font-medium mb-1">Magic Links Sent</p>
+                <p className="text-3xl font-bold text-purple-900">{emailFunnelStats.email_entry_submitted}</p>
+                <p className="text-xs text-purple-700 mt-1">Email submissions</p>
+              </div>
+              <div className="bg-green-50 rounded-xl p-4">
+                <p className="text-sm text-green-600 font-medium mb-1">Auth Confirmed</p>
+                <p className="text-3xl font-bold text-green-900">{emailFunnelStats.email_confirmed}</p>
+                <p className="text-xs text-green-700 mt-1">Successful logins</p>
+              </div>
+              <div className="bg-amber-50 rounded-xl p-4">
+                <p className="text-sm text-amber-600 font-medium mb-1">Conversion Rate</p>
+                <p className="text-3xl font-bold text-amber-900">{emailFunnelStats.conversion_rate}%</p>
+                <p className="text-xs text-amber-700 mt-1">Open → Confirmed</p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm">No email funnel data yet.</p>
+          )}
+        </div>
+
+        {/* Scenario Save Section */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">💾 Scenario Saves</h2>
+          <p className="text-sm text-gray-500 mb-4">Save button clicks → Successful saves</p>
+
+          {scenarioSaveStats ? (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="bg-indigo-50 rounded-xl p-4">
+                <p className="text-sm text-indigo-600 font-medium mb-1">Save Clicked</p>
+                <p className="text-3xl font-bold text-indigo-900">{scenarioSaveStats.save_clicked}</p>
+                <p className="text-xs text-indigo-700 mt-1">Total clicks</p>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-4">
+                <p className="text-sm text-blue-600 font-medium mb-1">Authenticated</p>
+                <p className="text-3xl font-bold text-blue-900">{scenarioSaveStats.save_clicked_authenticated}</p>
+                <p className="text-xs text-blue-700 mt-1">Logged in users</p>
+              </div>
+              <div className="bg-green-50 rounded-xl p-4">
+                <p className="text-sm text-green-600 font-medium mb-1">Save Success</p>
+                <p className="text-3xl font-bold text-green-900">{scenarioSaveStats.save_success}</p>
+                <p className="text-xs text-green-700 mt-1">Saved to DB</p>
+              </div>
+              <div className="bg-purple-50 rounded-xl p-4">
+                <p className="text-sm text-purple-600 font-medium mb-1">New Saves</p>
+                <p className="text-3xl font-bold text-purple-900">{scenarioSaveStats.new_saves}</p>
+                <p className="text-xs text-purple-700 mt-1">First-time saves</p>
+              </div>
+              <div className="bg-amber-50 rounded-xl p-4">
+                <p className="text-sm text-amber-600 font-medium mb-1">Conversion</p>
+                <p className="text-3xl font-bold text-amber-900">{scenarioSaveStats.conversion_rate}%</p>
+                <p className="text-xs text-amber-700 mt-1">Click → Success</p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm">No scenario save data yet.</p>
+          )}
+        </div>
 
         {/* Visitor Stats Section */}
         {visitorStats && (

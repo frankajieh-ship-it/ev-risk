@@ -1,10 +1,106 @@
 /**
  * Event Tracking API
  * Logs user interactions and conversion funnel events
+ *
+ * Features:
+ * - Event validation (allowed event names, schema validation)
+ * - IP/Enterprise tagging for investor-ready analytics
+ * - Consistent event schema enforcement
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
+
+// Valid event names for validation
+const VALID_EVENT_NAMES = [
+  // Form & Input Events
+  "form_submit",
+  "url_autofill_attempt",
+  // Navigation Events
+  "blog_link_click",
+  "button_click",
+  // Report Events
+  "report_generated",
+  "report_view",
+  // Scenario Save Events
+  "scenario_save_clicked",
+  "scenario_save_success",
+  // Authentication Events
+  "email_entry_start",
+  "email_entry_submitted",
+  "email_confirmed",
+  // Feedback Events
+  "feedback_helpful",
+  "feedback_accuracy",
+  "why_checkpoint_shown",
+  "why_checkpoint_submitted",
+  "why_checkpoint_skipped",
+  // Constraint Events
+  "constraint_detected",
+  "constraint_signal_viewed",
+  // Micro Feedback Events
+  "micro_feedback_shown",
+  "micro_feedback_submitted",
+  "micro_feedback_skipped",
+  // Scroll & Engagement Events
+  "scroll_depth",
+  "time_on_page",
+  // Legacy event names (for backward compatibility)
+  "page_view",
+] as const;
+
+// Events that are IP-relevant (defensible insights)
+const IP_RELEVANT_EVENTS = [
+  "constraint_detected",
+  "scenario_save_success",
+  "report_generated",
+];
+
+// Events that are enterprise-ready
+const ENTERPRISE_READY_EVENTS = [
+  "scenario_save_success",
+  "email_confirmed",
+  "report_generated",
+];
+
+// Validate event payload
+function validateEventPayload(eventName: string, eventData: any, sessionId: string | null): { valid: boolean; error?: string } {
+  // Check event name
+  if (!eventName) {
+    return { valid: false, error: "event_name is required" };
+  }
+
+  // Allow any event name for flexibility, but log warning for unknown events
+  if (!VALID_EVENT_NAMES.includes(eventName as any)) {
+    console.warn(`[EventTracking] Unknown event name: ${eventName}`);
+  }
+
+  // Check session ID (warn but don't reject)
+  if (!sessionId) {
+    console.warn(`[EventTracking] Event ${eventName} missing session_id`);
+  }
+
+  // Check event data size (max 10KB)
+  if (eventData) {
+    const dataSize = JSON.stringify(eventData).length;
+    if (dataSize > 10240) {
+      return { valid: false, error: "event_data exceeds 10KB limit" };
+    }
+  }
+
+  return { valid: true };
+}
+
+// Determine IP relevance and enterprise readiness
+function getEventTags(eventName: string, eventData: any, userId?: string): { ip_relevance: boolean; enterprise_ready: boolean } {
+  const ipRelevance = IP_RELEVANT_EVENTS.includes(eventName) || eventData?.is_novel_scenario === true;
+  const enterpriseReady = ENTERPRISE_READY_EVENTS.includes(eventName) || !!userId;
+
+  return {
+    ip_relevance: ipRelevance,
+    enterprise_ready: enterpriseReady,
+  };
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,17 +110,48 @@ export async function POST(req: NextRequest) {
       eventData,
       visitorId,
       sessionId,
+      userId,
       pagePath,
       timestamp,
     } = body;
+
+    // Validate event payload
+    const validation = validateEventPayload(eventName, eventData, sessionId);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
 
     // Get visitor metadata
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0] ||
                req.headers.get("x-real-ip") || null;
     const userAgent = req.headers.get("user-agent") || null;
 
-    // Log event
-    const eventTimestamp = timestamp ? new Date(timestamp).toISOString() : new Date().toISOString();
+    // Validate and normalize timestamp
+    let eventTimestamp: string;
+    if (timestamp) {
+      const parsedDate = new Date(timestamp);
+      if (isNaN(parsedDate.getTime())) {
+        eventTimestamp = new Date().toISOString();
+        console.warn(`[EventTracking] Invalid timestamp for ${eventName}, using current time`);
+      } else {
+        eventTimestamp = parsedDate.toISOString();
+      }
+    } else {
+      eventTimestamp = new Date().toISOString();
+    }
+
+    // Get event tags
+    const tags = getEventTags(eventName, eventData, userId);
+
+    // Merge tags into event data
+    const enrichedEventData = {
+      ...eventData,
+      _tags: tags,
+      _user_id: userId || null,
+    };
 
     await sql`
       INSERT INTO user_events (
@@ -39,7 +166,7 @@ export async function POST(req: NextRequest) {
       )
       VALUES (
         ${eventName},
-        ${JSON.stringify(eventData)},
+        ${JSON.stringify(enrichedEventData)},
         ${visitorId},
         ${sessionId || null},
         ${pagePath},

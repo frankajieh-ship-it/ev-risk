@@ -7,16 +7,27 @@
  * Redirects user after successful authentication.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseAuthClient } from "@/lib/supabase-auth";
 import { Suspense } from "react";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { trackEmailConfirmed } = useEventTracking();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
+  const [hasTracked, setHasTracked] = useState(false);
+
+  // Track email confirmed event (only once)
+  const trackAuthSuccess = useCallback((userId?: string) => {
+    if (!hasTracked) {
+      trackEmailConfirmed(userId);
+      setHasTracked(true);
+    }
+  }, [hasTracked, trackEmailConfirmed]);
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -45,6 +56,7 @@ function AuthCallbackContent() {
 
         if (session) {
           console.log("[Auth Callback] Session found from hash:", session.user?.email);
+          trackAuthSuccess(session.user?.id);
           setStatus("success");
 
           const redirectTo = localStorage.getItem("auth_redirect") || "/";
@@ -66,6 +78,12 @@ function AuthCallbackContent() {
 
           if (exchangeError) {
             throw exchangeError;
+          }
+
+          // Get session to track user ID
+          const { data: { session: newSession } } = await supabase.auth.getSession();
+          if (newSession) {
+            trackAuthSuccess(newSession.user?.id);
           }
 
           setStatus("success");
@@ -99,6 +117,7 @@ function AuthCallbackContent() {
 
           if (session) {
             console.log("[Auth Callback] Session found after wait:", session.user?.email);
+            trackAuthSuccess(session.user?.id);
             setStatus("success");
             setTimeout(() => {
               router.push("/");
@@ -113,7 +132,7 @@ function AuthCallbackContent() {
     };
 
     handleCallback();
-  }, [router, searchParams]);
+  }, [router, searchParams, trackAuthSuccess]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

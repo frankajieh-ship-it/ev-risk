@@ -168,6 +168,118 @@ export function useEventTracking() {
     [trackEvent]
   );
 
+  // Report view tracking
+  const trackReportView = useCallback(
+    (data: {
+      vehicle_model: string;
+      vehicle_year?: number;
+      scenario_hash?: string;
+      fit_signal?: string;
+    }) => {
+      trackEvent("report_view", data);
+    },
+    [trackEvent]
+  );
+
+  // Scenario save tracking
+  const trackScenarioSaveClicked = useCallback(
+    (data: {
+      scenario_hash?: string;
+      vehicle_model?: string;
+      is_authenticated: boolean;
+    }) => {
+      trackEvent("scenario_save_clicked", data);
+    },
+    [trackEvent]
+  );
+
+  const trackScenarioSaveSuccess = useCallback(
+    (data: {
+      scenario_id: string;
+      scenario_hash?: string;
+      vehicle_model?: string;
+      is_new: boolean;
+    }) => {
+      trackEvent("scenario_save_success", data);
+    },
+    [trackEvent]
+  );
+
+  // Email/Auth funnel tracking
+  const trackEmailEntryStart = useCallback(
+    (triggerSource: string) => {
+      trackEvent("email_entry_start", {
+        trigger_source: triggerSource,
+      });
+    },
+    [trackEvent]
+  );
+
+  const trackEmailEntrySubmitted = useCallback(
+    (emailHash?: string) => {
+      trackEvent("email_entry_submitted", {
+        email_hash: emailHash,
+      });
+    },
+    [trackEvent]
+  );
+
+  const trackEmailConfirmed = useCallback(
+    (userId?: string) => {
+      trackEvent("email_confirmed", {
+        user_id: userId,
+      });
+    },
+    [trackEvent]
+  );
+
+  // Feedback tracking
+  const trackFeedbackHelpful = useCallback(
+    (response: "yes" | "no", section?: string) => {
+      trackEvent("feedback_helpful", {
+        response,
+        section,
+      });
+    },
+    [trackEvent]
+  );
+
+  const trackFeedbackAccuracy = useCallback(
+    (data: {
+      rating: number;
+      vehicle_model?: string;
+      comments?: string;
+    }) => {
+      trackEvent("feedback_accuracy", data);
+    },
+    [trackEvent]
+  );
+
+  // Micro feedback tracking
+  const trackMicroFeedback = useCallback(
+    (action: "shown" | "submitted" | "skipped", data?: {
+      section?: string;
+      response?: string;
+      vehicle_model?: string;
+    }) => {
+      trackEvent(`micro_feedback_${action}` as any, {
+        ...data,
+      });
+    },
+    [trackEvent]
+  );
+
+  // Scroll depth tracking
+  const trackScrollDepth = useCallback(
+    (depth: number, pagePath?: string) => {
+      trackEvent("scroll_depth", {
+        depth_percent: depth,
+        page_path: pagePath || window.location.pathname,
+      });
+    },
+    [trackEvent]
+  );
+
   return {
     trackEvent,
     trackFormSubmit,
@@ -178,5 +290,16 @@ export function useEventTracking() {
     trackWhyCheckpoint,
     trackConstraintDetected,
     trackConstraintSignalViewed,
+    // New event trackers
+    trackReportView,
+    trackScenarioSaveClicked,
+    trackScenarioSaveSuccess,
+    trackEmailEntryStart,
+    trackEmailEntrySubmitted,
+    trackEmailConfirmed,
+    trackFeedbackHelpful,
+    trackFeedbackAccuracy,
+    trackMicroFeedback,
+    trackScrollDepth,
   };
 }

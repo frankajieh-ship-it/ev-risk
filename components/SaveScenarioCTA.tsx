@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useEventTracking } from "@/hooks/useEventTracking";
 import LoginModal from "./LoginModal";
 import { generateScenarioFingerprint } from "@/lib/scenario-fingerprint";
 
@@ -40,6 +41,7 @@ export default function SaveScenarioCTA({
   inputs,
 }: SaveScenarioCTAProps) {
   const { isAuthenticated, session, isConfigured } = useAuth();
+  const { trackScenarioSaveClicked, trackScenarioSaveSuccess, trackEmailEntryStart } = useEventTracking();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +52,27 @@ export default function SaveScenarioCTA({
   }
 
   const handleSave = async () => {
+    // Generate scenario hash for tracking
+    const scenarioHash = generateScenarioFingerprint({
+      model: inputs.model || vehicleModel,
+      year: inputs.year || vehicleYear,
+      dailyMiles: inputs.dailyMiles || 30,
+      zipCode: inputs.zipCode || "00000",
+      homeCharging: inputs.homeCharging ?? true,
+      riskTolerance: inputs.riskTolerance || "moderate",
+      constraintMultiplier: inputs.constraintMultiplier,
+    });
+
+    // Track save button click
+    trackScenarioSaveClicked({
+      scenario_hash: scenarioHash,
+      vehicle_model: vehicleModel,
+      is_authenticated: isAuthenticated,
+    });
+
     if (!isAuthenticated || !session?.access_token) {
+      // Track email entry modal opening
+      trackEmailEntryStart("save_scenario");
       setShowLoginModal(true);
       return;
     }
@@ -59,17 +81,6 @@ export default function SaveScenarioCTA({
     setError(null);
 
     try {
-      // Generate scenario hash
-      const scenarioHash = generateScenarioFingerprint({
-        model: inputs.model || vehicleModel,
-        year: inputs.year || vehicleYear,
-        dailyMiles: inputs.dailyMiles || 30,
-        zipCode: inputs.zipCode || "00000",
-        homeCharging: inputs.homeCharging ?? true,
-        riskTolerance: inputs.riskTolerance || "moderate",
-        constraintMultiplier: inputs.constraintMultiplier,
-      });
-
       const response = await fetch("/api/user/scenario/save", {
         method: "POST",
         headers: {
@@ -92,6 +103,14 @@ export default function SaveScenarioCTA({
       if (!response.ok || !data.success) {
         throw new Error(data.error || "Failed to save scenario");
       }
+
+      // Track successful save
+      trackScenarioSaveSuccess({
+        scenario_id: data.scenario_id,
+        scenario_hash: scenarioHash,
+        vehicle_model: vehicleModel,
+        is_new: data.is_new,
+      });
 
       setSaveState("saved");
     } catch (err) {
