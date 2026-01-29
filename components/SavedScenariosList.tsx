@@ -56,14 +56,15 @@ export default function SavedScenariosList({
   maxItems = 5,
   compact = false,
 }: SavedScenariosListProps) {
-  const { isAuthenticated, session, isLoading } = useAuth();
+  const { isAuthenticated, session, isLoading, isReady } = useAuth();
   const [scenarios, setScenarios] = useState<SavedScenarioPreview[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated || !session?.access_token) {
+    // Wait for isReady - this ensures the token is fully validated after SIGNED_IN
+    if (!isAuthenticated || !isReady || !session?.access_token) {
       setScenarios([]);
       return;
     }
@@ -96,7 +97,7 @@ export default function SavedScenariosList({
     };
 
     fetchScenarios();
-  }, [isAuthenticated, session?.access_token, maxItems]);
+  }, [isAuthenticated, isReady, session?.access_token, maxItems]);
 
   // Don't show if not authenticated or still loading
   if (isLoading || !isAuthenticated) {

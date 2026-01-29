@@ -23,6 +23,7 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   isConfigured: boolean;
+  isReady: boolean; // True when auth is fully validated (after SIGNED_IN)
 }
 
 interface UseAuthReturn extends AuthState {
@@ -38,6 +39,7 @@ export function useAuth(): UseAuthReturn {
     isLoading: true,
     isAuthenticated: false,
     isConfigured: false,
+    isReady: false,
   });
 
   // Check initial session on mount
@@ -59,6 +61,7 @@ export function useAuth(): UseAuthReturn {
           isLoading: false,
           isAuthenticated: !!user,
           isConfigured: true,
+          isReady: !!user, // Ready if we have a valid user from session
         });
       } catch (error) {
         console.error("Auth init error:", error);
@@ -70,14 +73,28 @@ export function useAuth(): UseAuthReturn {
 
     // Subscribe to auth changes
     const unsubscribe = onAuthStateChange((event, session) => {
-      console.log("[useAuth] Auth event:", event);
+      console.log("[useAuth] Auth event:", event, session ? "with session" : "no session");
 
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        // Token is fully validated - safe to make API calls
         setState((prev) => ({
           ...prev,
           session,
           user: session?.user ?? null,
           isAuthenticated: !!session?.user,
+          isLoading: false,
+          isReady: true,
+        }));
+      } else if (event === "INITIAL_SESSION") {
+        // Initial session - don't set isReady yet, wait for SIGNED_IN
+        setState((prev) => ({
+          ...prev,
+          session,
+          user: session?.user ?? null,
+          isAuthenticated: !!session?.user,
+          isLoading: false,
+          // Only set isReady if we already have it (from initSession)
+          isReady: prev.isReady,
         }));
       } else if (event === "SIGNED_OUT") {
         setState((prev) => ({
@@ -85,6 +102,7 @@ export function useAuth(): UseAuthReturn {
           session: null,
           user: null,
           isAuthenticated: false,
+          isReady: false,
         }));
       }
     });
@@ -112,6 +130,7 @@ export function useAuth(): UseAuthReturn {
         user: null,
         session: null,
         isAuthenticated: false,
+        isReady: false,
       }));
     }
     return result;
