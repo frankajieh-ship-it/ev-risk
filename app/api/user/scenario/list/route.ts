@@ -12,10 +12,14 @@ import { createClient } from "@supabase/supabase-js";
 // Hardcoded to bypass Netlify env var injection issue
 // TODO: Revert to env vars once Netlify integration is fixed
 const supabaseUrl = "https://acbxnfhcadvrjvftmbci.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjYnhuZmhjYWR2cmp2ZnRtYmNpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTAyMzk3MywiZXhwIjoyMDg0NTk5OTczfQ.PHQGeDMD2R7RWBtZI9u_kfBCRReV4L5YWYnSrUabalo";
 
 function getSupabaseAdmin() {
+  console.log("[Supabase] URL:", supabaseUrl);
+  console.log("[Supabase] Service key exists:", !!supabaseServiceKey);
+
   if (!supabaseUrl || !supabaseServiceKey) {
+    console.log("[Supabase] Missing URL or service key!");
     return null;
   }
   return createClient(supabaseUrl, supabaseServiceKey, {
@@ -27,23 +31,38 @@ function getSupabaseAdmin() {
 }
 
 /**
- * Extract user from Authorization header
+ * Extract user from Authorization header using admin auth
  */
-async function getUserFromHeader(req: NextRequest, supabase: ReturnType<typeof getSupabaseAdmin>) {
+async function getUserFromRequest(req: NextRequest, supabase: ReturnType<typeof getSupabaseAdmin>) {
   if (!supabase) return null;
 
+  // Get token from Authorization header
   const authHeader = req.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
+    console.log("[Auth] No Bearer token in Authorization header");
     return null;
   }
 
-  const token = authHeader.replace("Bearer ", "");
+  const accessToken = authHeader.replace("Bearer ", "");
 
   try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) return null;
+    // Use admin.getUserById after decoding JWT, or getUser with the token
+    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+
+    if (error) {
+      console.log("[Auth] getUser error:", error.message);
+      return null;
+    }
+
+    if (!user) {
+      console.log("[Auth] No user returned from getUser");
+      return null;
+    }
+
+    console.log("[Auth] User authenticated:", user.email);
     return user;
-  } catch {
+  } catch (err) {
+    console.error("[Auth] Exception:", err);
     return null;
   }
 }
@@ -78,7 +97,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Get authenticated user
-  const user = await getUserFromHeader(req, supabase);
+  const user = await getUserFromRequest(req, supabase);
 
   if (!user) {
     return NextResponse.json(
