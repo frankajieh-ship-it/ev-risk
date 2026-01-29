@@ -61,7 +61,7 @@ export function useAuth(): UseAuthReturn {
           isLoading: false,
           isAuthenticated: !!user,
           isConfigured: true,
-          isReady: !!user, // Ready if we have a valid user from session
+          isReady: false, // Don't set ready here - wait for SIGNED_IN event
         });
       } catch (error) {
         console.error("Auth init error:", error);

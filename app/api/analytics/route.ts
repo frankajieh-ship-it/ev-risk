@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
       FROM reports
       WHERE vehicle_model IS NOT NULL ${dateFilter ? sql.unsafe(dateFilter) : sql``}
       GROUP BY vehicle_model
-      HAVING COUNT(*) >= 2
+      HAVING COUNT(*) >= 1
       ORDER BY conversion_rate DESC, total_reports DESC
       LIMIT 15
     `;
