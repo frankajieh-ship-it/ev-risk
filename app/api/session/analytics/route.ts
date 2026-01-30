@@ -134,10 +134,11 @@ export async function GET(req: NextRequest) {
 
     if (recentError) throw recentError;
 
-    // 9. IP Metrics: Unique scenarios and novel count
+    // 9. IP Metrics: Unique scenarios and novel count (within date range)
     const { data: ipMetricsData, error: ipMetricsError } = await supabase
       .from("evroutine_sessions")
       .select("scenario_fingerprint, is_novel_scenario, engine_version")
+      .gte("created_at", startDate.toISOString())
       .not("scenario_fingerprint", "is", null);
 
     if (ipMetricsError) throw ipMetricsError;

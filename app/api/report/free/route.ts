@@ -51,6 +51,39 @@ export async function POST(request: NextRequest) {
       )
     `;
 
+    // Track report creation event for analytics
+    const userAgent = request.headers.get("user-agent") || "unknown";
+    const clientIP = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip")
+      || "unknown";
+
+    try {
+      await sql`
+        INSERT INTO user_events (
+          event_name,
+          event_data,
+          ip_address,
+          user_agent,
+          page_path,
+          timestamp
+        ) VALUES (
+          'report_created',
+          ${JSON.stringify({
+            report_id: reportId,
+            vehicle_year: vehicleYear,
+            vehicle_model: vehicleModel,
+            report_status: 'free',
+          })}::jsonb,
+          ${clientIP},
+          ${userAgent},
+          '/api/report/free',
+          NOW()
+        )
+      `;
+    } catch (trackingError) {
+      console.error("Failed to track report creation:", trackingError);
+    }
+
     console.log(`✅ Free report created: ${reportId} (${vehicleYear} ${vehicleModel})`);
 
     return NextResponse.json({

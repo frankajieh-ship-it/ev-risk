@@ -224,7 +224,7 @@ export async function GET(request: NextRequest) {
       LIMIT 20
     `;
 
-    // 12. Report download stats (from user_events)
+    // 12. Report download stats (from user_events - includes both created and downloaded)
     const reportDownloads = await sql`
       SELECT
         event_data->>'vehicle_year' as year,
@@ -232,21 +232,21 @@ export async function GET(request: NextRequest) {
         event_data->>'report_status' as status,
         COUNT(*) as download_count
       FROM user_events
-      WHERE event_name = 'report_downloaded'
+      WHERE event_name IN ('report_downloaded', 'report_created')
         AND timestamp >= NOW() - INTERVAL '30 days'
       GROUP BY year, model, status
       ORDER BY download_count DESC
       LIMIT 20
     `;
 
-    // 13. Download summary
+    // 13. Download summary (counts report_created as "Free Reports" since those are instant)
     const downloadSummary = await sql`
       SELECT
         COUNT(*) as total_downloads,
         COUNT(CASE WHEN event_data->>'report_status' = 'free' THEN 1 END) as free_downloads,
         COUNT(CASE WHEN event_data->>'report_status' = 'paid' THEN 1 END) as paid_downloads
       FROM user_events
-      WHERE event_name = 'report_downloaded'
+      WHERE event_name IN ('report_downloaded', 'report_created')
         AND timestamp >= NOW() - INTERVAL '30 days'
     `;
 
