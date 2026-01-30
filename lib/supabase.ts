@@ -10,7 +10,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 // Hardcoded to bypass Netlify env var injection issue
 // TODO: Revert to env vars once Netlify integration is fixed
 const supabaseUrl = "https://acbxnfhcadvrjvftmbci.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjYnhuZmhjYWR2cmp2ZnRtYmNpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTAyMzk3MywiZXhwIjoyMDg0NTk5OTczfQ.PHQGeDMD2R7RWBtZI9u_kfBCRReV4L5YWYnSrUabalo";
 
 let supabaseClient: SupabaseClient | null = null;
 

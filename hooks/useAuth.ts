@@ -86,15 +86,16 @@ export function useAuth(): UseAuthReturn {
           isReady: true,
         }));
       } else if (event === "INITIAL_SESSION") {
-        // Initial session - don't set isReady yet, wait for SIGNED_IN
+        // For returning users with valid session, INITIAL_SESSION is the only event
+        // SIGNED_IN only fires on fresh logins via magic link callback
+        // So if we have a valid session here, set isReady: true
         setState((prev) => ({
           ...prev,
           session,
           user: session?.user ?? null,
           isAuthenticated: !!session?.user,
           isLoading: false,
-          // Only set isReady if we already have it (from initSession)
-          isReady: prev.isReady,
+          isReady: !!session?.user, // Ready if we have a valid user
         }));
       } else if (event === "SIGNED_OUT") {
         setState((prev) => ({
