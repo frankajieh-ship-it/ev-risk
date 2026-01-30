@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AlertCircle } from "lucide-react";
 import PhotoUploadPlaceholder from "./PhotoUploadPlaceholder";
+import { useSessionTracking } from "@/hooks/useSessionTracking";
 
 export interface ManualEntryData {
   year: number;
@@ -56,6 +57,20 @@ export default function ManualEntryInlineForm({ onSubmit }: ManualEntryInlineFor
   const [batteryInfoAvailable, setBatteryInfoAvailable] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Session tracking
+  const { startSession, completeSession } = useSessionTracking();
+  const sessionStartedRef = useRef(false);
+
+  // Start session tracking on mount
+  useEffect(() => {
+    if (!sessionStartedRef.current) {
+      sessionStartedRef.current = true;
+      startSession({ source: "manual-entry" }).catch(() => {
+        // Silent fail - don't block user flow
+      });
+    }
+  }, [startSession]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -80,6 +95,21 @@ export default function ManualEntryInlineForm({ onSubmit }: ManualEntryInlineFor
       dataSource: 'manual-entry',
       missingFields,
     };
+
+    // Track session completion with inputs
+    completeSession(
+      {
+        year,
+        make: make.trim(),
+        model: model.trim(),
+        mileage,
+        batteryInfoAvailable,
+        dataSource: 'manual-entry',
+      },
+      {} // No fit_signal yet - that comes after results
+    ).catch(() => {
+      // Silent fail
+    });
 
     onSubmit(data);
 
