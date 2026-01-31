@@ -10,9 +10,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { jwtVerify, createRemoteJWKSet } from "jose";
 
-// Hardcoded to bypass Netlify env var injection issue
-const supabaseUrl = "https://acbxnfhcadvrjvftmbci.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "sb_secret_nm9qdk9rK4CDCLKJi9SHmw_Gm6Zp7Cp";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // JWKS endpoint for Supabase - used to verify ES256 signed JWTs
 const JWKS_URL = `${supabaseUrl}/auth/v1/.well-known/jwks.json`;
