@@ -3,25 +3,14 @@
  * POST /api/user/scenario/save
  *
  * Saves a scenario to user's account for later reference.
- * Requires authentication via JWT verification using JWKS.
+ * Requires authentication via Supabase auth.getUser().
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { jwtVerify, createRemoteJWKSet } from "jose";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-// JWKS endpoint for Supabase - used to verify ES256 signed JWTs
-// Lazily created to avoid issues with undefined env vars at module load
-let JWKS: ReturnType<typeof createRemoteJWKSet> | null = null;
-function getJWKS() {
-  if (!JWKS && supabaseUrl) {
-    JWKS = createRemoteJWKSet(new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`));
-  }
-  return JWKS;
-}
 
 function getSupabaseAdmin() {
   if (!supabaseUrl || !supabaseServiceKey) {
@@ -36,10 +25,12 @@ function getSupabaseAdmin() {
 }
 
 /**
- * Extract user from Authorization header by verifying JWT using JWKS
- * Supabase uses ES256 algorithm which requires public key verification
+ * Extract user from Authorization header using Supabase auth.getUser()
  */
-async function getUserFromRequest(req: NextRequest): Promise<{ id: string; email: string } | null> {
+async function getUserFromRequest(
+  req: NextRequest,
+  supabase: SupabaseClient
+): Promise<{ id: string; email: string } | null> {
   const authHeader = req.headers.get("authorization");
 
   if (!authHeader?.startsWith("Bearer ")) {
@@ -50,28 +41,20 @@ async function getUserFromRequest(req: NextRequest): Promise<{ id: string; email
   const token = authHeader.replace("Bearer ", "");
 
   try {
-    const jwks = getJWKS();
-    if (!jwks) {
-      console.log("[Auth] JWKS not available - supabaseUrl not configured");
-      return null;
-    }
-    // Verify using JWKS (handles ES256 automatically)
-    const { payload } = await jwtVerify(token, jwks, {
-      issuer: `${supabaseUrl}/auth/v1`,
-    });
+    const { data: { user }, error } = await supabase.auth.getUser(token);
 
-    if (!payload.sub) {
-      console.log("[Auth] JWT missing sub claim");
+    if (error || !user) {
+      console.log("[Auth] Token verification failed:", error?.message);
       return null;
     }
 
-    console.log("[Auth] JWT verified for:", payload.email);
+    console.log("[Auth] User verified:", user.email);
     return {
-      id: payload.sub as string,
-      email: payload.email as string,
+      id: user.id,
+      email: user.email || "",
     };
   } catch (err) {
-    console.error("[Auth] JWT verification failed:", err instanceof Error ? err.message : err);
+    console.error("[Auth] Error verifying token:", err instanceof Error ? err.message : err);
     return null;
   }
 }
@@ -87,7 +70,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Get authenticated user
-  const user = await getUserFromRequest(req);
+  const user = await getUserFromRequest(req, supabase);
 
   if (!user) {
     return NextResponse.json(
