@@ -13,6 +13,7 @@ import {
   signOut,
   onAuthStateChange,
   isSupabaseAuthConfigured,
+  getSupabaseAuthClient,
   type User,
   type Session,
 } from "@/lib/supabase-auth";
@@ -86,17 +87,74 @@ export function useAuth(): UseAuthReturn {
           isReady: true,
         }));
       } else if (event === "INITIAL_SESSION") {
-        // For returning users with valid session, INITIAL_SESSION is the only event
-        // SIGNED_IN only fires on fresh logins via magic link callback
-        // So if we have a valid session here, set isReady: true
-        setState((prev) => ({
-          ...prev,
-          session,
-          user: session?.user ?? null,
-          isAuthenticated: !!session?.user,
-          isLoading: false,
-          isReady: !!session?.user, // Ready if we have a valid user
-        }));
+        // For returning users, INITIAL_SESSION fires with the stored session
+        // But after magic link redirect, the token might not be fully validated yet
+        // We need to refresh the session to ensure the token is valid before API calls
+        if (session?.user) {
+          console.log("[useAuth] INITIAL_SESSION with user, refreshing session to validate token...");
+
+          // Set basic state but NOT ready yet
+          setState((prev) => ({
+            ...prev,
+            session,
+            user: session?.user ?? null,
+            isAuthenticated: true,
+            isLoading: false,
+            isReady: false, // Wait for refresh to complete
+          }));
+
+          // Trigger a session refresh to ensure token is valid on Supabase backend
+          const client = getSupabaseAuthClient();
+          if (client) {
+            client.auth.refreshSession().then(({ data, error }) => {
+              if (error) {
+                console.error("[useAuth] Session refresh failed:", error);
+                // Still set ready since we have a session, API might work
+                setState((prev) => ({
+                  ...prev,
+                  isReady: true,
+                }));
+              } else if (data?.session) {
+                const refreshedSession = data.session;
+                console.log("[useAuth] Session refreshed successfully, token validated");
+                setState((prev) => ({
+                  ...prev,
+                  session: refreshedSession,
+                  user: refreshedSession.user,
+                  isAuthenticated: true,
+                  isLoading: false,
+                  isReady: true,
+                }));
+              } else {
+                // No session after refresh - user needs to re-authenticate
+                console.log("[useAuth] No session after refresh");
+                setState((prev) => ({
+                  ...prev,
+                  session: null,
+                  user: null,
+                  isAuthenticated: false,
+                  isReady: true,
+                }));
+              }
+            });
+          } else {
+            // No client available, set ready anyway
+            setState((prev) => ({
+              ...prev,
+              isReady: true,
+            }));
+          }
+        } else {
+          // No user in session, just update state
+          setState((prev) => ({
+            ...prev,
+            session,
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            isReady: true,
+          }));
+        }
       } else if (event === "SIGNED_OUT") {
         setState((prev) => ({
           ...prev,
