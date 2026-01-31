@@ -3,20 +3,20 @@
  * GET /api/user/scenario/list
  *
  * Returns user's saved scenarios with preview data.
- * Requires authentication via JWT verification.
+ * Requires authentication via JWT verification using JWKS.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { jwtVerify } from "jose";
+import { jwtVerify, createRemoteJWKSet } from "jose";
 
 // Hardcoded to bypass Netlify env var injection issue
 const supabaseUrl = "https://acbxnfhcadvrjvftmbci.supabase.co";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjYnhuZmhjYWR2cmp2ZnRtYmNpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTAyMzk3MywiZXhwIjoyMDg0NTk5OTczfQ.PHQGeDMD2R7RWBtZI9u_kfBCRReV4L5YWYnSrUabalo";
 
-// JWT secret from Supabase Dashboard → Settings → API
-// Hardcoded fallback to bypass Netlify env var injection issue
-const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET || "O3m/kwp46lTWMyZuYGOoFvzJodqyZ/CkfCxnRgc1YgMi9wF/jnPc+mmGWuvRnsDNpnCMLrTjOohJ8rtd6Vlryg==";
+// JWKS endpoint for Supabase - used to verify ES256 signed JWTs
+const JWKS_URL = `${supabaseUrl}/auth/v1/.well-known/jwks.json`;
+const JWKS = createRemoteJWKSet(new URL(JWKS_URL));
 
 function getSupabaseAdmin() {
   if (!supabaseUrl || !supabaseServiceKey) {
@@ -32,53 +32,38 @@ function getSupabaseAdmin() {
 }
 
 /**
- * Extract user from Authorization header by verifying JWT directly
- * Returns user object on success, or debug info object on failure
+ * Extract user from Authorization header by verifying JWT using JWKS
+ * Supabase uses ES256 algorithm which requires public key verification
  */
-async function getUserFromRequest(req: NextRequest): Promise<{ id: string; email: string } | { debugInfo: Record<string, unknown> }> {
+async function getUserFromRequest(req: NextRequest): Promise<{ id: string; email: string } | null> {
   const authHeader = req.headers.get("authorization");
-  const debugInfo: Record<string, unknown> = {
-    authHeaderPresent: !!authHeader,
-    authHeaderStartsWithBearer: authHeader?.startsWith("Bearer ") || false,
-    jwtSecretLoaded: !!SUPABASE_JWT_SECRET,
-    jwtSecretFirst20: SUPABASE_JWT_SECRET?.substring(0, 20) || "NOT_LOADED",
-  };
 
   if (!authHeader?.startsWith("Bearer ")) {
-    debugInfo.failReason = "No Bearer token in Authorization header";
-    debugInfo.authHeaderValue = authHeader || "null";
-    return { debugInfo };
+    console.log("[Auth] No Bearer token in Authorization header");
+    return null;
   }
 
   const token = authHeader.replace("Bearer ", "");
-  debugInfo.tokenLength = token.length;
-  debugInfo.tokenFirst50 = token.substring(0, 50);
-
-  if (!SUPABASE_JWT_SECRET) {
-    debugInfo.failReason = "SUPABASE_JWT_SECRET not configured";
-    return { debugInfo };
-  }
 
   try {
-    const secret = new TextEncoder().encode(SUPABASE_JWT_SECRET);
-    const { payload } = await jwtVerify(token, secret);
+    // Verify using JWKS (handles ES256 automatically)
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer: `${supabaseUrl}/auth/v1`,
+    });
 
     if (!payload.sub) {
-      debugInfo.failReason = "JWT missing sub claim";
-      debugInfo.payload = payload;
-      return { debugInfo };
+      console.log("[Auth] JWT missing sub claim");
+      return null;
     }
 
-    // Success - return user
+    console.log("[Auth] JWT verified for:", payload.email);
     return {
       id: payload.sub as string,
       email: payload.email as string,
     };
   } catch (err) {
-    debugInfo.failReason = "JWT verification failed";
-    debugInfo.errorMessage = err instanceof Error ? err.message : String(err);
-    debugInfo.errorName = err instanceof Error ? err.name : "Unknown";
-    return { debugInfo };
+    console.error("[Auth] JWT verification failed:", err instanceof Error ? err.message : err);
+    return null;
   }
 }
 
@@ -112,17 +97,14 @@ export async function GET(req: NextRequest) {
   }
 
   // Get authenticated user
-  const authResult = await getUserFromRequest(req);
+  const user = await getUserFromRequest(req);
 
-  // Check if auth failed (returns debugInfo instead of user)
-  if ("debugInfo" in authResult) {
+  if (!user) {
     return NextResponse.json(
-      { success: false, error: "Authentication required", debug: authResult.debugInfo },
+      { success: false, error: "Authentication required" },
       { status: 401 }
     );
   }
-
-  const user = authResult;
 
   try {
     const { searchParams } = new URL(req.url);

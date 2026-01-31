@@ -3,20 +3,20 @@
  * POST /api/user/scenario/save
  *
  * Saves a scenario to user's account for later reference.
- * Requires authentication via JWT verification.
+ * Requires authentication via JWT verification using JWKS.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { jwtVerify } from "jose";
+import { jwtVerify, createRemoteJWKSet } from "jose";
 
 // Hardcoded to bypass Netlify env var injection issue
 const supabaseUrl = "https://acbxnfhcadvrjvftmbci.supabase.co";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjYnhuZmhjYWR2cmp2ZnRtYmNpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTAyMzk3MywiZXhwIjoyMDg0NTk5OTczfQ.PHQGeDMD2R7RWBtZI9u_kfBCRReV4L5YWYnSrUabalo";
 
-// JWT secret from Supabase Dashboard → Settings → API
-// Hardcoded fallback to bypass Netlify env var injection issue
-const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET || "O3m/kwp46lTWMyZuYGOoFvzJodqyZ/CkfCxnRgc1YgMi9wF/jnPc+mmGWuvRnsDNpnCMLrTjOohJ8rtd6Vlryg==";
+// JWKS endpoint for Supabase - used to verify ES256 signed JWTs
+const JWKS_URL = `${supabaseUrl}/auth/v1/.well-known/jwks.json`;
+const JWKS = createRemoteJWKSet(new URL(JWKS_URL));
 
 function getSupabaseAdmin() {
   if (!supabaseUrl || !supabaseServiceKey) {
@@ -31,10 +31,12 @@ function getSupabaseAdmin() {
 }
 
 /**
- * Extract user from Authorization header by verifying JWT directly
+ * Extract user from Authorization header by verifying JWT using JWKS
+ * Supabase uses ES256 algorithm which requires public key verification
  */
-async function getUserFromRequest(req: NextRequest) {
+async function getUserFromRequest(req: NextRequest): Promise<{ id: string; email: string } | null> {
   const authHeader = req.headers.get("authorization");
+
   if (!authHeader?.startsWith("Bearer ")) {
     console.log("[Auth] No Bearer token in Authorization header");
     return null;
@@ -42,14 +44,11 @@ async function getUserFromRequest(req: NextRequest) {
 
   const token = authHeader.replace("Bearer ", "");
 
-  if (!SUPABASE_JWT_SECRET) {
-    console.error("[Auth] SUPABASE_JWT_SECRET not configured");
-    return null;
-  }
-
   try {
-    const secret = new TextEncoder().encode(SUPABASE_JWT_SECRET);
-    const { payload } = await jwtVerify(token, secret);
+    // Verify using JWKS (handles ES256 automatically)
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer: `${supabaseUrl}/auth/v1`,
+    });
 
     if (!payload.sub) {
       console.log("[Auth] JWT missing sub claim");
@@ -62,7 +61,7 @@ async function getUserFromRequest(req: NextRequest) {
       email: payload.email as string,
     };
   } catch (err) {
-    console.error("[Auth] JWT verification failed:", err);
+    console.error("[Auth] JWT verification failed:", err instanceof Error ? err.message : err);
     return null;
   }
 }
