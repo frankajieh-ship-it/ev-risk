@@ -33,29 +33,30 @@ function getSupabaseAdmin() {
 
 /**
  * Extract user from Authorization header by verifying JWT directly
+ * Returns user object on success, or debug info object on failure
  */
-async function getUserFromRequest(req: NextRequest) {
+async function getUserFromRequest(req: NextRequest): Promise<{ id: string; email: string } | { debugInfo: Record<string, unknown> }> {
   const authHeader = req.headers.get("authorization");
-
-  // DEBUG: Log incoming request details
-  console.log("[Auth Debug] Request URL:", req.url);
-  console.log("[Auth Debug] Auth header present:", !!authHeader);
-  console.log("[Auth Debug] JWT secret loaded:", !!SUPABASE_JWT_SECRET);
-  console.log("[Auth Debug] JWT secret first 20 chars:", SUPABASE_JWT_SECRET?.substring(0, 20));
+  const debugInfo: Record<string, unknown> = {
+    authHeaderPresent: !!authHeader,
+    authHeaderStartsWithBearer: authHeader?.startsWith("Bearer ") || false,
+    jwtSecretLoaded: !!SUPABASE_JWT_SECRET,
+    jwtSecretFirst20: SUPABASE_JWT_SECRET?.substring(0, 20) || "NOT_LOADED",
+  };
 
   if (!authHeader?.startsWith("Bearer ")) {
-    console.log("[Auth] No Bearer token in Authorization header");
-    console.log("[Auth Debug] Auth header value:", authHeader);
-    return null;
+    debugInfo.failReason = "No Bearer token in Authorization header";
+    debugInfo.authHeaderValue = authHeader || "null";
+    return { debugInfo };
   }
 
   const token = authHeader.replace("Bearer ", "");
-  console.log("[Auth Debug] Token length:", token.length);
-  console.log("[Auth Debug] Token first 50 chars:", token.substring(0, 50));
+  debugInfo.tokenLength = token.length;
+  debugInfo.tokenFirst50 = token.substring(0, 50);
 
   if (!SUPABASE_JWT_SECRET) {
-    console.error("[Auth] SUPABASE_JWT_SECRET not configured");
-    return null;
+    debugInfo.failReason = "SUPABASE_JWT_SECRET not configured";
+    return { debugInfo };
   }
 
   try {
@@ -63,19 +64,21 @@ async function getUserFromRequest(req: NextRequest) {
     const { payload } = await jwtVerify(token, secret);
 
     if (!payload.sub) {
-      console.log("[Auth] JWT missing sub claim");
-      return null;
+      debugInfo.failReason = "JWT missing sub claim";
+      debugInfo.payload = payload;
+      return { debugInfo };
     }
 
-    console.log("[Auth] JWT verified for:", payload.email);
+    // Success - return user
     return {
       id: payload.sub as string,
       email: payload.email as string,
     };
   } catch (err) {
-    console.error("[Auth] JWT verification failed:", err);
-    console.error("[Auth Debug] Error details:", err instanceof Error ? err.message : String(err));
-    return null;
+    debugInfo.failReason = "JWT verification failed";
+    debugInfo.errorMessage = err instanceof Error ? err.message : String(err);
+    debugInfo.errorName = err instanceof Error ? err.name : "Unknown";
+    return { debugInfo };
   }
 }
 
@@ -109,14 +112,17 @@ export async function GET(req: NextRequest) {
   }
 
   // Get authenticated user
-  const user = await getUserFromRequest(req);
+  const authResult = await getUserFromRequest(req);
 
-  if (!user) {
+  // Check if auth failed (returns debugInfo instead of user)
+  if ("debugInfo" in authResult) {
     return NextResponse.json(
-      { success: false, error: "Authentication required" },
+      { success: false, error: "Authentication required", debug: authResult.debugInfo },
       { status: 401 }
     );
   }
+
+  const user = authResult;
 
   try {
     const { searchParams } = new URL(req.url);
