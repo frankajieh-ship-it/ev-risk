@@ -12,7 +12,7 @@ import { jwtVerify, createRemoteJWKSet } from "jose";
 
 // Hardcoded to bypass Netlify env var injection issue
 const supabaseUrl = "https://acbxnfhcadvrjvftmbci.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjYnhuZmhjYWR2cmp2ZnRtYmNpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTAyMzk3MywiZXhwIjoyMDg0NTk5OTczfQ.PHQGeDMD2R7RWBtZI9u_kfBCRReV4L5YWYnSrUabalo";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "sb_secret_nm9qdk9rK4CDCLKJi9SHmw_Gm6Zp7Cp";
 
 // JWKS endpoint for Supabase - used to verify ES256 signed JWTs
 const JWKS_URL = `${supabaseUrl}/auth/v1/.well-known/jwks.json`;
