@@ -5,7 +5,7 @@
  * Provides login, logout, and session management.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   sendMagicLink,
   getSession,
@@ -43,6 +43,9 @@ export function useAuth(): UseAuthReturn {
     isReady: false,
   });
 
+  // Track when we're actively refreshing to avoid race conditions
+  const isRefreshingRef = useRef(false);
+
   // Check initial session on mount
   useEffect(() => {
     const configured = isSupabaseAuthConfigured();
@@ -76,8 +79,8 @@ export function useAuth(): UseAuthReturn {
     const unsubscribe = onAuthStateChange((event, session) => {
       console.log("[useAuth] Auth event:", event, session ? "with session" : "no session");
 
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        // Token is fully validated - safe to make API calls
+      if (event === "SIGNED_IN") {
+        // Fresh login - token is fully validated
         setState((prev) => ({
           ...prev,
           session,
@@ -86,6 +89,22 @@ export function useAuth(): UseAuthReturn {
           isLoading: false,
           isReady: true,
         }));
+      } else if (event === "TOKEN_REFRESHED") {
+        // Only set ready if we're NOT in the middle of our own refresh
+        // (our refresh promise will handle setting isReady)
+        if (!isRefreshingRef.current) {
+          console.log("[useAuth] TOKEN_REFRESHED (not from our refresh), setting ready");
+          setState((prev) => ({
+            ...prev,
+            session,
+            user: session?.user ?? null,
+            isAuthenticated: !!session?.user,
+            isLoading: false,
+            isReady: true,
+          }));
+        } else {
+          console.log("[useAuth] TOKEN_REFRESHED (during our refresh), ignoring - will wait for promise");
+        }
       } else if (event === "INITIAL_SESSION") {
         // For returning users, INITIAL_SESSION fires with the stored session
         // But after magic link redirect, the token might not be fully validated yet
@@ -106,7 +125,9 @@ export function useAuth(): UseAuthReturn {
           // Trigger a session refresh to ensure token is valid on Supabase backend
           const client = getSupabaseAuthClient();
           if (client) {
+            isRefreshingRef.current = true;
             client.auth.refreshSession().then(({ data, error }) => {
+              isRefreshingRef.current = false;
               if (error) {
                 console.error("[useAuth] Session refresh failed:", error);
                 // Still set ready since we have a session, API might work
