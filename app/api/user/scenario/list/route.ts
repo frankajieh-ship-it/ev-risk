@@ -3,21 +3,21 @@
  * GET /api/user/scenario/list
  *
  * Returns user's saved scenarios with preview data.
- * Requires authentication.
+ * Requires authentication via JWT verification.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { jwtVerify } from "jose";
 
 // Hardcoded to bypass Netlify env var injection issue
-// TODO: Revert to env vars once Netlify integration is fixed
 const supabaseUrl = "https://acbxnfhcadvrjvftmbci.supabase.co";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjYnhuZmhjYWR2cmp2ZnRtYmNpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTAyMzk3MywiZXhwIjoyMDg0NTk5OTczfQ.PHQGeDMD2R7RWBtZI9u_kfBCRReV4L5YWYnSrUabalo";
 
-function getSupabaseAdmin() {
-  console.log("[Supabase] URL:", supabaseUrl);
-  console.log("[Supabase] Service key exists:", !!supabaseServiceKey);
+// JWT secret from Supabase Dashboard → Settings → API
+const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
 
+function getSupabaseAdmin() {
   if (!supabaseUrl || !supabaseServiceKey) {
     console.log("[Supabase] Missing URL or service key!");
     return null;
@@ -31,38 +31,38 @@ function getSupabaseAdmin() {
 }
 
 /**
- * Extract user from Authorization header using admin auth
+ * Extract user from Authorization header by verifying JWT directly
  */
-async function getUserFromRequest(req: NextRequest, supabase: ReturnType<typeof getSupabaseAdmin>) {
-  if (!supabase) return null;
-
-  // Get token from Authorization header
+async function getUserFromRequest(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     console.log("[Auth] No Bearer token in Authorization header");
     return null;
   }
 
-  const accessToken = authHeader.replace("Bearer ", "");
+  const token = authHeader.replace("Bearer ", "");
+
+  if (!SUPABASE_JWT_SECRET) {
+    console.error("[Auth] SUPABASE_JWT_SECRET not configured");
+    return null;
+  }
 
   try {
-    // Use admin.getUserById after decoding JWT, or getUser with the token
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const secret = new TextEncoder().encode(SUPABASE_JWT_SECRET);
+    const { payload } = await jwtVerify(token, secret);
 
-    if (error) {
-      console.log("[Auth] getUser error:", error.message);
+    if (!payload.sub) {
+      console.log("[Auth] JWT missing sub claim");
       return null;
     }
 
-    if (!user) {
-      console.log("[Auth] No user returned from getUser");
-      return null;
-    }
-
-    console.log("[Auth] User authenticated:", user.email);
-    return user;
+    console.log("[Auth] JWT verified for:", payload.email);
+    return {
+      id: payload.sub as string,
+      email: payload.email as string,
+    };
   } catch (err) {
-    console.error("[Auth] Exception:", err);
+    console.error("[Auth] JWT verification failed:", err);
     return null;
   }
 }
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Get authenticated user
-  const user = await getUserFromRequest(req, supabase);
+  const user = await getUserFromRequest(req);
 
   if (!user) {
     return NextResponse.json(
