@@ -14,8 +14,14 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // JWKS endpoint for Supabase - used to verify ES256 signed JWTs
-const JWKS_URL = `${supabaseUrl}/auth/v1/.well-known/jwks.json`;
-const JWKS = createRemoteJWKSet(new URL(JWKS_URL));
+// Lazily created to avoid issues with undefined env vars at module load
+let JWKS: ReturnType<typeof createRemoteJWKSet> | null = null;
+function getJWKS() {
+  if (!JWKS && supabaseUrl) {
+    JWKS = createRemoteJWKSet(new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`));
+  }
+  return JWKS;
+}
 
 function getSupabaseAdmin() {
   if (!supabaseUrl || !supabaseServiceKey) {
@@ -44,8 +50,13 @@ async function getUserFromRequest(req: NextRequest): Promise<{ id: string; email
   const token = authHeader.replace("Bearer ", "");
 
   try {
+    const jwks = getJWKS();
+    if (!jwks) {
+      console.log("[Auth] JWKS not available - supabaseUrl not configured");
+      return null;
+    }
     // Verify using JWKS (handles ES256 automatically)
-    const { payload } = await jwtVerify(token, JWKS, {
+    const { payload } = await jwtVerify(token, jwks, {
       issuer: `${supabaseUrl}/auth/v1`,
     });
 
