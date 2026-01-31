@@ -15,7 +15,8 @@ const supabaseUrl = "https://acbxnfhcadvrjvftmbci.supabase.co";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjYnhuZmhjYWR2cmp2ZnRtYmNpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2OTAyMzk3MywiZXhwIjoyMDg0NTk5OTczfQ.PHQGeDMD2R7RWBtZI9u_kfBCRReV4L5YWYnSrUabalo";
 
 // JWT secret from Supabase Dashboard → Settings → API
-const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
+// Hardcoded fallback to bypass Netlify env var injection issue
+const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET || "O3m/kwp46lTWMyZuYGOoFvzJodqyZ/CkfCxnRgc1YgMi9wF/jnPc+mmGWuvRnsDNpnCMLrTjOohJ8rtd6Vlryg==";
 
 function getSupabaseAdmin() {
   if (!supabaseUrl || !supabaseServiceKey) {
