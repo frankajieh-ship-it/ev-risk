@@ -166,10 +166,17 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("List scenarios error:", error);
+    // Include detailed error info for debugging
+    const errorDetails = error instanceof Error
+      ? { message: error.message, name: error.name }
+      : typeof error === 'object' && error !== null
+        ? error
+        : { message: String(error) };
     return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Failed to list scenarios",
+        debug: errorDetails,
       },
       { status: 500 }
     );
