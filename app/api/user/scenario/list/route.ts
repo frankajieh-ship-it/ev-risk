@@ -36,12 +36,22 @@ function getSupabaseAdmin() {
  */
 async function getUserFromRequest(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
+
+  // DEBUG: Log incoming request details
+  console.log("[Auth Debug] Request URL:", req.url);
+  console.log("[Auth Debug] Auth header present:", !!authHeader);
+  console.log("[Auth Debug] JWT secret loaded:", !!SUPABASE_JWT_SECRET);
+  console.log("[Auth Debug] JWT secret first 20 chars:", SUPABASE_JWT_SECRET?.substring(0, 20));
+
   if (!authHeader?.startsWith("Bearer ")) {
     console.log("[Auth] No Bearer token in Authorization header");
+    console.log("[Auth Debug] Auth header value:", authHeader);
     return null;
   }
 
   const token = authHeader.replace("Bearer ", "");
+  console.log("[Auth Debug] Token length:", token.length);
+  console.log("[Auth Debug] Token first 50 chars:", token.substring(0, 50));
 
   if (!SUPABASE_JWT_SECRET) {
     console.error("[Auth] SUPABASE_JWT_SECRET not configured");
@@ -64,6 +74,7 @@ async function getUserFromRequest(req: NextRequest) {
     };
   } catch (err) {
     console.error("[Auth] JWT verification failed:", err);
+    console.error("[Auth Debug] Error details:", err instanceof Error ? err.message : String(err));
     return null;
   }
 }
