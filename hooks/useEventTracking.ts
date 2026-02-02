@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useRef } from "react";
+import { getOrCreatePersistentSessionId } from "@/lib/session-utils";
 
 interface EventData {
   [key: string]: any;
@@ -12,6 +13,7 @@ interface EventData {
 export function useEventTracking() {
   const visitorIdRef = useRef<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const persistentSessionIdRef = useRef<string | null>(null);
 
   // Generate visitor ID (same as visitor tracking)
   const getVisitorId = useCallback(() => {
@@ -39,12 +41,20 @@ export function useEventTracking() {
     return visitorIdRef.current;
   }, []);
 
-  // Generate session ID
+  // Generate session ID (tab-level, lost on tab close)
   const getSessionId = useCallback(() => {
     if (sessionIdRef.current) return sessionIdRef.current;
 
     sessionIdRef.current = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     return sessionIdRef.current;
+  }, []);
+
+  // Get persistent session ID (survives browser sessions, tracks unique customers)
+  const getPersistentSessionId = useCallback(() => {
+    if (persistentSessionIdRef.current) return persistentSessionIdRef.current;
+
+    persistentSessionIdRef.current = getOrCreatePersistentSessionId();
+    return persistentSessionIdRef.current;
   }, []);
 
   // Track event
@@ -60,7 +70,10 @@ export function useEventTracking() {
           },
           body: JSON.stringify({
             eventName,
-            eventData: eventData || {},
+            eventData: {
+              ...(eventData || {}),
+              persistent_session_id: getPersistentSessionId(), // Include for customer tracking
+            },
             visitorId: getVisitorId(),
             sessionId: getSessionId(),
             pagePath: window.location.pathname,
@@ -72,7 +85,7 @@ export function useEventTracking() {
         // Fail silently - don't disrupt user experience
       }
     },
-    [getVisitorId, getSessionId]
+    [getVisitorId, getSessionId, getPersistentSessionId]
   );
 
   // Specific event trackers
@@ -280,6 +293,100 @@ export function useEventTracking() {
     [trackEvent]
   );
 
+  // ==========================================
+  // NEW: Report Generation Lifecycle Events
+  // ==========================================
+
+  // Track when form intake is submitted (before report generation starts)
+  const trackIntakeSubmitted = useCallback(
+    (data: {
+      vehicle_model?: string;
+      vehicle_year?: number;
+      form_name?: string;
+    }) => {
+      trackEvent("intake_submitted", data);
+    },
+    [trackEvent]
+  );
+
+  // Track when report generation starts (client-side, before API call)
+  const trackReportGenerationStarted = useCallback(
+    (data: {
+      vehicle_model?: string;
+      vehicle_year?: number;
+    }) => {
+      trackEvent("report_generation_started", data);
+    },
+    [trackEvent]
+  );
+
+  // Track successful report generation
+  const trackReportGenerationSucceeded = useCallback(
+    (data: {
+      report_id: string;
+      vehicle_model?: string;
+      vehicle_year?: number;
+      report_status?: string;
+    }) => {
+      trackEvent("report_generation_succeeded", data);
+    },
+    [trackEvent]
+  );
+
+  // Track failed report generation
+  const trackReportGenerationFailed = useCallback(
+    (data: {
+      vehicle_model?: string;
+      vehicle_year?: number;
+      error_code?: string;
+      error_message?: string;
+    }) => {
+      trackEvent("report_generation_failed", data);
+    },
+    [trackEvent]
+  );
+
+  // ==========================================
+  // NEW: Failure Tracking Events
+  // ==========================================
+
+  // Track form validation failures
+  const trackFormValidationFailed = useCallback(
+    (data: {
+      form_name: string;
+      errors: Record<string, string>;
+      fields_completed?: string[];
+    }) => {
+      trackEvent("form_validation_failed", data);
+    },
+    [trackEvent]
+  );
+
+  // Track API errors
+  const trackApiError = useCallback(
+    (data: {
+      endpoint: string;
+      error_code?: string;
+      error_message?: string;
+      status_code?: number;
+    }) => {
+      trackEvent("api_error", data);
+    },
+    [trackEvent]
+  );
+
+  // Track form abandonment (call on page unload if form started but not submitted)
+  const trackFormAbandoned = useCallback(
+    (data: {
+      form_name: string;
+      fields_completed: string[];
+      time_spent_ms?: number;
+    }) => {
+      trackEvent("form_abandoned", data);
+    },
+    [trackEvent]
+  );
+
   return {
     trackEvent,
     trackFormSubmit,
@@ -290,16 +397,29 @@ export function useEventTracking() {
     trackWhyCheckpoint,
     trackConstraintDetected,
     trackConstraintSignalViewed,
-    // New event trackers
+    // Report & scenario trackers
     trackReportView,
     trackScenarioSaveClicked,
     trackScenarioSaveSuccess,
+    // Auth trackers
     trackEmailEntryStart,
     trackEmailEntrySubmitted,
     trackEmailConfirmed,
+    // Feedback trackers
     trackFeedbackHelpful,
     trackFeedbackAccuracy,
     trackMicroFeedback,
     trackScrollDepth,
+    // NEW: Report generation lifecycle
+    trackIntakeSubmitted,
+    trackReportGenerationStarted,
+    trackReportGenerationSucceeded,
+    trackReportGenerationFailed,
+    // NEW: Failure tracking
+    trackFormValidationFailed,
+    trackApiError,
+    trackFormAbandoned,
+    // Expose persistent session ID for external use
+    getPersistentSessionId,
   };
 }

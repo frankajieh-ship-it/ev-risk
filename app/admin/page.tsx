@@ -18,6 +18,7 @@ interface AnalyticsData {
     paid_reports: number;
     draft_reports: number;
     unique_customers: number;
+    unique_customers_by_session?: number; // NEW: Unique customers by persistent session
   };
   conversion: {
     total_generated: number;
@@ -83,6 +84,24 @@ interface AnalyticsData {
     total_downloads: number;
     free_downloads: number;
     paid_downloads: number;
+  };
+  // NEW: Why Checkpoint funnel stats
+  why_checkpoint?: {
+    shown: number;
+    submitted: number;
+    skipped: number;
+    submit_rate: number;
+  };
+  // NEW: Form → Report generation funnel
+  funnel?: {
+    form_submissions: number;
+    intake_submitted: number;
+    report_generation_started: number;
+    report_generation_succeeded: number;
+    report_generation_failed: number;
+    form_validation_failed: number;
+    api_errors: number;
+    success_rate: number;
   };
 }
 
@@ -169,6 +188,7 @@ export default function AdminDashboard() {
       freeReports: analytics.overview.free_reports,
       paidReports: analytics.overview.paid_reports,
       uniqueCustomers: analytics.overview.unique_customers,
+      uniqueCustomersBySession: analytics.overview.unique_customers_by_session || 0,
       // Conversion
       conversionRate: analytics.conversion.conversion_rate,
       totalGenerated: analytics.conversion.total_generated,
@@ -192,10 +212,17 @@ export default function AdminDashboard() {
       urlAutofillSuccessRate: eventStats.urlAutofill?.total_attempts > 0
         ? ((eventStats.urlAutofill.successful / eventStats.urlAutofill.total_attempts) * 100).toFixed(1)
         : "0",
-      // Why Checkpoint
-      whyCheckpointShown: whyCheckpointStats?.shown || 0,
-      whyCheckpointSubmitted: whyCheckpointStats?.submitted || 0,
-      whyCheckpointSubmitRate: whyCheckpointStats?.submitRate || "0",
+      // Why Checkpoint (from API)
+      whyCheckpointShown: analytics.why_checkpoint?.shown || whyCheckpointStats?.shown || 0,
+      whyCheckpointSubmitted: analytics.why_checkpoint?.submitted || whyCheckpointStats?.submitted || 0,
+      whyCheckpointSubmitRate: analytics.why_checkpoint?.submit_rate || whyCheckpointStats?.submitRate || "0",
+      // Report Generation Funnel
+      funnelFormSubmissions: analytics.funnel?.form_submissions || 0,
+      funnelIntakeSubmitted: analytics.funnel?.intake_submitted || 0,
+      funnelReportGenStarted: analytics.funnel?.report_generation_started || 0,
+      funnelReportGenSucceeded: analytics.funnel?.report_generation_succeeded || 0,
+      funnelReportGenFailed: analytics.funnel?.report_generation_failed || 0,
+      funnelSuccessRate: analytics.funnel?.success_rate || 0,
     };
 
     return summary;
@@ -774,6 +801,14 @@ export default function AdminDashboard() {
             icon="📊"
           />
           <MetricCard
+            title="Unique Customers"
+            value={analytics.overview.unique_customers_by_session || analytics.overview.unique_customers}
+            subtitle={analytics.overview.unique_customers_by_session
+              ? `By session (${analytics.overview.unique_customers} by email)`
+              : "By email only"}
+            icon="👥"
+          />
+          <MetricCard
             title="Conversion Rate"
             value={`${analytics.conversion.conversion_rate}%`}
             subtitle={`${analytics.conversion.converted_to_paid} of ${analytics.conversion.total_generated} converted`}
@@ -785,13 +820,69 @@ export default function AdminDashboard() {
             subtitle={`${analytics.revenue.paid_count} paid reports @ $${analytics.revenue.price_per_report}`}
             icon="💵"
           />
-          <MetricCard
-            title="Avg Rating"
-            value={analytics.feedback.avg_rating.toFixed(1)}
-            subtitle={`${analytics.feedback.total_feedback} feedback submissions`}
-            icon="⭐"
-          />
         </div>
+
+        {/* Report Generation Funnel */}
+        {analytics.funnel && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">📈 Report Generation Funnel</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+              <div className="bg-blue-50 p-4 rounded-xl">
+                <p className="text-sm text-blue-600 font-medium">Form Submissions</p>
+                <p className="text-2xl font-bold text-blue-900">{analytics.funnel.form_submissions}</p>
+              </div>
+              <div className="bg-indigo-50 p-4 rounded-xl">
+                <p className="text-sm text-indigo-600 font-medium">Intake Submitted</p>
+                <p className="text-2xl font-bold text-indigo-900">{analytics.funnel.intake_submitted}</p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-xl">
+                <p className="text-sm text-purple-600 font-medium">Gen Started</p>
+                <p className="text-2xl font-bold text-purple-900">{analytics.funnel.report_generation_started}</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-xl">
+                <p className="text-sm text-green-600 font-medium">Gen Succeeded</p>
+                <p className="text-2xl font-bold text-green-900">{analytics.funnel.report_generation_succeeded}</p>
+              </div>
+              <div className="bg-red-50 p-4 rounded-xl">
+                <p className="text-sm text-red-600 font-medium">Gen Failed</p>
+                <p className="text-2xl font-bold text-red-900">{analytics.funnel.report_generation_failed}</p>
+              </div>
+              <div className="bg-yellow-50 p-4 rounded-xl">
+                <p className="text-sm text-yellow-600 font-medium">Validation Failed</p>
+                <p className="text-2xl font-bold text-yellow-900">{analytics.funnel.form_validation_failed}</p>
+              </div>
+              <div className="bg-emerald-50 p-4 rounded-xl">
+                <p className="text-sm text-emerald-600 font-medium">Success Rate</p>
+                <p className="text-2xl font-bold text-emerald-900">{analytics.funnel.success_rate}%</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Why Checkpoint Stats */}
+        {analytics.why_checkpoint && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">❓ Why Checkpoint Funnel</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50 p-4 rounded-xl">
+                <p className="text-sm text-blue-600 font-medium">Shown</p>
+                <p className="text-2xl font-bold text-blue-900">{analytics.why_checkpoint.shown}</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-xl">
+                <p className="text-sm text-green-600 font-medium">Submitted</p>
+                <p className="text-2xl font-bold text-green-900">{analytics.why_checkpoint.submitted}</p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl">
+                <p className="text-sm text-gray-600 font-medium">Skipped</p>
+                <p className="text-2xl font-bold text-gray-900">{analytics.why_checkpoint.skipped}</p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-xl">
+                <p className="text-sm text-purple-600 font-medium">Submit Rate</p>
+                <p className="text-2xl font-bold text-purple-900">{analytics.why_checkpoint.submit_rate}%</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* User Event Analytics Section */}
         {eventStats && (

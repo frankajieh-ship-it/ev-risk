@@ -83,6 +83,17 @@ export async function GET(request: NextRequest) {
       WHERE 1=1 ${dateFilter ? sql.unsafe(dateFilter) : sql``}
     `;
 
+    // 1b. Count unique customers from events (using persistent_session_id)
+    // This captures ALL users who generated reports, not just those who paid
+    const uniqueCustomersFromEvents = await sql`
+      SELECT
+        COUNT(DISTINCT event_data->>'persistent_session_id') as unique_customers_by_session
+      FROM user_events
+      WHERE event_name IN ('report_generated', 'report_generation_succeeded', 'report_created')
+        AND event_data->>'persistent_session_id' IS NOT NULL
+        ${dateFilter ? sql.unsafe(dateFilter.replace('created_at', 'timestamp')) : sql``}
+    `;
+
     // 2. Conversion metrics
     const conversionMetrics = await sql`
       SELECT
@@ -250,6 +261,23 @@ export async function GET(request: NextRequest) {
         AND timestamp >= NOW() - INTERVAL '30 days'
     `;
 
+    // 14. Why Checkpoint stats (form_submit → report funnel and why checkpoint)
+    const whyCheckpointStats = await sql`
+      SELECT
+        COUNT(CASE WHEN event_name = 'why_checkpoint_shown' THEN 1 END) as why_shown,
+        COUNT(CASE WHEN event_name = 'why_checkpoint_submitted' THEN 1 END) as why_submitted,
+        COUNT(CASE WHEN event_name = 'why_checkpoint_skipped' THEN 1 END) as why_skipped,
+        COUNT(CASE WHEN event_name = 'form_submit' THEN 1 END) as form_submissions,
+        COUNT(CASE WHEN event_name = 'intake_submitted' THEN 1 END) as intake_submitted,
+        COUNT(CASE WHEN event_name = 'report_generation_started' THEN 1 END) as report_gen_started,
+        COUNT(CASE WHEN event_name = 'report_generation_succeeded' THEN 1 END) as report_gen_succeeded,
+        COUNT(CASE WHEN event_name = 'report_generation_failed' THEN 1 END) as report_gen_failed,
+        COUNT(CASE WHEN event_name = 'form_validation_failed' THEN 1 END) as form_validation_failed,
+        COUNT(CASE WHEN event_name = 'api_error' THEN 1 END) as api_errors
+      FROM user_events
+      WHERE timestamp >= NOW() - INTERVAL '30 days'
+    `;
+
     // Compile all analytics data
     const analytics = {
       period,
@@ -261,6 +289,8 @@ export async function GET(request: NextRequest) {
         paid_reports: parseInt(overallStats[0].paid_reports),
         draft_reports: parseInt(overallStats[0].draft_reports),
         unique_customers: parseInt(overallStats[0].unique_customers),
+        // NEW: Unique customers counted by persistent session (includes all report creators, not just paid)
+        unique_customers_by_session: parseInt(uniqueCustomersFromEvents[0]?.unique_customers_by_session || 0),
       },
 
       conversion: {
@@ -342,6 +372,30 @@ export async function GET(request: NextRequest) {
         total_downloads: parseInt(downloadSummary[0]?.total_downloads || 0),
         free_downloads: parseInt(downloadSummary[0]?.free_downloads || 0),
         paid_downloads: parseInt(downloadSummary[0]?.paid_downloads || 0),
+      },
+
+      // Why Checkpoint funnel stats
+      why_checkpoint: {
+        shown: parseInt(whyCheckpointStats[0]?.why_shown || 0),
+        submitted: parseInt(whyCheckpointStats[0]?.why_submitted || 0),
+        skipped: parseInt(whyCheckpointStats[0]?.why_skipped || 0),
+        submit_rate: whyCheckpointStats[0]?.why_shown > 0
+          ? Math.round((parseInt(whyCheckpointStats[0]?.why_submitted || 0) / parseInt(whyCheckpointStats[0]?.why_shown || 1)) * 100)
+          : 0,
+      },
+
+      // Form → Report generation funnel
+      funnel: {
+        form_submissions: parseInt(whyCheckpointStats[0]?.form_submissions || 0),
+        intake_submitted: parseInt(whyCheckpointStats[0]?.intake_submitted || 0),
+        report_generation_started: parseInt(whyCheckpointStats[0]?.report_gen_started || 0),
+        report_generation_succeeded: parseInt(whyCheckpointStats[0]?.report_gen_succeeded || 0),
+        report_generation_failed: parseInt(whyCheckpointStats[0]?.report_gen_failed || 0),
+        form_validation_failed: parseInt(whyCheckpointStats[0]?.form_validation_failed || 0),
+        api_errors: parseInt(whyCheckpointStats[0]?.api_errors || 0),
+        success_rate: whyCheckpointStats[0]?.report_gen_started > 0
+          ? Math.round((parseInt(whyCheckpointStats[0]?.report_gen_succeeded || 0) / parseInt(whyCheckpointStats[0]?.report_gen_started || 1)) * 100)
+          : 0,
       },
     };
 

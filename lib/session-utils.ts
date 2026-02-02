@@ -8,6 +8,37 @@ import { createHash } from "crypto";
 // Salt for IP hashing (in production, use env variable)
 const IP_HASH_SALT = process.env.IP_HASH_SALT || "evroutine-session-salt-2024";
 
+// Persistent session cookie name
+const PERSISTENT_SESSION_KEY = "offo_persistent_session";
+
+/**
+ * Get or create a persistent session ID (client-side only)
+ * This ID persists across browser sessions via localStorage
+ * Use this for analytics to track unique customers
+ */
+export function getOrCreatePersistentSessionId(): string | null {
+  if (typeof window === "undefined") return null;
+
+  // Check localStorage first
+  let sessionId = localStorage.getItem(PERSISTENT_SESSION_KEY);
+
+  if (!sessionId) {
+    // Generate a new persistent session ID
+    sessionId = `psess_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    localStorage.setItem(PERSISTENT_SESSION_KEY, sessionId);
+  }
+
+  return sessionId;
+}
+
+/**
+ * Get the persistent session ID if it exists (doesn't create one)
+ */
+export function getPersistentSessionId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(PERSISTENT_SESSION_KEY);
+}
+
 /**
  * Hash an IP address for privacy-preserving storage
  */

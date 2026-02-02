@@ -1,0 +1,610 @@
+Engineering Implementation Plan
+
+Product: Reddit Operator Tool
+Goal: Generate Reddit-ready replies that match Founder voice + decision logic, with robust link gating and operator UX, and improve over time via logging and evaluation.
+
+North Star Outcomes
+
+Replies are direct and specific to the post (no generic predictability talk unless it is actually the question)
+
+Link sharing matches policy (only when appropriate, otherwise no link or no good posts)
+
+Operators can work fast (paste URL, review extracted signals, copy reply)
+
+System is robust over time (linting, strict schema outputs, intent routing, learning loop)
+
+Phase 0: Baseline architecture update
+Deliverables
+
+Separate “Operator UI” from “Blueprint doc”
+
+Add a “Decision Object” output contract across the system
+
+Add basic logging table for every analyze event
+
+Acceptance criteria
+
+Every Analyze returns a structured object, not just text blocks
+
+Operator UI loads without scrolling past large doc content
+
+v1.1 (1–2 days): Operator UX + Decision enforcement
+
+This is the fastest set of changes that makes the tool usable at scale without drifting.
+
+1) UI: Collapse blueprint into a help section
+Change
+
+Move blueprint text into a collapsible accordion
+
+Default: collapsed
+
+Label: How this works
+
+Acceptance criteria
+
+Operator lands on intake + output without scrolling
+
+2) Add Decision Panel above replies
+Change
+
+Add a “Decision” card that always renders after Analyze:
+
+Decision: NO_GOOD_POSTS, REPLY_NO_LINK, REPLY_WITH_LINK, REPLY_WITH_LINK_AND_INVITE
+
+should_share_link: yes or no
+
+scenario_slug: chosen slug or null
+
+should_invite_evroutine: yes or no
+
+confidence: 0–1
+
+rationale_short: 1 line operator-only
+
+Behavior
+
+If decision = NO_GOOD_POSTS
+
+Hide reply boxes
+
+Show label + rationale only
+
+Acceptance criteria
+
+Operators can see decision at a glance
+
+No reply copy shown for NO_GOOD_POSTS
+
+3) Add Rule Linter before output is copyable
+Lint rules
+
+Hard fails:
+
+Contains quotation marks
+
+Contains italics markers (underscore or asterisk formatting)
+
+More than one link
+
+Slash example pattern like x/y or word/word
+
+Exceeds max length for selected tone
+
+Soft fails (warning + suggested regen):
+
+Promotional language
+
+Too generic (no direct answer within first sentence)
+
+UI behavior
+
+Output text shows lint status: Pass or Needs Fix
+
+If fail, show Fix button that triggers a “format correction regen” pass (no content drift)
+
+Acceptance criteria
+
+Copy button disabled if lint hard fails
+
+Fix regenerates within the same intent and structure
+
+4) Add Scenario Picker + URL Builder
+Change
+
+Add a dropdown with allowlisted scenario slugs
+
+Default: model-suggested scenario
+
+Operator can override
+
+Add an explicit option: no link
+
+URL builder
+
+Show final URL with tags:
+
+src, sub, msg, region, operator_id
+
+Copy button for URL only
+
+Acceptance criteria
+
+Model cannot invent scenario slugs
+
+Operator can override quickly
+
+5) Add Signal Extraction Preview
+Change
+
+Show extracted signals box:
+
+commute distance
+
+charging access
+
+climate or temps
+
+longest day pattern
+
+vehicle model
+
+missing info list
+
+Acceptance criteria
+
+Operator can validate extraction quickly
+
+Missing info is used to drive the follow up question
+
+v1.1 Prompting and Output Contract
+
+You need to stop abstract answers. Enforce structure.
+
+Decision Object Schema (required)
+
+Fields:
+
+decision
+
+reply_text
+
+should_share_link
+
+scenario_slug
+
+should_invite_evroutine
+
+confidence
+
+extracted_signals
+
+missing_info
+
+rationale_short
+
+operator_notes
+
+Reply structure requirements
+
+Direct answer first line
+
+2 to 4 practical checks
+
+1 follow up question max
+
+CTA decision must match decision state
+
+If insufficient info, ask one question and do not link
+
+Acceptance criteria
+
+ID.3 style questions produce reliability checks, not generic predictability talk
+
+Trip planning questions produce actionable steps, not routine philosophy
+
+v1.2 (3–5 days): Intake speed + policy controls + logging dashboard
+
+This makes it operational at scale and safer per subreddit.
+
+6) Add paste modes and Reddit URL fetch
+Change
+
+Add input modes:
+
+Paste post content (current)
+
+Reddit URL mode:
+
+URL field
+
+Fetch post and comments button
+
+Optional: paste the specific comment being replied to
+
+Acceptance criteria
+
+Operators can work from URL without manual copy paste
+
+Fetch includes title, body, and top comment context
+
+7) Add Region and Sub Sensitivity toggles
+Region selector
+
+US UK AU CA
+
+Sub sensitivity selector
+
+strict, normal, permissive
+
+Strict mode behavior
+
+Prefer REPLY_NO_LINK unless user explicitly asks for a tool
+
+If linking, require 3 routine details instead of 2
+
+Disable invite by default
+
+Acceptance criteria
+
+Strict mode measurably reduces link frequency
+
+Operator sees the current policy mode in decision panel
+
+8) Two outputs every time
+Panel A: Reddit reply
+
+Copyable once lint passes
+
+Panel B: Operator notes
+
+why link or no link
+
+what to ask next if missing info
+
+scenario chosen and why
+
+Acceptance criteria
+
+Operator notes never appear in reply text
+
+Notes are actionable, not generic
+
+9) Add Edit Tracking Toggle
+Change
+
+After generating, add:
+
+Edited? yes or no
+
+Reason dropdown:
+
+too long
+
+too generic
+
+wrong advice type
+
+wrong link decision
+
+tone mismatch
+
+factual concern
+
+other
+
+Optional: paste final posted version
+
+Acceptance criteria
+
+Captures edit deltas reliably
+
+Enables later learning loop
+
+10) Logging Dashboard
+v1 dashboard views
+
+volume by subreddit
+
+decision distribution
+
+link share rate
+
+no good posts rate
+
+lint fail rate
+
+operator edits rate
+
+Later additions
+
+removals
+
+upvotes and replies
+
+scenario completions from Reddit
+
+Acceptance criteria
+
+You can answer: are we over linking and where
+
+You can identify drift: rising generic replies
+
+v1.3 (later): Automation, safety, and scale
+11) Auto post with confidence gating
+
+Default remains draft mode. Auto post restricted.
+
+Auto post allowed only if:
+
+confidence >= 0.82
+
+lint passes
+
+subreddit allowlisted
+
+strict mode off or special approval
+
+recent removal rate is low
+
+rate limits not exceeded
+
+12) Rate limiting and jitter
+
+Max comments per hour per account
+
+Random delay between actions
+
+Backoff on Reddit API errors
+
+13) Allowlist per account
+
+Account level allowed subs
+
+Per-sub max link rate
+
+Per-sub template controls
+
+Acceptance criteria
+
+No bot-like bursts
+
+Low mod action risk
+
+Model Robustness Plan
+
+This fixes drift and keeps outputs aligned with Founder voice over time.
+
+A) Two-stage pipeline: Intent then Generate
+
+Stage A: Intent classifier
+Return one of:
+
+used_ev_reliability
+
+winter_range_trip
+
+towing_or_haul
+
+no_home_charging
+
+commute_fit
+
+roadtrip_anxiety
+
+two_ev_one_charger
+
+tariffs_policy
+
+other
+
+Stage B: Template guided generation
+
+Provide template requirements per intent
+
+Provide checklists and must-include bullets
+
+Acceptance criteria
+
+Rivian winter towing routes to winter_range_trip or towing_or_haul
+
+ID.3 routes to used_ev_reliability
+
+B) Factuality guard for reliability questions
+
+If intent = used_ev_reliability, the reply must include:
+
+warranty remaining check
+
+service history
+
+software updates
+
+charging test AC and rapid
+
+common pain points to check
+
+one routine question
+
+Acceptance criteria
+
+Replies consistently include these items
+
+C) Founder Voice style layer via lint and regeneration
+
+Hard forbid forbidden formatting and spammy phrases
+
+Soft warn and regenerate if too generic
+
+Acceptance criteria
+
+Tool stops producing replies like your current examples
+
+D) Golden Set evaluation and drift detection
+
+Build a dataset:
+
+200 posts
+
+your best replies
+
+expected decision and link choice
+
+Weekly eval metrics
+
+decision accuracy
+
+link precision
+
+structural compliance
+
+rule violation rate
+
+genericness score
+
+Acceptance criteria
+
+You detect drift early
+
+You can quantify improvement each week
+
+E) Human in loop edit delta learning
+
+Store:
+
+original output
+
+final posted output
+
+reason for edits
+
+per-intent breakdown
+
+Use this to:
+
+refine templates
+
+update classifier
+
+update soft lint rules
+
+optionally fine tune later
+
+Acceptance criteria
+
+The tool converges toward your voice over time
+
+UI Guidance on Tone Buttons
+
+Default:
+
+Ultra Short as suggested
+
+Standard optional
+Empathetic only when:
+
+OP expresses anxiety or regret
+Technical only when:
+
+OP is clearly technical
+
+Add UI hint:
+
+Suggested: Ultra Short
+
+Explain when to use each mode in one line
+
+Acceptance criteria
+
+Operators stop overusing long tones
+
+Data model and events
+
+Minimum table: reddit_operator_runs
+Fields:
+
+id
+
+timestamp
+
+operator_id
+
+subreddit
+
+region
+
+sensitivity
+
+post_url
+
+post_title
+
+post_body_hash
+
+intent
+
+decision
+
+should_share_link
+
+scenario_slug
+
+should_invite_evroutine
+
+confidence
+
+tone
+
+reply_text
+
+lint_status
+
+copy_count
+
+edited_flag
+
+edit_reason
+
+final_posted_text optional
+
+Later table: reddit_outcomes
+
+upvotes, replies, removed, mod action
+
+link clicks, scenario completions
+
+Definition of Done
+
+You ship v1.1 when:
+
+blueprint is collapsed
+
+decision panel exists
+
+linter blocks rule violations
+
+scenario slugs are allowlisted
+
+extracted signals preview is shown
+
+model outputs strict structured replies that are direct and specific
+
+You ship v1.2 when:
+
+URL fetch exists
+
+region and sensitivity toggles exist
+
+operator notes exist
+
+logging dashboard exists
+
+edit deltas are captured
+
+You ship v1.3 when:
+
+auto post gated by confidence exists
+
+rate limiting and jitter exist
+
+allowlists per account exist

@@ -16,12 +16,16 @@ const VALID_EVENT_NAMES = [
   // Form & Input Events
   "form_submit",
   "url_autofill_attempt",
+  "intake_submitted", // NEW: Form intake submitted (before report generation)
   // Navigation Events
   "blog_link_click",
   "button_click",
   // Report Events
   "report_generated",
   "report_view",
+  "report_generation_started", // NEW: Report generation started
+  "report_generation_succeeded", // NEW: Report generation succeeded
+  "report_generation_failed", // NEW: Report generation failed
   // Scenario Save Events
   "scenario_save_clicked",
   "scenario_save_success",
@@ -35,6 +39,7 @@ const VALID_EVENT_NAMES = [
   "why_checkpoint_shown",
   "why_checkpoint_submitted",
   "why_checkpoint_skipped",
+  "why_checkpoint_error",
   // Constraint Events
   "constraint_detected",
   "constraint_signal_viewed",
@@ -45,9 +50,19 @@ const VALID_EVENT_NAMES = [
   // Scroll & Engagement Events
   "scroll_depth",
   "time_on_page",
+  // Failure Tracking Events (NEW)
+  "form_validation_failed",
+  "api_error",
+  "form_abandoned",
   // Legacy event names (for backward compatibility)
   "page_view",
 ] as const;
+
+// Events that should be deduplicated by report_id (to prevent double-counting)
+const DEDUPE_BY_REPORT_ID_EVENTS = [
+  "why_checkpoint_shown",
+  "why_checkpoint_submitted",
+];
 
 // Events that are IP-relevant (defensible insights)
 const IP_RELEVANT_EVENTS = [
@@ -145,6 +160,30 @@ export async function POST(req: NextRequest) {
 
     // Get event tags
     const tags = getEventTags(eventName, eventData, userId);
+
+    // Check for deduplication (why_checkpoint events by report_id)
+    if (DEDUPE_BY_REPORT_ID_EVENTS.includes(eventName) && eventData?.report_id) {
+      const reportId = eventData.report_id;
+      try {
+        const existing = await sql`
+          SELECT 1 FROM user_events
+          WHERE event_name = ${eventName}
+          AND event_data->>'report_id' = ${reportId}
+          LIMIT 1
+        `;
+        if (existing.rows.length > 0) {
+          // Already have this event for this report_id, skip
+          return NextResponse.json({
+            success: true,
+            message: "Event deduplicated (already exists for this report_id)",
+            deduplicated: true,
+          });
+        }
+      } catch (dedupeError) {
+        // If dedup check fails, continue to insert (fail open)
+        console.warn(`[EventTracking] Dedup check failed for ${eventName}:`, dedupeError);
+      }
+    }
 
     // Merge tags into event data
     const enrichedEventData = {

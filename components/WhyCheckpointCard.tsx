@@ -51,12 +51,24 @@ export default function WhyCheckpointCard({ reportId }: WhyCheckpointCardProps) 
     return true;
   }, []);
 
+  // Check if we already tracked "shown" for this specific report
+  const hasTrackedShownForReport = useCallback((rid: string | undefined) => {
+    if (!rid || typeof window === "undefined") return false;
+    return localStorage.getItem(`offo_why_shown_${rid}`) === "true";
+  }, []);
+
   useEffect(() => {
     if (checkShouldShow()) {
       setVisible(true);
-      trackWhyCheckpoint("shown", { report_id: reportId });
+      // Only track "shown" once per report_id to prevent duplicates
+      if (!hasTrackedShownForReport(reportId)) {
+        trackWhyCheckpoint("shown", { report_id: reportId });
+        if (reportId) {
+          localStorage.setItem(`offo_why_shown_${reportId}`, "true");
+        }
+      }
     }
-  }, [reportId, checkShouldShow, trackWhyCheckpoint]);
+  }, [reportId, checkShouldShow, trackWhyCheckpoint, hasTrackedShownForReport]);
 
   const handleSubmit = async () => {
     if (!selectedChoice) return;
