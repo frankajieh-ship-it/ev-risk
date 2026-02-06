@@ -11,7 +11,6 @@ const nextConfig: NextConfig = {
       "./tools/**",
       "./tests/**",
       "./scripts/**",
-      "./data_v1.0/**",
       "./debug/**",
       "./database/**",
       "./*.md",
