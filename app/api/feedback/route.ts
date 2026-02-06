@@ -6,9 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
-
-const sql = neon(process.env.POSTGRES_URL!);
+import { supabase } from "@/lib/supabase";
 
 // Rate limiting map (in-memory, per instance)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -111,49 +109,49 @@ export async function POST(request: NextRequest) {
       ip: clientIP,
     });
 
-    const result = await sql`
-      INSERT INTO feedback (
-        email,
-        feedback_type,
-        helpful,
-        missing,
-        additional_data,
-        comments,
-        user_agent,
-        ip_address
-      ) VALUES (
-        ${email || null},
-        ${feedbackType},
-        ${helpful || null},
-        ${missing || null},
-        ${additionalData || null},
-        ${comments || null},
-        ${userAgent},
-        ${clientIP}
-      )
-      RETURNING id, created_at
-    `;
+    const { data, error } = await supabase
+      .from("feedback")
+      .insert({
+        email: email || null,
+        feedback_type: feedbackType,
+        helpful: helpful || null,
+        missing: missing || null,
+        additional_data: additionalData || null,
+        comments: comments || null,
+        user_agent: userAgent,
+        ip_address: clientIP,
+      })
+      .select("id, created_at")
+      .single();
 
-    console.log("[Feedback API] Feedback saved successfully:", result[0].id);
+    if (error) {
+      console.error("[Feedback API] Supabase error:", error);
+
+      if (error.message.includes("relation")) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Feedback system not initialized. Please contact support.",
+          },
+          { status: 503 }
+        );
+      }
+
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      );
+    }
+
+    console.log("[Feedback API] Feedback saved successfully:", data.id);
 
     return NextResponse.json({
       success: true,
       message: "Thank you for your feedback!",
-      feedbackId: result[0].id,
+      feedbackId: data.id,
     });
   } catch (error) {
     console.error("[Feedback API] Error:", error);
-
-    // Check if it's a database error (table doesn't exist)
-    if (error instanceof Error && error.message.includes("relation")) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Feedback system not initialized. Please contact support.",
-        },
-        { status: 503 }
-      );
-    }
 
     return NextResponse.json(
       {
@@ -187,30 +185,29 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get("type");
 
     // Build query
-    let query;
+    let query = supabase
+      .from("feedback")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
     if (type) {
-      query = sql`
-        SELECT * FROM feedback
-        WHERE feedback_type = ${type}
-        ORDER BY created_at DESC
-        LIMIT ${limit}
-        OFFSET ${offset}
-      `;
-    } else {
-      query = sql`
-        SELECT * FROM feedback
-        ORDER BY created_at DESC
-        LIMIT ${limit}
-        OFFSET ${offset}
-      `;
+      query = query.eq("feedback_type", type);
     }
 
-    const feedback = await query;
+    const { data: feedback, error } = await query;
+
+    if (error) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       feedback,
-      count: feedback.length,
+      count: feedback?.length || 0,
       limit,
       offset,
     });

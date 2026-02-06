@@ -6,10 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
+import { supabase } from "@/lib/supabase";
 import { securityLogger } from "@/lib/security-logger";
-
-const sql = neon(process.env.POSTGRES_URL!);
 
 // Simple authentication - check for admin key in Authorization header
 const ADMIN_KEY = process.env.ADMIN_API_KEY || "your-secret-admin-key";
@@ -45,238 +43,253 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("start");
     const endDate = searchParams.get("end");
 
-    // Calculate date filter
-    let dateFilter = "";
-    let feedbackDateFilter = "";
+    // Calculate date cutoff
     const now = new Date();
+    let cutoff: string | null = null;
+    let cutoffEnd: string | null = null;
 
     if (period === "custom" && startDate && endDate) {
-      // Custom date range
-      const start = new Date(startDate);
+      cutoff = new Date(startDate).toISOString();
       const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999); // Include the entire end date
-      dateFilter = `AND created_at >= '${start.toISOString()}' AND created_at <= '${end.toISOString()}'`;
-      feedbackDateFilter = `AND f.created_at >= '${start.toISOString()}' AND f.created_at <= '${end.toISOString()}'`;
+      end.setHours(23, 59, 59, 999);
+      cutoffEnd = end.toISOString();
     } else if (period === "today") {
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      dateFilter = `AND created_at >= '${today.toISOString()}'`;
-      feedbackDateFilter = `AND f.created_at >= '${today.toISOString()}'`;
+      cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     } else if (period === "week") {
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      dateFilter = `AND created_at >= '${weekAgo.toISOString()}'`;
-      feedbackDateFilter = `AND f.created_at >= '${weekAgo.toISOString()}'`;
+      cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     } else if (period === "month") {
-      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      dateFilter = `AND created_at >= '${monthAgo.toISOString()}'`;
-      feedbackDateFilter = `AND f.created_at >= '${monthAgo.toISOString()}'`;
+      cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
     }
 
-    // 1. Overall statistics
-    const overallStats = await sql`
-      SELECT
-        COUNT(*) as total_reports,
-        COUNT(CASE WHEN status = 'free' THEN 1 END) as free_reports,
-        COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_reports,
-        COUNT(CASE WHEN status = 'draft' THEN 1 END) as draft_reports,
-        COUNT(DISTINCT customer_email) FILTER (WHERE customer_email IS NOT NULL) as unique_customers
-      FROM reports
-      WHERE 1=1 ${dateFilter ? sql.unsafe(dateFilter) : sql``}
-    `;
+    // ---- Fetch reports ----
+    let reportsQuery = supabase.from("reports").select("*");
+    if (cutoff) reportsQuery = reportsQuery.gte("created_at", cutoff);
+    if (cutoffEnd) reportsQuery = reportsQuery.lte("created_at", cutoffEnd);
+    const { data: reports } = await reportsQuery;
+    const allReports = reports || [];
 
-    // 1b. Count unique customers from events (using persistent_session_id)
-    // This captures ALL users who generated reports, not just those who paid
-    const uniqueCustomersFromEvents = await sql`
-      SELECT
-        COUNT(DISTINCT event_data->>'persistent_session_id') as unique_customers_by_session
-      FROM user_events
-      WHERE event_name IN ('report_generated', 'report_generation_succeeded', 'report_created')
-        AND event_data->>'persistent_session_id' IS NOT NULL
-        ${dateFilter ? sql.unsafe(dateFilter.replace('created_at', 'timestamp')) : sql``}
-    `;
+    // ---- Fetch feedback ----
+    let feedbackQuery = supabase.from("report_feedback").select("*");
+    if (cutoff) feedbackQuery = feedbackQuery.gte("created_at", cutoff);
+    if (cutoffEnd) feedbackQuery = feedbackQuery.lte("created_at", cutoffEnd);
+    const { data: feedbackRows } = await feedbackQuery;
+    const allFeedback = feedbackRows || [];
 
-    // 2. Conversion metrics
-    const conversionMetrics = await sql`
-      SELECT
-        COUNT(*) as total_generated,
-        COUNT(CASE WHEN status = 'paid' THEN 1 END) as converted_to_paid,
-        ROUND(
-          (COUNT(CASE WHEN status = 'paid' THEN 1 END)::NUMERIC /
-           NULLIF(COUNT(*), 0) * 100), 2
-        ) as conversion_rate
-      FROM reports
-      WHERE 1=1 ${dateFilter ? sql.unsafe(dateFilter) : sql``}
-    `;
+    // ---- Fetch user events (last 30 days for event-based stats) ----
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: eventRows } = await supabase
+      .from("user_events")
+      .select("event_name, event_data, timestamp")
+      .gte("timestamp", thirtyDaysAgo);
+    const allEvents = eventRows || [];
 
-    // 3. Revenue data
-    const revenueData = await sql`
-      SELECT
-        COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_count,
-        COUNT(CASE WHEN status = 'paid' THEN 1 END) * 15 as total_revenue
-      FROM reports
-      WHERE 1=1 ${dateFilter ? sql.unsafe(dateFilter) : sql``}
-    `;
+    // ---- Fetch user events for unique customers (with period filter) ----
+    let customerEventsQuery = supabase
+      .from("user_events")
+      .select("event_data")
+      .in("event_name", ["report_generated", "report_generation_succeeded", "report_created"]);
+    if (cutoff) customerEventsQuery = customerEventsQuery.gte("timestamp", cutoff);
+    if (cutoffEnd) customerEventsQuery = customerEventsQuery.lte("timestamp", cutoffEnd);
+    const { data: customerEvents } = await customerEventsQuery;
 
-    // 4. Popular vehicle makes and models
-    const topVehicles = await sql`
-      SELECT
-        vehicle_model as model,
-        vehicle_year as year,
-        COUNT(*) as count,
-        COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_count,
-        COUNT(CASE WHEN status = 'free' THEN 1 END) as free_count
-      FROM reports
-      WHERE vehicle_model IS NOT NULL ${dateFilter ? sql.unsafe(dateFilter) : sql``}
-      GROUP BY vehicle_model, vehicle_year
-      ORDER BY count DESC
-      LIMIT 20
-    `;
+    // 1. Overview
+    const totalReports = allReports.length;
+    const freeReports = allReports.filter(r => r.status === "free").length;
+    const paidReports = allReports.filter(r => r.status === "paid").length;
+    const draftReports = allReports.filter(r => r.status === "draft").length;
+    const uniqueEmails = new Set(allReports.filter(r => r.customer_email).map(r => r.customer_email));
+    const uniqueCustomersBySession = new Set(
+      (customerEvents || [])
+        .filter(e => e.event_data?.persistent_session_id)
+        .map(e => e.event_data.persistent_session_id)
+    );
 
-    // 5. Feedback metrics (from report_feedback table)
-    const feedbackStats = await sql`
-      SELECT
-        COUNT(*) as total_feedback,
-        ROUND(AVG(rating), 2) as avg_rating,
-        COUNT(CASE WHEN would_recommend = true THEN 1 END) as would_recommend_count,
-        COUNT(CASE WHEN would_recommend = false THEN 1 END) as would_not_recommend_count,
-        ROUND(
-          (COUNT(CASE WHEN would_recommend = true THEN 1 END)::NUMERIC /
-           NULLIF(COUNT(CASE WHEN would_recommend IS NOT NULL THEN 1 END), 0) * 100), 2
-        ) as recommendation_rate
-      FROM report_feedback f
-      WHERE 1=1 ${feedbackDateFilter ? sql.unsafe(feedbackDateFilter) : sql``}
-    `;
+    // 2. Conversion
+    const conversionRate = totalReports > 0 ? Math.round((paidReports / totalReports) * 10000) / 100 : 0;
+
+    // 3. Revenue
+    const totalRevenue = paidReports * 15;
+
+    // 4. Top vehicles (group by model + year)
+    const vehicleMap = new Map<string, { model: string; year: any; total: number; paid: number; free: number }>();
+    for (const r of allReports) {
+      if (!r.vehicle_model) continue;
+      const key = `${r.vehicle_model}|${r.vehicle_year}`;
+      if (!vehicleMap.has(key)) {
+        vehicleMap.set(key, { model: r.vehicle_model, year: r.vehicle_year, total: 0, paid: 0, free: 0 });
+      }
+      const entry = vehicleMap.get(key)!;
+      entry.total++;
+      if (r.status === "paid") entry.paid++;
+      if (r.status === "free") entry.free++;
+    }
+    const topVehicles = Array.from(vehicleMap.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 20);
+
+    // 5. Feedback stats
+    const totalFeedbackCount = allFeedback.length;
+    const avgRating = totalFeedbackCount > 0
+      ? Math.round(allFeedback.reduce((sum, f) => sum + (f.rating || 0), 0) / totalFeedbackCount * 100) / 100
+      : 0;
+    const wouldRecommendCount = allFeedback.filter(f => f.would_recommend === true).length;
+    const wouldNotRecommendCount = allFeedback.filter(f => f.would_recommend === false).length;
+    const totalWithRecommendation = allFeedback.filter(f => f.would_recommend !== null).length;
+    const recommendationRate = totalWithRecommendation > 0
+      ? Math.round((wouldRecommendCount / totalWithRecommendation) * 10000) / 100
+      : 0;
 
     // 6. Rating distribution
-    const ratingDistribution = await sql`
-      SELECT
-        rating,
-        COUNT(*) as count
-      FROM report_feedback f
-      WHERE rating IS NOT NULL ${feedbackDateFilter ? sql.unsafe(feedbackDateFilter) : sql``}
-      GROUP BY rating
-      ORDER BY rating DESC
-    `;
+    const ratingDist = new Map<number, number>();
+    for (const f of allFeedback) {
+      if (f.rating != null) {
+        ratingDist.set(f.rating, (ratingDist.get(f.rating) || 0) + 1);
+      }
+    }
+    const ratingDistribution = Array.from(ratingDist.entries())
+      .map(([rating, count]) => ({ rating, count }))
+      .sort((a, b) => b.rating - a.rating);
 
-    // 7. Recent feedback with text
-    const recentFeedback = await sql`
-      SELECT
-        f.rating,
-        f.feedback_text,
-        f.would_recommend,
-        f.created_at,
-        r.vehicle_year,
-        r.vehicle_model
-      FROM report_feedback f
-      LEFT JOIN reports r ON f.report_id = r.id
-      WHERE f.feedback_text IS NOT NULL ${feedbackDateFilter ? sql.unsafe(feedbackDateFilter) : sql``}
-      ORDER BY f.created_at DESC
-      LIMIT 10
-    `;
+    // 7. Recent feedback with text (need to join with reports)
+    const feedbackWithText = allFeedback
+      .filter(f => f.feedback_text)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 10);
 
-    // 8. Daily activity trend (last 30 days)
-    const dailyTrend = await sql`
-      SELECT
-        DATE(created_at) as date,
-        COUNT(*) as total,
-        COUNT(CASE WHEN status = 'free' THEN 1 END) as free,
-        COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid
-      FROM reports
-      WHERE created_at >= NOW() - INTERVAL '30 days'
-      GROUP BY DATE(created_at)
-      ORDER BY date DESC
-    `;
+    // Lookup report info for feedback
+    const feedbackReportIds = feedbackWithText.filter(f => f.report_id).map(f => f.report_id);
+    let reportLookup = new Map<string, any>();
+    if (feedbackReportIds.length > 0) {
+      const { data: feedbackReports } = await supabase
+        .from("reports")
+        .select("id, vehicle_year, vehicle_model")
+        .in("id", feedbackReportIds);
+      for (const r of feedbackReports || []) {
+        reportLookup.set(r.id, r);
+      }
+    }
+    const recentFeedback = feedbackWithText.map(f => {
+      const report = f.report_id ? reportLookup.get(f.report_id) : null;
+      return {
+        rating: f.rating,
+        text: f.feedback_text,
+        would_recommend: f.would_recommend,
+        created_at: f.created_at,
+        vehicle: report?.vehicle_model ? `${report.vehicle_year} ${report.vehicle_model}` : "Unknown",
+      };
+    });
 
-    // 9. User willingness to pay analysis
-    const willingnessToPayByVehicle = await sql`
-      SELECT
-        vehicle_model as model,
-        COUNT(*) as total_reports,
-        COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_reports,
-        ROUND(
-          (COUNT(CASE WHEN status = 'paid' THEN 1 END)::NUMERIC /
-           NULLIF(COUNT(*), 0) * 100), 2
-        ) as conversion_rate
-      FROM reports
-      WHERE vehicle_model IS NOT NULL ${dateFilter ? sql.unsafe(dateFilter) : sql``}
-      GROUP BY vehicle_model
-      HAVING COUNT(*) >= 1
-      ORDER BY conversion_rate DESC, total_reports DESC
-      LIMIT 15
-    `;
+    // 8. Daily trend (last 30 days from reports)
+    const thirtyDaysReports = allReports.filter(r => r.created_at >= thirtyDaysAgo);
+    const dailyMap = new Map<string, { total: number; free: number; paid: number }>();
+    for (const r of thirtyDaysReports) {
+      const date = r.created_at?.split("T")[0] || "unknown";
+      if (!dailyMap.has(date)) {
+        dailyMap.set(date, { total: 0, free: 0, paid: 0 });
+      }
+      const entry = dailyMap.get(date)!;
+      entry.total++;
+      if (r.status === "free") entry.free++;
+      if (r.status === "paid") entry.paid++;
+    }
+    const dailyTrend = Array.from(dailyMap.entries())
+      .map(([date, { total, free, paid }]) => ({ date, total, free, paid }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    // 9. Willingness to pay by vehicle
+    const wtpMap = new Map<string, { model: string; total: number; paid: number }>();
+    for (const r of allReports) {
+      if (!r.vehicle_model) continue;
+      if (!wtpMap.has(r.vehicle_model)) {
+        wtpMap.set(r.vehicle_model, { model: r.vehicle_model, total: 0, paid: 0 });
+      }
+      const entry = wtpMap.get(r.vehicle_model)!;
+      entry.total++;
+      if (r.status === "paid") entry.paid++;
+    }
+    const willingnessToPay = Array.from(wtpMap.values())
+      .filter(v => v.total >= 1)
+      .map(v => ({
+        model: v.model,
+        total_reports: v.total,
+        paid_reports: v.paid,
+        conversion_rate: Math.round((v.paid / v.total) * 10000) / 100,
+      }))
+      .sort((a, b) => b.conversion_rate - a.conversion_rate || b.total_reports - a.total_reports)
+      .slice(0, 15);
 
     // 10. Risk score distribution
-    const riskScoreDistribution = await sql`
-      SELECT
-        CASE
-          WHEN (payload_json->'confidence'->>'overall_score')::INTEGER >= 70 THEN 'Green (70-100)'
-          WHEN (payload_json->'confidence'->>'overall_score')::INTEGER >= 40 THEN 'Yellow (40-69)'
-          ELSE 'Red (0-39)'
-        END as risk_category,
-        COUNT(*) as count,
-        COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_count
-      FROM reports
-      WHERE payload_json->'confidence'->>'overall_score' IS NOT NULL ${dateFilter ? sql.unsafe(dateFilter) : sql``}
-      GROUP BY risk_category
-      ORDER BY risk_category
-    `;
+    const riskMap = new Map<string, { total: number; paid: number }>();
+    for (const r of allReports) {
+      const score = r.payload_json?.confidence?.overall_score;
+      if (score == null) continue;
+      const category = score >= 70 ? "Green (70-100)" : score >= 40 ? "Yellow (40-69)" : "Red (0-39)";
+      if (!riskMap.has(category)) {
+        riskMap.set(category, { total: 0, paid: 0 });
+      }
+      const entry = riskMap.get(category)!;
+      entry.total++;
+      if (r.status === "paid") entry.paid++;
+    }
+    const riskDistribution = Array.from(riskMap.entries())
+      .map(([category, { total, paid }]) => ({ category, total_count: total, paid_count: paid }))
+      .sort((a, b) => a.category.localeCompare(b.category));
 
-    // 11. Vehicle checkout stats (from user_events)
-    const vehicleCheckouts = await sql`
-      SELECT
-        event_data->>'vehicle_year' as year,
-        event_data->>'vehicle_model' as model,
-        COUNT(*) as checkout_count
-      FROM user_events
-      WHERE event_name = 'vehicle_checkout'
-        AND timestamp >= NOW() - INTERVAL '30 days'
-        AND event_data->>'vehicle_model' IS NOT NULL
-      GROUP BY year, model
-      ORDER BY checkout_count DESC
-      LIMIT 20
-    `;
+    // 11. Vehicle checkouts (from events)
+    const checkoutEvents = allEvents.filter(e => e.event_name === "vehicle_checkout" && e.event_data?.vehicle_model);
+    const checkoutMap = new Map<string, number>();
+    for (const e of checkoutEvents) {
+      const key = `${e.event_data.vehicle_year}|${e.event_data.vehicle_model}`;
+      checkoutMap.set(key, (checkoutMap.get(key) || 0) + 1);
+    }
+    const vehicleCheckouts = Array.from(checkoutMap.entries())
+      .map(([key, count]) => {
+        const [year, model] = key.split("|");
+        return { year, model, checkout_count: count };
+      })
+      .sort((a, b) => b.checkout_count - a.checkout_count)
+      .slice(0, 20);
 
-    // 12. Report download stats (from user_events - includes both created and downloaded)
-    const reportDownloads = await sql`
-      SELECT
-        event_data->>'vehicle_year' as year,
-        event_data->>'vehicle_model' as model,
-        event_data->>'report_status' as status,
-        COUNT(*) as download_count
-      FROM user_events
-      WHERE event_name IN ('report_downloaded', 'report_created')
-        AND timestamp >= NOW() - INTERVAL '30 days'
-      GROUP BY year, model, status
-      ORDER BY download_count DESC
-      LIMIT 20
-    `;
+    // 12. Report downloads
+    const downloadEvents = allEvents.filter(e => ["report_downloaded", "report_created"].includes(e.event_name));
+    const downloadMap = new Map<string, number>();
+    for (const e of downloadEvents) {
+      const key = `${e.event_data?.vehicle_year}|${e.event_data?.vehicle_model}|${e.event_data?.report_status}`;
+      downloadMap.set(key, (downloadMap.get(key) || 0) + 1);
+    }
+    const reportDownloads = Array.from(downloadMap.entries())
+      .map(([key, count]) => {
+        const [year, model, status] = key.split("|");
+        return { year, model, status, download_count: count };
+      })
+      .sort((a, b) => b.download_count - a.download_count)
+      .slice(0, 20);
 
-    // 13. Download summary (counts report_created as "Free Reports" since those are instant)
-    const downloadSummary = await sql`
-      SELECT
-        COUNT(*) as total_downloads,
-        COUNT(CASE WHEN event_data->>'report_status' = 'free' THEN 1 END) as free_downloads,
-        COUNT(CASE WHEN event_data->>'report_status' = 'paid' THEN 1 END) as paid_downloads
-      FROM user_events
-      WHERE event_name IN ('report_downloaded', 'report_created')
-        AND timestamp >= NOW() - INTERVAL '30 days'
-    `;
+    // 13. Download summary
+    const freeDownloads = downloadEvents.filter(e => e.event_data?.report_status === "free").length;
+    const paidDownloads = downloadEvents.filter(e => e.event_data?.report_status === "paid").length;
 
-    // 14. Why Checkpoint stats (form_submit → report funnel and why checkpoint)
-    const whyCheckpointStats = await sql`
-      SELECT
-        COUNT(CASE WHEN event_name = 'why_checkpoint_shown' THEN 1 END) as why_shown,
-        COUNT(CASE WHEN event_name = 'why_checkpoint_submitted' THEN 1 END) as why_submitted,
-        COUNT(CASE WHEN event_name = 'why_checkpoint_skipped' THEN 1 END) as why_skipped,
-        COUNT(CASE WHEN event_name = 'form_submit' THEN 1 END) as form_submissions,
-        COUNT(CASE WHEN event_name = 'intake_submitted' THEN 1 END) as intake_submitted,
-        COUNT(CASE WHEN event_name = 'report_generation_started' THEN 1 END) as report_gen_started,
-        COUNT(CASE WHEN event_name = 'report_generation_succeeded' THEN 1 END) as report_gen_succeeded,
-        COUNT(CASE WHEN event_name = 'report_generation_failed' THEN 1 END) as report_gen_failed,
-        COUNT(CASE WHEN event_name = 'form_validation_failed' THEN 1 END) as form_validation_failed,
-        COUNT(CASE WHEN event_name = 'api_error' THEN 1 END) as api_errors
-      FROM user_events
-      WHERE timestamp >= NOW() - INTERVAL '30 days'
-    `;
+    // 14. Why checkpoint & funnel stats
+    const eventCounts: Record<string, number> = {};
+    const funnelEventNames = [
+      "why_checkpoint_shown", "why_checkpoint_submitted", "why_checkpoint_skipped",
+      "form_submit", "intake_submitted",
+      "report_generation_started", "report_generation_succeeded", "report_generation_failed",
+      "form_validation_failed", "api_error",
+    ];
+    for (const name of funnelEventNames) {
+      eventCounts[name] = 0;
+    }
+    for (const e of allEvents) {
+      if (funnelEventNames.includes(e.event_name)) {
+        eventCounts[e.event_name]++;
+      }
+    }
+
+    const whyShown = eventCounts["why_checkpoint_shown"];
+    const whySubmitted = eventCounts["why_checkpoint_submitted"];
+    const reportGenStarted = eventCounts["report_generation_started"];
+    const reportGenSucceeded = eventCounts["report_generation_succeeded"];
 
     // Compile all analytics data
     const analytics = {
@@ -284,118 +297,79 @@ export async function GET(request: NextRequest) {
       generated_at: new Date().toISOString(),
 
       overview: {
-        total_reports: parseInt(overallStats[0].total_reports),
-        free_reports: parseInt(overallStats[0].free_reports),
-        paid_reports: parseInt(overallStats[0].paid_reports),
-        draft_reports: parseInt(overallStats[0].draft_reports),
-        unique_customers: parseInt(overallStats[0].unique_customers),
-        // NEW: Unique customers counted by persistent session (includes all report creators, not just paid)
-        unique_customers_by_session: parseInt(uniqueCustomersFromEvents[0]?.unique_customers_by_session || 0),
+        total_reports: totalReports,
+        free_reports: freeReports,
+        paid_reports: paidReports,
+        draft_reports: draftReports,
+        unique_customers: uniqueEmails.size,
+        unique_customers_by_session: uniqueCustomersBySession.size,
       },
 
       conversion: {
-        total_generated: parseInt(conversionMetrics[0].total_generated),
-        converted_to_paid: parseInt(conversionMetrics[0].converted_to_paid),
-        conversion_rate: parseFloat(conversionMetrics[0].conversion_rate || 0),
+        total_generated: totalReports,
+        converted_to_paid: paidReports,
+        conversion_rate: conversionRate,
       },
 
       revenue: {
-        paid_count: parseInt(revenueData[0].paid_count),
-        total_revenue: parseInt(revenueData[0].total_revenue),
+        paid_count: paidReports,
+        total_revenue: totalRevenue,
         price_per_report: 15,
       },
 
       feedback: {
-        total_feedback: parseInt(feedbackStats[0]?.total_feedback || 0),
-        avg_rating: parseFloat(feedbackStats[0]?.avg_rating || 0),
-        would_recommend: parseInt(feedbackStats[0]?.would_recommend_count || 0),
-        would_not_recommend: parseInt(feedbackStats[0]?.would_not_recommend_count || 0),
-        recommendation_rate: parseFloat(feedbackStats[0]?.recommendation_rate || 0),
-        rating_distribution: ratingDistribution.map((r) => ({
-          rating: r.rating,
-          count: parseInt(r.count),
-        })),
+        total_feedback: totalFeedbackCount,
+        avg_rating: avgRating,
+        would_recommend: wouldRecommendCount,
+        would_not_recommend: wouldNotRecommendCount,
+        recommendation_rate: recommendationRate,
+        rating_distribution: ratingDistribution,
       },
 
-      top_vehicles: topVehicles.map((v) => ({
+      top_vehicles: topVehicles.map(v => ({
         model: v.model,
         year: v.year,
-        total_count: parseInt(v.count),
-        paid_count: parseInt(v.paid_count),
-        free_count: parseInt(v.free_count),
+        total_count: v.total,
+        paid_count: v.paid,
+        free_count: v.free,
       })),
 
-      willingness_to_pay: willingnessToPayByVehicle.map((v) => ({
-        model: v.model,
-        total_reports: parseInt(v.total_reports),
-        paid_reports: parseInt(v.paid_reports),
-        conversion_rate: parseFloat(v.conversion_rate),
-      })),
+      willingness_to_pay: willingnessToPay,
 
-      risk_distribution: riskScoreDistribution.map((r) => ({
-        category: r.risk_category,
-        total_count: parseInt(r.count),
-        paid_count: parseInt(r.paid_count),
-      })),
+      risk_distribution: riskDistribution,
 
-      recent_feedback: recentFeedback.map((f) => ({
-        rating: f.rating,
-        text: f.feedback_text,
-        would_recommend: f.would_recommend,
-        created_at: f.created_at,
-        vehicle: f.vehicle_model
-          ? `${f.vehicle_year} ${f.vehicle_model}`
-          : "Unknown",
-      })),
+      recent_feedback: recentFeedback,
 
-      daily_trend: dailyTrend.map((d) => ({
-        date: d.date,
-        total: parseInt(d.total),
-        free: parseInt(d.free),
-        paid: parseInt(d.paid),
-      })),
+      daily_trend: dailyTrend,
 
-      vehicle_checkouts: vehicleCheckouts.map((v) => ({
-        year: v.year,
-        model: v.model,
-        checkout_count: parseInt(v.checkout_count),
-      })),
+      vehicle_checkouts: vehicleCheckouts,
 
-      report_downloads: reportDownloads.map((d) => ({
-        year: d.year,
-        model: d.model,
-        status: d.status,
-        download_count: parseInt(d.download_count),
-      })),
+      report_downloads: reportDownloads,
 
       download_summary: {
-        total_downloads: parseInt(downloadSummary[0]?.total_downloads || 0),
-        free_downloads: parseInt(downloadSummary[0]?.free_downloads || 0),
-        paid_downloads: parseInt(downloadSummary[0]?.paid_downloads || 0),
+        total_downloads: downloadEvents.length,
+        free_downloads: freeDownloads,
+        paid_downloads: paidDownloads,
       },
 
       // Why Checkpoint funnel stats
       why_checkpoint: {
-        shown: parseInt(whyCheckpointStats[0]?.why_shown || 0),
-        submitted: parseInt(whyCheckpointStats[0]?.why_submitted || 0),
-        skipped: parseInt(whyCheckpointStats[0]?.why_skipped || 0),
-        submit_rate: whyCheckpointStats[0]?.why_shown > 0
-          ? Math.round((parseInt(whyCheckpointStats[0]?.why_submitted || 0) / parseInt(whyCheckpointStats[0]?.why_shown || 1)) * 100)
-          : 0,
+        shown: whyShown,
+        submitted: whySubmitted,
+        skipped: eventCounts["why_checkpoint_skipped"],
+        submit_rate: whyShown > 0 ? Math.round((whySubmitted / whyShown) * 100) : 0,
       },
 
       // Form → Report generation funnel
       funnel: {
-        form_submissions: parseInt(whyCheckpointStats[0]?.form_submissions || 0),
-        intake_submitted: parseInt(whyCheckpointStats[0]?.intake_submitted || 0),
-        report_generation_started: parseInt(whyCheckpointStats[0]?.report_gen_started || 0),
-        report_generation_succeeded: parseInt(whyCheckpointStats[0]?.report_gen_succeeded || 0),
-        report_generation_failed: parseInt(whyCheckpointStats[0]?.report_gen_failed || 0),
-        form_validation_failed: parseInt(whyCheckpointStats[0]?.form_validation_failed || 0),
-        api_errors: parseInt(whyCheckpointStats[0]?.api_errors || 0),
-        success_rate: whyCheckpointStats[0]?.report_gen_started > 0
-          ? Math.round((parseInt(whyCheckpointStats[0]?.report_gen_succeeded || 0) / parseInt(whyCheckpointStats[0]?.report_gen_started || 1)) * 100)
-          : 0,
+        form_submissions: eventCounts["form_submit"],
+        intake_submitted: eventCounts["intake_submitted"],
+        report_generation_started: reportGenStarted,
+        report_generation_succeeded: reportGenSucceeded,
+        report_generation_failed: eventCounts["report_generation_failed"],
+        form_validation_failed: eventCounts["form_validation_failed"],
+        api_errors: eventCounts["api_error"],
+        success_rate: reportGenStarted > 0 ? Math.round((reportGenSucceeded / reportGenStarted) * 100) : 0,
       },
     };
 

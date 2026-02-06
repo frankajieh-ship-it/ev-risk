@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
+import { supabase } from "@/lib/supabase";
 
 // Valid event names for validation
 const VALID_EVENT_NAMES = [
@@ -165,13 +165,14 @@ export async function POST(req: NextRequest) {
     if (DEDUPE_BY_REPORT_ID_EVENTS.includes(eventName) && eventData?.report_id) {
       const reportId = eventData.report_id;
       try {
-        const existing = await sql`
-          SELECT 1 FROM user_events
-          WHERE event_name = ${eventName}
-          AND event_data->>'report_id' = ${reportId}
-          LIMIT 1
-        `;
-        if (existing.rows.length > 0) {
+        const { data: existing } = await supabase
+          .from("user_events")
+          .select("id")
+          .eq("event_name", eventName)
+          .filter("event_data->>report_id", "eq", reportId)
+          .limit(1);
+
+        if (existing && existing.length > 0) {
           // Already have this event for this report_id, skip
           return NextResponse.json({
             success: true,
@@ -192,28 +193,24 @@ export async function POST(req: NextRequest) {
       _user_id: userId || null,
     };
 
-    await sql`
-      INSERT INTO user_events (
-        event_name,
-        event_data,
-        visitor_id,
-        session_id,
-        page_path,
-        ip_address,
-        user_agent,
-        timestamp
-      )
-      VALUES (
-        ${eventName},
-        ${JSON.stringify(enrichedEventData)},
-        ${visitorId},
-        ${sessionId || null},
-        ${pagePath},
-        ${ip},
-        ${userAgent},
-        ${eventTimestamp}
-      )
-    `;
+    const { error } = await supabase.from("user_events").insert({
+      event_name: eventName,
+      event_data: enrichedEventData,
+      visitor_id: visitorId || null,
+      session_id: sessionId || null,
+      page_path: pagePath || null,
+      ip_address: ip,
+      user_agent: userAgent,
+      timestamp: eventTimestamp,
+    });
+
+    if (error) {
+      console.error("Event tracking insert error:", error);
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -233,307 +230,165 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const timeframe = searchParams.get("timeframe") || "30d";
-    const eventName = searchParams.get("event");
+    const filterEventName = searchParams.get("event");
 
-    // Build queries based on timeframe
-    let totalEvents, eventsByName, formSubmissions, urlAutofill, blogClicks, funnelData;
-
+    // Calculate cutoff date
+    const now = new Date();
+    let cutoff: string | null = null;
     if (timeframe === "24h") {
-      totalEvents = eventName
-        ? await sql`SELECT COUNT(*) as count FROM user_events WHERE timestamp > NOW() - INTERVAL '24 hours' AND event_name = ${eventName}`
-        : await sql`SELECT COUNT(*) as count FROM user_events WHERE timestamp > NOW() - INTERVAL '24 hours'`;
-
-      eventsByName = await sql`
-        SELECT event_name, COUNT(*) as count, COUNT(DISTINCT visitor_id) as unique_users
-        FROM user_events
-        WHERE timestamp > NOW() - INTERVAL '24 hours'
-        GROUP BY event_name
-        ORDER BY count DESC
-      `;
-
-      formSubmissions = await sql`
-        SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed
-        FROM user_events
-        WHERE event_name = 'form_submit' AND timestamp > NOW() - INTERVAL '24 hours'
-      `;
-
-      urlAutofill = await sql`
-        SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed,
-          COUNT(DISTINCT event_data->>'url') as unique_urls
-        FROM user_events
-        WHERE event_name = 'url_autofill_attempt' AND timestamp > NOW() - INTERVAL '24 hours'
-      `;
-
-      blogClicks = await sql`
-        SELECT COUNT(*) as total_clicks, COUNT(DISTINCT visitor_id) as unique_users, event_data->>'source' as source
-        FROM user_events
-        WHERE event_name = 'blog_link_click' AND timestamp > NOW() - INTERVAL '24 hours'
-        GROUP BY event_data->>'source'
-      `;
-
-      funnelData = await sql`
-        SELECT visitor_id,
-          MAX(CASE WHEN event_name = 'page_view' AND page_path = '/' THEN 1 ELSE 0 END) as viewed_homepage,
-          MAX(CASE WHEN event_name = 'url_autofill_attempt' THEN 1 ELSE 0 END) as tried_autofill,
-          MAX(CASE WHEN event_name = 'form_submit' THEN 1 ELSE 0 END) as submitted_form,
-          MAX(CASE WHEN event_name = 'report_generated' THEN 1 ELSE 0 END) as generated_report,
-          MAX(CASE WHEN event_name = 'blog_link_click' THEN 1 ELSE 0 END) as clicked_blog
-        FROM user_events
-        WHERE timestamp > NOW() - INTERVAL '24 hours'
-        GROUP BY visitor_id
-      `;
+      cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
     } else if (timeframe === "7d") {
-      totalEvents = eventName
-        ? await sql`SELECT COUNT(*) as count FROM user_events WHERE timestamp > NOW() - INTERVAL '7 days' AND event_name = ${eventName}`
-        : await sql`SELECT COUNT(*) as count FROM user_events WHERE timestamp > NOW() - INTERVAL '7 days'`;
-
-      eventsByName = await sql`
-        SELECT event_name, COUNT(*) as count, COUNT(DISTINCT visitor_id) as unique_users
-        FROM user_events
-        WHERE timestamp > NOW() - INTERVAL '7 days'
-        GROUP BY event_name
-        ORDER BY count DESC
-      `;
-
-      formSubmissions = await sql`
-        SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed
-        FROM user_events
-        WHERE event_name = 'form_submit' AND timestamp > NOW() - INTERVAL '7 days'
-      `;
-
-      urlAutofill = await sql`
-        SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed,
-          COUNT(DISTINCT event_data->>'url') as unique_urls
-        FROM user_events
-        WHERE event_name = 'url_autofill_attempt' AND timestamp > NOW() - INTERVAL '7 days'
-      `;
-
-      blogClicks = await sql`
-        SELECT COUNT(*) as total_clicks, COUNT(DISTINCT visitor_id) as unique_users, event_data->>'source' as source
-        FROM user_events
-        WHERE event_name = 'blog_link_click' AND timestamp > NOW() - INTERVAL '7 days'
-        GROUP BY event_data->>'source'
-      `;
-
-      funnelData = await sql`
-        SELECT visitor_id,
-          MAX(CASE WHEN event_name = 'page_view' AND page_path = '/' THEN 1 ELSE 0 END) as viewed_homepage,
-          MAX(CASE WHEN event_name = 'url_autofill_attempt' THEN 1 ELSE 0 END) as tried_autofill,
-          MAX(CASE WHEN event_name = 'form_submit' THEN 1 ELSE 0 END) as submitted_form,
-          MAX(CASE WHEN event_name = 'report_generated' THEN 1 ELSE 0 END) as generated_report,
-          MAX(CASE WHEN event_name = 'blog_link_click' THEN 1 ELSE 0 END) as clicked_blog
-        FROM user_events
-        WHERE timestamp > NOW() - INTERVAL '7 days'
-        GROUP BY visitor_id
-      `;
+      cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     } else if (timeframe === "30d") {
-      totalEvents = eventName
-        ? await sql`SELECT COUNT(*) as count FROM user_events WHERE timestamp > NOW() - INTERVAL '30 days' AND event_name = ${eventName}`
-        : await sql`SELECT COUNT(*) as count FROM user_events WHERE timestamp > NOW() - INTERVAL '30 days'`;
-
-      eventsByName = await sql`
-        SELECT event_name, COUNT(*) as count, COUNT(DISTINCT visitor_id) as unique_users
-        FROM user_events
-        WHERE timestamp > NOW() - INTERVAL '30 days'
-        GROUP BY event_name
-        ORDER BY count DESC
-      `;
-
-      formSubmissions = await sql`
-        SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed
-        FROM user_events
-        WHERE event_name = 'form_submit' AND timestamp > NOW() - INTERVAL '30 days'
-      `;
-
-      urlAutofill = await sql`
-        SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed,
-          COUNT(DISTINCT event_data->>'url') as unique_urls
-        FROM user_events
-        WHERE event_name = 'url_autofill_attempt' AND timestamp > NOW() - INTERVAL '30 days'
-      `;
-
-      blogClicks = await sql`
-        SELECT COUNT(*) as total_clicks, COUNT(DISTINCT visitor_id) as unique_users, event_data->>'source' as source
-        FROM user_events
-        WHERE event_name = 'blog_link_click' AND timestamp > NOW() - INTERVAL '30 days'
-        GROUP BY event_data->>'source'
-      `;
-
-      funnelData = await sql`
-        SELECT visitor_id,
-          MAX(CASE WHEN event_name = 'page_view' AND page_path = '/' THEN 1 ELSE 0 END) as viewed_homepage,
-          MAX(CASE WHEN event_name = 'url_autofill_attempt' THEN 1 ELSE 0 END) as tried_autofill,
-          MAX(CASE WHEN event_name = 'form_submit' THEN 1 ELSE 0 END) as submitted_form,
-          MAX(CASE WHEN event_name = 'report_generated' THEN 1 ELSE 0 END) as generated_report,
-          MAX(CASE WHEN event_name = 'blog_link_click' THEN 1 ELSE 0 END) as clicked_blog
-        FROM user_events
-        WHERE timestamp > NOW() - INTERVAL '30 days'
-        GROUP BY visitor_id
-      `;
-    } else {
-      // "all" - no time filter
-      totalEvents = eventName
-        ? await sql`SELECT COUNT(*) as count FROM user_events WHERE event_name = ${eventName}`
-        : await sql`SELECT COUNT(*) as count FROM user_events`;
-
-      eventsByName = await sql`
-        SELECT event_name, COUNT(*) as count, COUNT(DISTINCT visitor_id) as unique_users
-        FROM user_events
-        GROUP BY event_name
-        ORDER BY count DESC
-      `;
-
-      formSubmissions = await sql`
-        SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed
-        FROM user_events
-        WHERE event_name = 'form_submit'
-      `;
-
-      urlAutofill = await sql`
-        SELECT COUNT(*) as total_attempts, COUNT(DISTINCT visitor_id) as unique_users,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('true', '1') THEN 1 ELSE 0 END) as successful,
-          SUM(CASE WHEN LOWER(event_data->>'success') IN ('false', '0') THEN 1 ELSE 0 END) as failed,
-          COUNT(DISTINCT event_data->>'url') as unique_urls
-        FROM user_events
-        WHERE event_name = 'url_autofill_attempt'
-      `;
-
-      blogClicks = await sql`
-        SELECT COUNT(*) as total_clicks, COUNT(DISTINCT visitor_id) as unique_users, event_data->>'source' as source
-        FROM user_events
-        WHERE event_name = 'blog_link_click'
-        GROUP BY event_data->>'source'
-      `;
-
-      funnelData = await sql`
-        SELECT visitor_id,
-          MAX(CASE WHEN event_name = 'page_view' AND page_path = '/' THEN 1 ELSE 0 END) as viewed_homepage,
-          MAX(CASE WHEN event_name = 'url_autofill_attempt' THEN 1 ELSE 0 END) as tried_autofill,
-          MAX(CASE WHEN event_name = 'form_submit' THEN 1 ELSE 0 END) as submitted_form,
-          MAX(CASE WHEN event_name = 'report_generated' THEN 1 ELSE 0 END) as generated_report,
-          MAX(CASE WHEN event_name = 'blog_link_click' THEN 1 ELSE 0 END) as clicked_blog
-        FROM user_events
-        GROUP BY visitor_id
-      `;
+      cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
     }
 
-    // Calculate funnel metrics
-    const totalVisitors = funnelData.rows.length;
-    const triedAutofill = funnelData.rows.filter(r => r.tried_autofill).length;
-    const submittedForm = funnelData.rows.filter(r => r.submitted_form).length;
-    const generatedReport = funnelData.rows.filter(r => r.generated_report).length;
-    const clickedBlog = funnelData.rows.filter(r => r.clicked_blog).length;
+    // Fetch all events in timeframe
+    let eventsQuery = supabase
+      .from("user_events")
+      .select("event_name, event_data, visitor_id, page_path, timestamp");
+    if (cutoff) {
+      eventsQuery = eventsQuery.gte("timestamp", cutoff);
+    }
+    const { data: allEvents } = await eventsQuery;
+    const events = allEvents || [];
+
+    // Total events (optionally filtered by event name)
+    const totalEventsCount = filterEventName
+      ? events.filter(e => e.event_name === filterEventName).length
+      : events.length;
+
+    // Events by name with unique users
+    const eventNameMap = new Map<string, { count: number; visitors: Set<string> }>();
+    for (const e of events) {
+      const name = e.event_name || "unknown";
+      if (!eventNameMap.has(name)) {
+        eventNameMap.set(name, { count: 0, visitors: new Set() });
+      }
+      const entry = eventNameMap.get(name)!;
+      entry.count++;
+      if (e.visitor_id) entry.visitors.add(e.visitor_id);
+    }
+    const eventsByName = Array.from(eventNameMap.entries())
+      .map(([event_name, { count, visitors }]) => ({
+        event_name,
+        count,
+        unique_users: visitors.size,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    // Form submissions
+    const formEvents = events.filter(e => e.event_name === "form_submit");
+    const formVisitors = new Set(formEvents.filter(e => e.visitor_id).map(e => e.visitor_id));
+    const formSuccessful = formEvents.filter(e => {
+      const s = String(e.event_data?.success || "").toLowerCase();
+      return s === "true" || s === "1";
+    }).length;
+    const formFailed = formEvents.filter(e => {
+      const s = String(e.event_data?.success || "").toLowerCase();
+      return s === "false" || s === "0";
+    }).length;
+
+    // URL autofill
+    const autofillEvents = events.filter(e => e.event_name === "url_autofill_attempt");
+    const autofillVisitors = new Set(autofillEvents.filter(e => e.visitor_id).map(e => e.visitor_id));
+    const autofillSuccessful = autofillEvents.filter(e => {
+      const s = String(e.event_data?.success || "").toLowerCase();
+      return s === "true" || s === "1";
+    }).length;
+    const autofillFailed = autofillEvents.filter(e => {
+      const s = String(e.event_data?.success || "").toLowerCase();
+      return s === "false" || s === "0";
+    }).length;
+    const uniqueUrls = new Set(autofillEvents.filter(e => e.event_data?.url).map(e => e.event_data.url));
+
+    // Blog clicks by source
+    const blogEvents = events.filter(e => e.event_name === "blog_link_click");
+    const blogSourceMap = new Map<string, { clicks: number; visitors: Set<string> }>();
+    for (const e of blogEvents) {
+      const source = e.event_data?.source || "unknown";
+      if (!blogSourceMap.has(source)) {
+        blogSourceMap.set(source, { clicks: 0, visitors: new Set() });
+      }
+      const entry = blogSourceMap.get(source)!;
+      entry.clicks++;
+      if (e.visitor_id) entry.visitors.add(e.visitor_id);
+    }
+    const blogClicks = Array.from(blogSourceMap.entries()).map(([source, { clicks, visitors }]) => ({
+      source,
+      total_clicks: clicks,
+      unique_users: visitors.size,
+    }));
+
+    // Funnel data: group events by visitor
+    const visitorEvents = new Map<string, Set<string>>();
+    for (const e of events) {
+      if (!e.visitor_id) continue;
+      if (!visitorEvents.has(e.visitor_id)) {
+        visitorEvents.set(e.visitor_id, new Set());
+      }
+      const key = e.event_name === "page_view" && e.page_path === "/" ? "page_view_home" : e.event_name;
+      visitorEvents.get(e.visitor_id)!.add(key);
+    }
+    const totalVisitors = visitorEvents.size;
+    let triedAutofill = 0, submittedForm = 0, generatedReport = 0, clickedBlog = 0;
+    for (const eventSet of visitorEvents.values()) {
+      if (eventSet.has("url_autofill_attempt")) triedAutofill++;
+      if (eventSet.has("form_submit")) submittedForm++;
+      if (eventSet.has("report_generated")) generatedReport++;
+      if (eventSet.has("blog_link_click")) clickedBlog++;
+    }
 
     // Recent events (last 50)
-    const recentEvents = await sql`
-      SELECT
-        event_name,
-        event_data,
-        visitor_id,
-        page_path,
-        timestamp
-      FROM user_events
-      ORDER BY timestamp DESC
-      LIMIT 50
-    `;
+    const { data: recentEventsRaw } = await supabase
+      .from("user_events")
+      .select("event_name, event_data, visitor_id, page_path, timestamp")
+      .order("timestamp", { ascending: false })
+      .limit(50);
 
-    // Extracted data summary (from successful URL autofills)
-    let extractedDataSummary;
-    if (timeframe === "24h") {
-      extractedDataSummary = await sql`
-        SELECT
-          event_data->'extractedData'->>'make' as make,
-          event_data->'extractedData'->>'model' as model,
-          COUNT(*) as count
-        FROM user_events
-        WHERE event_name = 'url_autofill_attempt'
-          AND LOWER(event_data->>'success') IN ('true', '1')
-          AND timestamp > NOW() - INTERVAL '24 hours'
-          AND event_data->'extractedData'->>'make' IS NOT NULL
-        GROUP BY event_data->'extractedData'->>'make', event_data->'extractedData'->>'model'
-        ORDER BY count DESC
-        LIMIT 10
-      `;
-    } else if (timeframe === "7d") {
-      extractedDataSummary = await sql`
-        SELECT
-          event_data->'extractedData'->>'make' as make,
-          event_data->'extractedData'->>'model' as model,
-          COUNT(*) as count
-        FROM user_events
-        WHERE event_name = 'url_autofill_attempt'
-          AND LOWER(event_data->>'success') IN ('true', '1')
-          AND timestamp > NOW() - INTERVAL '7 days'
-          AND event_data->'extractedData'->>'make' IS NOT NULL
-        GROUP BY event_data->'extractedData'->>'make', event_data->'extractedData'->>'model'
-        ORDER BY count DESC
-        LIMIT 10
-      `;
-    } else if (timeframe === "30d") {
-      extractedDataSummary = await sql`
-        SELECT
-          event_data->'extractedData'->>'make' as make,
-          event_data->'extractedData'->>'model' as model,
-          COUNT(*) as count
-        FROM user_events
-        WHERE event_name = 'url_autofill_attempt'
-          AND LOWER(event_data->>'success') IN ('true', '1')
-          AND timestamp > NOW() - INTERVAL '30 days'
-          AND event_data->'extractedData'->>'make' IS NOT NULL
-        GROUP BY event_data->'extractedData'->>'make', event_data->'extractedData'->>'model'
-        ORDER BY count DESC
-        LIMIT 10
-      `;
-    } else {
-      extractedDataSummary = await sql`
-        SELECT
-          event_data->'extractedData'->>'make' as make,
-          event_data->'extractedData'->>'model' as model,
-          COUNT(*) as count
-        FROM user_events
-        WHERE event_name = 'url_autofill_attempt'
-          AND LOWER(event_data->>'success') IN ('true', '1')
-          AND event_data->'extractedData'->>'make' IS NOT NULL
-        GROUP BY event_data->'extractedData'->>'make', event_data->'extractedData'->>'model'
-        ORDER BY count DESC
-        LIMIT 10
-      `;
+    // Extracted data summary (successful URL autofills)
+    const successfulAutofills = (cutoff
+      ? autofillEvents
+      : events.filter(e => e.event_name === "url_autofill_attempt")
+    ).filter(e => {
+      const s = String(e.event_data?.success || "").toLowerCase();
+      return (s === "true" || s === "1") && e.event_data?.extractedData?.make;
+    });
+    const extractedMap = new Map<string, number>();
+    for (const e of successfulAutofills) {
+      const make = e.event_data.extractedData.make;
+      const model = e.event_data.extractedData.model || "Unknown";
+      const key = `${make}|${model}`;
+      extractedMap.set(key, (extractedMap.get(key) || 0) + 1);
     }
+    const extractedDataSummary = Array.from(extractedMap.entries())
+      .map(([key, count]) => {
+        const [make, model] = key.split("|");
+        return { make, model, count };
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
 
     return NextResponse.json({
       success: true,
       timeframe,
       stats: {
-        totalEvents: totalEvents.rows[0]?.count || 0,
-        eventsByName: eventsByName.rows,
-        formSubmissions: formSubmissions.rows[0] || {
-          total_attempts: 0,
-          unique_users: 0,
-          successful: 0,
-          failed: 0,
+        totalEvents: totalEventsCount,
+        eventsByName,
+        formSubmissions: {
+          total_attempts: formEvents.length,
+          unique_users: formVisitors.size,
+          successful: formSuccessful,
+          failed: formFailed,
         },
-        urlAutofill: urlAutofill.rows[0] || {
-          total_attempts: 0,
-          unique_users: 0,
-          successful: 0,
-          failed: 0,
-          unique_urls: 0,
+        urlAutofill: {
+          total_attempts: autofillEvents.length,
+          unique_users: autofillVisitors.size,
+          successful: autofillSuccessful,
+          failed: autofillFailed,
+          unique_urls: uniqueUrls.size,
         },
-        blogClicks: blogClicks.rows,
+        blogClicks,
         conversionFunnel: {
           totalVisitors,
           triedAutofill,
@@ -545,8 +400,8 @@ export async function GET(req: NextRequest) {
           reportConversion: totalVisitors > 0 ? ((generatedReport / totalVisitors) * 100).toFixed(1) : 0,
           blogConversion: totalVisitors > 0 ? ((clickedBlog / totalVisitors) * 100).toFixed(1) : 0,
         },
-        recentEvents: recentEvents.rows,
-        extractedDataSummary: extractedDataSummary.rows,
+        recentEvents: recentEventsRaw || [],
+        extractedDataSummary,
       },
     });
   } catch (error: any) {

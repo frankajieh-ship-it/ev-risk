@@ -11,10 +11,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.2",
-    "@react-pdf/renderer": "^4.3.1",
     "@supabase/supabase-js": "^2.91.0",
-    "@vercel/postgres": "^0.10.0",
     "csv-parse": "^6.1.0",
     "dotenv": "^17.2.3",
     "framer-motion": "^12.23.26",
@@ -28,6 +25,7 @@
     "web-vitals": "^5.1.0"
   },
   "devDependencies": {
+    "@react-pdf/renderer": "^4.3.2",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",

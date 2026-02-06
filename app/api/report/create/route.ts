@@ -11,10 +11,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
+import { supabase } from "@/lib/supabase";
 import { v4 as uuidv4 } from "uuid";
-
-const sql = neon(process.env.POSTGRES_URL!);
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,26 +31,36 @@ export async function POST(request: NextRequest) {
     const reportId = uuidv4();
 
     // Extract vehicle info for easier querying
-    const vehicleYear = reportData.input.year || null;
-    const vehicleModel = reportData.input.model || "Unknown";
+    const vehicleYear = reportData.input?.year || reportData.vehicle?.year || null;
+    const vehicleModel = reportData.input?.model || reportData.vehicle?.model || "Unknown";
+
+    // V2: Extract routine and schema_version
+    const schemaVersion = reportData.schema_version || body.schema_version || "v1";
+    const routine = reportData.routine || body.routine || null;
 
     // Store as draft in database
-    await sql`
-      INSERT INTO reports (
-        id,
-        status,
-        payload_json,
-        vehicle_year,
-        vehicle_model
-      )
-      VALUES (
-        ${reportId},
-        'draft',
-        ${JSON.stringify(reportData)}::jsonb,
-        ${vehicleYear},
-        ${vehicleModel}
-      )
-    `;
+    const { error } = await supabase.from("reports").insert({
+      id: reportId,
+      status: "draft",
+      payload_json: reportData,
+      vehicle_year: vehicleYear,
+      vehicle_model: vehicleModel,
+      schema_version: schemaVersion,
+      routine: routine || null,
+      charging_access: routine?.charging_access || null,
+      climate: routine?.climate || null,
+      longest_day_pattern: routine?.longest_day_pattern || null,
+      weekly_miles: routine?.weekly_miles || null,
+      commute_miles_roundtrip: routine?.commute_miles_roundtrip || null,
+    });
+
+    if (error) {
+      console.error("Supabase insert error:", error);
+      return NextResponse.json(
+        { error: "Failed to create report", details: error.message },
+        { status: 500 }
+      );
+    }
 
     console.log(`✅ Draft report created: ${reportId} (${vehicleYear} ${vehicleModel})`);
 
@@ -64,7 +72,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Report creation error:", error);
 
-    // Handle specific database errors
     if (error instanceof Error) {
       return NextResponse.json(
         {

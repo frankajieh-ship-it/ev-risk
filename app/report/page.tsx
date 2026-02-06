@@ -24,6 +24,7 @@ import DebugPanel from "@/components/DebugPanel";
 import WhyCheckpointCard from "@/components/WhyCheckpointCard";
 import DecisionResolution from "@/components/DecisionResolution";
 import { ResultPageLite } from "@/components/ResultPageLite";
+import { ResultPageV2 } from "@/components/ResultPageV2";
 import { generateConfidenceData, type ConfidenceInputs } from "@/lib/confidence-calculator";
 import { transformToPresentation } from "@/lib/presentation-transformer";
 import { generateDebugData } from "@/lib/debug-helpers";
@@ -32,6 +33,7 @@ import { calculateRoutineFitClient } from "@/lib/routine-fit-client";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import type { Region } from "@/lib/regionCopy";
 import type { KnownDataPoint, UnknownDataPoint, RiskFactor } from "@/types/report";
+import type { EvRiskReportV2 } from "@/types/v2";
 
 interface BatteryRisk {
   score: number;
@@ -151,6 +153,7 @@ function ReportContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [reportV2Data, setReportV2Data] = useState<EvRiskReportV2 | null>(null);
   const [isPaid, setIsPaid] = useState(false);
   const [reportId, setReportId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -196,6 +199,14 @@ function ReportContent() {
           const parsed = JSON.parse(dataParam);
           console.log("[Report Page] Successfully parsed data:", parsed);
 
+          // V2 dispatch: if schema_version is "v2", use ResultPageV2
+          if (parsed.schema_version === "v2") {
+            console.log("[Report Page] V2 report detected");
+            setReportV2Data(parsed as EvRiskReportV2);
+            trackButtonClick("report_view", "report-page-v2");
+            return;
+          }
+
           // Extract region from parsed data if available
           if (parsed.region) {
             setRegion(parsed.region as Region);
@@ -214,10 +225,10 @@ function ReportContent() {
                 model: parsed.model || "Unknown Vehicle",
                 year: parsed.year || new Date().getFullYear(),
                 currentMileage: parsed.currentMileage || 0,
-                zipCode: parsed.zipCode || "00000", // Use parsed zipCode if available
-                dailyMiles: parsed.dailyMiles || 40, // Average default
-                homeCharging: parsed.homeCharging ?? false, // Conservative default
-                riskTolerance: parsed.riskTolerance || "moderate", // Default
+                zipCode: parsed.zipCode || "00000",
+                dailyMiles: parsed.dailyMiles || 40,
+                homeCharging: parsed.homeCharging ?? false,
+                riskTolerance: parsed.riskTolerance || "moderate",
               }),
             });
 
@@ -286,6 +297,20 @@ function ReportContent() {
       });
     }
   }, [reportData, reportId, trackEvent]);
+
+  // V2 Rendering Path
+  if (reportV2Data) {
+    return (
+      <ResultPageV2
+        routineFit={reportV2Data.primary.routine_fit}
+        ownershipRisk={reportV2Data.secondary.ownership_risk}
+        vehicle={reportV2Data.vehicle}
+        mvr={reportV2Data.routine}
+        dealerQuestions={reportV2Data.dealer_questions}
+        onBack={() => router.push("/")}
+      />
+    );
+  }
 
   if (!reportData) {
     return (

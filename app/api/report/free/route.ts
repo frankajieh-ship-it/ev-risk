@@ -6,10 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
+import { supabase } from "@/lib/supabase";
 import { v4 as uuidv4 } from "uuid";
-
-const sql = neon(process.env.POSTGRES_URL!);
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,28 +26,37 @@ export async function POST(request: NextRequest) {
     const reportId = uuidv4();
 
     // Extract vehicle info
-    const vehicleYear = reportData.input.year || null;
-    const vehicleModel = reportData.input.model || "Unknown";
+    const vehicleYear = reportData.input?.year || reportData.vehicle?.year || null;
+    const vehicleModel = reportData.input?.model || reportData.vehicle?.model || "Unknown";
+
+    // V2: Extract routine and schema_version
+    const schemaVersion = reportData.schema_version || body.schema_version || "v1";
+    const routine = reportData.routine || body.routine || null;
 
     // Store as free report in database
-    await sql`
-      INSERT INTO reports (
-        id,
-        status,
-        payload_json,
-        vehicle_year,
-        vehicle_model,
-        is_free
-      )
-      VALUES (
-        ${reportId},
-        'free',
-        ${JSON.stringify(reportData)}::jsonb,
-        ${vehicleYear},
-        ${vehicleModel},
-        true
-      )
-    `;
+    const { error } = await supabase.from("reports").insert({
+      id: reportId,
+      status: "free",
+      payload_json: reportData,
+      vehicle_year: vehicleYear,
+      vehicle_model: vehicleModel,
+      is_free: true,
+      schema_version: schemaVersion,
+      routine: routine || null,
+      charging_access: routine?.charging_access || null,
+      climate: routine?.climate || null,
+      longest_day_pattern: routine?.longest_day_pattern || null,
+      weekly_miles: routine?.weekly_miles || null,
+      commute_miles_roundtrip: routine?.commute_miles_roundtrip || null,
+    });
+
+    if (error) {
+      console.error("Supabase insert error:", error);
+      return NextResponse.json(
+        { error: "Failed to create free report", details: error.message },
+        { status: 500 }
+      );
+    }
 
     // Track report creation event for analytics
     const userAgent = request.headers.get("user-agent") || "unknown";
@@ -58,28 +65,19 @@ export async function POST(request: NextRequest) {
       || "unknown";
 
     try {
-      await sql`
-        INSERT INTO user_events (
-          event_name,
-          event_data,
-          ip_address,
-          user_agent,
-          page_path,
-          timestamp
-        ) VALUES (
-          'report_created',
-          ${JSON.stringify({
-            report_id: reportId,
-            vehicle_year: vehicleYear,
-            vehicle_model: vehicleModel,
-            report_status: 'free',
-          })}::jsonb,
-          ${clientIP},
-          ${userAgent},
-          '/api/report/free',
-          NOW()
-        )
-      `;
+      await supabase.from("user_events").insert({
+        event_name: "report_created",
+        event_data: {
+          report_id: reportId,
+          vehicle_year: vehicleYear,
+          vehicle_model: vehicleModel,
+          report_status: "free",
+        },
+        ip_address: clientIP,
+        user_agent: userAgent,
+        page_path: "/api/report/free",
+        timestamp: new Date().toISOString(),
+      });
     } catch (trackingError) {
       console.error("Failed to track report creation:", trackingError);
     }

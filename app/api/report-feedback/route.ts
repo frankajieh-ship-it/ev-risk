@@ -7,9 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
-
-const sql = neon(process.env.POSTGRES_URL!);
+import { supabase } from "@/lib/supabase";
 
 // Rate limiting map (in-memory, per instance)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -109,42 +107,45 @@ export async function POST(request: NextRequest) {
     });
 
     // Insert into report_feedback table
-    const result = await sql`
-      INSERT INTO report_feedback (
-        report_id,
+    const { data, error } = await supabase
+      .from("report_feedback")
+      .insert({
+        report_id: validReportId,
         rating,
-        feedback_text,
-        would_recommend
-      ) VALUES (
-        ${validReportId},
-        ${rating},
-        ${sanitizedText},
-        ${wouldRecommend ?? null}
-      )
-      RETURNING id, created_at
-    `;
+        feedback_text: sanitizedText,
+        would_recommend: wouldRecommend ?? null,
+      })
+      .select("id, created_at")
+      .single();
 
-    console.log("[Report Feedback API] Feedback saved successfully:", result[0].id);
+    if (error) {
+      console.error("[Report Feedback API] Supabase error:", error);
+
+      if (error.message.includes("relation")) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Feedback system not initialized. Please contact support.",
+          },
+          { status: 503 }
+        );
+      }
+
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      );
+    }
+
+    console.log("[Report Feedback API] Feedback saved successfully:", data.id);
 
     return NextResponse.json({
       success: true,
       message: "Thank you for your feedback!",
-      feedbackId: result[0].id,
+      feedbackId: data.id,
     });
   } catch (error) {
     console.error("[Report Feedback API] Error:", error);
-
-    // Check if it's a database error (table doesn't exist)
-    if (error instanceof Error && error.message.includes("relation")) {
-      console.error("[Report Feedback API] Table does not exist - run migration");
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Feedback system not initialized. Please contact support.",
-        },
-        { status: 503 }
-      );
-    }
 
     return NextResponse.json(
       {

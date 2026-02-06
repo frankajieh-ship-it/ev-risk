@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { sql } from "@vercel/postgres";
+import { supabase } from "@/lib/supabase";
 
 // Helper to generate visitor fingerprint from browser data
 function generateVisitorId(req: NextRequest, clientData: any): string {
@@ -31,66 +31,46 @@ export async function POST(req: NextRequest) {
     const visitorId = generateVisitorId(req, { fingerprint });
 
     // Check if visitor exists
-    const existingVisitor = await sql`
-      SELECT * FROM visitors WHERE visitor_id = ${visitorId}
-    `;
+    const { data: existingVisitor } = await supabase
+      .from("visitors")
+      .select("visit_count, referrer")
+      .eq("visitor_id", visitorId)
+      .single();
 
-    if (existingVisitor.rows.length > 0) {
+    if (existingVisitor) {
       // Update existing visitor
-      await sql`
-        UPDATE visitors
-        SET
-          last_visit = NOW(),
-          visit_count = visit_count + 1,
-          referrer = COALESCE(${referrer}, referrer),
-          page_path = ${pagePath}
-        WHERE visitor_id = ${visitorId}
-      `;
+      await supabase
+        .from("visitors")
+        .update({
+          last_visit: new Date().toISOString(),
+          visit_count: (existingVisitor.visit_count || 0) + 1,
+          referrer: referrer || existingVisitor.referrer,
+          page_path: pagePath,
+        })
+        .eq("visitor_id", visitorId);
     } else {
       // Insert new visitor
-      await sql`
-        INSERT INTO visitors (
-          visitor_id,
-          ip_address,
-          user_agent,
-          referrer,
-          page_path,
-          first_visit,
-          last_visit,
-          visit_count,
-          session_count
-        )
-        VALUES (
-          ${visitorId},
-          ${ip},
-          ${userAgent},
-          ${referrer},
-          ${pagePath},
-          NOW(),
-          NOW(),
-          1,
-          1
-        )
-      `;
+      await supabase.from("visitors").insert({
+        visitor_id: visitorId,
+        ip_address: ip,
+        user_agent: userAgent,
+        referrer: referrer || null,
+        page_path: pagePath,
+        first_visit: new Date().toISOString(),
+        last_visit: new Date().toISOString(),
+        visit_count: 1,
+        session_count: 1,
+      });
     }
 
     // Log page view
-    await sql`
-      INSERT INTO page_views (
-        visitor_id,
-        page_path,
-        referrer,
-        timestamp,
-        session_duration
-      )
-      VALUES (
-        ${visitorId},
-        ${pagePath},
-        ${referrer},
-        NOW(),
-        ${sessionDuration}
-      )
-    `;
+    await supabase.from("page_views").insert({
+      visitor_id: visitorId,
+      page_path: pagePath,
+      referrer: referrer || null,
+      timestamp: new Date().toISOString(),
+      session_duration: sessionDuration || null,
+    });
 
     return NextResponse.json({
       success: true,
@@ -112,152 +92,119 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const timeframe = searchParams.get("timeframe") || "30d"; // 24h, 7d, 30d, all
 
-    // Build time filter queries based on timeframe
-    let uniqueVisitors, totalVisits, totalPageViews, topPages;
-
+    // Calculate cutoff date
+    const now = new Date();
+    let cutoff: string | null = null;
     if (timeframe === "24h") {
-      uniqueVisitors = await sql`
-        SELECT COUNT(DISTINCT visitor_id) as count
-        FROM visitors
-        WHERE first_visit > NOW() - INTERVAL '24 hours'
-      `;
-      totalVisits = await sql`
-        SELECT COALESCE(SUM(visit_count), 0) as count
-        FROM visitors
-        WHERE first_visit > NOW() - INTERVAL '24 hours'
-      `;
-      totalPageViews = await sql`
-        SELECT COUNT(*) as count
-        FROM page_views
-        WHERE timestamp > NOW() - INTERVAL '24 hours'
-      `;
-      topPages = await sql`
-        SELECT
-          page_path,
-          COUNT(*) as view_count,
-          COUNT(DISTINCT visitor_id) as unique_visitors
-        FROM page_views
-        WHERE timestamp > NOW() - INTERVAL '24 hours'
-        GROUP BY page_path
-        ORDER BY view_count DESC
-        LIMIT 10
-      `;
+      cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
     } else if (timeframe === "7d") {
-      uniqueVisitors = await sql`
-        SELECT COUNT(DISTINCT visitor_id) as count
-        FROM visitors
-        WHERE first_visit > NOW() - INTERVAL '7 days'
-      `;
-      totalVisits = await sql`
-        SELECT COALESCE(SUM(visit_count), 0) as count
-        FROM visitors
-        WHERE first_visit > NOW() - INTERVAL '7 days'
-      `;
-      totalPageViews = await sql`
-        SELECT COUNT(*) as count
-        FROM page_views
-        WHERE timestamp > NOW() - INTERVAL '7 days'
-      `;
-      topPages = await sql`
-        SELECT
-          page_path,
-          COUNT(*) as view_count,
-          COUNT(DISTINCT visitor_id) as unique_visitors
-        FROM page_views
-        WHERE timestamp > NOW() - INTERVAL '7 days'
-        GROUP BY page_path
-        ORDER BY view_count DESC
-        LIMIT 10
-      `;
+      cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     } else if (timeframe === "30d") {
-      uniqueVisitors = await sql`
-        SELECT COUNT(DISTINCT visitor_id) as count
-        FROM visitors
-        WHERE first_visit > NOW() - INTERVAL '30 days'
-      `;
-      totalVisits = await sql`
-        SELECT COALESCE(SUM(visit_count), 0) as count
-        FROM visitors
-        WHERE first_visit > NOW() - INTERVAL '30 days'
-      `;
-      totalPageViews = await sql`
-        SELECT COUNT(*) as count
-        FROM page_views
-        WHERE timestamp > NOW() - INTERVAL '30 days'
-      `;
-      topPages = await sql`
-        SELECT
-          page_path,
-          COUNT(*) as view_count,
-          COUNT(DISTINCT visitor_id) as unique_visitors
-        FROM page_views
-        WHERE timestamp > NOW() - INTERVAL '30 days'
-        GROUP BY page_path
-        ORDER BY view_count DESC
-        LIMIT 10
-      `;
-    } else {
-      // "all" - no time filter
-      uniqueVisitors = await sql`
-        SELECT COUNT(DISTINCT visitor_id) as count
-        FROM visitors
-      `;
-      totalVisits = await sql`
-        SELECT COALESCE(SUM(visit_count), 0) as count
-        FROM visitors
-      `;
-      totalPageViews = await sql`
-        SELECT COUNT(*) as count
-        FROM page_views
-      `;
-      topPages = await sql`
-        SELECT
-          page_path,
-          COUNT(*) as view_count,
-          COUNT(DISTINCT visitor_id) as unique_visitors
-        FROM page_views
-        GROUP BY page_path
-        ORDER BY view_count DESC
-        LIMIT 10
-      `;
+      cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
     }
 
-    const recentVisitors = await sql`
-      SELECT
-        v.visitor_id,
-        v.referrer,
-        v.first_visit,
-        v.last_visit,
-        v.visit_count,
-        v.country,
-        v.city,
-        (SELECT page_path FROM page_views WHERE visitor_id = v.visitor_id ORDER BY timestamp DESC LIMIT 1) as page_path
-      FROM visitors v
-      ORDER BY v.last_visit DESC
-      LIMIT 50
-    `;
+    // Fetch visitors
+    let visitorsQuery = supabase.from("visitors").select("*");
+    if (cutoff) {
+      visitorsQuery = visitorsQuery.gte("first_visit", cutoff);
+    }
+    const { data: visitors } = await visitorsQuery;
+    const allVisitors = visitors || [];
 
-    const visitorsByDay = await sql`
-      SELECT
-        DATE(first_visit) as date,
-        COUNT(DISTINCT visitor_id) as unique_visitors,
-        COUNT(*) as total_visits
-      FROM visitors
-      WHERE first_visit > NOW() - INTERVAL '30 days'
-      GROUP BY DATE(first_visit)
-      ORDER BY date DESC
-    `;
+    // Fetch page views
+    let pageViewsQuery = supabase.from("page_views").select("*");
+    if (cutoff) {
+      pageViewsQuery = pageViewsQuery.gte("timestamp", cutoff);
+    }
+    const { data: pageViews } = await pageViewsQuery;
+    const allPageViews = pageViews || [];
+
+    // Aggregate: unique visitors
+    const uniqueVisitorIds = new Set(allVisitors.map(v => v.visitor_id));
+    const uniqueVisitorsCount = uniqueVisitorIds.size;
+
+    // Aggregate: total visits
+    const totalVisits = allVisitors.reduce((sum, v) => sum + (v.visit_count || 0), 0);
+
+    // Aggregate: total page views
+    const totalPageViewsCount = allPageViews.length;
+
+    // Aggregate: top pages
+    const pageCountMap = new Map<string, { views: number; visitors: Set<string> }>();
+    for (const pv of allPageViews) {
+      const path = pv.page_path || "unknown";
+      if (!pageCountMap.has(path)) {
+        pageCountMap.set(path, { views: 0, visitors: new Set() });
+      }
+      const entry = pageCountMap.get(path)!;
+      entry.views++;
+      if (pv.visitor_id) entry.visitors.add(pv.visitor_id);
+    }
+    const topPages = Array.from(pageCountMap.entries())
+      .map(([page_path, { views, visitors: vis }]) => ({
+        page_path,
+        view_count: views,
+        unique_visitors: vis.size,
+      }))
+      .sort((a, b) => b.view_count - a.view_count)
+      .slice(0, 10);
+
+    // Recent visitors (last 50, sorted by last_visit desc)
+    const { data: recentVisitorsRaw } = await supabase
+      .from("visitors")
+      .select("visitor_id, referrer, first_visit, last_visit, visit_count, country, city")
+      .order("last_visit", { ascending: false })
+      .limit(50);
+
+    // For each recent visitor, get their latest page path
+    const recentVisitors = await Promise.all(
+      (recentVisitorsRaw || []).map(async (v) => {
+        const { data: latestPage } = await supabase
+          .from("page_views")
+          .select("page_path")
+          .eq("visitor_id", v.visitor_id)
+          .order("timestamp", { ascending: false })
+          .limit(1)
+          .single();
+        return { ...v, page_path: latestPage?.page_path || null };
+      })
+    );
+
+    // Visitors by day (last 30 days)
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: last30Visitors } = await supabase
+      .from("visitors")
+      .select("visitor_id, first_visit")
+      .gte("first_visit", thirtyDaysAgo);
+
+    const dayMap = new Map<string, { visitors: Set<string>; total: number }>();
+    for (const v of last30Visitors || []) {
+      const date = v.first_visit?.split("T")[0] || "unknown";
+      if (!dayMap.has(date)) {
+        dayMap.set(date, { visitors: new Set(), total: 0 });
+      }
+      const entry = dayMap.get(date)!;
+      entry.visitors.add(v.visitor_id);
+      entry.total++;
+    }
+    const visitorsByDay = Array.from(dayMap.entries())
+      .map(([date, { visitors: vis, total }]) => ({
+        date,
+        unique_visitors: vis.size,
+        total_visits: total,
+      }))
+      .sort((a, b) => b.date.localeCompare(a.date));
 
     return NextResponse.json({
       success: true,
       timeframe,
       stats: {
-        uniqueVisitors: uniqueVisitors.rows[0]?.count || 0,
-        totalVisits: parseInt(totalVisits.rows[0]?.count || '0'),
-        totalPageViews: totalPageViews.rows[0]?.count || 0,
-        topPages: topPages.rows,
-        recentVisitors: recentVisitors.rows,
-        visitorsByDay: visitorsByDay.rows,
+        uniqueVisitors: uniqueVisitorsCount,
+        totalVisits,
+        totalPageViews: totalPageViewsCount,
+        topPages,
+        recentVisitors,
+        visitorsByDay,
       },
     });
   } catch (error: any) {

@@ -6,15 +6,16 @@ import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-import { Shield, TrendingUp } from "lucide-react";
-import FitQuizModal from "@/components/FitQuizModal";
-import ListingUrlForm from "@/components/ListingUrlForm";
 import TrustMicrocopy from "@/components/TrustMicrocopy";
 import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
 import VehicleInputTabs from "@/components/VehicleInputTabs";
 import SavedScenariosList from "@/components/SavedScenariosList";
 import LoginModal from "@/components/LoginModal";
+import RoutineStep from "@/components/RoutineStep";
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
+import type { MinimumViableRoutine } from "@/types/v2";
+
+type WizardStep = "routine" | "vehicle" | "generating";
 
 export default function Home() {
   const router = useRouter();
@@ -32,17 +33,13 @@ export default function Home() {
 
   const { trackButtonClick, trackUrlAutofillAttempt, trackEvent } = useEventTracking();
 
-  const [stats, setStats] = useState({
-    vehiclesAnalyzed: 12547,
-  });
+  // V2 Wizard state
+  const [currentStep, setCurrentStep] = useState<WizardStep>("routine");
+  const [routineData, setRoutineData] = useState<MinimumViableRoutine | null>(null);
 
-  // Fit Quiz Modal
-  const [quizOpen, setQuizOpen] = useState(false);
-
-  // Manual Entry Modal
+  // Manual Entry Modal (for URL parse failures)
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
   const [manualEntryMissingFields, setManualEntryMissingFields] = useState<string[]>([]);
-  const [originalUrl, setOriginalUrl] = useState<string>("");
 
   // URL Extraction
   const [extracting, setExtracting] = useState(false);
@@ -51,12 +48,73 @@ export default function Home() {
   const [extractedVehicleData, setExtractedVehicleData] = useState<any>(null);
   const [showExtractedData, setShowExtractedData] = useState(false);
 
+  // Generating state
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
+  // Call /api/score with v2 schema and navigate to report
+  const generateV2Report = async (
+    routine: MinimumViableRoutine,
+    vehicleData?: { model: string; year: number; currentMileage?: number }
+  ) => {
+    setCurrentStep("generating");
+    setGenerateError(null);
+
+    trackEvent("v2_score_submit", {
+      has_vehicle: !!vehicleData,
+      charging_access: routine.charging_access,
+      climate: routine.climate,
+    });
+
+    try {
+      const response = await fetch("/api/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schema_version: "v2",
+          routine,
+          ...(vehicleData ? {
+            model: vehicleData.model,
+            year: vehicleData.year,
+            currentMileage: vehicleData.currentMileage ?? 0,
+          } : {}),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || result.details?.join(", ") || "Scoring failed");
+      }
+
+      // Navigate to report page with v2 data
+      const params = new URLSearchParams({
+        data: JSON.stringify(result),
+      });
+      router.push(`/report?${params.toString()}`);
+    } catch (err) {
+      console.error("[Frontend] V2 score error:", err);
+      setGenerateError(err instanceof Error ? err.message : "An error occurred");
+      // Go back to vehicle step so user can retry
+      setCurrentStep("vehicle");
+    }
+  };
+
+  // Routine step handlers
+  const handleRoutineComplete = (routine: MinimumViableRoutine) => {
+    setRoutineData(routine);
+    setCurrentStep("vehicle");
+    trackButtonClick("routine_step_complete", "homepage");
+  };
+
+  const handleRoutineSkipVehicle = (routine: MinimumViableRoutine) => {
+    setRoutineData(routine);
+    trackButtonClick("routine_skip_vehicle", "homepage");
+    generateV2Report(routine);
+  };
+
+  // Vehicle step: URL extraction
   const handleExtractListing = async (url: string) => {
-    console.log('[Frontend] Starting extraction for URL:', url);
-
-    // Track home_scan_submit event
     trackButtonClick("home_scan_submit", "homepage");
-
     setExtracting(true);
     setExtractError(null);
     setExtractWarnings([]);
@@ -69,18 +127,13 @@ export default function Home() {
       });
 
       const result = await response.json();
-      console.log('[Frontend] Extraction result:', result);
 
       if (!result.success) {
-        // Check if this is a parse failure that needs manual entry
         if (result.needsMoreInfo && result.missing) {
-          // Open manual entry modal
-          setOriginalUrl(url);
           setManualEntryMissingFields(result.missing);
           setManualEntryOpen(true);
           trackUrlAutofillAttempt(url, false, null, "Parse failure - manual entry required");
         } else {
-          // Show error message
           setExtractError(result.error || "Failed to extract listing data");
           setExtractWarnings(result.warnings || []);
           trackUrlAutofillAttempt(url, false, null, result.error);
@@ -88,33 +141,19 @@ export default function Home() {
         return;
       }
 
-      // Track successful extraction
       trackUrlAutofillAttempt(url, true, result.data);
 
-      // Map mileage to quiz range
       const mileage = result.data.mileage || 0;
-      let mileageRange: number;
-      if (mileage < 10000) mileageRange = 5000;
-      else if (mileage < 30000) mileageRange = 20000;
-      else if (mileage < 60000) mileageRange = 45000;
-      else if (mileage < 90000) mileageRange = 75000;
-      else mileageRange = 100000;
-
-      // Store extracted vehicle data and show confirmation
       setExtractedVehicleData({
         model: result.data.model || "",
         year: result.data.year || new Date().getFullYear(),
-        currentMileage: mileageRange, // Use mapped range for quiz
-        actualMileage: mileage, // Store actual mileage for display
+        currentMileage: mileage,
         price: result.data.price || 0,
         vin: result.data.vin || "",
       });
-
       setShowExtractedData(true);
       trackButtonClick("url_scan_success", "homepage");
-
     } catch (err) {
-      console.error('[Frontend] Extraction error:', err);
       const errorMsg = err instanceof Error ? err.message : "An error occurred";
       setExtractError(errorMsg);
       trackUrlAutofillAttempt(url, false, null, errorMsg);
@@ -123,25 +162,20 @@ export default function Home() {
     }
   };
 
+  // Vehicle step: manual entry from modal (URL parse failure fallback)
   const handleManualEntry = async (manualData: ManualVehicleData) => {
-    console.log('[Frontend] Manual entry submitted:', manualData);
-
-    // Store manually entered vehicle data and open quiz modal
-    setExtractedVehicleData({
+    const vehicleData = {
       model: `${manualData.make} ${manualData.model}`,
       year: manualData.year,
       currentMileage: manualData.mileage || 0,
-    });
-
+    };
     setManualEntryOpen(false);
-    setQuizOpen(true);
     trackButtonClick("manual_entry_success", "homepage");
+    generateV2Report(routineData!, vehicleData);
   };
 
+  // Vehicle step: inline manual entry
   const handleManualEntryInline = async (manualData: ManualEntryData) => {
-    console.log('[Frontend] Manual entry inline submitted:', manualData);
-
-    // Track manual entry submit event
     trackEvent("manual_entry_submit", {
       context: "homepage",
       has_mileage: !!manualData.mileage,
@@ -149,18 +183,22 @@ export default function Home() {
       missing_fields_count: manualData.missingFields.length,
     });
 
-    // Build extracted vehicle data structure
-    setExtractedVehicleData({
+    const vehicleData = {
       model: `${manualData.make} ${manualData.model}`,
       year: manualData.year,
       currentMileage: manualData.mileage || 0,
-      batteryInfoAvailable: manualData.batteryInfoAvailable,
-      dataSource: 'manual-entry',
-      missingFields: manualData.missingFields,
-    });
+    };
+    generateV2Report(routineData!, vehicleData);
+  };
 
-    // Open quiz with pre-filled data
-    setQuizOpen(true);
+  // Vehicle step: confirm extracted data → generate report
+  const handleConfirmExtracted = () => {
+    setShowExtractedData(false);
+    generateV2Report(routineData!, {
+      model: extractedVehicleData.model,
+      year: extractedVehicleData.year,
+      currentMileage: extractedVehicleData.currentMileage,
+    });
   };
 
   return (
@@ -209,7 +247,6 @@ export default function Home() {
       <section className="relative overflow-hidden">
         <div className="relative max-w-7xl mx-auto px-4 pt-6 pb-4 md:pt-12 md:pb-8">
           <div className="text-center max-w-4xl mx-auto">
-            {/* Main headline - Compact on mobile */}
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -223,17 +260,15 @@ export default function Home() {
               ?
             </motion.h1>
 
-            {/* Sub-headline */}
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
               className="text-base md:text-lg text-gray-600 mb-4 md:mb-6 max-w-2xl mx-auto"
             >
-              The real match is between your routine and the vehicle's real-world behavior.
+              The real match is between your routine and the vehicle&apos;s real-world behavior.
             </motion.p>
 
-            {/* Trust Microcopy - Compact on mobile */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -246,68 +281,132 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Vehicle Input Section - Above the Fold */}
+      {/* Step Indicator */}
+      {currentStep !== "generating" && (
+        <div className="max-w-3xl mx-auto px-4 mb-6">
+          <div className="flex items-center justify-center gap-3">
+            <div className={`flex items-center gap-2 ${currentStep === "routine" ? "text-blue-600" : "text-gray-400"}`}>
+              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
+                currentStep === "routine" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
+              }`}>1</span>
+              <span className="text-sm font-medium hidden sm:inline">Your Routine</span>
+            </div>
+            <div className="w-8 h-px bg-gray-300" />
+            <div className={`flex items-center gap-2 ${currentStep === "vehicle" ? "text-blue-600" : "text-gray-400"}`}>
+              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
+                currentStep === "vehicle" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
+              }`}>2</span>
+              <span className="text-sm font-medium hidden sm:inline">Vehicle</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wizard Content */}
       <section className="max-w-3xl mx-auto px-4 pb-6 md:pb-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-        >
-          <VehicleInputTabs
-            onExtract={handleExtractListing}
-            extracting={extracting}
-            error={extractError}
-            warnings={extractWarnings}
-            extractedData={showExtractedData ? extractedVehicleData : null}
-            onConfirm={() => {
-              setShowExtractedData(false);
-              setQuizOpen(true);
-            }}
-            onReset={() => {
-              setExtractedVehicleData(null);
-              setShowExtractedData(false);
-              setExtractError(null);
-            }}
-            onManualSubmit={handleManualEntryInline}
+        {/* Step 1: Routine */}
+        {currentStep === "routine" && (
+          <RoutineStep
+            onComplete={handleRoutineComplete}
+            onSkipVehicle={handleRoutineSkipVehicle}
           />
-        </motion.div>
+        )}
+
+        {/* Step 2: Vehicle */}
+        {currentStep === "vehicle" && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            {/* Back to routine */}
+            <div className="mb-4">
+              <button
+                onClick={() => setCurrentStep("routine")}
+                className="flex items-center text-gray-500 hover:text-gray-700 transition-colors text-sm"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to routine
+              </button>
+            </div>
+
+            {generateError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                {generateError}
+              </div>
+            )}
+
+            <VehicleInputTabs
+              onExtract={handleExtractListing}
+              extracting={extracting}
+              error={extractError}
+              warnings={extractWarnings}
+              extractedData={showExtractedData ? extractedVehicleData : null}
+              onConfirm={handleConfirmExtracted}
+              onReset={() => {
+                setExtractedVehicleData(null);
+                setShowExtractedData(false);
+                setExtractError(null);
+              }}
+              onManualSubmit={handleManualEntryInline}
+            />
+
+            {/* Skip vehicle option */}
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => generateV2Report(routineData!)}
+                className="text-sm text-gray-500 hover:text-blue-600 underline transition-colors"
+              >
+                Skip vehicle — see routine fit only
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Generating state */}
+        {currentStep === "generating" && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-16"
+          >
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-6">
+              <svg className="w-8 h-8 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Analyzing your routine fit...</h3>
+            <p className="text-gray-500">Building your personalized report</p>
+          </motion.div>
+        )}
       </section>
 
-      {/* Key Insight Section */}
-      <section className="max-w-4xl mx-auto px-4 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-          className="bg-gradient-to-br from-blue-50 to-green-50 border border-blue-100 rounded-2xl p-8 text-center"
-        >
-          <p className="text-xl font-semibold text-gray-900 mb-3">
-            Most EV regret isn't about range.
-          </p>
-          <p className="text-lg text-gray-700 mb-2">
-            It's about charging predictability and routine fit.
-          </p>
-          <p className="text-sm text-gray-600">
-            (Based on real owner experiences)
-          </p>
-        </motion.div>
-      </section>
+      {/* Key Insight Section - Only show on routine step */}
+      {currentStep === "routine" && (
+        <section className="max-w-4xl mx-auto px-4 py-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="bg-gradient-to-br from-blue-50 to-green-50 border border-blue-100 rounded-2xl p-8 text-center"
+          >
+            <p className="text-xl font-semibold text-gray-900 mb-3">
+              Most EV regret isn&apos;t about range.
+            </p>
+            <p className="text-lg text-gray-700 mb-2">
+              It&apos;s about charging predictability and routine fit.
+            </p>
+            <p className="text-sm text-gray-600">
+              (Based on real owner experiences)
+            </p>
+          </motion.div>
+        </section>
+      )}
 
-      {/* Fit Quiz Modal */}
-      <FitQuizModal
-        isOpen={quizOpen}
-        onClose={() => {
-          setQuizOpen(false);
-          setExtractedVehicleData(null);
-        }}
-        initialData={extractedVehicleData ? {
-          model: extractedVehicleData.model,
-          year: extractedVehicleData.year,
-          currentMileage: extractedVehicleData.currentMileage,
-        } : undefined}
-      />
-
-      {/* Manual Entry Modal */}
+      {/* Manual Entry Modal (URL parse failure fallback) */}
       <ManualEntryModal
         isOpen={manualEntryOpen}
         onClose={() => setManualEntryOpen(false)}
@@ -322,12 +421,11 @@ export default function Home() {
       />
 
       {/* Saved Scenarios List - Only shown to authenticated users */}
-      {isAuthenticated && (
+      {isAuthenticated && currentStep === "routine" && (
         <section className="max-w-3xl mx-auto px-4 pb-12">
           <SavedScenariosList
             maxItems={3}
             onSelectScenario={(scenario) => {
-              // Reopen saved scenario by navigating to report with saved inputs
               const params = new URLSearchParams({
                 data: JSON.stringify({
                   model: scenario.vehicle_model,

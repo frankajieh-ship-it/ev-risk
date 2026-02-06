@@ -14,9 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { neon } from "@neondatabase/serverless";
-
-const sql = neon(process.env.POSTGRES_URL!);
+import { supabase } from "@/lib/supabase";
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -118,19 +116,20 @@ async function fulfillOrder(session: Stripe.Checkout.Session) {
 
   try {
     // Mark report as paid in database
-    const result = await sql`
-      UPDATE reports
-      SET
-        status = 'paid',
-        paid_at = NOW(),
-        stripe_session_id = ${session.id},
-        customer_email = ${customerEmail || null}
-      WHERE id = ${reportId}
-      AND status = 'draft'
-      RETURNING id
-    `;
+    const { data, error } = await supabase
+      .from("reports")
+      .update({
+        status: "paid",
+        paid_at: new Date().toISOString(),
+        stripe_session_id: session.id,
+        customer_email: customerEmail || null,
+      })
+      .eq("id", reportId)
+      .eq("status", "draft")
+      .select("id")
+      .single();
 
-    if (result.length === 0) {
+    if (error || !data) {
       console.error(`❌ Report ${reportId} not found or already paid`);
       return false;
     }

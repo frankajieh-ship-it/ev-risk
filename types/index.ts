@@ -1,5 +1,8 @@
 // types/index.ts
 
+// V2 Schema Types
+export * from "./v2";
+
 /**
  * Vehicle Data Types
  */

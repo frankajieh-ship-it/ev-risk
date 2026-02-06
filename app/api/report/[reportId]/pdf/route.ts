@@ -3,19 +3,56 @@
  *
  * GET /api/report/[reportId]/pdf
  * Generates and downloads PDF report for paid reports only
+ *
+ * PDF rendering is delegated to a standalone Netlify Function
+ * (netlify/functions/render-pdf.mts) to keep @react-pdf/renderer
+ * out of the main server handler and under Netlify's 250 MB limit.
  */
 
 import { NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
-import { renderToBuffer } from "@react-pdf/renderer";
-import React from "react";
-import { ReportPdf, type ReportPayload } from "@/lib/pdf/ReportPdf";
+import { supabase } from "@/lib/supabase";
 import { securityLogger } from "@/lib/security-logger";
 import { calculateRoutineFitClient } from "@/lib/routine-fit-client";
+import type { RenderPdfRequest, ReportPayload, ReportPdfV2Data } from "@/lib/pdf/shared-types";
 
-export const runtime = "nodejs"; // Required for @react-pdf/renderer
+/**
+ * Call the isolated render-pdf Netlify Function via HTTP.
+ * In local dev, use `netlify dev` to run both Next.js and the function.
+ */
+async function renderPdf(payload: RenderPdfRequest): Promise<Buffer> {
+  const baseUrl = process.env.URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8888";
+  const functionUrl = `${baseUrl}/.netlify/functions/render-pdf`;
 
-const sql = neon(process.env.POSTGRES_URL!);
+  const secret = process.env.PDF_RENDER_SECRET;
+  if (!secret) {
+    throw new Error("PDF_RENDER_SECRET not configured");
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const response = await fetch(functionUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-pdf-render-secret": secret,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`PDF render function failed (${response.status}): ${errorBody}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 export async function GET(
   req: Request,
@@ -30,21 +67,19 @@ export async function GET(
 
   try {
     // Load report from database
-    const result = await sql`
-      SELECT status, payload_json, vehicle_year, vehicle_model
-      FROM reports
-      WHERE id = ${reportId}
-    `;
+    const { data: report, error } = await supabase
+      .from("reports")
+      .select("status, payload_json, vehicle_year, vehicle_model, schema_version")
+      .eq("id", reportId)
+      .single();
 
-    if (result.length === 0) {
+    if (error || !report) {
       securityLogger.logReportAccessDenied(reportId, clientIP, "Report not found");
       return NextResponse.json(
         { error: "Report not found" },
         { status: 404 }
       );
     }
-
-    const report = result[0];
 
     // Verify payment or free status
     if (report.status !== "paid" && report.status !== "free") {
@@ -59,17 +94,40 @@ export async function GET(
       );
     }
 
-    // Transform data for PDF
-    const pdfData = transformReportForPDF(
-      report.payload_json,
-      reportId,
-      report.vehicle_year,
-      report.vehicle_model
-    );
+    // Detect schema version
+    const schemaVersion = report.schema_version || report.payload_json?.schema_version || "v1";
 
-    // Generate PDF
-    const pdfDoc = React.createElement(ReportPdf, { data: pdfData }) as any;
-    const pdfBuffer = await renderToBuffer(pdfDoc);
+    // Build the render request
+    let renderRequest: RenderPdfRequest;
+
+    if (schemaVersion === "v2") {
+      const payload = report.payload_json;
+      const v2Data: ReportPdfV2Data = {
+        reportId,
+        routineFit: payload.primary?.routine_fit,
+        ownershipRisk: payload.secondary?.ownership_risk,
+        vehicle: payload.vehicle,
+        routine: payload.routine,
+        dealerQuestions: payload.dealer_questions || {
+          top_3: [],
+          full_list: [],
+          walk_away_triggers: [],
+        },
+        generatedAt: payload.generated_at_iso,
+      };
+      renderRequest = { version: "v2", v2Data };
+    } else {
+      const v1Data = transformReportForPDF(
+        report.payload_json,
+        reportId,
+        report.vehicle_year,
+        report.vehicle_model
+      );
+      renderRequest = { version: "v1", v1Data };
+    }
+
+    // Render PDF via isolated function
+    const pdfBuffer = await renderPdf(renderRequest);
 
     // Create filename
     const year = report.vehicle_year || "Unknown";
@@ -80,28 +138,19 @@ export async function GET(
     // Track report download event
     const userAgent = req.headers.get("user-agent") || "unknown";
     try {
-      await sql`
-        INSERT INTO user_events (
-          event_name,
-          event_data,
-          ip_address,
-          user_agent,
-          page_path,
-          timestamp
-        ) VALUES (
-          'report_downloaded',
-          ${JSON.stringify({
-            report_id: reportId,
-            vehicle_year: report.vehicle_year,
-            vehicle_model: report.vehicle_model,
-            report_status: report.status,
-          })}::jsonb,
-          ${clientIP},
-          ${userAgent},
-          ${`/api/report/${reportId}/pdf`},
-          NOW()
-        )
-      `;
+      await supabase.from("user_events").insert({
+        event_name: "report_downloaded",
+        event_data: {
+          report_id: reportId,
+          vehicle_year: report.vehicle_year,
+          vehicle_model: report.vehicle_model,
+          report_status: report.status,
+        },
+        ip_address: clientIP,
+        user_agent: userAgent,
+        page_path: `/api/report/${reportId}/pdf`,
+        timestamp: new Date().toISOString(),
+      });
     } catch (trackingError) {
       // Don't fail the download if tracking fails
       console.error("Failed to track report download:", trackingError);
@@ -151,7 +200,7 @@ function transformReportForPDF(
         dailyMiles: reportData.input.dailyMiles || 30,
         homeCharging: reportData.input.homeCharging || false,
         chargerDensity: reportData.confidence?.ownership_fit?.charger_density || "unknown",
-        realWorldRange: 250, // TODO: Get from range data
+        realWorldRange: 250,
         overall_score: score
       });
     } catch (error) {

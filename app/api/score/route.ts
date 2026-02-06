@@ -9,10 +9,78 @@
 import { NextRequest, NextResponse } from "next/server";
 import { calculateBuyConfidence, generateRiskBreakdown, type ScoringInput } from "@/lib/scoring";
 import { RiskAssessor } from "@/lib/risk-assessor";
+import { validateMVR, type MinimumViableRoutine } from "@/types/v2";
+import { computeRoutineFit } from "@/lib/compute-routine-fit";
+import { computeOwnershipRisk } from "@/lib/compute-ownership-risk";
+import { findRangeDataByModel } from "@/lib/data";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
+    // ============================================
+    // V2 BRANCH: Separate Routine Fit + Ownership Risk
+    // ============================================
+    if (body.schema_version === "v2" && body.routine) {
+      const routine = body.routine as MinimumViableRoutine;
+      const validation = validateMVR(routine);
+      if (!validation.ok) {
+        return NextResponse.json(
+          { error: "invalid_routine", details: validation.errors },
+          { status: 422 }
+        );
+      }
+
+      // Build vehicle basics if vehicle data provided
+      let vehicleBasics: { model?: string; year?: number; real_world_range_mi?: number } | undefined;
+      if (body.model && body.year) {
+        const rangeData = findRangeDataByModel(body.model, body.year);
+        vehicleBasics = {
+          model: body.model,
+          year: body.year,
+          real_world_range_mi: rangeData?.real_world_range_mi,
+        };
+      }
+
+      // Compute routine fit (works without vehicle data)
+      const routineFit = computeRoutineFit(routine, vehicleBasics);
+
+      // Compute ownership risk (returns "unknown" modules if no vehicle)
+      const ownershipRisk = body.model && body.year
+        ? computeOwnershipRisk({
+            model: body.model,
+            year: body.year,
+            currentMileage: body.currentMileage ?? 0,
+            zipCode: body.zipCode ?? "00000",
+            dailyMiles: body.dailyMiles ?? 40,
+            homeCharging: body.homeCharging ?? false,
+            riskTolerance: body.riskTolerance ?? "moderate",
+          })
+        : computeOwnershipRisk();
+
+      // Build dealer questions based on context
+      const dealerQuestions = buildDealerQuestionsV2(routine, ownershipRisk);
+
+      return NextResponse.json({
+        success: true,
+        schema_version: "v2",
+        routine,
+        vehicle: vehicleBasics ? {
+          make: body.model.split(" ")[0],
+          model: body.model,
+          year: body.year,
+          mileage: body.currentMileage,
+        } : undefined,
+        primary: { routine_fit: routineFit },
+        secondary: { ownership_risk: ownershipRisk },
+        dealer_questions: dealerQuestions,
+        generated_at_iso: new Date().toISOString(),
+      });
+    }
+
+    // ============================================
+    // V1 BRANCH: Existing behavior (unchanged)
+    // ============================================
 
     // Validate input
     const {
@@ -152,7 +220,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Handle OPTIONS for CORS preflight (if needed later)
-export async function OPTIONS(request: NextRequest) {
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 204,
     headers: {
@@ -161,4 +229,63 @@ export async function OPTIONS(request: NextRequest) {
       "Access-Control-Allow-Headers": "Content-Type",
     },
   });
+}
+
+// ============================================
+// V2 Helpers
+// ============================================
+
+function buildDealerQuestionsV2(
+  routine: MinimumViableRoutine,
+  ownershipRisk: ReturnType<typeof computeOwnershipRisk>
+): { top_3: string[]; full_list: string[]; walk_away_triggers: string[] } {
+  const top_3: string[] = [];
+
+  // Dynamic top 3 based on what's unknown or risky
+  const unknownModules = ownershipRisk.modules.filter(m => m.status === "unknown");
+  const redModules = ownershipRisk.modules.filter(m => m.status === "red");
+
+  if (redModules.some(m => m.module_id === "battery") || unknownModules.some(m => m.module_id === "battery")) {
+    top_3.push("Can you provide the current battery State of Health (SoH) percentage?");
+  }
+  if (redModules.some(m => m.module_id === "recall") || unknownModules.some(m => m.module_id === "recall")) {
+    top_3.push("Are all manufacturer recalls completed?");
+  }
+  if (routine.charging_access !== "home") {
+    top_3.push("What charging options are available at or near this location?");
+  }
+
+  // Fill to 3 if needed
+  const defaults = [
+    "Has the battery been replaced or serviced under warranty?",
+    "What is the remaining manufacturer warranty coverage?",
+    "Can I get a pre-purchase inspection by a certified EV technician?",
+  ];
+  while (top_3.length < 3) {
+    const next = defaults.find(d => !top_3.includes(d));
+    if (next) top_3.push(next);
+    else break;
+  }
+
+  const full_list = [
+    "Has the battery been replaced or serviced under warranty?",
+    "Can you provide the current State of Health (SoH) percentage?",
+    "Are all manufacturer recalls completed? Which ones remain?",
+    "What is the remaining manufacturer warranty coverage?",
+    "Has this vehicle been in any accidents or had flood damage?",
+    "Can I get a pre-purchase inspection by a certified EV technician?",
+    "What is the complete service history for this vehicle?",
+  ];
+
+  const walk_away_triggers = [
+    "Battery State of Health (SoH) below 80%",
+    "Any uncompleted safety recalls",
+    "No documented service history available",
+    "Seller refuses independent pre-purchase inspection",
+    "Price significantly above market value",
+    "Evidence of previous accident or flood damage",
+    "Unusual battery degradation for vehicle age/mileage",
+  ];
+
+  return { top_3, full_list, walk_away_triggers };
 }
