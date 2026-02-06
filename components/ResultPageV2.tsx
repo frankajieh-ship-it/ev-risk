@@ -13,6 +13,7 @@ interface ResultPageV2Props {
   vehicle?: { make: string; model: string; year: number; mileage?: number };
   mvr: MinimumViableRoutine;
   dealerQuestions?: { top_3: string[]; full_list: string[]; walk_away_triggers: string[] };
+  reportData?: Record<string, unknown>;
   onBack?: () => void;
 }
 
@@ -58,9 +59,36 @@ export function ResultPageV2({
   vehicle,
   mvr,
   dealerQuestions,
+  reportData,
   onBack,
 }: ResultPageV2Props) {
   const [showDealerQuestions, setShowDealerQuestions] = useState(false);
+  const [pdfState, setPdfState] = useState<"idle" | "loading" | "done" | "error">("idle");
+
+  const handleDownloadPdf = async () => {
+    if (!reportData) return;
+    setPdfState("loading");
+    try {
+      const res = await fetch("/api/report/free", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportData }),
+      });
+      if (!res.ok) throw new Error("Failed to create report");
+      const { reportId } = await res.json();
+
+      const link = document.createElement("a");
+      link.href = `/api/report/${reportId}/pdf`;
+      const model = vehicle?.model?.replace(/\s+/g, "-") || "EV";
+      link.download = `EV-Risk-${vehicle?.year || ""}-${model}-Report.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setPdfState("done");
+    } catch {
+      setPdfState("error");
+    }
+  };
 
   const confConfig = CONFIDENCE_CONFIG[routineFit.confidence.level];
 
@@ -186,6 +214,25 @@ export function ResultPageV2({
             </div>
           )}
         </motion.div>
+
+        {/* Download PDF */}
+        {reportData && (
+          <div className="mt-8 text-center">
+            <button
+              onClick={handleDownloadPdf}
+              disabled={pdfState === "loading"}
+              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              {pdfState === "loading" ? "Generating PDF..." : pdfState === "done" ? "Downloaded!" : "Download PDF Report"}
+            </button>
+            {pdfState === "error" && (
+              <p className="text-sm text-red-600 mt-2">Failed to generate PDF. Please try again.</p>
+            )}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-12 pt-6 border-t border-gray-200 text-center">

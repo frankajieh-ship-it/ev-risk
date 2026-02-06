@@ -307,6 +307,7 @@ function ReportContent() {
         vehicle={reportV2Data.vehicle}
         mvr={reportV2Data.routine}
         dealerQuestions={reportV2Data.dealer_questions}
+        reportData={reportV2Data as unknown as Record<string, unknown>}
         onBack={() => router.push("/")}
       />
     );
