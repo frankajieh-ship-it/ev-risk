@@ -300,13 +300,49 @@ function ReportContent() {
 
   // V2 Rendering Path
   if (reportV2Data) {
+    let routineFit = reportV2Data.primary.routine_fit;
+
+    // Backwards compat: convert old WhatBreaksFirst to breakpoints_ranked
+    if ((routineFit as any).what_breaks_first && !routineFit.breakpoints_ranked) {
+      const old = (routineFit as any).what_breaks_first;
+      routineFit = {
+        ...routineFit,
+        breakpoints_ranked: [
+          {
+            id: "legacy_primary",
+            title: old.primary,
+            break_point: old.primary,
+            trigger: old.primary_citation,
+            evidence: [{ label: "Source", value: "Legacy report" }],
+            impact: "High" as const,
+            fallback_plan_b: { anchor: "Review your charging routine", backup: "Identify backup charging options", buffer_rule: "Maintain buffer above 30%" },
+          },
+          {
+            id: "legacy_secondary",
+            title: old.secondary,
+            break_point: old.secondary,
+            trigger: old.secondary_citation,
+            evidence: [{ label: "Source", value: "Legacy report" }],
+            impact: "Medium" as const,
+            fallback_plan_b: { anchor: "Monitor this factor", backup: "Plan alternatives in advance", buffer_rule: "Stay flexible with your schedule" },
+          },
+        ],
+      };
+    }
+    // Backwards compat: old "Conditional Fit" label
+    if ((routineFit as any).label === "Conditional Fit") {
+      (routineFit as any).label = "Mixed Fit";
+    }
+
     return (
       <ResultPageV2
-        routineFit={reportV2Data.primary.routine_fit}
+        routineFit={routineFit}
         ownershipRisk={reportV2Data.secondary.ownership_risk}
         vehicle={reportV2Data.vehicle}
         mvr={reportV2Data.routine}
         dealerQuestions={reportV2Data.dealer_questions}
+        confidencePlan={reportV2Data.confidence_plan}
+        trackEvent={trackEvent}
         reportData={reportV2Data as unknown as Record<string, unknown>}
         onBack={() => router.push("/")}
       />

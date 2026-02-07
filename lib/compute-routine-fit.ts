@@ -15,9 +15,10 @@ import type {
   MinimumViableRoutine,
   RoutineFitScore,
   StressFlag,
-  WhatBreaksFirst,
+  BreakPoint,
   RoutineFitConfidence,
 } from "@/types/v2";
+import { buildRankedBreakpoints, type BreakpointContext } from "./breakpoint-rules";
 
 interface VehicleBasics {
   model?: string;
@@ -95,7 +96,7 @@ export function computeRoutineFit(
   const label: RoutineFitScore["label"] =
     score >= 80 ? "Great Fit"
     : score >= 65 ? "Good Fit"
-    : score >= 45 ? "Conditional Fit"
+    : score >= 45 ? "Mixed Fit"
     : "High Friction";
 
   // ---- MENTAL LOAD ----
@@ -104,11 +105,12 @@ export function computeRoutineFit(
     : score >= 50 ? "medium"
     : "high";
 
-  // ---- STRESS FLAGS (max 3) ----
-  const stress_flags = buildStressFlags(mvr, effectiveDailyMiles, effectiveRange);
+  // ---- BREAKPOINTS (ranked, max 3) ----
+  const ctx: BreakpointContext = { mvr, effectiveDailyMiles, effectiveRange, vehicle };
+  const breakpoints_ranked = buildRankedBreakpoints(ctx);
 
-  // ---- WHAT BREAKS FIRST ----
-  const what_breaks_first = buildWhatBreaksFirst(mvr, effectiveDailyMiles, effectiveRange);
+  // ---- STRESS FLAGS (derived from breakpoints) ----
+  const stress_flags = deriveStressFlags(breakpoints_ranked);
 
   // ---- CONFIDENCE ----
   const confidence: RoutineFitConfidence = {
@@ -125,198 +127,20 @@ export function computeRoutineFit(
     label,
     mental_load,
     stress_flags,
-    what_breaks_first,
+    breakpoints_ranked,
     confidence,
   };
 }
 
 // ============================================
-// STRESS FLAGS
+// DERIVE STRESS FLAGS FROM BREAKPOINTS
 // ============================================
 
-function buildStressFlags(
-  mvr: MinimumViableRoutine,
-  dailyMiles: number,
-  range: number
-): StressFlag[] {
-  const flags: StressFlag[] = [];
-
-  if (mvr.charging_access === "public") {
-    flags.push({
-      id: "public_charging_dependency",
-      label: "Public charging dependency",
-      severity: "high",
-      routine_citation: "because you rely on public charging as your primary access",
-    });
-  } else if (mvr.charging_access === "work") {
-    flags.push({
-      id: "work_charging_dependency",
-      label: "Workplace charging dependency",
-      severity: "medium",
-      routine_citation: "because your charging depends on workplace availability",
-    });
-  }
-
-  if (mvr.climate === "winter") {
-    const severity: StressFlag["severity"] =
-      mvr.charging_access === "public" ? "high" : "medium";
-    flags.push({
-      id: "winter_range_loss",
-      label: "Winter range reduction",
-      severity,
-      routine_citation:
-        mvr.charging_access !== "home"
-          ? "because winter reduces effective range by 20-40% and you don't have home charging to compensate"
-          : "because winter reduces effective range by 20-40% in your climate",
-    });
-  }
-
-  if (dailyMiles / range > 0.6) {
-    flags.push({
-      id: "tight_daily_buffer",
-      label: "Tight daily range buffer",
-      severity: "high",
-      routine_citation: `because your ~${Math.round(dailyMiles)} daily miles uses ${Math.round((dailyMiles / range) * 100)}% of available range`,
-    });
-  }
-
-  if (
-    mvr.longest_day_pattern === "once_a_week" &&
-    mvr.charging_access !== "home"
-  ) {
-    flags.push({
-      id: "frequent_long_days_no_home",
-      label: "Weekly long days without home charging",
-      severity: "high",
-      routine_citation:
-        "because you have long driving days weekly without home charging to recover",
-    });
-  }
-
-  if (mvr.climate === "hot" && dailyMiles / range > 0.5) {
-    flags.push({
-      id: "heat_range_compound",
-      label: "Heat + high daily usage",
-      severity: "medium",
-      routine_citation: `because hot climate reduces range and your daily usage is already ${Math.round((dailyMiles / range) * 100)}% of capacity`,
-    });
-  }
-
-  // Return max 3, sorted by severity
-  const severityOrder = { high: 0, medium: 1, low: 2 };
-  return flags
-    .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
-    .slice(0, 3);
-}
-
-// ============================================
-// WHAT BREAKS FIRST
-// ============================================
-
-type Candidate = { item: string; citation: string; priority: number };
-
-function buildWhatBreaksFirst(
-  mvr: MinimumViableRoutine,
-  dailyMiles: number,
-  range: number
-): WhatBreaksFirst {
-  const candidates: Candidate[] = [];
-
-  // Public charging predictability
-  if (mvr.charging_access === "public") {
-    candidates.push({
-      item: "Charging predictability",
-      citation:
-        "because you rely on public charging and availability varies by time and location",
-      priority: 100,
-    });
-  }
-
-  // Winter + non-home charging
-  if (mvr.climate === "winter" && mvr.charging_access !== "home") {
-    candidates.push({
-      item: "Winter charging friction",
-      citation: `because winter reduces your effective buffer and ${mvr.charging_access === "public" ? "public charger reliability drops in cold weather" : "workplace charging may not fully compensate"}`,
-      priority: 95,
-    });
-  } else if (mvr.climate === "winter") {
-    candidates.push({
-      item: "Winter range buffer",
-      citation: "because winter reduces effective range by 20-40% in your climate",
-      priority: 70,
-    });
-  }
-
-  // Tight daily range
-  if (dailyMiles / range > 0.5) {
-    candidates.push({
-      item: "Daily range margin",
-      citation: `because your daily driving uses ${Math.round((dailyMiles / range) * 100)}% of range, leaving little buffer for detours`,
-      priority: 85,
-    });
-  }
-
-  // Weekly long days
-  if (mvr.longest_day_pattern === "once_a_week") {
-    candidates.push({
-      item: "Long-day recovery window",
-      citation: `because you have weekly long driving days${mvr.charging_access !== "home" ? " without home charging to recover quickly" : " that drain more battery than usual"}`,
-      priority: mvr.charging_access !== "home" ? 90 : 60,
-    });
-  }
-
-  // Monthly long trips
-  if (mvr.longest_day_pattern === "monthly_trip") {
-    candidates.push({
-      item: "Monthly trip planning",
-      citation: `because your monthly longer trips require charging planning${mvr.charging_access === "public" ? " on top of your regular public charging routine" : ""}`,
-      priority: 55,
-    });
-  }
-
-  // Work charging dependency
-  if (mvr.charging_access === "work") {
-    candidates.push({
-      item: "Workplace charger availability",
-      citation:
-        "because your primary charging depends on your workplace, which could change",
-      priority: 65,
-    });
-  }
-
-  // Hot climate + high usage
-  if (mvr.climate === "hot" && dailyMiles / range > 0.5) {
-    candidates.push({
-      item: "Heat-related range loss",
-      citation: `because hot climate reduces effective range and your daily usage is already ${Math.round((dailyMiles / range) * 100)}% of capacity`,
-      priority: 60,
-    });
-  }
-
-  // Fallbacks
-  if (candidates.length === 0) {
-    candidates.push({
-      item: "Charging routine consistency",
-      citation:
-        "because maintaining a consistent charging routine is the foundation of low-friction EV ownership",
-      priority: 50,
-    });
-  }
-  if (candidates.length === 1) {
-    candidates.push({
-      item: "Unexpected schedule disruptions",
-      citation: `because any change to your ${mvr.charging_access === "home" ? "home charging routine" : "charging schedule"} could require adjustments`,
-      priority: 40,
-    });
-  }
-
-  // Sort by priority, take top 2
-  candidates.sort((a, b) => b.priority - a.priority);
-
-  return {
-    primary: candidates[0].item,
-    primary_citation: candidates[0].citation,
-    secondary: candidates[1].item,
-    secondary_citation: candidates[1].citation,
-  };
+function deriveStressFlags(breakpoints: BreakPoint[]): StressFlag[] {
+  return breakpoints.map((bp) => ({
+    id: bp.id,
+    label: bp.title,
+    severity: bp.impact === "High" ? "high" : bp.impact === "Medium" ? "medium" : "low",
+    routine_citation: bp.trigger,
+  }));
 }

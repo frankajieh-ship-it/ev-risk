@@ -12,6 +12,7 @@ import { RiskAssessor } from "@/lib/risk-assessor";
 import { validateMVR, type MinimumViableRoutine } from "@/types/v2";
 import { computeRoutineFit } from "@/lib/compute-routine-fit";
 import { computeOwnershipRisk } from "@/lib/compute-ownership-risk";
+import { buildConfidencePlan } from "@/lib/confidence-actions";
 import { findRangeDataByModel } from "@/lib/data";
 
 export async function POST(request: NextRequest) {
@@ -61,6 +62,13 @@ export async function POST(request: NextRequest) {
       // Build dealer questions based on context
       const dealerQuestions = buildDealerQuestionsV2(routine, ownershipRisk);
 
+      // Build confidence action plan (all 3 actions show since VIN/SOH/fast-charge not yet accepted)
+      const confidencePlan = buildConfidencePlan({
+        vehicle: vehicleBasics
+          ? { make: body.model.split(" ")[0], model: body.model, year: body.year }
+          : undefined,
+      });
+
       return NextResponse.json({
         success: true,
         schema_version: "v2",
@@ -74,6 +82,7 @@ export async function POST(request: NextRequest) {
         primary: { routine_fit: routineFit },
         secondary: { ownership_risk: ownershipRisk },
         dealer_questions: dealerQuestions,
+        confidence_plan: confidencePlan,
         generated_at_iso: new Date().toISOString(),
       });
     }

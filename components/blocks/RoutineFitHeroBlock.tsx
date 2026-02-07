@@ -10,7 +10,7 @@ interface RoutineFitHeroBlockProps {
 const LABEL_CONFIG = {
   "Great Fit": { color: "text-green-600", bg: "bg-green-50", border: "border-green-200", ring: "ring-green-500" },
   "Good Fit": { color: "text-green-600", bg: "bg-green-50", border: "border-green-200", ring: "ring-green-500" },
-  "Conditional Fit": { color: "text-yellow-600", bg: "bg-yellow-50", border: "border-yellow-200", ring: "ring-yellow-500" },
+  "Mixed Fit": { color: "text-yellow-600", bg: "bg-yellow-50", border: "border-yellow-200", ring: "ring-yellow-500" },
   "High Friction": { color: "text-red-600", bg: "bg-red-50", border: "border-red-200", ring: "ring-red-500" },
 } as const;
 

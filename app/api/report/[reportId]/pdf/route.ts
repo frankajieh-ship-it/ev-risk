@@ -13,7 +13,7 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { securityLogger } from "@/lib/security-logger";
 import { calculateRoutineFitClient } from "@/lib/routine-fit-client";
-import type { RenderPdfRequest, ReportPayload, ReportPdfV2Data } from "@/lib/pdf/shared-types";
+import type { RenderPdfRequest, ReportPayload, ReportPdfV2Data, BreakPoint } from "@/lib/pdf/shared-types";
 
 /**
  * Call the isolated render-pdf Netlify Function via HTTP.
@@ -102,9 +102,24 @@ export async function GET(
 
     if (schemaVersion === "v2") {
       const payload = report.payload_json;
+      let routineFit = payload.primary?.routine_fit;
+
+      // Backwards compat: convert old WhatBreaksFirst to breakpoints_ranked
+      if (routineFit?.what_breaks_first && !routineFit?.breakpoints_ranked) {
+        routineFit = {
+          ...routineFit,
+          breakpoints_ranked: convertLegacyBreakpoints(routineFit.what_breaks_first),
+        };
+        delete routineFit.what_breaks_first;
+      }
+      // Backwards compat: old "Conditional Fit" label
+      if (routineFit?.label === "Conditional Fit") {
+        routineFit.label = "Mixed Fit";
+      }
+
       const v2Data: ReportPdfV2Data = {
         reportId,
-        routineFit: payload.primary?.routine_fit,
+        routineFit,
         ownershipRisk: payload.secondary?.ownership_risk,
         vehicle: payload.vehicle,
         routine: payload.routine,
@@ -270,4 +285,41 @@ function transformReportForPDF(
       "Unusual battery degradation for vehicle age/mileage",
     ],
   };
+}
+
+/**
+ * Convert old WhatBreaksFirst (primary/secondary strings) to BreakPoint[]
+ * for backwards compatibility with stored V2 reports.
+ */
+function convertLegacyBreakpoints(
+  old: { primary: string; primary_citation: string; secondary: string; secondary_citation: string }
+): BreakPoint[] {
+  return [
+    {
+      id: "legacy_primary",
+      title: old.primary,
+      break_point: old.primary,
+      trigger: old.primary_citation,
+      evidence: [{ label: "Source", value: "Legacy report" }],
+      impact: "High",
+      fallback_plan_b: {
+        anchor: "Review your charging routine",
+        backup: "Identify backup charging options",
+        buffer_rule: "Maintain buffer above 30%",
+      },
+    },
+    {
+      id: "legacy_secondary",
+      title: old.secondary,
+      break_point: old.secondary,
+      trigger: old.secondary_citation,
+      evidence: [{ label: "Source", value: "Legacy report" }],
+      impact: "Medium",
+      fallback_plan_b: {
+        anchor: "Monitor this factor",
+        backup: "Plan alternatives in advance",
+        buffer_rule: "Stay flexible with your schedule",
+      },
+    },
+  ];
 }

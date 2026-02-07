@@ -14,11 +14,18 @@ export interface StressFlag {
   routine_citation: string;
 }
 
-export interface WhatBreaksFirst {
-  primary: string;
-  primary_citation: string;
-  secondary: string;
-  secondary_citation: string;
+export interface BreakPoint {
+  id: string;
+  title: string;
+  break_point: string;
+  trigger: string;
+  evidence: Array<{ label: string; value: string }>;
+  impact: "Low" | "Medium" | "High";
+  fallback_plan_b: {
+    anchor: string;
+    backup: string;
+    buffer_rule: string;
+  };
 }
 
 export interface RoutineFitConfidence {
@@ -30,10 +37,10 @@ export interface RoutineFitConfidence {
 
 export interface RoutineFitScore {
   score_0_100: number;
-  label: "Great Fit" | "Good Fit" | "Conditional Fit" | "High Friction";
+  label: "Great Fit" | "Good Fit" | "Mixed Fit" | "High Friction";
   mental_load: "low" | "medium" | "high";
   stress_flags: StressFlag[];
-  what_breaks_first: WhatBreaksFirst;
+  breakpoints_ranked: BreakPoint[];
   confidence: RoutineFitConfidence;
 }
 
@@ -57,6 +64,7 @@ export interface MinimumViableRoutine {
   commute_miles_roundtrip?: number;
   climate: "winter" | "mild" | "hot";
   longest_day_pattern: "once_a_week" | "monthly_trip" | "rare_road_trip";
+  region?: "US" | "UK";
 }
 
 // ---- V1 Report Payload ----

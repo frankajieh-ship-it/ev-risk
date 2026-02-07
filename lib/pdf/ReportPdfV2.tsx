@@ -17,6 +17,7 @@ import type {
   RoutineFitScore,
   OwnershipRiskFlags,
   StressFlag,
+  BreakPoint,
   MinimumViableRoutine,
 } from "../../types/v2";
 
@@ -115,7 +116,7 @@ const styles = StyleSheet.create({
 
   // What breaks first
   wbfItem: {
-    marginBottom: 8,
+    marginBottom: 10,
     paddingLeft: 12,
   },
   wbfLabel: {
@@ -124,10 +125,30 @@ const styles = StyleSheet.create({
     color: COLORS.darkGray,
     marginBottom: 2,
   },
-  wbfCitation: {
+  wbfTrigger: {
     fontSize: 9,
     color: COLORS.gray,
     fontStyle: "italic",
+    marginBottom: 4,
+  },
+  wbfEvidence: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    marginTop: 4,
+  },
+  wbfEvidenceChip: {
+    fontSize: 8,
+    backgroundColor: COLORS.lightGray,
+    borderRadius: 4,
+    padding: "2 6",
+    color: COLORS.darkGray,
+  },
+  wbfPlanB: {
+    fontSize: 8,
+    color: COLORS.gray,
+    marginTop: 3,
+    paddingLeft: 8,
   },
 
   // Stress flags
@@ -321,25 +342,29 @@ export const ReportPdfV2: React.FC<{ data: ReportPdfV2Data }> = ({ data }) => {
           </Text>
         </View>
 
-        {/* What Breaks First */}
+        {/* What Breaks First — Ranked Breakpoints */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>What Breaks First</Text>
-          <View style={styles.wbfItem}>
-            <Text style={[styles.wbfLabel, { color: COLORS.red }]}>
-              #1 {routineFit.what_breaks_first.primary}
-            </Text>
-            <Text style={styles.wbfCitation}>
-              {routineFit.what_breaks_first.primary_citation}
-            </Text>
-          </View>
-          <View style={styles.wbfItem}>
-            <Text style={[styles.wbfLabel, { color: COLORS.yellow }]}>
-              #2 {routineFit.what_breaks_first.secondary}
-            </Text>
-            <Text style={styles.wbfCitation}>
-              {routineFit.what_breaks_first.secondary_citation}
-            </Text>
-          </View>
+          {routineFit.breakpoints_ranked.map((bp: BreakPoint, i: number) => (
+            <View key={bp.id} style={styles.wbfItem}>
+              <Text style={[styles.wbfLabel, { color: i === 0 ? COLORS.red : COLORS.yellow }]}>
+                #{i + 1} {bp.title}
+              </Text>
+              <Text style={styles.wbfTrigger}>{bp.trigger}</Text>
+              <View style={styles.wbfEvidence}>
+                {bp.evidence.map((ev: { label: string; value: string }, j: number) => (
+                  <Text key={j} style={styles.wbfEvidenceChip}>
+                    {ev.label}: {ev.value}
+                  </Text>
+                ))}
+              </View>
+              {i === 0 && (
+                <Text style={styles.wbfPlanB}>
+                  Plan B: {bp.fallback_plan_b.anchor}
+                </Text>
+              )}
+            </View>
+          ))}
         </View>
 
         {/* Stress Flags */}

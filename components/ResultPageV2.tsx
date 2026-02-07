@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import type { RoutineFitScore, OwnershipRiskFlags, MinimumViableRoutine, StressFlag } from "@/types/v2";
+import type { RoutineFitScore, OwnershipRiskFlags, MinimumViableRoutine, StressFlag, ConfidencePlan } from "@/types/v2";
 import { RoutineFitHeroBlock } from "./blocks/RoutineFitHeroBlock";
 import { WhatBreaksFirstV2Block } from "./blocks/WhatBreaksFirstV2Block";
+import { ConfidencePlanBlock } from "./blocks/ConfidencePlanBlock";
 import { OwnershipRiskPanel } from "./blocks/OwnershipRiskPanel";
 
 interface ResultPageV2Props {
@@ -13,6 +14,8 @@ interface ResultPageV2Props {
   vehicle?: { make: string; model: string; year: number; mileage?: number };
   mvr: MinimumViableRoutine;
   dealerQuestions?: { top_3: string[]; full_list: string[]; walk_away_triggers: string[] };
+  confidencePlan?: ConfidencePlan;
+  trackEvent?: (name: string, data?: Record<string, any>) => void;
   reportData?: Record<string, unknown>;
   onBack?: () => void;
 }
@@ -59,9 +62,13 @@ export function ResultPageV2({
   vehicle,
   mvr,
   dealerQuestions,
+  confidencePlan,
+  trackEvent: trackEventProp,
   reportData,
   onBack,
 }: ResultPageV2Props) {
+  // Fallback no-op if trackEvent not provided
+  const trackEvent = trackEventProp ?? (() => {});
   const [showDealerQuestions, setShowDealerQuestions] = useState(false);
   const [pdfState, setPdfState] = useState<"idle" | "loading" | "done" | "error">("idle");
 
@@ -128,7 +135,7 @@ export function ResultPageV2({
           />
 
           {/* What Breaks First */}
-          <WhatBreaksFirstV2Block whatBreaksFirst={routineFit.what_breaks_first} />
+          <WhatBreaksFirstV2Block breakpoints={routineFit.breakpoints_ranked} />
 
           {/* Stress Flags */}
           <StressFlagsList flags={routineFit.stress_flags} />
@@ -140,6 +147,15 @@ export function ResultPageV2({
             </span>
             <p className="text-xs text-gray-500">{routineFit.confidence.note}</p>
           </div>
+
+          {/* Confidence Action Plan */}
+          {confidencePlan && confidencePlan.actions.length > 0 && (
+            <ConfidencePlanBlock
+              confidencePlan={confidencePlan}
+              vehicle={vehicle}
+              trackEvent={trackEvent}
+            />
+          )}
         </motion.div>
 
         {/* ========== DIVIDER ========== */}
