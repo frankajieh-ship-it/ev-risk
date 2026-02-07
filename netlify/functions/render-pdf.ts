@@ -1,42 +1,44 @@
 /**
- * Netlify Function: PDF Renderer
+ * Netlify Function: PDF Renderer (v1 handler format)
  *
  * Isolated from the Next.js server handler to keep @react-pdf/renderer
  * (and its heavy native dependencies) out of the main 250 MB budget.
  *
  * POST /.netlify/functions/render-pdf
  * Body: { version: "v1"|"v2", v1Data?: ReportPayload, v2Data?: ReportPdfV2Data }
- * Returns: application/pdf binary
+ * Returns: application/pdf binary (base64-encoded via Lambda response)
  */
 
-import type { Context } from "@netlify/functions";
+import type { Handler, HandlerEvent, HandlerResponse } from "@netlify/functions";
 import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { ReportPdf } from "../../lib/pdf/ReportPdf.js";
 import { ReportPdfV2 } from "../../lib/pdf/ReportPdfV2.js";
 import type { RenderPdfRequest } from "../../lib/pdf/shared-types.js";
 
-export default async (req: Request, _context: Context) => {
+const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> => {
   // Verify shared secret
-  const authHeader = req.headers.get("x-pdf-render-secret");
+  const authHeader = event.headers["x-pdf-render-secret"];
   const expectedSecret = process.env.PDF_RENDER_SECRET;
 
   if (!expectedSecret || authHeader !== expectedSecret) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: "Unauthorized" }),
       headers: { "Content-Type": "application/json" },
-    });
+    };
   }
 
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
+  if (event.httpMethod !== "POST") {
+    return {
+      statusCode: 405,
+      body: JSON.stringify({ error: "Method not allowed" }),
       headers: { "Content-Type": "application/json" },
-    });
+    };
   }
 
   try {
-    const body: RenderPdfRequest = await req.json();
+    const body: RenderPdfRequest = JSON.parse(event.body || "{}");
 
     let pdfBuffer: Buffer;
 
@@ -47,32 +49,33 @@ export default async (req: Request, _context: Context) => {
       const doc = React.createElement(ReportPdf, { data: body.v1Data }) as any;
       pdfBuffer = await renderToBuffer(doc);
     } else {
-      return new Response(
-        JSON.stringify({ error: "Invalid request: missing version or data" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      );
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Invalid request: missing version or data" }),
+        headers: { "Content-Type": "application/json" },
+      };
     }
 
-    return new Response(pdfBuffer, {
-      status: 200,
+    return {
+      statusCode: 200,
       headers: {
         "Content-Type": "application/pdf",
         "Content-Length": String(pdfBuffer.length),
       },
-    });
+      body: pdfBuffer.toString("base64"),
+      isBase64Encoded: true,
+    };
   } catch (error) {
     console.error("PDF render error:", error);
-    return new Response(
-      JSON.stringify({
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
         error: "PDF render failed",
         details: error instanceof Error ? error.message : "Unknown",
       }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    );
+      headers: { "Content-Type": "application/json" },
+    };
   }
 };
 
-export const config = {
-  path: "/.netlify/functions/render-pdf",
-  method: "POST",
-};
+export { handler };
