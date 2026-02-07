@@ -14,8 +14,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { reportData } = body;
 
-    // Validate report data
-    if (!reportData || !reportData.confidence || !reportData.input) {
+    // Validate report data (V1 has confidence+input, V2 has primary+routine)
+    const isV1 = reportData?.confidence && reportData?.input;
+    const isV2 = reportData?.primary && reportData?.routine;
+    if (!reportData || (!isV1 && !isV2)) {
       return NextResponse.json(
         { error: "Invalid report data - missing required fields" },
         { status: 400 }
