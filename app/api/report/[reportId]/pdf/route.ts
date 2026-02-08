@@ -102,7 +102,12 @@ export async function GET(
 
     if (schemaVersion === "v2") {
       const payload = report.payload_json;
-      let routineFit = payload.primary?.routine_fit;
+
+      // New contract shape: extract from _internal
+      let routineFit = payload._internal?.routine_fit ?? payload.primary?.routine_fit;
+      const ownershipRisk = payload._internal?.ownership_risk ?? payload.secondary?.ownership_risk;
+      const vehicle = payload._internal?.vehicle ?? payload.vehicle;
+      const routine = payload._internal?.routine ?? payload.routine;
 
       // Backwards compat: convert old WhatBreaksFirst to breakpoints_ranked
       if (routineFit?.what_breaks_first && !routineFit?.breakpoints_ranked) {
@@ -117,17 +122,20 @@ export async function GET(
         routineFit.label = "Mixed Fit";
       }
 
+      // For new contract shape, build dealer_questions from appendix
+      const dealerQuestions = payload.dealer_questions || (payload.appendix ? {
+        top_3: payload.appendix.dealer_questions || [],
+        full_list: [],
+        walk_away_triggers: payload.appendix.buyer_diligence?.walk_away_triggers || [],
+      } : { top_3: [], full_list: [], walk_away_triggers: [] });
+
       const v2Data: ReportPdfV2Data = {
         reportId,
         routineFit,
-        ownershipRisk: payload.secondary?.ownership_risk,
-        vehicle: payload.vehicle,
-        routine: payload.routine,
-        dealerQuestions: payload.dealer_questions || {
-          top_3: [],
-          full_list: [],
-          walk_away_triggers: [],
-        },
+        ownershipRisk,
+        vehicle,
+        routine,
+        dealerQuestions,
         generatedAt: payload.generated_at_iso,
       };
       renderRequest = { version: "v2", v2Data };

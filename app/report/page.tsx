@@ -25,6 +25,7 @@ import WhyCheckpointCard from "@/components/WhyCheckpointCard";
 import DecisionResolution from "@/components/DecisionResolution";
 import { ResultPageLite } from "@/components/ResultPageLite";
 import { ResultPageV2 } from "@/components/ResultPageV2";
+import { ResultPageV2Split } from "@/components/ResultPageV2Split";
 import { generateConfidenceData, type ConfidenceInputs } from "@/lib/confidence-calculator";
 import { transformToPresentation } from "@/lib/presentation-transformer";
 import { generateDebugData } from "@/lib/debug-helpers";
@@ -34,6 +35,7 @@ import { useEventTracking } from "@/hooks/useEventTracking";
 import type { Region } from "@/lib/regionCopy";
 import type { KnownDataPoint, UnknownDataPoint, RiskFactor } from "@/types/report";
 import type { EvRiskReportV2 } from "@/types/v2";
+import type { EvRiskReportV2Contract } from "@/types/v2-contract";
 
 interface BatteryRisk {
   score: number;
@@ -154,6 +156,7 @@ function ReportContent() {
   const router = useRouter();
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [reportV2Data, setReportV2Data] = useState<EvRiskReportV2 | null>(null);
+  const [reportV2ContractData, setReportV2ContractData] = useState<EvRiskReportV2Contract | null>(null);
   const [isPaid, setIsPaid] = useState(false);
   const [reportId, setReportId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -199,10 +202,17 @@ function ReportContent() {
           const parsed = JSON.parse(dataParam);
           console.log("[Report Page] Successfully parsed data:", parsed);
 
-          // V2 dispatch: if schema_version is "v2", use ResultPageV2
+          // V2 dispatch: if schema_version is "v2"
           if (parsed.schema_version === "v2") {
-            console.log("[Report Page] V2 report detected");
-            setReportV2Data(parsed as EvRiskReportV2);
+            if (parsed.default_view) {
+              // New contract shape (Default View + Appendix)
+              console.log("[Report Page] V2 contract report detected");
+              setReportV2ContractData(parsed as EvRiskReportV2Contract);
+            } else {
+              // Legacy V2 shape (backward compat)
+              console.log("[Report Page] V2 legacy report detected");
+              setReportV2Data(parsed as EvRiskReportV2);
+            }
             trackButtonClick("report_view", "report-page-v2");
             return;
           }
@@ -298,7 +308,19 @@ function ReportContent() {
     }
   }, [reportData, reportId, trackEvent]);
 
-  // V2 Rendering Path
+  // V2 Contract Rendering Path (new Default View + Appendix)
+  if (reportV2ContractData) {
+    return (
+      <ResultPageV2Split
+        contract={reportV2ContractData}
+        trackEvent={trackEvent}
+        sessionId={sessionId}
+        onBack={() => router.push("/")}
+      />
+    );
+  }
+
+  // V2 Legacy Rendering Path
   if (reportV2Data) {
     let routineFit = reportV2Data.primary.routine_fit;
 

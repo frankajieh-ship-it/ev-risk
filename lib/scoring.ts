@@ -807,7 +807,7 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
     }
 
     emoji = "🟢";
-    recommendation = "Low Risk - Good purchase candidate. Proceed with standard pre-purchase inspection.";
+    recommendation = "Low Risk - Proceed with standard pre-purchase inspection.";
 
     // Generate one-sentence verdict based on context
     if (input.homeCharging) {

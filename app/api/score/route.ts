@@ -13,6 +13,7 @@ import { validateMVR, type MinimumViableRoutine } from "@/types/v2";
 import { computeRoutineFit } from "@/lib/compute-routine-fit";
 import { computeOwnershipRisk } from "@/lib/compute-ownership-risk";
 import { buildConfidencePlan } from "@/lib/confidence-actions";
+import { buildReportContract } from "@/lib/build-report-contract";
 import { findRangeDataByModel } from "@/lib/data";
 
 export async function POST(request: NextRequest) {
@@ -69,21 +70,29 @@ export async function POST(request: NextRequest) {
           : undefined,
       });
 
+      // Build the new contract shape
+      const effectiveDailyMiles = routine.commute_miles_roundtrip
+        ? routine.commute_miles_roundtrip
+        : (routine.weekly_miles ?? 100) / 5;
+      const effectiveRange = vehicleBasics?.real_world_range_mi ?? 200;
+
+      const contract = buildReportContract({
+        routineFit,
+        ownershipRisk,
+        mvr: routine,
+        vehicle: vehicleBasics
+          ? { make: body.model.split(" ")[0], model: body.model, year: body.year, mileage: body.currentMileage }
+          : undefined,
+        confidencePlan,
+        dealerQuestions,
+        effectiveDailyMiles,
+        effectiveRange,
+      });
+
       return NextResponse.json({
         success: true,
         schema_version: "v2",
-        routine,
-        vehicle: vehicleBasics ? {
-          make: body.model.split(" ")[0],
-          model: body.model,
-          year: body.year,
-          mileage: body.currentMileage,
-        } : undefined,
-        primary: { routine_fit: routineFit },
-        secondary: { ownership_risk: ownershipRisk },
-        dealer_questions: dealerQuestions,
-        confidence_plan: confidencePlan,
-        generated_at_iso: new Date().toISOString(),
+        ...contract,
       });
     }
 

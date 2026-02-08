@@ -287,7 +287,7 @@ export const ReportPdf: React.FC<{ data: ReportPayload }> = ({ data }) => {
 
         {/* LEGACY Score Section - Will be deprecated in Phase 0.5 full implementation */}
         <View style={styles.scoreSection}>
-          <Text style={styles.scoreTitle}>Overall Risk Score</Text>
+          <Text style={styles.scoreTitle}>Vehicle Assessment Score</Text>
           <Text style={[styles.scoreValue, { color: scoreColor }]}>
             {data.score}/100
           </Text>

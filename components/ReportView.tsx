@@ -285,7 +285,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
             >
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Overall Risk Assessment</h2>
+                  <h2 className="text-2xl font-bold text-gray-900">Vehicle Assessment</h2>
                   <p className="text-gray-600">Based on battery health, market data, and ownership costs</p>
                 </div>
                 <div className="text-right">

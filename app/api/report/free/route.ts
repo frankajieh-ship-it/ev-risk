@@ -14,9 +14,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { reportData } = body;
 
-    // Validate report data (V1 has confidence+input, V2 has primary+routine)
+    // Validate report data (V1 has confidence+input, V2 has primary+routine or _internal+default_view)
     const isV1 = reportData?.confidence && reportData?.input;
-    const isV2 = reportData?.primary && reportData?.routine;
+    const isV2 = (reportData?.primary && reportData?.routine) || (reportData?._internal && reportData?.default_view);
     if (!reportData || (!isV1 && !isV2)) {
       return NextResponse.json(
         { error: "Invalid report data - missing required fields" },
@@ -27,13 +27,13 @@ export async function POST(request: NextRequest) {
     // Generate UUID for report
     const reportId = uuidv4();
 
-    // Extract vehicle info
-    const vehicleYear = reportData.input?.year || reportData.vehicle?.year || null;
-    const vehicleModel = reportData.input?.model || reportData.vehicle?.model || "Unknown";
+    // Extract vehicle info (support new contract shape via _internal)
+    const vehicleYear = reportData.input?.year || reportData.vehicle?.year || reportData._internal?.vehicle?.year || null;
+    const vehicleModel = reportData.input?.model || reportData.vehicle?.model || reportData._internal?.vehicle?.model || "Unknown";
 
-    // V2: Extract routine and schema_version
+    // V2: Extract routine and schema_version (support new contract shape via _internal)
     const schemaVersion = reportData.schema_version || body.schema_version || "v1";
-    const routine = reportData.routine || body.routine || null;
+    const routine = reportData.routine || reportData._internal?.routine || body.routine || null;
 
     // Store as free report in database
     const { error } = await supabase.from("reports").insert({
