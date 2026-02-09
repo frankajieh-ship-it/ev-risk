@@ -96,16 +96,17 @@ export function useVisitorTracking(options: TrackingOptions = {}) {
     const handleBeforeUnload = () => {
       if (trackSessionDuration) {
         const duration = Math.floor((Date.now() - sessionStartRef.current) / 1000);
-        // Use sendBeacon for reliable tracking on page unload
-        navigator.sendBeacon(
-          "/api/track-visitor",
-          JSON.stringify({
+        // Use sendBeacon with Blob for reliable tracking on page unload
+        const blob = new Blob(
+          [JSON.stringify({
             pagePath: window.location.pathname,
             referrer: document.referrer || null,
             fingerprint: fingerprint.current,
             sessionDuration: duration,
-          })
+          })],
+          { type: "application/json" }
         );
+        navigator.sendBeacon("/api/track-visitor", blob);
       }
     };
 

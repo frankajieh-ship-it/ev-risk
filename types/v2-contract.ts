@@ -23,7 +23,7 @@ export interface FitVerdict {
 }
 
 export interface FallbackPlan {
-  anchor: string;
+  primary: string;
   backup: string;
   trigger: string;
 }
@@ -34,11 +34,19 @@ export interface StressFlagContract {
   impact: string;
 }
 
+export interface ConfidencePair {
+  routine_confidence_pct: number;
+  routine_confidence_label: string;
+  ownership_confidence_pct: number;
+  ownership_confidence_label: string;
+}
+
 export interface DefaultView {
   fit_verdict: FitVerdict;
   fallback_plan: FallbackPlan;
   stress_flags: StressFlagContract[];
   one_followup_question: string | null;
+  confidence?: ConfidencePair;
 }
 
 // ============================================

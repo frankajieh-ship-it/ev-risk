@@ -137,6 +137,7 @@ export async function GET(
         routine,
         dealerQuestions,
         generatedAt: payload.generated_at_iso,
+        confidencePair: payload.default_view?.confidence ?? undefined,
       };
       renderRequest = { version: "v2", v2Data };
     } else {

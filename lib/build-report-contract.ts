@@ -23,6 +23,7 @@ import type {
   FallbackPlan,
   StressFlagContract,
   RangeAdequacy,
+  ConfidencePair,
 } from "@/types/v2-contract";
 import { generateScenarioSlug } from "./scenario-slug";
 import { generateFitOneLiner } from "./fit-verdict-liner";
@@ -61,6 +62,7 @@ export function buildReportContract(
     fallback_plan: buildFallbackPlan(routineFit),
     stress_flags: buildStressFlags(routineFit),
     one_followup_question: buildFollowupQuestion(confidencePlan),
+    confidence: buildConfidencePair(mvr, confidencePlan, vehicle),
   };
 
   return {
@@ -104,13 +106,13 @@ function buildFallbackPlan(routineFit: RoutineFitScore): FallbackPlan {
   const top = routineFit.breakpoints_ranked[0];
   if (!top) {
     return {
-      anchor: "Maintain your current routine",
+      primary: "Maintain your current routine",
       backup: "Identify one backup charging option",
       trigger: "Any disruption to your primary charging",
     };
   }
   return {
-    anchor: top.fallback_plan_b.anchor,
+    primary: top.fallback_plan_b.anchor,
     backup: top.fallback_plan_b.backup,
     trigger: top.trigger,
   };
@@ -240,6 +242,41 @@ function buildMissingDataLoop(
       ],
       cta: { type: ctaType, enabled: true },
     },
+  };
+}
+
+function buildConfidencePair(
+  mvr: MinimumViableRoutine,
+  confidencePlan?: ConfidencePlan,
+  vehicle?: { make: string; model: string; year: number; mileage?: number }
+): ConfidencePair {
+  // Routine confidence: how complete/specific are the routine inputs?
+  let routinePct = 60; // base: charging_access + climate + longest_day always provided
+  if (mvr.weekly_miles || mvr.commute_miles_roundtrip) routinePct += 15;
+  if (mvr.commute_miles_roundtrip) routinePct += 5; // more precise than weekly_miles
+  if (vehicle?.model) routinePct += 10; // vehicle model → better range estimate
+  if (mvr.climate === "mild") routinePct += 5; // mild is most predictable
+  routinePct = Math.min(95, routinePct);
+
+  const routineLabel = routinePct >= 80
+    ? "High — routine is well-defined"
+    : routinePct >= 60
+      ? "Medium — some routine details would help"
+      : "Low — routine needs more detail";
+
+  // Ownership confidence: from ConfidencePlan (70-98% based on VIN/SOH/fast-charge)
+  const ownershipPct = confidencePlan?.current_pct ?? 70;
+  const ownershipLabel = ownershipPct >= 85
+    ? "High — vehicle data is strong"
+    : ownershipPct >= 75
+      ? "Medium — add VIN or SOH to improve"
+      : "Low — VIN and SOH missing";
+
+  return {
+    routine_confidence_pct: routinePct,
+    routine_confidence_label: routineLabel,
+    ownership_confidence_pct: ownershipPct,
+    ownership_confidence_label: ownershipLabel,
   };
 }
 

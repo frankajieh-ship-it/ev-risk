@@ -31,15 +31,20 @@ export async function POST(req: NextRequest) {
     const visitorId = generateVisitorId(req, { fingerprint });
 
     // Check if visitor exists
-    const { data: existingVisitor } = await supabase
+    const { data: existingVisitor, error: lookupError } = await supabase
       .from("visitors")
       .select("visit_count, referrer")
       .eq("visitor_id", visitorId)
       .single();
 
+    if (lookupError && lookupError.code !== "PGRST116") {
+      // PGRST116 = "not found" which is expected for new visitors
+      console.error("Visitor lookup error:", lookupError.message, lookupError.code);
+    }
+
     if (existingVisitor) {
       // Update existing visitor
-      await supabase
+      const { error: updateError } = await supabase
         .from("visitors")
         .update({
           last_visit: new Date().toISOString(),
@@ -48,9 +53,10 @@ export async function POST(req: NextRequest) {
           page_path: pagePath,
         })
         .eq("visitor_id", visitorId);
+      if (updateError) console.error("Visitor update error:", updateError.message);
     } else {
       // Insert new visitor
-      await supabase.from("visitors").insert({
+      const { error: insertError } = await supabase.from("visitors").insert({
         visitor_id: visitorId,
         ip_address: ip,
         user_agent: userAgent,
@@ -61,16 +67,18 @@ export async function POST(req: NextRequest) {
         visit_count: 1,
         session_count: 1,
       });
+      if (insertError) console.error("Visitor insert error:", insertError.message);
     }
 
     // Log page view
-    await supabase.from("page_views").insert({
+    const { error: pvError } = await supabase.from("page_views").insert({
       visitor_id: visitorId,
       page_path: pagePath,
       referrer: referrer || null,
       timestamp: new Date().toISOString(),
       session_duration: sessionDuration || null,
     });
+    if (pvError) console.error("Page view insert error:", pvError.message);
 
     return NextResponse.json({
       success: true,

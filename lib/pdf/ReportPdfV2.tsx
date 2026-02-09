@@ -33,6 +33,12 @@ export interface ReportPdfV2Data {
     walk_away_triggers: string[];
   };
   generatedAt?: string;
+  confidencePair?: {
+    routine_confidence_pct: number;
+    routine_confidence_label: string;
+    ownership_confidence_pct: number;
+    ownership_confidence_label: string;
+  };
 }
 
 const COLORS = {
@@ -201,18 +207,17 @@ const styles = StyleSheet.create({
 
   // Ownership risk modules
   moduleGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
+    flexDirection: "column",
+    gap: 6,
     marginBottom: 16,
   },
   moduleCard: {
-    width: "48%",
-    padding: 10,
+    width: "100%",
+    padding: 6,
     borderRadius: 6,
     border: `1px solid ${COLORS.border}`,
     backgroundColor: COLORS.white,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   moduleHeader: {
     flexDirection: "row",
@@ -359,9 +364,17 @@ export const ReportPdfV2: React.FC<{ data: ReportPdfV2Data }> = ({ data }) => {
                 ))}
               </View>
               {i === 0 && (
-                <Text style={styles.wbfPlanB}>
-                  Plan B: {bp.fallback_plan_b.anchor}
-                </Text>
+                <View style={{ marginTop: 4, paddingLeft: 8 }}>
+                  <Text style={styles.wbfPlanB}>
+                    Your Plan: {bp.fallback_plan_b.anchor}
+                  </Text>
+                  <Text style={styles.wbfPlanB}>
+                    Plan B: {bp.fallback_plan_b.backup}
+                  </Text>
+                  <Text style={styles.wbfPlanB}>
+                    Watch for: {bp.trigger}
+                  </Text>
+                </View>
               )}
             </View>
           ))}
@@ -390,36 +403,40 @@ export const ReportPdfV2: React.FC<{ data: ReportPdfV2Data }> = ({ data }) => {
           </View>
         )}
 
-        {/* Confidence */}
+        {/* Confidence — Dual Badges */}
         <View style={styles.confidenceRow}>
-          <Text
-            style={[
-              styles.confidencePill,
-              {
-                backgroundColor:
-                  routineFit.confidence.level === "high"
-                    ? "#dcfce7"
-                    : routineFit.confidence.level === "medium"
-                    ? "#fef9c3"
-                    : COLORS.lightGray,
-                color:
-                  routineFit.confidence.level === "high"
-                    ? COLORS.green
-                    : routineFit.confidence.level === "medium"
-                    ? COLORS.yellow
-                    : COLORS.gray,
-              },
-            ]}
-          >
-            {routineFit.confidence.level === "high"
-              ? "High confidence"
-              : routineFit.confidence.level === "medium"
-              ? "Medium confidence"
-              : "Low confidence"}
-          </Text>
-          <Text style={styles.confidenceNote}>
-            {routineFit.confidence.note}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+            <Text
+              style={[
+                styles.confidencePill,
+                {
+                  backgroundColor: (data.confidencePair?.routine_confidence_pct ?? 0) >= 80 ? "#dcfce7" : "#fef9c3",
+                  color: (data.confidencePair?.routine_confidence_pct ?? 0) >= 80 ? COLORS.green : COLORS.yellow,
+                },
+              ]}
+            >
+              Routine: {data.confidencePair ? `${data.confidencePair.routine_confidence_pct}%` : routineFit.confidence.level}
+            </Text>
+            <Text style={styles.confidenceNote}>
+              {data.confidencePair?.routine_confidence_label ?? routineFit.confidence.note}
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+            <Text
+              style={[
+                styles.confidencePill,
+                {
+                  backgroundColor: (data.confidencePair?.ownership_confidence_pct ?? 70) >= 85 ? "#dcfce7" : COLORS.lightGray,
+                  color: (data.confidencePair?.ownership_confidence_pct ?? 70) >= 85 ? COLORS.green : COLORS.gray,
+                },
+              ]}
+            >
+              Vehicle: {data.confidencePair?.ownership_confidence_pct ?? 70}%
+            </Text>
+            <Text style={styles.confidenceNote}>
+              {data.confidencePair?.ownership_confidence_label ?? "VIN/SOH data not provided"}
+            </Text>
+          </View>
         </View>
 
         {/* Footer */}
@@ -436,7 +453,7 @@ export const ReportPdfV2: React.FC<{ data: ReportPdfV2Data }> = ({ data }) => {
       <Page size="A4" style={styles.page}>
         {/* Ownership Risk Overview */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ownership Risk Overview</Text>
+          <Text style={styles.sectionTitle}>Ownership Risk Flags (supplementary)</Text>
           <Text
             style={{
               fontSize: 10,
@@ -479,6 +496,9 @@ export const ReportPdfV2: React.FC<{ data: ReportPdfV2Data }> = ({ data }) => {
               </View>
             ))}
           </View>
+          <Text style={{ fontSize: 8, color: COLORS.gray, fontStyle: "italic", marginTop: 4 }}>
+            The primary score is based on your routine. These flags require VIN/SOH data for full accuracy.
+          </Text>
         </View>
 
         <View style={styles.divider} />

@@ -68,7 +68,11 @@ export function computeOwnershipRisk(
         : platform_risk.total_recalls > 0
           ? `${platform_risk.total_recalls} recall(s), none critical`
           : "No recalls found",
-    detail: platform_risk.details,
+    detail: platform_risk.critical_recalls > 0
+      ? `${platform_risk.total_recalls} recall(s) found, ${platform_risk.critical_recalls} critical. Verify completion with VIN.`
+      : platform_risk.total_recalls > 0
+        ? `${platform_risk.total_recalls} recall(s) found, none critical. Confirm completion with VIN.`
+        : "No recalls found in available data. Verify with VIN for full coverage.",
     data_available: true,
   });
 
@@ -83,7 +87,11 @@ export function computeOwnershipRisk(
           : "red",
     label: "Platform Reliability",
     summary: `Reliability: ${platform_risk.reliability_score.toFixed(1)}/10`,
-    detail: platform_risk.details,
+    detail: `Reliability ${platform_risk.reliability_score.toFixed(1)}/10. ${
+      platform_risk.reliability_score >= 7 ? "Above-average platform reliability."
+      : platform_risk.reliability_score >= 5 ? "Average platform reliability — monitor for known issues."
+      : "Below-average reliability — research common issues before buying."
+    }`,
     data_available: true,
   });
 

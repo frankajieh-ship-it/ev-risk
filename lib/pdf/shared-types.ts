@@ -109,6 +109,12 @@ export interface ReportPdfV2Data {
     walk_away_triggers: string[];
   };
   generatedAt?: string;
+  confidencePair?: {
+    routine_confidence_pct: number;
+    routine_confidence_label: string;
+    ownership_confidence_pct: number;
+    ownership_confidence_label: string;
+  };
 }
 
 // ---- Render function request contract ----

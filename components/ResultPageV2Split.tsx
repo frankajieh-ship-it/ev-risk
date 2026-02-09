@@ -8,6 +8,7 @@ import { FallbackPlanV2Block } from "./blocks/FallbackPlanV2Block";
 import { StressFlagsV2Block } from "./blocks/StressFlagsV2Block";
 import { FollowupQuestionBlock } from "./blocks/FollowupQuestionBlock";
 import { AppendixSection } from "./blocks/AppendixSection";
+import { InputChipsBar } from "./blocks/InputChipsBar";
 import SaveScenarioCTA from "./SaveScenarioCTA";
 
 interface ResultPageV2SplitProps {
@@ -88,6 +89,19 @@ export function ResultPageV2Split({
             vehicle={vehicle ? { model: vehicle.model, year: vehicle.year } : undefined}
           />
 
+          {/* Routine confidence note */}
+          {default_view.confidence && (
+            <p className="text-xs text-gray-400 -mt-4 ml-1">
+              Routine confidence: {default_view.confidence.routine_confidence_pct}% — {default_view.confidence.routine_confidence_label.split(" — ")[1]}
+            </p>
+          )}
+
+          {/* Input chips */}
+          <InputChipsBar
+            routine={_internal.routine}
+            vehicle={vehicle ? { make: vehicle.make || "", model: vehicle.model, year: vehicle.year } : undefined}
+          />
+
           {/* Fallback Plan */}
           <FallbackPlanV2Block fallbackPlan={default_view.fallback_plan} />
 
@@ -96,6 +110,13 @@ export function ResultPageV2Split({
 
           {/* Follow-up Question */}
           <FollowupQuestionBlock question={default_view.one_followup_question} />
+
+          {/* Ownership confidence note */}
+          {default_view.confidence && default_view.confidence.ownership_confidence_pct < 85 && (
+            <p className="text-xs text-gray-500 ml-1 -mt-4">
+              Vehicle data confidence: {default_view.confidence.ownership_confidence_pct}% — {default_view.confidence.ownership_confidence_label.split(" — ")[1]}
+            </p>
+          )}
 
           {/* Save Scenario CTA — always in default view */}
           <SaveScenarioCTA

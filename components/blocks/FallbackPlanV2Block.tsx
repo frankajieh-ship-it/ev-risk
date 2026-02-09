@@ -7,6 +7,9 @@ interface FallbackPlanV2BlockProps {
 }
 
 export function FallbackPlanV2Block({ fallbackPlan }: FallbackPlanV2BlockProps) {
+  // Backward compat: old saved reports may have "anchor" instead of "primary"
+  const primaryText = fallbackPlan.primary ?? (fallbackPlan as any).anchor ?? "";
+
   return (
     <div className="p-5 bg-white rounded-xl border border-gray-200 space-y-4">
       <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
@@ -14,7 +17,7 @@ export function FallbackPlanV2Block({ fallbackPlan }: FallbackPlanV2BlockProps) 
       </h3>
 
       <div className="space-y-3">
-        {/* Anchor */}
+        {/* Primary plan */}
         <div className="flex items-start gap-3">
           <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
             <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -23,7 +26,7 @@ export function FallbackPlanV2Block({ fallbackPlan }: FallbackPlanV2BlockProps) 
           </span>
           <div>
             <p className="text-xs font-medium text-gray-500 uppercase">Your plan</p>
-            <p className="text-sm text-gray-800">{fallbackPlan.anchor}</p>
+            <p className="text-sm text-gray-800">{primaryText}</p>
           </div>
         </div>
 
