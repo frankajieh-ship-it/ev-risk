@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { securityLogger } from "@/lib/security-logger";
 
 // Simple authentication - check for admin key in Authorization header
@@ -19,6 +19,13 @@ function getClientIP(request: NextRequest): string {
 }
 
 export async function GET(request: NextRequest) {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json(
+      { error: "Database not configured" },
+      { status: 503 }
+    );
+  }
+
   const clientIP = getClientIP(request);
 
   try {

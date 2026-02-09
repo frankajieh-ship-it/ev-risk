@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 // Rate limiting map (in-memory, per instance)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -39,6 +39,13 @@ function getClientIP(request: NextRequest): string {
 }
 
 export async function POST(request: NextRequest) {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json(
+      { success: false, error: "Database not configured" },
+      { status: 503 }
+    );
+  }
+
   try {
     // Get client IP
     const clientIP = getClientIP(request);
@@ -168,6 +175,13 @@ export async function POST(request: NextRequest) {
 
 // GET endpoint to retrieve feedback (admin only - requires API key)
 export async function GET(request: NextRequest) {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json(
+      { success: false, error: "Database not configured" },
+      { status: 503 }
+    );
+  }
+
   try {
     // Check for admin API key
     const apiKey = request.headers.get("x-api-key");

@@ -10,7 +10,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { securityLogger } from "@/lib/security-logger";
 import { calculateRoutineFitClient } from "@/lib/routine-fit-client";
 import type { RenderPdfRequest, ReportPayload, ReportPdfV2Data, BreakPoint } from "@/lib/pdf/shared-types";
@@ -58,6 +58,13 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ reportId: string }> }
 ) {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json(
+      { success: false, error: "Database not configured" },
+      { status: 503 }
+    );
+  }
+
   const { reportId } = await params;
 
   // Get client IP for logging

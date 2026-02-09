@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 // Valid event names for validation
 const VALID_EVENT_NAMES = [
@@ -118,6 +118,13 @@ function getEventTags(eventName: string, eventData: any, userId?: string): { ip_
 }
 
 export async function POST(req: NextRequest) {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json(
+      { success: false, error: "Database not configured" },
+      { status: 503 }
+    );
+  }
+
   try {
     const body = await req.json();
     const {
@@ -227,6 +234,13 @@ export async function POST(req: NextRequest) {
 
 // GET endpoint for analytics
 export async function GET(req: NextRequest) {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json(
+      { success: false, error: "Database not configured" },
+      { status: 503 }
+    );
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const timeframe = searchParams.get("timeframe") || "30d";
