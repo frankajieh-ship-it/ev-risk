@@ -54,6 +54,15 @@ const VALID_EVENT_NAMES = [
   "form_validation_failed",
   "api_error",
   "form_abandoned",
+  // Receipt Events
+  "receipt_generate",
+  "receipt_copy",
+  "receipt_paid_clicked",
+  "receipt_fetch_success",
+  "receipt_fetch_fail",
+  "receipt_lint_fail",
+  "receipt_regen",
+  "receipt_history_viewed",
   // Legacy event names (for backward compatibility)
   "page_view",
 ] as const;

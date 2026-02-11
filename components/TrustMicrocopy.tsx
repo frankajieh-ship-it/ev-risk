@@ -1,6 +1,6 @@
 "use client";
 
-import { Shield, Clock, AlertCircle, Calendar } from "lucide-react";
+import { Shield, Clock, Users } from "lucide-react";
 
 export default function TrustMicrocopy() {
   return (
@@ -14,12 +14,8 @@ export default function TrustMicrocopy() {
         <span>~30 seconds</span>
       </div>
       <div className="flex items-center gap-1.5 sm:gap-2">
-        <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 flex-shrink-0" />
-        <span>Fits your monthly routine</span>
-      </div>
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-600 flex-shrink-0" />
-        <span>Shows what breaks first</span>
+        <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 flex-shrink-0" />
+        <span>Built from real owner routines</span>
       </div>
     </div>
   );

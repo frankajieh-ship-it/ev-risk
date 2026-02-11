@@ -6,6 +6,7 @@ import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
+import { Receipt } from "lucide-react";
 import TrustMicrocopy from "@/components/TrustMicrocopy";
 import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
 import VehicleInputTabs from "@/components/VehicleInputTabs";
@@ -202,7 +203,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/20 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 py-3">
@@ -212,11 +213,19 @@ export default function Home() {
               <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
                 EV-Risk™
               </div>
-              <div className="text-xs md:text-sm text-gray-500 font-medium">by OFFO Lab</div>
+              <div className="text-xs md:text-sm text-gray-600 font-medium">by OFFO Lab</div>
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-3">
+              <a
+                href="/receipt"
+                className="flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+              >
+                <Receipt className="w-4 h-4" />
+                <span className="hidden sm:inline">Listing Receipt</span>
+                <span className="sm:hidden">Receipt</span>
+              </a>
               <a
                 href="/blog"
                 className="hidden sm:block text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
@@ -253,11 +262,10 @@ export default function Home() {
               transition={{ duration: 0.6 }}
               className="text-2xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 md:mb-6"
             >
-              Is this EV a{" "}
+              Find out if an EV{" "}
               <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-                good fit for me
+                fits your routine
               </span>
-              ?
             </motion.h1>
 
             <motion.p
@@ -266,7 +274,7 @@ export default function Home() {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="text-base md:text-lg text-gray-600 mb-4 md:mb-6 max-w-2xl mx-auto"
             >
-              The real match is between your routine and the vehicle&apos;s real-world behavior.
+              Get a fit verdict, what breaks first, and a fallback plan — based on how you actually drive and charge.
             </motion.p>
 
             <motion.div
@@ -277,6 +285,25 @@ export default function Home() {
             >
               <TrustMicrocopy />
             </motion.div>
+
+            {/* "What you get" pills */}
+            {currentStep === "routine" && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="flex flex-wrap items-center justify-center gap-2"
+              >
+                {["Fit verdict", "What breaks first", "Plan B fallback"].map((item) => (
+                  <span
+                    key={item}
+                    className="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </motion.div>
+            )}
           </div>
         </div>
       </section>
@@ -285,18 +312,19 @@ export default function Home() {
       {currentStep !== "generating" && (
         <div className="max-w-3xl mx-auto px-4 mb-6">
           <div className="flex items-center justify-center gap-3">
-            <div className={`flex items-center gap-2 ${currentStep === "routine" ? "text-blue-600" : "text-gray-400"}`}>
+            <div className={`flex items-center gap-2 ${currentStep === "routine" ? "text-blue-600" : "text-gray-500"}`}>
               <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                currentStep === "routine" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
+                currentStep === "routine" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
               }`}>1</span>
               <span className="text-sm font-medium hidden sm:inline">Your Routine</span>
             </div>
             <div className="w-8 h-px bg-gray-300" />
-            <div className={`flex items-center gap-2 ${currentStep === "vehicle" ? "text-blue-600" : "text-gray-400"}`}>
+            <div className={`flex items-center gap-2 ${currentStep === "vehicle" ? "text-blue-600" : "text-gray-500"}`}>
               <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                currentStep === "vehicle" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
+                currentStep === "vehicle" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
               }`}>2</span>
               <span className="text-sm font-medium hidden sm:inline">Vehicle</span>
+              <span className="text-xs text-gray-500 hidden sm:inline">(optional)</span>
             </div>
           </div>
         </div>
@@ -379,7 +407,7 @@ export default function Home() {
               </svg>
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Analyzing your routine fit...</h3>
-            <p className="text-gray-500">Building your personalized report</p>
+            <p className="text-gray-600">Building your personalized report</p>
           </motion.div>
         )}
       </section>
@@ -402,6 +430,26 @@ export default function Home() {
             <p className="text-sm text-gray-600">
               (Based on real owner experiences)
             </p>
+          </motion.div>
+
+          {/* Listing Receipt secondary link */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.8 }}
+            className="mt-6 text-center"
+          >
+            <a
+              href="/receipt"
+              onClick={() => trackEvent("clicked_listing_receipt")}
+              className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
+            >
+              <Receipt className="w-4 h-4" />
+              Have a listing link? Try Listing Receipt
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </a>
           </motion.div>
         </section>
       )}
