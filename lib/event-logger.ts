@@ -47,6 +47,17 @@ export const VALID_EVENT_NAMES = [
   // Scroll & Engagement Events
   "scroll_depth",
   "time_on_page",
+
+  // Copy Granular Events
+  "copy_reddit_draft",
+  "copy_seller_message",
+  "copy_checklist",
+
+  // SEO Page Events
+  "listing_paste_submitted",
+
+  // Email Capture Events
+  "email_checklist_submit",
 ] as const;
 
 export type ValidEventName = (typeof VALID_EVENT_NAMES)[number];

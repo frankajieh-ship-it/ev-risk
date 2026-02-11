@@ -30,6 +30,7 @@ interface ReceiptOutputCardProps {
   lintPassed: boolean;
   lintErrors: LintError[];
   onCopy?: () => void;
+  onTrackCopy?: (copyType: string) => void;
   onAutoFix?: () => void;
   isFixing?: boolean;
 }
@@ -70,11 +71,24 @@ export default function ReceiptOutputCard({
   lintPassed,
   lintErrors,
   onCopy,
+  onTrackCopy,
   onAutoFix,
   isFixing,
 }: ReceiptOutputCardProps) {
   const [copied, setCopied] = useState(false);
+  const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [draftStyle, setDraftStyle] = useState<RedditDraftStyle>("short_paragraph");
+
+  const copySection = async (text: string, sectionId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedSection(sectionId);
+      onTrackCopy?.(sectionId);
+      setTimeout(() => setCopiedSection(null), 2000);
+    } catch (err) {
+      console.error("Copy failed:", err);
+    }
+  };
 
   const displayText = useMemo(() => {
     if (receipt.reddit_draft) {
@@ -101,6 +115,7 @@ export default function ReceiptOutputCard({
       await navigator.clipboard.writeText(displayText);
       setCopied(true);
       onCopy?.();
+      onTrackCopy?.("reddit_draft");
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Copy failed:", err);
@@ -147,6 +162,29 @@ export default function ReceiptOutputCard({
         <p className="text-sm text-gray-700 mt-2">{receipt.verdict_reason}</p>
       </div>
 
+      {/* What would change the verdict */}
+      {receipt.operator_notes?.what_would_change_verdict &&
+        receipt.operator_notes.what_would_change_verdict.length > 0 && (
+          <div className="px-5 py-3 bg-gray-50 border-b border-gray-200">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              This becomes a different verdict if:
+            </p>
+            <ul className="space-y-1">
+              {receipt.operator_notes.what_would_change_verdict.map(
+                (item: string, i: number) => (
+                  <li
+                    key={i}
+                    className="text-sm text-gray-700 flex items-start gap-2"
+                  >
+                    <span className="text-gray-400 mt-0.5">→</span>
+                    <span>{item}</span>
+                  </li>
+                )
+              )}
+            </ul>
+          </div>
+        )}
+
       <div className="p-5 space-y-5">
         {/* Price Sanity */}
         {receipt.price_sanity && (
@@ -187,6 +225,15 @@ export default function ReceiptOutputCard({
         <Section
           icon={<HelpCircle className="w-4 h-4 text-blue-500" />}
           title="Must-Ask Questions"
+          onCopy={() =>
+            copySection(
+              receipt.must_answer_questions
+                .map((q, i) => `${i + 1}. ${q}`)
+                .join("\n"),
+              "must-ask"
+            )
+          }
+          copied={copiedSection === "must-ask"}
         >
           <ul className="space-y-2">
             {receipt.must_answer_questions.map((q, i) => (
@@ -217,10 +264,14 @@ export default function ReceiptOutputCard({
         <Section
           icon={<MessageSquare className="w-4 h-4 text-green-500" />}
           title="Negotiation Opener"
+          onCopy={() =>
+            copySection(receipt.negotiation_opener, "opener")
+          }
+          copied={copiedSection === "opener"}
         >
           <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-            <p className="text-sm text-gray-800 italic">
-              &ldquo;{receipt.negotiation_opener}&rdquo;
+            <p className="text-sm text-gray-800">
+              {receipt.negotiation_opener}
             </p>
           </div>
         </Section>
@@ -336,16 +387,33 @@ function Section({
   icon,
   title,
   children,
+  onCopy,
+  copied,
 }: {
   icon: React.ReactNode;
   title: string;
   children: React.ReactNode;
+  onCopy?: () => void;
+  copied?: boolean;
 }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-2">
         {icon}
         <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+        {onCopy && (
+          <button
+            onClick={onCopy}
+            className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
+            title={`Copy ${title}`}
+          >
+            {copied ? (
+              <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
+          </button>
+        )}
       </div>
       {children}
     </div>

@@ -79,7 +79,7 @@ const OperatorNotesSchema = z.object({
 
 const RedditDraftStyleSchema = z.object({
   format: z.enum(["short_paragraph", "standard", "bullets"]).default("short_paragraph"),
-  max_questions: z.number().min(1).max(2).default(2),
+  max_questions: z.number().min(1).max(1).default(1),
 });
 
 export const RedditDraftSchema = z.object({
@@ -87,7 +87,7 @@ export const RedditDraftSchema = z.object({
   body_facts: z.array(z.string().min(5).max(200)).min(1).max(5),
   body_uncertainty: z.array(z.string().min(5).max(200)).max(3),
   body_next_steps: z.array(z.string().min(5).max(200)).max(3),
-  questions: z.array(z.string().min(10).max(200)).min(1).max(2),
+  questions: z.array(z.string().min(10).max(200)).length(1),
   style: RedditDraftStyleSchema,
 });
 
@@ -146,10 +146,10 @@ export function lintReceiptRedditText(text: string): LintError[] {
     errors.push({ code: "WORD_SLASH", message: "Contains word/word pattern (use 'or' instead)", fixable: true });
   }
 
-  // Max 2 question marks (reddit_draft allows 2 questions)
+  // Max 1 question mark (OFFO rule: one question max across entire draft)
   const qCount = (text.match(/\?/g) || []).length;
-  if (qCount > 2) {
-    errors.push({ code: "TOO_MANY_QUESTIONS", message: `Too many questions (${qCount}, max 2)`, fixable: true });
+  if (qCount > 1) {
+    errors.push({ code: "TOO_MANY_QUESTIONS", message: `Too many questions (${qCount}, max 1)`, fixable: true });
   }
 
   // No URLs
@@ -184,6 +184,16 @@ export function lintReceiptRedditText(text: string): LintError[] {
   // Banned word: "annoying" → "stressful"
   if (/\bannoying\b/i.test(text)) {
     errors.push({ code: "BANNED_WORD_ANNOYING", message: 'Contains "annoying" (use "stressful" instead)', fixable: true });
+  }
+
+  // Quotation marks (straight " or ')
+  if (/["']/.test(text)) {
+    errors.push({ code: "QUOTATION_MARKS", message: "Contains quotation marks (remove all \" and ')", fixable: true });
+  }
+
+  // Absolute claims
+  if (/\b(will|definitely|always|indicates|too good to be true)\b/i.test(text)) {
+    errors.push({ code: "ABSOLUTE_CLAIMS", message: "Contains absolute language (use cautious alternatives: may, often, can suggest)", fixable: true });
   }
 
   return errors;

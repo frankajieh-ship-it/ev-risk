@@ -63,6 +63,14 @@ const VALID_EVENT_NAMES = [
   "receipt_lint_fail",
   "receipt_regen",
   "receipt_history_viewed",
+  // Copy Granular Events
+  "copy_reddit_draft",
+  "copy_seller_message",
+  "copy_checklist",
+  // SEO Page Events
+  "listing_paste_submitted",
+  // Email Capture Events
+  "email_checklist_submit",
   // Legacy event names (for backward compatibility)
   "page_view",
 ] as const;
@@ -85,6 +93,7 @@ const ENTERPRISE_READY_EVENTS = [
   "scenario_save_success",
   "email_confirmed",
   "report_generated",
+  "email_checklist_submit",
 ];
 
 // Validate event payload

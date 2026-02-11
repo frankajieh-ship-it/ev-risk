@@ -8,10 +8,13 @@
 export type VehicleCategory = "EV" | "PHEV" | "ICE";
 export type VehicleSubCategory = "truck" | "suv" | "sedan" | "hatchback" | "van" | "other";
 
+export type DcfcSupport = "yes" | "no" | "unknown";
+
 export interface VehicleClassification {
   category: VehicleCategory;
   subCategory: VehicleSubCategory;
   confidence: "high" | "medium" | "low";
+  dcfcSupport: DcfcSupport;
 }
 
 // --- Known EV makes (all models are EV) ---
@@ -48,6 +51,23 @@ const EV_MODELS: Record<string, string[]> = {
   jaguar: ["i-pace"],
   hummer: ["ev"],
   gmc: ["hummer ev"],
+};
+
+// --- DCFC-capable makes (all models support DCFC) ---
+const DCFC_CAPABLE_MAKES = new Set([
+  "tesla", "rivian", "lucid", "polestar",
+]);
+
+// --- EVs known to LACK DCFC (or have very limited/optional DCFC) ---
+const NO_DCFC_MODELS: Record<string, string[]> = {
+  nissan: ["leaf"],        // Base Leaf trims before 2018 lack CHAdeMO DCFC; later trims optional
+  fiat: ["500e"],          // Pre-2024 500e has no DCFC
+  mazda: ["mx-30"],        // No DCFC port
+  smart: ["eq fortwo", "eq forfour"],  // No DCFC
+  ford: ["focus electric"],  // No DCFC (J1772 AC only)
+  chevrolet: ["bolt", "bolt ev", "bolt euv"],  // No DCFC on Bolt (CCS optional on later models, not standard on most)
+  chevy: ["bolt", "bolt ev", "bolt euv"],
+  mini: ["cooper se", "electric"],  // No DCFC on early models
 };
 
 // --- Known PHEV models ---
@@ -127,6 +147,52 @@ function matchesAny(text: string, patterns: string[]): boolean {
   return patterns.some((p) => lower.includes(p));
 }
 
+function getDcfcSupport(makeLower: string, modelLower: string): DcfcSupport {
+  // Known DCFC-capable makes (all models)
+  if (DCFC_CAPABLE_MAKES.has(makeLower)) return "yes";
+
+  // Known no-DCFC models
+  const noDcfc = NO_DCFC_MODELS[makeLower];
+  if (noDcfc) {
+    for (const pattern of noDcfc) {
+      if (modelLower.includes(pattern)) return "no";
+    }
+  }
+
+  // Known DCFC-capable EV models (CCS standard on modern EVs)
+  const knownDcfcModels: Record<string, string[]> = {
+    hyundai: ["ioniq 5", "ioniq 6", "ioniq5", "ioniq6"],
+    kia: ["ev6", "ev9"],
+    bmw: ["ix", "i4", "i5", "i7"],
+    mercedes: ["eqs", "eqe", "eqb", "eqa"],
+    "mercedes-benz": ["eqs", "eqe", "eqb", "eqa"],
+    volkswagen: ["id.4", "id.buzz", "id4"],
+    vw: ["id.4", "id.buzz", "id4"],
+    ford: ["mustang mach-e", "mach-e", "f-150 lightning", "lightning"],
+    nissan: ["ariya"],
+    cadillac: ["lyriq"],
+    volvo: ["ex30", "ex90", "ec40"],
+    porsche: ["taycan"],
+    audi: ["e-tron", "etron", "e-tron gt", "q4 e-tron", "q8 e-tron"],
+    jaguar: ["i-pace"],
+    gmc: ["hummer ev"],
+    genesis: ["gv60", "electrified g80", "electrified gv70"],
+    toyota: ["bz4x"],
+    subaru: ["solterra"],
+    honda: ["prologue"],
+    acura: ["zdx"],
+  };
+
+  const dcfcModels = knownDcfcModels[makeLower];
+  if (dcfcModels) {
+    for (const pattern of dcfcModels) {
+      if (modelLower.includes(pattern)) return "yes";
+    }
+  }
+
+  return "unknown";
+}
+
 function classifySubCategory(model: string): VehicleSubCategory {
   const m = normalize(model);
   if (matchesAny(m, TRUCK_PATTERNS)) return "truck";
@@ -153,6 +219,7 @@ export function classifyVehicle(
       category: "EV",
       subCategory: classifySubCategory(model),
       confidence: "high",
+      dcfcSupport: getDcfcSupport(makeLower, modelLower),
     };
   }
 
@@ -165,6 +232,7 @@ export function classifyVehicle(
           category: "EV",
           subCategory: classifySubCategory(model),
           confidence: "high",
+          dcfcSupport: getDcfcSupport(makeLower, modelLower),
         };
       }
     }
@@ -179,6 +247,7 @@ export function classifyVehicle(
           category: "PHEV",
           subCategory: classifySubCategory(model),
           confidence: "high",
+          dcfcSupport: "unknown",
         };
       }
     }
@@ -190,6 +259,7 @@ export function classifyVehicle(
       category: "PHEV",
       subCategory: classifySubCategory(model),
       confidence: "high",
+      dcfcSupport: "unknown",
     };
   }
   if (/\belectric\b/i.test(trimLower) || /\bev\b/i.test(trimLower)) {
@@ -197,6 +267,7 @@ export function classifyVehicle(
       category: "EV",
       subCategory: classifySubCategory(model),
       confidence: "high",
+      dcfcSupport: getDcfcSupport(makeLower, modelLower),
     };
   }
 
@@ -213,6 +284,7 @@ export function classifyVehicle(
         category: "EV",
         subCategory: classifySubCategory(model),
         confidence: "medium",
+        dcfcSupport: getDcfcSupport(makeLower, modelLower),
       };
     }
 
@@ -222,6 +294,7 @@ export function classifyVehicle(
         category: "PHEV",
         subCategory: classifySubCategory(model),
         confidence: "medium",
+        dcfcSupport: "unknown",
       };
     }
   }
@@ -231,5 +304,6 @@ export function classifyVehicle(
     category: "ICE",
     subCategory: classifySubCategory(model),
     confidence: "low",
+    dcfcSupport: "unknown",
   };
 }

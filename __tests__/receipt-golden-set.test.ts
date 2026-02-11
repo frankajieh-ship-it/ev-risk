@@ -7,6 +7,10 @@
  * 3. Linter — Verdict Language
  * 4. Linter — Banned Word ("annoying")
  * 5. Reddit Draft Schema Validation
+ * 6. Linter — Question Mark Limit (1 max)
+ * 7. DCFC Classification
+ * 8. Linter — Quotation Marks
+ * 9. Linter — Absolute Claims
  */
 
 import { classifyVehicle } from "@/lib/vehicle-classifier";
@@ -120,9 +124,8 @@ const SAMPLE_DRAFT = {
   ],
   questions: [
     "Has anyone owned a Focus Electric past 50k — how much range did you lose?",
-    "Any common issues I should check for at this age and mileage?",
   ],
-  style: { format: "short_paragraph" as const, max_questions: 2 },
+  style: { format: "short_paragraph" as const, max_questions: 1 },
 };
 
 describe("renderRedditDraft", () => {
@@ -203,7 +206,7 @@ describe("lintReceiptRedditText — verdict language", () => {
   test("does NOT flag neutral text", () => {
     const neutralText =
       "Listed at $4,999 with 49,385 miles. Clean title, dealer sale. " +
-      "Battery health is unknown — has anyone owned one past 50k miles?";
+      "Battery health is unknown at 49k miles.";
     const errors = lintReceiptRedditText(neutralText);
     const verdictErrors = errors.filter((e) => e.code === "VERDICT_LANGUAGE");
     expect(verdictErrors).toHaveLength(0);
@@ -236,7 +239,19 @@ describe("RedditDraftSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  test("rejects >2 questions", () => {
+  test("rejects 2 questions (max is 1)", () => {
+    const bad = {
+      ...SAMPLE_DRAFT,
+      questions: [
+        "Question one about battery?",
+        "Question two about range?",
+      ],
+    };
+    const result = RedditDraftSchema.safeParse(bad);
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects 3 questions", () => {
     const bad = {
       ...SAMPLE_DRAFT,
       questions: [
@@ -277,14 +292,28 @@ describe("RedditDraftSchema", () => {
   });
 });
 
-// ─── 6. Linter — Question Mark Limit ───
+// ─── 6. Linter — Question Mark Limit (1 max) ───
 
 describe("lintReceiptRedditText — question marks", () => {
-  test("allows up to 2 question marks", () => {
-    const text = "Is this a fair price? What about the battery health?";
+  test("allows exactly 1 question mark", () => {
+    const text = "Listed at $4,999 with 49k miles. Has anyone owned one past 50k?";
     const errors = lintReceiptRedditText(text);
     const qErrors = errors.filter((e) => e.code === "TOO_MANY_QUESTIONS");
     expect(qErrors).toHaveLength(0);
+  });
+
+  test("allows zero question marks", () => {
+    const text = "Listed at $4,999 with 49k miles. Clean title, dealer sale.";
+    const errors = lintReceiptRedditText(text);
+    const qErrors = errors.filter((e) => e.code === "TOO_MANY_QUESTIONS");
+    expect(qErrors).toHaveLength(0);
+  });
+
+  test("flags 2 question marks", () => {
+    const text = "Is this a fair price? What about the battery health?";
+    const errors = lintReceiptRedditText(text);
+    const qErrors = errors.filter((e) => e.code === "TOO_MANY_QUESTIONS");
+    expect(qErrors.length).toBeGreaterThan(0);
   });
 
   test("flags 3+ question marks", () => {
@@ -292,5 +321,116 @@ describe("lintReceiptRedditText — question marks", () => {
     const errors = lintReceiptRedditText(text);
     const qErrors = errors.filter((e) => e.code === "TOO_MANY_QUESTIONS");
     expect(qErrors.length).toBeGreaterThan(0);
+  });
+});
+
+// ─── 7. DCFC Classification ───
+
+describe("classifyVehicle — DCFC support", () => {
+  test("Tesla has DCFC support = yes", () => {
+    const result = classifyVehicle("Tesla", "Model 3");
+    expect(result.dcfcSupport).toBe("yes");
+  });
+
+  test("Rivian has DCFC support = yes", () => {
+    const result = classifyVehicle("Rivian", "R1T");
+    expect(result.dcfcSupport).toBe("yes");
+  });
+
+  test("Ford Focus Electric has DCFC support = no", () => {
+    const result = classifyVehicle("Ford", "Focus Electric");
+    expect(result.dcfcSupport).toBe("no");
+  });
+
+  test("Chevrolet Bolt has DCFC support = no", () => {
+    const result = classifyVehicle("Chevrolet", "Bolt EV");
+    expect(result.dcfcSupport).toBe("no");
+  });
+
+  test("Nissan Leaf has DCFC support = no", () => {
+    const result = classifyVehicle("Nissan", "Leaf");
+    expect(result.dcfcSupport).toBe("no");
+  });
+
+  test("Hyundai Ioniq 5 has DCFC support = yes", () => {
+    const result = classifyVehicle("Hyundai", "Ioniq 5");
+    expect(result.dcfcSupport).toBe("yes");
+  });
+
+  test("ICE vehicle has DCFC support = unknown", () => {
+    const result = classifyVehicle("Honda", "Civic");
+    expect(result.dcfcSupport).toBe("unknown");
+  });
+});
+
+// ─── 7b. Template Pack DCFC gating ───
+
+describe("getTemplatePack — DCFC gating", () => {
+  test("EV without DCFC replaces DCFC focus areas", () => {
+    const classification = classifyVehicle("Ford", "Focus Electric");
+    const pack = getTemplatePack(classification);
+    const joined = pack.focusAreas.join(" ").toLowerCase();
+    expect(joined).not.toContain("nearby dcfc stations");
+    expect(joined).toContain("confirm");
+  });
+
+  test("Tesla keeps DCFC focus areas unchanged", () => {
+    const classification = classifyVehicle("Tesla", "Model 3");
+    const pack = getTemplatePack(classification);
+    const joined = pack.focusAreas.join(" ").toLowerCase();
+    expect(joined).toContain("dcfc");
+  });
+});
+
+// ─── 8. Linter — Quotation Marks ───
+
+describe("lintReceiptRedditText — quotation marks", () => {
+  test("flags double quotes", () => {
+    const text = 'The seller said "clean title" and walked away.';
+    const errors = lintReceiptRedditText(text);
+    const qmErrors = errors.filter((e) => e.code === "QUOTATION_MARKS");
+    expect(qmErrors.length).toBe(1);
+  });
+
+  test("flags single quotes", () => {
+    const text = "The seller said it's a clean title.";
+    const errors = lintReceiptRedditText(text);
+    const qmErrors = errors.filter((e) => e.code === "QUOTATION_MARKS");
+    expect(qmErrors.length).toBe(1);
+  });
+
+  test("does NOT flag text without quotes", () => {
+    const text = "Listed at $4,999 with 49k miles. Clean title, dealer sale.";
+    const errors = lintReceiptRedditText(text);
+    const qmErrors = errors.filter((e) => e.code === "QUOTATION_MARKS");
+    expect(qmErrors).toHaveLength(0);
+  });
+});
+
+// ─── 9. Linter — Absolute Claims ───
+
+describe("lintReceiptRedditText — absolute claims", () => {
+  const absolutePhrases = [
+    "This will be a problem at higher mileage.",
+    "The battery definitely needs replacement.",
+    "Dealers always mark up older EVs.",
+    "This indicates frame damage.",
+    "This price is too good to be true.",
+  ];
+
+  test.each(absolutePhrases)(
+    "flags absolute language: %s",
+    (text) => {
+      const errors = lintReceiptRedditText(text);
+      const absErrors = errors.filter((e) => e.code === "ABSOLUTE_CLAIMS");
+      expect(absErrors.length).toBeGreaterThan(0);
+    }
+  );
+
+  test("does NOT flag cautious language", () => {
+    const text = "This may be a concern. The battery often degrades over time.";
+    const errors = lintReceiptRedditText(text);
+    const absErrors = errors.filter((e) => e.code === "ABSOLUTE_CLAIMS");
+    expect(absErrors).toHaveLength(0);
   });
 });

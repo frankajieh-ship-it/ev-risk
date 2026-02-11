@@ -15,7 +15,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Link,
   FileText,
@@ -42,6 +42,7 @@ interface ReceiptInputCardProps {
   remainingFree: number | null;
   error: string | null;
   isPro?: boolean;
+  prefillText?: string | null;
 }
 
 const REQUIRED_FIELDS: (keyof StructuredListingFields)[] = [
@@ -83,6 +84,7 @@ export default function ReceiptInputCard({
   remainingFree,
   error,
   isPro = false,
+  prefillText,
 }: ReceiptInputCardProps) {
   const [inputMode, setInputMode] = useState<InputMode>("url");
   const [listingUrl, setListingUrl] = useState("");
@@ -107,6 +109,14 @@ export default function ReceiptInputCard({
 
   // Dirty tracking
   const [dirtyFields, setDirtyFields] = useState<Set<keyof StructuredListingFields>>(new Set());
+
+  // Prefill from SEO page
+  useEffect(() => {
+    if (prefillText) {
+      setInputMode("text");
+      setListingText(prefillText);
+    }
+  }, [prefillText]);
 
   const updateField = <K extends keyof StructuredListingFields>(
     key: K,

@@ -54,8 +54,8 @@ JSON SCHEMA:
     "body_facts": ["<verified facts from the listing, 5-200 chars each, 1-5 items>"],
     "body_uncertainty": ["<what is unclear or missing, 5-200 chars each, 0-3 items>"],
     "body_next_steps": ["<what the buyer plans to verify, 5-200 chars each, 0-3 items>"],
-    "questions": ["<specific questions for the community, 10-200 chars each, 1-2 items>"],
-    "style": { "format": "short_paragraph", "max_questions": 2 }
+    "questions": ["<EXACTLY 1 specific question for the community, 10-200 chars>"],
+    "style": { "format": "short_paragraph", "max_questions": 1 }
   },
   "receipt_details": {
     "fee_estimates": {
@@ -112,23 +112,35 @@ CRITICAL CONSTRAINTS — the linter will reject your output if these fail:
 - reddit_draft.body_facts: 1-5 items, each 5-200 characters
 - reddit_draft.body_uncertainty: 0-3 items, each 5-200 characters
 - reddit_draft.body_next_steps: 0-3 items, each 5-200 characters
-- reddit_draft.questions: 1-2 items, each 10-200 characters
+- reddit_draft.questions: EXACTLY 1 item, 10-200 characters
 
 REDDIT DRAFT TONE RULES:
 - Never use verdict language: "good deal", "bad deal", "buy it", "skip it", "you should", "I'd lean", "I would lean", "great deal", "terrible deal", "don't buy", "do not buy", "must buy", "hard pass", "steer you", "avoid"
 - Never use "annoying" (use "stressful" instead)
+- No quotation marks of any kind in receipt_reddit_text or negotiation_opener (no " or ')
+- No absolute claims. Use cautious language: "may", "adds uncertainty", "worth verifying", "tends to" instead of "will", "definitely", "always", "indicates"
 - Present facts neutrally. The buyer is asking for opinions, not being told what to do.
 - Use concrete numbers and specifics from the listing.
 - No smart/curly quotes — use straight quotes only.
 - No markdown italic markers (* or _).
 - No URLs in the text.
+- No slashes as alternates (use "or" instead of "/").
 
 REDDIT DRAFT QUESTION RULES:
-- Q1: Address the biggest decision uncertainty from your risk_flags.
-- Q2: Category-specific. EV: battery or charging concern. PHEV: battery condition and engine concern. ICE: mechanical or service concern. Truck: frame or towing concern.
-- Questions must be specific to THIS listing, not generic.
+- EXACTLY 1 question across the entire draft (title + body combined). Total count of ? must be <= 1.
+- The question must address the biggest decision uncertainty from your risk_flags, specific to THIS listing.
+- No generic questions. Use the vehicle category for focus: EV: battery or charging concern. PHEV: battery condition and engine concern. ICE: mechanical or service concern. Truck: frame or towing concern.
 
-receipt_reddit_text: MUST be the rendered version of reddit_draft — title on first line, blank line, body paragraph (facts + uncertainty + next steps joined), blank line, questions. 40-900 characters total.
+DCFC GATING RULE:
+- If DCFC_SUPPORT in the user prompt is "unknown", do NOT recommend finding nearby DC fast chargers or assume the vehicle supports DC fast charging.
+- Instead, frame it as: "confirm whether DC fast charging is supported and which connector."
+- Only mention DCFC stations or speed if DCFC_SUPPORT is "yes".
+
+LOCATION RULE:
+- If location data is ambiguous or conflicting (e.g., ZIP suggests one city but listing text mentions another), do not mention a specific city. Use "local listing" or omit location entirely.
+- Only use location data you are confident about.
+
+receipt_reddit_text: MUST be the rendered version of reddit_draft — title on first line, blank line, body paragraph (facts + uncertainty + next steps joined), blank line, question. 40-900 characters total. Max 1 question mark.
 
 VERDICT GUIDELINES:
 - GREEN: Price is fair or better, no major red flags, standard used-car caution applies
@@ -199,7 +211,27 @@ function buildUserPrompt(input: ReceiptGenerateRequest): string {
 
   parts.push(`VEHICLE CATEGORY: ${classification.category} (${classification.subCategory})`);
   parts.push(`FOCUS AREAS: ${pack.focusAreas.join(", ")}`);
+
+  // DCFC support injection for EVs
+  if (classification.category === "EV") {
+    const dcfc = classification.dcfcSupport;
+    if (dcfc === "yes") {
+      parts.push(`DCFC_SUPPORT: yes`);
+    } else if (dcfc === "no") {
+      parts.push(`DCFC_SUPPORT: no (this vehicle does NOT support DC fast charging)`);
+    } else {
+      parts.push(`DCFC_SUPPORT: unknown (confirm capability first — do NOT assume DCFC is available)`);
+    }
+  }
   parts.push("");
+
+  // Location conflict detection
+  if (input.location && input.zip_or_postcode) {
+    parts.push(
+      `NOTE: Both location ("${input.location}") and ZIP/postcode ("${input.zip_or_postcode}") were provided. These may conflict. Use only confirmed location data in reddit_draft. If uncertain, say "local listing" instead of a specific city.`
+    );
+    parts.push("");
+  }
 
   // Missing data notice
   const TOP_6 = ["year", "make", "model", "price", "mileage", "location"] as const;
@@ -336,6 +368,16 @@ function applyDeterministicFixes(text: string): string {
   // Smart quotes → straight quotes
   out = out.replace(/[\u201C\u201D\u201E\u201F]/g, '"');
   out = out.replace(/[\u2018\u2019\u201A\u201B]/g, "'");
+  // Absolute claims filter
+  out = out.replace(/\bwill\b/gi, "may");
+  out = out.replace(/\bdefinitely\b/gi, "");
+  out = out.replace(/\balways\b/gi, "often");
+  out = out.replace(/\bindicates\b/gi, "can suggest");
+  out = out.replace(/\btoo good to be true\b/gi, "priced lower than expected");
+  // Quotation marks removal
+  out = out.replace(/["']/g, "");
+  // Clean up double spaces from removals
+  out = out.replace(/  +/g, " ").trim();
   return out;
 }
 
@@ -353,7 +395,12 @@ export async function fixReceiptFormatting(
   if (lintErrors.length === 0) return null;
 
   // Step 1: Try deterministic fixes first
-  const deterministicCodes = new Set(["SMART_QUOTES", "BANNED_WORD_ANNOYING"]);
+  const deterministicCodes = new Set([
+    "SMART_QUOTES",
+    "BANNED_WORD_ANNOYING",
+    "ABSOLUTE_CLAIMS",
+    "QUOTATION_MARKS",
+  ]);
   const originalText = (receipt.receipt_reddit_text as string) || "";
   const fixedText = applyDeterministicFixes(originalText);
 
@@ -385,7 +432,7 @@ RULES for the fixed text:
 - Replace smart/curly quotes with straight quotes
 - Remove markdown italic markers (* and _)
 - Replace word/word patterns with "or" (e.g. "buy/lease" → "buy or lease")
-- Max 2 question marks total
+- Max 1 question mark total
 - No URLs (remove any http/https/www links)
 - No promo terms (sign up, subscribe, dm me, check out, my tool, try our, link in bio)
 - No verdict language: "good deal", "bad deal", "buy it", "skip it", "you should", "I'd lean", "great deal", "terrible deal", "don't buy", "must buy", "hard pass", "steer you", "avoid"

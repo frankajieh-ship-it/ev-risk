@@ -15,6 +15,7 @@ import ReceiptInputCard from "@/components/receipt/ReceiptInputCard";
 import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
 import ReceiptDetailsAccordion from "@/components/receipt/ReceiptDetailsAccordion";
 import ReceiptHistoryDrawer from "@/components/receipt/ReceiptHistoryDrawer";
+import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
 import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry } from "@/types/receipt";
 import {
   getReceiptHistory,
@@ -55,9 +56,19 @@ export default function ReceiptPage() {
   // Receipt token
   const [receiptToken, setReceiptToken] = useState("");
 
+  // Prefill from SEO page
+  const [prefillText, setPrefillText] = useState<string | null>(null);
+
   useEffect(() => {
     setReceiptToken(getOrCreateReceiptToken());
     setHistory(getReceiptHistory());
+
+    // Check for prefilled listing text from SEO page
+    const storedText = sessionStorage.getItem("offo_listing_text");
+    if (storedText) {
+      setPrefillText(storedText);
+      sessionStorage.removeItem("offo_listing_text");
+    }
   }, []);
 
   // Generate receipt
@@ -169,10 +180,29 @@ export default function ReceiptPage() {
     [receipt, receiptToken]
   );
 
-  // Handle copy
+  // Handle copy (legacy receipt_events table)
   const handleCopy = useCallback(() => {
     postReceiptEvent("copy");
   }, [postReceiptEvent]);
+
+  // Granular copy tracking (user_events table)
+  const handleTrackCopy = useCallback(
+    (copyType: string) => {
+      const eventNameMap: Record<string, string> = {
+        reddit_draft: "copy_reddit_draft",
+        "must-ask": "copy_checklist",
+        opener: "copy_seller_message",
+      };
+      const eventName = eventNameMap[copyType];
+      if (eventName) {
+        trackEvent(eventName, {
+          receipt_id: receipt?.receipt_id,
+          verdict: receipt?.verdict,
+        });
+      }
+    },
+    [trackEvent, receipt]
+  );
 
   // Handle auto-fix
   const handleAutoFix = useCallback(async () => {
@@ -268,6 +298,7 @@ export default function ReceiptPage() {
           remainingFree={remainingFree}
           error={error}
           isPro={isPro}
+          prefillText={prefillText}
         />
 
         {/* Output */}
@@ -285,6 +316,7 @@ export default function ReceiptPage() {
                 lintPassed={lintPassed}
                 lintErrors={lintErrors}
                 onCopy={handleCopy}
+                onTrackCopy={handleTrackCopy}
                 onAutoFix={handleAutoFix}
                 isFixing={isFixing}
               />
@@ -297,6 +329,15 @@ export default function ReceiptPage() {
                   listingSummary={receipt.listing_summary}
                 />
               )}
+
+              {/* Email capture */}
+              <EmailCaptureCard
+                onSubmit={() =>
+                  trackEvent("email_checklist_submit", {
+                    receipt_id: receipt.receipt_id,
+                  })
+                }
+              />
             </motion.div>
           )}
         </AnimatePresence>

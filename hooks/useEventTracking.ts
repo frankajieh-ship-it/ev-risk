@@ -5,6 +5,7 @@
 
 import { useCallback, useRef } from "react";
 import { getOrCreatePersistentSessionId } from "@/lib/session-utils";
+import { initAttribution, getAttributionForEvent } from "@/lib/attribution";
 
 interface EventData {
   [key: string]: any;
@@ -14,6 +15,13 @@ export function useEventTracking() {
   const visitorIdRef = useRef<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const persistentSessionIdRef = useRef<string | null>(null);
+  const attributionInitRef = useRef(false);
+
+  // Initialize attribution on first render (client-side only)
+  if (typeof window !== "undefined" && !attributionInitRef.current) {
+    initAttribution();
+    attributionInitRef.current = true;
+  }
 
   // Generate visitor ID (same as visitor tracking)
   const getVisitorId = useCallback(() => {
@@ -72,7 +80,8 @@ export function useEventTracking() {
             eventName,
             eventData: {
               ...(eventData || {}),
-              persistent_session_id: getPersistentSessionId(), // Include for customer tracking
+              persistent_session_id: getPersistentSessionId(),
+              ...(getAttributionForEvent() ? { attribution: getAttributionForEvent() } : {}),
             },
             visitorId: getVisitorId(),
             sessionId: getSessionId(),

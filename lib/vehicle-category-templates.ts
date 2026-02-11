@@ -107,14 +107,47 @@ export function getTemplatePack(
 
   switch (classification.category) {
     case "EV":
-      basePack = { ...EV_PACK };
+      basePack = {
+        ...EV_PACK,
+        focusAreas: [...EV_PACK.focusAreas],
+        inspectionPriorities: [...EV_PACK.inspectionPriorities],
+      };
       break;
     case "PHEV":
-      basePack = { ...PHEV_PACK };
+      basePack = {
+        ...PHEV_PACK,
+        focusAreas: [...PHEV_PACK.focusAreas],
+        inspectionPriorities: [...PHEV_PACK.inspectionPriorities],
+      };
       break;
     default:
-      basePack = { ...ICE_PACK };
+      basePack = {
+        ...ICE_PACK,
+        focusAreas: [...ICE_PACK.focusAreas],
+        inspectionPriorities: [...ICE_PACK.inspectionPriorities],
+      };
       break;
+  }
+
+  // Adjust DCFC focus areas for EVs based on capability
+  if (classification.category === "EV" && classification.dcfcSupport !== "yes") {
+    basePack.focusAreas = basePack.focusAreas.map((area) => {
+      if (area.includes("nearby DCFC stations")) {
+        return "confirm whether DC fast charging is supported and which connector before relying on it";
+      }
+      if (area.includes("DCFC charging speed")) {
+        return classification.dcfcSupport === "no"
+          ? "this model may not support DC fast charging — verify before assuming fast charging is available"
+          : "confirm DC fast charging capability and connector type";
+      }
+      return area;
+    });
+    basePack.inspectionPriorities = basePack.inspectionPriorities.map((item) => {
+      if (item.includes("test DCFC")) {
+        return "Verify whether DC fast charging port exists and is functional";
+      }
+      return item;
+    });
   }
 
   // Apply truck overlay if applicable
