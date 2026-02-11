@@ -1,109 +1,50 @@
 /**
  * OFFO Listing Receipt — Type Definitions
- * Matches the v1 JSON schema exactly.
+ *
+ * The main Receipt type is inferred from the Zod schema.
+ * Non-AI types (request, response, history) stay hand-written.
  */
 
-// --- Enums / Unions ---
+export type { Receipt as ListingReceipt } from "@/lib/receipt-schema-validator";
+export type { LintError } from "@/lib/receipt-schema-validator";
+export type { RedditDraft } from "@/lib/receipt-schema-validator";
+export type { VehicleCategory, VehicleClassification } from "@/lib/vehicle-classifier";
+import type { Receipt } from "@/lib/receipt-schema-validator";
+
+// --- Derived sub-types from Zod schema ---
+
+export type ReceiptDetails = NonNullable<Receipt["receipt_details"]>;
+export type OperatorNotes = Receipt["operator_notes"];
+export type ListingSummary = Receipt["listing_summary"];
+export type PriceSanity = Receipt["price_sanity"];
+export type CompareSection = NonNullable<Receipt["compare"]>;
+
+// --- Enums / Unions (still used by non-AI code) ---
 
 export type ReceiptMode = "single" | "compare";
 export type Verdict = "GREEN" | "YELLOW" | "RED";
 export type PriceSanityLabel = "UNDERPRICED" | "FAIR" | "OVERPRICED" | "UNKNOWN";
-export type PriceBasis = "LISTING_ONLY" | "USER_MARKET_RANGE" | "UNKNOWN";
-export type CompareWinner = "A" | "B" | "TIE";
-export type SellerType = "dealer" | "private" | "unknown";
-export type TitleStatus = "clean" | "salvage" | "rebuilt" | "unknown";
-export type Country = "US" | "UK" | "CA" | "AU" | "OTHER";
-export type MileageUnit = "mi" | "km" | "unknown";
-export type YesNoUnknown = "yes" | "no" | "unknown";
 
-// --- Sub-objects ---
+// --- Structured Listing Fields (shared between input card & API) ---
 
-export interface PriceRange {
-  low: number;
-  high: number;
-}
-
-export interface MarketRange {
-  low: number;
-  high: number;
-  currency: string;
-}
-
-export interface PriceSanity {
-  label: PriceSanityLabel;
-  confidence: number; // 0-1
-  basis: PriceBasis;
-  rationale_short: string; // 4-180 chars
-  user_market_range: MarketRange | null;
-}
-
-export interface FeeEstimates {
-  currency: string;
-  notes: string; // max 220 chars
-  tax_estimate_range: PriceRange | null;
-  doc_fee_estimate_range: PriceRange | null;
-}
-
-export interface ReceiptDetails {
-  fee_estimates: FeeEstimates;
-  common_listing_tricks: string[]; // 3-10 items, each 1-140 chars
-  walk_away_triggers: string[]; // 3-10 items, each 1-140 chars
-}
-
-export interface ListingSummary {
-  listing_url: string;
-  url_domain: string;
-  country: Country;
-  zip_or_postcode: string;
-  price: number;
-  currency: string;
-  mileage: number;
-  mileage_unit: MileageUnit;
-  year: number;
-  make: string;
-  model: string;
-  trim: string | null;
-  seller_type: SellerType;
-  title_status: TitleStatus;
-  accidents_reported: YesNoUnknown;
-  service_history: YesNoUnknown;
-  owners: number | null;
-  carfax_available: YesNoUnknown;
-}
-
-export interface CompareSection {
-  winner: CompareWinner;
-  why: [string, string]; // exactly 2
-  tie_breaker_questions: string[]; // 0-2
-  listing_b_summary: ListingSummary;
-}
-
-export interface OperatorNotes {
-  rationale: string; // 10-500 chars
-  assumptions: string[]; // 0-6
-  what_would_change_verdict: string[]; // 0-4
-}
-
-// --- Main Receipt ---
-
-export interface ListingReceipt {
-  schema_version: "v1";
-  receipt_id: string; // uuid
-  created_at?: string; // ISO date-time
-  mode: ReceiptMode;
-  verdict: Verdict;
-  verdict_reason: string; // 4-180 chars
-  price_sanity: PriceSanity;
-  risk_flags: [string, string, string]; // exactly 3, each 1-120 chars
-  must_answer_questions: [string, string, string]; // exactly 3, each 1-140 chars
-  inspect_first: [string, string, string, string, string]; // exactly 5, each 1-140 chars
-  negotiation_opener: string; // 8-420 chars
-  one_followup_question: string | null; // max 160
-  receipt_reddit_text: string; // 40-1200 chars
-  receipt_details: ReceiptDetails | null;
-  compare: CompareSection | null;
-  operator_notes: OperatorNotes;
-  listing_summary: ListingSummary;
+export interface StructuredListingFields {
+  year?: number;
+  make?: string;
+  model?: string;
+  trim?: string;
+  mileage?: number;
+  price?: number;
+  vin?: string;
+  location?: string;
+  seller_type?: "dealer" | "private" | "unknown";
+  title_status?: "clean" | "salvage" | "rebuilt" | "unknown";
+  accidents_reported?: "yes" | "no" | "unknown";
+  service_history?: "yes" | "no" | "unknown";
+  owners?: number;
+  carfax_available?: "yes" | "no" | "unknown";
+  financing_vs_cash?: "financing" | "cash" | "unknown";
+  country?: "US" | "UK" | "CA" | "AU" | "OTHER";
+  zip_or_postcode?: string;
 }
 
 // --- API Request / Response ---
@@ -121,9 +62,20 @@ export interface ReceiptGenerateRequest {
   price?: number;
   vin?: string;
   location?: string;
+  // Extended structured fields
+  seller_type?: "dealer" | "private" | "unknown";
+  title_status?: "clean" | "salvage" | "rebuilt" | "unknown";
+  accidents_reported?: "yes" | "no" | "unknown";
+  service_history?: "yes" | "no" | "unknown";
+  owners?: number;
+  carfax_available?: "yes" | "no" | "unknown";
+  financing_vs_cash?: "financing" | "cash" | "unknown";
+  country?: "US" | "UK" | "CA" | "AU" | "OTHER";
+  zip_or_postcode?: string;
   // Identity
   receipt_token: string;
   session_id?: string;
+  extraction_id?: string;
   // Mode
   mode?: ReceiptMode;
   // Compare listing B (Pro only)
@@ -133,16 +85,19 @@ export interface ReceiptGenerateRequest {
 
 export interface ReceiptGenerateResponse {
   success: true;
-  receipt: ListingReceipt;
+  receipt: import("@/lib/receipt-schema-validator").Receipt;
   lint_passed: boolean;
   lint_errors: string[];
+  lint_error_codes: import("@/lib/receipt-schema-validator").LintError[];
   remaining_free: number;
+  vehicle_category?: import("@/lib/vehicle-classifier").VehicleCategory;
 }
 
 export interface ReceiptGenerateError {
   success: false;
   error: string;
   lint_errors?: string[];
+  lint_error_codes?: import("@/lib/receipt-schema-validator").LintError[];
   remaining_free?: number;
   resetAt?: string;
 }
@@ -161,6 +116,11 @@ export interface FetchedListingFields {
   url_domain?: string;
 }
 
+// --- Extraction Confidence ---
+
+export type FieldConfidence = "extracted" | "inferred" | "missing";
+export type FieldConfidenceMap = Partial<Record<keyof FetchedListingFields, FieldConfidence>>;
+
 // --- History Entry ---
 
 export interface ReceiptHistoryEntry {
@@ -171,5 +131,5 @@ export interface ReceiptHistoryEntry {
   make: string | null;
   model: string | null;
   price: number | null;
-  receipt: ListingReceipt;
+  receipt: import("@/lib/receipt-schema-validator").Receipt;
 }

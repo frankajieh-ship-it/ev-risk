@@ -12,11 +12,14 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { v4 as uuidv4 } from "uuid";
 import { getClientIP } from "@/lib/rate-limiter";
 import { receiptBurstLimiter } from "@/lib/receipt-rate-limiter";
 import { extractVehicleData } from "@/lib/listing-scraper";
+import { extractFieldsFromText } from "@/lib/text-extractor";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { FetchedListingFields } from "@/types/receipt";
+import type { FieldConfidence } from "@/types/receipt";
 
 export const maxDuration = 30;
 
@@ -90,18 +93,89 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const url = body.url;
-  if (!url || typeof url !== "string") {
+  const url = body.url as string | undefined;
+  const text = body.text as string | undefined;
+
+  if (
+    (!url || typeof url !== "string") &&
+    (!text || typeof text !== "string" || text.trim().length < 20)
+  ) {
     return NextResponse.json(
-      { success: false, error: "Missing url field" },
+      {
+        success: false,
+        error: "Provide a listing URL or paste at least 20 characters of listing text",
+      },
       { status: 400 }
     );
   }
 
+  const sessionId = (body.receipt_token as string) || null;
+
+  // --- Text-mode extraction (no URL) ---
+  if (text && !url) {
+    try {
+      const result = await extractFieldsFromText(text);
+      const extraction_id = uuidv4();
+
+      const field_confidence: Record<string, FieldConfidence> = {};
+      const allFieldKeys = ["year", "make", "model", "trim", "mileage", "price", "vin", "location"];
+      for (const key of allFieldKeys) {
+        field_confidence[key] = result.extractedFields.includes(key) ? "extracted" : "missing";
+      }
+
+      // Log event
+      if (isSupabaseConfigured() && sessionId) {
+        try {
+          await supabase.from("receipt_events").insert({
+            session_id: sessionId,
+            event_type: "fetch_success",
+            url_domain: "text_paste",
+          });
+        } catch {
+          // swallow
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        fields: result.fields,
+        field_confidence,
+        extraction_id,
+        listing_source: "text_paste",
+        parse_confidence: result.confidence,
+        extractedFields: result.extractedFields,
+        missingFields: result.missingFields,
+        warnings: [],
+        diagnostics: null,
+      });
+    } catch (error) {
+      console.error("[Receipt Fetch API] Text extraction error:", error);
+
+      if (isSupabaseConfigured() && sessionId) {
+        try {
+          await supabase.from("receipt_events").insert({
+            session_id: sessionId,
+            event_type: "fetch_fail",
+            url_domain: "text_paste",
+          });
+        } catch {
+          // swallow
+        }
+      }
+
+      return NextResponse.json(
+        { success: false, error: "Failed to extract details from text" },
+        { status: 500 }
+      );
+    }
+  }
+
+  // --- URL-mode extraction ---
+
   // Validate URL format
   let parsedUrl: URL;
   try {
-    parsedUrl = new URL(url);
+    parsedUrl = new URL(url!);
   } catch {
     return NextResponse.json(
       { success: false, error: "Invalid URL format" },
@@ -126,11 +200,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const sessionId = (body.receipt_token as string) || null;
   const urlDomain = parsedUrl.hostname.replace("www.", "");
 
   try {
-    const result = await extractVehicleData(url);
+    const result = await extractVehicleData(url!);
 
     if (!result.success || !result.data) {
       // Log fetch_fail event
@@ -183,9 +256,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Build field confidence map
+    const field_confidence: Record<string, FieldConfidence> = {};
+    const allFieldKeys = ["year", "make", "model", "trim", "mileage", "price", "vin", "location"];
+    for (const key of allFieldKeys) {
+      field_confidence[key] = result.data.extractedFields.includes(key) ? "extracted" : "missing";
+    }
+
     return NextResponse.json({
       success: true,
       fields,
+      field_confidence,
+      extraction_id: uuidv4(),
+      listing_source: result.data.dataSource || null,
       parse_confidence: result.data.confidence,
       extractedFields: result.data.extractedFields,
       missingFields: result.data.missingFields,

@@ -116,13 +116,13 @@ export default function ReceiptDetailsAccordion({
         >
           <div className="space-y-3 text-sm">
             <p className="text-gray-700">{operatorNotes.rationale}</p>
-            {operatorNotes.assumptions?.length > 0 && (
+            {(operatorNotes.assumptions?.length ?? 0) > 0 && (
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase mb-1">
                   Assumptions
                 </p>
                 <ul className="space-y-1">
-                  {operatorNotes.assumptions.map((a, i) => (
+                  {operatorNotes.assumptions?.map((a, i) => (
                     <li key={i} className="text-gray-600 text-xs">
                       - {a}
                     </li>
@@ -130,13 +130,13 @@ export default function ReceiptDetailsAccordion({
                 </ul>
               </div>
             )}
-            {operatorNotes.what_would_change_verdict?.length > 0 && (
+            {(operatorNotes.what_would_change_verdict?.length ?? 0) > 0 && (
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase mb-1">
                   What would change the verdict
                 </p>
                 <ul className="space-y-1">
-                  {operatorNotes.what_would_change_verdict.map((w, i) => (
+                  {operatorNotes.what_would_change_verdict?.map((w, i) => (
                     <li key={i} className="text-gray-600 text-xs">
                       - {w}
                     </li>

@@ -15,7 +15,7 @@ import ReceiptInputCard from "@/components/receipt/ReceiptInputCard";
 import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
 import ReceiptDetailsAccordion from "@/components/receipt/ReceiptDetailsAccordion";
 import ReceiptHistoryDrawer from "@/components/receipt/ReceiptHistoryDrawer";
-import type { ListingReceipt, FetchedListingFields, ReceiptHistoryEntry } from "@/types/receipt";
+import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry } from "@/types/receipt";
 import {
   getReceiptHistory,
   addToReceiptHistory,
@@ -39,14 +39,18 @@ export default function ReceiptPage() {
   // Core state
   const [receipt, setReceipt] = useState<ListingReceipt | null>(null);
   const [lintPassed, setLintPassed] = useState(true);
-  const [lintErrors, setLintErrors] = useState<string[]>([]);
+  const [lintErrors, setLintErrors] = useState<LintError[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isFixing, setIsFixing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remainingFree, setRemainingFree] = useState<number | null>(null);
 
   // History
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<ReceiptHistoryEntry[]>([]);
+
+  // Pro state
+  const [isPro, setIsPro] = useState(false);
 
   // Receipt token
   const [receiptToken, setReceiptToken] = useState("");
@@ -61,7 +65,8 @@ export default function ReceiptPage() {
     async (data: {
       listing_url?: string;
       listing_text?: string;
-      fetchedFields?: FetchedListingFields;
+      fields: StructuredListingFields;
+      extraction_id?: string;
     }) => {
       if (!receiptToken) return;
 
@@ -77,20 +82,30 @@ export default function ReceiptPage() {
           mode: "single",
         };
 
+        if (data.extraction_id) body.extraction_id = data.extraction_id;
+
         if (data.listing_url) body.listing_url = data.listing_url;
         if (data.listing_text) body.listing_text = data.listing_text;
 
-        // Merge fetched fields
-        if (data.fetchedFields) {
-          const f = data.fetchedFields;
-          if (f.year) body.year = f.year;
-          if (f.make) body.make = f.make;
-          if (f.model) body.model = f.model;
-          if (f.trim) body.trim = f.trim;
-          if (f.mileage) body.mileage = f.mileage;
-          if (f.price) body.price = f.price;
-          if (f.location) body.location = f.location;
-        }
+        // Spread structured fields into body
+        const f = data.fields;
+        if (f.year) body.year = f.year;
+        if (f.make) body.make = f.make;
+        if (f.model) body.model = f.model;
+        if (f.trim) body.trim = f.trim;
+        if (f.mileage) body.mileage = f.mileage;
+        if (f.price) body.price = f.price;
+        if (f.vin) body.vin = f.vin;
+        if (f.location) body.location = f.location;
+        if (f.seller_type) body.seller_type = f.seller_type;
+        if (f.title_status) body.title_status = f.title_status;
+        if (f.accidents_reported) body.accidents_reported = f.accidents_reported;
+        if (f.service_history) body.service_history = f.service_history;
+        if (f.owners) body.owners = f.owners;
+        if (f.carfax_available) body.carfax_available = f.carfax_available;
+        if (f.financing_vs_cash) body.financing_vs_cash = f.financing_vs_cash;
+        if (f.country) body.country = f.country;
+        if (f.zip_or_postcode) body.zip_or_postcode = f.zip_or_postcode;
 
         const res = await fetch("/api/receipt", {
           method: "POST",
@@ -110,9 +125,12 @@ export default function ReceiptPage() {
 
         setReceipt(result.receipt);
         setLintPassed(result.lint_passed);
-        setLintErrors(result.lint_errors || []);
+        setLintErrors(result.lint_error_codes || []);
         if (typeof result.remaining_free === "number") {
           setRemainingFree(result.remaining_free);
+        }
+        if (typeof result.is_pro === "boolean") {
+          setIsPro(result.is_pro);
         }
 
         // Add to history
@@ -155,6 +173,39 @@ export default function ReceiptPage() {
   const handleCopy = useCallback(() => {
     postReceiptEvent("copy");
   }, [postReceiptEvent]);
+
+  // Handle auto-fix
+  const handleAutoFix = useCallback(async () => {
+    if (!receipt || !receiptToken) return;
+    setIsFixing(true);
+    try {
+      const res = await fetch("/api/receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          receipt_token: receiptToken,
+          mode: "fix_only",
+          receipt_json: receipt,
+          lint_errors: lintErrors,
+        }),
+      });
+      const result = await res.json();
+      if (result.success && result.receipt) {
+        setReceipt(result.receipt);
+        setLintPassed(result.lint_passed);
+        setLintErrors(result.lint_error_codes || []);
+
+        trackEvent("receipt_regen", {
+          receipt_id: receipt.receipt_id,
+          lint_passed: result.lint_passed,
+        });
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setIsFixing(false);
+    }
+  }, [receipt, receiptToken, lintErrors, trackEvent]);
 
   // View historical receipt
   const handleHistorySelect = useCallback((entry: ReceiptHistoryEntry) => {
@@ -216,6 +267,7 @@ export default function ReceiptPage() {
           isGenerating={isGenerating}
           remainingFree={remainingFree}
           error={error}
+          isPro={isPro}
         />
 
         {/* Output */}
@@ -233,6 +285,8 @@ export default function ReceiptPage() {
                 lintPassed={lintPassed}
                 lintErrors={lintErrors}
                 onCopy={handleCopy}
+                onAutoFix={handleAutoFix}
+                isFixing={isFixing}
               />
 
               {/* Details accordion */}

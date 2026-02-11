@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Copy,
@@ -20,14 +20,18 @@ import {
   AlertCircle,
   Wrench,
   HelpCircle,
+  FileText,
 } from "lucide-react";
-import type { ListingReceipt } from "@/types/receipt";
+import type { ListingReceipt, LintError } from "@/types/receipt";
+import { renderRedditDraft, type RedditDraftStyle } from "@/lib/reddit-draft-renderer";
 
 interface ReceiptOutputCardProps {
   receipt: ListingReceipt;
   lintPassed: boolean;
-  lintErrors: string[];
+  lintErrors: LintError[];
   onCopy?: () => void;
+  onAutoFix?: () => void;
+  isFixing?: boolean;
 }
 
 const VERDICT_STYLES = {
@@ -66,8 +70,25 @@ export default function ReceiptOutputCard({
   lintPassed,
   lintErrors,
   onCopy,
+  onAutoFix,
+  isFixing,
 }: ReceiptOutputCardProps) {
   const [copied, setCopied] = useState(false);
+  const [draftStyle, setDraftStyle] = useState<RedditDraftStyle>("short_paragraph");
+
+  const displayText = useMemo(() => {
+    if (receipt.reddit_draft) {
+      try {
+        return renderRedditDraft(
+          receipt.reddit_draft as Parameters<typeof renderRedditDraft>[0],
+          draftStyle
+        );
+      } catch {
+        return receipt.receipt_reddit_text;
+      }
+    }
+    return receipt.receipt_reddit_text;
+  }, [receipt.reddit_draft, receipt.receipt_reddit_text, draftStyle]);
 
   const verdict = VERDICT_STYLES[receipt.verdict];
   const VerdictIcon = verdict.icon;
@@ -77,7 +98,7 @@ export default function ReceiptOutputCard({
     if (!lintPassed) return;
 
     try {
-      await navigator.clipboard.writeText(receipt.receipt_reddit_text);
+      await navigator.clipboard.writeText(displayText);
       setCopied(true);
       onCopy?.();
       setTimeout(() => setCopied(false), 2000);
@@ -212,13 +233,71 @@ export default function ReceiptOutputCard({
           </div>
         )}
 
-        {/* Lint warning */}
-        {!lintPassed && (
-          <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded-lg">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span>
-              Receipt has {lintErrors.length} validation issue{lintErrors.length !== 1 ? "s" : ""} — copy is disabled.
+        {/* Reddit Post Draft Preview */}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-gray-500" />
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Reddit Post Draft Preview
+              </h3>
+            </div>
+            <span className="text-xs text-gray-400">
+              {displayText.length}/900 chars
             </span>
+          </div>
+          {receipt.reddit_draft && (
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 mb-3">
+              {(["short_paragraph", "standard", "bullets"] as const).map((style) => (
+                <button
+                  key={style}
+                  onClick={() => setDraftStyle(style)}
+                  className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-md transition-all ${
+                    draftStyle === style
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {style === "short_paragraph"
+                    ? "Short"
+                    : style === "standard"
+                    ? "Standard"
+                    : "Bullets"}
+                </button>
+              ))}
+            </div>
+          )}
+          <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
+            {displayText}
+          </pre>
+        </div>
+
+        {/* Lint errors — itemized list + auto-fix */}
+        {!lintPassed && lintErrors.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600" />
+              <span className="text-sm font-semibold text-amber-800">
+                {lintErrors.length} lint issue{lintErrors.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            <ul className="space-y-1">
+              {lintErrors.map((err, i) => (
+                <li key={i} className="text-xs text-amber-700 flex items-start gap-1.5">
+                  <span className="text-amber-400 mt-0.5">·</span>
+                  <span>{err.message}</span>
+                </li>
+              ))}
+            </ul>
+            {onAutoFix && (
+              <button
+                onClick={onAutoFix}
+                disabled={isFixing}
+                className="mt-3 w-full py-2 text-sm font-medium rounded-lg border border-amber-300 text-amber-800 hover:bg-amber-100 transition-all disabled:opacity-50"
+              >
+                {isFixing ? "Fixing..." : "Auto-fix lint issues"}
+              </button>
+            )}
           </div>
         )}
 
@@ -242,7 +321,7 @@ export default function ReceiptOutputCard({
           ) : (
             <>
               <Copy className="w-4 h-4" />
-              Copy Reddit Summary
+              Copy Reddit Post Draft
             </>
           )}
         </button>

@@ -25,10 +25,13 @@ const dailyLimitFallback = new Map<string, { count: number; resetAt: number }>()
 /**
  * Check daily free limit for a receipt token.
  * Uses receipt_events table to count today's generates.
+ * Checks client token, server session cookie, and IP hash.
  */
 export async function checkDailyLimit(
   receiptToken: string,
-  isPro: boolean
+  isPro: boolean,
+  serverSessionId?: string,
+  ipHash?: string
 ): Promise<{ allowed: boolean; remaining: number; resetAt: string }> {
   if (isPro) {
     return { allowed: true, remaining: 999, resetAt: "" };
@@ -43,20 +46,50 @@ export async function checkDailyLimit(
   // Try Supabase first
   if (isSupabaseConfigured()) {
     try {
+      // Check by session_id (client token + server session)
+      const orFilters = [`session_id.eq.${receiptToken}`];
+      if (serverSessionId) orFilters.push(`session_id.eq.${serverSessionId}`);
+
       const { count, error } = await supabase
         .from("receipt_events")
         .select("id", { count: "exact", head: true })
         .eq("event_type", "generate")
-        .eq("session_id", receiptToken)
-        .gte("created_at", todayStart.toISOString());
+        .gte("created_at", todayStart.toISOString())
+        .or(orFilters.join(","));
 
       if (error) {
         console.error("[Receipt Rate Limiter] Supabase query error:", error);
         // Fall through to in-memory
       } else {
         const used = count || 0;
+        if (used >= FREE_DAILY_LIMIT) {
+          return { allowed: false, remaining: 0, resetAt };
+        }
+      }
+
+      // Also check by ip_hash (separate query since column may not exist yet)
+      if (ipHash) {
+        try {
+          const { count: ipCount } = await supabase
+            .from("receipt_events")
+            .select("id", { count: "exact", head: true })
+            .eq("event_type", "generate")
+            .eq("ip_hash", ipHash)
+            .gte("created_at", todayStart.toISOString());
+
+          if ((ipCount || 0) >= FREE_DAILY_LIMIT) {
+            return { allowed: false, remaining: 0, resetAt };
+          }
+        } catch {
+          // ip_hash column may not exist yet — ignore
+        }
+      }
+
+      // If we got here via Supabase path, calculate remaining
+      if (!error) {
+        const used = count || 0;
         return {
-          allowed: used < FREE_DAILY_LIMIT,
+          allowed: true,
           remaining: Math.max(0, FREE_DAILY_LIMIT - used),
           resetAt,
         };

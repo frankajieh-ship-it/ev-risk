@@ -1,300 +1,218 @@
 /**
- * Receipt Schema Validator (Linter Gate)
+ * Receipt Schema Validator (Zod) + Reddit Text Linter
  *
- * Validates AI-generated receipt output against the v1 schema.
- * If validation fails, the Copy button is disabled on the frontend.
- * Hand-written to match codebase convention (no Zod).
+ * Part A: Zod schema replaces the hand-written validator.
+ * Part B: lintReceiptRedditText() — pure function with content rules.
+ * Part C: validateReceiptSchema() — combined Zod parse + lint.
  */
 
-import type { ListingReceipt } from "@/types/receipt";
+import { z } from "zod";
 
-interface ValidationResult {
+// --- Part A: Zod Schema ---
+
+const PriceRangeSchema = z.object({
+  low: z.number().min(0),
+  high: z.number().min(0),
+});
+
+const MarketRangeSchema = z.object({
+  low: z.number().min(0),
+  high: z.number().min(0),
+  currency: z.string(),
+});
+
+const PriceSanitySchema = z.object({
+  label: z.enum(["UNDERPRICED", "FAIR", "OVERPRICED", "UNKNOWN"]),
+  confidence: z.number().min(0).max(1),
+  basis: z.enum(["LISTING_ONLY", "USER_MARKET_RANGE", "UNKNOWN"]),
+  rationale_short: z.string().min(4).max(180),
+  user_market_range: MarketRangeSchema.nullable().optional(),
+});
+
+const FeeEstimatesSchema = z.object({
+  currency: z.string(),
+  notes: z.string().max(220),
+  tax_estimate_range: PriceRangeSchema.nullable().optional(),
+  doc_fee_estimate_range: PriceRangeSchema.nullable().optional(),
+});
+
+const ReceiptDetailsSchema = z.object({
+  fee_estimates: FeeEstimatesSchema,
+  common_listing_tricks: z.array(z.string().min(1).max(140)).min(3).max(10),
+  walk_away_triggers: z.array(z.string().min(1).max(140)).min(3).max(10),
+});
+
+const ListingSummarySchema = z.object({
+  listing_url: z.string(),
+  url_domain: z.string(),
+  country: z.enum(["US", "UK", "CA", "AU", "OTHER"]),
+  zip_or_postcode: z.string(),
+  price: z.number(),
+  currency: z.string(),
+  mileage: z.number(),
+  mileage_unit: z.enum(["mi", "km", "unknown"]),
+  year: z.number(),
+  make: z.string(),
+  model: z.string(),
+  trim: z.string().nullable(),
+  seller_type: z.enum(["dealer", "private", "unknown"]),
+  title_status: z.enum(["clean", "salvage", "rebuilt", "unknown"]),
+  accidents_reported: z.enum(["yes", "no", "unknown"]),
+  service_history: z.enum(["yes", "no", "unknown"]),
+  owners: z.number().nullable(),
+  carfax_available: z.enum(["yes", "no", "unknown"]),
+  financing_vs_cash: z.enum(["financing", "cash", "unknown"]).optional(),
+}).passthrough();
+
+const CompareSectionSchema = z.object({
+  winner: z.enum(["A", "B", "TIE"]),
+  why: z.array(z.string().min(1).max(160)).length(2),
+  tie_breaker_questions: z.array(z.string().min(1).max(140)).max(2),
+  listing_b_summary: ListingSummarySchema,
+}).passthrough();
+
+const OperatorNotesSchema = z.object({
+  rationale: z.string().min(10).max(500),
+  assumptions: z.array(z.string().min(1).max(120)).max(6).optional(),
+  what_would_change_verdict: z.array(z.string().min(1).max(140)).max(5).optional(),
+});
+
+const RedditDraftStyleSchema = z.object({
+  format: z.enum(["short_paragraph", "standard", "bullets"]).default("short_paragraph"),
+  max_questions: z.number().min(1).max(2).default(2),
+});
+
+export const RedditDraftSchema = z.object({
+  title: z.string().min(10).max(200),
+  body_facts: z.array(z.string().min(5).max(200)).min(1).max(5),
+  body_uncertainty: z.array(z.string().min(5).max(200)).max(3),
+  body_next_steps: z.array(z.string().min(5).max(200)).max(3),
+  questions: z.array(z.string().min(10).max(200)).min(1).max(2),
+  style: RedditDraftStyleSchema,
+});
+
+export type RedditDraft = z.infer<typeof RedditDraftSchema>;
+
+export const ReceiptSchema = z.object({
+  receipt_id: z.string(),
+  schema_version: z.literal("v1"),
+  mode: z.enum(["single", "compare"]),
+  verdict: z.enum(["GREEN", "YELLOW", "RED"]),
+  verdict_reason: z.string().min(4).max(180),
+  price_sanity: PriceSanitySchema,
+  risk_flags: z.array(z.string().min(1).max(120)).length(3),
+  must_answer_questions: z.array(z.string().min(1).max(140)).length(3),
+  inspect_first: z.array(z.string().min(1).max(140)).length(5),
+  negotiation_opener: z.string().min(8).max(420),
+  one_followup_question: z.string().max(160).nullable(),
+  receipt_reddit_text: z.string().min(40).max(1200),
+  listing_summary: ListingSummarySchema,
+  receipt_details: ReceiptDetailsSchema.nullable().optional(),
+  compare: CompareSectionSchema.nullable().optional(),
+  operator_notes: OperatorNotesSchema,
+  reddit_draft: RedditDraftSchema.nullable().optional(),
+});
+
+export type Receipt = z.infer<typeof ReceiptSchema>;
+
+// --- Part B: Lint function for receipt_reddit_text ---
+
+export interface LintError {
+  code: string;
+  message: string;
+  fixable: boolean;
+}
+
+export function lintReceiptRedditText(text: string): LintError[] {
+  const errors: LintError[] = [];
+
+  // Length check (900 is the strict Reddit-copy limit)
+  if (text.length > 900) {
+    errors.push({ code: "MAX_CHARS", message: `Text too long (${text.length}/900 chars)`, fixable: true });
+  }
+
+  // No smart / curly quotes
+  if (/[\u201C\u201D\u201E\u201F\u2018\u2019\u201A\u201B]/.test(text)) {
+    errors.push({ code: "SMART_QUOTES", message: "Contains smart/curly quotes", fixable: true });
+  }
+
+  // No italics markers (* or _)
+  if (/[*_]/.test(text)) {
+    errors.push({ code: "ITALIC_MARKERS", message: "Contains markdown italic markers (* or _)", fixable: true });
+  }
+
+  // No word/word pattern
+  if (/\b[A-Za-z]+\/[A-Za-z]+\b/.test(text)) {
+    errors.push({ code: "WORD_SLASH", message: "Contains word/word pattern (use 'or' instead)", fixable: true });
+  }
+
+  // Max 2 question marks (reddit_draft allows 2 questions)
+  const qCount = (text.match(/\?/g) || []).length;
+  if (qCount > 2) {
+    errors.push({ code: "TOO_MANY_QUESTIONS", message: `Too many questions (${qCount}, max 2)`, fixable: true });
+  }
+
+  // No URLs
+  if (/https?:\/\/|www\./i.test(text)) {
+    errors.push({ code: "CONTAINS_URL", message: "Contains URL", fixable: true });
+  }
+
+  // No promo terms
+  const PROMO_TERMS = ["sign up", "subscribe", "dm me", "check out", "my tool", "try our", "link in bio"];
+  const lower = text.toLowerCase();
+  for (const term of PROMO_TERMS) {
+    if (lower.includes(term)) {
+      errors.push({ code: "PROMO_TERM", message: `Contains promo term: "${term}"`, fixable: true });
+      break;
+    }
+  }
+
+  // No verdict language
+  const BANNED_VERDICT = [
+    "good deal", "bad deal", "buy it", "skip it", "you should",
+    "i'd lean", "i would lean", "great deal", "terrible deal",
+    "don't buy", "do not buy", "must buy", "hard pass",
+    "steer you", "avoid",
+  ];
+  for (const phrase of BANNED_VERDICT) {
+    if (lower.includes(phrase)) {
+      errors.push({ code: "VERDICT_LANGUAGE", message: `Contains banned verdict phrase: "${phrase}"`, fixable: true });
+      break;
+    }
+  }
+
+  // Banned word: "annoying" → "stressful"
+  if (/\bannoying\b/i.test(text)) {
+    errors.push({ code: "BANNED_WORD_ANNOYING", message: 'Contains "annoying" (use "stressful" instead)', fixable: true });
+  }
+
+  return errors;
+}
+
+// --- Part C: Combined validate function ---
+
+export function validateReceiptSchema(raw: unknown): {
   valid: boolean;
   errors: string[];
-  sanitized: ListingReceipt | null;
-}
-
-const VERDICTS = ["GREEN", "YELLOW", "RED"];
-const PRICE_LABELS = ["UNDERPRICED", "FAIR", "OVERPRICED", "UNKNOWN"];
-const PRICE_BASES = ["LISTING_ONLY", "USER_MARKET_RANGE", "UNKNOWN"];
-const SELLER_TYPES = ["dealer", "private", "unknown"];
-const TITLE_STATUSES = ["clean", "salvage", "rebuilt", "unknown"];
-const COUNTRIES = ["US", "UK", "CA", "AU", "OTHER"];
-const MILEAGE_UNITS = ["mi", "km", "unknown"];
-const YES_NO_UNKNOWN = ["yes", "no", "unknown"];
-const COMPARE_WINNERS = ["A", "B", "TIE"];
-
-function isString(v: unknown): v is string {
-  return typeof v === "string";
-}
-
-function isNumber(v: unknown): v is number {
-  return typeof v === "number" && !isNaN(v);
-}
-
-function checkString(
-  errors: string[],
-  field: string,
-  value: unknown,
-  min: number,
-  max: number
-): string | null {
-  if (!isString(value)) {
-    errors.push(`${field}: expected string, got ${typeof value}`);
-    return null;
-  }
-  if (value.length < min) {
-    errors.push(`${field}: too short (${value.length} < ${min})`);
-  }
-  if (value.length > max) {
-    errors.push(`${field}: too long (${value.length} > ${max})`);
-  }
-  return value;
-}
-
-function checkEnum(
-  errors: string[],
-  field: string,
-  value: unknown,
-  allowed: string[]
-): string | null {
-  if (!isString(value) || !allowed.includes(value)) {
-    errors.push(`${field}: expected one of [${allowed.join(", ")}], got "${value}"`);
-    return null;
-  }
-  return value;
-}
-
-function checkStringArray(
-  errors: string[],
-  field: string,
-  value: unknown,
-  exactCount: number | null,
-  minCount: number,
-  maxCount: number,
-  minLen: number,
-  maxLen: number
-): string[] {
-  if (!Array.isArray(value)) {
-    errors.push(`${field}: expected array, got ${typeof value}`);
-    return [];
-  }
-  if (exactCount !== null && value.length !== exactCount) {
-    errors.push(`${field}: expected exactly ${exactCount} items, got ${value.length}`);
-  } else {
-    if (value.length < minCount) {
-      errors.push(`${field}: too few items (${value.length} < ${minCount})`);
-    }
-    if (value.length > maxCount) {
-      errors.push(`${field}: too many items (${value.length} > ${maxCount})`);
-    }
-  }
-  return value.map((item, i) => {
-    if (!isString(item)) {
-      errors.push(`${field}[${i}]: expected string, got ${typeof item}`);
-      return String(item);
-    }
-    if (item.length < minLen) {
-      errors.push(`${field}[${i}]: too short (${item.length} < ${minLen})`);
-    }
-    if (item.length > maxLen) {
-      errors.push(`${field}[${i}]: too long (${item.length} > ${maxLen})`);
-    }
-    return item;
-  });
-}
-
-function validatePriceSanity(
-  errors: string[],
-  ps: unknown
-): ListingReceipt["price_sanity"] | null {
-  if (!ps || typeof ps !== "object") {
-    errors.push("price_sanity: missing or not an object");
-    return null;
-  }
-  const obj = ps as Record<string, unknown>;
-
-  checkEnum(errors, "price_sanity.label", obj.label, PRICE_LABELS);
-  if (!isNumber(obj.confidence) || obj.confidence < 0 || obj.confidence > 1) {
-    errors.push(`price_sanity.confidence: expected number 0-1, got ${obj.confidence}`);
-  }
-  checkEnum(errors, "price_sanity.basis", obj.basis, PRICE_BASES);
-  checkString(errors, "price_sanity.rationale_short", obj.rationale_short, 4, 180);
-
-  // user_market_range is nullable
-  if (obj.user_market_range !== null && obj.user_market_range !== undefined) {
-    const umr = obj.user_market_range as Record<string, unknown>;
-    if (typeof umr !== "object") {
-      errors.push("price_sanity.user_market_range: expected object or null");
-    } else {
-      if (!isNumber(umr.low) || umr.low < 0) errors.push("price_sanity.user_market_range.low: expected non-negative number");
-      if (!isNumber(umr.high) || umr.high < 0) errors.push("price_sanity.user_market_range.high: expected non-negative number");
-      if (!isString(umr.currency)) errors.push("price_sanity.user_market_range.currency: expected string");
-    }
+  lintErrors: LintError[];
+  sanitized: Receipt | null;
+} {
+  // Step 1: Zod parse
+  const parsed = ReceiptSchema.safeParse(raw);
+  if (!parsed.success) {
+    const schemaErrors = parsed.error.issues.map(
+      (i) => `${i.path.join(".")}: ${i.message}`
+    );
+    return { valid: false, errors: schemaErrors, lintErrors: [], sanitized: null };
   }
 
-  return obj as unknown as ListingReceipt["price_sanity"];
-}
-
-function validateListingSummary(
-  errors: string[],
-  prefix: string,
-  ls: unknown
-): ListingReceipt["listing_summary"] | null {
-  if (!ls || typeof ls !== "object") {
-    errors.push(`${prefix}: missing or not an object`);
-    return null;
-  }
-  const obj = ls as Record<string, unknown>;
-
-  // Required string fields
-  const requiredFields = [
-    "listing_url", "url_domain", "country", "zip_or_postcode",
-    "currency", "make", "model"
-  ];
-  for (const f of requiredFields) {
-    if (obj[f] === undefined || obj[f] === null) {
-      // These are required by schema but AI might set them to empty/null
-      // We warn but don't hard-fail
-      errors.push(`${prefix}.${f}: required field is missing or null`);
-    }
-  }
-
-  // Enum fields
-  if (obj.country) checkEnum(errors, `${prefix}.country`, obj.country, COUNTRIES);
-  if (obj.mileage_unit) checkEnum(errors, `${prefix}.mileage_unit`, obj.mileage_unit, MILEAGE_UNITS);
-  if (obj.seller_type) checkEnum(errors, `${prefix}.seller_type`, obj.seller_type, SELLER_TYPES);
-  if (obj.title_status) checkEnum(errors, `${prefix}.title_status`, obj.title_status, TITLE_STATUSES);
-  if (obj.accidents_reported) checkEnum(errors, `${prefix}.accidents_reported`, obj.accidents_reported, YES_NO_UNKNOWN);
-  if (obj.service_history) checkEnum(errors, `${prefix}.service_history`, obj.service_history, YES_NO_UNKNOWN);
-  if (obj.carfax_available) checkEnum(errors, `${prefix}.carfax_available`, obj.carfax_available, YES_NO_UNKNOWN);
-
-  // Number fields
-  if (obj.year !== null && obj.year !== undefined && !isNumber(obj.year)) {
-    errors.push(`${prefix}.year: expected number`);
-  }
-  if (obj.price !== null && obj.price !== undefined && !isNumber(obj.price)) {
-    errors.push(`${prefix}.price: expected number`);
-  }
-  if (obj.mileage !== null && obj.mileage !== undefined && !isNumber(obj.mileage)) {
-    errors.push(`${prefix}.mileage: expected number`);
-  }
-
-  return obj as unknown as ListingReceipt["listing_summary"];
-}
-
-function validateReceiptDetails(
-  errors: string[],
-  rd: unknown
-): ListingReceipt["receipt_details"] | null {
-  if (rd === null || rd === undefined) return null;
-  if (typeof rd !== "object") {
-    errors.push("receipt_details: expected object or null");
-    return null;
-  }
-  const obj = rd as Record<string, unknown>;
-
-  // fee_estimates
-  if (!obj.fee_estimates || typeof obj.fee_estimates !== "object") {
-    errors.push("receipt_details.fee_estimates: missing or not an object");
-  } else {
-    const fe = obj.fee_estimates as Record<string, unknown>;
-    if (!isString(fe.currency)) errors.push("receipt_details.fee_estimates.currency: expected string");
-    if (!isString(fe.notes)) errors.push("receipt_details.fee_estimates.notes: expected string");
-  }
-
-  checkStringArray(errors, "receipt_details.common_listing_tricks", obj.common_listing_tricks, null, 3, 10, 1, 140);
-  checkStringArray(errors, "receipt_details.walk_away_triggers", obj.walk_away_triggers, null, 3, 10, 1, 140);
-
-  return obj as unknown as ListingReceipt["receipt_details"];
-}
-
-function validateCompare(
-  errors: string[],
-  cmp: unknown
-): ListingReceipt["compare"] | null {
-  if (cmp === null || cmp === undefined) return null;
-  if (typeof cmp !== "object") {
-    errors.push("compare: expected object or null");
-    return null;
-  }
-  const obj = cmp as Record<string, unknown>;
-
-  checkEnum(errors, "compare.winner", obj.winner, COMPARE_WINNERS);
-  checkStringArray(errors, "compare.why", obj.why, 2, 2, 2, 1, 160);
-  checkStringArray(errors, "compare.tie_breaker_questions", obj.tie_breaker_questions, null, 0, 2, 1, 140);
-  validateListingSummary(errors, "compare.listing_b_summary", obj.listing_b_summary);
-
-  return obj as unknown as ListingReceipt["compare"];
-}
-
-function validateOperatorNotes(
-  errors: string[],
-  on: unknown
-): ListingReceipt["operator_notes"] | null {
-  if (!on || typeof on !== "object") {
-    errors.push("operator_notes: missing or not an object");
-    return null;
-  }
-  const obj = on as Record<string, unknown>;
-
-  checkString(errors, "operator_notes.rationale", obj.rationale, 10, 500);
-  checkStringArray(errors, "operator_notes.assumptions", obj.assumptions, null, 0, 6, 1, 120);
-  checkStringArray(errors, "operator_notes.what_would_change_verdict", obj.what_would_change_verdict, null, 0, 4, 1, 140);
-
-  return obj as unknown as ListingReceipt["operator_notes"];
-}
-
-export function validateReceiptSchema(raw: unknown): ValidationResult {
-  const errors: string[] = [];
-
-  if (!raw || typeof raw !== "object") {
-    return { valid: false, errors: ["Response is not an object"], sanitized: null };
-  }
-
-  const obj = raw as Record<string, unknown>;
-
-  // Top-level required fields
-  if (obj.schema_version !== "v1") {
-    errors.push(`schema_version: expected "v1", got "${obj.schema_version}"`);
-  }
-
-  if (!isString(obj.receipt_id)) {
-    errors.push("receipt_id: missing or not a string");
-  }
-
-  checkEnum(errors, "mode", obj.mode, ["single", "compare"]);
-  checkEnum(errors, "verdict", obj.verdict, VERDICTS);
-  checkString(errors, "verdict_reason", obj.verdict_reason, 4, 180);
-
-  // price_sanity
-  validatePriceSanity(errors, obj.price_sanity);
-
-  // Fixed-count arrays
-  checkStringArray(errors, "risk_flags", obj.risk_flags, 3, 3, 3, 1, 120);
-  checkStringArray(errors, "must_answer_questions", obj.must_answer_questions, 3, 3, 3, 1, 140);
-  checkStringArray(errors, "inspect_first", obj.inspect_first, 5, 5, 5, 1, 140);
-
-  // Strings
-  checkString(errors, "negotiation_opener", obj.negotiation_opener, 8, 420);
-  checkString(errors, "receipt_reddit_text", obj.receipt_reddit_text, 40, 1200);
-
-  // one_followup_question: null or string max 160
-  if (obj.one_followup_question !== null && obj.one_followup_question !== undefined) {
-    checkString(errors, "one_followup_question", obj.one_followup_question, 0, 160);
-  }
-
-  // Nested objects
-  validateReceiptDetails(errors, obj.receipt_details);
-  validateCompare(errors, obj.compare);
-  validateOperatorNotes(errors, obj.operator_notes);
-  validateListingSummary(errors, "listing_summary", obj.listing_summary);
-
-  const valid = errors.length === 0;
+  // Step 2: Lint receipt_reddit_text
+  const lintErrors = lintReceiptRedditText(parsed.data.receipt_reddit_text);
 
   return {
-    valid,
-    errors,
-    sanitized: valid ? (obj as unknown as ListingReceipt) : (obj as unknown as ListingReceipt),
+    valid: lintErrors.length === 0,
+    errors: lintErrors.map((e) => `lint:${e.code}: ${e.message}`),
+    lintErrors,
+    sanitized: parsed.data,
   };
 }

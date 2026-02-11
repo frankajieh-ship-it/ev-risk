@@ -8,7 +8,10 @@
 import OpenAI from "openai";
 import { v4 as uuidv4 } from "uuid";
 import type { ListingReceipt, ReceiptGenerateRequest } from "@/types/receipt";
+import type { LintError } from "@/lib/receipt-schema-validator";
 import { validateReceiptSchema } from "@/lib/receipt-schema-validator";
+import { classifyVehicle } from "@/lib/vehicle-classifier";
+import { getTemplatePack } from "@/lib/vehicle-category-templates";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -20,7 +23,9 @@ const MODEL = process.env.OPENAI_MODEL || "gpt-4o";
 
 const SYSTEM_PROMPT = `You are OFFO Receipt Bot, a used-car listing analyst built by OFFO Lab.
 
-YOUR JOB: Analyze a car listing and produce a structured JSON "receipt" that helps a buyer know if the deal is good, what to watch for, and what to ask the seller.
+YOUR JOB: Analyze a car listing and produce a structured JSON "receipt" that helps a buyer understand the listing, identify risks, and draft a Reddit post to ask the community for opinions.
+
+Do NOT tell the user what to do. Present facts and uncertainties. Let the community give advice.
 
 OUTPUT FORMAT: Return ONLY a valid JSON object. No markdown fences, no explanation, no trailing text.
 
@@ -43,7 +48,15 @@ JSON SCHEMA:
   "inspect_first": ["<1-140>", "<1-140>", "<1-140>", "<1-140>", "<1-140>"],
   "negotiation_opener": "<string, 8-420 chars: a ready-to-use opening line for the buyer>",
   "one_followup_question": "<string max 160 chars>" or null,
-  "receipt_reddit_text": "<string, 40-1200 chars: a shareable reddit-style deal summary that starts with the vehicle and price>",
+  "receipt_reddit_text": "<string, 40-900 chars: the rendered version of reddit_draft — title, then body paragraph, then questions>",
+  "reddit_draft": {
+    "title": "<string, 10-200 chars: starts with year/make/model and price, ends with a short hook>",
+    "body_facts": ["<verified facts from the listing, 5-200 chars each, 1-5 items>"],
+    "body_uncertainty": ["<what is unclear or missing, 5-200 chars each, 0-3 items>"],
+    "body_next_steps": ["<what the buyer plans to verify, 5-200 chars each, 0-3 items>"],
+    "questions": ["<specific questions for the community, 10-200 chars each, 1-2 items>"],
+    "style": { "format": "short_paragraph", "max_questions": 2 }
+  },
   "receipt_details": {
     "fee_estimates": {
       "currency": "USD",
@@ -78,7 +91,8 @@ JSON SCHEMA:
     "accidents_reported": "yes" | "no" | "unknown",
     "service_history": "yes" | "no" | "unknown",
     "owners": <integer> or null,
-    "carfax_available": "yes" | "no" | "unknown"
+    "carfax_available": "yes" | "no" | "unknown",
+    "financing_vs_cash": "financing" | "cash" | "unknown"
   }
 }
 
@@ -92,8 +106,29 @@ CRITICAL CONSTRAINTS — the linter will reject your output if these fail:
 - what_would_change_verdict: 0-4 items, each 1-140 characters
 - verdict_reason: 4-180 characters
 - negotiation_opener: 8-420 characters
-- receipt_reddit_text: 40-1200 characters
+- receipt_reddit_text: 40-900 characters (MUST be the rendered version of reddit_draft)
 - operator_notes.rationale: 10-500 characters
+- reddit_draft.title: 10-200 characters, starts with the vehicle and price
+- reddit_draft.body_facts: 1-5 items, each 5-200 characters
+- reddit_draft.body_uncertainty: 0-3 items, each 5-200 characters
+- reddit_draft.body_next_steps: 0-3 items, each 5-200 characters
+- reddit_draft.questions: 1-2 items, each 10-200 characters
+
+REDDIT DRAFT TONE RULES:
+- Never use verdict language: "good deal", "bad deal", "buy it", "skip it", "you should", "I'd lean", "I would lean", "great deal", "terrible deal", "don't buy", "do not buy", "must buy", "hard pass", "steer you", "avoid"
+- Never use "annoying" (use "stressful" instead)
+- Present facts neutrally. The buyer is asking for opinions, not being told what to do.
+- Use concrete numbers and specifics from the listing.
+- No smart/curly quotes — use straight quotes only.
+- No markdown italic markers (* or _).
+- No URLs in the text.
+
+REDDIT DRAFT QUESTION RULES:
+- Q1: Address the biggest decision uncertainty from your risk_flags.
+- Q2: Category-specific. EV: battery or charging concern. PHEV: battery condition and engine concern. ICE: mechanical or service concern. Truck: frame or towing concern.
+- Questions must be specific to THIS listing, not generic.
+
+receipt_reddit_text: MUST be the rendered version of reddit_draft — title on first line, blank line, body paragraph (facts + uncertainty + next steps joined), blank line, questions. 40-900 characters total.
 
 VERDICT GUIDELINES:
 - GREEN: Price is fair or better, no major red flags, standard used-car caution applies
@@ -129,12 +164,53 @@ function buildUserPrompt(input: ReceiptGenerateRequest): string {
   if (input.price) fields.push(`Asking Price: $${input.price.toLocaleString()}`);
   if (input.vin) fields.push(`VIN: ${input.vin}`);
   if (input.location) fields.push(`Location: ${input.location}`);
+  if (input.seller_type && input.seller_type !== "unknown")
+    fields.push(`Seller type: ${input.seller_type}`);
+  if (input.title_status && input.title_status !== "unknown")
+    fields.push(`Title status: ${input.title_status}`);
+  if (input.accidents_reported && input.accidents_reported !== "unknown")
+    fields.push(`Accidents reported: ${input.accidents_reported}`);
+  if (input.service_history && input.service_history !== "unknown")
+    fields.push(`Service history: ${input.service_history}`);
+  if (input.owners) fields.push(`Previous owners: ${input.owners}`);
+  if (input.carfax_available && input.carfax_available !== "unknown")
+    fields.push(`Carfax available: ${input.carfax_available}`);
+  if (input.financing_vs_cash && input.financing_vs_cash !== "unknown")
+    fields.push(`Payment method: ${input.financing_vs_cash}`);
+  if (input.country) fields.push(`Country: ${input.country}`);
+  if (input.zip_or_postcode) fields.push(`ZIP/Postcode: ${input.zip_or_postcode}`);
 
   if (fields.length > 0) {
     parts.push("KNOWN DETAILS:");
     for (const f of fields) {
       parts.push(`- ${f}`);
     }
+    parts.push("");
+  }
+
+  // Vehicle category injection
+  const classification = classifyVehicle(
+    input.make || "",
+    input.model || "",
+    input.trim,
+    input.listing_text
+  );
+  const pack = getTemplatePack(classification);
+
+  parts.push(`VEHICLE CATEGORY: ${classification.category} (${classification.subCategory})`);
+  parts.push(`FOCUS AREAS: ${pack.focusAreas.join(", ")}`);
+  parts.push("");
+
+  // Missing data notice
+  const TOP_6 = ["year", "make", "model", "price", "mileage", "location"] as const;
+  const populated = TOP_6.filter(
+    (k) => (input as unknown as Record<string, unknown>)[k]
+  );
+  if (populated.length < TOP_6.length) {
+    const missing = TOP_6.filter((k) => !populated.includes(k));
+    parts.push(
+      `NOTE: Missing listing details: ${missing.join(", ")}. Acknowledge this in reddit_draft.body_uncertainty.`
+    );
     parts.push("");
   }
 
@@ -247,47 +323,88 @@ Fix ONLY these issues and return the corrected complete JSON. Keep all other con
   };
 }
 
+// --- Deterministic Fix Pre-Pass ---
+
+/**
+ * Apply regex-based fixes that don't need an AI call.
+ * Returns the fixed text.
+ */
+function applyDeterministicFixes(text: string): string {
+  let out = text;
+  // "annoying" → "stressful"
+  out = out.replace(/\bannoying\b/gi, "stressful");
+  // Smart quotes → straight quotes
+  out = out.replace(/[\u201C\u201D\u201E\u201F]/g, '"');
+  out = out.replace(/[\u2018\u2019\u201A\u201B]/g, "'");
+  return out;
+}
+
 // --- Formatting Fixer ---
 
 /**
- * Lightweight fix for text-format lint errors only.
- * Rewrites receipt_reddit_text, verdict_reason, negotiation_opener
- * to match length constraints. Does NOT touch arrays or structured data.
+ * Lightweight fix for lint errors.
+ * First applies deterministic regex fixes. If that resolves all issues,
+ * skips the OpenAI call entirely. Otherwise calls AI for remaining fixes.
  */
 export async function fixReceiptFormatting(
   receipt: Record<string, unknown>,
-  errors: string[]
+  lintErrors: LintError[]
 ): Promise<Record<string, unknown> | null> {
-  // Only fix text-length errors
-  const textFieldErrors = errors.filter(
-    (e) =>
-      e.includes("receipt_reddit_text") ||
-      e.includes("verdict_reason") ||
-      e.includes("negotiation_opener") ||
-      e.includes("rationale")
-  );
+  if (lintErrors.length === 0) return null;
 
-  if (textFieldErrors.length === 0) return null;
+  // Step 1: Try deterministic fixes first
+  const deterministicCodes = new Set(["SMART_QUOTES", "BANNED_WORD_ANNOYING"]);
+  const originalText = (receipt.receipt_reddit_text as string) || "";
+  const fixedText = applyDeterministicFixes(originalText);
 
-  const fixPrompt = `The following receipt JSON has text fields that violate length constraints:
+  const remainingErrors = lintErrors.filter((e) => !deterministicCodes.has(e.code));
+  const deterministicChanged = fixedText !== originalText;
 
-${textFieldErrors.map((e) => `- ${e}`).join("\n")}
+  // If deterministic fixes resolved everything, skip AI call
+  if (remainingErrors.length === 0 && deterministicChanged) {
+    return { ...receipt, receipt_reddit_text: fixedText };
+  }
 
-Current values:
-- verdict_reason (4-180 chars): "${receipt.verdict_reason || ""}"
-- negotiation_opener (8-420 chars): "${receipt.negotiation_opener || ""}"
-- receipt_reddit_text (40-1200 chars): "${receipt.receipt_reddit_text || ""}"
-- operator_notes.rationale (10-500 chars): "${(receipt.operator_notes as Record<string, unknown>)?.rationale || ""}"
+  // Step 2: AI fix for remaining errors
+  const textToFix = deterministicChanged ? fixedText : originalText;
+  const errorsToFix = remainingErrors.length > 0 ? remainingErrors : lintErrors;
 
-Return a JSON object with ONLY the fixed fields. Example: { "verdict_reason": "...", "receipt_reddit_text": "..." }
-Fix ONLY the fields mentioned in the errors. Keep the content meaning identical, just adjust the length.
+  const errorList = errorsToFix
+    .map((e) => `- [${e.code}] ${e.message}`)
+    .join("\n");
+
+  const fixPrompt = `The following receipt JSON has lint violations in its receipt_reddit_text field:
+
+${errorList}
+
+Current receipt_reddit_text:
+"${textToFix}"
+
+RULES for the fixed text:
+- Max 900 characters
+- Replace smart/curly quotes with straight quotes
+- Remove markdown italic markers (* and _)
+- Replace word/word patterns with "or" (e.g. "buy/lease" → "buy or lease")
+- Max 2 question marks total
+- No URLs (remove any http/https/www links)
+- No promo terms (sign up, subscribe, dm me, check out, my tool, try our, link in bio)
+- No verdict language: "good deal", "bad deal", "buy it", "skip it", "you should", "I'd lean", "great deal", "terrible deal", "don't buy", "must buy", "hard pass", "steer you", "avoid"
+- Never use "annoying" (use "stressful" instead)
+- Keep the same factual content and neutral tone
+- Present facts and uncertainties — do NOT tell the user what to do
+
+Return a JSON object with ONLY the fixed field: { "receipt_reddit_text": "..." }
 Return ONLY the JSON object.`;
 
   try {
     const response = await openai.chat.completions.create({
       model: MODEL,
       messages: [
-        { role: "system", content: "You fix text field lengths in JSON. Return ONLY a JSON object with the corrected fields." },
+        {
+          role: "system",
+          content:
+            "You fix text lint violations in JSON. Return ONLY a JSON object with the corrected field.",
+        },
         { role: "user", content: fixPrompt },
       ],
       temperature: 0.1,
@@ -296,14 +413,22 @@ Return ONLY the JSON object.`;
     });
 
     const content = response.choices[0]?.message?.content;
-    if (!content) return null;
+    if (!content) return deterministicChanged ? { ...receipt, receipt_reddit_text: fixedText } : null;
 
     const fixes = JSON.parse(content);
-    if (!fixes || typeof fixes !== "object") return null;
+    if (!fixes || typeof fixes !== "object") return deterministicChanged ? { ...receipt, receipt_reddit_text: fixedText } : null;
 
     // Merge fixes into receipt (only allowed fields)
     const patched = { ...receipt };
-    const allowedFields = ["verdict_reason", "negotiation_opener", "receipt_reddit_text"];
+    if (deterministicChanged) {
+      patched.receipt_reddit_text = fixedText;
+    }
+
+    const allowedFields = [
+      "verdict_reason",
+      "negotiation_opener",
+      "receipt_reddit_text",
+    ];
 
     for (const field of allowedFields) {
       if (fixes[field] && typeof fixes[field] === "string") {
@@ -312,7 +437,11 @@ Return ONLY the JSON object.`;
     }
 
     // Handle nested operator_notes.rationale
-    if (fixes.rationale && typeof fixes.rationale === "string" && patched.operator_notes) {
+    if (
+      fixes.rationale &&
+      typeof fixes.rationale === "string" &&
+      patched.operator_notes
+    ) {
       patched.operator_notes = {
         ...(patched.operator_notes as Record<string, unknown>),
         rationale: fixes.rationale,
@@ -322,6 +451,7 @@ Return ONLY the JSON object.`;
     return patched;
   } catch (err) {
     console.error("[Receipt OpenAI] Formatting fixer failed:", err);
-    return null;
+    // Return deterministic fixes if available
+    return deterministicChanged ? { ...receipt, receipt_reddit_text: fixedText } : null;
   }
 }

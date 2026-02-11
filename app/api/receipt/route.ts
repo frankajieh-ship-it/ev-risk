@@ -4,6 +4,12 @@
  * POST /api/receipt
  * Accepts listing URL/text, calls OpenAI, returns structured receipt JSON.
  *
+ * Pipeline: Generate → Zod parse → Lint → Format fix → Return
+ *
+ * Modes:
+ * - Default: full generation pipeline
+ * - fix_only: skip generation, just fix lint issues on provided receipt
+ *
  * Rate limits:
  * - Burst: 5 requests/hour per IP
  * - Daily: 1 free receipt/day per receipt_token (Pro unlimited)
@@ -14,7 +20,13 @@ import { getClientIP } from "@/lib/rate-limiter";
 import { receiptBurstLimiter, checkDailyLimit, incrementDailyCount } from "@/lib/receipt-rate-limiter";
 import { generateReceipt, fixReceiptFormatting } from "@/lib/receipt-openai";
 import { validateReceiptSchema } from "@/lib/receipt-schema-validator";
+import type { LintError } from "@/lib/receipt-schema-validator";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { hashIP } from "@/lib/session-utils";
+import { checkIsPro } from "@/lib/receipt-pro";
+import { getFeatureFlags } from "@/lib/feature-flags";
+import { renderRedditDraft } from "@/lib/reddit-draft-renderer";
+import { classifyVehicle } from "@/lib/vehicle-classifier";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
 
 export const maxDuration = 60;
@@ -55,6 +67,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // --- Fix-only mode ---
+  if (body.mode === "fix_only" && body.receipt_json) {
+    return handleFixOnly(body.receipt_json, body.lint_errors as LintError[] | undefined, receiptToken);
+  }
+
   // 4. Validate actual content (bare URLs are not enough — OpenAI can't visit them)
   const hasText =
     body.listing_text &&
@@ -74,9 +91,28 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 5. Daily free limit check
-  const isPro = false; // placeholder for future Pro logic
-  const dailyLimit = await checkDailyLimit(receiptToken as string, isPro);
+  // 5. Pro access check
+  const accessToken = request.cookies.get("sb-access-token")?.value;
+  let userId: string | undefined;
+  let userEmail: string | undefined;
+  if (accessToken && isSupabaseConfigured()) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser(accessToken);
+      userId = user?.id;
+      userEmail = user?.email || undefined;
+    } catch {
+      // not authenticated
+    }
+  }
+  const isPro = await checkIsPro(userId, userEmail);
+  const features = getFeatureFlags(isPro);
+
+  // 5b. Server-side rate limiting anchors
+  const serverSessionId = request.cookies.get("receipt_session")?.value;
+  const ipHash = hashIP(clientIP);
+
+  // 6. Daily free limit check
+  const dailyLimit = await checkDailyLimit(receiptToken as string, isPro, serverSessionId, ipHash || undefined);
   if (!dailyLimit.allowed) {
     return NextResponse.json(
       {
@@ -89,7 +125,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 6. Build request
+  // 7. Build request
   const input: ReceiptGenerateRequest = {
     listing_url: (body.listing_url as string) || null,
     listing_text: (body.listing_text as string) || null,
@@ -101,8 +137,18 @@ export async function POST(request: NextRequest) {
     price: typeof body.price === "number" ? body.price : undefined,
     vin: (body.vin as string) || undefined,
     location: (body.location as string) || undefined,
+    seller_type: (body.seller_type as string as ReceiptGenerateRequest["seller_type"]) || undefined,
+    title_status: (body.title_status as string as ReceiptGenerateRequest["title_status"]) || undefined,
+    accidents_reported: (body.accidents_reported as string as ReceiptGenerateRequest["accidents_reported"]) || undefined,
+    service_history: (body.service_history as string as ReceiptGenerateRequest["service_history"]) || undefined,
+    owners: typeof body.owners === "number" ? body.owners : undefined,
+    carfax_available: (body.carfax_available as string as ReceiptGenerateRequest["carfax_available"]) || undefined,
+    financing_vs_cash: (body.financing_vs_cash as string as ReceiptGenerateRequest["financing_vs_cash"]) || undefined,
+    country: (body.country as string as ReceiptGenerateRequest["country"]) || undefined,
+    zip_or_postcode: (body.zip_or_postcode as string) || undefined,
     receipt_token: receiptToken as string,
     session_id: (body.session_id as string) || undefined,
+    extraction_id: (body.extraction_id as string) || undefined,
     mode: "single",
   };
 
@@ -110,29 +156,61 @@ export async function POST(request: NextRequest) {
     // 7. Call OpenAI
     const { receipt, retried } = await generateReceipt(input);
 
-    // 8. Validate receipt
+    // 8. Validate receipt (Zod parse + lint)
     let validation = validateReceiptSchema(receipt);
     let lintPassed = validation.valid;
+    let lintErrors = validation.lintErrors;
     let finalReceipt = validation.sanitized || receipt;
 
-    // 8b. If lint failed, try formatting fixer for text-field issues
-    if (!lintPassed) {
+    // 8a. If Zod parse failed (schema_fail), hard 422
+    if (!validation.sanitized && validation.errors.length > 0 && validation.lintErrors.length === 0) {
+      console.error(
+        `[Receipt API] Schema fail after ${retried ? "retry" : "first attempt"}:`,
+        validation.errors
+      );
+
+      // Log schema_fail event
+      if (isSupabaseConfigured()) {
+        try {
+          await supabase.from("receipt_events").insert({
+            session_id: receiptToken,
+            event_type: "schema_fail",
+          });
+        } catch {
+          // swallow
+        }
+      }
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Receipt failed structural validation — please try again",
+          lint_errors: validation.errors,
+          lint_error_codes: [],
+        },
+        { status: 422 }
+      );
+    }
+
+    // 8b. If lint failed, try formatting fixer
+    if (!lintPassed && lintErrors.length > 0) {
       console.log(
         `[Receipt API] Lint errors after ${retried ? "retry" : "first attempt"}:`,
-        validation.errors
+        lintErrors.map((e) => e.code)
       );
 
       try {
         const patched = await fixReceiptFormatting(
           finalReceipt as unknown as Record<string, unknown>,
-          validation.errors
+          lintErrors
         );
         if (patched) {
           const revalidation = validateReceiptSchema(patched);
-          if (revalidation.valid || revalidation.errors.length < validation.errors.length) {
+          if (revalidation.valid || revalidation.lintErrors.length < lintErrors.length) {
             finalReceipt = (revalidation.sanitized || patched) as typeof finalReceipt;
             validation = revalidation;
             lintPassed = revalidation.valid;
+            lintErrors = revalidation.lintErrors;
             console.log("[Receipt API] Formatting fixer improved result");
           }
         }
@@ -141,7 +219,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 9. Increment daily counter (in-memory fallback)
+    // 9. Post-gen rendering: if reddit_draft exists, render receipt_reddit_text deterministically
+    if (
+      finalReceipt.reddit_draft &&
+      typeof finalReceipt.reddit_draft === "object" &&
+      (finalReceipt.reddit_draft as Record<string, unknown>).title
+    ) {
+      try {
+        const rendered = renderRedditDraft(
+          finalReceipt.reddit_draft as Parameters<typeof renderRedditDraft>[0]
+        );
+        if (rendered.length >= 40 && rendered.length <= 1200) {
+          finalReceipt = { ...finalReceipt, receipt_reddit_text: rendered };
+        }
+      } catch {
+        // Keep AI-generated receipt_reddit_text as fallback
+      }
+    }
+
+    // 10. Increment daily counter (in-memory fallback)
     incrementDailyCount(receiptToken as string);
 
     // 10. Log to Supabase
@@ -181,6 +277,7 @@ export async function POST(request: NextRequest) {
             url_domain: urlDomain,
             verdict: finalReceipt.verdict,
             price_label: finalReceipt.price_sanity?.label || null,
+            ip_hash: ipHash || null,
           });
 
         if (eventError) {
@@ -200,13 +297,38 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 11. Return response
+    // 12. Vehicle classification
+    const vehicleClassification = classifyVehicle(
+      input.make || "",
+      input.model || "",
+      input.trim,
+      input.listing_text
+    );
+
+    // 13. Build vehicle_used echo
+    const vehicle_used: Record<string, unknown> = {};
+    for (const key of [
+      "year", "make", "model", "trim", "mileage", "price", "vin", "location",
+      "seller_type", "title_status", "country", "zip_or_postcode",
+    ]) {
+      if ((input as unknown as Record<string, unknown>)[key] !== undefined) {
+        vehicle_used[key] = (input as unknown as Record<string, unknown>)[key];
+      }
+    }
+
+    // 13. Return response
     return NextResponse.json({
       success: true,
       receipt: finalReceipt,
       lint_passed: lintPassed,
       lint_errors: validation.errors,
+      lint_error_codes: lintErrors,
       remaining_free: Math.max(0, dailyLimit.remaining - 1),
+      is_pro: isPro,
+      features,
+      vehicle_used,
+      vehicle_category: vehicleClassification.category,
+      extraction_id: input.extraction_id || null,
     });
   } catch (error) {
     console.error("[Receipt API] Generation error:", error);
@@ -244,6 +366,88 @@ export async function POST(request: NextRequest) {
             : "Failed to generate receipt",
       },
       { status: isOpenAIError ? 503 : 500 }
+    );
+  }
+}
+
+// --- Fix-only handler ---
+
+async function handleFixOnly(
+  receiptJson: unknown,
+  clientLintErrors: LintError[] | undefined,
+  receiptToken: string
+) {
+  // Validate the incoming receipt first
+  const validation = validateReceiptSchema(receiptJson);
+
+  // If schema fails, can't fix
+  if (!validation.sanitized) {
+    return NextResponse.json(
+      { success: false, error: "Invalid receipt structure" },
+      { status: 400 }
+    );
+  }
+
+  const lintErrors = clientLintErrors?.length
+    ? clientLintErrors
+    : validation.lintErrors;
+
+  if (lintErrors.length === 0) {
+    // Already clean
+    return NextResponse.json({
+      success: true,
+      receipt: validation.sanitized,
+      lint_passed: true,
+      lint_errors: [],
+      lint_error_codes: [],
+    });
+  }
+
+  try {
+    const patched = await fixReceiptFormatting(
+      receiptJson as Record<string, unknown>,
+      lintErrors
+    );
+
+    if (!patched) {
+      return NextResponse.json({
+        success: true,
+        receipt: validation.sanitized,
+        lint_passed: false,
+        lint_errors: validation.errors,
+        lint_error_codes: validation.lintErrors,
+      });
+    }
+
+    const revalidation = validateReceiptSchema(patched);
+
+    // Log regen event
+    if (isSupabaseConfigured()) {
+      try {
+        const receiptId =
+          (receiptJson as Record<string, unknown>)?.receipt_id || null;
+        await supabase.from("receipt_events").insert({
+          receipt_id: receiptId,
+          session_id: receiptToken,
+          event_type: "regen",
+        });
+      } catch {
+        // swallow
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      receipt: revalidation.sanitized || patched,
+      lint_passed: revalidation.valid,
+      lint_errors: revalidation.errors,
+      lint_error_codes: revalidation.lintErrors,
+    });
+  } catch (err) {
+    console.error("[Receipt API] Fix-only error:", err);
+    return NextResponse.json(
+      { success: false, error: "Auto-fix failed" },
+      { status: 500 }
     );
   }
 }

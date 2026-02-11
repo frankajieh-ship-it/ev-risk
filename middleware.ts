@@ -35,6 +35,18 @@ export function middleware(request: NextRequest) {
     );
   }
 
+  // Receipt session cookie — httpOnly, server-side rate limiting anchor
+  if (!request.cookies.get("receipt_session")) {
+    const sessionId = `rs_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+    response.cookies.set("receipt_session", sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 365 * 24 * 60 * 60,
+      path: "/",
+    });
+  }
+
   // Admin Panel IP Restriction
   if (request.nextUrl.pathname.startsWith("/admin")) {
     const allowedIPs = (process.env.ADMIN_ALLOWED_IPS || "").split(",").filter(Boolean);
