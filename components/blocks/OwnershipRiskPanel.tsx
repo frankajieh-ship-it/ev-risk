@@ -61,17 +61,17 @@ function ModuleCard({ module }: { module: OwnershipRiskModule }) {
 
 export function OwnershipRiskPanel({ ownershipRisk }: OwnershipRiskPanelProps) {
   const overallConfig = {
-    "Low Risk": { color: "text-green-700", bg: "bg-green-100" },
-    "Moderate Risk": { color: "text-yellow-700", bg: "bg-yellow-100" },
-    "High Risk": { color: "text-red-700", bg: "bg-red-100" },
-    "Insufficient Data": { color: "text-gray-700", bg: "bg-gray-100" },
+    "Low ownership friction": { color: "text-green-700", bg: "bg-green-100" },
+    "Moderate ownership friction": { color: "text-yellow-700", bg: "bg-yellow-100" },
+    "High ownership friction": { color: "text-red-700", bg: "bg-red-100" },
+    "Insufficient data": { color: "text-gray-700", bg: "bg-gray-100" },
   }[ownershipRisk.overall_risk_label];
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
-          Ownership Risk
+          Ownership Friction
         </h3>
         <span className={`text-xs font-medium px-3 py-1 rounded-full ${overallConfig.bg} ${overallConfig.color}`}>
           {ownershipRisk.overall_risk_label}

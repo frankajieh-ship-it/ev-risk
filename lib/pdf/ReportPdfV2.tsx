@@ -453,18 +453,18 @@ export const ReportPdfV2: React.FC<{ data: ReportPdfV2Data }> = ({ data }) => {
       <Page size="A4" style={styles.page}>
         {/* Ownership Risk Overview */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ownership Risk Flags (supplementary)</Text>
+          <Text style={styles.sectionTitle}>Ownership Friction Flags (supplementary)</Text>
           <Text
             style={{
               fontSize: 10,
               fontWeight: "bold",
               marginBottom: 12,
               color:
-                ownershipRisk.overall_risk_label === "Low Risk"
+                ownershipRisk.overall_risk_label === "Low ownership friction"
                   ? COLORS.green
-                  : ownershipRisk.overall_risk_label === "Moderate Risk"
+                  : ownershipRisk.overall_risk_label === "Moderate ownership friction"
                   ? COLORS.yellow
-                  : ownershipRisk.overall_risk_label === "High Risk"
+                  : ownershipRisk.overall_risk_label === "High ownership friction"
                   ? COLORS.red
                   : COLORS.gray,
             }}

@@ -37,10 +37,11 @@ interface ClientRoutineFitInput {
   chargerDensity: string;
   realWorldRange: number;
   overall_score: number;
+  hasActualRange?: boolean;
 }
 
 export function calculateRoutineFitClient(input: ClientRoutineFitInput): RoutineFitAssessment {
-  const { dailyMiles, homeCharging, chargerDensity, realWorldRange, overall_score } = input;
+  const { dailyMiles, homeCharging, chargerDensity, realWorldRange, overall_score, hasActualRange } = input;
   const dailyRangeUsage = (dailyMiles / realWorldRange) * 100;
 
   const reasons: Array<{ text: string; type: 'positive' | 'neutral' | 'negative' }> = [];
@@ -76,10 +77,12 @@ export function calculateRoutineFitClient(input: ClientRoutineFitInput): Routine
 
   // Analyze daily usage
   if (dailyRangeUsage < 50) {
-    reasons.push({
-      text: `Daily usage (${dailyRangeUsage.toFixed(0)}%) well within range → range is not the issue`,
-      type: 'positive'
-    });
+    if (hasActualRange) {
+      reasons.push({
+        text: `Daily usage (${dailyRangeUsage.toFixed(0)}%) well within range → range is not the issue`,
+        type: 'positive'
+      });
+    }
   } else if (dailyRangeUsage < 70) {
     reasons.push({
       text: `Daily usage (${dailyRangeUsage.toFixed(0)}%) moderate → some buffer for spontaneous trips`,

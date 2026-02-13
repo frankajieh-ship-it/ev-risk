@@ -33,6 +33,8 @@ interface ReceiptOutputCardProps {
   onTrackCopy?: (copyType: string) => void;
   onAutoFix?: () => void;
   isFixing?: boolean;
+  isFallback?: boolean;
+  onRegenerate?: () => void;
 }
 
 const VERDICT_STYLES = {
@@ -74,6 +76,8 @@ export default function ReceiptOutputCard({
   onTrackCopy,
   onAutoFix,
   isFixing,
+  isFallback,
+  onRegenerate,
 }: ReceiptOutputCardProps) {
   const [copied, setCopied] = useState(false);
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
@@ -138,6 +142,23 @@ export default function ReceiptOutputCard({
       transition={{ duration: 0.4 }}
       className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden"
     >
+      {/* Fallback banner */}
+      {isFallback && (
+        <div className="bg-amber-50 border-b border-amber-200 px-5 py-3 flex items-center justify-between">
+          <p className="text-sm text-amber-800">
+            Quick receipt — AI analysis timed out. Tap Regenerate for a full analysis.
+          </p>
+          {onRegenerate && (
+            <button
+              onClick={onRegenerate}
+              className="text-sm font-medium text-amber-700 hover:text-amber-900 underline whitespace-nowrap ml-3"
+            >
+              Regenerate
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Verdict banner */}
       <div className={`${verdict.bg} ${verdict.border} border-b px-5 py-4`}>
         <div className="flex items-center gap-3">

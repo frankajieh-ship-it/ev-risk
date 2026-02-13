@@ -129,10 +129,10 @@ export const ReportView: React.FC<ReportViewProps> = ({
   };
 
   const getRiskLevel = (score: number) => {
-    if (score >= 80) return "Low Risk";
-    if (score >= 60) return "Moderate Risk";
-    if (score >= 40) return "Elevated Risk";
-    return "High Risk";
+    if (score >= 80) return "Low Friction";
+    if (score >= 60) return "Moderate Friction";
+    if (score >= 40) return "Elevated Friction";
+    return "High Friction";
   };
 
   const handleExport = async () => {
@@ -311,9 +311,9 @@ export const ReportView: React.FC<ReportViewProps> = ({
               </div>
 
               <div className="flex justify-between text-xs text-gray-500">
-                <span>High Risk</span>
+                <span>High Friction</span>
                 <span>Moderate</span>
-                <span>Low Risk</span>
+                <span>Low Friction</span>
               </div>
 
               {/* Confidence Indicator */}

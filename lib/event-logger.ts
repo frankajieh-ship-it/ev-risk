@@ -58,6 +58,27 @@ export const VALID_EVENT_NAMES = [
 
   // Email Capture Events
   "email_checklist_submit",
+
+  // Funnel Instrumentation Events
+  "landing_view",
+  "cta_start_click",
+  "intake_started",
+  "intake_step_completed",
+  "report_generate_click",
+  "save_click",
+  "save_success",
+  "copy_click",
+
+  // Events fired from components (previously unlisted)
+  "v2_score_submit",
+  "routine_step_viewed",
+  "clicked_listing_receipt",
+  "manual_entry_submit",
+
+  // Receipt Events
+  "receipt_generate",
+  "receipt_regen",
+  "receipt_history_viewed",
 ] as const;
 
 export type ValidEventName = (typeof VALID_EVENT_NAMES)[number];

@@ -17,7 +17,10 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o";
+const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+// Time budget: skip retry if first call already consumed most of the allowed time
+const TIME_BUDGET_MS = 8000;
 
 // --- System Prompt ---
 
@@ -256,6 +259,7 @@ function buildUserPrompt(input: ReceiptGenerateRequest): string {
 export async function generateReceipt(
   input: ReceiptGenerateRequest
 ): Promise<{ receipt: ListingReceipt; raw_response: string; retried: boolean }> {
+  const startTime = Date.now();
   const userPrompt = buildUserPrompt(input);
 
   // First attempt
@@ -268,7 +272,7 @@ export async function generateReceipt(
     model: MODEL,
     messages,
     temperature: 0.3,
-    max_tokens: 4096,
+    max_tokens: 2500,
     response_format: { type: "json_object" },
   });
 
@@ -297,9 +301,22 @@ export async function generateReceipt(
     };
   }
 
+  // --- Skip retry if time budget exhausted ---
+  const elapsed = Date.now() - startTime;
+  if (elapsed > TIME_BUDGET_MS) {
+    console.log(
+      `[Receipt OpenAI] First attempt took ${elapsed}ms (budget: ${TIME_BUDGET_MS}ms), skipping retry`
+    );
+    return {
+      receipt: (firstValidation.sanitized || parsed) as ListingReceipt,
+      raw_response: firstContent,
+      retried: false,
+    };
+  }
+
   // --- Retry with repair prompt ---
   console.log(
-    `[Receipt OpenAI] First attempt had ${firstValidation.errors.length} lint errors, retrying...`
+    `[Receipt OpenAI] First attempt had ${firstValidation.errors.length} lint errors, retrying... (${elapsed}ms elapsed)`
   );
 
   const repairPrompt = `Your previous response had these schema validation errors:
@@ -314,7 +331,7 @@ Fix ONLY these issues and return the corrected complete JSON. Keep all other con
     model: MODEL,
     messages,
     temperature: 0.2,
-    max_tokens: 4096,
+    max_tokens: 2500,
     response_format: { type: "json_object" },
   });
 
@@ -353,6 +370,93 @@ Fix ONLY these issues and return the corrected complete JSON. Keep all other con
     raw_response: firstContent,
     retried: true,
   };
+}
+
+// --- Fallback Receipt (no AI call) ---
+
+/**
+ * Builds a minimal receipt from structured input fields when the AI call
+ * times out or fails. Returns a YELLOW verdict with generic checklist items.
+ */
+export function buildFallbackReceipt(input: ReceiptGenerateRequest): ListingReceipt {
+  const year = input.year || 0;
+  const make = input.make || "Unknown";
+  const model = input.model || "Vehicle";
+  const price = input.price || 0;
+  const mileage = input.mileage || 0;
+  const label = `${year > 0 ? year + " " : ""}${make} ${model}`;
+  const priceStr = price > 0 ? `$${price.toLocaleString()}` : "unlisted price";
+
+  return {
+    receipt_id: uuidv4(),
+    schema_version: "v1",
+    mode: "single",
+    verdict: "YELLOW",
+    verdict_reason: `AI analysis timed out for this ${label}. Basic receipt generated from listing data.`,
+    price_sanity: {
+      label: "UNKNOWN",
+      confidence: 0,
+      basis: "UNKNOWN",
+      rationale_short: "AI analysis was unavailable — price not evaluated",
+      user_market_range: null,
+    },
+    risk_flags: [
+      "AI analysis timed out — regenerate for full risk assessment",
+      "Verify title status and accident history independently",
+      "Check service records and maintenance history before purchase",
+    ],
+    must_answer_questions: [
+      "Has this vehicle been in any accidents or had major repairs?",
+      "Is the title clean, and are there any liens on the vehicle?",
+      "Can the seller provide recent maintenance or inspection records?",
+    ],
+    inspect_first: [
+      "Check for uneven panel gaps or paint mismatches indicating body work",
+      "Inspect tire wear patterns for alignment or suspension issues",
+      "Test all electronics, AC, and infotainment systems",
+      "Look under the vehicle for rust, fluid leaks, or frame damage",
+      "Take it for a test drive on highway and listen for unusual noises",
+    ],
+    negotiation_opener: price > 0
+      ? `I am interested in the ${label} listed at ${priceStr}. Before we discuss price further, I would like to verify a few details about the vehicle history and condition.`
+      : `I am interested in the ${label}. Before we discuss terms, I would like to verify a few details about the vehicle history and condition.`,
+    one_followup_question: null,
+    receipt_reddit_text: `${label} at ${priceStr} — looking for community input.\n\nThis is a basic receipt generated from listing data. AI analysis was unavailable, so no detailed risk assessment or pricing analysis is included. Key details worth confirming include title status, accident history, and maintenance records.\n\nHas anyone had experience with this vehicle and what should I watch out for?`,
+    reddit_draft: null,
+    listing_summary: {
+      listing_url: input.listing_url || "",
+      url_domain: input.listing_url ? (() => { try { return new URL(input.listing_url).hostname.replace("www.", ""); } catch { return ""; } })() : "",
+      country: input.country || "US",
+      zip_or_postcode: input.zip_or_postcode || "",
+      price,
+      currency: "USD",
+      mileage,
+      mileage_unit: "mi",
+      year,
+      make,
+      model,
+      trim: input.trim || null,
+      seller_type: input.seller_type || "unknown",
+      title_status: input.title_status || "unknown",
+      accidents_reported: input.accidents_reported || "unknown",
+      service_history: input.service_history || "unknown",
+      owners: input.owners || null,
+      carfax_available: input.carfax_available || "unknown",
+    },
+    receipt_details: null,
+    compare: null,
+    operator_notes: {
+      rationale: `AI analysis timed out after the model took too long to respond. This fallback receipt was generated from the structured fields provided. Regenerate for a complete AI-powered analysis.`,
+      assumptions: [
+        "All listing details taken at face value from user input",
+        "No independent price or market analysis performed",
+      ],
+      what_would_change_verdict: [
+        "A clean Carfax and service records could move this toward GREEN",
+        "Accident history or title issues could move this toward RED",
+      ],
+    },
+  } as ListingReceipt;
 }
 
 // --- Deterministic Fix Pre-Pass ---

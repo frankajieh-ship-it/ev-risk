@@ -18,7 +18,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIP } from "@/lib/rate-limiter";
 import { receiptBurstLimiter, checkDailyLimit, incrementDailyCount } from "@/lib/receipt-rate-limiter";
-import { generateReceipt, fixReceiptFormatting } from "@/lib/receipt-openai";
+import { generateReceipt, fixReceiptFormatting, buildFallbackReceipt } from "@/lib/receipt-openai";
 import { validateReceiptSchema } from "@/lib/receipt-schema-validator";
 import type { LintError } from "@/lib/receipt-schema-validator";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -32,6 +32,8 @@ import type { ReceiptGenerateRequest } from "@/types/receipt";
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
+  const t0 = Date.now();
+  const timings: Record<string, number> = {};
   const clientIP = getClientIP(request);
 
   // 1. Burst rate limit
@@ -66,6 +68,8 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+
+  timings.parse = Date.now() - t0;
 
   // --- Fix-only mode ---
   if (body.mode === "fix_only" && body.receipt_json) {
@@ -106,6 +110,7 @@ export async function POST(request: NextRequest) {
   }
   const isPro = await checkIsPro(userId, userEmail);
   const features = getFeatureFlags(isPro);
+  timings.auth = Date.now() - t0;
 
   // 5b. Server-side rate limiting anchors
   const serverSessionId = request.cookies.get("receipt_session")?.value;
@@ -155,6 +160,7 @@ export async function POST(request: NextRequest) {
   try {
     // 7. Call OpenAI
     const { receipt, retried } = await generateReceipt(input);
+    timings.openai = Date.now() - t0;
 
     // 8. Validate receipt (Zod parse + lint)
     let validation = validateReceiptSchema(receipt);
@@ -237,6 +243,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    timings.validate = Date.now() - t0;
+
     // 10. Increment daily counter (in-memory fallback)
     incrementDailyCount(receiptToken as string);
 
@@ -297,6 +305,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    timings.db = Date.now() - t0;
+
     // 12. Vehicle classification
     const vehicleClassification = classifyVehicle(
       input.make || "",
@@ -317,6 +327,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 13. Return response
+    timings.total = Date.now() - t0;
+    console.log(`[Receipt API] timings: parse=${timings.parse}ms auth=${timings.auth}ms openai=${timings.openai}ms validate=${timings.validate}ms db=${timings.db}ms total=${timings.total}ms retried=${retried}`);
+
     return NextResponse.json({
       success: true,
       receipt: finalReceipt,
@@ -334,13 +347,15 @@ export async function POST(request: NextRequest) {
     console.error("[Receipt API] Generation error:", error);
 
     // Differentiate error codes
-    const isOpenAIError =
+    const isTimeoutOrAIError =
       error instanceof Error &&
       (error.message.includes("timeout") ||
         error.message.includes("Connection error") ||
         error.message.includes("503") ||
         error.message.includes("429") ||
         error.message.includes("APIConnectionError") ||
+        error.message.includes("aborted") ||
+        error.name === "AbortError" ||
         error.name === "APIConnectionError" ||
         error.name === "APIError");
 
@@ -349,23 +364,43 @@ export async function POST(request: NextRequest) {
       try {
         await supabase.from("receipt_events").insert({
           session_id: receiptToken,
-          event_type: "generate_fail",
+          event_type: isTimeoutOrAIError ? "generate_timeout" : "generate_fail",
         });
       } catch {
         // swallow logging errors
       }
     }
 
+    // On timeout/AI errors, return a fallback receipt instead of an error
+    if (isTimeoutOrAIError) {
+      const fallbackReceipt = buildFallbackReceipt(input);
+      timings.total = Date.now() - t0;
+      console.log(`[Receipt API] Returning fallback receipt after error (${timings.total}ms)`);
+
+      // Still increment daily counter
+      incrementDailyCount(receiptToken as string);
+
+      return NextResponse.json({
+        success: true,
+        receipt: fallbackReceipt,
+        lint_passed: true,
+        lint_errors: [],
+        lint_error_codes: [],
+        remaining_free: Math.max(0, dailyLimit.remaining - 1),
+        is_pro: isPro,
+        features,
+        fallback: true,
+      });
+    }
+
     return NextResponse.json(
       {
         success: false,
-        error: isOpenAIError
-          ? "AI service temporarily unavailable — please try again in a minute"
-          : error instanceof Error
-            ? error.message
-            : "Failed to generate receipt",
+        error: error instanceof Error
+          ? error.message
+          : "Failed to generate receipt",
       },
-      { status: isOpenAIError ? 503 : 500 }
+      { status: 500 }
     );
   }
 }

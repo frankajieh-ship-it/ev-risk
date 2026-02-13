@@ -167,7 +167,7 @@ function ReportContent() {
   const [region, setRegion] = useState<Region>("US");
 
   // Event tracking
-  const { trackButtonClick, trackEvent } = useEventTracking();
+  const { trackButtonClick, trackEvent, trackReportGenerateClick } = useEventTracking();
 
   // Track if we've already tracked vehicle checkout for this session
   const hasTrackedCheckout = useRef(false);
@@ -207,7 +207,13 @@ function ReportContent() {
             if (parsed.default_view) {
               // New contract shape (Default View + Appendix)
               console.log("[Report Page] V2 contract report detected");
-              setReportV2ContractData(parsed as EvRiskReportV2Contract);
+              const contract = parsed as EvRiskReportV2Contract;
+              setReportV2ContractData(contract);
+              trackReportGenerateClick({
+                report_id: contract.report_id,
+                scenario_id: contract.scenario_id,
+                scenario_slug: contract.scenario_slug,
+              });
             } else {
               // Legacy V2 shape (backward compat)
               console.log("[Report Page] V2 legacy report detected");

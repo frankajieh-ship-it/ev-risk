@@ -584,7 +584,7 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {s.risk_distribution.length > 0 && (
             <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Risk Score Distribution</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Ownership Friction Distribution</h2>
               <div className="space-y-3">
                 {s.risk_distribution.map((risk) => (
                   <div key={risk.category}>

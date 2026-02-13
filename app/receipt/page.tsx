@@ -34,6 +34,35 @@ function getOrCreateReceiptToken(): string {
   return token;
 }
 
+// Fetch with timeout and retry for resilience against 504s
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 2
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeoutId);
+      // Retry on 503/504 (gateway timeout, AI unavailable)
+      if (res.status === 503 || res.status === 504) {
+        if (attempt < maxRetries) {
+          await new Promise((r) => setTimeout(r, (attempt + 1) * 2000));
+          continue;
+        }
+      }
+      return res;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (attempt === maxRetries) throw err;
+      await new Promise((r) => setTimeout(r, (attempt + 1) * 2000));
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
+
 export default function ReceiptPage() {
   const { trackEvent } = useEventTracking();
 
@@ -45,6 +74,7 @@ export default function ReceiptPage() {
   const [isFixing, setIsFixing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remainingFree, setRemainingFree] = useState<number | null>(null);
+  const [isFallback, setIsFallback] = useState(false);
 
   // History
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -86,6 +116,7 @@ export default function ReceiptPage() {
       setReceipt(null);
       setLintPassed(true);
       setLintErrors([]);
+      setIsFallback(false);
 
       try {
         const body: Record<string, unknown> = {
@@ -118,7 +149,7 @@ export default function ReceiptPage() {
         if (f.country) body.country = f.country;
         if (f.zip_or_postcode) body.zip_or_postcode = f.zip_or_postcode;
 
-        const res = await fetch("/api/receipt", {
+        const res = await fetchWithRetry("/api/receipt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -137,6 +168,7 @@ export default function ReceiptPage() {
         setReceipt(result.receipt);
         setLintPassed(result.lint_passed);
         setLintErrors(result.lint_error_codes || []);
+        setIsFallback(!!result.fallback);
         if (typeof result.remaining_free === "number") {
           setRemainingFree(result.remaining_free);
         }
@@ -153,9 +185,15 @@ export default function ReceiptPage() {
           verdict: result.receipt.verdict,
           price_label: result.receipt.price_sanity?.label,
           lint_passed: result.lint_passed,
+          fallback: !!result.fallback,
         });
-      } catch {
-        setError("Network error — please try again");
+      } catch (err) {
+        const isAbort = err instanceof DOMException && err.name === "AbortError";
+        setError(
+          isAbort
+            ? "Receipt is taking longer than expected. Please try again."
+            : "Generation failed after multiple attempts. Try pasting less text or entering details manually."
+        );
       } finally {
         setIsGenerating(false);
       }
@@ -319,6 +357,7 @@ export default function ReceiptPage() {
                 onTrackCopy={handleTrackCopy}
                 onAutoFix={handleAutoFix}
                 isFixing={isFixing}
+                isFallback={isFallback}
               />
 
               {/* Details accordion */}

@@ -11,6 +11,18 @@ interface EventData {
   [key: string]: any;
 }
 
+function getRegion(): "US" | "UK" | "AU" | "CA" {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz.startsWith("Europe/London") || tz.startsWith("Europe/Belfast")) return "UK";
+    if (tz.startsWith("Australia/")) return "AU";
+    if (tz.startsWith("America/Toronto") || tz.startsWith("America/Vancouver") || tz.startsWith("America/Edmonton") || tz.startsWith("America/Winnipeg") || tz.startsWith("America/Halifax")) return "CA";
+    return "US";
+  } catch {
+    return "US";
+  }
+}
+
 export function useEventTracking() {
   const visitorIdRef = useRef<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -81,6 +93,9 @@ export function useEventTracking() {
             eventData: {
               ...(eventData || {}),
               persistent_session_id: getPersistentSessionId(),
+              region: getRegion(),
+              sensitivity: "normal",
+              source: "web",
               ...(getAttributionForEvent() ? { attribution: getAttributionForEvent() } : {}),
             },
             visitorId: getVisitorId(),
@@ -396,6 +411,66 @@ export function useEventTracking() {
     [trackEvent]
   );
 
+  // ==========================================
+  // NEW: Funnel Instrumentation Events
+  // ==========================================
+
+  const trackLandingView = useCallback(
+    () => {
+      trackEvent("landing_view", { page: typeof window !== "undefined" ? window.location.pathname : "/" });
+    },
+    [trackEvent]
+  );
+
+  const trackCTAClick = useCallback(
+    (ctaId: string) => {
+      trackEvent("cta_start_click", { cta_id: ctaId, page: typeof window !== "undefined" ? window.location.pathname : "/" });
+    },
+    [trackEvent]
+  );
+
+  const trackIntakeStarted = useCallback(
+    () => {
+      trackEvent("intake_started", {});
+    },
+    [trackEvent]
+  );
+
+  const trackIntakeStepCompleted = useCallback(
+    (step: string, stepData?: Record<string, any>) => {
+      trackEvent("intake_step_completed", { step, ...stepData });
+    },
+    [trackEvent]
+  );
+
+  const trackReportGenerateClick = useCallback(
+    (data?: { report_id?: string; scenario_id?: string; scenario_slug?: string }) => {
+      trackEvent("report_generate_click", data);
+    },
+    [trackEvent]
+  );
+
+  const trackSaveClick = useCallback(
+    (data?: { scenario_id?: string; scenario_slug?: string }) => {
+      trackEvent("save_click", data);
+    },
+    [trackEvent]
+  );
+
+  const trackSaveSuccess = useCallback(
+    (data: { scenario_id: string; scenario_slug?: string; save_type?: "anon" | "account" }) => {
+      trackEvent("save_success", data);
+    },
+    [trackEvent]
+  );
+
+  const trackCopyClick = useCallback(
+    (target: string) => {
+      trackEvent("copy_click", { target });
+    },
+    [trackEvent]
+  );
+
   return {
     trackEvent,
     trackFormSubmit,
@@ -419,15 +494,24 @@ export function useEventTracking() {
     trackFeedbackAccuracy,
     trackMicroFeedback,
     trackScrollDepth,
-    // NEW: Report generation lifecycle
+    // Report generation lifecycle
     trackIntakeSubmitted,
     trackReportGenerationStarted,
     trackReportGenerationSucceeded,
     trackReportGenerationFailed,
-    // NEW: Failure tracking
+    // Failure tracking
     trackFormValidationFailed,
     trackApiError,
     trackFormAbandoned,
+    // Funnel instrumentation
+    trackLandingView,
+    trackCTAClick,
+    trackIntakeStarted,
+    trackIntakeStepCompleted,
+    trackReportGenerateClick,
+    trackSaveClick,
+    trackSaveSuccess,
+    trackCopyClick,
     // Expose persistent session ID for external use
     getPersistentSessionId,
   };

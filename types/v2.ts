@@ -120,7 +120,7 @@ export interface OwnershipRiskModule {
 }
 
 export interface OwnershipRiskFlags {
-  overall_risk_label: "Low Risk" | "Moderate Risk" | "High Risk" | "Insufficient Data";
+  overall_risk_label: "Low ownership friction" | "Moderate ownership friction" | "High ownership friction" | "Insufficient data";
   modules: OwnershipRiskModule[];
 }
 

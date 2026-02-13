@@ -15,7 +15,7 @@ export function computeOwnershipRisk(
   // If no vehicle data, return all unknown
   if (!vehicleInput || !vehicleInput.model || !vehicleInput.year) {
     return {
-      overall_risk_label: "Insufficient Data",
+      overall_risk_label: "Insufficient data",
       modules: [
         makeUnknownModule("battery", "Battery Health", "Add vehicle details to assess battery risk"),
         makeUnknownModule("recall", "Recall Status", "Add vehicle details to check recalls"),
@@ -106,10 +106,10 @@ export function computeOwnershipRisk(
   const unknownCount = modules.filter((m) => m.status === "unknown").length;
 
   let overall_risk_label: OwnershipRiskFlags["overall_risk_label"];
-  if (unknownCount >= 3) overall_risk_label = "Insufficient Data";
-  else if (redCount > 0) overall_risk_label = "High Risk";
-  else if (yellowCount > 0) overall_risk_label = "Moderate Risk";
-  else overall_risk_label = "Low Risk";
+  if (unknownCount >= 3) overall_risk_label = "Insufficient data";
+  else if (redCount > 0) overall_risk_label = "High ownership friction";
+  else if (yellowCount > 0) overall_risk_label = "Moderate ownership friction";
+  else overall_risk_label = "Low ownership friction";
 
   return { overall_risk_label, modules };
 }

@@ -807,7 +807,7 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
     }
 
     emoji = "🟢";
-    recommendation = "Low Risk - Proceed with standard pre-purchase inspection.";
+    recommendation = "Low friction - Proceed with standard pre-purchase inspection.";
 
     // Generate one-sentence verdict based on context
     if (input.homeCharging) {
@@ -826,7 +826,7 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
     rating = "YELLOW";
     fit_signal = "Conditional Fit";
     emoji = "🟡";
-    recommendation = "Moderate Risk - Consider carefully. Get detailed battery health report and extended warranty if available.";
+    recommendation = "Moderate friction - Consider carefully. Get detailed battery health report and extended warranty if available.";
 
     // Identify the main friction point
     const mainFriction = battery_risk.score < 60 ? "battery degradation" :
@@ -839,7 +839,7 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
     rating = "RED";
     fit_signal = "High Friction";
     emoji = "🔴";
-    recommendation = "High Risk - Proceed with caution. Budget for potential battery replacement or major repairs within 2-3 years.";
+    recommendation = "High friction - Proceed with caution. Budget for potential battery replacement or major repairs within 2-3 years.";
 
     // Identify multiple friction points
     const frictions: string[] = [];
@@ -1055,6 +1055,7 @@ export function generateRiskBreakdown(confidence: BuyConfidence): string[] {
  */
 export function calculateRoutineFit(input: ScoringInput, confidence: BuyConfidence): RoutineFitAssessment {
   const rangeData = findRangeDataByModel(input.model, input.year);
+  const hasActualRange = !!rangeData?.real_world_range_mi;
   const realWorldRange = rangeData?.real_world_range_mi || 200;
   const dailyRangeUsage = (input.dailyMiles / realWorldRange) * 100;
   const chargerDensity = confidence.ownership_fit.charger_density;
@@ -1092,10 +1093,12 @@ export function calculateRoutineFit(input: ScoringInput, confidence: BuyConfiden
 
   // Analyze daily usage
   if (dailyRangeUsage < 50) {
-    reasons.push({
-      text: `Daily usage (${dailyRangeUsage.toFixed(0)}%) well within range → range is not the issue`,
-      type: 'positive'
-    });
+    if (hasActualRange) {
+      reasons.push({
+        text: `Daily usage (${dailyRangeUsage.toFixed(0)}%) well within range → range is not the issue`,
+        type: 'positive'
+      });
+    }
   } else if (dailyRangeUsage < 70) {
     reasons.push({
       text: `Daily usage (${dailyRangeUsage.toFixed(0)}%) moderate → some buffer for spontaneous trips`,

@@ -74,7 +74,8 @@ export async function POST(request: NextRequest) {
       const effectiveDailyMiles = routine.commute_miles_roundtrip
         ? routine.commute_miles_roundtrip
         : (routine.weekly_miles ?? 100) / 5;
-      const effectiveRange = vehicleBasics?.real_world_range_mi ?? 200;
+      const hasActualRange = !!vehicleBasics?.real_world_range_mi;
+      const effectiveRange = hasActualRange ? vehicleBasics!.real_world_range_mi! : 0;
 
       const contract = buildReportContract({
         routineFit,

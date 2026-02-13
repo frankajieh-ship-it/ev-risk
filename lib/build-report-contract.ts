@@ -65,7 +65,7 @@ export function buildReportContract(
     confidence: buildConfidencePair(mvr, confidencePlan, vehicle),
   };
 
-  return {
+  const contract: EvRiskReportV2Contract = {
     report_id: uuidv4(),
     scenario_id: uuidv4(),
     scenario_slug: generateScenarioSlug(mvr),
@@ -82,6 +82,14 @@ export function buildReportContract(
       routine: mvr,
     },
   };
+
+  // Validate: no range claims when range is unknown
+  const validationWarnings = validateReportContract(contract);
+  if (validationWarnings.length > 0) {
+    console.warn("[ReportContract] Validation warnings:", validationWarnings);
+  }
+
+  return contract;
 }
 
 // ============================================
@@ -285,6 +293,16 @@ function buildRangeAdequacy(
   effectiveRange: number,
   mvr: MinimumViableRoutine
 ): RangeAdequacy {
+  // If no actual vehicle range data, return not_computed
+  if (effectiveRange <= 0) {
+    return {
+      status: "not_computed",
+      result: "unknown",
+      reason_if_unknown: "No vehicle range data available",
+      inputs_used: [],
+    };
+  }
+
   const dailyUsagePct = (effectiveDailyMiles / effectiveRange) * 100;
 
   let result: RangeAdequacy["result"];
@@ -297,10 +315,47 @@ function buildRangeAdequacy(
   else if (mvr.weekly_miles) inputsUsed.push("weekly_miles");
   if (mvr.climate === "winter") inputsUsed.push("winter_temp");
   inputsUsed.push("charging_access");
+  inputsUsed.push("vehicle_range");
 
   return {
     status: "computed",
     result,
     inputs_used: inputsUsed,
   };
+}
+
+// ============================================
+// POST-BUILD VALIDATOR
+// ============================================
+
+const FORBIDDEN_RANGE_PHRASES = [
+  "range isn't an issue",
+  "well within range",
+  "range is fine",
+  "range is not the issue",
+  "range is adequate",
+];
+
+export function validateReportContract(contract: EvRiskReportV2Contract): string[] {
+  const warnings: string[] = [];
+  const rangeStatus = contract.computed.range_adequacy.status;
+
+  if (rangeStatus === "not_computed") {
+    for (const flag of contract.default_view.stress_flags) {
+      for (const phrase of FORBIDDEN_RANGE_PHRASES) {
+        if (flag.because.toLowerCase().includes(phrase) || flag.impact.toLowerCase().includes(phrase)) {
+          warnings.push(`Stress flag "${flag.title}" contains forbidden range phrase "${phrase}" but range is not computed`);
+        }
+      }
+    }
+
+    const fb = contract.default_view.fallback_plan;
+    for (const phrase of FORBIDDEN_RANGE_PHRASES) {
+      if (fb.primary.toLowerCase().includes(phrase) || fb.backup.toLowerCase().includes(phrase)) {
+        warnings.push(`Fallback plan contains forbidden range phrase "${phrase}" but range is not computed`);
+      }
+    }
+  }
+
+  return warnings;
 }

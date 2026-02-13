@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { useEventTracking } from "@/hooks/useEventTracking";
@@ -32,7 +32,12 @@ export default function Home() {
     trackSessionDuration: true,
   });
 
-  const { trackButtonClick, trackUrlAutofillAttempt, trackEvent } = useEventTracking();
+  const { trackButtonClick, trackUrlAutofillAttempt, trackEvent, trackCTAClick, trackLandingView, trackIntakeStarted } = useEventTracking();
+
+  // Fire landing_view on mount
+  useEffect(() => {
+    trackLandingView();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // V2 Wizard state
   const [currentStep, setCurrentStep] = useState<WizardStep>("routine");
@@ -105,11 +110,13 @@ export default function Home() {
     setRoutineData(routine);
     setCurrentStep("vehicle");
     trackButtonClick("routine_step_complete", "homepage");
+    trackIntakeStarted();
   };
 
   const handleRoutineSkipVehicle = (routine: MinimumViableRoutine) => {
     setRoutineData(routine);
     trackButtonClick("routine_skip_vehicle", "homepage");
+    trackIntakeStarted();
     generateV2Report(routine);
   };
 
@@ -304,6 +311,33 @@ export default function Home() {
                 ))}
               </motion.div>
             )}
+
+            {/* Primary CTA */}
+            {currentStep === "routine" && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3"
+              >
+                <button
+                  onClick={() => {
+                    trackCTAClick("start_fit_check");
+                    document.getElementById("routine-form")?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/25 text-base"
+                >
+                  Start EV fit check
+                </button>
+                <a
+                  href="/receipt"
+                  onClick={() => trackCTAClick("listing_receipt")}
+                  className="px-6 py-3 text-blue-600 font-medium rounded-xl border border-blue-200 hover:bg-blue-50 transition-colors text-sm"
+                >
+                  Turn a listing into a receipt
+                </a>
+              </motion.div>
+            )}
           </div>
         </div>
       </section>
@@ -331,7 +365,7 @@ export default function Home() {
       )}
 
       {/* Wizard Content */}
-      <section className="max-w-3xl mx-auto px-4 pb-6 md:pb-12">
+      <section id="routine-form" className="max-w-3xl mx-auto px-4 pb-6 md:pb-12">
         {/* Step 1: Routine */}
         {currentStep === "routine" && (
           <RoutineStep
