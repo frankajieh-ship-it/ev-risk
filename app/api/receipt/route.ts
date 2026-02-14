@@ -325,6 +325,7 @@ export async function POST(request: NextRequest) {
           id: finalReceipt.receipt_id,
           session_id: receiptToken,
           source: "receipt_page",
+          page_source: (body.page_source as string) || null,
           listing_url: input.listing_url || null,
           url_domain: urlDomain,
           listing_text: input.listing_text

@@ -124,6 +124,7 @@ export default function ReceiptPage() {
 
   // Prefill from SEO page
   const [prefillText, setPrefillText] = useState<string | null>(null);
+  const [pageSource, setPageSource] = useState<string | null>(null);
 
   // Payment status hook
   const {
@@ -144,6 +145,11 @@ export default function ReceiptPage() {
     if (storedText) {
       setPrefillText(storedText);
       sessionStorage.removeItem("offo_listing_text");
+    }
+    const storedPageSource = sessionStorage.getItem("offo_page_source");
+    if (storedPageSource) {
+      setPageSource(storedPageSource);
+      sessionStorage.removeItem("offo_page_source");
     }
   }, []);
 
@@ -278,6 +284,7 @@ export default function ReceiptPage() {
           mode: "single",
         };
 
+        if (pageSource) body.page_source = pageSource;
         if (data.extraction_id) body.extraction_id = data.extraction_id;
 
         if (data.listing_url) body.listing_url = data.listing_url;
