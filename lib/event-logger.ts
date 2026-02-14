@@ -88,6 +88,11 @@ export const VALID_EVENT_NAMES = [
   "download_pdf_succeeded",
   "compare_started",
   "compare_bound",
+
+  // Canonical funnel aliases (Unified Plan naming)
+  "paywall_shown",
+  "checkout_started",
+  "checkout_completed",
 ] as const;
 
 export type ValidEventName = (typeof VALID_EVENT_NAMES)[number];

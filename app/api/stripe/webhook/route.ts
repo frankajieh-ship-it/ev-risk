@@ -265,6 +265,23 @@ async function fulfillDecisionPack(session: Stripe.Checkout.Session) {
       timestamp: new Date().toISOString(),
     });
 
+    // Log canonical checkout_completed event
+    try {
+      await supabase.from("user_events").insert({
+        event_name: "checkout_completed",
+        event_data: {
+          scenario_type: scenarioType,
+          scenario_id: baseScenarioId,
+          purchase_id: data.purchase_id,
+          stripe_session_id: session.id,
+          amount: session.amount_total ? session.amount_total / 100 : 0,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      // Non-critical — don't fail fulfillment over analytics
+    }
+
     return true;
   } catch (error) {
     console.error("❌ Decision Pack fulfillment error:", error);
