@@ -23,7 +23,6 @@ import PdfDownloadButton from "@/components/receipt/PdfDownloadButton";
 import CompareBadge from "@/components/receipt/CompareBadge";
 import CompareSelectModal from "@/components/receipt/CompareSelectModal";
 import CompareView from "@/components/receipt/CompareView";
-import SampleVerdictBlock from "@/components/receipt/SampleVerdictBlock";
 import RoutineFitMiniStep from "@/components/receipt/RoutineFitMiniStep";
 import { useReceiptHistory } from "@/hooks/useReceiptHistory";
 import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent } from "@/types/receipt";
@@ -506,13 +505,6 @@ export default function ReceiptPage() {
           trackEvent={trackEvent}
           receiptToken={receiptToken}
         />
-
-        {/* Sample verdict teaser (shown before first generation) */}
-        {!receipt && !isGenerating && (
-          <div className="mt-6">
-            <SampleVerdictBlock />
-          </div>
-        )}
 
         {/* Output */}
         <AnimatePresence>
