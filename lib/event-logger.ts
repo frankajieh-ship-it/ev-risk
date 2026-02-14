@@ -31,6 +31,8 @@ export const VALID_EVENT_NAMES = [
   // Feedback Events
   "feedback_helpful",
   "feedback_accuracy",
+  "feedback_shown",
+  "feedback_submitted",
   "why_checkpoint_shown",
   "why_checkpoint_submitted",
   "why_checkpoint_skipped",

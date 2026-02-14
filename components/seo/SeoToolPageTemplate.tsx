@@ -48,6 +48,7 @@ import JsonLd from "./JsonLd";
 import FaqSection from "./FaqSection";
 import SamplePreview from "./SamplePreview";
 import PasteBox from "./PasteBox";
+import FeedbackWidget from "@/components/FeedbackWidget";
 
 // Explicit icon map — only icons used in content registries
 const iconMap: Record<string, ComponentType<{ className?: string }>> = {
@@ -217,6 +218,11 @@ export default function SeoToolPageTemplate({
             <FaqSection items={content.faq} />
           </div>
         )}
+
+        {/* Feedback */}
+        <div className="mb-10">
+          <FeedbackWidget contextType="seo_page" contextId={content.slug} />
+        </div>
 
         {/* Footer */}
         <div className="text-center text-xs text-gray-400 pt-6 border-t border-gray-100">

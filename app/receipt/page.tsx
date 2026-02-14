@@ -18,6 +18,7 @@ import ReceiptDetailsAccordion from "@/components/receipt/ReceiptDetailsAccordio
 import ReceiptHistoryDrawer from "@/components/receipt/ReceiptHistoryDrawer";
 import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
 import DecisionPackCard from "@/components/receipt/DecisionPackCard";
+import FeedbackWidget from "@/components/FeedbackWidget";
 import DeepDiveSection from "@/components/receipt/DeepDiveSection";
 import PdfDownloadButton from "@/components/receipt/PdfDownloadButton";
 import CompareBadge from "@/components/receipt/CompareBadge";
@@ -540,6 +541,7 @@ export default function ReceiptPage() {
                   receiptId={receipt.receipt_id}
                   receiptToken={receiptToken}
                   isUnlocked={isUnlocked}
+                  onCheckoutRedirect={() => setDecisionPackDismissed(false)}
                 />
               )}
 
@@ -610,6 +612,12 @@ export default function ReceiptPage() {
                     receipt_id: receipt.receipt_id,
                   })
                 }
+              />
+
+              {/* Feedback */}
+              <FeedbackWidget
+                contextType="receipt"
+                contextId={receipt.receipt_id}
               />
             </motion.div>
           )}
