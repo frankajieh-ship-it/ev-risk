@@ -28,6 +28,7 @@ import { getFeatureFlags } from "@/lib/feature-flags";
 import { computeInputHash, checkIdempotency, claimRequest, completeRequest, failRequest } from "@/lib/receipt-idempotency";
 import { renderRedditDraft } from "@/lib/reddit-draft-renderer";
 import { classifyVehicle } from "@/lib/vehicle-classifier";
+import { isInternalTester } from "@/lib/rollout-flags";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
 
 export const maxDuration = 60;
@@ -37,25 +38,7 @@ export async function POST(request: NextRequest) {
   const timings: Record<string, number> = {};
   const clientIP = getClientIP(request);
 
-  // 1. Burst rate limit
-  const burst = receiptBurstLimiter.check(clientIP);
-  if (!burst.allowed) {
-    const retryAfterSec = Math.max(1, Math.ceil((burst.resetAt - Date.now()) / 1000));
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Too many requests. Please try again later.",
-        resetAt: new Date(burst.resetAt).toISOString(),
-        retryAfter: retryAfterSec,
-      },
-      {
-        status: 429,
-        headers: { "Retry-After": String(Math.min(retryAfterSec, 3600)) },
-      }
-    );
-  }
-
-  // 2. Parse body
+  // 1. Parse body (before rate limit so we can check tester bypass)
   let body: Record<string, unknown>;
   try {
     body = await request.json();
@@ -66,13 +49,33 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 3. Validate receipt_token
+  // 2. Validate receipt_token
   const receiptToken = body.receipt_token;
   if (!receiptToken || typeof receiptToken !== "string" || receiptToken.length < 5) {
     return NextResponse.json(
       { success: false, error: "Missing or invalid receipt_token" },
       { status: 400 }
     );
+  }
+
+  // 3. Burst rate limit (testers bypass)
+  if (!isInternalTester(receiptToken as string)) {
+    const burst = receiptBurstLimiter.check(clientIP);
+    if (!burst.allowed) {
+      const retryAfterSec = Math.max(1, Math.ceil((burst.resetAt - Date.now()) / 1000));
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Too many requests. Please try again later.",
+          resetAt: new Date(burst.resetAt).toISOString(),
+          retryAfter: retryAfterSec,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(Math.min(retryAfterSec, 3600)) },
+        }
+      );
+    }
   }
 
   timings.parse = Date.now() - t0;
