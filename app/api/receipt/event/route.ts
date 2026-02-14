@@ -9,7 +9,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
-const VALID_EVENT_TYPES = ["copy", "paid_clicked", "regen"];
+const VALID_EVENT_TYPES = [
+  "copy",
+  "paid_clicked",
+  "regen",
+  "receipt_result_viewed",
+  "deep_dive_upsell_shown",
+  "deep_dive_upsell_clicked",
+];
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest) {

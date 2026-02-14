@@ -66,6 +66,7 @@ export default function SavedScenariosList({
     // Wait for isReady - this ensures the token is fully validated after SIGNED_IN
     if (!isAuthenticated || !isReady || !session?.access_token) {
       setScenarios([]);
+      setLoading(false);
       return;
     }
 
@@ -83,6 +84,12 @@ export default function SavedScenariosList({
         const data = await response.json();
 
         if (!response.ok || !data.success) {
+          // 401/403 = expired token, treat as not-authenticated
+          if (response.status === 401 || response.status === 403) {
+            setScenarios([]);
+            setLoading(false);
+            return;
+          }
           throw new Error(data.error || "Failed to load scenarios");
         }
 
@@ -99,12 +106,17 @@ export default function SavedScenariosList({
     fetchScenarios();
   }, [isAuthenticated, isReady, session?.access_token, maxItems]);
 
-  // Don't show if not authenticated or still loading
+  // Don't show if not authenticated or still loading auth
   if (isLoading || !isAuthenticated) {
     return null;
   }
 
-  // Show nothing if no scenarios
+  // Don't show if auth resolved but not ready and not loading scenarios
+  if (!isReady && !loading) {
+    return null;
+  }
+
+  // Show nothing if no scenarios and no error
   if (!loading && scenarios.length === 0 && !error) {
     return null;
   }

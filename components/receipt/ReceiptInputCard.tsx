@@ -15,7 +15,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Link,
   FileText,
@@ -43,6 +43,8 @@ interface ReceiptInputCardProps {
   error: string | null;
   isPro?: boolean;
   prefillText?: string | null;
+  trackEvent?: (eventName: string, eventData?: Record<string, any>) => void;
+  receiptToken?: string;
 }
 
 const REQUIRED_FIELDS: (keyof StructuredListingFields)[] = [
@@ -85,6 +87,8 @@ export default function ReceiptInputCard({
   error,
   isPro = false,
   prefillText,
+  trackEvent,
+  receiptToken,
 }: ReceiptInputCardProps) {
   const [inputMode, setInputMode] = useState<InputMode>("url");
   const [listingUrl, setListingUrl] = useState("");
@@ -110,6 +114,10 @@ export default function ReceiptInputCard({
   // Dirty tracking
   const [dirtyFields, setDirtyFields] = useState<Set<keyof StructuredListingFields>>(new Set());
 
+  // Auto-extract on URL paste
+  const [lastAutoExtractedUrl, setLastAutoExtractedUrl] = useState<string | null>(null);
+  const autoExtractTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Prefill from SEO page
   useEffect(() => {
     if (prefillText) {
@@ -117,6 +125,27 @@ export default function ReceiptInputCard({
       setListingText(prefillText);
     }
   }, [prefillText]);
+
+  // Cleanup auto-extract timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoExtractTimerRef.current) clearTimeout(autoExtractTimerRef.current);
+    };
+  }, []);
+
+  // Auto-extract when user pastes a URL
+  const handleUrlPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData("text").trim();
+    if (!/^https?:\/\/.+/.test(pasted)) return;
+    if (isExtracting || pasted === lastAutoExtractedUrl) return;
+
+    setListingUrl(pasted);
+    setLastAutoExtractedUrl(pasted);
+    setExtractError(null);
+
+    if (autoExtractTimerRef.current) clearTimeout(autoExtractTimerRef.current);
+    autoExtractTimerRef.current = setTimeout(() => handleExtract(pasted), 300);
+  };
 
   const updateField = <K extends keyof StructuredListingFields>(
     key: K,
@@ -143,14 +172,17 @@ export default function ReceiptInputCard({
   const canExtract = !isExtracting && !isGenerating && (canExtractUrl || canExtractText);
 
   // Unified extract handler for both URL and text modes
-  const handleExtract = async () => {
+  const handleExtract = async (urlOverride?: string) => {
+    // Track extract click
+    trackEvent?.("receipt_extract_clicked", { input_mode: inputMode, anon_id: receiptToken });
+
     setIsExtracting(true);
     setExtractError(null);
 
     try {
       const bodyPayload: Record<string, string> = {};
       if (inputMode === "url") {
-        bodyPayload.url = listingUrl.trim();
+        bodyPayload.url = urlOverride ?? listingUrl.trim();
       } else {
         bodyPayload.text = listingText.trim();
       }
@@ -164,6 +196,11 @@ export default function ReceiptInputCard({
       const data = await res.json();
 
       if (!res.ok || !data.success) {
+        trackEvent?.("receipt_extract_failed", {
+          input_mode: inputMode,
+          anon_id: receiptToken,
+          error: data.error || "extract_failed",
+        });
         setExtractError(data.error || "Failed to extract listing details");
         return;
       }
@@ -198,14 +235,42 @@ export default function ReceiptInputCard({
       setExtractedFieldNames(data.extractedFields || []);
       setMissingFieldNames(data.missingFields || []);
       setListingSource(data.listing_source || null);
-    } catch {
+
+      // Track successful extraction
+      trackEvent?.("receipt_extract_succeeded", {
+        input_mode: inputMode,
+        anon_id: receiptToken,
+        fields_extracted: data.extractedFields?.length ?? 0,
+        fields_missing: data.missingFields?.length ?? 0,
+        listing_source: data.listing_source || null,
+      });
+    } catch (err) {
+      trackEvent?.("receipt_extract_failed", {
+        input_mode: inputMode,
+        anon_id: receiptToken,
+        error: err instanceof Error ? err.message : "network_error",
+      });
       setExtractError("Network error — try again or paste the listing text");
     } finally {
       setIsExtracting(false);
     }
   };
 
+  // Debounce: ignore rapid clicks within 1s
+  const lastGenerateRef = useRef(0);
+
   const handleGenerate = () => {
+    const now = Date.now();
+    if (now - lastGenerateRef.current < 1000) return;
+    lastGenerateRef.current = now;
+
+    trackEvent?.("receipt_generate_clicked", {
+      input_mode: inputMode,
+      anon_id: receiptToken,
+      has_extraction: hasExtracted,
+      fields_filled: filledRequired.length,
+    });
+
     onGenerate({
       listing_url: inputMode === "url" ? listingUrl.trim() : undefined,
       listing_text: inputMode === "text" ? listingText.trim() : undefined,
@@ -252,12 +317,13 @@ export default function ReceiptInputCard({
                   setListingUrl(e.target.value);
                   setExtractError(null);
                 }}
+                onPaste={handleUrlPaste}
                 placeholder="https://www.autotrader.com/cars-for-sale/..."
                 className="flex-1 px-4 py-3 rounded-lg border border-gray-200 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
                 disabled={isGenerating}
               />
               <button
-                onClick={handleExtract}
+                onClick={() => handleExtract()}
                 disabled={!canExtractUrl || isExtracting || isGenerating}
                 className={`px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                   !canExtractUrl || isExtracting
@@ -321,7 +387,7 @@ export default function ReceiptInputCard({
 
             {/* Extract button for text mode */}
             <button
-              onClick={handleExtract}
+              onClick={() => handleExtract()}
               disabled={!canExtractText || isExtracting || isGenerating}
               className={`w-full py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 !canExtractText || isExtracting

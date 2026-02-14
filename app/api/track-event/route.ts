@@ -63,6 +63,16 @@ const VALID_EVENT_NAMES = [
   "receipt_lint_fail",
   "receipt_regen",
   "receipt_history_viewed",
+  // Receipt Extraction Events
+  "receipt_extract_clicked",
+  "receipt_extract_succeeded",
+  "receipt_extract_failed",
+  "receipt_generate_clicked",
+  "receipt_result_viewed",
+  // Routine Fit Mini-step Events
+  "routine_check_started",
+  "routine_check_completed",
+  "routine_score_viewed",
   // Copy Granular Events
   "copy_reddit_draft",
   "copy_seller_message",
@@ -85,6 +95,14 @@ const VALID_EVENT_NAMES = [
   "routine_step_viewed",
   "clicked_listing_receipt",
   "manual_entry_submit",
+  // Decision Pack / Payment Events
+  "deep_dive_offer_viewed",
+  "deep_dive_offer_clicked",
+  "deep_dive_purchase_succeeded",
+  "download_pdf_clicked",
+  "download_pdf_succeeded",
+  "compare_started",
+  "compare_bound",
   // Legacy event names (for backward compatibility)
   "page_view",
 ] as const;

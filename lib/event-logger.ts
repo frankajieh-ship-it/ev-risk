@@ -79,6 +79,15 @@ export const VALID_EVENT_NAMES = [
   "receipt_generate",
   "receipt_regen",
   "receipt_history_viewed",
+
+  // Decision Pack / Payment Events
+  "deep_dive_offer_viewed",
+  "deep_dive_offer_clicked",
+  "deep_dive_purchase_succeeded",
+  "download_pdf_clicked",
+  "download_pdf_succeeded",
+  "compare_started",
+  "compare_bound",
 ] as const;
 
 export type ValidEventName = (typeof VALID_EVENT_NAMES)[number];

@@ -7,7 +7,7 @@
 
 import OpenAI from "openai";
 import { v4 as uuidv4 } from "uuid";
-import type { ListingReceipt, ReceiptGenerateRequest } from "@/types/receipt";
+import type { ListingReceipt, ReceiptGenerateRequest, DeepDiveContent } from "@/types/receipt";
 import type { LintError } from "@/lib/receipt-schema-validator";
 import { validateReceiptSchema } from "@/lib/receipt-schema-validator";
 import { classifyVehicle } from "@/lib/vehicle-classifier";
@@ -605,4 +605,126 @@ Return ONLY the JSON object.`;
     // Return deterministic fixes if available
     return deterministicChanged ? { ...receipt, receipt_reddit_text: fixedText } : null;
   }
+}
+
+// --- Deep Dive Generation (Decision Pack paid content) ---
+
+const DEEP_DIVE_MODEL = "gpt-4o";
+
+const DEEP_DIVE_SYSTEM_PROMPT = `You are OFFO Deep Dive Analyst, a paid upgrade tier of OFFO Lab's used-car analysis engine.
+
+Given a base receipt (the free-tier analysis), produce an EXPANDED deep dive analysis with:
+1. Market comparison (3-5 similar listings)
+2. Extended inspection checklist (10 items, specific to this vehicle)
+3. Negotiation scripts (3 scenarios)
+4. 3-year cost of ownership estimate
+5. Model-specific known issues
+6. Deep verdict (expanded reasoning)
+
+OUTPUT: Return ONLY a valid JSON object matching this schema:
+{
+  "market_comparison": [
+    { "title": "<year make model trim>", "price": <number>, "mileage": <number>, "source": "<marketplace name>", "delta_pct": <number, percent difference from listing> }
+  ],
+  "extended_inspection": ["<specific check item, 10-160 chars>", ...],
+  "negotiation_scripts": [
+    { "scenario": "<2-6 word scenario name>", "opening": "<opening line, 20-200 chars>", "body": "<full script, 40-600 chars>" }
+  ],
+  "cost_of_ownership": {
+    "insurance_yr": <number, annual estimate USD>,
+    "maintenance_yr": <number>,
+    "fuel_or_charging_yr": <number>,
+    "depreciation_yr": <number>,
+    "total_3yr": <number, sum of all * 3>
+  },
+  "model_known_issues": ["<known issue specific to this year/make/model, 10-200 chars>", ...],
+  "verdict_deep": "<expanded verdict with reasoning, 100-800 chars>"
+}
+
+CONSTRAINTS:
+- market_comparison: 3-5 items. Use realistic comparable listings. delta_pct is (comp_price - listing_price) / listing_price * 100.
+- extended_inspection: EXACTLY 10 items. Specific to this vehicle's make/model/drivetrain.
+- negotiation_scripts: EXACTLY 3 scenarios (e.g., "Cash offer", "Trade-in leverage", "Found issues").
+- cost_of_ownership: Realistic annual estimates in USD for the specific vehicle.
+- model_known_issues: 3-8 items specific to this year/make/model/generation.
+- verdict_deep: Synthesize all findings into actionable guidance.
+
+Use concrete numbers. Be specific to the exact vehicle. No generic advice.`;
+
+function buildDeepDiveUserPrompt(baseReceipt: ListingReceipt): string {
+  const ls = baseReceipt.listing_summary;
+  const parts: string[] = [
+    "BASE RECEIPT ANALYSIS:",
+    "",
+    `Vehicle: ${ls.year} ${ls.make} ${ls.model}${ls.trim ? " " + ls.trim : ""}`,
+    `Price: $${ls.price?.toLocaleString() || "unknown"}`,
+    `Mileage: ${ls.mileage?.toLocaleString() || "unknown"} ${ls.mileage_unit || "mi"}`,
+    `Location: ${ls.zip_or_postcode || ls.country || "unknown"}`,
+    `Seller: ${ls.seller_type || "unknown"}`,
+    `Title: ${ls.title_status || "unknown"}`,
+    `Accidents: ${ls.accidents_reported || "unknown"}`,
+    `Service history: ${ls.service_history || "unknown"}`,
+    "",
+    `Free-tier verdict: ${baseReceipt.verdict}`,
+    `Verdict reason: ${baseReceipt.verdict_reason}`,
+    "",
+    `Risk flags:`,
+    ...(baseReceipt.risk_flags || []).map((f) => `- ${f}`),
+    "",
+    `Must-ask questions:`,
+    ...(baseReceipt.must_answer_questions || []).map((q) => `- ${q}`),
+    "",
+    `Inspect first:`,
+    ...(baseReceipt.inspect_first || []).map((i) => `- ${i}`),
+    "",
+    `Price sanity: ${baseReceipt.price_sanity?.label} (confidence: ${baseReceipt.price_sanity?.confidence})`,
+    `Price rationale: ${baseReceipt.price_sanity?.rationale_short || "N/A"}`,
+    "",
+    "Generate the deep dive JSON now. Return ONLY the JSON object.",
+  ];
+
+  return parts.join("\n");
+}
+
+/**
+ * Generate a deep dive analysis for a paid Decision Pack.
+ * Uses gpt-4o for higher quality than the free-tier mini model.
+ */
+export async function generateDeepDive(
+  baseReceipt: ListingReceipt
+): Promise<DeepDiveContent> {
+  const userPrompt = buildDeepDiveUserPrompt(baseReceipt);
+
+  const response = await openai.chat.completions.create({
+    model: DEEP_DIVE_MODEL,
+    messages: [
+      { role: "system", content: DEEP_DIVE_SYSTEM_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
+    temperature: 0.3,
+    max_tokens: 4000,
+    response_format: { type: "json_object" },
+  });
+
+  const content = response.choices[0]?.message?.content || "{}";
+  const parsed = JSON.parse(content) as DeepDiveContent;
+
+  // Basic validation
+  if (!parsed.market_comparison || !Array.isArray(parsed.market_comparison)) {
+    throw new Error("Deep dive missing market_comparison");
+  }
+  if (!parsed.extended_inspection || !Array.isArray(parsed.extended_inspection)) {
+    throw new Error("Deep dive missing extended_inspection");
+  }
+  if (!parsed.negotiation_scripts || !Array.isArray(parsed.negotiation_scripts)) {
+    throw new Error("Deep dive missing negotiation_scripts");
+  }
+  if (!parsed.cost_of_ownership) {
+    throw new Error("Deep dive missing cost_of_ownership");
+  }
+  if (!parsed.verdict_deep) {
+    throw new Error("Deep dive missing verdict_deep");
+  }
+
+  return parsed;
 }

@@ -7,20 +7,26 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Receipt, History, ArrowLeft } from "lucide-react";
+import { Receipt, History, ArrowLeft, Loader2 } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import ReceiptInputCard from "@/components/receipt/ReceiptInputCard";
 import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
 import ReceiptDetailsAccordion from "@/components/receipt/ReceiptDetailsAccordion";
 import ReceiptHistoryDrawer from "@/components/receipt/ReceiptHistoryDrawer";
 import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
-import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry } from "@/types/receipt";
-import {
-  getReceiptHistory,
-  addToReceiptHistory,
-} from "@/lib/receipt-history";
+import DecisionPackCard from "@/components/receipt/DecisionPackCard";
+import DeepDiveSection from "@/components/receipt/DeepDiveSection";
+import PdfDownloadButton from "@/components/receipt/PdfDownloadButton";
+import CompareBadge from "@/components/receipt/CompareBadge";
+import CompareSelectModal from "@/components/receipt/CompareSelectModal";
+import CompareView from "@/components/receipt/CompareView";
+import SampleVerdictBlock from "@/components/receipt/SampleVerdictBlock";
+import RoutineFitMiniStep from "@/components/receipt/RoutineFitMiniStep";
+import { useReceiptHistory } from "@/hooks/useReceiptHistory";
+import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent } from "@/types/receipt";
 
 // Generate or retrieve receipt token from localStorage
 function getOrCreateReceiptToken(): string {
@@ -46,6 +52,17 @@ async function fetchWithRetry(
     try {
       const res = await fetch(url, { ...options, signal: controller.signal });
       clearTimeout(timeoutId);
+
+      // 429: return immediately — don't burn retries on rate limits
+      if (res.status === 429) return res;
+
+      // 409: duplicate in-flight — respect Retry-After, then retry once
+      if (res.status === 409 && attempt < maxRetries) {
+        const retryAfter = parseInt(res.headers.get("Retry-After") || "5", 10);
+        await new Promise((r) => setTimeout(r, retryAfter * 1000));
+        continue;
+      }
+
       // Retry on 503/504 (gateway timeout, AI unavailable)
       if (res.status === 503 || res.status === 504) {
         if (attempt < maxRetries) {
@@ -78,7 +95,6 @@ export default function ReceiptPage() {
 
   // History
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [history, setHistory] = useState<ReceiptHistoryEntry[]>([]);
 
   // Pro state
   const [isPro, setIsPro] = useState(false);
@@ -86,12 +102,43 @@ export default function ReceiptPage() {
   // Receipt token
   const [receiptToken, setReceiptToken] = useState("");
 
+  // Receipt history (merged server + localStorage)
+  const {
+    history,
+    isLoading: isHistoryLoading,
+    addReceipt,
+    clearHistory,
+  } = useReceiptHistory(receiptToken);
+
+  // Single-flight guard
+  const inFlightRef = useRef(false);
+
+  // Decision Pack state
+  const [deepDive, setDeepDive] = useState<DeepDiveContent | null>(null);
+  const [isLoadingDeepDive, setIsLoadingDeepDive] = useState(false);
+  const [decisionPackDismissed, setDecisionPackDismissed] = useState(false);
+
+  // Compare state
+  const [compareReceipt, setCompareReceipt] = useState<ListingReceipt | null>(null);
+  const [showCompareModal, setShowCompareModal] = useState(false);
+  const [showCompareView, setShowCompareView] = useState(false);
+
   // Prefill from SEO page
   const [prefillText, setPrefillText] = useState<string | null>(null);
 
+  // Payment status hook
+  const {
+    isUnlocked,
+    compareRemaining,
+    compareBoundTo,
+    purchaseId,
+    isLoading: isPaymentLoading,
+    paymentsEnabled,
+    refetch: refetchPayment,
+  } = usePaymentStatus("receipt", receipt?.receipt_id ?? null, receiptToken);
+
   useEffect(() => {
     setReceiptToken(getOrCreateReceiptToken());
-    setHistory(getReceiptHistory());
 
     // Check for prefilled listing text from SEO page
     const storedText = sessionStorage.getItem("offo_listing_text");
@@ -100,6 +147,110 @@ export default function ReceiptPage() {
       sessionStorage.removeItem("offo_listing_text");
     }
   }, []);
+
+  // Checkout return: detect ?checkout=success and poll for paid status
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") !== "success") return;
+
+    // Clean URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete("checkout");
+    url.searchParams.delete("session_id");
+    window.history.replaceState({}, "", url.pathname + url.search);
+
+    // Poll payment status until unlocked (max 30s)
+    let attempts = 0;
+    const maxAttempts = 15;
+    const poll = setInterval(async () => {
+      attempts++;
+      await refetchPayment();
+      if (attempts >= maxAttempts) clearInterval(poll);
+    }, 2000);
+
+    return () => clearInterval(poll);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-load deep dive when payment is confirmed
+  useEffect(() => {
+    if (!isUnlocked || !receipt?.receipt_id || !receiptToken) return;
+    if (deepDive || isLoadingDeepDive) return;
+
+    let cancelled = false;
+    setIsLoadingDeepDive(true);
+
+    (async () => {
+      try {
+        const res = await fetch("/api/deepdive/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scenario_type: "receipt",
+            scenario_id: receipt.receipt_id,
+            anon_id: receiptToken,
+          }),
+        });
+        const data = await res.json();
+        if (!cancelled && data.success && data.deep_dive) {
+          setDeepDive(data.deep_dive);
+        }
+      } catch {
+        // Silently fail — deep dive section just won't render
+      } finally {
+        if (!cancelled) setIsLoadingDeepDive(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [isUnlocked, receipt?.receipt_id, receiptToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Track receipt result viewed
+  useEffect(() => {
+    if (!receipt?.receipt_id) return;
+    trackEvent("receipt_result_viewed", {
+      receipt_id: receipt.receipt_id,
+      verdict: receipt.verdict,
+    });
+  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-load bound comparison when compareBoundTo is set
+  useEffect(() => {
+    if (!compareBoundTo || compareReceipt) return;
+
+    // Try localStorage first
+    const fromHistory = history.find((e) => e.receipt_id === compareBoundTo);
+    if (fromHistory) {
+      setCompareReceipt(fromHistory.receipt);
+      setShowCompareView(true);
+      return;
+    }
+
+    // Server fallback
+    if (!receipt?.receipt_id || !receiptToken) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const params = new URLSearchParams({
+          anon_id: receiptToken,
+        });
+        const res = await fetch(
+          `/api/receipt/${receipt.receipt_id}/compare?${params}`
+        );
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!cancelled && data.compare_receipt) {
+          setCompareReceipt(data.compare_receipt);
+          setShowCompareView(true);
+        }
+      } catch {
+        // Silently fail — compare view just won't show
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [compareBoundTo, receipt?.receipt_id, receiptToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Generate receipt
   const handleGenerate = useCallback(
@@ -110,6 +261,8 @@ export default function ReceiptPage() {
       extraction_id?: string;
     }) => {
       if (!receiptToken) return;
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
 
       setIsGenerating(true);
       setError(null);
@@ -117,6 +270,8 @@ export default function ReceiptPage() {
       setLintPassed(true);
       setLintErrors([]);
       setIsFallback(false);
+      setCompareReceipt(null);
+      setShowCompareView(false);
 
       try {
         const body: Record<string, unknown> = {
@@ -158,7 +313,18 @@ export default function ReceiptPage() {
         const result = await res.json();
 
         if (!res.ok || !result.success) {
-          setError(result.error || "Failed to generate receipt");
+          // Friendly 429 messages with time info
+          if (res.status === 429 && result.resetAt) {
+            const resetDate = new Date(result.resetAt);
+            const hoursLeft = Math.max(1, Math.ceil((resetDate.getTime() - Date.now()) / (1000 * 60 * 60)));
+            setError(
+              result.remaining_free === 0
+                ? `Free daily limit reached. Resets in ~${hoursLeft} hour${hoursLeft > 1 ? "s" : ""}.`
+                : result.error || "Too many requests. Please try again later."
+            );
+          } else {
+            setError(result.error || "Failed to generate receipt");
+          }
           if (typeof result.remaining_free === "number") {
             setRemainingFree(result.remaining_free);
           }
@@ -177,8 +343,7 @@ export default function ReceiptPage() {
         }
 
         // Add to history
-        addToReceiptHistory(result.receipt);
-        setHistory(getReceiptHistory());
+        addReceipt(result.receipt);
 
         // Track event
         trackEvent("receipt_generate", {
@@ -196,9 +361,10 @@ export default function ReceiptPage() {
         );
       } finally {
         setIsGenerating(false);
+        inFlightRef.current = false;
       }
     },
-    [receiptToken, trackEvent]
+    [receiptToken, trackEvent, addReceipt]
   );
 
   // Post receipt event to dedicated endpoint (fire-and-forget)
@@ -322,10 +488,10 @@ export default function ReceiptPage() {
             </span>
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-700 to-green-600 bg-clip-text text-transparent mb-2">
-            Listing Receipt
+            Don&apos;t get burned on a used car deal
           </h1>
           <p className="text-gray-600">
-            Paste a car listing. Get a deal verdict in seconds.
+            Paste a listing. Get the red flags, fair price check, and exactly what to ask the seller.
           </p>
         </div>
 
@@ -337,7 +503,16 @@ export default function ReceiptPage() {
           error={error}
           isPro={isPro}
           prefillText={prefillText}
+          trackEvent={trackEvent}
+          receiptToken={receiptToken}
         />
+
+        {/* Sample verdict teaser (shown before first generation) */}
+        {!receipt && !isGenerating && (
+          <div className="mt-6">
+            <SampleVerdictBlock />
+          </div>
+        )}
 
         {/* Output */}
         <AnimatePresence>
@@ -358,6 +533,66 @@ export default function ReceiptPage() {
                 onAutoFix={handleAutoFix}
                 isFixing={isFixing}
                 isFallback={isFallback}
+              />
+
+              {/* PDF download (shown when payments are enabled) */}
+              {paymentsEnabled && (
+                <PdfDownloadButton
+                  receiptId={receipt.receipt_id}
+                  receiptToken={receiptToken}
+                  isUnlocked={isUnlocked}
+                />
+              )}
+
+              {/* Decision Pack paywall (when not yet unlocked) */}
+              {paymentsEnabled && !isUnlocked && !decisionPackDismissed && !isPaymentLoading && (
+                <DecisionPackCard
+                  receiptToken={receiptToken}
+                  receiptId={receipt.receipt_id}
+                  onDismiss={() => setDecisionPackDismissed(true)}
+                />
+              )}
+
+              {/* Deep dive content (when unlocked) */}
+              {isUnlocked && deepDive && (
+                <DeepDiveSection
+                  deepDive={deepDive}
+                  receiptId={receipt.receipt_id}
+                />
+              )}
+
+              {/* Deep dive loading spinner */}
+              {isUnlocked && isLoadingDeepDive && !deepDive && (
+                <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-500">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Generating your deep dive analysis...
+                </div>
+              )}
+
+              {/* Compare view (when bound and visible) */}
+              {showCompareView && compareReceipt && receipt && (
+                <CompareView
+                  receiptA={receipt}
+                  receiptB={compareReceipt}
+                />
+              )}
+
+              {/* Compare badge (when unlocked) */}
+              {paymentsEnabled && isUnlocked && (
+                <CompareBadge
+                  compareRemaining={compareRemaining}
+                  compareBoundTo={compareBoundTo}
+                  onInitiateCompare={() => setShowCompareModal(true)}
+                  onViewCompare={() => setShowCompareView(true)}
+                />
+              )}
+
+              {/* Routine Fit mini-step */}
+              <RoutineFitMiniStep
+                receiptMileage={receipt.listing_summary?.mileage}
+                receiptPrice={receipt.listing_summary?.price}
+                receiptSellerType={receipt.listing_summary?.seller_type}
+                trackEvent={trackEvent}
               />
 
               {/* Details accordion */}
@@ -388,10 +623,26 @@ export default function ReceiptPage() {
         onClose={() => setHistoryOpen(false)}
         history={history}
         onSelect={handleHistorySelect}
-        onClear={() => {
-          setHistory([]);
-        }}
+        onClear={clearHistory}
+        isLoading={isHistoryLoading}
       />
+
+      {/* Compare select modal */}
+      {receipt && purchaseId && (
+        <CompareSelectModal
+          isOpen={showCompareModal}
+          onClose={() => setShowCompareModal(false)}
+          history={history}
+          currentReceiptId={receipt.receipt_id}
+          purchaseId={purchaseId}
+          receiptToken={receiptToken}
+          onCompareComplete={(compareRcpt) => {
+            setCompareReceipt(compareRcpt);
+            setShowCompareView(true);
+            refetchPayment();
+          }}
+        />
+      )}
     </div>
   );
 }

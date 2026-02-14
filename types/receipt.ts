@@ -121,6 +121,39 @@ export interface FetchedListingFields {
 export type FieldConfidence = "extracted" | "inferred" | "missing";
 export type FieldConfidenceMap = Partial<Record<keyof FetchedListingFields, FieldConfidence>>;
 
+// --- Deep Dive Content (Decision Pack paid upgrade) ---
+
+export interface DeepDiveMarketComp {
+  title: string;
+  price: number;
+  mileage: number;
+  source: string;
+  delta_pct: number;
+}
+
+export interface DeepDiveNegotiationScript {
+  scenario: string;
+  opening: string;
+  body: string;
+}
+
+export interface DeepDiveCostOfOwnership {
+  insurance_yr: number;
+  maintenance_yr: number;
+  fuel_or_charging_yr: number;
+  depreciation_yr: number;
+  total_3yr: number;
+}
+
+export interface DeepDiveContent {
+  market_comparison: DeepDiveMarketComp[];
+  extended_inspection: string[];
+  negotiation_scripts: DeepDiveNegotiationScript[];
+  cost_of_ownership: DeepDiveCostOfOwnership;
+  model_known_issues: string[];
+  verdict_deep: string;
+}
+
 // --- History Entry ---
 
 export interface ReceiptHistoryEntry {

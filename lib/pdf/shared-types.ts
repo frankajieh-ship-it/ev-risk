@@ -117,10 +117,88 @@ export interface ReportPdfV2Data {
   };
 }
 
+// ---- Receipt PDF Data ----
+
+export interface ReceiptPdfListingSummary {
+  year: number;
+  make: string;
+  model: string;
+  trim: string | null;
+  price: number;
+  currency: string;
+  mileage: number;
+  mileageUnit: string;
+  sellerType: string;
+  location: string;
+}
+
+export interface ReceiptPdfPriceSanity {
+  label: string;
+  confidence: number;
+  rationale: string;
+}
+
+export interface ReceiptPdfDetails {
+  feeEstimates: {
+    notes?: string;
+    taxEstimateRange?: { low: number; high: number } | null;
+    docFeeEstimateRange?: { low: number; high: number } | null;
+  } | null;
+  commonListingTricks: string[];
+  walkAwayTriggers: string[];
+}
+
+export interface DeepDiveMarketComp {
+  title: string;
+  price: number;
+  mileage: number;
+  source: string;
+  delta_pct: number;
+}
+
+export interface DeepDiveNegotiationScript {
+  scenario: string;
+  opening: string;
+  body: string;
+}
+
+export interface DeepDiveCostOfOwnership {
+  insurance_yr: number;
+  maintenance_yr: number;
+  fuel_or_charging_yr: number;
+  depreciation_yr: number;
+  total_3yr: number;
+}
+
+export interface DeepDiveContentPdf {
+  market_comparison: DeepDiveMarketComp[];
+  extended_inspection: string[];
+  negotiation_scripts: DeepDiveNegotiationScript[];
+  cost_of_ownership: DeepDiveCostOfOwnership;
+  model_known_issues: string[];
+  verdict_deep: string;
+}
+
+export interface ReceiptPdfData {
+  receiptId: string;
+  verdict: "GREEN" | "YELLOW" | "RED";
+  verdictReason: string;
+  priceSanity: ReceiptPdfPriceSanity | null;
+  riskFlags: string[];
+  mustAnswerQuestions: string[];
+  inspectFirst: string[];
+  negotiationOpener: string;
+  listingSummary: ReceiptPdfListingSummary;
+  receiptDetails: ReceiptPdfDetails | null;
+  deepDive: DeepDiveContentPdf | null;
+  generatedAt: string;
+}
+
 // ---- Render function request contract ----
 
 export interface RenderPdfRequest {
-  version: "v1" | "v2";
+  version: "v1" | "v2" | "receipt";
   v1Data?: ReportPayload;
   v2Data?: ReportPdfV2Data;
+  receiptData?: ReceiptPdfData;
 }

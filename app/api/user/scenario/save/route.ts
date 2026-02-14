@@ -102,6 +102,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Ensure user_profiles row exists (auto-create for users who signed up
+    // before the migration or whose trigger didn't fire)
+    const { error: profileError } = await supabase
+      .from("user_profiles")
+      .upsert(
+        { id: user.id, email: user.email },
+        { onConflict: "id", ignoreDuplicates: true }
+      );
+
+    if (profileError) {
+      console.error("[Save Scenario] Failed to ensure user profile:", profileError.message);
+    }
+
+    // Validate session_id exists in evroutine_sessions before using it
+    // (FK constraint will reject non-existent session IDs)
+    let validSessionId: string | null = null;
+    if (session_id) {
+      const { data: sessionRow } = await supabase
+        .from("evroutine_sessions")
+        .select("id")
+        .eq("id", session_id)
+        .maybeSingle();
+      if (sessionRow) {
+        validSessionId = session_id;
+      }
+    }
+
     // Check if scenario already saved by this user
     const { data: existing } = await supabase
       .from("saved_scenarios")
@@ -137,7 +164,7 @@ export async function POST(req: NextRequest) {
       .from("saved_scenarios")
       .insert({
         user_id: user.id,
-        session_id: session_id || null,
+        session_id: validSessionId,
         scenario_hash,
         vehicle_model,
         vehicle_year,

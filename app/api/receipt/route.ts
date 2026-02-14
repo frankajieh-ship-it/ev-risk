@@ -25,6 +25,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { hashIP } from "@/lib/session-utils";
 import { checkIsPro } from "@/lib/receipt-pro";
 import { getFeatureFlags } from "@/lib/feature-flags";
+import { computeInputHash, checkIdempotency, claimRequest, completeRequest, failRequest } from "@/lib/receipt-idempotency";
 import { renderRedditDraft } from "@/lib/reddit-draft-renderer";
 import { classifyVehicle } from "@/lib/vehicle-classifier";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
@@ -39,13 +40,18 @@ export async function POST(request: NextRequest) {
   // 1. Burst rate limit
   const burst = receiptBurstLimiter.check(clientIP);
   if (!burst.allowed) {
+    const retryAfterSec = Math.max(1, Math.ceil((burst.resetAt - Date.now()) / 1000));
     return NextResponse.json(
       {
         success: false,
         error: "Too many requests. Please try again later.",
         resetAt: new Date(burst.resetAt).toISOString(),
+        retryAfter: retryAfterSec,
       },
-      { status: 429 }
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.min(retryAfterSec, 3600)) },
+      }
     );
   }
 
@@ -119,16 +125,58 @@ export async function POST(request: NextRequest) {
   // 6. Daily free limit check
   const dailyLimit = await checkDailyLimit(receiptToken as string, isPro, serverSessionId, ipHash || undefined);
   if (!dailyLimit.allowed) {
+    const resetDate = new Date(dailyLimit.resetAt);
+    const retryAfterSec = Math.max(1, Math.ceil((resetDate.getTime() - Date.now()) / 1000));
     return NextResponse.json(
       {
         success: false,
         error: "Free daily limit reached. Come back tomorrow or upgrade to Pro.",
         remaining_free: 0,
         resetAt: dailyLimit.resetAt,
+        retryAfter: retryAfterSec,
       },
-      { status: 429 }
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfterSec) },
+      }
     );
   }
+
+  // 6b. Idempotency check — same input within 5 min returns cached response
+  const inputHash = computeInputHash({
+    anon_id: receiptToken as string,
+    year: typeof body.year === "number" ? body.year : undefined,
+    make: (body.make as string) || undefined,
+    model: (body.model as string) || undefined,
+    trim: (body.trim as string) || undefined,
+    mileage: typeof body.mileage === "number" ? body.mileage : undefined,
+    price: typeof body.price === "number" ? body.price : undefined,
+    vin: (body.vin as string) || undefined,
+    listing_text: (body.listing_text as string) || null,
+  });
+
+  const idempotency = await checkIdempotency(inputHash);
+
+  if (idempotency.status === "cached" && idempotency.cachedResponse) {
+    console.log(`[Receipt API] Returning cached response for hash ${inputHash.substring(0, 8)}`);
+    return NextResponse.json(idempotency.cachedResponse);
+  }
+
+  if (idempotency.status === "processing") {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Your receipt is still being generated. Please wait a moment.",
+        retryAfter: 10,
+      },
+      {
+        status: 409,
+        headers: { "Retry-After": "10" },
+      }
+    );
+  }
+
+  const requestRowId = await claimRequest(inputHash, receiptToken as string, ipHash || undefined);
 
   // 7. Build request
   const input: ReceiptGenerateRequest = {
@@ -168,7 +216,7 @@ export async function POST(request: NextRequest) {
     let lintErrors = validation.lintErrors;
     let finalReceipt = validation.sanitized || receipt;
 
-    // 8a. If Zod parse failed (schema_fail), hard 422
+    // 8a. If Zod parse failed (schema_fail), use fallback receipt instead of hard 422
     if (!validation.sanitized && validation.errors.length > 0 && validation.lintErrors.length === 0) {
       console.error(
         `[Receipt API] Schema fail after ${retried ? "retry" : "first attempt"}:`,
@@ -187,15 +235,29 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Receipt failed structural validation — please try again",
-          lint_errors: validation.errors,
-          lint_error_codes: [],
-        },
-        { status: 422 }
-      );
+      // Return a fallback receipt so the user always gets a result
+      const fallbackReceipt = buildFallbackReceipt(input);
+      incrementDailyCount(receiptToken as string);
+      timings.total = Date.now() - t0;
+      console.log(`[Receipt API] Returning fallback receipt after schema fail (${timings.total}ms)`);
+
+      const fallbackPayload = {
+        success: true,
+        receipt: fallbackReceipt,
+        lint_passed: true,
+        lint_errors: [],
+        lint_error_codes: [],
+        remaining_free: Math.max(0, dailyLimit.remaining - 1),
+        is_pro: isPro,
+        features,
+        fallback: true,
+      };
+
+      if (requestRowId) {
+        await completeRequest(requestRowId, fallbackReceipt.receipt_id, fallbackPayload);
+      }
+
+      return NextResponse.json(fallbackPayload);
     }
 
     // 8b. If lint failed, try formatting fixer
@@ -330,7 +392,7 @@ export async function POST(request: NextRequest) {
     timings.total = Date.now() - t0;
     console.log(`[Receipt API] timings: parse=${timings.parse}ms auth=${timings.auth}ms openai=${timings.openai}ms validate=${timings.validate}ms db=${timings.db}ms total=${timings.total}ms retried=${retried}`);
 
-    return NextResponse.json({
+    const responsePayload = {
       success: true,
       receipt: finalReceipt,
       lint_passed: lintPassed,
@@ -342,7 +404,14 @@ export async function POST(request: NextRequest) {
       vehicle_used,
       vehicle_category: vehicleClassification.category,
       extraction_id: input.extraction_id || null,
-    });
+    };
+
+    // Cache for idempotency
+    if (requestRowId) {
+      await completeRequest(requestRowId, finalReceipt.receipt_id, responsePayload);
+    }
+
+    return NextResponse.json(responsePayload);
   } catch (error) {
     console.error("[Receipt API] Generation error:", error);
 
@@ -380,7 +449,7 @@ export async function POST(request: NextRequest) {
       // Still increment daily counter
       incrementDailyCount(receiptToken as string);
 
-      return NextResponse.json({
+      const fallbackPayload = {
         success: true,
         receipt: fallbackReceipt,
         lint_passed: true,
@@ -390,7 +459,19 @@ export async function POST(request: NextRequest) {
         is_pro: isPro,
         features,
         fallback: true,
-      });
+      };
+
+      // Cache fallback for idempotency (still a valid response)
+      if (requestRowId) {
+        await completeRequest(requestRowId, fallbackReceipt.receipt_id, fallbackPayload);
+      }
+
+      return NextResponse.json(fallbackPayload);
+    }
+
+    // Non-recoverable error — mark request as failed so retry is allowed
+    if (requestRowId) {
+      await failRequest(requestRowId, error instanceof Error ? error.message : "Unknown error");
     }
 
     return NextResponse.json(

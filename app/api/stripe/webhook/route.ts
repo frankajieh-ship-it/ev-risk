@@ -1,13 +1,20 @@
 /**
- * EV-Risk™ Stripe Webhook Handler
+ * EV-Risk™ / OFFO Stripe Webhook Handler
  *
  * POST /api/stripe/webhook
- * Handles Stripe events for payment fulfillment
+ * Handles Stripe events for payment fulfillment.
  *
- * Critical events:
- * - checkout.session.completed: Payment successful, fulfill order
- * - checkout.session.async_payment_succeeded: Async payment completed
- * - checkout.session.async_payment_failed: Async payment failed
+ * Routes:
+ * - Legacy report checkout: metadata has no scenario_type → fulfillOrder()
+ * - Decision Pack checkout: metadata.scenario_type → fulfillDecisionPack()
+ *
+ * Dedup: stripe_webhook_events table prevents duplicate processing.
+ *
+ * Events handled:
+ * - checkout.session.completed
+ * - checkout.session.async_payment_succeeded
+ * - checkout.session.async_payment_failed / payment_intent.payment_failed
+ * - charge.refunded
  *
  * Docs: https://stripe.com/docs/webhooks
  */
@@ -63,15 +70,34 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Dedup: check if we already processed this event
+  try {
+    const { data: existingEvent } = await supabase
+      .from("stripe_webhook_events")
+      .select("id")
+      .eq("id", event.id)
+      .maybeSingle();
+
+    if (existingEvent) {
+      return NextResponse.json({ received: true, deduplicated: true });
+    }
+  } catch {
+    // Table may not exist yet — continue processing
+  }
+
   // Handle the event
   try {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
 
-        // Only fulfill if payment was successful
         if (session.payment_status === "paid") {
-          await fulfillOrder(session);
+          // Route by product type
+          if (session.metadata?.scenario_type) {
+            await fulfillDecisionPack(session);
+          } else {
+            await fulfillOrder(session);
+          }
         } else {
           console.log(
             `⏳ Payment pending for session ${session.id} - will fulfill on payment success`
@@ -82,19 +108,57 @@ export async function POST(request: NextRequest) {
 
       case "checkout.session.async_payment_succeeded": {
         const session = event.data.object as Stripe.Checkout.Session;
-        await fulfillOrder(session);
+        if (session.metadata?.scenario_type) {
+          await fulfillDecisionPack(session);
+        } else {
+          await fulfillOrder(session);
+        }
         break;
       }
 
-      case "checkout.session.async_payment_failed": {
-        const session = event.data.object as Stripe.Checkout.Session;
-        console.log(`❌ Payment failed for session ${session.id}`);
-        // TODO: Send failure notification email if customer_email exists
+      case "checkout.session.async_payment_failed":
+      case "payment_intent.payment_failed": {
+        const obj = event.data.object as Stripe.Checkout.Session | Stripe.PaymentIntent;
+        const sessionId = "id" in obj && typeof obj.id === "string" ? obj.id : null;
+        if (sessionId) {
+          // Mark Decision Pack purchase as failed
+          await supabase
+            .from("purchases")
+            .update({ status: "failed", updated_at: new Date().toISOString() })
+            .eq("stripe_session_id", sessionId)
+            .eq("status", "pending");
+        }
+        console.log(`❌ Payment failed for ${sessionId || "unknown session"}`);
+        break;
+      }
+
+      case "charge.refunded": {
+        const charge = event.data.object as Stripe.Charge;
+        const paymentIntentId = typeof charge.payment_intent === "string"
+          ? charge.payment_intent
+          : null;
+        if (paymentIntentId) {
+          await supabase
+            .from("purchases")
+            .update({ status: "refunded", updated_at: new Date().toISOString() })
+            .eq("stripe_payment_intent_id", paymentIntentId)
+            .eq("status", "paid");
+          console.log(`💸 Refund processed for payment_intent ${paymentIntentId}`);
+        }
         break;
       }
 
       default:
         console.log(`Unhandled event type: ${event.type}`);
+    }
+
+    // Record event for dedup
+    try {
+      await supabase
+        .from("stripe_webhook_events")
+        .insert({ id: event.id, event_type: event.type });
+    } catch {
+      // Ignore insert errors (table may not exist, or race condition)
     }
 
     return NextResponse.json({ received: true });
@@ -152,6 +216,58 @@ async function fulfillOrder(session: Stripe.Checkout.Session) {
     return true;
   } catch (error) {
     console.error("❌ Fulfillment error:", error);
+    return false;
+  }
+}
+
+/**
+ * Fulfill Decision Pack purchase (receipt or evroutine scenario)
+ * Marks the purchase as paid in the purchases table
+ */
+async function fulfillDecisionPack(session: Stripe.Checkout.Session) {
+  const scenarioType = session.metadata?.scenario_type;
+  const baseScenarioId = session.metadata?.base_scenario_id || session.client_reference_id;
+
+  if (!baseScenarioId) {
+    console.error("❌ No scenario_id in Decision Pack session");
+    return false;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("purchases")
+      .update({
+        status: "paid",
+        stripe_payment_intent_id:
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("stripe_session_id", session.id)
+      .eq("status", "pending")
+      .select("purchase_id")
+      .single();
+
+    if (error || !data) {
+      console.error(
+        `❌ Purchase for session ${session.id} not found or already fulfilled`
+      );
+      return false;
+    }
+
+    console.log("✅ Decision Pack fulfilled:", {
+      sessionId: session.id,
+      scenarioType,
+      baseScenarioId,
+      purchaseId: data.purchase_id,
+      customerEmail: session.customer_details?.email,
+      timestamp: new Date().toISOString(),
+    });
+
+    return true;
+  } catch (error) {
+    console.error("❌ Decision Pack fulfillment error:", error);
     return false;
   }
 }

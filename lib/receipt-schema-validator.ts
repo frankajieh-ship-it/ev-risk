@@ -199,7 +199,60 @@ export function lintReceiptRedditText(text: string): LintError[] {
   return errors;
 }
 
-// --- Part C: Combined validate function ---
+// --- Part C: Normalize array lengths before strict Zod parse ---
+
+/**
+ * OpenAI occasionally returns arrays with slightly wrong counts (e.g. 4
+ * risk_flags instead of exactly 3). Rather than hard-failing, truncate or
+ * pad to match the schema's exact-length constraints.
+ */
+function normalizeArrayLengths(raw: Record<string, unknown>): Record<string, unknown> {
+  const copy = { ...raw };
+
+  const targets: Record<string, { length: number; pad: string }> = {
+    risk_flags: { length: 3, pad: "Review vehicle history report for additional concerns" },
+    must_answer_questions: { length: 3, pad: "What is the full maintenance and repair history?" },
+    inspect_first: { length: 5, pad: "Have a trusted mechanic perform a pre-purchase inspection" },
+  };
+
+  for (const [field, { length, pad }] of Object.entries(targets)) {
+    const arr = copy[field];
+    if (!Array.isArray(arr)) continue;
+    if (arr.length > length) {
+      copy[field] = arr.slice(0, length);
+    } else if (arr.length < length) {
+      copy[field] = [...arr, ...Array(length - arr.length).fill(pad)];
+    }
+  }
+
+  // Nested: compare.why (length 2)
+  if (copy.compare && typeof copy.compare === "object") {
+    const compare = { ...(copy.compare as Record<string, unknown>) };
+    if (Array.isArray(compare.why)) {
+      if (compare.why.length > 2) compare.why = compare.why.slice(0, 2);
+      else if (compare.why.length < 2) {
+        compare.why = [...compare.why, ...Array(2 - compare.why.length).fill("Compare additional details to make your decision")];
+      }
+    }
+    copy.compare = compare;
+  }
+
+  // Nested: reddit_draft.questions (length 1)
+  if (copy.reddit_draft && typeof copy.reddit_draft === "object") {
+    const draft = { ...(copy.reddit_draft as Record<string, unknown>) };
+    if (Array.isArray(draft.questions)) {
+      if (draft.questions.length > 1) draft.questions = draft.questions.slice(0, 1);
+      else if (draft.questions.length < 1) {
+        draft.questions = ["What should I know before buying this vehicle?"];
+      }
+    }
+    copy.reddit_draft = draft;
+  }
+
+  return copy;
+}
+
+// --- Part D: Combined validate function ---
 
 export function validateReceiptSchema(raw: unknown): {
   valid: boolean;
@@ -207,8 +260,11 @@ export function validateReceiptSchema(raw: unknown): {
   lintErrors: LintError[];
   sanitized: Receipt | null;
 } {
-  // Step 1: Zod parse
-  const parsed = ReceiptSchema.safeParse(raw);
+  // Step 1: Normalize array lengths, then Zod parse
+  const normalized = typeof raw === "object" && raw !== null
+    ? normalizeArrayLengths(raw as Record<string, unknown>)
+    : raw;
+  const parsed = ReceiptSchema.safeParse(normalized);
   if (!parsed.success) {
     const schemaErrors = parsed.error.issues.map(
       (i) => `${i.path.join(".")}: ${i.message}`

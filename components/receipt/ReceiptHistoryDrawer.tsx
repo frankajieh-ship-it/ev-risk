@@ -6,7 +6,7 @@
 
 "use client";
 
-import { X, Trash2, Shield, AlertTriangle, AlertCircle } from "lucide-react";
+import { X, Trash2, Shield, AlertTriangle, AlertCircle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ReceiptHistoryEntry, Verdict } from "@/types/receipt";
 import { clearReceiptHistory } from "@/lib/receipt-history";
@@ -17,6 +17,7 @@ interface ReceiptHistoryDrawerProps {
   history: ReceiptHistoryEntry[];
   onSelect: (entry: ReceiptHistoryEntry) => void;
   onClear: () => void;
+  isLoading?: boolean;
 }
 
 const VERDICT_BADGE: Record<
@@ -34,6 +35,7 @@ export default function ReceiptHistoryDrawer({
   history,
   onSelect,
   onClear,
+  isLoading,
 }: ReceiptHistoryDrawerProps) {
   const handleClear = () => {
     clearReceiptHistory();
@@ -75,11 +77,26 @@ export default function ReceiptHistoryDrawer({
               </button>
             </div>
 
+            {/* Syncing indicator */}
+            {isLoading && history.length > 0 && (
+              <div className="flex items-center gap-2 px-5 py-2 text-xs text-gray-400 bg-gray-50 border-b border-gray-100">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Syncing...
+              </div>
+            )}
+
             {/* List */}
             <div className="flex-1 overflow-y-auto">
               {history.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-sm text-gray-400">
-                  No receipts yet
+                <div className="flex flex-col items-center justify-center h-full text-sm text-gray-400">
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin text-gray-300 mb-2" />
+                      Loading history...
+                    </>
+                  ) : (
+                    "No receipts yet"
+                  )}
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">

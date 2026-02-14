@@ -334,7 +334,7 @@ export default function Home() {
                   onClick={() => trackCTAClick("listing_receipt")}
                   className="px-6 py-3 text-blue-600 font-medium rounded-xl border border-blue-200 hover:bg-blue-50 transition-colors text-sm"
                 >
-                  Turn a listing into a receipt
+                  Have a listing? Check if the deal is legit &rarr;
                 </a>
               </motion.div>
             )}
@@ -479,7 +479,7 @@ export default function Home() {
               className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
             >
               <Receipt className="w-4 h-4" />
-              Have a listing link? Try Listing Receipt
+              Have a listing? Check if the deal is legit
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
