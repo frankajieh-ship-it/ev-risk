@@ -83,6 +83,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       session_id,
+      receipt_id,
+      scenario_type = "evroutine",
       scenario_hash,
       vehicle_model,
       vehicle_year,
@@ -92,7 +94,16 @@ export async function POST(req: NextRequest) {
       is_comparison = false,
       comparison_data,
       notes,
+      title,
     } = body;
+
+    // Validate scenario_type
+    if (scenario_type !== "receipt" && scenario_type !== "evroutine") {
+      return NextResponse.json(
+        { success: false, error: "Invalid scenario_type. Must be 'receipt' or 'evroutine'" },
+        { status: 400 }
+      );
+    }
 
     // Validate required fields
     if (!scenario_hash || !vehicle_model || !vehicle_year) {
@@ -115,10 +126,12 @@ export async function POST(req: NextRequest) {
       console.error("[Save Scenario] Failed to ensure user profile:", profileError.message);
     }
 
-    // Validate session_id exists in evroutine_sessions before using it
-    // (FK constraint will reject non-existent session IDs)
+    // Validate reference ID based on scenario_type
     let validSessionId: string | null = null;
-    if (session_id) {
+    let validReceiptId: string | null = null;
+
+    if (scenario_type === "evroutine" && session_id) {
+      // Validate session_id exists in evroutine_sessions (FK constraint)
       const { data: sessionRow } = await supabase
         .from("evroutine_sessions")
         .select("id")
@@ -126,6 +139,16 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
       if (sessionRow) {
         validSessionId = session_id;
+      }
+    } else if (scenario_type === "receipt" && receipt_id) {
+      // Validate receipt_id exists in receipts table
+      const { data: receiptRow } = await supabase
+        .from("receipts")
+        .select("id")
+        .eq("id", receipt_id)
+        .maybeSingle();
+      if (receiptRow) {
+        validReceiptId = receipt_id;
       }
     }
 
@@ -143,7 +166,7 @@ export async function POST(req: NextRequest) {
         .from("saved_scenarios")
         .update({
           last_viewed_at: new Date().toISOString(),
-          notes: notes || undefined, // Update notes if provided
+          notes: notes || undefined,
         })
         .eq("id", existing.id);
 
@@ -165,6 +188,8 @@ export async function POST(req: NextRequest) {
       .insert({
         user_id: user.id,
         session_id: validSessionId,
+        receipt_id: validReceiptId,
+        scenario_type,
         scenario_hash,
         vehicle_model,
         vehicle_year,
@@ -174,6 +199,7 @@ export async function POST(req: NextRequest) {
         is_comparison,
         comparison_data: comparison_data || null,
         notes: notes || null,
+        title: title || null,
       })
       .select("id")
       .single();

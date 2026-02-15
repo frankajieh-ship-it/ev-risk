@@ -11,7 +11,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Receipt, History, ArrowLeft, Loader2 } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { useAuth } from "@/hooks/useAuth";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
+import LoginModal from "@/components/LoginModal";
 import ReceiptInputCard from "@/components/receipt/ReceiptInputCard";
 import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
 import ReceiptDetailsAccordion from "@/components/receipt/ReceiptDetailsAccordion";
@@ -19,6 +21,7 @@ import ReceiptHistoryDrawer from "@/components/receipt/ReceiptHistoryDrawer";
 import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
 import DecisionPackCard from "@/components/receipt/DecisionPackCard";
 import FeedbackWidget from "@/components/FeedbackWidget";
+import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
 import DeepDiveSection from "@/components/receipt/DeepDiveSection";
 import PdfDownloadButton from "@/components/receipt/PdfDownloadButton";
 import CompareBadge from "@/components/receipt/CompareBadge";
@@ -82,6 +85,7 @@ async function fetchWithRetry(
 
 export default function ReceiptPage() {
   const { trackEvent } = useEventTracking();
+  const { isAuthenticated, isConfigured: authConfigured } = useAuth();
 
   // Core state
   const [receipt, setReceipt] = useState<ListingReceipt | null>(null);
@@ -122,6 +126,7 @@ export default function ReceiptPage() {
   const [compareReceipt, setCompareReceipt] = useState<ListingReceipt | null>(null);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [showCompareView, setShowCompareView] = useState(false);
+  const [showCompareLoginModal, setShowCompareLoginModal] = useState(false);
 
   // Prefill from SEO page
   const [prefillText, setPrefillText] = useState<string | null>(null);
@@ -151,6 +156,27 @@ export default function ReceiptPage() {
     if (storedPageSource) {
       setPageSource(storedPageSource);
       sessionStorage.removeItem("offo_page_source");
+    }
+
+    // Resume saved receipt from /saved dashboard
+    const params = new URLSearchParams(window.location.search);
+    const resumeId = params.get("resume");
+    if (resumeId) {
+      (async () => {
+        try {
+          const res = await fetch(`/api/receipt/history?receipt_id=${encodeURIComponent(resumeId)}`);
+          const data = await res.json();
+          if (data.entries?.length > 0 && data.entries[0].receipt) {
+            setReceipt(data.entries[0].receipt);
+          }
+        } catch {
+          // Silently fail — user can still generate a new receipt
+        }
+      })();
+      // Clean the URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("resume");
+      window.history.replaceState({}, "", url.pathname + url.search);
     }
   }, []);
 
@@ -535,6 +561,11 @@ export default function ReceiptPage() {
                 isFallback={isFallback}
               />
 
+              {/* Save receipt */}
+              <SaveReceiptCTA
+                receipt={receipt}
+              />
+
               {/* PDF download (shown when payments are enabled) */}
               {paymentsEnabled && (
                 <PdfDownloadButton
@@ -578,13 +609,15 @@ export default function ReceiptPage() {
                 />
               )}
 
-              {/* Compare badge (when unlocked) */}
-              {paymentsEnabled && isUnlocked && (
+              {/* Compare badge — free with login, or paid legacy */}
+              {authConfigured && (
                 <CompareBadge
                   compareRemaining={compareRemaining}
                   compareBoundTo={compareBoundTo}
+                  isAuthenticated={isAuthenticated}
                   onInitiateCompare={() => setShowCompareModal(true)}
                   onViewCompare={() => setShowCompareView(true)}
+                  onSignIn={() => setShowCompareLoginModal(true)}
                 />
               )}
 
@@ -607,6 +640,7 @@ export default function ReceiptPage() {
 
               {/* Email capture */}
               <EmailCaptureCard
+                receiptId={receipt.receipt_id}
                 onSubmit={() =>
                   trackEvent("email_checklist_submit", {
                     receipt_id: receipt.receipt_id,
@@ -634,22 +668,33 @@ export default function ReceiptPage() {
         isLoading={isHistoryLoading}
       />
 
-      {/* Compare select modal */}
-      {receipt && purchaseId && (
+      {/* Compare select modal — works for free (no purchaseId) and paid */}
+      {receipt && (
         <CompareSelectModal
           isOpen={showCompareModal}
           onClose={() => setShowCompareModal(false)}
           history={history}
           currentReceiptId={receipt.receipt_id}
-          purchaseId={purchaseId}
-          receiptToken={receiptToken}
+          purchaseId={purchaseId || undefined}
           onCompareComplete={(compareRcpt) => {
             setCompareReceipt(compareRcpt);
             setShowCompareView(true);
-            refetchPayment();
+            if (purchaseId) refetchPayment();
           }}
         />
       )}
+
+      {/* Compare login modal */}
+      <LoginModal
+        isOpen={showCompareLoginModal}
+        onClose={() => setShowCompareLoginModal(false)}
+        onSuccess={() => setShowCompareLoginModal(false)}
+        redirectPath={
+          typeof window !== "undefined"
+            ? window.location.pathname + window.location.search
+            : undefined
+        }
+      />
     </div>
   );
 }

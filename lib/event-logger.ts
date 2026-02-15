@@ -91,6 +91,19 @@ export const VALID_EVENT_NAMES = [
   "compare_started",
   "compare_bound",
 
+  // Save Receipt Events
+  "save_receipt_clicked",
+  "save_receipt_succeeded",
+
+  // Saved Dashboard Events
+  "saved_dashboard_viewed",
+  "saved_scenario_resumed",
+
+  // Email Checklist Delivery Events
+  "email_checklist_modal_viewed",
+  "email_checklist_sent",
+  "email_checklist_failed",
+
   // Canonical funnel aliases (Unified Plan naming)
   "paywall_shown",
   "checkout_started",

@@ -1,0 +1,338 @@
+/**
+ * Saved Results Dashboard
+ *
+ * /saved
+ * Shows user's saved receipts and EV routine results with tabs.
+ * Requires authentication — shows LoginModal if not logged in.
+ */
+
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Bookmark, FileText, Zap, Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useEventTracking } from "@/hooks/useEventTracking";
+import LoginModal from "@/components/LoginModal";
+import type { SavedScenarioPreview } from "@/app/api/user/scenario/list/route";
+
+type TabFilter = "all" | "receipt" | "evroutine";
+
+function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+  });
+}
+
+function getVerdictStyles(
+  scenarioType: string,
+  fitSignal: string | null
+): { bg: string; text: string; label: string } {
+  if (scenarioType === "receipt") {
+    switch (fitSignal) {
+      case "GREEN":
+        return { bg: "bg-green-100", text: "text-green-800", label: "Good Deal" };
+      case "YELLOW":
+        return { bg: "bg-yellow-100", text: "text-yellow-800", label: "Fair Deal" };
+      case "RED":
+        return { bg: "bg-red-100", text: "text-red-800", label: "Poor Deal" };
+      default:
+        return { bg: "bg-gray-100", text: "text-gray-800", label: "—" };
+    }
+  }
+  // evroutine
+  switch (fitSignal) {
+    case "GOOD":
+      return { bg: "bg-green-100", text: "text-green-800", label: "Good Fit" };
+    case "CONDITIONAL":
+      return { bg: "bg-yellow-100", text: "text-yellow-800", label: "Conditional" };
+    case "HIGH_FRICTION":
+      return { bg: "bg-red-100", text: "text-red-800", label: "High Friction" };
+    default:
+      return { bg: "bg-gray-100", text: "text-gray-800", label: "—" };
+  }
+}
+
+export default function SavedPage() {
+  const router = useRouter();
+  const { isAuthenticated, session, isLoading: authLoading, isConfigured, isReady } = useAuth();
+  const { trackEvent } = useEventTracking();
+
+  const [activeTab, setActiveTab] = useState<TabFilter>("all");
+  const [scenarios, setScenarios] = useState<SavedScenarioPreview[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  useEffect(() => {
+    trackEvent("saved_dashboard_viewed");
+  }, [trackEvent]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isReady || !session?.access_token) {
+      setScenarios([]);
+      return;
+    }
+
+    const fetchScenarios = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const res = await fetch(
+          `/api/user/scenario/list?type=${activeTab}&limit=50`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          if (res.status === 401 || res.status === 403) {
+            setScenarios([]);
+            return;
+          }
+          throw new Error(data.error || "Failed to load saved results");
+        }
+
+        setScenarios(data.scenarios);
+        setTotal(data.total);
+      } catch (err) {
+        console.error("Load saved scenarios error:", err);
+        setError(err instanceof Error ? err.message : "Failed to load");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchScenarios();
+  }, [isAuthenticated, isReady, session?.access_token, activeTab]);
+
+  const handleScenarioClick = (scenario: SavedScenarioPreview) => {
+    trackEvent("saved_scenario_resumed", {
+      scenario_type: scenario.scenario_type,
+      scenario_id: scenario.id,
+    });
+
+    if (scenario.scenario_type === "receipt" && scenario.receipt_id) {
+      router.push(`/receipt?resume=${scenario.receipt_id}`);
+    } else {
+      // EVRoutine — navigate with scenario hash to reload results
+      router.push(`/?scenario=${scenario.scenario_hash}`);
+    }
+  };
+
+  const tabs: { key: TabFilter; label: string; icon: React.ReactNode }[] = [
+    { key: "all", label: "All", icon: <Bookmark className="w-3.5 h-3.5" /> },
+    { key: "receipt", label: "Receipts", icon: <FileText className="w-3.5 h-3.5" /> },
+    { key: "evroutine", label: "EV Routines", icon: <Zap className="w-3.5 h-3.5" /> },
+  ];
+
+  // Auth loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
+
+  // Not authenticated — show login prompt
+  if (!authLoading && !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+        <div className="max-w-2xl mx-auto px-4 py-16 text-center">
+          <Bookmark className="w-12 h-12 mx-auto text-indigo-400 mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Your Saved Results
+          </h1>
+          <p className="text-gray-600 mb-8">
+            Sign in to view your saved receipts and EV routine results.
+          </p>
+          <button
+            onClick={() => setShowLoginModal(true)}
+            className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+          >
+            Sign In
+          </button>
+          <div className="mt-4">
+            <button
+              onClick={() => router.push("/")}
+              className="text-sm text-indigo-600 hover:text-indigo-700 underline"
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
+
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onSuccess={() => setShowLoginModal(false)}
+          redirectPath="/saved"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            onClick={() => router.push("/")}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Saved Results</h1>
+            {total > 0 && (
+              <p className="text-sm text-gray-500">{total} saved</p>
+            )}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 mb-6 bg-gray-100 rounded-lg p-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                activeTab === tab.key
+                  ? "bg-white text-indigo-700 shadow-sm"
+                  : "text-gray-600 hover:text-gray-800"
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Loading */}
+        {loading && (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="text-center py-8">
+            <p className="text-sm text-red-600 mb-2">{error}</p>
+            <button
+              onClick={() => setError(null)}
+              className="text-sm text-indigo-600 hover:text-indigo-700 underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && !error && scenarios.length === 0 && (
+          <div className="text-center py-16">
+            <Bookmark className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+            <p className="text-gray-600 font-medium mb-1">
+              No saved results yet
+            </p>
+            <p className="text-sm text-gray-400 mb-6">
+              {activeTab === "receipt"
+                ? "Generate a listing receipt and save it to see it here."
+                : activeTab === "evroutine"
+                ? "Run an EV routine check and save it to see it here."
+                : "Generate a receipt or run a routine check to get started."}
+            </p>
+            <button
+              onClick={() => router.push(activeTab === "evroutine" ? "/" : "/receipt")}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+            >
+              {activeTab === "evroutine" ? "Check EV Routine Fit" : "Generate a Receipt"}
+            </button>
+          </div>
+        )}
+
+        {/* Scenario cards */}
+        {!loading && !error && scenarios.length > 0 && (
+          <div className="space-y-3">
+            {scenarios.map((scenario) => {
+              const verdictStyles = getVerdictStyles(
+                scenario.scenario_type,
+                scenario.fit_signal
+              );
+
+              return (
+                <button
+                  key={scenario.id}
+                  onClick={() => handleScenarioClick(scenario)}
+                  className="w-full text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-indigo-300 hover:shadow-sm transition-all"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {scenario.scenario_type === "receipt" ? (
+                          <FileText className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+                        ) : (
+                          <Zap className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                        )}
+                        <h3 className="font-medium text-gray-900 truncate">
+                          {scenario.title ||
+                            `${scenario.vehicle_year} ${scenario.vehicle_model}`}
+                        </h3>
+                      </div>
+
+                      {scenario.one_sentence_verdict && (
+                        <p className="text-sm text-gray-600 line-clamp-2 ml-6 mb-2">
+                          {scenario.one_sentence_verdict}
+                        </p>
+                      )}
+
+                      <div className="flex items-center gap-3 text-xs text-gray-500 ml-6">
+                        <span>{formatDate(scenario.saved_at)}</span>
+                        <span className="capitalize text-gray-400">
+                          {scenario.scenario_type === "receipt"
+                            ? "Listing Receipt"
+                            : "EV Routine"}
+                        </span>
+                        {scenario.is_comparison && (
+                          <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">
+                            Comparison
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="ml-3 flex-shrink-0">
+                      <span
+                        className={`px-2.5 py-1 text-xs font-medium rounded-full ${verdictStyles.bg} ${verdictStyles.text}`}
+                      >
+                        {verdictStyles.label}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

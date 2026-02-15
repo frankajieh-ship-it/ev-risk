@@ -62,11 +62,14 @@ async function getUserFromRequest(
 
 export interface SavedScenarioPreview {
   id: string;
+  scenario_type: string;
   scenario_hash: string;
+  receipt_id: string | null;
   vehicle_model: string;
   vehicle_year: number;
   fit_signal: string | null;
   one_sentence_verdict: string | null;
+  title: string | null;
   saved_at: string;
   last_viewed_at: string | null;
   is_comparison: boolean;
@@ -103,18 +106,22 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
+    const typeFilter = searchParams.get("type") || "all";
 
     // Get saved scenarios
-    const { data: scenarios, error, count } = await supabase
+    let query = supabase
       .from("saved_scenarios")
       .select(
         `
         id,
+        scenario_type,
         scenario_hash,
+        receipt_id,
         vehicle_model,
         vehicle_year,
         fit_signal,
         one_sentence_verdict,
+        title,
         saved_at,
         last_viewed_at,
         is_comparison,
@@ -123,7 +130,14 @@ export async function GET(req: NextRequest) {
       `,
         { count: "exact" }
       )
-      .eq("user_id", user.id)
+      .eq("user_id", user.id);
+
+    // Apply type filter
+    if (typeFilter === "receipt" || typeFilter === "evroutine") {
+      query = query.eq("scenario_type", typeFilter);
+    }
+
+    const { data: scenarios, error, count } = await query
       .order("saved_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -132,13 +146,16 @@ export async function GET(req: NextRequest) {
     }
 
     // Format response
-    const formattedScenarios: SavedScenarioPreview[] = (scenarios || []).map((s) => ({
+    const formattedScenarios: SavedScenarioPreview[] = (scenarios || []).map((s: any) => ({
       id: s.id,
+      scenario_type: s.scenario_type || "evroutine",
       scenario_hash: s.scenario_hash,
+      receipt_id: s.receipt_id || null,
       vehicle_model: s.vehicle_model,
       vehicle_year: s.vehicle_year,
       fit_signal: s.fit_signal,
       one_sentence_verdict: s.one_sentence_verdict,
+      title: s.title || null,
       saved_at: s.saved_at,
       last_viewed_at: s.last_viewed_at,
       is_comparison: s.is_comparison,

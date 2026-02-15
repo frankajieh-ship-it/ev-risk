@@ -1,9 +1,9 @@
 /**
- * CompareSelectModal — Receipt selection drawer for compare credit
+ * CompareSelectModal — Receipt selection drawer for comparison
  *
- * Two-step flow:
- * 1. Select a receipt from history (excluding current)
- * 2. Confirm permanent credit use
+ * Two modes:
+ * 1. Free compare (no purchaseId): select receipt → compare immediately
+ * 2. Paid compare (with purchaseId): select receipt → confirm credit use → bind
  */
 
 "use client";
@@ -28,8 +28,7 @@ interface CompareSelectModalProps {
   onClose: () => void;
   history: ReceiptHistoryEntry[];
   currentReceiptId: string;
-  purchaseId: string;
-  receiptToken: string;
+  purchaseId?: string;
   onCompareComplete: (compareReceipt: ListingReceipt) => void;
 }
 
@@ -70,7 +69,6 @@ export default function CompareSelectModal({
   history,
   currentReceiptId,
   purchaseId,
-  receiptToken,
   onCompareComplete,
 }: CompareSelectModalProps) {
   const { trackEvent } = useEventTracking();
@@ -78,21 +76,36 @@ export default function CompareSelectModal({
   const [isBinding, setIsBinding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isFreeCompare = !purchaseId;
+
   const availableReceipts = history.filter(
     (e) => e.receipt_id !== currentReceiptId
   );
 
   const handleSelect = (entry: ReceiptHistoryEntry) => {
-    setSelectedEntry(entry);
     setError(null);
     trackEvent("compare_receipt_selected", {
       base_receipt_id: currentReceiptId,
       compare_receipt_id: entry.receipt_id,
     });
+
+    if (isFreeCompare) {
+      // Free compare: immediately load the comparison
+      trackEvent("compare_started", {
+        base_receipt_id: currentReceiptId,
+        compare_receipt_id: entry.receipt_id,
+        compare_mode: "free",
+      });
+      onCompareComplete(entry.receipt);
+      handleClose();
+    } else {
+      // Paid compare: show confirmation step
+      setSelectedEntry(entry);
+    }
   };
 
   const handleConfirm = async () => {
-    if (!selectedEntry) return;
+    if (!selectedEntry || !purchaseId) return;
     setIsBinding(true);
     setError(null);
 
@@ -205,7 +218,9 @@ export default function CompareSelectModal({
                 ) : (
                   <>
                     <p className="px-5 py-3 text-xs text-gray-500 bg-gray-50">
-                      Choose a receipt to compare against. This will permanently use your compare credit.
+                      {isFreeCompare
+                        ? "Choose a receipt to compare against."
+                        : "Choose a receipt to compare against. This will permanently use your compare credit."}
                     </p>
                     <div className="divide-y divide-gray-100">
                       {availableReceipts.map((entry) => {
@@ -248,7 +263,7 @@ export default function CompareSelectModal({
                   </>
                 )
               ) : (
-                // Step 2: Confirm
+                // Step 2: Confirm (paid compare only)
                 <div className="px-5 py-6 space-y-4">
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                     <div className="flex items-start gap-2">

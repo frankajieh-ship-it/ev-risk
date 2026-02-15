@@ -1,46 +1,73 @@
 /**
- * EmailCaptureCard — Lightweight email capture after receipt generation
+ * EmailCaptureCard — Email checklist delivery after receipt generation
  *
- * Shows a small card with email input, submit button, and success state.
- * Stores email in Supabase with attribution context.
+ * Sends the receipt checklist (verdict, risk flags, must-ask questions,
+ * negotiation opener) to the user's email via /api/email/checklist.
+ * Falls back to capture-only mode if no receiptId is provided.
  */
 
 "use client";
 
 import { useState } from "react";
-import { CheckCircle, Loader2 } from "lucide-react";
+import { CheckCircle, Loader2, Mail } from "lucide-react";
 import { getAttributionForEvent } from "@/lib/attribution";
 import { getOrCreatePersistentSessionId } from "@/lib/session-utils";
 
 interface EmailCaptureCardProps {
+  receiptId?: string;
   onSubmit?: () => void;
 }
 
-export default function EmailCaptureCard({ onSubmit }: EmailCaptureCardProps) {
+export default function EmailCaptureCard({ receiptId, onSubmit }: EmailCaptureCardProps) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
 
     setStatus("submitting");
+    setErrorMsg(null);
+
     try {
-      const res = await fetch("/api/checklist/email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          attribution: getAttributionForEvent(),
-          persistent_session_id: getOrCreatePersistentSessionId(),
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setStatus("success");
-        onSubmit?.();
+      if (receiptId) {
+        // Send the actual checklist email
+        const res = await fetch("/api/email/checklist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: email.trim(),
+            receipt_id: receiptId,
+            anon_id: getOrCreatePersistentSessionId(),
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setStatus("success");
+          onSubmit?.();
+        } else {
+          setErrorMsg(data.error || "Failed to send. Try again.");
+          setStatus("error");
+        }
       } else {
-        setStatus("error");
+        // Fallback: capture email only (no receipt to email)
+        const res = await fetch("/api/checklist/email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: email.trim(),
+            attribution: getAttributionForEvent(),
+            persistent_session_id: getOrCreatePersistentSessionId(),
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setStatus("success");
+          onSubmit?.();
+        } else {
+          setStatus("error");
+        }
       }
     } catch {
       setStatus("error");
@@ -52,7 +79,7 @@ export default function EmailCaptureCard({ onSubmit }: EmailCaptureCardProps) {
       <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
         <CheckCircle className="w-5 h-5 text-green-600 mx-auto mb-2" />
         <p className="text-sm text-green-700 font-medium">
-          You are on the list.
+          {receiptId ? "Check your inbox!" : "You are on the list."}
         </p>
       </div>
     );
@@ -60,9 +87,12 @@ export default function EmailCaptureCard({ onSubmit }: EmailCaptureCardProps) {
 
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-      <p className="text-sm font-medium text-gray-700 mb-2">
-        Get the next version of this checklist free.
-      </p>
+      <div className="flex items-center gap-2 mb-2">
+        <Mail className="w-4 h-4 text-blue-600" />
+        <p className="text-sm font-medium text-gray-700">
+          {receiptId ? "Email me this checklist" : "Get the next version of this checklist free."}
+        </p>
+      </div>
       <form onSubmit={handleSubmit} className="flex gap-2">
         <input
           type="email"
@@ -84,10 +114,12 @@ export default function EmailCaptureCard({ onSubmit }: EmailCaptureCardProps) {
           )}
         </button>
       </form>
-      <p className="text-xs text-gray-400 mt-1.5">One email. No spam.</p>
+      <p className="text-xs text-gray-400 mt-1.5">
+        {receiptId ? "Verdict, risk flags, and checklist — straight to your inbox." : "One email. No spam."}
+      </p>
       {status === "error" && (
         <p className="text-xs text-red-500 mt-1">
-          Something went wrong. Try again.
+          {errorMsg || "Something went wrong. Try again."}
         </p>
       )}
     </div>
