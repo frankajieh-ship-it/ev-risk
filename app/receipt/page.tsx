@@ -43,6 +43,21 @@ function getOrCreateReceiptToken(): string {
   return token;
 }
 
+// Persist/retrieve current receipt ID across auth redirects
+const ACTIVE_RECEIPT_KEY = "offo_active_receipt_id";
+
+function storeActiveReceipt(receiptId: string) {
+  try { localStorage.setItem(ACTIVE_RECEIPT_KEY, receiptId); } catch {}
+}
+
+function consumeActiveReceipt(): string | null {
+  try {
+    const id = localStorage.getItem(ACTIVE_RECEIPT_KEY);
+    if (id) localStorage.removeItem(ACTIVE_RECEIPT_KEY);
+    return id;
+  } catch { return null; }
+}
+
 // Fetch with timeout and retry for resilience against 504s
 async function fetchWithRetry(
   url: string,
@@ -161,22 +176,40 @@ export default function ReceiptPage() {
     // Resume saved receipt from /saved dashboard
     const params = new URLSearchParams(window.location.search);
     const resumeId = params.get("resume");
-    if (resumeId) {
-      (async () => {
-        try {
-          const res = await fetch(`/api/receipt/history?receipt_id=${encodeURIComponent(resumeId)}`);
-          const data = await res.json();
-          if (data.entries?.length > 0 && data.entries[0].receipt) {
-            setReceipt(data.entries[0].receipt);
+
+    // Also check for receipt stored before auth redirect
+    const activeReceiptId = resumeId || consumeActiveReceipt();
+
+    if (activeReceiptId) {
+      // Try localStorage history first (instant, no network)
+      const localHistory = JSON.parse(localStorage.getItem("offo_receipt_history") || "[]");
+      const found = localHistory.find(
+        (e: { receipt_id?: string; receipt?: { receipt_id?: string } }) =>
+          e.receipt_id === activeReceiptId || e.receipt?.receipt_id === activeReceiptId
+      );
+      if (found?.receipt) {
+        setReceipt(found.receipt);
+      } else {
+        // Fallback to server
+        (async () => {
+          try {
+            const res = await fetch(`/api/receipt/history?receipt_id=${encodeURIComponent(activeReceiptId)}`);
+            const data = await res.json();
+            if (data.entries?.length > 0 && data.entries[0].receipt) {
+              setReceipt(data.entries[0].receipt);
+            }
+          } catch {
+            // Silently fail — user can still generate a new receipt
           }
-        } catch {
-          // Silently fail — user can still generate a new receipt
-        }
-      })();
-      // Clean the URL
-      const url = new URL(window.location.href);
-      url.searchParams.delete("resume");
-      window.history.replaceState({}, "", url.pathname + url.search);
+        })();
+      }
+
+      // Clean the URL if it was a resume param
+      if (resumeId) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("resume");
+        window.history.replaceState({}, "", url.pathname + url.search);
+      }
     }
   }, []);
 
@@ -617,7 +650,10 @@ export default function ReceiptPage() {
                   isAuthenticated={isAuthenticated}
                   onInitiateCompare={() => setShowCompareModal(true)}
                   onViewCompare={() => setShowCompareView(true)}
-                  onSignIn={() => setShowCompareLoginModal(true)}
+                  onSignIn={() => {
+                    if (receipt) storeActiveReceipt(receipt.receipt_id);
+                    setShowCompareLoginModal(true);
+                  }}
                 />
               )}
 

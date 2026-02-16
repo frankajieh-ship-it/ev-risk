@@ -63,10 +63,49 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("Supabase insert error:", error);
+      try {
+        const clientIP = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+          || request.headers.get("x-real-ip") || "unknown";
+        await supabase.from("user_events").insert({
+          event_name: "report_generated_failed",
+          event_data: {
+            error_code: "db_insert_failed",
+            message_safe: "Database insert failed",
+            vehicle_year: vehicleYear,
+            vehicle_model: vehicleModel,
+          },
+          ip_address: clientIP,
+          page_path: "/api/report/create",
+          timestamp: new Date().toISOString(),
+        });
+      } catch {
+        // swallow
+      }
       return NextResponse.json(
         { error: "Failed to create report", details: error.message },
         { status: 500 }
       );
+    }
+
+    // Log report_generated_success to user_events
+    try {
+      const clientIP = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+        || request.headers.get("x-real-ip")
+        || "unknown";
+      await supabase.from("user_events").insert({
+        event_name: "report_generated_success",
+        event_data: {
+          report_id: reportId,
+          vehicle_year: vehicleYear,
+          vehicle_model: vehicleModel,
+          report_status: "draft",
+        },
+        ip_address: clientIP,
+        page_path: "/api/report/create",
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      // swallow — non-critical
     }
 
     console.log(`✅ Draft report created: ${reportId} (${vehicleYear} ${vehicleModel})`);
@@ -78,6 +117,22 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Report creation error:", error);
+    try {
+      const clientIP = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+        || request.headers.get("x-real-ip") || "unknown";
+      await supabase.from("user_events").insert({
+        event_name: "report_generated_failed",
+        event_data: {
+          error_code: "unhandled_exception",
+          message_safe: error instanceof Error ? error.message : "Unknown error",
+        },
+        ip_address: clientIP,
+        page_path: "/api/report/create",
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      // swallow
+    }
 
     if (error instanceof Error) {
       return NextResponse.json(

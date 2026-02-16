@@ -42,6 +42,12 @@ export async function POST(request: NextRequest) {
     const schemaVersion = reportData.schema_version || body.schema_version || "v1";
     const routine = reportData.routine || reportData._internal?.routine || body.routine || null;
 
+    // Extract IP/UA early so they're available in error paths
+    const userAgent = request.headers.get("user-agent") || "unknown";
+    const clientIP = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip")
+      || "unknown";
+
     // Store as free report in database
     const { error } = await supabase.from("reports").insert({
       id: reportId,
@@ -61,32 +67,60 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("Supabase insert error:", error);
+      try {
+        await supabase.from("user_events").insert({
+          event_name: "report_generated_failed",
+          event_data: {
+            error_code: "db_insert_failed",
+            message_safe: "Database insert failed",
+            vehicle_year: vehicleYear,
+            vehicle_model: vehicleModel,
+          },
+          ip_address: clientIP,
+          user_agent: userAgent,
+          page_path: "/api/report/free",
+          timestamp: new Date().toISOString(),
+        });
+      } catch {
+        // swallow
+      }
       return NextResponse.json(
         { error: "Failed to create free report", details: error.message },
         { status: 500 }
       );
     }
 
-    // Track report creation event for analytics
-    const userAgent = request.headers.get("user-agent") || "unknown";
-    const clientIP = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-      || request.headers.get("x-real-ip")
-      || "unknown";
-
+    // Track report creation events for analytics
     try {
-      await supabase.from("user_events").insert({
-        event_name: "report_created",
-        event_data: {
-          report_id: reportId,
-          vehicle_year: vehicleYear,
-          vehicle_model: vehicleModel,
-          report_status: "free",
+      const eventTimestamp = new Date().toISOString();
+      await supabase.from("user_events").insert([
+        {
+          event_name: "report_created",
+          event_data: {
+            report_id: reportId,
+            vehicle_year: vehicleYear,
+            vehicle_model: vehicleModel,
+            report_status: "free",
+          },
+          ip_address: clientIP,
+          user_agent: userAgent,
+          page_path: "/api/report/free",
+          timestamp: eventTimestamp,
         },
-        ip_address: clientIP,
-        user_agent: userAgent,
-        page_path: "/api/report/free",
-        timestamp: new Date().toISOString(),
-      });
+        {
+          event_name: "report_generated_success",
+          event_data: {
+            report_id: reportId,
+            vehicle_year: vehicleYear,
+            vehicle_model: vehicleModel,
+            report_status: "free",
+          },
+          ip_address: clientIP,
+          user_agent: userAgent,
+          page_path: "/api/report/free",
+          timestamp: eventTimestamp,
+        },
+      ]);
     } catch (trackingError) {
       console.error("Failed to track report creation:", trackingError);
     }
@@ -100,6 +134,22 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Free report creation error:", error);
+    try {
+      const clientIP = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+        || request.headers.get("x-real-ip") || "unknown";
+      await supabase.from("user_events").insert({
+        event_name: "report_generated_failed",
+        event_data: {
+          error_code: "unhandled_exception",
+          message_safe: error instanceof Error ? error.message : "Unknown error",
+        },
+        ip_address: clientIP,
+        page_path: "/api/report/free",
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      // swallow
+    }
 
     if (error instanceof Error) {
       return NextResponse.json(

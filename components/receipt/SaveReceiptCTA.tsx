@@ -21,6 +21,7 @@ interface SaveReceiptCTAProps {
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 const PENDING_SAVE_KEY = "offo_pending_receipt_save";
+const ACTIVE_RECEIPT_KEY = "offo_active_receipt_id";
 
 export default function SaveReceiptCTA({
   receipt,
@@ -108,9 +109,10 @@ export default function SaveReceiptCTA({
     });
 
     if (!isAuthenticated || !session?.access_token) {
-      // Store pending save for after login
+      // Store pending save + active receipt for after login redirect
       try {
         localStorage.setItem(PENDING_SAVE_KEY, receipt.receipt_id);
+        localStorage.setItem(ACTIVE_RECEIPT_KEY, receipt.receipt_id);
       } catch {
         // localStorage unavailable
       }

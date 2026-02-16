@@ -18,6 +18,8 @@ export const VALID_EVENT_NAMES = [
   // Report Events
   "report_generated",
   "report_view",
+  "report_generated_success",
+  "report_generated_failed",
 
   // Scenario Save Events
   "scenario_save_clicked",
@@ -66,6 +68,7 @@ export const VALID_EVENT_NAMES = [
   "cta_start_click",
   "intake_started",
   "intake_step_completed",
+  "entry_mode_selected",
   "report_generate_click",
   "save_click",
   "save_success",
@@ -74,6 +77,7 @@ export const VALID_EVENT_NAMES = [
   // Events fired from components (previously unlisted)
   "v2_score_submit",
   "routine_step_viewed",
+  "routine_field_completed",
   "clicked_listing_receipt",
   "manual_entry_submit",
 
@@ -81,6 +85,9 @@ export const VALID_EVENT_NAMES = [
   "receipt_generate",
   "receipt_regen",
   "receipt_history_viewed",
+  "receipt_extract_success",
+  "receipt_extract_failed",
+  "receipt_extract_fallback_used",
 
   // Decision Pack / Payment Events
   "deep_dive_offer_viewed",
@@ -151,7 +158,9 @@ function getEventType(eventName: ValidEventName): EventType {
   if (
     eventName === "scenario_save_success" ||
     eventName === "email_confirmed" ||
-    eventName === "report_generated"
+    eventName === "report_generated" ||
+    eventName === "report_generated_success" ||
+    eventName === "receipt_extract_success"
   ) {
     return "conversion";
   }

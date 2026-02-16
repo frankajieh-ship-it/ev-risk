@@ -200,8 +200,12 @@ export default function ReceiptInputCard({
           input_mode: inputMode,
           anon_id: receiptToken,
           error: data.error || "extract_failed",
+          failure_reason: data.error || "api_error",
+          input_length: inputMode === "url" ? (urlOverride ?? listingUrl.trim()).length : listingText.trim().length,
         });
-        setExtractError(data.error || "Failed to extract listing details");
+        setExtractError(
+          "Couldn't detect enough listing fields. Fill in the required fields below or try pasting the listing text."
+        );
         return;
       }
 
@@ -249,6 +253,8 @@ export default function ReceiptInputCard({
         input_mode: inputMode,
         anon_id: receiptToken,
         error: err instanceof Error ? err.message : "network_error",
+        failure_reason: "network_error",
+        input_length: inputMode === "url" ? (urlOverride ?? listingUrl.trim()).length : listingText.trim().length,
       });
       setExtractError("Network error — try again or paste the listing text");
     } finally {
@@ -284,7 +290,10 @@ export default function ReceiptInputCard({
       {/* Tab toggle */}
       <div className="flex border-b border-gray-200">
         <button
-          onClick={() => setInputMode("url")}
+          onClick={() => {
+            setInputMode("url");
+            trackEvent?.("entry_mode_selected", { mode: "url", context: "receipt_page" });
+          }}
           className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
             inputMode === "url"
               ? "text-blue-700 bg-blue-50 border-b-2 border-blue-600"
@@ -294,7 +303,10 @@ export default function ReceiptInputCard({
           <Link className="w-4 h-4" /> Paste URL
         </button>
         <button
-          onClick={() => setInputMode("text")}
+          onClick={() => {
+            setInputMode("text");
+            trackEvent?.("entry_mode_selected", { mode: "text", context: "receipt_page" });
+          }}
           className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
             inputMode === "text"
               ? "text-blue-700 bg-blue-50 border-b-2 border-blue-600"
@@ -341,18 +353,32 @@ export default function ReceiptInputCard({
               </button>
             </div>
 
-            {/* Extract error */}
+            {/* Extract error with fallback options */}
             {extractError && (
               <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <div>
                   <span>{extractError}</span>
-                  <button
-                    onClick={() => setInputMode("text")}
-                    className="block mt-1 text-blue-600 hover:text-blue-800 underline text-xs font-medium"
-                  >
-                    Switch to Text tab and paste the listing instead
-                  </button>
+                  <div className="flex gap-3 mt-1.5">
+                    <button
+                      onClick={() => {
+                        setInputMode("text");
+                        trackEvent?.("receipt_extract_fallback_used", { input_mode: "url", trigger: "switch_to_text", anon_id: receiptToken });
+                      }}
+                      className="text-blue-600 hover:text-blue-800 underline text-xs font-medium"
+                    >
+                      Paste listing text instead
+                    </button>
+                    <button
+                      onClick={() => {
+                        document.getElementById("vehicle-details-section")?.scrollIntoView({ behavior: "smooth" });
+                        trackEvent?.("receipt_extract_fallback_used", { input_mode: "url", trigger: "fill_manually", anon_id: receiptToken });
+                      }}
+                      className="text-blue-600 hover:text-blue-800 underline text-xs font-medium"
+                    >
+                      Fill in fields manually
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -407,11 +433,22 @@ export default function ReceiptInputCard({
               )}
             </button>
 
-            {/* Extract error */}
+            {/* Extract error with fallback */}
             {extractError && (
               <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>{extractError}</span>
+                <div>
+                  <span>{extractError}</span>
+                  <button
+                    onClick={() => {
+                      document.getElementById("vehicle-details-section")?.scrollIntoView({ behavior: "smooth" });
+                      trackEvent?.("receipt_extract_fallback_used", { input_mode: "text", trigger: "fill_manually", anon_id: receiptToken });
+                    }}
+                    className="block mt-1.5 text-blue-600 hover:text-blue-800 underline text-xs font-medium"
+                  >
+                    Fill in the required fields manually
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -465,7 +502,7 @@ export default function ReceiptInputCard({
 
         {/* Structured Fields Section */}
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
+          <div id="vehicle-details-section" className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-gray-900">
               Vehicle Details
             </h3>

@@ -91,12 +91,21 @@ export default function RoutineFitMiniStep({
     }
   };
 
+  const trackFieldCompleted = (fieldId: string) => {
+    trackEvent?.("routine_field_completed", {
+      field_id: fieldId,
+      step_id: "routine_fit_mini",
+    });
+  };
+
+  const milesEmpty = weeklyMiles.trim() === "" || Number(weeklyMiles) <= 0;
   const canCompute =
     charging !== null &&
-    weeklyMiles.trim() !== "" &&
-    Number(weeklyMiles) > 0 &&
+    !milesEmpty &&
     climate !== null &&
     longestTrip !== null;
+  const showMilesHint =
+    !canCompute && charging !== null && climate !== null && longestTrip !== null && milesEmpty;
 
   const handleCompute = () => {
     if (!canCompute) return;
@@ -157,6 +166,7 @@ export default function RoutineFitMiniStep({
                     key={opt}
                     selected={charging === opt}
                     onClick={() => {
+                      if (charging !== opt) trackFieldCompleted("charging_access");
                       setCharging(opt);
                       trackInteraction();
                     }}
@@ -175,6 +185,9 @@ export default function RoutineFitMiniStep({
                 type="number"
                 value={weeklyMiles}
                 onChange={(e) => {
+                  if (weeklyMiles.trim() === "" && e.target.value.trim() !== "") {
+                    trackFieldCompleted("weekly_miles");
+                  }
                   setWeeklyMiles(e.target.value);
                   trackInteraction();
                 }}
@@ -195,6 +208,7 @@ export default function RoutineFitMiniStep({
                     key={opt}
                     selected={climate === opt}
                     onClick={() => {
+                      if (climate !== opt) trackFieldCompleted("climate");
                       setClimate(opt);
                       trackInteraction();
                     }}
@@ -215,6 +229,7 @@ export default function RoutineFitMiniStep({
                     key={opt}
                     selected={longestTrip === opt}
                     onClick={() => {
+                      if (longestTrip !== opt) trackFieldCompleted("longest_day_pattern");
                       setLongestTrip(opt);
                       trackInteraction();
                     }}
@@ -236,6 +251,11 @@ export default function RoutineFitMiniStep({
             >
               Check Routine Fit
             </button>
+            {showMilesHint && (
+              <p className="text-xs text-amber-600 text-center mt-1">
+                Enter your weekly miles above to continue
+              </p>
+            )}
           </>
         ) : (
           /* Result display */

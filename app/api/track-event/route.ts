@@ -26,6 +26,8 @@ const VALID_EVENT_NAMES = [
   "report_generation_started", // NEW: Report generation started
   "report_generation_succeeded", // NEW: Report generation succeeded
   "report_generation_failed", // NEW: Report generation failed
+  "report_generated_success",
+  "report_generated_failed",
   // Scenario Save Events
   "scenario_save_clicked",
   "scenario_save_success",
@@ -69,12 +71,15 @@ const VALID_EVENT_NAMES = [
   "receipt_extract_clicked",
   "receipt_extract_succeeded",
   "receipt_extract_failed",
+  "receipt_extract_success",
+  "receipt_extract_fallback_used",
   "receipt_generate_clicked",
   "receipt_result_viewed",
   // Routine Fit Mini-step Events
   "routine_check_started",
   "routine_check_completed",
   "routine_score_viewed",
+  "routine_field_completed",
   // Copy Granular Events
   "copy_reddit_draft",
   "copy_seller_message",
@@ -89,6 +94,7 @@ const VALID_EVENT_NAMES = [
   "intake_started",
   "intake_step_completed",
   "report_generate_click",
+  "entry_mode_selected",
   "save_click",
   "save_success",
   "copy_click",
@@ -141,6 +147,7 @@ const ENTERPRISE_READY_EVENTS = [
   "scenario_save_success",
   "email_confirmed",
   "report_generated",
+  "report_generated_success",
   "email_checklist_submit",
 ];
 

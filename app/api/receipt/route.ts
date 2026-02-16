@@ -238,6 +238,28 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Log receipt_extract_success (fallback) to user_events
+      if (isSupabaseConfigured()) {
+        try {
+          await supabase.from("user_events").insert({
+            event_name: "receipt_extract_success",
+            event_data: {
+              receipt_token: receiptToken,
+              vehicle_year: input.year || null,
+              vehicle_model: `${input.make || ""} ${input.model || ""}`.trim() || null,
+              lint_passed: false,
+              is_fallback: true,
+              error_code: "schema_fail",
+            },
+            ip_address: clientIP,
+            page_path: "/api/receipt",
+            timestamp: new Date().toISOString(),
+          });
+        } catch {
+          // swallow
+        }
+      }
+
       // Return a fallback receipt so the user always gets a result
       const fallbackReceipt = buildFallbackReceipt(input);
       incrementDailyCount(receiptToken as string);
@@ -358,6 +380,26 @@ export async function POST(request: NextRequest) {
           console.error("[Receipt API] Failed to log event:", eventError.message);
         }
 
+        // Log receipt_extract_success to user_events
+        try {
+          await supabase.from("user_events").insert({
+            event_name: "receipt_extract_success",
+            event_data: {
+              receipt_id: finalReceipt.receipt_id,
+              receipt_token: receiptToken,
+              vehicle_year: input.year || null,
+              vehicle_model: `${input.make || ""} ${input.model || ""}`.trim() || null,
+              lint_passed: lintPassed,
+              is_fallback: false,
+            },
+            ip_address: clientIP,
+            page_path: "/api/receipt",
+            timestamp: new Date().toISOString(),
+          });
+        } catch {
+          // swallow — non-critical
+        }
+
         // Log lint_fail event if applicable
         if (!lintPassed) {
           await supabase.from("receipt_events").insert({
@@ -441,6 +483,27 @@ export async function POST(request: NextRequest) {
         });
       } catch {
         // swallow logging errors
+      }
+    }
+
+    // Log receipt_extract_failed to user_events
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from("user_events").insert({
+          event_name: "receipt_extract_failed",
+          event_data: {
+            receipt_token: receiptToken,
+            error_code: isTimeoutOrAIError ? "generate_timeout" : "generate_fail",
+            message_safe: isTimeoutOrAIError ? "AI generation timed out" : "Generation failed",
+            failure_reason: isTimeoutOrAIError ? "timeout_or_ai_error" : "generation_error",
+            input_length: (input.listing_text || "").length,
+          },
+          ip_address: clientIP,
+          page_path: "/api/receipt",
+          timestamp: new Date().toISOString(),
+        });
+      } catch {
+        // swallow
       }
     }
 
