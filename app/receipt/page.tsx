@@ -462,6 +462,7 @@ export default function ReceiptPage() {
         reddit_draft: "copy_reddit_draft",
         "must-ask": "copy_checklist",
         opener: "copy_seller_message",
+        quick_checklist: "copy_checklist",
       };
       const eventName = eventNameMap[copyType];
       if (eventName) {
@@ -473,6 +474,15 @@ export default function ReceiptPage() {
     },
     [trackEvent, receipt]
   );
+
+  // Track lint fallback served (one-time, fired from ReceiptOutputCard)
+  const handleLintFallback = useCallback(() => {
+    trackEvent("lint_failed_fallback_served", {
+      receipt_id: receipt?.receipt_id,
+      verdict: receipt?.verdict,
+      lint_error_count: lintErrors.length,
+    });
+  }, [trackEvent, receipt, lintErrors]);
 
   // Handle auto-fix
   const handleAutoFix = useCallback(async () => {
@@ -592,6 +602,7 @@ export default function ReceiptPage() {
                 onAutoFix={handleAutoFix}
                 isFixing={isFixing}
                 isFallback={isFallback}
+                onTrackLintFallback={handleLintFallback}
               />
 
               {/* Save receipt */}

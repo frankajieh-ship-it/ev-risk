@@ -73,6 +73,7 @@ const VALID_EVENT_NAMES = [
   "receipt_extract_failed",
   "receipt_extract_success",
   "receipt_extract_fallback_used",
+  "lint_failed_fallback_served",
   "receipt_generate_clicked",
   "receipt_result_viewed",
   // Routine Fit Mini-step Events

@@ -311,6 +311,7 @@ export async function GET(request: NextRequest) {
       copy_reddit_draft: countEvents(allUserEvents, "copy_reddit_draft"),
       copy_seller_message: countEvents(allUserEvents, "copy_seller_message"),
       copy_checklist: countEvents(allUserEvents, "copy_checklist"),
+      lint_failed_fallback_served: countEvents(allUserEvents, "lint_failed_fallback_served"),
     };
 
     // -----------------------------------------------------------------------
@@ -550,6 +551,87 @@ export async function GET(request: NextRequest) {
     };
 
     // -----------------------------------------------------------------------
+    // Server-side receipt events (from user_events)
+    // -----------------------------------------------------------------------
+
+    const receiptExtractSuccess = countEvents(allUserEvents, "receipt_extract_success");
+    const receiptExtractFailed = countEvents(allUserEvents, "receipt_extract_failed");
+    const receiptExtractFallback = countEvents(allUserEvents, "receipt_extract_fallback_used");
+    const receiptExtractTotal = receiptExtractSuccess + receiptExtractFailed;
+
+    const receipt_server_events = {
+      extract_success: receiptExtractSuccess,
+      extract_failed: receiptExtractFailed,
+      extract_fallback_used: receiptExtractFallback,
+      extract_total: receiptExtractTotal,
+      success_rate:
+        receiptExtractTotal > 0
+          ? Math.round((receiptExtractSuccess / receiptExtractTotal) * 1000) / 10
+          : 0,
+    };
+
+    // -----------------------------------------------------------------------
+    // Server-side report events (from user_events)
+    // -----------------------------------------------------------------------
+
+    const serverReportSuccess = countEvents(allUserEvents, "report_generated_success");
+    const serverReportFailed = countEvents(allUserEvents, "report_generated_failed");
+    const serverReportTotal = serverReportSuccess + serverReportFailed;
+
+    const report_server_events = {
+      generated_success: serverReportSuccess,
+      generated_failed: serverReportFailed,
+      generated_total: serverReportTotal,
+      success_rate:
+        serverReportTotal > 0
+          ? Math.round((serverReportSuccess / serverReportTotal) * 1000) / 10
+          : 0,
+    };
+
+    // -----------------------------------------------------------------------
+    // Routine engagement (from user_events)
+    // -----------------------------------------------------------------------
+
+    const routineFieldEvents = allUserEvents.filter(
+      (e) => e.event_name === "routine_field_completed"
+    );
+    const routineFieldMap = new Map<string, number>();
+    for (const e of routineFieldEvents) {
+      const fieldId = e.event_data?.field_id || "unknown";
+      routineFieldMap.set(fieldId, (routineFieldMap.get(fieldId) || 0) + 1);
+    }
+
+    const routine_engagement = {
+      total_field_completions: routineFieldEvents.length,
+      fields: Array.from(routineFieldMap.entries())
+        .map(([field_id, count]) => ({ field_id, count }))
+        .sort((a, b) => b.count - a.count),
+      check_started: countEvents(allUserEvents, "routine_check_started"),
+      check_completed: countEvents(allUserEvents, "routine_check_completed"),
+      score_viewed: countEvents(allUserEvents, "routine_score_viewed"),
+    };
+
+    // -----------------------------------------------------------------------
+    // Entry mode selection (from user_events)
+    // -----------------------------------------------------------------------
+
+    const entryModeEvents = allUserEvents.filter(
+      (e) => e.event_name === "entry_mode_selected"
+    );
+    const entryModeMap = new Map<string, number>();
+    for (const e of entryModeEvents) {
+      const mode = e.event_data?.mode || "unknown";
+      entryModeMap.set(mode, (entryModeMap.get(mode) || 0) + 1);
+    }
+
+    const entry_mode = {
+      total_selections: entryModeEvents.length,
+      modes: Array.from(entryModeMap.entries())
+        .map(([mode, count]) => ({ mode, count }))
+        .sort((a, b) => b.count - a.count),
+    };
+
+    // -----------------------------------------------------------------------
     // Extraction domains (top URL domains from receipt_events)
     // -----------------------------------------------------------------------
 
@@ -690,6 +772,10 @@ export async function GET(request: NextRequest) {
       top_vehicles,
       scenario_saves,
       email_captures,
+      receipt_server_events,
+      report_server_events,
+      routine_engagement,
+      entry_mode,
       extraction_domains,
       risk_distribution,
       verdict_distribution,

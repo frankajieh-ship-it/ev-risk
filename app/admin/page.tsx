@@ -48,6 +48,7 @@ interface SummaryData {
     copy_reddit_draft: number;
     copy_seller_message: number;
     copy_checklist: number;
+    lint_failed_fallback_served: number;
   };
   report_funnel: {
     form_submissions: number;
@@ -93,6 +94,30 @@ interface SummaryData {
   }>;
   scenario_saves: { clicked: number; succeeded: number };
   email_captures: { submitted: number };
+  receipt_server_events: {
+    extract_success: number;
+    extract_failed: number;
+    extract_fallback_used: number;
+    extract_total: number;
+    success_rate: number;
+  };
+  report_server_events: {
+    generated_success: number;
+    generated_failed: number;
+    generated_total: number;
+    success_rate: number;
+  };
+  routine_engagement: {
+    total_field_completions: number;
+    fields: Array<{ field_id: string; count: number }>;
+    check_started: number;
+    check_completed: number;
+    score_viewed: number;
+  };
+  entry_mode: {
+    total_selections: number;
+    modes: Array<{ mode: string; count: number }>;
+  };
   extraction_domains: Array<{
     domain: string;
     attempts: number;
@@ -236,6 +261,7 @@ export default function AdminDashboard() {
       ["Copy Reddit Draft", s.receipt_funnel.copy_reddit_draft],
       ["Copy Seller Message", s.receipt_funnel.copy_seller_message],
       ["Copy Checklist", s.receipt_funnel.copy_checklist],
+      ["Lint Fallback Served", s.receipt_funnel.lint_failed_fallback_served],
       [""],
       ["=== REPORT FUNNEL (Legacy EV-Risk) ==="],
       ["Form Submissions", s.report_funnel.form_submissions],
@@ -265,6 +291,28 @@ export default function AdminDashboard() {
       [""],
       ["=== EMAIL CAPTURES ==="],
       ["Emails Submitted", s.email_captures.submitted],
+      [""],
+      ["=== SERVER-SIDE RECEIPT EVENTS ==="],
+      ["Extract Total", s.receipt_server_events?.extract_total ?? 0],
+      ["Extract Success", s.receipt_server_events?.extract_success ?? 0],
+      ["Extract Failed", s.receipt_server_events?.extract_failed ?? 0],
+      ["Extract Success Rate", `${s.receipt_server_events?.success_rate ?? 0}%`],
+      ["Fallback Used", s.receipt_server_events?.extract_fallback_used ?? 0],
+      [""],
+      ["=== SERVER-SIDE REPORT EVENTS ==="],
+      ["Generated Total", s.report_server_events?.generated_total ?? 0],
+      ["Generated Success", s.report_server_events?.generated_success ?? 0],
+      ["Generated Failed", s.report_server_events?.generated_failed ?? 0],
+      ["Success Rate", `${s.report_server_events?.success_rate ?? 0}%`],
+      [""],
+      ["=== ROUTINE ENGAGEMENT ==="],
+      ["Check Started", s.routine_engagement?.check_started ?? 0],
+      ["Check Completed", s.routine_engagement?.check_completed ?? 0],
+      ["Score Viewed", s.routine_engagement?.score_viewed ?? 0],
+      ["Total Field Completions", s.routine_engagement?.total_field_completions ?? 0],
+      [""],
+      ["=== ENTRY MODE ==="],
+      ["Total Mode Selections", s.entry_mode?.total_selections ?? 0],
     ];
 
     const csvContent = rows.map((row) => row.join(",")).join("\n");
@@ -443,13 +491,14 @@ export default function AdminDashboard() {
         {/* Receipt Funnel */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">🧾 Receipt Funnel</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
             <FunnelCard label="Extractions" value={s.receipt_funnel.extraction_attempts} color="blue" />
             <FunnelCard label="Extract Success" value={`${s.receipt_funnel.extraction_success_rate}%`} color="green" />
             <FunnelCard label="Receipts Generated" value={s.receipt_funnel.receipts_generated} color="purple" />
             <FunnelCard label="Lint Failures" value={s.receipt_funnel.lint_failures} color="red" />
+            <FunnelCard label="Lint Fallback" value={s.receipt_funnel.lint_failed_fallback_served} color="amber" />
             <FunnelCard label="Copy (Total)" value={s.receipt_funnel.copies} color="indigo" />
-            <FunnelCard label="Regens" value={s.receipt_funnel.regens} color="amber" />
+            <FunnelCard label="Regens" value={s.receipt_funnel.regens} color="gray" />
             <FunnelCard
               label="Copy Breakdown"
               value={`${s.receipt_funnel.copy_reddit_draft}/${s.receipt_funnel.copy_seller_message}/${s.receipt_funnel.copy_checklist}`}
@@ -458,6 +507,35 @@ export default function AdminDashboard() {
             />
           </div>
         </div>
+
+        {/* Server-Side Receipt Events */}
+        {s.receipt_server_events?.extract_total > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Server-Side Receipt Events</h2>
+            <p className="text-sm text-gray-500 mb-4">Tracked server-side in /api/receipt</p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <FunnelCard label="Extract Total" value={s.receipt_server_events.extract_total} color="blue" />
+              <FunnelCard label="Extract Success" value={s.receipt_server_events.extract_success} color="green" />
+              <FunnelCard label="Extract Failed" value={s.receipt_server_events.extract_failed} color="red" />
+              <FunnelCard label="Success Rate" value={`${s.receipt_server_events.success_rate}%`} color="emerald" />
+              <FunnelCard label="Fallback Used" value={s.receipt_server_events.extract_fallback_used} color="amber" />
+            </div>
+          </div>
+        )}
+
+        {/* Server-Side Report Events */}
+        {s.report_server_events?.generated_total > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Server-Side Report Events</h2>
+            <p className="text-sm text-gray-500 mb-4">Tracked server-side in /api/report</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <FunnelCard label="Total Generated" value={s.report_server_events.generated_total} color="blue" />
+              <FunnelCard label="Success" value={s.report_server_events.generated_success} color="green" />
+              <FunnelCard label="Failed" value={s.report_server_events.generated_failed} color="red" />
+              <FunnelCard label="Success Rate" value={`${s.report_server_events.success_rate}%`} color="emerald" />
+            </div>
+          </div>
+        )}
 
         {/* Extraction Domains */}
         {s.extraction_domains.length > 0 && (
@@ -578,6 +656,48 @@ export default function AdminDashboard() {
               <FunnelCard label="Emails Submitted" value={s.email_captures.submitted} color="blue" />
             </div>
           </div>
+        </div>
+
+        {/* Routine Engagement + Entry Mode */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {s.routine_engagement && (s.routine_engagement.check_started > 0 || s.routine_engagement.total_field_completions > 0) && (
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Routine Fit Engagement</h2>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <FunnelCard label="Check Started" value={s.routine_engagement.check_started} color="blue" />
+                <FunnelCard label="Check Completed" value={s.routine_engagement.check_completed} color="green" />
+                <FunnelCard label="Score Viewed" value={s.routine_engagement.score_viewed} color="purple" />
+                <FunnelCard label="Field Completions" value={s.routine_engagement.total_field_completions} color="indigo" />
+              </div>
+              {s.routine_engagement.fields.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-gray-700">Per-Field Breakdown</h3>
+                  {s.routine_engagement.fields.map((f, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
+                      <span className="font-mono text-gray-700">{f.field_id}</span>
+                      <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-medium">{f.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {s.entry_mode && s.entry_mode.total_selections > 0 && (
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Entry Mode Selection</h2>
+              <FunnelCard label="Total Mode Switches" value={s.entry_mode.total_selections} color="blue" />
+              {s.entry_mode.modes.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {s.entry_mode.modes.map((m, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="font-medium capitalize">{m.mode}</span>
+                      <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-sm font-medium">{m.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Risk Distribution + Feedback */}

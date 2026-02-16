@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Copy,
@@ -35,6 +35,7 @@ interface ReceiptOutputCardProps {
   isFixing?: boolean;
   isFallback?: boolean;
   onRegenerate?: () => void;
+  onTrackLintFallback?: () => void;
 }
 
 const VERDICT_STYLES = {
@@ -78,10 +79,19 @@ export default function ReceiptOutputCard({
   isFixing,
   isFallback,
   onRegenerate,
+  onTrackLintFallback,
 }: ReceiptOutputCardProps) {
   const [copied, setCopied] = useState(false);
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [draftStyle, setDraftStyle] = useState<RedditDraftStyle>("short_paragraph");
+  const fallbackFiredRef = useRef(false);
+
+  useEffect(() => {
+    if (!lintPassed && receipt && !fallbackFiredRef.current) {
+      fallbackFiredRef.current = true;
+      onTrackLintFallback?.();
+    }
+  }, [lintPassed, receipt, onTrackLintFallback]);
 
   const copySection = async (text: string, sectionId: string) => {
     try {
@@ -182,6 +192,104 @@ export default function ReceiptOutputCard({
         </div>
         <p className="text-sm text-gray-700 mt-2">{receipt.verdict_reason}</p>
       </div>
+
+      {/* Prominent Copy Checklist — above the fold */}
+      <div className="px-5 pt-4">
+        <button
+          onClick={() =>
+            copySection(
+              receipt.must_answer_questions
+                .map((q, i) => `${i + 1}. ${q}`)
+                .join("\n"),
+              "must-ask"
+            )
+          }
+          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-sm transition-all ${
+            copiedSection === "must-ask"
+              ? "bg-blue-100 text-blue-700 border border-blue-200"
+              : "border-2 border-blue-200 text-blue-700 hover:border-blue-400 hover:bg-blue-50"
+          }`}
+        >
+          {copiedSection === "must-ask" ? (
+            <>
+              <CheckCircle className="w-4 h-4" />
+              Checklist copied!
+            </>
+          ) : (
+            <>
+              <Copy className="w-4 h-4" />
+              Copy Pre-Visit Checklist ({receipt.must_answer_questions.length} questions)
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Lint Fallback: Quick Checklist */}
+      {!lintPassed && (
+        <div className="mx-5 mt-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            <h3 className="text-sm font-semibold text-gray-900">
+              Quick Checklist
+            </h3>
+            <span className="text-xs text-gray-500">(Reddit copy pending lint fix)</span>
+          </div>
+
+          {/* Risk flags (up to 3) */}
+          <div className="mb-3">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Flags</p>
+            <ul className="space-y-1">
+              {receipt.risk_flags.slice(0, 3).map((flag, i) => (
+                <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                  <span className="text-red-400 mt-0.5">!</span>
+                  <span>{flag}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* First must-ask question */}
+          {receipt.must_answer_questions.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Ask the seller</p>
+              <p className="text-sm text-gray-700">
+                <span className="text-blue-500 font-bold">1.</span>{" "}
+                {receipt.must_answer_questions[0]}
+              </p>
+            </div>
+          )}
+
+          {/* Copy Quick Checklist — works even when lint fails */}
+          <button
+            onClick={() => {
+              const lines: string[] = [];
+              lines.push(`Verdict: ${receipt.verdict}`);
+              receipt.risk_flags.slice(0, 3).forEach((f) => lines.push(`! ${f}`));
+              if (receipt.must_answer_questions[0]) {
+                lines.push(`Ask: ${receipt.must_answer_questions[0]}`);
+              }
+              copySection(lines.join("\n"), "quick_checklist");
+            }}
+            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition-all ${
+              copiedSection === "quick_checklist"
+                ? "bg-blue-100 text-blue-700 border border-blue-200"
+                : "border-2 border-blue-300 text-blue-700 hover:bg-blue-100"
+            }`}
+          >
+            {copiedSection === "quick_checklist" ? (
+              <>
+                <CheckCircle className="w-4 h-4" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                Copy Quick Checklist
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* What would change the verdict */}
       {receipt.operator_notes?.what_would_change_verdict &&

@@ -88,6 +88,7 @@ export const VALID_EVENT_NAMES = [
   "receipt_extract_success",
   "receipt_extract_failed",
   "receipt_extract_fallback_used",
+  "lint_failed_fallback_served",
 
   // Decision Pack / Payment Events
   "deep_dive_offer_viewed",
