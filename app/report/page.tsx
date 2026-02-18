@@ -231,6 +231,10 @@ function ReportContent() {
 
           // V2 dispatch: if schema_version is "v2"
           if (parsed.schema_version === "v2") {
+            // Extract reportId from persisted data or contract fields
+            const rId = parsed._persisted_report_id || parsed.report_id || null;
+            if (rId) setReportId(rId);
+
             if (parsed.default_view) {
               // New contract shape (Default View + Appendix)
               console.log("[Report Page] V2 contract report detected");
@@ -289,6 +293,11 @@ function ReportContent() {
           }
 
           setReportData(parsed as ReportData);
+          // Extract reportId for V1 data
+          if (!reportIdParam) {
+            const rId = parsed._persisted_report_id || parsed.report_id || null;
+            if (rId) setReportId(rId);
+          }
 
           // Track report_view event
           trackButtonClick("report_view", "report-page");
