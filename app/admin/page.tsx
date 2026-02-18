@@ -7,7 +7,7 @@
  * No race conditions, no cross-referencing multiple state variables.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 
 // ---------------------------------------------------------------------------
 // Types — mirrors /api/admin/summary response
@@ -967,9 +967,8 @@ export default function AdminDashboard() {
                   })
                   .slice(0, 50)
                   .map((event, idx) => (
-                  <>
+                  <Fragment key={idx}>
                     <tr
-                      key={idx}
                       onClick={() => setExpandedRow(expandedRow === idx ? null : idx)}
                       className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
                     >
@@ -1038,7 +1037,7 @@ export default function AdminDashboard() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>
