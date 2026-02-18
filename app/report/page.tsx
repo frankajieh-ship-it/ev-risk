@@ -32,6 +32,8 @@ import { generateDebugData } from "@/lib/debug-helpers";
 import { generateMissingDataExplanations, getPrimaryMissingExplanation, generatePersonalizationOpportunities } from "@/lib/missing-data-generator";
 import { calculateRoutineFitClient } from "@/lib/routine-fit-client";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { usePaymentStatus } from "@/hooks/usePaymentStatus";
+import { assignPriceVariant, getDisplayPrice } from "@/lib/price-assignment";
 import type { Region } from "@/lib/regionCopy";
 import type { KnownDataPoint, UnknownDataPoint, RiskFactor } from "@/types/report";
 import type { EvRiskReportV2 } from "@/types/v2";
@@ -151,6 +153,18 @@ interface ReportData {
   timestamp: string;
 }
 
+// Generate or retrieve receipt token from localStorage (shared with receipt page)
+function getOrCreateAnonId(): string {
+  if (typeof window === "undefined") return "";
+  const key = "offo_receipt_token";
+  let token = localStorage.getItem(key);
+  if (!token) {
+    token = `rt_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    localStorage.setItem(key, token);
+  }
+  return token;
+}
+
 function ReportContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -165,9 +179,22 @@ function ReportContent() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showFullReport, setShowFullReport] = useState(false);
   const [region, setRegion] = useState<Region>("US");
+  const [anonId, setAnonId] = useState("");
 
   // Event tracking
   const { trackButtonClick, trackEvent, trackReportGenerateClick } = useEventTracking();
+
+  // Initialize anonId from localStorage
+  useEffect(() => {
+    setAnonId(getOrCreateAnonId());
+  }, []);
+
+  // Payment status for gating PDF download
+  const {
+    isUnlocked,
+    paymentsEnabled,
+    refetch: refetchPayment,
+  } = usePaymentStatus("evroutine", reportId, anonId);
 
   // Track if we've already tracked vehicle checkout for this session
   const hasTrackedCheckout = useRef(false);
@@ -292,10 +319,65 @@ function ReportContent() {
         router.push("/");
       }
     } else {
-      console.log("[Report Page] No data or payload found, redirecting to home");
-      router.push("/");
+      // Check if returning from checkout — restore from sessionStorage
+      const checkoutParam = searchParams.get("checkout");
+      if (checkoutParam && typeof window !== "undefined") {
+        const stored = sessionStorage.getItem("evreport_checkout_data");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            sessionStorage.removeItem("evreport_checkout_data");
+            if (parsed.schema_version === "v2" && parsed.default_view) {
+              setReportV2ContractData(parsed as EvRiskReportV2Contract);
+            } else if (parsed.schema_version === "v2") {
+              setReportV2Data(parsed as EvRiskReportV2);
+            } else {
+              setReportData(parsed as ReportData);
+            }
+            // Set reportId from stored data or URL
+            const scenarioId = searchParams.get("scenario_id");
+            setReportId(scenarioId || parsed._persisted_report_id || parsed.report_id || null);
+            console.log("[Report Page] Restored report data from sessionStorage after checkout");
+          } catch (e) {
+            console.error("[Report Page] Failed to restore checkout data:", e);
+            router.push("/");
+          }
+        } else {
+          console.log("[Report Page] No stored data for checkout return, redirecting to home");
+          router.push("/");
+        }
+      } else {
+        console.log("[Report Page] No data or payload found, redirecting to home");
+        router.push("/");
+      }
     }
   }, [searchParams, router]);
+
+  // Checkout return: detect ?checkout=success and poll for paid status
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") !== "success") return;
+
+    // Clean URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete("checkout");
+    url.searchParams.delete("session_id");
+    url.searchParams.delete("scenario_type");
+    url.searchParams.delete("scenario_id");
+    window.history.replaceState({}, "", url.pathname + url.search);
+
+    // Poll payment status until unlocked (max 30s)
+    let attempts = 0;
+    const maxAttempts = 15;
+    const poll = setInterval(async () => {
+      attempts++;
+      await refetchPayment();
+      if (attempts >= maxAttempts) clearInterval(poll);
+    }, 2000);
+
+    return () => clearInterval(poll);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track vehicle checkout when report data loads
   useEffect(() => {
@@ -322,6 +404,10 @@ function ReportContent() {
         trackEvent={trackEvent}
         sessionId={sessionId}
         onBack={() => router.push("/")}
+        isUnlocked={isUnlocked}
+        paymentsEnabled={paymentsEnabled}
+        anonId={anonId}
+        reportId={reportId}
       />
     );
   }
@@ -373,6 +459,10 @@ function ReportContent() {
         trackEvent={trackEvent}
         reportData={reportV2Data as unknown as Record<string, unknown>}
         onBack={() => router.push("/")}
+        isUnlocked={isUnlocked}
+        paymentsEnabled={paymentsEnabled}
+        anonId={anonId}
+        reportId={reportId}
       />
     );
   }
@@ -962,121 +1052,157 @@ function ReportContent() {
           </div>
         )}
 
-        {/* Paid Upsell CTA */}
+        {/* PDF Download CTA — payment-gated when payments enabled */}
         <div className="bg-gradient-to-r from-blue-600 to-green-600 rounded-2xl shadow-2xl p-8 mb-8 text-white">
           <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold mb-3">🔍 Want the Full Picture?</h2>
-            <p className="text-xl text-blue-100">Get the full report — <span className="line-through opacity-70">$15</span> <span className="font-bold">Free during early access</span></p>
+            <h2 className="text-3xl font-bold mb-3">Want the Full Picture?</h2>
+            <p className="text-xl text-blue-100">
+              {paymentsEnabled && !isUnlocked
+                ? <>Unlock the full PDF report — <span className="font-bold">{reportId && anonId ? getDisplayPrice(assignPriceVariant(anonId, reportId)) : "$9.99"}</span></>
+                : <>Get the full report — {paymentsEnabled ? <span className="font-bold">Unlocked</span> : <><span className="line-through opacity-70">$15</span> <span className="font-bold">Free during early access</span></>}</>
+              }
+            </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             <div className="bg-white/10 backdrop-blur rounded-lg p-6">
               <h3 className="font-bold text-lg mb-3">What's Included:</h3>
               <ul className="space-y-2">
-                <li className="flex items-start">
-                  <span className="mr-2">✓</span>
-                  <span>Model-specific failure rate analysis</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="mr-2">✓</span>
-                  <span>Price negotiation talking points</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="mr-2">✓</span>
-                  <span>Pre-purchase inspection checklist</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="mr-2">✓</span>
-                  <span>Dealer questions script</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="mr-2">✓</span>
-                  <span>Battery health verification steps</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="mr-2">✓</span>
-                  <span>5-year total cost of ownership estimate</span>
-                </li>
+                {["Model-specific failure rate analysis", "Price negotiation talking points", "Pre-purchase inspection checklist", "Dealer questions script", "Battery health verification steps", "5-year total cost of ownership estimate"].map((item, i) => (
+                  <li key={i} className="flex items-start"><span className="mr-2">✓</span><span>{item}</span></li>
+                ))}
               </ul>
             </div>
 
             <div className="bg-white/10 backdrop-blur rounded-lg p-6">
               <h3 className="font-bold text-lg mb-3">Why Upgrade?</h3>
               <div className="space-y-4">
-                <div className="flex items-start">
-                  <span className="text-3xl mr-3">💰</span>
-                  <div>
-                    <div className="font-semibold">Save Thousands</div>
-                    <div className="text-sm text-blue-100">Armed with negotiation data points</div>
+                {[
+                  { emoji: "💰", title: "Save Thousands", desc: "Armed with negotiation data points" },
+                  { emoji: "🛡️", title: "Avoid Costly Mistakes", desc: "Know exactly what to inspect" },
+                  { emoji: "📊", title: "Data-Backed Confidence", desc: "Real failure rates, not guesses" },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start">
+                    <span className="text-3xl mr-3">{item.emoji}</span>
+                    <div>
+                      <div className="font-semibold">{item.title}</div>
+                      <div className="text-sm text-blue-100">{item.desc}</div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start">
-                  <span className="text-3xl mr-3">🛡️</span>
-                  <div>
-                    <div className="font-semibold">Avoid Costly Mistakes</div>
-                    <div className="text-sm text-blue-100">Know exactly what to inspect</div>
-                  </div>
-                </div>
-                <div className="flex items-start">
-                  <span className="text-3xl mr-3">📊</span>
-                  <div>
-                    <div className="font-semibold">Data-Backed Confidence</div>
-                    <div className="text-sm text-blue-100">Real failure rates, not guesses</div>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
 
           <div className="text-center">
-            <button
-              onClick={async () => {
-                try {
-                  // Reuse existing reportId if already persisted during generation
-                  let rId = reportId || (reportData as any)?._persisted_report_id;
-                  if (!rId) {
-                    const createResponse = await fetch('/api/report/free', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ reportData })
-                    });
+            {paymentsEnabled && !isUnlocked ? (
+              <>
+                <button
+                  onClick={async () => {
+                    try {
+                      // Ensure report is persisted before checkout
+                      let rId = reportId || (reportData as any)?._persisted_report_id;
+                      if (!rId) {
+                        const createResponse = await fetch('/api/report/free', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ reportData })
+                        });
+                        if (!createResponse.ok) throw new Error('Failed to create report');
+                        const data = await createResponse.json();
+                        rId = data.reportId;
+                        setReportId(rId);
+                      }
 
-                    if (!createResponse.ok) {
-                      throw new Error('Failed to create report');
+                      // Save report data to sessionStorage for checkout return
+                      sessionStorage.setItem("evreport_checkout_data", JSON.stringify(reportData));
+
+                      trackEvent("checkout_started", {
+                        report_id: rId,
+                        scenario_type: "evroutine",
+                      });
+
+                      const variant = assignPriceVariant(anonId, rId);
+                      const res = await fetch("/api/payments/checkout", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          scenario_type: "evroutine",
+                          scenario_id: rId,
+                          anon_id: anonId,
+                          price_variant: variant,
+                          page_source: "report_page",
+                        }),
+                      });
+                      const result = await res.json();
+                      if (result.url) {
+                        window.location.href = result.url;
+                      } else if (result.status === "paid") {
+                        window.location.reload();
+                      } else {
+                        alert(result.error || "Checkout failed. Please try again.");
+                      }
+                    } catch (error) {
+                      console.error('Checkout error:', error);
+                      alert('An error occurred. Please try again.');
                     }
+                  }}
+                  className="bg-white text-blue-600 font-bold text-lg px-12 py-4 rounded-full hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  Unlock Full Report — {reportId && anonId ? getDisplayPrice(assignPriceVariant(anonId, reportId)) : "$9.99"}
+                </button>
+                <p className="mt-4 text-sm text-blue-100">
+                  One-time payment — includes PDF + listing receipt unlock
+                </p>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={async () => {
+                    try {
+                      let rId = reportId || (reportData as any)?._persisted_report_id;
+                      if (!rId) {
+                        const createResponse = await fetch('/api/report/free', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ reportData })
+                        });
+                        if (!createResponse.ok) throw new Error('Failed to create report');
+                        const data = await createResponse.json();
+                        rId = data.reportId;
+                      }
+                      setReportId(rId);
 
-                    const data = await createResponse.json();
-                    rId = data.reportId;
+                      const pdfLink = document.createElement('a');
+                      pdfLink.href = `/api/report/${rId}/pdf`;
+                      pdfLink.download = `EV-Risk-${input.year}-${input.model}-Report.pdf`;
+                      document.body.appendChild(pdfLink);
+                      pdfLink.click();
+                      document.body.removeChild(pdfLink);
+
+                      setTimeout(() => { setShowFeedbackModal(true); }, 1500);
+                    } catch (error) {
+                      console.error('Report download error:', error);
+                      alert('An error occurred. Please try again.');
+                    }
+                  }}
+                  className="bg-white text-blue-600 font-bold text-lg px-12 py-4 rounded-full hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  {isUnlocked ? "Download Full Report" : "Get Full Report"}
+                </button>
+                <p className="mt-4 text-sm text-blue-100">
+                  {paymentsEnabled
+                    ? "Your purchase includes this PDF"
+                    : <><span className="line-through opacity-75">$15</span> <span className="font-bold text-white">FREE</span> - First report is on us!</>
                   }
-                  setReportId(rId);
-
-                  // Trigger PDF download
-                  const pdfLink = document.createElement('a');
-                  pdfLink.href = `/api/report/${rId}/pdf`;
-                  pdfLink.download = `EV-Risk-${input.year}-${input.model}-Report.pdf`;
-                  document.body.appendChild(pdfLink);
-                  pdfLink.click();
-                  document.body.removeChild(pdfLink);
-
-                  // Show feedback modal after short delay
-                  setTimeout(() => {
-                    setShowFeedbackModal(true);
-                  }, 1500);
-                } catch (error) {
-                  console.error('Free report error:', error);
-                  alert('An error occurred. Please try again.');
-                }
-              }}
-              className="bg-white text-blue-600 font-bold text-lg px-12 py-4 rounded-full hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              Get Full Report
-            </button>
-            <p className="mt-4 text-sm text-blue-100">
-              <span className="line-through opacity-75">$15</span> <span className="font-bold text-white">FREE</span> - First report is on us!
-            </p>
-            <p className="mt-2 text-xs text-blue-100 opacity-90">
-              ✓ Instant PDF download  ✓ Comprehensive analysis  ✓ No payment required
-            </p>
+                </p>
+                {!paymentsEnabled && (
+                  <p className="mt-2 text-xs text-blue-100 opacity-90">
+                    ✓ Instant PDF download  ✓ Comprehensive analysis  ✓ No payment required
+                  </p>
+                )}
+              </>
+            )}
           </div>
         </div>
 

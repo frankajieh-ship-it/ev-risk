@@ -135,8 +135,8 @@ export async function POST(request: NextRequest) {
         price_variant: variant,
         ...utmFields,
       },
-      success_url: `${origin}/receipt?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/receipt?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=cancel`,
+      success_url: `${origin}${scenarioType === "evroutine" ? "/report" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}${scenarioType === "evroutine" ? "/report" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=cancel`,
     };
 
     // Use pre-created Price if available, otherwise inline price_data

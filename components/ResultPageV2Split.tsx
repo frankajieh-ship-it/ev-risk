@@ -10,12 +10,17 @@ import { FollowupQuestionBlock } from "./blocks/FollowupQuestionBlock";
 import { AppendixSection } from "./blocks/AppendixSection";
 import { InputChipsBar } from "./blocks/InputChipsBar";
 import SaveScenarioCTA from "./SaveScenarioCTA";
+import { assignPriceVariant, getDisplayPrice } from "@/lib/price-assignment";
 
 interface ResultPageV2SplitProps {
   contract: EvRiskReportV2Contract;
   trackEvent: (name: string, data?: Record<string, any>) => void;
   sessionId: string | null;
   onBack?: () => void;
+  isUnlocked?: boolean;
+  paymentsEnabled?: boolean;
+  anonId?: string;
+  reportId?: string | null;
 }
 
 export function ResultPageV2Split({
@@ -23,6 +28,10 @@ export function ResultPageV2Split({
   trackEvent,
   sessionId,
   onBack,
+  isUnlocked = false,
+  paymentsEnabled = false,
+  anonId = "",
+  reportId = null,
 }: ResultPageV2SplitProps) {
   const [pdfState, setPdfState] = useState<"idle" | "loading" | "done" | "error">("idle");
 
@@ -37,11 +46,21 @@ export function ResultPageV2Split({
         ? "from-yellow-50 via-white to-yellow-50"
         : "from-red-50 via-white to-red-50";
 
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  // Resolve the report ID (from props or persisted)
+  const effectiveReportId = reportId || (contract as any)._persisted_report_id || null;
+
   const handleDownloadPdf = async () => {
+    // If payments enabled but not unlocked, redirect to checkout
+    if (paymentsEnabled && !isUnlocked) {
+      handleCheckout();
+      return;
+    }
+
     setPdfState("loading");
     try {
-      // Reuse existing reportId if already persisted during generation
-      let rId = (contract as any)._persisted_report_id as string | undefined;
+      let rId = effectiveReportId;
       if (!rId) {
         const res = await fetch("/api/report/free", {
           method: "POST",
@@ -63,6 +82,53 @@ export function ResultPageV2Split({
       setPdfState("done");
     } catch {
       setPdfState("error");
+    }
+  };
+
+  const handleCheckout = async () => {
+    setCheckoutLoading(true);
+    try {
+      let rId = effectiveReportId;
+      if (!rId) {
+        const res = await fetch("/api/report/free", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reportData: contract }),
+        });
+        if (!res.ok) throw new Error("Failed to create report");
+        const data = await res.json();
+        rId = data.reportId;
+      }
+
+      // Save report data to sessionStorage for checkout return
+      sessionStorage.setItem("evreport_checkout_data", JSON.stringify(contract));
+
+      trackEvent("checkout_started", { report_id: rId, scenario_type: "evroutine" });
+
+      const variant = assignPriceVariant(anonId, rId);
+      const res = await fetch("/api/payments/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scenario_type: "evroutine",
+          scenario_id: rId,
+          anon_id: anonId,
+          price_variant: variant,
+          page_source: "report_page",
+        }),
+      });
+      const result = await res.json();
+      if (result.url) {
+        window.location.href = result.url;
+      } else if (result.status === "paid") {
+        window.location.reload();
+      } else {
+        alert(result.error || "Checkout failed. Please try again.");
+      }
+    } catch {
+      alert("An error occurred. Please try again.");
+    } finally {
+      setCheckoutLoading(false);
     }
   };
 
@@ -154,20 +220,38 @@ export function ResultPageV2Split({
           <AppendixSection appendix={appendix} />
         </motion.div>
 
-        {/* Download PDF */}
+        {/* Download PDF / Checkout */}
         <div className="mt-8 text-center">
-          <button
-            onClick={handleDownloadPdf}
-            disabled={pdfState === "loading"}
-            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            {pdfState === "loading" ? "Generating PDF..." : pdfState === "done" ? "Downloaded!" : "Download PDF Report"}
-          </button>
-          {pdfState === "error" && (
-            <p className="text-sm text-red-600 mt-2">Failed to generate PDF. Please try again.</p>
+          {paymentsEnabled && !isUnlocked ? (
+            <>
+              <button
+                onClick={handleCheckout}
+                disabled={checkoutLoading}
+                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                {checkoutLoading ? "Redirecting..." : `Unlock Full Report — ${effectiveReportId && anonId ? getDisplayPrice(assignPriceVariant(anonId, effectiveReportId)) : "$9.99"}`}
+              </button>
+              <p className="text-xs text-gray-500 mt-2">One-time payment — includes PDF + listing receipt unlock</p>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={handleDownloadPdf}
+                disabled={pdfState === "loading"}
+                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                {pdfState === "loading" ? "Generating PDF..." : pdfState === "done" ? "Downloaded!" : "Download PDF Report"}
+              </button>
+              {pdfState === "error" && (
+                <p className="text-sm text-red-600 mt-2">Failed to generate PDF. Please try again.</p>
+              )}
+            </>
           )}
         </div>
 

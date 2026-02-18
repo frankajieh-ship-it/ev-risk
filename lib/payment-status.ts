@@ -88,6 +88,26 @@ export async function checkPurchaseStatus(
       };
     }
 
+    // Cross-unlock: if the same anon_id has ANY paid purchase, unlock
+    const { data: anyPurchase } = await supabase
+      .from("purchases")
+      .select("purchase_id, status, amount, anon_id")
+      .eq("anon_id", anonId)
+      .eq("status", "paid")
+      .limit(1)
+      .maybeSingle();
+
+    if (anyPurchase) {
+      return {
+        unlocked_base: true,
+        purchase_status: "paid",
+        purchase_id: anyPurchase.purchase_id,
+        compare_remaining: 0,
+        compare_bound_to: null,
+        price_paid: anyPurchase.amount,
+      };
+    }
+
     return none;
   } catch (err) {
     console.error("[PaymentStatus] Error:", err);
