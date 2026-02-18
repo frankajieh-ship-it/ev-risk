@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: "Free daily limit reached. Come back tomorrow or upgrade to Pro.",
+        error: "Daily limit reached. Resets at midnight UTC — come back tomorrow!",
         remaining_free: 0,
         resetAt: dailyLimit.resetAt,
         retryAfter: retryAfterSec,

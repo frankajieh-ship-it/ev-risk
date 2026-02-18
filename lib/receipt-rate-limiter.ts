@@ -18,7 +18,7 @@ export const receiptBurstLimiter = new RateLimiter(
   isDev ? 100 : 5
 );
 
-const FREE_DAILY_LIMIT = isDev ? 999 : 1;
+const FREE_DAILY_LIMIT = isDev ? 999 : 3;
 
 // In-memory fallback when Supabase is not configured
 const dailyLimitFallback = new Map<string, { count: number; resetAt: number }>();
