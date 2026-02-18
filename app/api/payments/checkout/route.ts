@@ -67,9 +67,10 @@ export async function POST(request: NextRequest) {
   const idColumn = scenarioType === "receipt" ? "id" : "id";
   const ownerColumn = scenarioType === "receipt" ? "session_id" : null;
 
+  const selectColumns = scenarioType === "receipt" ? "id, session_id" : "id";
   const { data: scenario, error: scenarioError } = await supabase
     .from(tableName)
-    .select("id, session_id")
+    .select(selectColumns)
     .eq(idColumn, scenarioId)
     .maybeSingle();
 
@@ -78,7 +79,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Verify ownership for receipts (session_id = receipt_token = anon_id)
-  if (ownerColumn && scenario.session_id && scenario.session_id !== anonId) {
+  const scenarioRecord = scenario as unknown as Record<string, unknown>;
+  if (ownerColumn && scenarioRecord.session_id && scenarioRecord.session_id !== anonId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
