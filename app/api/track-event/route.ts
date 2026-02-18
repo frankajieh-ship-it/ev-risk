@@ -286,17 +286,11 @@ export async function POST(req: NextRequest) {
       _user_id: userId || null,
     };
 
-    // Extract attribution fields for top-level columns
-    const persistentSessionId = eventData?.persistent_session_id || null;
-    const pageSource = eventData?.attribution?.page_source || null;
-
     const { error } = await supabase.from("user_events").insert({
       event_name: eventName,
       event_data: enrichedEventData,
       visitor_id: visitorId || null,
       session_id: sessionId || null,
-      persistent_session_id: persistentSessionId,
-      page_source: pageSource,
       page_path: pagePath || null,
       ip_address: ip,
       user_agent: userAgent,
