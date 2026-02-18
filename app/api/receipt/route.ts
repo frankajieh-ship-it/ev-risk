@@ -30,6 +30,7 @@ import { renderRedditDraft } from "@/lib/reddit-draft-renderer";
 import { classifyVehicle } from "@/lib/vehicle-classifier";
 import { isInternalTester } from "@/lib/rollout-flags";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
+import { logApi } from "@/lib/api-logger";
 
 export const maxDuration = 60;
 
@@ -221,10 +222,14 @@ export async function POST(request: NextRequest) {
 
     // 8a. If Zod parse failed (schema_fail), use fallback receipt instead of hard 422
     if (!validation.sanitized && validation.errors.length > 0 && validation.lintErrors.length === 0) {
-      console.error(
-        `[Receipt API] Schema fail after ${retried ? "retry" : "first attempt"}:`,
-        validation.errors
-      );
+      logApi("error", "Schema validation failed", {
+        endpoint: "/api/receipt",
+        anon_id: receiptToken as string,
+        error_code: "schema_fail",
+        elapsed_ms: Date.now() - t0,
+        retried,
+        errors: validation.errors,
+      });
 
       // Log schema_fail event
       if (isSupabaseConfigured()) {
@@ -308,7 +313,12 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (fixErr) {
-        console.error("[Receipt API] Formatting fixer error:", fixErr);
+        logApi("warn", "Formatting fixer error", {
+          endpoint: "/api/receipt",
+          anon_id: receiptToken as string,
+          error_code: "format_fix_fail",
+          elapsed_ms: Date.now() - t0,
+        });
       }
     }
 
@@ -360,7 +370,12 @@ export async function POST(request: NextRequest) {
         });
 
         if (receiptError) {
-          console.error("[Receipt API] Failed to log receipt:", receiptError.message);
+          logApi("warn", "Failed to log receipt to DB", {
+            endpoint: "/api/receipt",
+            anon_id: receiptToken as string,
+            error_code: "db_receipt_insert",
+            receipt_id: finalReceipt.receipt_id,
+          });
         }
 
         // Insert generate event
@@ -377,7 +392,12 @@ export async function POST(request: NextRequest) {
           });
 
         if (eventError) {
-          console.error("[Receipt API] Failed to log event:", eventError.message);
+          logApi("warn", "Failed to log receipt event", {
+            endpoint: "/api/receipt",
+            anon_id: receiptToken as string,
+            error_code: "db_event_insert",
+            receipt_id: finalReceipt.receipt_id,
+          });
         }
 
         // Log receipt_extract_success to user_events
@@ -409,7 +429,7 @@ export async function POST(request: NextRequest) {
           });
         }
       } catch (logErr) {
-        console.error("[Receipt API] Logging error:", logErr);
+        logApi("warn", "DB logging failed", { endpoint: "/api/receipt", anon_id: receiptToken as string, error_code: "db_log_fail" });
       }
     }
 
@@ -459,8 +479,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(responsePayload);
   } catch (error) {
-    console.error("[Receipt API] Generation error:", error);
-
     // Differentiate error codes
     const isTimeoutOrAIError =
       error instanceof Error &&
@@ -473,6 +491,14 @@ export async function POST(request: NextRequest) {
         error.name === "AbortError" ||
         error.name === "APIConnectionError" ||
         error.name === "APIError");
+
+    logApi("error", "Receipt generation failed", {
+      endpoint: "/api/receipt",
+      anon_id: receiptToken as string,
+      error_code: isTimeoutOrAIError ? "generate_timeout" : "generate_fail",
+      elapsed_ms: Date.now() - t0,
+      error_message: error instanceof Error ? error.message : "Unknown",
+    });
 
     // Log generate_fail event
     if (isSupabaseConfigured()) {
@@ -627,7 +653,7 @@ async function handleFixOnly(
       lint_error_codes: revalidation.lintErrors,
     });
   } catch (err) {
-    console.error("[Receipt API] Fix-only error:", err);
+    logApi("error", "Fix-only failed", { endpoint: "/api/receipt", anon_id: receiptToken, error_code: "fix_only_fail" });
     return NextResponse.json(
       { success: false, error: "Auto-fix failed" },
       { status: 500 }

@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { logApi } from "@/lib/api-logger";
 
 // Valid event names for validation
 const VALID_EVENT_NAMES = [
@@ -126,6 +127,17 @@ const VALID_EVENT_NAMES = [
   "paywall_shown",
   "checkout_started",
   "checkout_completed",
+  // Human Signal Events
+  "page_visible_10s",
+  "scroll_depth_25",
+  "first_interaction",
+  // VIN Check Events
+  "vin_entered",
+  "vin_decode_started",
+  "vin_decode_succeeded",
+  "vin_decode_failed",
+  "vin_mismatch_flagged",
+  "recall_check_clicked",
   // Legacy event names (for backward compatibility)
   "page_view",
 ] as const;
@@ -274,11 +286,17 @@ export async function POST(req: NextRequest) {
       _user_id: userId || null,
     };
 
+    // Extract attribution fields for top-level columns
+    const persistentSessionId = eventData?.persistent_session_id || null;
+    const pageSource = eventData?.attribution?.page_source || null;
+
     const { error } = await supabase.from("user_events").insert({
       event_name: eventName,
       event_data: enrichedEventData,
       visitor_id: visitorId || null,
       session_id: sessionId || null,
+      persistent_session_id: persistentSessionId,
+      page_source: pageSource,
       page_path: pagePath || null,
       ip_address: ip,
       user_agent: userAgent,
@@ -286,7 +304,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (error) {
-      console.error("Event tracking insert error:", error);
+      logApi("error", "Event insert failed", { endpoint: "/api/track-event", error_code: "db_insert", event_name: eventName });
       return NextResponse.json(
         { success: false, error: error.message },
         { status: 500 }
@@ -298,7 +316,7 @@ export async function POST(req: NextRequest) {
       message: "Event tracked successfully",
     });
   } catch (error: any) {
-    console.error("Event tracking error:", error);
+    logApi("error", "Event tracking error", { endpoint: "/api/track-event", error_code: "unhandled" });
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
@@ -493,7 +511,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error("Event stats error:", error);
+    logApi("error", "Event stats query failed", { endpoint: "/api/track-event", error_code: "stats_query" });
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }

@@ -40,16 +40,21 @@ export function ResultPageV2Split({
   const handleDownloadPdf = async () => {
     setPdfState("loading");
     try {
-      const res = await fetch("/api/report/free", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reportData: contract }),
-      });
-      if (!res.ok) throw new Error("Failed to create report");
-      const { reportId } = await res.json();
+      // Reuse existing reportId if already persisted during generation
+      let rId = (contract as any)._persisted_report_id as string | undefined;
+      if (!rId) {
+        const res = await fetch("/api/report/free", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reportData: contract }),
+        });
+        if (!res.ok) throw new Error("Failed to create report");
+        const data = await res.json();
+        rId = data.reportId;
+      }
 
       const link = document.createElement("a");
-      link.href = `/api/report/${reportId}/pdf`;
+      link.href = `/api/report/${rId}/pdf`;
       const model = vehicle?.model?.replace(/\s+/g, "-") || "EV";
       link.download = `EV-Risk-${vehicle?.year || ""}-${model}-Report.pdf`;
       document.body.appendChild(link);

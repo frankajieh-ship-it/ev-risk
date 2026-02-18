@@ -116,6 +116,19 @@ export const VALID_EVENT_NAMES = [
   "paywall_shown",
   "checkout_started",
   "checkout_completed",
+
+  // Human Signal Events
+  "page_visible_10s",
+  "scroll_depth_25",
+  "first_interaction",
+
+  // VIN Check Events
+  "vin_entered",
+  "vin_decode_started",
+  "vin_decode_succeeded",
+  "vin_decode_failed",
+  "vin_mismatch_flagged",
+  "recall_check_clicked",
 ] as const;
 
 export type ValidEventName = (typeof VALID_EVENT_NAMES)[number];

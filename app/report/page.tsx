@@ -1032,23 +1032,27 @@ function ReportContent() {
             <button
               onClick={async () => {
                 try {
-                  // Create free report in database
-                  const createResponse = await fetch('/api/report/free', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reportData })
-                  });
+                  // Reuse existing reportId if already persisted during generation
+                  let rId = reportId || (reportData as any)?._persisted_report_id;
+                  if (!rId) {
+                    const createResponse = await fetch('/api/report/free', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ reportData })
+                    });
 
-                  if (!createResponse.ok) {
-                    throw new Error('Failed to create report');
+                    if (!createResponse.ok) {
+                      throw new Error('Failed to create report');
+                    }
+
+                    const data = await createResponse.json();
+                    rId = data.reportId;
                   }
-
-                  const { reportId } = await createResponse.json();
-                  setReportId(reportId);
+                  setReportId(rId);
 
                   // Trigger PDF download
                   const pdfLink = document.createElement('a');
-                  pdfLink.href = `/api/report/${reportId}/pdf`;
+                  pdfLink.href = `/api/report/${rId}/pdf`;
                   pdfLink.download = `EV-Risk-${input.year}-${input.model}-Report.pdf`;
                   document.body.appendChild(pdfLink);
                   pdfLink.click();

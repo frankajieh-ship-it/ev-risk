@@ -22,6 +22,7 @@ import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
 import DecisionPackCard from "@/components/receipt/DecisionPackCard";
 import FeedbackWidget from "@/components/FeedbackWidget";
 import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
+import VinCheckSection from "@/components/receipt/VinCheckSection";
 import DeepDiveSection from "@/components/receipt/DeepDiveSection";
 import PdfDownloadButton from "@/components/receipt/PdfDownloadButton";
 import CompareBadge from "@/components/receipt/CompareBadge";
@@ -142,6 +143,9 @@ export default function ReceiptPage() {
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [showCompareView, setShowCompareView] = useState(false);
   const [showCompareLoginModal, setShowCompareLoginModal] = useState(false);
+
+  // VIN from extraction (passed to VinCheckSection)
+  const [currentVin, setCurrentVin] = useState<string | undefined>(undefined);
 
   // Prefill from SEO page
   const [prefillText, setPrefillText] = useState<string | null>(null);
@@ -337,6 +341,7 @@ export default function ReceiptPage() {
       setIsFallback(false);
       setCompareReceipt(null);
       setShowCompareView(false);
+      setCurrentVin(data.fields.vin || undefined);
 
       try {
         const body: Record<string, unknown> = {
@@ -603,6 +608,17 @@ export default function ReceiptPage() {
                 isFixing={isFixing}
                 isFallback={isFallback}
                 onTrackLintFallback={handleLintFallback}
+              />
+
+              {/* VIN Check */}
+              <VinCheckSection
+                receiptId={receipt.receipt_id}
+                receiptToken={receiptToken}
+                listingYear={receipt.listing_summary?.year}
+                listingMake={receipt.listing_summary?.make}
+                listingModel={receipt.listing_summary?.model}
+                existingVin={currentVin}
+                trackEvent={trackEvent}
               />
 
               {/* Save receipt */}

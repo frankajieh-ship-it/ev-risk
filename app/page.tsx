@@ -92,6 +92,21 @@ export default function Home() {
         throw new Error(result.error || result.details?.join(", ") || "Scoring failed");
       }
 
+      // Auto-persist report to database (non-blocking)
+      try {
+        const persistRes = await fetch("/api/report/free", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reportData: result }),
+        });
+        if (persistRes.ok) {
+          const { reportId } = await persistRes.json();
+          result._persisted_report_id = reportId;
+        }
+      } catch {
+        // Non-blocking — report still renders even if DB insert fails
+      }
+
       // Navigate to report page with v2 data
       const params = new URLSearchParams({
         data: JSON.stringify(result),

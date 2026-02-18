@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import JsonLd from "@/components/seo/JsonLd";
+import { HumanSignalCollector } from "@/components/HumanSignalCollector";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -64,6 +65,7 @@ export default function RootLayout({
             url: "https://offolab.com",
           }}
         />
+        <HumanSignalCollector />
         {children}
       </body>
     </html>

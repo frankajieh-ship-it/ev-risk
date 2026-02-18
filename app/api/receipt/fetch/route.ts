@@ -20,6 +20,7 @@ import { extractFieldsFromText } from "@/lib/text-extractor";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { FetchedListingFields } from "@/types/receipt";
 import type { FieldConfidence } from "@/types/receipt";
+import { logApi, startTimer } from "@/lib/api-logger";
 
 export const maxDuration = 30;
 
@@ -72,6 +73,7 @@ function checkSSRF(hostname: string): string | null {
 }
 
 export async function POST(request: NextRequest) {
+  const elapsed = startTimer();
   const clientIP = getClientIP(request);
 
   // Rate limit
@@ -149,7 +151,7 @@ export async function POST(request: NextRequest) {
         diagnostics: null,
       });
     } catch (error) {
-      console.error("[Receipt Fetch API] Text extraction error:", error);
+      logApi("error", "Text extraction failed", { endpoint: "/api/receipt/fetch", error_code: "text_extract_fail", elapsed_ms: elapsed() });
 
       if (isSupabaseConfigured() && sessionId) {
         try {
@@ -276,7 +278,7 @@ export async function POST(request: NextRequest) {
       diagnostics: result.diagnostics || null,
     });
   } catch (error) {
-    console.error("[Receipt Fetch API] Error:", error);
+    logApi("error", "URL fetch failed", { endpoint: "/api/receipt/fetch", error_code: "url_fetch_fail", elapsed_ms: elapsed() });
 
     return NextResponse.json(
       {

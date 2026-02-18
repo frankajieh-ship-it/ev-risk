@@ -191,7 +191,7 @@ export async function GET(request: NextRequest) {
     // 4. User events
     const userEventsPromise = supabase
       .from("user_events")
-      .select("event_name, event_data, visitor_id, timestamp")
+      .select("event_name, event_data, visitor_id, session_id, ip_address, user_agent, timestamp")
       .gte("timestamp", window.start)
       .lt("timestamp", window.end);
 
@@ -212,7 +212,7 @@ export async function GET(request: NextRequest) {
     // 7. Recent events (last 50, no window filter)
     const recentEventsPromise = supabase
       .from("user_events")
-      .select("event_name, event_data, visitor_id, page_path, timestamp")
+      .select("event_name, event_data, visitor_id, session_id, ip_address, user_agent, page_path, timestamp")
       .order("timestamp", { ascending: false })
       .limit(50);
 
@@ -315,26 +315,42 @@ export async function GET(request: NextRequest) {
     };
 
     // -----------------------------------------------------------------------
-    // Report funnel (old EV-Risk, from user_events)
+    // Report funnel (EV-Risk, from user_events)
+    // Includes both legacy (report_generation_*) and V2 (v2_score_submit) events
     // -----------------------------------------------------------------------
 
     const formSubmissions = countEvents(allUserEvents, "form_submit");
-    const reportGenStarted = countEvents(
+    const reportGenStartedLegacy = countEvents(
       allUserEvents,
       "report_generation_started"
     );
-    const reportGenSucceeded = countEvents(
+    const v2ScoreSubmit = countEvents(allUserEvents, "v2_score_submit");
+    const reportGenStarted = reportGenStartedLegacy + v2ScoreSubmit;
+
+    const reportGenSucceededLegacy = countEvents(
       allUserEvents,
       "report_generation_succeeded"
     );
-    const reportGenFailed = countEvents(
+    const reportGenSucceededServer = countEvents(
+      allUserEvents,
+      "report_generated_success"
+    );
+    const reportGenSucceeded = reportGenSucceededLegacy + reportGenSucceededServer;
+
+    const reportGenFailedLegacy = countEvents(
       allUserEvents,
       "report_generation_failed"
     );
+    const reportGenFailedServer = countEvents(
+      allUserEvents,
+      "report_generated_failed"
+    );
+    const reportGenFailed = reportGenFailedLegacy + reportGenFailedServer;
 
     const report_funnel = {
       form_submissions: formSubmissions,
       intake_submitted: countEvents(allUserEvents, "intake_submitted"),
+      v2_score_submit: v2ScoreSubmit,
       report_gen_started: reportGenStarted,
       report_gen_succeeded: reportGenSucceeded,
       report_gen_failed: reportGenFailed,
@@ -660,18 +676,235 @@ export async function GET(request: NextRequest) {
       .slice(0, 15);
 
     // -----------------------------------------------------------------------
-    // Recent events (merged from both tables)
+    // Session profiles + bot scoring (Part A+B)
+    // -----------------------------------------------------------------------
+
+    const HUMAN_SIGNAL_EVENTS = ["page_visible_10s", "scroll_depth_25", "first_interaction"];
+    const BOT_UA_PATTERNS = /bot|crawler|spider|headless|scraper|wget|curl|python-requests/i;
+
+    interface SessionProfile {
+      session_id: string;
+      visitor_id: string | null;
+      ip_address: string | null;
+      user_agent: string | null;
+      event_count: number;
+      event_names: Set<string>;
+      first_event: string;
+      last_event: string;
+      duration_ms: number;
+      human_signals: number;
+      bot_score: number;
+      actor_label: "human" | "likely_human" | "suspicious" | "likely_bot";
+    }
+
+    const sessionMap = new Map<string, {
+      visitor_id: string | null;
+      ip_address: string | null;
+      user_agent: string | null;
+      event_count: number;
+      event_names: Set<string>;
+      timestamps: number[];
+    }>();
+
+    for (const e of allUserEvents) {
+      const sid = (e as any).session_id || "unknown";
+      if (!sessionMap.has(sid)) {
+        sessionMap.set(sid, {
+          visitor_id: e.visitor_id,
+          ip_address: (e as any).ip_address || null,
+          user_agent: (e as any).user_agent || null,
+          event_count: 0,
+          event_names: new Set(),
+          timestamps: [],
+        });
+      }
+      const s = sessionMap.get(sid)!;
+      s.event_count++;
+      s.event_names.add(e.event_name);
+      s.timestamps.push(new Date(e.timestamp || "").getTime());
+    }
+
+    function computeBotScore(
+      eventNames: Set<string>,
+      durationMs: number,
+      eventCount: number,
+      userAgent: string | null
+    ): number {
+      let score = 50;
+      if (eventNames.has("page_visible_10s")) score -= 15;
+      if (eventNames.has("scroll_depth_25")) score -= 15;
+      if (eventNames.has("first_interaction")) score -= 15;
+      if (durationMs > 5000) score -= 10;
+      if (eventNames.size >= 2) score -= 5;
+      if (userAgent && BOT_UA_PATTERNS.test(userAgent)) score += 40;
+      if (!userAgent) score += 20;
+      if (eventCount === 1) score += 10;
+      if (durationMs === 0 && eventCount > 1) score += 15;
+      return Math.max(0, Math.min(100, score));
+    }
+
+    function getActorLabel(score: number): "human" | "likely_human" | "suspicious" | "likely_bot" {
+      if (score <= 25) return "human";
+      if (score <= 50) return "likely_human";
+      if (score <= 75) return "suspicious";
+      return "likely_bot";
+    }
+
+    const sessionProfiles: SessionProfile[] = [];
+    for (const [sid, s] of sessionMap) {
+      const sorted = s.timestamps.sort((a, b) => a - b);
+      const first = sorted[0] || 0;
+      const last = sorted[sorted.length - 1] || 0;
+      const durationMs = last - first;
+      const humanSignals = HUMAN_SIGNAL_EVENTS.filter((e) => s.event_names.has(e)).length;
+      const botScore = computeBotScore(s.event_names, durationMs, s.event_count, s.user_agent);
+      sessionProfiles.push({
+        session_id: sid,
+        visitor_id: s.visitor_id,
+        ip_address: s.ip_address,
+        user_agent: s.user_agent,
+        event_count: s.event_count,
+        event_names: s.event_names,
+        first_event: new Date(first).toISOString(),
+        last_event: new Date(last).toISOString(),
+        duration_ms: durationMs,
+        human_signals: humanSignals,
+        bot_score: botScore,
+        actor_label: getActorLabel(botScore),
+      });
+    }
+
+    const sessionProfileLookup = new Map(sessionProfiles.map((p) => [p.session_id, p]));
+
+    const humanCount = sessionProfiles.filter((p) => p.actor_label === "human").length;
+    const likelyHumanCount = sessionProfiles.filter((p) => p.actor_label === "likely_human").length;
+    const suspiciousCount = sessionProfiles.filter((p) => p.actor_label === "suspicious").length;
+    const likelyBotCount = sessionProfiles.filter((p) => p.actor_label === "likely_bot").length;
+    const totalSessions = sessionProfiles.length;
+
+    const session_classification = {
+      total_sessions: totalSessions,
+      human: humanCount,
+      likely_human: likelyHumanCount,
+      suspicious: suspiciousCount,
+      likely_bot: likelyBotCount,
+      human_rate: totalSessions > 0
+        ? Math.round(((humanCount + likelyHumanCount) / totalSessions) * 1000) / 10
+        : 0,
+    };
+
+    // -----------------------------------------------------------------------
+    // Event coverage (Part E)
+    // -----------------------------------------------------------------------
+
+    const RECEIPT_EVENTS = ["receipt_generate", "receipt_extract_success", "receipt_extract_failed", "receipt_extract_clicked"];
+    const ROUTINE_EVENTS = ["routine_check_started", "routine_field_completed"];
+    const COPY_EVENTS = ["copy_reddit_draft", "copy_seller_message", "copy_checklist", "copy_click"];
+
+    let sessLanding = 0, sessReceipt = 0, sessRoutine = 0, sessCopy = 0;
+    for (const p of sessionProfiles) {
+      if (p.event_names.has("landing_view")) sessLanding++;
+      if (RECEIPT_EVENTS.some((e) => p.event_names.has(e))) sessReceipt++;
+      if (ROUTINE_EVENTS.some((e) => p.event_names.has(e))) sessRoutine++;
+      if (COPY_EVENTS.some((e) => p.event_names.has(e))) sessCopy++;
+    }
+
+    const coverage = {
+      sessions_with_landing_view: sessLanding,
+      sessions_with_receipt_event: sessReceipt,
+      sessions_with_routine_event: sessRoutine,
+      sessions_with_copy_event: sessCopy,
+      total_sessions: totalSessions,
+      pct_landing: totalSessions > 0 ? Math.round((sessLanding / totalSessions) * 1000) / 10 : 0,
+      pct_receipt: totalSessions > 0 ? Math.round((sessReceipt / totalSessions) * 1000) / 10 : 0,
+      pct_routine: totalSessions > 0 ? Math.round((sessRoutine / totalSessions) * 1000) / 10 : 0,
+      pct_copy: totalSessions > 0 ? Math.round((sessCopy / totalSessions) * 1000) / 10 : 0,
+    };
+
+    // -----------------------------------------------------------------------
+    // Narrative insights (Part C)
+    // -----------------------------------------------------------------------
+
+    const insights: string[] = [];
+
+    // 1. Volume
+    insights.push(
+      `${totalSessions} sessions this period, ${session_classification.human_rate}% classified as human.`
+    );
+
+    // 2. Drop-off
+    if (sessLanding > 0) {
+      const receiptPct = Math.round((sessReceipt / sessLanding) * 100);
+      insights.push(
+        `${coverage.pct_landing}% of sessions had a landing_view but only ${receiptPct}% of those reached a receipt event.`
+      );
+    }
+
+    // 3. Errors
+    if (receipt_funnel.extraction_attempts > 0) {
+      const failRate = 100 - receipt_funnel.extraction_success_rate;
+      let msg = `${receipt_funnel.extraction_failures} extraction failures (${failRate}% failure rate).`;
+      if (failRate > 20) msg += " This is above the 20% threshold — investigate.";
+      insights.push(msg);
+    }
+
+    // 4. Engagement
+    const copyTotal = receipt_funnel.copy_reddit_draft + receipt_funnel.copy_seller_message + receipt_funnel.copy_checklist;
+    if (copyTotal > 0) {
+      let msg = `Copy actions: ${receipt_funnel.copy_reddit_draft} reddit, ${receipt_funnel.copy_seller_message} seller, ${receipt_funnel.copy_checklist} checklist.`;
+      if (receipt_funnel.copy_checklist > receipt_funnel.copy_reddit_draft) {
+        msg += " Checklist copies outnumber Reddit drafts — the prominent button is working.";
+      }
+      insights.push(msg);
+    }
+
+    // 5. Lint
+    if (receipt_funnel.lint_failures > 0) {
+      insights.push(
+        `${receipt_funnel.lint_failures} lint failures, ${receipt_funnel.lint_failed_fallback_served} fallback cards served.`
+      );
+    }
+
+    // 6. Bots
+    if (likelyBotCount > 0) {
+      const botPct = Math.round((likelyBotCount / totalSessions) * 100);
+      let msg = `${likelyBotCount} sessions flagged as likely_bot (${botPct}%).`;
+      if (botPct > 10) msg += " Consider adding rate limiting.";
+      insights.push(msg);
+    }
+
+    // 7. Top event
+    const eventCounts = new Map<string, number>();
+    for (const e of allUserEvents) {
+      if (!HUMAN_SIGNAL_EVENTS.includes(e.event_name)) {
+        eventCounts.set(e.event_name, (eventCounts.get(e.event_name) || 0) + 1);
+      }
+    }
+    const topEvent = Array.from(eventCounts.entries()).sort((a, b) => b[1] - a[1])[0];
+    if (topEvent) {
+      insights.push(`Most common event: "${topEvent[0]}" with ${topEvent[1]} occurrences.`);
+    }
+
+    // -----------------------------------------------------------------------
+    // Recent events (merged from both tables, enriched with actor data)
     // -----------------------------------------------------------------------
 
     const mergedRecent = [
-      ...(recentEvents || []).map((e) => ({
-        source: "user_events" as const,
-        event_name: e.event_name,
-        details: e.event_data,
-        visitor_id: e.visitor_id,
-        page_path: e.page_path,
-        timestamp: e.timestamp,
-      })),
+      ...(recentEvents || []).map((e) => {
+        const profile = sessionProfileLookup.get((e as any).session_id || "");
+        return {
+          source: "user_events" as const,
+          event_name: e.event_name,
+          details: e.event_data,
+          visitor_id: e.visitor_id,
+          session_id: (e as any).session_id || null,
+          user_agent: (e as any).user_agent || null,
+          actor_label: profile?.actor_label || "unknown",
+          bot_score: profile?.bot_score ?? null,
+          page_path: e.page_path,
+          timestamp: e.timestamp,
+        };
+      }),
       ...(recentReceiptEvents || []).map((e) => ({
         source: "receipt_events" as const,
         event_name: e.event_type,
@@ -681,6 +914,10 @@ export async function GET(request: NextRequest) {
           verdict: e.verdict,
         },
         visitor_id: e.session_id,
+        session_id: e.session_id || null,
+        user_agent: null as string | null,
+        actor_label: "unknown" as string,
+        bot_score: null as number | null,
         page_path: "/receipt",
         timestamp: e.created_at,
       })),
@@ -781,6 +1018,9 @@ export async function GET(request: NextRequest) {
       verdict_distribution,
       recent_feedback,
       recent_events: mergedRecent,
+      session_classification,
+      coverage,
+      insights,
     });
   } catch (err) {
     console.error("Admin summary error:", err);

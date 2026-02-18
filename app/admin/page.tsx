@@ -53,6 +53,7 @@ interface SummaryData {
   report_funnel: {
     form_submissions: number;
     intake_submitted: number;
+    v2_score_submit: number;
     report_gen_started: number;
     report_gen_succeeded: number;
     report_gen_failed: number;
@@ -141,9 +142,33 @@ interface SummaryData {
     event_name: string;
     details: any;
     visitor_id: string;
+    session_id: string | null;
+    user_agent: string | null;
+    actor_label: string;
+    bot_score: number | null;
     page_path: string;
     timestamp: string;
   }>;
+  session_classification: {
+    total_sessions: number;
+    human: number;
+    likely_human: number;
+    suspicious: number;
+    likely_bot: number;
+    human_rate: number;
+  };
+  coverage: {
+    sessions_with_landing_view: number;
+    sessions_with_receipt_event: number;
+    sessions_with_routine_event: number;
+    sessions_with_copy_event: number;
+    total_sessions: number;
+    pct_landing: number;
+    pct_receipt: number;
+    pct_routine: number;
+    pct_copy: number;
+  };
+  insights: string[];
 }
 
 type Period = "day" | "week" | "last_30_days" | "month_to_date" | "custom";
@@ -170,6 +195,8 @@ export default function AdminDashboard() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [showCustomDate, setShowCustomDate] = useState(false);
+  const [botFilter, setBotFilter] = useState<"all" | "humans" | "bots">("all");
+  const [expandedRow, setExpandedRow] = useState<number | null>(null);
 
   // -------------------------------------------------------------------------
   // Single fetch
@@ -313,6 +340,20 @@ export default function AdminDashboard() {
       [""],
       ["=== ENTRY MODE ==="],
       ["Total Mode Selections", s.entry_mode?.total_selections ?? 0],
+      [""],
+      ["=== SESSION CLASSIFICATION ==="],
+      ["Total Sessions", s.session_classification?.total_sessions ?? 0],
+      ["Human", s.session_classification?.human ?? 0],
+      ["Likely Human", s.session_classification?.likely_human ?? 0],
+      ["Suspicious", s.session_classification?.suspicious ?? 0],
+      ["Likely Bot", s.session_classification?.likely_bot ?? 0],
+      ["Human Rate", `${s.session_classification?.human_rate ?? 0}%`],
+      [""],
+      ["=== EVENT COVERAGE ==="],
+      ["Landing View Coverage", `${s.coverage?.pct_landing ?? 0}%`],
+      ["Receipt Coverage", `${s.coverage?.pct_receipt ?? 0}%`],
+      ["Routine Coverage", `${s.coverage?.pct_routine ?? 0}%`],
+      ["Copy Coverage", `${s.coverage?.pct_copy ?? 0}%`],
     ];
 
     const csvContent = rows.map((row) => row.join(",")).join("\n");
@@ -482,11 +523,55 @@ export default function AdminDashboard() {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <MetricCard title="Receipts Generated" value={s.receipt_funnel.receipts_generated} subtitle={`${s.overview.total_receipts} total receipts stored`} icon="🧾" />
+          <MetricCard title="Receipts Generated" value={s.receipt_funnel.receipts_generated} subtitle={`${s.overview.total_receipts} receipts · ${s.overview.total_reports} EV-Risk reports stored`} icon="🧾" />
           <MetricCard title="Unique Sessions" value={s.overview.unique_sessions} subtitle={`${s.overview.unique_customers_by_email} with email (paid)`} icon="👥" />
-          <MetricCard title="Paid Reports" value={s.overview.paid_reports} subtitle={`${s.overview.free_reports} free · ${s.overview.total_reports} total EV-Risk`} icon="💰" />
+          <MetricCard title="EV-Risk Reports" value={s.report_funnel.report_gen_started} subtitle={`${s.overview.total_reports} stored · ${s.report_funnel.report_gen_succeeded} persisted`} icon="📊" />
           <MetricCard title="Total Revenue" value={`$${s.revenue.total_revenue}`} subtitle={`${s.revenue.paid_count} paid @ $${s.revenue.price_per_report}`} icon="💵" />
         </div>
+
+        {/* Quick Summary / Insights */}
+        {s.insights && s.insights.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border-l-4 border-blue-400">
+            <h2 className="text-xl font-bold text-gray-900 mb-3">Quick Summary</h2>
+            <ul className="space-y-2">
+              {s.insights.map((insight, idx) => (
+                <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
+                  <span className="text-blue-500 mt-0.5 shrink-0">•</span>
+                  <span>{insight}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Session Classification */}
+        {s.session_classification && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Session Classification</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <FunnelCard label="Total Sessions" value={s.session_classification.total_sessions} color="blue" />
+              <FunnelCard label="Human" value={s.session_classification.human} color="green" />
+              <FunnelCard label="Likely Human" value={s.session_classification.likely_human} color="emerald" />
+              <FunnelCard label="Suspicious" value={s.session_classification.suspicious} color="amber" />
+              <FunnelCard label="Likely Bot" value={s.session_classification.likely_bot} color="red" />
+              <FunnelCard label="Human Rate" value={`${s.session_classification.human_rate}%`} color="purple" />
+            </div>
+          </div>
+        )}
+
+        {/* Event Coverage */}
+        {s.coverage && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Event Coverage</h2>
+            <p className="text-sm text-gray-500 mb-4">% of sessions that fired each funnel stage</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <FunnelCard label="Landing View" value={`${s.coverage.pct_landing}%`} color="blue" subtitle={`${s.coverage.sessions_with_landing_view} sessions`} />
+              <FunnelCard label="Receipt Event" value={`${s.coverage.pct_receipt}%`} color="purple" subtitle={`${s.coverage.sessions_with_receipt_event} sessions`} />
+              <FunnelCard label="Routine Event" value={`${s.coverage.pct_routine}%`} color="indigo" subtitle={`${s.coverage.sessions_with_routine_event} sessions`} />
+              <FunnelCard label="Copy Event" value={`${s.coverage.pct_copy}%`} color="green" subtitle={`${s.coverage.sessions_with_copy_event} sessions`} />
+            </div>
+          </div>
+        )}
 
         {/* Receipt Funnel */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
@@ -842,44 +927,118 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Recent Events */}
+        {/* Recent Events (Enhanced) */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Events (Last 50)</h2>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+            <h2 className="text-xl font-bold text-gray-900">Recent Events (Last 50)</h2>
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+              {(["all", "humans", "bots"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => { setBotFilter(f); setExpandedRow(null); }}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                    botFilter === f ? "bg-white shadow text-gray-900" : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  {f === "all" ? "All" : f === "humans" ? "Humans Only" : "Bots Only"}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Source</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Event</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Details</th>
-                  <th className="px-4 py-2 text-left font-medium text-gray-700">Timestamp</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">Source</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">Event</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">Actor</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">Session</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">Score</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">Details</th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700">Time</th>
                 </tr>
               </thead>
               <tbody>
-                {s.recent_events.slice(0, 50).map((event, idx) => (
-                  <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-2">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        event.source === "receipt_events" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
-                      }`}>
-                        {event.source === "receipt_events" ? "receipt" : "user"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 font-medium">{event.event_name}</td>
-                    <td className="px-4 py-2 text-gray-600 truncate max-w-[250px]">
-                      {event.details?.verdict && <span className="text-purple-600">{event.details.verdict}</span>}
-                      {event.details?.url_domain && !event.details?.verdict && <span className="text-blue-600">{event.details.url_domain}</span>}
-                      {event.details?.success !== undefined && (
-                        <span className={event.details.success ? "text-green-600" : "text-red-600"}>
-                          {event.details.success ? " ✓" : " ✗"}
+                {s.recent_events
+                  .filter((event) => {
+                    if (botFilter === "all") return true;
+                    if (botFilter === "humans") return event.actor_label === "human" || event.actor_label === "likely_human";
+                    return event.actor_label === "suspicious" || event.actor_label === "likely_bot";
+                  })
+                  .slice(0, 50)
+                  .map((event, idx) => (
+                  <>
+                    <tr
+                      key={idx}
+                      onClick={() => setExpandedRow(expandedRow === idx ? null : idx)}
+                      className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <td className="px-3 py-2">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          event.source === "receipt_events" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
+                        }`}>
+                          {event.source === "receipt_events" ? "receipt" : "user"}
                         </span>
-                      )}
-                      {event.details?.receipt_id && !event.details?.verdict && !event.details?.url_domain && (
-                        <span className="font-mono text-xs text-gray-500">{String(event.details.receipt_id).substring(0, 8)}...</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-gray-600">{new Date(event.timestamp).toLocaleString()}</td>
-                  </tr>
+                      </td>
+                      <td className="px-3 py-2 font-medium">{event.event_name}</td>
+                      <td className="px-3 py-2">
+                        <ActorBadge label={event.actor_label} />
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs text-gray-500">
+                        {event.session_id ? event.session_id.substring(0, 12) + "..." : "—"}
+                      </td>
+                      <td className="px-3 py-2">
+                        {event.bot_score != null ? (
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                            event.bot_score <= 25 ? "bg-green-100 text-green-700" :
+                            event.bot_score <= 50 ? "bg-blue-100 text-blue-700" :
+                            event.bot_score <= 75 ? "bg-amber-100 text-amber-700" :
+                            "bg-red-100 text-red-700"
+                          }`}>
+                            {event.bot_score}
+                          </span>
+                        ) : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-gray-600 truncate max-w-[200px]">
+                        {event.details?.verdict && <span className="text-purple-600">{event.details.verdict}</span>}
+                        {event.details?.url_domain && !event.details?.verdict && <span className="text-blue-600">{event.details.url_domain}</span>}
+                        {event.details?.success !== undefined && (
+                          <span className={event.details.success ? "text-green-600" : "text-red-600"}>
+                            {event.details.success ? " ✓" : " ✗"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{new Date(event.timestamp).toLocaleString()}</td>
+                    </tr>
+                    {expandedRow === idx && (
+                      <tr key={`${idx}-detail`} className="bg-gray-50">
+                        <td colSpan={7} className="px-4 py-3">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                            <div>
+                              <p className="font-medium text-gray-500 mb-1">Visitor ID</p>
+                              <p className="font-mono text-gray-700 break-all">{event.visitor_id || "—"}</p>
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-500 mb-1">Session ID</p>
+                              <p className="font-mono text-gray-700 break-all">{event.session_id || "—"}</p>
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-500 mb-1">User Agent</p>
+                              <p className="text-gray-700 break-all">{event.user_agent || "—"}</p>
+                            </div>
+                          </div>
+                          {event.details && (
+                            <div className="mt-3">
+                              <p className="font-medium text-gray-500 mb-1 text-xs">Details</p>
+                              <pre className="bg-white border border-gray-200 rounded-lg p-2 text-xs text-gray-700 overflow-auto max-h-40">
+                                {JSON.stringify(event.details, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 ))}
               </tbody>
             </table>
@@ -940,5 +1099,22 @@ function FunnelCard({ label, value, color, subtitle }: { label: string; value: s
       <p className="text-2xl font-bold text-gray-900">{value}</p>
       {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
     </div>
+  );
+}
+
+const ACTOR_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  human: { bg: "bg-green-100", text: "text-green-700", label: "human" },
+  likely_human: { bg: "bg-blue-100", text: "text-blue-700", label: "likely" },
+  suspicious: { bg: "bg-amber-100", text: "text-amber-700", label: "suspect" },
+  likely_bot: { bg: "bg-red-100", text: "text-red-700", label: "bot" },
+  unknown: { bg: "bg-gray-100", text: "text-gray-600", label: "?" },
+};
+
+function ActorBadge({ label }: { label: string }) {
+  const style = ACTOR_STYLES[label] || ACTOR_STYLES.unknown;
+  return (
+    <span className={`px-2 py-0.5 rounded text-xs font-medium ${style.bg} ${style.text}`}>
+      {style.label}
+    </span>
   );
 }
