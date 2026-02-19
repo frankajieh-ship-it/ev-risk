@@ -45,8 +45,9 @@ export default function FeedbackWidget({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          event_name: "feedback_shown",
-          event_data: { context_type: contextType, context_id: contextId },
+          eventName: "feedback_shown",
+          eventData: { context_type: contextType, context_id: contextId },
+          timestamp: new Date().toISOString(),
         }),
       }).catch(() => {});
     } catch {
@@ -83,12 +84,13 @@ export default function FeedbackWidget({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            event_name: "feedback_submitted",
-            event_data: {
+            eventName: "feedback_submitted",
+            eventData: {
               context_type: contextType,
               context_id: contextId,
               rating,
             },
+            timestamp: new Date().toISOString(),
           }),
         }).catch(() => {});
       }
