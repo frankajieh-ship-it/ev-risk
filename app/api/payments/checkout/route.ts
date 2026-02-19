@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
   if (!stripe) {
     return NextResponse.json({ error: "Stripe not configured" }, { status: 501 });
   }
+  console.log(`[Checkout] Stripe key prefix: ${(process.env.STRIPE_SECRET_KEY || "").substring(0, 8)}...`);
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   }
