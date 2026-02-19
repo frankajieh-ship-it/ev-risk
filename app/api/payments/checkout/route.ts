@@ -4,8 +4,7 @@
  * POST /api/payments/checkout
  * Creates a Stripe Checkout Session for a receipt or evroutine scenario.
  *
- * Supports three price variants ($9.99 / $12.99 / $14.99) assigned via
- * deterministic A/B test. If the scenario already has a paid purchase,
+ * Unified $9.99 pricing. If the scenario already has a paid purchase,
  * returns the existing purchase status instead of creating a new session.
  */
 
@@ -75,7 +74,11 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (scenarioError || !scenario) {
-    return NextResponse.json({ error: "Scenario not found" }, { status: 404 });
+    console.error("[Checkout] Scenario not found:", { table: tableName, scenarioId, error: scenarioError?.message });
+    return NextResponse.json(
+      { error: "Scenario not found", scenario_type: scenarioType, scenario_id: scenarioId },
+      { status: 404 }
+    );
   }
 
   // Verify ownership for receipts (session_id = receipt_token = anon_id)

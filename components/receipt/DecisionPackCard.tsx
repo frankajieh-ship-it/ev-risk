@@ -99,7 +99,11 @@ export default function DecisionPackCard({
         return;
       }
 
-      setError(data.error || "Checkout failed. Please try again.");
+      if (data.error === "Scenario not found") {
+        setError("Receipt not saved yet — please regenerate your receipt and try again.");
+      } else {
+        setError(data.error || "Checkout failed. Please try again.");
+      }
     } catch {
       setError("Connection error. Please try again.");
     } finally {

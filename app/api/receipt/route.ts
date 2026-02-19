@@ -346,6 +346,7 @@ export async function POST(request: NextRequest) {
     incrementDailyCount(receiptToken as string);
 
     // 10. Log to Supabase
+    let dbSaved = false;
     if (isSupabaseConfigured()) {
       try {
         // Insert receipt record
@@ -370,12 +371,16 @@ export async function POST(request: NextRequest) {
         });
 
         if (receiptError) {
+          console.error("[Receipt API] DB insert failed:", receiptError.message, receiptError.code);
           logApi("warn", "Failed to log receipt to DB", {
             endpoint: "/api/receipt",
             anon_id: receiptToken as string,
             error_code: "db_receipt_insert",
+            error_message: receiptError.message,
             receipt_id: finalReceipt.receipt_id,
           });
+        } else {
+          dbSaved = true;
         }
 
         // Insert generate event
@@ -461,6 +466,7 @@ export async function POST(request: NextRequest) {
     const responsePayload = {
       success: true,
       receipt: finalReceipt,
+      db_saved: dbSaved,
       lint_passed: lintPassed,
       lint_errors: validation.errors,
       lint_error_codes: lintErrors,
