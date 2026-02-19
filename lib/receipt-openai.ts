@@ -51,7 +51,6 @@ JSON SCHEMA:
   "inspect_first": ["<1-140>", "<1-140>", "<1-140>", "<1-140>", "<1-140>"],
   "negotiation_opener": "<string, 8-420 chars: a ready-to-use opening line for the buyer>",
   "one_followup_question": "<string max 160 chars>" or null,
-  "receipt_reddit_text": "<string, 40-900 chars: the rendered version of reddit_draft — title, then body paragraph, then questions>",
   "reddit_draft": {
     "title": "<string, 10-200 chars: starts with year/make/model and price, ends with a short hook>",
     "body_facts": ["<verified facts from the listing, 5-200 chars each, 1-5 items>"],
@@ -109,7 +108,6 @@ CRITICAL CONSTRAINTS — the linter will reject your output if these fail:
 - what_would_change_verdict: 0-4 items, each 1-140 characters
 - verdict_reason: 4-180 characters
 - negotiation_opener: 8-420 characters
-- receipt_reddit_text: 40-900 characters (MUST be the rendered version of reddit_draft)
 - operator_notes.rationale: 10-500 characters
 - reddit_draft.title: 10-200 characters, starts with the vehicle and price
 - reddit_draft.body_facts: 1-5 items, each 5-200 characters
@@ -142,8 +140,6 @@ DCFC GATING RULE:
 LOCATION RULE:
 - If location data is ambiguous or conflicting (e.g., ZIP suggests one city but listing text mentions another), do not mention a specific city. Use "local listing" or omit location entirely.
 - Only use location data you are confident about.
-
-receipt_reddit_text: MUST be the rendered version of reddit_draft — title on first line, blank line, body paragraph (facts + uncertainty + next steps joined), blank line, question. 40-900 characters total. Max 1 question mark.
 
 VERDICT GUIDELINES:
 - GREEN: Price is fair or better, no major red flags, standard used-car caution applies
@@ -296,6 +292,17 @@ export async function generateReceipt(
   if (firstValidation.valid) {
     return {
       receipt: firstValidation.sanitized!,
+      raw_response: firstContent,
+      retried: false,
+    };
+  }
+
+  // --- Try deterministic fixes before expensive retry ---
+  const deterministicResult = applyDeterministicFixesToReceipt(parsed, firstValidation);
+  if (deterministicResult.fixed) {
+    console.log("[Receipt OpenAI] Deterministic fixes resolved all lint errors, skipping retry");
+    return {
+      receipt: deterministicResult.receipt as ListingReceipt,
       raw_response: firstContent,
       retried: false,
     };
@@ -483,6 +490,32 @@ function applyDeterministicFixes(text: string): string {
   // Clean up double spaces from removals
   out = out.replace(/  +/g, " ").trim();
   return out;
+}
+
+/**
+ * Try deterministic regex fixes on a receipt that passed Zod but failed lint.
+ * Returns { fixed: true, receipt } if all lint errors are resolved, otherwise { fixed: false }.
+ */
+function applyDeterministicFixesToReceipt(
+  parsed: unknown,
+  validation: { sanitized: unknown; lintErrors: LintError[] }
+): { fixed: boolean; receipt: unknown } {
+  if (!validation.sanitized || validation.lintErrors.length === 0) {
+    return { fixed: false, receipt: parsed };
+  }
+  const record = { ...(validation.sanitized as Record<string, unknown>) };
+  const text = (record.receipt_reddit_text as string) || "";
+  if (!text) return { fixed: false, receipt: parsed };
+
+  const fixedText = applyDeterministicFixes(text);
+  if (fixedText === text) return { fixed: false, receipt: parsed };
+
+  record.receipt_reddit_text = fixedText;
+  const revalidation = validateReceiptSchema(record);
+  if (revalidation.valid) {
+    return { fixed: true, receipt: revalidation.sanitized || record };
+  }
+  return { fixed: false, receipt: parsed };
 }
 
 // --- Formatting Fixer ---

@@ -66,7 +66,7 @@ const ListingSummarySchema = z.object({
 
 const CompareSectionSchema = z.object({
   winner: z.enum(["A", "B", "TIE"]),
-  why: z.array(z.string().min(1).max(160)).length(2),
+  why: z.array(z.string().min(1).max(160)).min(1).max(4),
   tie_breaker_questions: z.array(z.string().min(1).max(140)).max(2),
   listing_b_summary: ListingSummarySchema,
 }).passthrough();
@@ -87,7 +87,7 @@ export const RedditDraftSchema = z.object({
   body_facts: z.array(z.string().min(5).max(200)).min(1).max(5),
   body_uncertainty: z.array(z.string().min(5).max(200)).max(3),
   body_next_steps: z.array(z.string().min(5).max(200)).max(3),
-  questions: z.array(z.string().min(10).max(200)).length(1),
+  questions: z.array(z.string().min(10).max(200)).min(1).max(2),
   style: RedditDraftStyleSchema,
 });
 
@@ -100,12 +100,12 @@ export const ReceiptSchema = z.object({
   verdict: z.enum(["GREEN", "YELLOW", "RED"]),
   verdict_reason: z.string().min(4).max(180),
   price_sanity: PriceSanitySchema,
-  risk_flags: z.array(z.string().min(1).max(120)).length(3),
-  must_answer_questions: z.array(z.string().min(1).max(140)).length(3),
-  inspect_first: z.array(z.string().min(1).max(140)).length(5),
+  risk_flags: z.array(z.string().min(1).max(120)).min(1).max(5),
+  must_answer_questions: z.array(z.string().min(1).max(140)).min(1).max(5),
+  inspect_first: z.array(z.string().min(1).max(140)).min(3).max(8),
   negotiation_opener: z.string().min(8).max(420),
   one_followup_question: z.string().max(160).nullable(),
-  receipt_reddit_text: z.string().min(40).max(1200),
+  receipt_reddit_text: z.string().max(1200).default(""),
   listing_summary: ListingSummarySchema,
   receipt_details: ReceiptDetailsSchema.nullable().optional(),
   compare: CompareSectionSchema.nullable().optional(),
@@ -272,8 +272,10 @@ export function validateReceiptSchema(raw: unknown): {
     return { valid: false, errors: schemaErrors, lintErrors: [], sanitized: null };
   }
 
-  // Step 2: Lint receipt_reddit_text
-  const lintErrors = lintReceiptRedditText(parsed.data.receipt_reddit_text);
+  // Step 2: Lint receipt_reddit_text (skip if empty — deterministic renderer overwrites it)
+  const lintErrors = parsed.data.receipt_reddit_text
+    ? lintReceiptRedditText(parsed.data.receipt_reddit_text)
+    : [];
 
   return {
     valid: lintErrors.length === 0,
