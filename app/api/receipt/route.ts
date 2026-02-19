@@ -271,9 +271,40 @@ export async function POST(request: NextRequest) {
       timings.total = Date.now() - t0;
       console.log(`[Receipt API] Returning fallback receipt after schema fail (${timings.total}ms)`);
 
+      // Save fallback receipt to DB so checkout can find it
+      let fallbackDbSaved = false;
+      if (isSupabaseConfigured()) {
+        try {
+          const urlDomain = input.listing_url
+            ? new URL(input.listing_url).hostname.replace("www.", "")
+            : null;
+          const { error: fbInsertErr } = await supabase.from("receipts").insert({
+            id: fallbackReceipt.receipt_id,
+            session_id: receiptToken,
+            source: "receipt_page",
+            page_source: (body.page_source as string) || null,
+            listing_url: input.listing_url || null,
+            url_domain: urlDomain,
+            listing_text: input.listing_text ? input.listing_text.substring(0, 5000) : null,
+            input_json: input,
+            output_json: fallbackReceipt,
+            mode: "single",
+            is_pro: isPro,
+          });
+          if (fbInsertErr) {
+            console.error("[Receipt API] Fallback DB insert failed:", fbInsertErr.message, fbInsertErr.code);
+          } else {
+            fallbackDbSaved = true;
+          }
+        } catch {
+          // non-critical
+        }
+      }
+
       const fallbackPayload = {
         success: true,
         receipt: fallbackReceipt,
+        db_saved: fallbackDbSaved,
         lint_passed: true,
         lint_errors: [],
         lint_error_codes: [],
@@ -548,9 +579,40 @@ export async function POST(request: NextRequest) {
       // Still increment daily counter
       incrementDailyCount(receiptToken as string);
 
+      // Save fallback receipt to DB so checkout can find it
+      let errorFallbackDbSaved = false;
+      if (isSupabaseConfigured()) {
+        try {
+          const urlDomain = input.listing_url
+            ? new URL(input.listing_url).hostname.replace("www.", "")
+            : null;
+          const { error: fbInsertErr } = await supabase.from("receipts").insert({
+            id: fallbackReceipt.receipt_id,
+            session_id: receiptToken,
+            source: "receipt_page",
+            page_source: (body.page_source as string) || null,
+            listing_url: input.listing_url || null,
+            url_domain: urlDomain,
+            listing_text: input.listing_text ? input.listing_text.substring(0, 5000) : null,
+            input_json: input,
+            output_json: fallbackReceipt,
+            mode: "single",
+            is_pro: isPro,
+          });
+          if (fbInsertErr) {
+            console.error("[Receipt API] Error-fallback DB insert failed:", fbInsertErr.message, fbInsertErr.code);
+          } else {
+            errorFallbackDbSaved = true;
+          }
+        } catch {
+          // non-critical
+        }
+      }
+
       const fallbackPayload = {
         success: true,
         receipt: fallbackReceipt,
+        db_saved: errorFallbackDbSaved,
         lint_passed: true,
         lint_errors: [],
         lint_error_codes: [],
