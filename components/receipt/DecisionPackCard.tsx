@@ -50,28 +50,24 @@ export default function DecisionPackCard({
   const variant = assignPriceVariant(receiptToken, receiptId);
   const displayPrice = getDisplayPrice(variant);
 
-  // Track offer viewed on mount
+  // Track offer viewed on mount (single canonical event)
   useEffect(() => {
-    const ctx = {
+    trackEvent("paywall_shown", {
       receipt_id: receiptId,
       price_variant: variant,
       display_price: displayPrice,
-    };
-    trackEvent("deep_dive_offer_viewed", ctx);
-    trackEvent("paywall_shown", ctx);
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUnlock = async () => {
     setIsCheckingOut(true);
     setError(null);
 
-    const ctx = {
+    trackEvent("checkout_started", {
       receipt_id: receiptId,
       price_variant: variant,
       display_price: displayPrice,
-    };
-    trackEvent("deep_dive_offer_clicked", ctx);
-    trackEvent("checkout_started", ctx);
+    });
 
     try {
       const res = await fetch("/api/payments/checkout", {

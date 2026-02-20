@@ -28,6 +28,15 @@ export interface AutofillDiagnostics {
   extractedFieldCount: number;
   fetchMethod: "proxy" | "direct" | null;
   durationMs: number;
+  proxyStatusCode?: number;
+  directStatusCode?: number;
+  botProtectionDetected?: boolean;
+  botProtectionType?: string;
+  proxyDurationMs?: number;
+  directDurationMs?: number;
+  parseDurationMs?: number;
+  htmlLength?: number;
+  errorMessage?: string;
 }
 
 export interface VehicleData {
@@ -433,11 +442,15 @@ async function extractFromCars(html: string): Promise<Partial<VehicleData>> {
 
 /**
  * Main extraction function
- * Fetches URL and extracts vehicle data
+ * Fetches URL and extracts vehicle data with a hard 10s total budget.
  */
 export async function extractVehicleData(url: string): Promise<ExtractionResult> {
   const warnings: string[] = [];
   const startTime = Date.now();
+
+  // Hard budget: 10s total across all fetch attempts
+  const EXTRACTION_BUDGET_MS = 10000;
+  const remainingBudget = () => Math.max(0, EXTRACTION_BUDGET_MS - (Date.now() - startTime));
 
   // Initialize diagnostics
   const diagnostics: AutofillDiagnostics = {
@@ -448,6 +461,11 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     durationMs: 0,
   };
 
+  const finalize = () => {
+    diagnostics.durationMs = Date.now() - startTime;
+    console.log('[Autofill Diagnostics]', JSON.stringify(diagnostics));
+  };
+
   try {
     // Validate URL
     let parsedUrl: URL;
@@ -456,26 +474,18 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
       diagnostics.domain = parsedUrl.hostname;
     } catch {
       diagnostics.failureReason = "invalid_url";
-      diagnostics.durationMs = Date.now() - startTime;
-      console.log('[Autofill Diagnostics]', JSON.stringify(diagnostics));
-      return {
-        success: false,
-        data: null,
-        error: 'Invalid URL format',
-        warnings,
-        diagnostics,
-      };
+      finalize();
+      return { success: false, data: null, error: 'Invalid URL format', warnings, diagnostics };
     }
 
-    // Check if this is a search page (multiple listings) vs individual listing
+    // Check if this is a search page
     if (isSearchPage(url)) {
       diagnostics.failureReason = "search_page";
-      diagnostics.durationMs = Date.now() - startTime;
-      console.log('[Autofill Diagnostics]', JSON.stringify(diagnostics));
+      finalize();
       return {
         success: false,
         data: null,
-        error: 'This appears to be a search results page with multiple vehicles. Please paste the URL of a specific vehicle listing instead.',
+        error: 'This appears to be a search results page. Please paste the URL of a specific vehicle listing.',
         warnings: ['Click on a specific car from the search results to get its individual listing URL'],
         diagnostics,
       };
@@ -488,144 +498,89 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
       diagnostics.failureReason = "unsupported_domain";
     }
 
-    // Log extraction attempt for debugging
-    console.log('[Listing Scraper] Attempting extraction:', {
-      url,
-      dataSource,
-      timestamp: new Date().toISOString(),
-    });
+    console.log('[Listing Scraper] Starting extraction:', { url: url.substring(0, 80), dataSource });
 
-    console.log('[Listing Scraper] CHECKPOINT 1 - Starting proxy fetch logic');
+    // --- Proxy fetch phase ---
+    let html: string | null = null;
 
-    // Use proxy fetch for better success rate (server-side fetch with rotating user agents)
-    let html: string;
-    let fetchMethod = 'proxy';
-
-    console.log('[Listing Scraper] CHECKPOINT 2 - About to enter try block');
-
-    try {
-      console.log('[Listing Scraper] CHECKPOINT 3 - Inside try block');
-
-      // Try proxy fetch first with aggressive timeout (10 seconds max)
+    if (remainingBudget() > 1000) {
+      const proxyStart = Date.now();
+      const proxyTimeout = Math.min(8000, remainingBudget() - 500);
       const proxyController = new AbortController();
-      console.log('[Listing Scraper] CHECKPOINT 4 - Created AbortController');
-
-      const proxyTimeoutId = setTimeout(() => {
-        console.log('[Listing Scraper] Proxy fetch timeout after 10s, falling back');
-        proxyController.abort();
-      }, 10000);
-
-      console.log('[Listing Scraper] CHECKPOINT 5 - Set timeout, now constructing proxy URL');
+      const proxyTimeoutId = setTimeout(() => proxyController.abort(), proxyTimeout);
 
       try {
-        // Construct proxy URL based on environment
-        // On server-side Next.js, we need a full URL for fetch()
+        // Construct proxy URL
         let proxyUrl: string;
-
-        console.log('[Listing Scraper] DEBUG - Environment check:');
-        console.log('  - typeof window:', typeof window);
-        console.log('  - NEXT_PUBLIC_BASE_URL:', process.env.NEXT_PUBLIC_BASE_URL || 'not set');
-        console.log('  - VERCEL_URL:', process.env.VERCEL_URL || 'not set');
-        console.log('  - URL (Netlify):', process.env.URL || 'not set');
-        console.log('  - DEPLOY_URL (Netlify):', process.env.DEPLOY_URL || 'not set');
-
         if (typeof window === 'undefined') {
-          // Server-side: need full URL
-          // Netlify uses URL or DEPLOY_URL, Vercel uses VERCEL_URL
           const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
-                          process.env.URL ||  // Netlify production URL
-                          process.env.DEPLOY_URL ||  // Netlify deploy preview URL
+                          process.env.URL ||
+                          process.env.DEPLOY_URL ||
                           (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
                           'http://localhost:3000';
-
           proxyUrl = `${baseUrl}/api/proxy-fetch`;
-          console.log('[Listing Scraper] Server-side proxy URL:', proxyUrl);
-          console.log('[Listing Scraper] Using base URL:', baseUrl);
         } else {
-          // Client-side: relative URL works fine
           proxyUrl = '/api/proxy-fetch';
-          console.log('[Listing Scraper] Client-side proxy URL:', proxyUrl);
         }
-
-        console.log('[Listing Scraper] Fetching from proxy:', proxyUrl);
-        console.log('[Listing Scraper] Target URL:', url);
 
         const proxyResponse = await fetch(proxyUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ url, timeout: 8000 }), // Shorter timeout for proxy
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, timeout: Math.min(8000, proxyTimeout - 500) }),
           signal: proxyController.signal,
         });
-
         clearTimeout(proxyTimeoutId);
 
-        console.log('[Listing Scraper] Proxy response status:', proxyResponse.status, proxyResponse.statusText);
-        console.log('[Listing Scraper] Proxy response headers:', Object.fromEntries(proxyResponse.headers.entries()));
+        diagnostics.proxyStatusCode = proxyResponse.status;
+        diagnostics.proxyDurationMs = Date.now() - proxyStart;
 
-        // Check if response is JSON before parsing
         const contentType = proxyResponse.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-          console.error('[Listing Scraper] Proxy returned non-JSON response');
-          console.error('[Listing Scraper] Content-Type:', contentType);
-          const text = await proxyResponse.text();
-          console.error('[Listing Scraper] Response text (first 500 chars):', text.substring(0, 500));
           throw new Error('Proxy returned non-JSON response');
         }
 
         const proxyResult = await proxyResponse.json();
-        console.log('[Listing Scraper] Proxy result:', {
-          success: proxyResult.success,
-          error: proxyResult.error,
-          htmlLength: proxyResult.html?.length || 0,
-          blocked: proxyResult.blocked
-        });
 
         if (proxyResult.success && proxyResult.html) {
           html = proxyResult.html;
           diagnostics.fetchMethod = "proxy";
-          console.log('[Listing Scraper] ✅ Proxy fetch successful, HTML length:', html.length);
+          diagnostics.htmlLength = html!.length;
         } else if (proxyResult.blocked) {
-          // Site is actively blocking - don't fallback, return error immediately
-          console.error('[Listing Scraper] 🚫 Site is blocking automated requests (Akamai/Cloudflare detected)');
           diagnostics.failureReason = "blocked_by_bot_protection";
           diagnostics.fetchMethod = "proxy";
-          diagnostics.durationMs = Date.now() - startTime;
-          console.log('[Autofill Diagnostics]', JSON.stringify(diagnostics));
+          diagnostics.botProtectionDetected = true;
+          // Detect protection type from proxy result
+          diagnostics.botProtectionType = proxyResult.error?.toLowerCase().includes('akamai') ? 'akamai'
+            : proxyResult.error?.toLowerCase().includes('cloudflare') ? 'cloudflare' : 'unknown';
+          diagnostics.errorMessage = proxyResult.error;
+          finalize();
           return {
             success: false,
             data: null,
-            error: `${dataSource === 'autotrader' ? 'AutoTrader' : 'This site'} is actively blocking automated data extraction. Please enter vehicle details manually for best results.`,
-            warnings: [
-              'The marketplace has enhanced bot detection (Akamai/Cloudflare)',
-              'Manual entry ensures accurate data and avoids extraction issues',
-              'Copy the vehicle information from the listing page'
-            ],
+            error: 'This site blocked auto-extraction. Paste the listing text instead.',
+            warnings: ['The marketplace has enhanced bot detection', 'Paste the listing text or enter details manually'],
             diagnostics,
           };
         } else {
-          // Proxy failed for other reasons, fall back to direct fetch
-          fetchMethod = 'direct';
-          console.error('[Listing Scraper] ❌ Proxy fetch failed:', proxyResult.error);
-          throw new Error(`Proxy fetch failed: ${proxyResult.error}`);
+          // Proxy failed, will try direct
+          diagnostics.errorMessage = proxyResult.error;
         }
-      } catch (proxyFetchError) {
+      } catch (proxyError) {
         clearTimeout(proxyTimeoutId);
-        console.error('[Listing Scraper] Proxy fetch error:', proxyFetchError);
-        throw proxyFetchError;
+        diagnostics.proxyDurationMs = Date.now() - proxyStart;
+        if (proxyError instanceof Error && proxyError.name === 'AbortError') {
+          diagnostics.errorMessage = 'proxy_timeout';
+        }
+        // Will fall through to direct fetch
       }
-    } catch (proxyError) {
-      // Fallback to direct fetch if proxy fails
-      fetchMethod = 'direct';
-      console.log('[Listing Scraper] Using direct fetch as fallback');
+    }
 
-      // Add timeout to direct fetch (10 seconds max)
+    // --- Direct fetch phase (if proxy didn't get HTML) ---
+    if (!html && remainingBudget() > 1000) {
+      const directStart = Date.now();
+      const directTimeout = remainingBudget() - 200;
       const directController = new AbortController();
-      const directTimeoutId = setTimeout(() => {
-        console.log('[Listing Scraper] Direct fetch timeout after 10s');
-        directController.abort();
-      }, 10000);
+      const directTimeoutId = setTimeout(() => directController.abort(), directTimeout);
 
       try {
         const response = await fetch(url, {
@@ -644,126 +599,109 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
           redirect: 'follow',
           signal: directController.signal,
         });
-
         clearTimeout(directTimeoutId);
 
-      // Log response status for debugging
-      console.log('[Listing Scraper] Direct fetch response status:', response.status, response.statusText);
+        diagnostics.directStatusCode = response.status;
+        diagnostics.directDurationMs = Date.now() - directStart;
 
-      if (!response.ok) {
-        diagnostics.fetchMethod = "direct";
-        diagnostics.httpStatus = response.status;
-        diagnostics.durationMs = Date.now() - startTime;
+        if (!response.ok) {
+          diagnostics.fetchMethod = "direct";
+          diagnostics.httpStatus = response.status;
 
-        // Special handling for Carvana 403 (Cloudflare blocking)
-        if (dataSource === 'carvana' && response.status === 403) {
-          console.log('[Listing Scraper] Carvana blocked request (403)');
-          diagnostics.failureReason = "blocked_by_bot_protection";
-          console.log('[Autofill Diagnostics]', JSON.stringify(diagnostics));
+          if (response.status === 403) {
+            diagnostics.failureReason = "blocked_by_bot_protection";
+            diagnostics.botProtectionDetected = true;
+            diagnostics.botProtectionType = dataSource === 'carvana' ? 'cloudflare' : 'unknown';
+            finalize();
+            return {
+              success: false,
+              data: null,
+              error: 'This site blocked auto-extraction. Paste the listing text instead.',
+              warnings: ['Site returned 403 Forbidden', 'Paste the listing text or enter details manually'],
+              diagnostics,
+            };
+          }
+
+          diagnostics.failureReason = "http_error";
+          diagnostics.errorMessage = `HTTP ${response.status}`;
+          finalize();
           return {
             success: false,
             data: null,
-            error: 'Carvana actively blocks automated data extraction. Please enter vehicle details manually.',
-            warnings: ['Carvana uses Cloudflare protection to prevent automated access', 'Manual entry provides better accuracy anyway'],
+            error: `Unable to access listing (Error ${response.status}). Paste the listing text instead.`,
+            warnings: ['Many car listing sites protect against automated access'],
             diagnostics,
           };
         }
 
-        console.log('[Listing Scraper] HTTP error:', response.status);
-        diagnostics.failureReason = "http_error";
-        console.log('[Autofill Diagnostics]', JSON.stringify(diagnostics));
-        return {
-          success: false,
-          data: null,
-          error: `Unable to access listing (Error ${response.status}). The site may be blocking automated requests. Please try entering the details manually.`,
-          warnings: ['Many car listing sites protect against automated access', 'Manual entry is often more reliable'],
-          diagnostics,
-        };
-      }
-
         html = await response.text();
         diagnostics.fetchMethod = "direct";
-        console.log('[Listing Scraper] Direct fetch HTML received, length:', html.length);
+        diagnostics.htmlLength = html.length;
       } catch (directFetchError) {
         clearTimeout(directTimeoutId);
-        diagnostics.fetchMethod = "direct";
-        diagnostics.durationMs = Date.now() - startTime;
+        diagnostics.directDurationMs = Date.now() - directStart;
 
-        // Check if it was a timeout (AbortError)
         if (directFetchError instanceof Error && directFetchError.name === 'AbortError') {
           diagnostics.failureReason = "timeout";
+          diagnostics.errorMessage = 'direct_timeout';
         } else {
           diagnostics.failureReason = "network_error";
+          diagnostics.errorMessage = directFetchError instanceof Error ? directFetchError.message : 'unknown';
         }
-
-        // If direct fetch also fails, return error with helpful message
-        console.error('[Listing Scraper] Direct fetch failed:', directFetchError);
-        console.log('[Autofill Diagnostics]', JSON.stringify(diagnostics));
-        return {
-          success: false,
-          data: null,
-          error: 'Unable to fetch listing. The site may be blocking automated requests or the connection timed out.',
-          warnings: [
-            'Both proxy and direct fetch methods failed',
-            'The site may have strict bot protection',
-            'Try copying the vehicle details manually from the listing page'
-          ],
-          diagnostics,
-        };
       }
     }
 
-    console.log('[Listing Scraper] Fetch method used:', fetchMethod);
+    // --- No HTML obtained from either method ---
+    if (!html) {
+      if (!diagnostics.failureReason) {
+        diagnostics.failureReason = remainingBudget() <= 1000 ? "timeout" : "network_error";
+      }
+      finalize();
+      return {
+        success: false,
+        data: null,
+        error: diagnostics.failureReason === "timeout"
+          ? 'Extraction timed out. Paste the listing text instead.'
+          : 'Unable to fetch listing. Paste the listing text instead.',
+        warnings: ['Both proxy and direct fetch methods failed'],
+        diagnostics,
+      };
+    }
 
-    // Check if we got a blocked/captcha page
+    // --- Bot detection in HTML ---
     const isBlocked = html.includes('captcha') ||
                       html.includes('bot detection') ||
-                      html.includes('cg-mobileHome') || // CarGurus homepage
-                      html.includes('Just a moment') || // Cloudflare challenge
-                      html.includes('challenge-platform') || // Cloudflare
-                      html.includes('akamai-block') || // Akamai block page
-                      html.includes('Autotrader - page unavailable') || // AutoTrader Akamai block
-                      html.length < 10000; // Suspiciously short response
-
-    // Special handling for known blocking sites
-    if (dataSource === 'carvana' && isBlocked) {
-      diagnostics.failureReason = "blocked_by_bot_protection";
-      diagnostics.durationMs = Date.now() - startTime;
-      console.log('[Autofill Diagnostics]', JSON.stringify(diagnostics));
-      return {
-        success: false,
-        data: null,
-        error: 'Carvana actively blocks automated data extraction. Please enter vehicle details manually.',
-        warnings: ['Carvana uses Cloudflare protection to prevent automated access', 'Manual entry provides better accuracy anyway'],
-        diagnostics,
-      };
-    }
-
-    // AutoTrader with Akamai blocking
-    if (dataSource === 'autotrader' && isBlocked) {
-      console.log('[Listing Scraper] 🚫 AutoTrader block detected in HTML');
-      diagnostics.failureReason = "blocked_by_bot_protection";
-      diagnostics.durationMs = Date.now() - startTime;
-      console.log('[Autofill Diagnostics]', JSON.stringify(diagnostics));
-      return {
-        success: false,
-        data: null,
-        error: 'AutoTrader is actively blocking automated data extraction. Please enter vehicle details manually for best results.',
-        warnings: [
-          'AutoTrader uses Akamai protection to prevent automated access',
-          'Manual entry ensures accurate data and avoids extraction issues',
-          'Copy: Year, Make, Model, Trim, Mileage, Price, and VIN from the listing'
-        ],
-        diagnostics,
-      };
-    }
+                      html.includes('cg-mobileHome') ||
+                      html.includes('Just a moment') ||
+                      html.includes('challenge-platform') ||
+                      html.includes('akamai-block') ||
+                      html.includes('Autotrader - page unavailable') ||
+                      html.length < 10000;
 
     if (isBlocked) {
+      diagnostics.botProtectionDetected = true;
+      if (html.includes('challenge-platform') || html.includes('Just a moment')) {
+        diagnostics.botProtectionType = 'cloudflare';
+      } else if (html.includes('akamai-block') || html.includes('Autotrader - page unavailable')) {
+        diagnostics.botProtectionType = 'akamai';
+      }
+
+      if (dataSource === 'carvana' || dataSource === 'autotrader' || html.length < 5000) {
+        diagnostics.failureReason = "blocked_by_bot_protection";
+        finalize();
+        return {
+          success: false,
+          data: null,
+          error: 'This site blocked auto-extraction. Paste the listing text instead.',
+          warnings: ['Bot protection detected in response'],
+          diagnostics,
+        };
+      }
       warnings.push('This marketplace may be blocking automated data extraction');
-      warnings.push('Please try entering the vehicle details manually for best results');
     }
 
-    // Extract based on source
+    // --- Parse HTML ---
+    const parseStart = Date.now();
     let extractedData: Partial<VehicleData> = {};
 
     switch (dataSource) {
@@ -777,39 +715,31 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
         extractedData = await extractFromCars(html);
         break;
       default:
-        // Generic extraction
         warnings.push('Using generic extraction - data may be incomplete');
-        extractedData = await extractFromAutoTrader(html); // Try AutoTrader patterns
+        extractedData = await extractFromAutoTrader(html);
     }
+    diagnostics.parseDurationMs = Date.now() - parseStart;
 
-    // Determine what fields we found
+    // --- Build result ---
     const extractedFields: string[] = [];
     const missingFields: string[] = [];
 
-    const requiredFields = ['year', 'make', 'model', 'mileage'];
-    const optionalFields = ['trim', 'price', 'vin', 'location'];
-
-    requiredFields.forEach(field => {
+    for (const field of ['year', 'make', 'model', 'mileage']) {
       if (extractedData[field as keyof typeof extractedData]) {
         extractedFields.push(field);
       } else {
         missingFields.push(field);
       }
-    });
-
-    optionalFields.forEach(field => {
+    }
+    for (const field of ['trim', 'price', 'vin', 'location']) {
       if (extractedData[field as keyof typeof extractedData]) {
         extractedFields.push(field);
       }
-    });
-
-    // Determine confidence
-    let confidence: VehicleData['confidence'] = 'low';
-    if (extractedFields.length >= 4) {
-      confidence = 'high';
-    } else if (extractedFields.length >= 2) {
-      confidence = 'medium';
     }
+
+    let confidence: VehicleData['confidence'] = 'low';
+    if (extractedFields.length >= 4) confidence = 'high';
+    else if (extractedFields.length >= 2) confidence = 'medium';
 
     const vehicleData: VehicleData = {
       ...extractedData,
@@ -819,54 +749,27 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
       missingFields,
     };
 
-    // Add informative message for missing critical fields (not an error - this is normal!)
     if (missingFields.includes('year') || missingFields.includes('make') || missingFields.includes('model')) {
-      warnings.push('Some details require manual confirmation - this helps improve accuracy');
+      warnings.push('Some details require manual confirmation');
     }
 
-    // Log extraction result for debugging
-    console.log('[Listing Scraper] Extraction complete:', {
-      success: true,
-      dataSource,
-      confidence,
-      extractedFields,
-      missingFields,
-      hasData: extractedFields.length > 0,
-    });
-
-    // Track extracted field count for diagnostics
     diagnostics.extractedFieldCount = extractedFields.length;
-    diagnostics.durationMs = Date.now() - startTime;
 
-    // If we didn't extract ANY data, this might indicate a problem
     if (extractedFields.length === 0) {
-      console.warn('[Listing Scraper] No data extracted - possible blocking or parsing failure');
-      warnings.push('Unable to extract vehicle data automatically. This listing may require manual entry.');
-      warnings.push('Tip: Copy the year, make, model, and mileage from the listing page');
       diagnostics.failureReason = "empty_response";
-      console.log('[Autofill Diagnostics]', JSON.stringify(diagnostics));
-    } else {
-      // Success case - clear any failure reason from unsupported_domain warning
-      if (diagnostics.failureReason === "unsupported_domain" && extractedFields.length > 0) {
-        diagnostics.failureReason = null; // We actually succeeded despite unknown domain
-      }
-      console.log('[Autofill Diagnostics]', JSON.stringify(diagnostics));
+      warnings.push('Unable to extract vehicle data automatically. Try pasting the listing text.');
+    } else if (diagnostics.failureReason === "unsupported_domain") {
+      diagnostics.failureReason = null; // Succeeded despite unknown domain
     }
 
-    return {
-      success: true,
-      data: vehicleData,
-      warnings,
-      diagnostics,
-    };
+    finalize();
+
+    return { success: true, data: vehicleData, warnings, diagnostics };
 
   } catch (error) {
-    console.error('[Listing Scraper] Extraction error:', error);
-    diagnostics.durationMs = Date.now() - startTime;
-    if (!diagnostics.failureReason) {
-      diagnostics.failureReason = "unknown";
-    }
-    console.log('[Autofill Diagnostics]', JSON.stringify(diagnostics));
+    diagnostics.errorMessage = error instanceof Error ? error.message : 'unknown';
+    if (!diagnostics.failureReason) diagnostics.failureReason = "unknown";
+    finalize();
     return {
       success: false,
       data: null,

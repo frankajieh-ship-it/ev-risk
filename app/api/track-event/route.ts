@@ -138,6 +138,14 @@ const VALID_EVENT_NAMES = [
   "vin_decode_failed",
   "vin_mismatch_flagged",
   "recall_check_clicked",
+  // Email Gate Events
+  "email_gate_shown",
+  "email_gate_submitted",
+  "email_gate_skipped",
+  // Schema Repair Events
+  "schema_repair_attempted",
+  "schema_repair_succeeded",
+  "schema_repair_failed",
   // Legacy event names (for backward compatibility)
   "page_view",
 ] as const;

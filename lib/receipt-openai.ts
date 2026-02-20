@@ -54,8 +54,8 @@ JSON SCHEMA:
   "reddit_draft": {
     "title": "<string, 10-200 chars: starts with year/make/model and price, ends with a short hook>",
     "body_facts": ["<verified facts from the listing, 5-200 chars each, 1-5 items>"],
-    "body_uncertainty": ["<what is unclear or missing, 5-200 chars each, 0-3 items>"],
-    "body_next_steps": ["<what the buyer plans to verify, 5-200 chars each, 0-3 items>"],
+    "body_uncertainty": ["<first-person buyer voice: what I could not confirm, e.g. 'I was not able to find service records in the listing', 5-200 chars each, 0-3 items>"],
+    "body_next_steps": ["<first-person buyer voice: what I plan to verify next, e.g. 'I plan to have the battery health tested before committing', 5-200 chars each, 0-3 items>"],
     "questions": ["<EXACTLY 1 specific question for the community, 10-200 chars>"],
     "style": { "format": "short_paragraph", "max_questions": 1 }
   },
@@ -126,6 +126,13 @@ REDDIT DRAFT TONE RULES:
 - No markdown italic markers (* or _).
 - No URLs in the text.
 - No slashes as alternates (use "or" instead of "/").
+
+FIRST-PERSON VOICE (mandatory):
+- All body text must be written from the buyer's perspective using "I" or "my".
+- body_next_steps: "I plan to...", "I'm going to check...", "I was advised to inspect..."
+- body_uncertainty: "I wasn't able to confirm...", "The listing doesn't mention...", "I'm not sure about..."
+- Never use imperative or instructional voice: NOT "Check the battery", "Verify the title", "Look for rust"
+- The title can remain neutral (vehicle + price + hook).
 
 REDDIT DRAFT QUESTION RULES:
 - EXACTLY 1 question across the entire draft (title + body combined). Total count of ? must be <= 1.

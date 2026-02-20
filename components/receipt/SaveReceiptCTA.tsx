@@ -16,6 +16,7 @@ import type { ListingReceipt } from "@/types/receipt";
 
 interface SaveReceiptCTAProps {
   receipt: ListingReceipt;
+  onSaveSuccess?: () => void;
 }
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -25,6 +26,7 @@ const ACTIVE_RECEIPT_KEY = "offo_active_receipt_id";
 
 export default function SaveReceiptCTA({
   receipt,
+  onSaveSuccess,
 }: SaveReceiptCTAProps) {
   const { isAuthenticated, session, isConfigured, isReady } = useAuth();
   const { trackEvent } = useEventTracking();
@@ -81,12 +83,13 @@ export default function SaveReceiptCTA({
       });
 
       setSaveState("saved");
+      onSaveSuccess?.();
     } catch (err) {
       console.error("Save receipt error:", err);
       setSaveState("error");
       setError(err instanceof Error ? err.message : "Failed to save");
     }
-  }, [session, isReady, receipt, scenarioHash, vehicle, summary, trackEvent]);
+  }, [session, isReady, receipt, scenarioHash, vehicle, summary, trackEvent, onSaveSuccess]);
 
   // Auto-save after login if there's a pending save
   useEffect(() => {

@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Receipt, History, ArrowLeft, Loader2 } from "lucide-react";
+import { Receipt, History, ArrowLeft, Loader2, X, Mail, Bookmark } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useAuth } from "@/hooks/useAuth";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
@@ -19,6 +19,7 @@ import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
 import ReceiptDetailsAccordion from "@/components/receipt/ReceiptDetailsAccordion";
 import ReceiptHistoryDrawer from "@/components/receipt/ReceiptHistoryDrawer";
 import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
+import EmailGateModal from "@/components/receipt/EmailGateModal";
 import DecisionPackCard from "@/components/receipt/DecisionPackCard";
 import FeedbackWidget from "@/components/FeedbackWidget";
 import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
@@ -108,6 +109,7 @@ export default function ReceiptPage() {
   const [lintPassed, setLintPassed] = useState(true);
   const [lintErrors, setLintErrors] = useState<LintError[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingStep, setGeneratingStep] = useState(0);
   const [isFixing, setIsFixing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remainingFree, setRemainingFree] = useState<number | null>(null);
@@ -137,6 +139,7 @@ export default function ReceiptPage() {
   const [deepDive, setDeepDive] = useState<DeepDiveContent | null>(null);
   const [isLoadingDeepDive, setIsLoadingDeepDive] = useState(false);
   const [decisionPackDismissed, setDecisionPackDismissed] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   // Compare state
   const [compareReceipt, setCompareReceipt] = useState<ListingReceipt | null>(null);
@@ -146,6 +149,16 @@ export default function ReceiptPage() {
 
   // VIN from extraction (passed to VinCheckSection)
   const [currentVin, setCurrentVin] = useState<string | undefined>(undefined);
+
+  // Email gate state
+  const [showEmailGate, setShowEmailGate] = useState(false);
+  const [emailGateCompleted, setEmailGateCompleted] = useState(false);
+  const [emailGateVehicle, setEmailGateVehicle] = useState("");
+
+  // Retention capture state
+  const [hasSaved, setHasSaved] = useState(false);
+  const [hasEmailed, setHasEmailed] = useState(false);
+  const [showSaveNudge, setShowSaveNudge] = useState(false);
 
   // Prefill from SEO page
   const [prefillText, setPrefillText] = useState<string | null>(null);
@@ -164,6 +177,15 @@ export default function ReceiptPage() {
 
   useEffect(() => {
     setReceiptToken(getOrCreateReceiptToken());
+
+    // Check if email gate should be suppressed
+    const skippedAt = localStorage.getItem("offo_email_gate_skipped");
+    if (skippedAt && Date.now() - parseInt(skippedAt) < 7 * 24 * 60 * 60 * 1000) {
+      setEmailGateCompleted(true);
+    }
+    if (localStorage.getItem("offo_email_captured")) {
+      setEmailGateCompleted(true);
+    }
 
     // Check for prefilled listing text from SEO page
     const storedText = sessionStorage.getItem("offo_listing_text");
@@ -274,6 +296,19 @@ export default function ReceiptPage() {
     return () => { cancelled = true; };
   }, [isUnlocked, receipt?.receipt_id, receiptToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Multi-step loading progress during generation
+  useEffect(() => {
+    if (!isGenerating) {
+      setGeneratingStep(0);
+      return;
+    }
+    const timers = [
+      setTimeout(() => setGeneratingStep(1), 3000),
+      setTimeout(() => setGeneratingStep(2), 8000),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [isGenerating]);
+
   // Track receipt result viewed
   useEffect(() => {
     if (!receipt?.receipt_id) return;
@@ -282,6 +317,36 @@ export default function ReceiptPage() {
       verdict: receipt.verdict,
     });
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Delay paywall render so user reads receipt first
+  useEffect(() => {
+    if (receipt && paymentsEnabled && !isUnlocked) {
+      const timer = setTimeout(() => setShowPaywall(true), 4000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowPaywall(false);
+    }
+  }, [receipt, paymentsEnabled, isUnlocked]);
+
+  // Beforeunload guard — warn when receipt exists but not saved/emailed
+  useEffect(() => {
+    if (!receipt || hasSaved || hasEmailed) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [receipt, hasSaved, hasEmailed]);
+
+  // Save nudge bar — show 15s after receipt, dismiss on save/email
+  useEffect(() => {
+    if (!receipt || hasSaved || hasEmailed) {
+      setShowSaveNudge(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowSaveNudge(true), 15000);
+    return () => clearTimeout(timer);
+  }, [receipt, hasSaved, hasEmailed]);
 
   // Auto-load bound comparison when compareBoundTo is set
   useEffect(() => {
@@ -579,13 +644,22 @@ export default function ReceiptPage() {
         {/* Input Card */}
         <ReceiptInputCard
           onGenerate={handleGenerate}
+          onExtractionSuccess={(vehicleSummary) => {
+            if (!emailGateCompleted) {
+              setEmailGateVehicle(vehicleSummary);
+              setShowEmailGate(true);
+              trackEvent("email_gate_shown", { vehicle: vehicleSummary });
+            }
+          }}
           isGenerating={isGenerating}
+          generatingStep={generatingStep}
           remainingFree={remainingFree}
           error={error}
           isPro={isPro}
           prefillText={prefillText}
           trackEvent={trackEvent}
           receiptToken={receiptToken}
+          hasResult={!!receipt}
         />
 
         {/* Output */}
@@ -622,9 +696,12 @@ export default function ReceiptPage() {
               />
 
               {/* Save receipt */}
-              <SaveReceiptCTA
-                receipt={receipt}
-              />
+              <div id="save-receipt-cta">
+                <SaveReceiptCTA
+                  receipt={receipt}
+                  onSaveSuccess={() => setHasSaved(true)}
+                />
+              </div>
 
               {/* PDF download (shown when payments are enabled) */}
               {paymentsEnabled && (
@@ -636,8 +713,8 @@ export default function ReceiptPage() {
                 />
               )}
 
-              {/* Decision Pack paywall (when not yet unlocked) */}
-              {paymentsEnabled && !isUnlocked && !decisionPackDismissed && !isPaymentLoading && (
+              {/* Decision Pack paywall (delayed 4s so user reads receipt first) */}
+              {showPaywall && !decisionPackDismissed && !isPaymentLoading && (
                 <DecisionPackCard
                   receiptToken={receiptToken}
                   receiptId={receipt.receipt_id}
@@ -702,14 +779,17 @@ export default function ReceiptPage() {
               )}
 
               {/* Email capture */}
-              <EmailCaptureCard
-                receiptId={receipt.receipt_id}
-                onSubmit={() =>
-                  trackEvent("email_checklist_submit", {
-                    receipt_id: receipt.receipt_id,
-                  })
-                }
-              />
+              <div id="email-capture-card">
+                <EmailCaptureCard
+                  receiptId={receipt.receipt_id}
+                  onSubmit={() => {
+                    setHasEmailed(true);
+                    trackEvent("email_checklist_submit", {
+                      receipt_id: receipt.receipt_id,
+                    });
+                  }}
+                />
+              </div>
 
               {/* Feedback */}
               <FeedbackWidget
@@ -758,6 +838,65 @@ export default function ReceiptPage() {
             : undefined
         }
       />
+
+      {/* Email gate modal (after extraction success) */}
+      <EmailGateModal
+        isOpen={showEmailGate}
+        vehicleSummary={emailGateVehicle}
+        onSubmit={() => {
+          setShowEmailGate(false);
+          setEmailGateCompleted(true);
+        }}
+        onSkip={() => {
+          setShowEmailGate(false);
+          setEmailGateCompleted(true);
+        }}
+      />
+
+      {/* Floating save nudge bar */}
+      <AnimatePresence>
+        {showSaveNudge && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            className="fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-md bg-white border border-gray-200 rounded-xl shadow-lg p-3 flex items-center gap-3"
+          >
+            <div className="flex-1 text-sm text-gray-700 font-medium">
+              Don&apos;t lose this receipt
+            </div>
+            <button
+              onClick={() => {
+                setShowSaveNudge(false);
+                // Scroll to email capture section
+                document.getElementById("email-capture-card")?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              Email it
+            </button>
+            <button
+              onClick={() => {
+                setShowSaveNudge(false);
+                // Scroll to save CTA section
+                document.getElementById("save-receipt-cta")?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors whitespace-nowrap"
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              Save it
+            </button>
+            <button
+              onClick={() => setShowSaveNudge(false)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

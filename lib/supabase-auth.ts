@@ -43,9 +43,27 @@ export function isSupabaseAuthConfigured(): boolean {
 /**
  * Send magic link email for passwordless auth
  */
+const MAGIC_LINK_COOLDOWN_MS = 60_000;
+const COOLDOWN_KEY = "offo_magic_link_last_sent";
+
 export async function sendMagicLink(email: string): Promise<{ success: boolean; error?: string }> {
   if (!supabaseAuthClient) {
     return { success: false, error: "Auth not configured" };
+  }
+
+  // Client-side cooldown to prevent Supabase rate limit errors
+  if (typeof window !== "undefined") {
+    const lastSent = localStorage.getItem(COOLDOWN_KEY);
+    if (lastSent) {
+      const elapsed = Date.now() - parseInt(lastSent, 10);
+      if (elapsed < MAGIC_LINK_COOLDOWN_MS) {
+        const waitSec = Math.ceil((MAGIC_LINK_COOLDOWN_MS - elapsed) / 1000);
+        return {
+          success: false,
+          error: `We just sent a link. Check your inbox or wait ${waitSec}s.`,
+        };
+      }
+    }
   }
 
   const redirectTo = typeof window !== "undefined"
@@ -61,7 +79,19 @@ export async function sendMagicLink(email: string): Promise<{ success: boolean; 
 
   if (error) {
     console.error("Magic link error:", error);
+    // Friendly message for rate limit errors
+    if (error.message.toLowerCase().includes("rate limit")) {
+      return {
+        success: false,
+        error: "We already sent you a link. Check your inbox (and spam) or wait a minute.",
+      };
+    }
     return { success: false, error: error.message };
+  }
+
+  // Record send time on success
+  if (typeof window !== "undefined") {
+    localStorage.setItem(COOLDOWN_KEY, String(Date.now()));
   }
 
   return { success: true };

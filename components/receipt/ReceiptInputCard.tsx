@@ -1,16 +1,11 @@
 /**
- * ReceiptInputCard — Extract-first UX
+ * ReceiptInputCard — One-click feeling
  *
- * Two-phase flow:
- * 1. Extract: Paste URL or text → "Extract Details" → fields auto-fill with confidence
- * 2. Generate: Review/edit fields → "Generate Receipt" → report renders, fields persist
- *
- * Features:
- * - Dirty-field tracking (re-extract skips user-edited fields)
- * - Per-field confidence borders (green = extracted, blue = user-edited)
- * - Extraction result chips (found vs missing)
- * - Required-fields gating (year, make, model, price, mileage)
- * - Compare mode placeholder (Pro-gated)
+ * Simplified flow:
+ * 1. Paste URL or text → auto-extract on paste → "Generate Receipt" button
+ * 2. Vehicle detail fields hidden behind "Add details" (expanded after extraction or on click)
+ * 3. Multi-step loading states during extraction & generation
+ * 4. Auto-focus text input on extraction failure
  */
 
 "use client";
@@ -23,7 +18,6 @@ import {
   Loader2,
   AlertCircle,
   ChevronDown,
-  Crown,
   Check,
   X,
 } from "lucide-react";
@@ -38,13 +32,16 @@ interface ReceiptInputCardProps {
     fields: StructuredListingFields;
     extraction_id?: string;
   }) => void;
+  onExtractionSuccess?: (vehicleSummary: string) => void;
   isGenerating: boolean;
+  generatingStep?: number;
   remainingFree: number | null;
   error: string | null;
   isPro?: boolean;
   prefillText?: string | null;
   trackEvent?: (eventName: string, eventData?: Record<string, any>) => void;
   receiptToken?: string;
+  hasResult?: boolean;
 }
 
 const REQUIRED_FIELDS: (keyof StructuredListingFields)[] = [
@@ -80,28 +77,35 @@ function getInputClass(confidence?: string, isDirty?: boolean): string {
   return `${base} border-gray-200 focus:border-blue-600 focus:ring-blue-600`;
 }
 
+// Extraction loading step labels
+const EXTRACT_STEPS = ["Fetching listing page...", "Scanning for vehicle data...", "Verifying fields..."];
+const GENERATE_STEPS = ["Checking risks...", "Analyzing pricing...", "Building your checklist..."];
+
 export default function ReceiptInputCard({
   onGenerate,
+  onExtractionSuccess,
   isGenerating,
+  generatingStep = 0,
   remainingFree,
   error,
-  isPro = false,
   prefillText,
   trackEvent,
   receiptToken,
+  hasResult = false,
 }: ReceiptInputCardProps) {
   const [inputMode, setInputMode] = useState<InputMode>("url");
   const [listingUrl, setListingUrl] = useState("");
   const [listingText, setListingText] = useState("");
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
+  const [extractStep, setExtractStep] = useState(0);
 
   // Structured fields
   const [fields, setFields] = useState<StructuredListingFields>({});
-  const [optionalOpen, setOptionalOpen] = useState(false);
 
-  // Compare mode
-  const [compareMode, setCompareMode] = useState(false);
+  // Vehicle details panel — collapsed by default
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [optionalOpen, setOptionalOpen] = useState(false);
 
   // Extraction state
   const [hasExtracted, setHasExtracted] = useState(false);
@@ -114,9 +118,20 @@ export default function ReceiptInputCard({
   // Dirty tracking
   const [dirtyFields, setDirtyFields] = useState<Set<keyof StructuredListingFields>>(new Set());
 
+  // Dirty-after-result: tracks whether user changed inputs after a receipt was displayed
+  const [dirtyAfterResult, setDirtyAfterResult] = useState(false);
+
+  // Reset dirty flag when a new result arrives
+  useEffect(() => {
+    if (hasResult) setDirtyAfterResult(false);
+  }, [hasResult]);
+
   // Auto-extract on URL paste
   const [lastAutoExtractedUrl, setLastAutoExtractedUrl] = useState<string | null>(null);
   const autoExtractTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Refs for auto-focus
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Prefill from SEO page
   useEffect(() => {
@@ -132,6 +147,19 @@ export default function ReceiptInputCard({
       if (autoExtractTimerRef.current) clearTimeout(autoExtractTimerRef.current);
     };
   }, []);
+
+  // Animate extraction steps
+  useEffect(() => {
+    if (!isExtracting) {
+      setExtractStep(0);
+      return;
+    }
+    const timers = [
+      setTimeout(() => setExtractStep(1), 2000),
+      setTimeout(() => setExtractStep(2), 5000),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [isExtracting]);
 
   // Auto-extract when user pastes a URL
   const handleUrlPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
@@ -155,6 +183,7 @@ export default function ReceiptInputCard({
     if (hasExtracted) {
       setDirtyFields((prev) => new Set(prev).add(key));
     }
+    if (hasResult) setDirtyAfterResult(true);
   };
 
   // Required fields validation
@@ -164,7 +193,9 @@ export default function ReceiptInputCard({
   const missingRequired = REQUIRED_FIELDS.filter(
     (k) => !filledRequired.includes(k)
   );
-  const canGenerate = !isGenerating && filledRequired.length === REQUIRED_FIELDS.length;
+  const fieldsComplete = filledRequired.length === REQUIRED_FIELDS.length;
+  const blockedByResult = hasResult && !dirtyAfterResult;
+  const canGenerate = !isGenerating && !isExtracting && fieldsComplete && !blockedByResult;
 
   // Can extract?
   const canExtractUrl = inputMode === "url" && listingUrl.trim().length > 0;
@@ -173,7 +204,6 @@ export default function ReceiptInputCard({
 
   // Unified extract handler for both URL and text modes
   const handleExtract = async (urlOverride?: string) => {
-    // Track extract click
     trackEvent?.("receipt_extract_clicked", { input_mode: inputMode, anon_id: receiptToken });
 
     setIsExtracting(true);
@@ -200,12 +230,36 @@ export default function ReceiptInputCard({
           input_mode: inputMode,
           anon_id: receiptToken,
           error: data.error || "extract_failed",
-          failure_reason: data.error || "api_error",
+          failure_reason: data.diagnostics?.failureReason || data.error || "api_error",
+          bot_protection: data.diagnostics?.botProtectionDetected || false,
           input_length: inputMode === "url" ? (urlOverride ?? listingUrl.trim()).length : listingText.trim().length,
         });
-        setExtractError(
-          "Couldn't detect enough listing fields. Fill in the required fields below or try pasting the listing text."
-        );
+
+        // Show specific error based on diagnostics
+        if (data.diagnostics?.botProtectionDetected) {
+          setExtractError(
+            "This site blocked auto-extraction. Paste the listing text instead."
+          );
+          // Auto-switch to text mode and focus
+          setInputMode("text");
+          setTimeout(() => textareaRef.current?.focus(), 100);
+        } else if (data.diagnostics?.failureReason === "timeout") {
+          setExtractError(
+            "Extraction timed out. Paste the listing text instead."
+          );
+          setInputMode("text");
+          setTimeout(() => textareaRef.current?.focus(), 100);
+        } else if (data.diagnostics?.failureReason === "search_page") {
+          setExtractError(
+            "That looks like a search page. Paste a link to a single listing instead."
+          );
+        } else {
+          setExtractError(
+            "Couldn't detect enough listing fields. Fill in the required fields below or try pasting the listing text."
+          );
+          // Open details so user can fill manually
+          setDetailsOpen(true);
+        }
         return;
       }
 
@@ -248,6 +302,10 @@ export default function ReceiptInputCard({
         fields_missing: data.missingFields?.length ?? 0,
         listing_source: data.listing_source || null,
       });
+
+      // Notify parent for email gate
+      const summary = [f.year, f.make, f.model].filter(Boolean).join(" ");
+      onExtractionSuccess?.(summary || "your vehicle");
     } catch (err) {
       trackEvent?.("receipt_extract_failed", {
         input_mode: inputMode,
@@ -268,6 +326,7 @@ export default function ReceiptInputCard({
   const handleGenerate = () => {
     const now = Date.now();
     if (now - lastGenerateRef.current < 1000) return;
+    if (isGenerating || isExtracting) return;
     lastGenerateRef.current = now;
 
     trackEvent?.("receipt_generate_clicked", {
@@ -284,6 +343,11 @@ export default function ReceiptInputCard({
       extraction_id: extractionId || undefined,
     });
   };
+
+  // Count how many detail fields the user has filled (for the toggle label)
+  const detailFieldCount = Object.values(fields).filter(
+    (v) => v !== undefined && v !== null && v !== ""
+  ).length;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -328,11 +392,12 @@ export default function ReceiptInputCard({
                 onChange={(e) => {
                   setListingUrl(e.target.value);
                   setExtractError(null);
+                  if (hasResult) setDirtyAfterResult(true);
                 }}
                 onPaste={handleUrlPaste}
                 placeholder="https://www.autotrader.com/cars-for-sale/..."
                 className="flex-1 px-4 py-3 rounded-lg border border-gray-200 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
-                disabled={isGenerating}
+                disabled={isGenerating || isExtracting}
               />
               <button
                 onClick={() => handleExtract()}
@@ -348,13 +413,21 @@ export default function ReceiptInputCard({
                 ) : hasExtracted ? (
                   "Re-extract"
                 ) : (
-                  "Extract Details"
+                  "Extract"
                 )}
               </button>
             </div>
 
+            {/* Extraction loading with step progress */}
+            {isExtracting && (
+              <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
+                <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                <span>{EXTRACT_STEPS[extractStep] || EXTRACT_STEPS[0]}</span>
+              </div>
+            )}
+
             {/* Extract error with fallback options */}
-            {extractError && (
+            {extractError && !isExtracting && (
               <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <div>
@@ -363,6 +436,7 @@ export default function ReceiptInputCard({
                     <button
                       onClick={() => {
                         setInputMode("text");
+                        setTimeout(() => textareaRef.current?.focus(), 100);
                         trackEvent?.("receipt_extract_fallback_used", { input_mode: "url", trigger: "switch_to_text", anon_id: receiptToken });
                       }}
                       className="text-blue-600 hover:text-blue-800 underline text-xs font-medium"
@@ -371,7 +445,10 @@ export default function ReceiptInputCard({
                     </button>
                     <button
                       onClick={() => {
-                        document.getElementById("vehicle-details-section")?.scrollIntoView({ behavior: "smooth" });
+                        setDetailsOpen(true);
+                        setTimeout(() => {
+                          document.getElementById("vehicle-details-section")?.scrollIntoView({ behavior: "smooth" });
+                        }, 100);
                         trackEvent?.("receipt_extract_fallback_used", { input_mode: "url", trigger: "fill_manually", anon_id: receiptToken });
                       }}
                       className="text-blue-600 hover:text-blue-800 underline text-xs font-medium"
@@ -383,10 +460,11 @@ export default function ReceiptInputCard({
               </div>
             )}
 
-            <p className="text-xs text-gray-400">
-              Supports AutoTrader, CarGurus, Cars.com, Facebook Marketplace, and
-              more
-            </p>
+            {!isExtracting && !extractError && (
+              <p className="text-xs text-gray-400">
+                Supports AutoTrader, CarGurus, Cars.com, Facebook Marketplace, and more
+              </p>
+            )}
           </div>
         )}
 
@@ -394,13 +472,17 @@ export default function ReceiptInputCard({
         {inputMode === "text" && (
           <div className="space-y-3">
             <textarea
+              ref={textareaRef}
               value={listingText}
-              onChange={(e) => setListingText(e.target.value)}
-              placeholder={`Paste the listing details here...\n\nExample:\n2021 Toyota RAV4 Prime XSE\n45,000 miles\n$32,500\nDenver, CO\nClean title, 1 owner, dealer listing`}
-              rows={8}
+              onChange={(e) => {
+                setListingText(e.target.value);
+                if (hasResult) setDirtyAfterResult(true);
+              }}
+              placeholder={`Paste the listing details here...\n\nExample:\n2021 Toyota RAV4 Prime XSE\n45,000 miles · $32,500\nDenver, CO · Clean title, 1 owner`}
+              rows={6}
               maxLength={8000}
               className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm resize-none focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
-              disabled={isGenerating}
+              disabled={isGenerating || isExtracting}
             />
             <div className="flex justify-between items-center">
               <span className="text-xs text-gray-400">
@@ -424,7 +506,7 @@ export default function ReceiptInputCard({
               {isExtracting ? (
                 <span className="flex items-center justify-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Extracting...
+                  {EXTRACT_STEPS[extractStep] || EXTRACT_STEPS[0]}
                 </span>
               ) : hasExtracted ? (
                 "Re-extract Details"
@@ -434,14 +516,17 @@ export default function ReceiptInputCard({
             </button>
 
             {/* Extract error with fallback */}
-            {extractError && (
+            {extractError && !isExtracting && (
               <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <div>
                   <span>{extractError}</span>
                   <button
                     onClick={() => {
-                      document.getElementById("vehicle-details-section")?.scrollIntoView({ behavior: "smooth" });
+                      setDetailsOpen(true);
+                      setTimeout(() => {
+                        document.getElementById("vehicle-details-section")?.scrollIntoView({ behavior: "smooth" });
+                      }, 100);
                       trackEvent?.("receipt_extract_fallback_used", { input_mode: "text", trigger: "fill_manually", anon_id: receiptToken });
                     }}
                     className="block mt-1.5 text-blue-600 hover:text-blue-800 underline text-xs font-medium"
@@ -500,373 +585,360 @@ export default function ReceiptInputCard({
           </div>
         )}
 
-        {/* Structured Fields Section */}
-        <div className="space-y-3">
-          <div id="vehicle-details-section" className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-gray-900">
-              Vehicle Details
-            </h3>
-            <span className="text-xs text-gray-400">
-              {hasExtracted
-                ? "(review and edit as needed)"
-                : "(auto-filled after extraction)"}
-            </span>
-          </div>
-
-          {/* Row 1: Price, Mileage */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LABEL_CLASS}>
-                Price ($) <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="number"
-                value={fields.price ?? ""}
-                onChange={(e) =>
-                  updateField(
-                    "price",
-                    e.target.value ? Number(e.target.value) : undefined
-                  )
-                }
-                placeholder="32500"
-                className={getInputClass(
-                  fieldConfidence.price,
-                  dirtyFields.has("price")
-                )}
-                disabled={isGenerating}
-              />
-            </div>
-            <div>
-              <label className={LABEL_CLASS}>
-                Mileage <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="number"
-                value={fields.mileage ?? ""}
-                onChange={(e) =>
-                  updateField(
-                    "mileage",
-                    e.target.value ? Number(e.target.value) : undefined
-                  )
-                }
-                placeholder="45000"
-                className={getInputClass(
-                  fieldConfidence.mileage,
-                  dirtyFields.has("mileage")
-                )}
-                disabled={isGenerating}
-              />
-            </div>
-          </div>
-
-          {/* Row 2: Year, Make, Model */}
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className={LABEL_CLASS}>
-                Year <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="number"
-                value={fields.year ?? ""}
-                onChange={(e) =>
-                  updateField(
-                    "year",
-                    e.target.value ? Number(e.target.value) : undefined
-                  )
-                }
-                placeholder="2021"
-                className={getInputClass(
-                  fieldConfidence.year,
-                  dirtyFields.has("year")
-                )}
-                disabled={isGenerating}
-              />
-            </div>
-            <div>
-              <label className={LABEL_CLASS}>
-                Make <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="text"
-                value={fields.make ?? ""}
-                onChange={(e) =>
-                  updateField("make", e.target.value || undefined)
-                }
-                placeholder="Toyota"
-                className={getInputClass(
-                  fieldConfidence.make,
-                  dirtyFields.has("make")
-                )}
-                disabled={isGenerating}
-              />
-            </div>
-            <div>
-              <label className={LABEL_CLASS}>
-                Model <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="text"
-                value={fields.model ?? ""}
-                onChange={(e) =>
-                  updateField("model", e.target.value || undefined)
-                }
-                placeholder="RAV4 Prime"
-                className={getInputClass(
-                  fieldConfidence.model,
-                  dirtyFields.has("model")
-                )}
-                disabled={isGenerating}
-              />
-            </div>
-          </div>
-
-          {/* Row 3: Trim, ZIP/Postcode, Country */}
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className={LABEL_CLASS}>Trim</label>
-              <input
-                type="text"
-                value={fields.trim ?? ""}
-                onChange={(e) =>
-                  updateField("trim", e.target.value || undefined)
-                }
-                placeholder="XSE"
-                className={getInputClass(
-                  fieldConfidence.trim,
-                  dirtyFields.has("trim")
-                )}
-                disabled={isGenerating}
-              />
-            </div>
-            <div>
-              <label className={LABEL_CLASS}>ZIP / Postcode</label>
-              <input
-                type="text"
-                value={fields.zip_or_postcode ?? ""}
-                onChange={(e) =>
-                  updateField("zip_or_postcode", e.target.value || undefined)
-                }
-                placeholder="80202"
-                className={getInputClass(undefined, dirtyFields.has("zip_or_postcode"))}
-                disabled={isGenerating}
-              />
-            </div>
-            <div>
-              <label className={LABEL_CLASS}>Country</label>
-              <select
-                value={fields.country ?? ""}
-                onChange={(e) =>
-                  updateField(
-                    "country",
-                    (e.target.value as StructuredListingFields["country"]) ||
-                      undefined
-                  )
-                }
-                className={getInputClass(undefined, dirtyFields.has("country"))}
-                disabled={isGenerating}
-              >
-                <option value="">—</option>
-                <option value="US">US</option>
-                <option value="UK">UK</option>
-                <option value="CA">CA</option>
-                <option value="AU">AU</option>
-                <option value="OTHER">Other</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Row 4: Seller Type, Title Status */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LABEL_CLASS}>Seller Type</label>
-              <select
-                value={fields.seller_type ?? ""}
-                onChange={(e) =>
-                  updateField(
-                    "seller_type",
-                    (e.target.value as StructuredListingFields["seller_type"]) ||
-                      undefined
-                  )
-                }
-                className={getInputClass(undefined, dirtyFields.has("seller_type"))}
-                disabled={isGenerating}
-              >
-                <option value="">—</option>
-                <option value="dealer">Dealer</option>
-                <option value="private">Private</option>
-                <option value="unknown">Unknown</option>
-              </select>
-            </div>
-            <div>
-              <label className={LABEL_CLASS}>Title Status</label>
-              <select
-                value={fields.title_status ?? ""}
-                onChange={(e) =>
-                  updateField(
-                    "title_status",
-                    (e.target.value as StructuredListingFields["title_status"]) ||
-                      undefined
-                  )
-                }
-                className={getInputClass(undefined, dirtyFields.has("title_status"))}
-                disabled={isGenerating}
-              >
-                <option value="">—</option>
-                <option value="clean">Clean</option>
-                <option value="salvage">Salvage</option>
-                <option value="rebuilt">Rebuilt</option>
-                <option value="unknown">Unknown</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Additional Details (collapsible) */}
-          <button
-            type="button"
-            onClick={() => setOptionalOpen(!optionalOpen)}
-            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            <ChevronDown
-              className={`w-3.5 h-3.5 transition-transform ${
-                optionalOpen ? "rotate-180" : ""
-              }`}
-            />
-            Additional Details
-          </button>
-
-          {optionalOpen && (
-            <div className="space-y-3 pl-1">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={LABEL_CLASS}>Accidents Reported</label>
-                  <select
-                    value={fields.accidents_reported ?? ""}
-                    onChange={(e) =>
-                      updateField(
-                        "accidents_reported",
-                        (e.target.value as StructuredListingFields["accidents_reported"]) ||
-                          undefined
-                      )
-                    }
-                    className={getInputClass(undefined, dirtyFields.has("accidents_reported"))}
-                    disabled={isGenerating}
-                  >
-                    <option value="">—</option>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                    <option value="unknown">Unknown</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={LABEL_CLASS}>Service History</label>
-                  <select
-                    value={fields.service_history ?? ""}
-                    onChange={(e) =>
-                      updateField(
-                        "service_history",
-                        (e.target.value as StructuredListingFields["service_history"]) ||
-                          undefined
-                      )
-                    }
-                    className={getInputClass(undefined, dirtyFields.has("service_history"))}
-                    disabled={isGenerating}
-                  >
-                    <option value="">—</option>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                    <option value="unknown">Unknown</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className={LABEL_CLASS}>Owners</label>
-                  <input
-                    type="number"
-                    value={fields.owners ?? ""}
-                    onChange={(e) =>
-                      updateField(
-                        "owners",
-                        e.target.value ? Number(e.target.value) : undefined
-                      )
-                    }
-                    placeholder="1"
-                    min={1}
-                    className={getInputClass(undefined, dirtyFields.has("owners"))}
-                    disabled={isGenerating}
-                  />
-                </div>
-                <div>
-                  <label className={LABEL_CLASS}>Carfax Available</label>
-                  <select
-                    value={fields.carfax_available ?? ""}
-                    onChange={(e) =>
-                      updateField(
-                        "carfax_available",
-                        (e.target.value as StructuredListingFields["carfax_available"]) ||
-                          undefined
-                      )
-                    }
-                    className={getInputClass(undefined, dirtyFields.has("carfax_available"))}
-                    disabled={isGenerating}
-                  >
-                    <option value="">—</option>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                    <option value="unknown">Unknown</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={LABEL_CLASS}>Payment Method</label>
-                  <select
-                    value={fields.financing_vs_cash ?? ""}
-                    onChange={(e) =>
-                      updateField(
-                        "financing_vs_cash",
-                        (e.target.value as StructuredListingFields["financing_vs_cash"]) ||
-                          undefined
-                      )
-                    }
-                    className={getInputClass(undefined, dirtyFields.has("financing_vs_cash"))}
-                    disabled={isGenerating}
-                  >
-                    <option value="">—</option>
-                    <option value="financing">Financing</option>
-                    <option value="cash">Cash</option>
-                    <option value="unknown">Unknown</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Compare Mode */}
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="compare-mode"
-            checked={compareMode}
-            onChange={(e) => setCompareMode(e.target.checked)}
-            disabled={!isPro || isGenerating}
-            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+        {/* Vehicle Details — collapsed by default, "Add details" toggle */}
+        <button
+          type="button"
+          id="vehicle-details-section"
+          onClick={() => setDetailsOpen(!detailsOpen)}
+          className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors w-full"
+        >
+          <ChevronDown
+            className={`w-3.5 h-3.5 transition-transform ${
+              detailsOpen ? "rotate-180" : ""
+            }`}
           />
-          <label
-            htmlFor="compare-mode"
-            className={`text-sm ${!isPro ? "text-gray-400" : "text-gray-700"}`}
-          >
-            Compare two listings
-          </label>
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-700">
-            <Crown className="w-3 h-3" />
-            PRO
-          </span>
-        </div>
+          {detailsOpen ? "Hide details" : "Add details"}
+          {!detailsOpen && detailFieldCount > 0 && (
+            <span className="text-xs text-green-600 ml-1">
+              ({detailFieldCount} field{detailFieldCount !== 1 ? "s" : ""} filled)
+            </span>
+          )}
+          {!detailsOpen && hasExtracted && missingRequired.length > 0 && (
+            <span className="text-xs text-amber-500 ml-1">
+              — {missingRequired.length} required missing
+            </span>
+          )}
+        </button>
 
-        {compareMode && !isPro && (
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm text-purple-700">
-            Compare mode — coming with Pro
+        {detailsOpen && (
+          <div className="space-y-3">
+            {/* Row 1: Price, Mileage */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL_CLASS}>
+                  Price ($) <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={fields.price ?? ""}
+                  onChange={(e) =>
+                    updateField(
+                      "price",
+                      e.target.value ? Number(e.target.value) : undefined
+                    )
+                  }
+                  placeholder="32500"
+                  className={getInputClass(
+                    fieldConfidence.price,
+                    dirtyFields.has("price")
+                  )}
+                  disabled={isGenerating}
+                />
+              </div>
+              <div>
+                <label className={LABEL_CLASS}>
+                  Mileage <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={fields.mileage ?? ""}
+                  onChange={(e) =>
+                    updateField(
+                      "mileage",
+                      e.target.value ? Number(e.target.value) : undefined
+                    )
+                  }
+                  placeholder="45000"
+                  className={getInputClass(
+                    fieldConfidence.mileage,
+                    dirtyFields.has("mileage")
+                  )}
+                  disabled={isGenerating}
+                />
+              </div>
+            </div>
+
+            {/* Row 2: Year, Make, Model */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className={LABEL_CLASS}>
+                  Year <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={fields.year ?? ""}
+                  onChange={(e) =>
+                    updateField(
+                      "year",
+                      e.target.value ? Number(e.target.value) : undefined
+                    )
+                  }
+                  placeholder="2021"
+                  className={getInputClass(
+                    fieldConfidence.year,
+                    dirtyFields.has("year")
+                  )}
+                  disabled={isGenerating}
+                />
+              </div>
+              <div>
+                <label className={LABEL_CLASS}>
+                  Make <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={fields.make ?? ""}
+                  onChange={(e) =>
+                    updateField("make", e.target.value || undefined)
+                  }
+                  placeholder="Toyota"
+                  className={getInputClass(
+                    fieldConfidence.make,
+                    dirtyFields.has("make")
+                  )}
+                  disabled={isGenerating}
+                />
+              </div>
+              <div>
+                <label className={LABEL_CLASS}>
+                  Model <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={fields.model ?? ""}
+                  onChange={(e) =>
+                    updateField("model", e.target.value || undefined)
+                  }
+                  placeholder="RAV4 Prime"
+                  className={getInputClass(
+                    fieldConfidence.model,
+                    dirtyFields.has("model")
+                  )}
+                  disabled={isGenerating}
+                />
+              </div>
+            </div>
+
+            {/* Row 3: Trim, ZIP/Postcode, Country */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className={LABEL_CLASS}>Trim</label>
+                <input
+                  type="text"
+                  value={fields.trim ?? ""}
+                  onChange={(e) =>
+                    updateField("trim", e.target.value || undefined)
+                  }
+                  placeholder="XSE"
+                  className={getInputClass(
+                    fieldConfidence.trim,
+                    dirtyFields.has("trim")
+                  )}
+                  disabled={isGenerating}
+                />
+              </div>
+              <div>
+                <label className={LABEL_CLASS}>ZIP / Postcode</label>
+                <input
+                  type="text"
+                  value={fields.zip_or_postcode ?? ""}
+                  onChange={(e) =>
+                    updateField("zip_or_postcode", e.target.value || undefined)
+                  }
+                  placeholder="80202"
+                  className={getInputClass(undefined, dirtyFields.has("zip_or_postcode"))}
+                  disabled={isGenerating}
+                />
+              </div>
+              <div>
+                <label className={LABEL_CLASS}>Country</label>
+                <select
+                  value={fields.country ?? ""}
+                  onChange={(e) =>
+                    updateField(
+                      "country",
+                      (e.target.value as StructuredListingFields["country"]) ||
+                        undefined
+                    )
+                  }
+                  className={getInputClass(undefined, dirtyFields.has("country"))}
+                  disabled={isGenerating}
+                >
+                  <option value="">—</option>
+                  <option value="US">US</option>
+                  <option value="UK">UK</option>
+                  <option value="CA">CA</option>
+                  <option value="AU">AU</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Row 4: Seller Type, Title Status */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL_CLASS}>Seller Type</label>
+                <select
+                  value={fields.seller_type ?? ""}
+                  onChange={(e) =>
+                    updateField(
+                      "seller_type",
+                      (e.target.value as StructuredListingFields["seller_type"]) ||
+                        undefined
+                    )
+                  }
+                  className={getInputClass(undefined, dirtyFields.has("seller_type"))}
+                  disabled={isGenerating}
+                >
+                  <option value="">—</option>
+                  <option value="dealer">Dealer</option>
+                  <option value="private">Private</option>
+                  <option value="unknown">Unknown</option>
+                </select>
+              </div>
+              <div>
+                <label className={LABEL_CLASS}>Title Status</label>
+                <select
+                  value={fields.title_status ?? ""}
+                  onChange={(e) =>
+                    updateField(
+                      "title_status",
+                      (e.target.value as StructuredListingFields["title_status"]) ||
+                        undefined
+                    )
+                  }
+                  className={getInputClass(undefined, dirtyFields.has("title_status"))}
+                  disabled={isGenerating}
+                >
+                  <option value="">—</option>
+                  <option value="clean">Clean</option>
+                  <option value="salvage">Salvage</option>
+                  <option value="rebuilt">Rebuilt</option>
+                  <option value="unknown">Unknown</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Additional Details (nested collapsible) */}
+            <button
+              type="button"
+              onClick={() => setOptionalOpen(!optionalOpen)}
+              className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform ${
+                  optionalOpen ? "rotate-180" : ""
+                }`}
+              />
+              Additional Details
+            </button>
+
+            {optionalOpen && (
+              <div className="space-y-3 pl-1">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={LABEL_CLASS}>Accidents Reported</label>
+                    <select
+                      value={fields.accidents_reported ?? ""}
+                      onChange={(e) =>
+                        updateField(
+                          "accidents_reported",
+                          (e.target.value as StructuredListingFields["accidents_reported"]) ||
+                            undefined
+                        )
+                      }
+                      className={getInputClass(undefined, dirtyFields.has("accidents_reported"))}
+                      disabled={isGenerating}
+                    >
+                      <option value="">—</option>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                      <option value="unknown">Unknown</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Service History</label>
+                    <select
+                      value={fields.service_history ?? ""}
+                      onChange={(e) =>
+                        updateField(
+                          "service_history",
+                          (e.target.value as StructuredListingFields["service_history"]) ||
+                            undefined
+                        )
+                      }
+                      className={getInputClass(undefined, dirtyFields.has("service_history"))}
+                      disabled={isGenerating}
+                    >
+                      <option value="">—</option>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                      <option value="unknown">Unknown</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className={LABEL_CLASS}>Owners</label>
+                    <input
+                      type="number"
+                      value={fields.owners ?? ""}
+                      onChange={(e) =>
+                        updateField(
+                          "owners",
+                          e.target.value ? Number(e.target.value) : undefined
+                        )
+                      }
+                      placeholder="1"
+                      min={1}
+                      className={getInputClass(undefined, dirtyFields.has("owners"))}
+                      disabled={isGenerating}
+                    />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Carfax Available</label>
+                    <select
+                      value={fields.carfax_available ?? ""}
+                      onChange={(e) =>
+                        updateField(
+                          "carfax_available",
+                          (e.target.value as StructuredListingFields["carfax_available"]) ||
+                            undefined
+                        )
+                      }
+                      className={getInputClass(undefined, dirtyFields.has("carfax_available"))}
+                      disabled={isGenerating}
+                    >
+                      <option value="">—</option>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                      <option value="unknown">Unknown</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Payment Method</label>
+                    <select
+                      value={fields.financing_vs_cash ?? ""}
+                      onChange={(e) =>
+                        updateField(
+                          "financing_vs_cash",
+                          (e.target.value as StructuredListingFields["financing_vs_cash"]) ||
+                            undefined
+                        )
+                      }
+                      className={getInputClass(undefined, dirtyFields.has("financing_vs_cash"))}
+                      disabled={isGenerating}
+                    >
+                      <option value="">—</option>
+                      <option value="financing">Financing</option>
+                      <option value="cash">Cash</option>
+                      <option value="unknown">Unknown</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -891,7 +963,17 @@ export default function ReceiptInputCard({
           {isGenerating ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Analyzing listing...
+              {GENERATE_STEPS[generatingStep] || GENERATE_STEPS[0]}
+            </>
+          ) : blockedByResult ? (
+            <>
+              <Sparkles className="w-5 h-5" />
+              Edit details above to regenerate
+            </>
+          ) : hasResult && dirtyAfterResult ? (
+            <>
+              <Sparkles className="w-5 h-5" />
+              Regenerate Receipt
             </>
           ) : (
             <>
@@ -902,7 +984,7 @@ export default function ReceiptInputCard({
         </button>
 
         {/* Missing required fields hint */}
-        {!canGenerate && !isGenerating && missingRequired.length > 0 && (
+        {!canGenerate && !isGenerating && !isExtracting && missingRequired.length > 0 && (
           <p className="text-center text-xs text-amber-600">
             Fill in: {missingRequired.map((k) => FIELD_LABELS[k] || k).join(", ")}
           </p>

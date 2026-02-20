@@ -21,6 +21,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { FetchedListingFields } from "@/types/receipt";
 import type { FieldConfidence } from "@/types/receipt";
 import { logApi, startTimer } from "@/lib/api-logger";
+import { hashIP } from "@/lib/session-utils";
 
 export const maxDuration = 30;
 
@@ -138,6 +139,21 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Log extraction attempt
+      if (isSupabaseConfigured()) {
+        try {
+          await supabase.from("extraction_attempts").insert({
+            session_id: sessionId,
+            domain: "text_paste",
+            input_mode: "text",
+            success: true,
+            extracted_field_count: result.extractedFields.length,
+            duration_ms: elapsed(),
+            ip_hash: hashIP(clientIP),
+          });
+        } catch { /* non-critical */ }
+      }
+
       return NextResponse.json({
         success: true,
         fields: result.fields,
@@ -163,6 +179,22 @@ export async function POST(request: NextRequest) {
         } catch {
           // swallow
         }
+      }
+
+      // Log failed extraction attempt
+      if (isSupabaseConfigured()) {
+        try {
+          await supabase.from("extraction_attempts").insert({
+            session_id: sessionId,
+            domain: "text_paste",
+            input_mode: "text",
+            success: false,
+            failure_reason: "parse_failure",
+            duration_ms: elapsed(),
+            error_message: error instanceof Error ? error.message : "Unknown error",
+            ip_hash: hashIP(clientIP),
+          });
+        } catch { /* non-critical */ }
       }
 
       return NextResponse.json(
@@ -221,6 +253,28 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Log extraction attempt (failure)
+      if (isSupabaseConfigured()) {
+        try {
+          await supabase.from("extraction_attempts").insert({
+            session_id: sessionId,
+            domain: urlDomain,
+            input_mode: "url",
+            success: false,
+            failure_reason: result.diagnostics?.failureReason || null,
+            fetch_method: result.diagnostics?.fetchMethod || null,
+            proxy_status: result.diagnostics?.proxyStatusCode || null,
+            direct_status: result.diagnostics?.directStatusCode || null,
+            bot_protection_detected: result.diagnostics?.botProtectionDetected || false,
+            bot_protection_type: result.diagnostics?.botProtectionType || null,
+            extracted_field_count: result.diagnostics?.extractedFieldCount || 0,
+            duration_ms: result.diagnostics?.durationMs || 0,
+            error_message: result.error || result.diagnostics?.errorMessage || null,
+            ip_hash: hashIP(clientIP),
+          });
+        } catch { /* non-critical */ }
+      }
+
       return NextResponse.json(
         {
           success: false,
@@ -258,6 +312,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Log extraction attempt (success)
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from("extraction_attempts").insert({
+          session_id: sessionId,
+          domain: urlDomain,
+          input_mode: "url",
+          success: true,
+          fetch_method: result.diagnostics?.fetchMethod || null,
+          proxy_status: result.diagnostics?.proxyStatusCode || null,
+          direct_status: result.diagnostics?.directStatusCode || null,
+          bot_protection_detected: result.diagnostics?.botProtectionDetected || false,
+          bot_protection_type: result.diagnostics?.botProtectionType || null,
+          extracted_field_count: result.diagnostics?.extractedFieldCount || 0,
+          duration_ms: result.diagnostics?.durationMs || 0,
+          ip_hash: hashIP(clientIP),
+        });
+      } catch { /* non-critical */ }
+    }
+
     // Build field confidence map
     const field_confidence: Record<string, FieldConfidence> = {};
     const allFieldKeys = ["year", "make", "model", "trim", "mileage", "price", "vin", "location"];
@@ -279,6 +353,22 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logApi("error", "URL fetch failed", { endpoint: "/api/receipt/fetch", error_code: "url_fetch_fail", elapsed_ms: elapsed() });
+
+    // Log extraction attempt (unhandled error)
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from("extraction_attempts").insert({
+          session_id: sessionId,
+          domain: urlDomain,
+          input_mode: "url",
+          success: false,
+          failure_reason: "unknown",
+          duration_ms: elapsed(),
+          error_message: error instanceof Error ? error.message : "Unhandled error",
+          ip_hash: hashIP(clientIP),
+        });
+      } catch { /* non-critical */ }
+    }
 
     return NextResponse.json(
       {

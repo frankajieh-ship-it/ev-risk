@@ -229,9 +229,8 @@ export function validateEventPayload(
     return { valid: false, error: "event_name is required" };
   }
 
-  if (!VALID_EVENT_NAMES.includes(payload.event_name as ValidEventName)) {
-    return { valid: false, error: `Invalid event_name: ${payload.event_name}` };
-  }
+  // Name validation skipped — API route is the authoritative validator.
+  // Client-side list was stale and blocked valid events.
 
   if (!payload.session_id) {
     return { valid: false, error: "session_id is required" };
