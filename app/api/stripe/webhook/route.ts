@@ -305,6 +305,16 @@ async function fulfillDecisionPack(session: Stripe.Checkout.Session) {
       // Non-critical — don't fail fulfillment over analytics
     }
 
+    // Update email funnel stage → purchased (fire-and-forget)
+    const anonId = session.metadata?.anon_id;
+    if (anonId) {
+      supabase
+        .from("checklist_email_captures")
+        .update({ funnel_stage: "purchased", updated_at: new Date().toISOString() })
+        .eq("anon_id", anonId)
+        .then(() => {});
+    }
+
     return true;
   } catch (error) {
     console.error("❌ Decision Pack fulfillment error:", error);

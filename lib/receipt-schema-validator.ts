@@ -199,6 +199,88 @@ export function lintReceiptRedditText(text: string): LintError[] {
   return errors;
 }
 
+// --- Part B2: Deterministic text sanitizer ---
+
+/**
+ * Apply regex-based fixes to a single text field.
+ * Same rules as the lint checker, but applied proactively so AI doesn't
+ * need to retry.
+ */
+export function sanitizeTextField(text: string): string {
+  let out = text;
+  // Smart quotes → remove
+  out = out.replace(/[\u201C\u201D\u201E\u201F\u2018\u2019\u201A\u201B]/g, "");
+  // Straight quotes → remove
+  out = out.replace(/["']/g, "");
+  // Italic markers → remove
+  out = out.replace(/[*_]/g, "");
+  // URLs → remove
+  out = out.replace(/https?:\/\/\S+/gi, "");
+  out = out.replace(/www\.\S+/gi, "");
+  // "annoying" → "stressful"
+  out = out.replace(/\bannoying\b/gi, "stressful");
+  // Absolute claims → cautious alternatives
+  out = out.replace(/\bwill\b/gi, "may");
+  out = out.replace(/\bdefinitely\b/gi, "");
+  out = out.replace(/\balways\b/gi, "often");
+  out = out.replace(/\bindicates\b/gi, "can suggest");
+  out = out.replace(/\btoo good to be true\b/gi, "priced lower than expected");
+  // Collapse double spaces from removals
+  out = out.replace(/  +/g, " ").trim();
+  return out;
+}
+
+function sanitizeStringArray(arr: unknown): unknown {
+  if (!Array.isArray(arr)) return arr;
+  return arr.map((item) => (typeof item === "string" ? sanitizeTextField(item) : item));
+}
+
+/**
+ * Walk receipt object and sanitize all user-facing text fields.
+ * Runs before Zod parse to prevent lint failures.
+ */
+function sanitizeReceiptTextFields(obj: Record<string, unknown>): Record<string, unknown> {
+  const copy = { ...obj };
+
+  // Top-level string arrays
+  if (Array.isArray(copy.risk_flags)) copy.risk_flags = sanitizeStringArray(copy.risk_flags);
+  if (Array.isArray(copy.must_answer_questions)) copy.must_answer_questions = sanitizeStringArray(copy.must_answer_questions);
+  if (Array.isArray(copy.inspect_first)) copy.inspect_first = sanitizeStringArray(copy.inspect_first);
+
+  // Top-level strings
+  if (typeof copy.receipt_reddit_text === "string") copy.receipt_reddit_text = sanitizeTextField(copy.receipt_reddit_text);
+  if (typeof copy.negotiation_opener === "string") copy.negotiation_opener = sanitizeTextField(copy.negotiation_opener);
+  if (typeof copy.verdict_reason === "string") copy.verdict_reason = sanitizeTextField(copy.verdict_reason);
+
+  // Nested: price_sanity.rationale_short
+  if (copy.price_sanity && typeof copy.price_sanity === "object") {
+    const ps = { ...(copy.price_sanity as Record<string, unknown>) };
+    if (typeof ps.rationale_short === "string") ps.rationale_short = sanitizeTextField(ps.rationale_short);
+    copy.price_sanity = ps;
+  }
+
+  // Nested: compare.why[]
+  if (copy.compare && typeof copy.compare === "object") {
+    const compare = { ...(copy.compare as Record<string, unknown>) };
+    if (Array.isArray(compare.why)) compare.why = sanitizeStringArray(compare.why);
+    copy.compare = compare;
+  }
+
+  // Nested: reddit_draft fields
+  if (copy.reddit_draft && typeof copy.reddit_draft === "object") {
+    const draft = { ...(copy.reddit_draft as Record<string, unknown>) };
+    if (typeof draft.title === "string") draft.title = sanitizeTextField(draft.title);
+    if (typeof draft.body === "string") draft.body = sanitizeTextField(draft.body);
+    if (Array.isArray(draft.questions)) draft.questions = sanitizeStringArray(draft.questions);
+    if (Array.isArray(draft.body_facts)) draft.body_facts = sanitizeStringArray(draft.body_facts);
+    if (Array.isArray(draft.body_uncertainty)) draft.body_uncertainty = sanitizeStringArray(draft.body_uncertainty);
+    if (Array.isArray(draft.body_next_steps)) draft.body_next_steps = sanitizeStringArray(draft.body_next_steps);
+    copy.reddit_draft = draft;
+  }
+
+  return copy;
+}
+
 // --- Part C: Normalize array lengths before strict Zod parse ---
 
 /**
@@ -260,11 +342,13 @@ export function validateReceiptSchema(raw: unknown): {
   lintErrors: LintError[];
   sanitized: Receipt | null;
 } {
-  // Step 1: Normalize array lengths, then Zod parse
-  const normalized = typeof raw === "object" && raw !== null
-    ? normalizeArrayLengths(raw as Record<string, unknown>)
-    : raw;
-  const parsed = ReceiptSchema.safeParse(normalized);
+  // Step 1: Normalize array lengths + sanitize text fields, then Zod parse
+  let prepped = raw;
+  if (typeof raw === "object" && raw !== null) {
+    const normalized = normalizeArrayLengths(raw as Record<string, unknown>);
+    prepped = sanitizeReceiptTextFields(normalized);
+  }
+  const parsed = ReceiptSchema.safeParse(prepped);
   if (!parsed.success) {
     const schemaErrors = parsed.error.issues.map(
       (i) => `${i.path.join(".")}: ${i.message}`

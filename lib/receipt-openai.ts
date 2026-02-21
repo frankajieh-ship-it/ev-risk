@@ -9,7 +9,7 @@ import OpenAI from "openai";
 import { v4 as uuidv4 } from "uuid";
 import type { ListingReceipt, ReceiptGenerateRequest, DeepDiveContent } from "@/types/receipt";
 import type { LintError } from "@/lib/receipt-schema-validator";
-import { validateReceiptSchema } from "@/lib/receipt-schema-validator";
+import { validateReceiptSchema, sanitizeTextField } from "@/lib/receipt-schema-validator";
 import { classifyVehicle } from "@/lib/vehicle-classifier";
 import { getTemplatePack } from "@/lib/vehicle-category-templates";
 
@@ -476,31 +476,9 @@ export function buildFallbackReceipt(input: ReceiptGenerateRequest): ListingRece
 // --- Deterministic Fix Pre-Pass ---
 
 /**
- * Apply regex-based fixes that don't need an AI call.
- * Returns the fixed text.
- */
-function applyDeterministicFixes(text: string): string {
-  let out = text;
-  // "annoying" → "stressful"
-  out = out.replace(/\bannoying\b/gi, "stressful");
-  // Smart quotes → straight quotes
-  out = out.replace(/[\u201C\u201D\u201E\u201F]/g, '"');
-  out = out.replace(/[\u2018\u2019\u201A\u201B]/g, "'");
-  // Absolute claims filter
-  out = out.replace(/\bwill\b/gi, "may");
-  out = out.replace(/\bdefinitely\b/gi, "");
-  out = out.replace(/\balways\b/gi, "often");
-  out = out.replace(/\bindicates\b/gi, "can suggest");
-  out = out.replace(/\btoo good to be true\b/gi, "priced lower than expected");
-  // Quotation marks removal
-  out = out.replace(/["']/g, "");
-  // Clean up double spaces from removals
-  out = out.replace(/  +/g, " ").trim();
-  return out;
-}
-
-/**
- * Try deterministic regex fixes on a receipt that passed Zod but failed lint.
+ * Try deterministic fixes on a receipt that passed Zod but failed lint.
+ * Text sanitization now runs inside validateReceiptSchema(), so we just
+ * re-validate the raw object to pick up those fixes.
  * Returns { fixed: true, receipt } if all lint errors are resolved, otherwise { fixed: false }.
  */
 function applyDeterministicFixesToReceipt(
@@ -510,17 +488,11 @@ function applyDeterministicFixesToReceipt(
   if (!validation.sanitized || validation.lintErrors.length === 0) {
     return { fixed: false, receipt: parsed };
   }
-  const record = { ...(validation.sanitized as Record<string, unknown>) };
-  const text = (record.receipt_reddit_text as string) || "";
-  if (!text) return { fixed: false, receipt: parsed };
 
-  const fixedText = applyDeterministicFixes(text);
-  if (fixedText === text) return { fixed: false, receipt: parsed };
-
-  record.receipt_reddit_text = fixedText;
-  const revalidation = validateReceiptSchema(record);
+  // Re-validate — sanitizeReceiptTextFields runs inside validateReceiptSchema
+  const revalidation = validateReceiptSchema(validation.sanitized);
   if (revalidation.valid) {
-    return { fixed: true, receipt: revalidation.sanitized || record };
+    return { fixed: true, receipt: revalidation.sanitized || validation.sanitized };
   }
   return { fixed: false, receipt: parsed };
 }
@@ -546,7 +518,7 @@ export async function fixReceiptFormatting(
     "QUOTATION_MARKS",
   ]);
   const originalText = (receipt.receipt_reddit_text as string) || "";
-  const fixedText = applyDeterministicFixes(originalText);
+  const fixedText = sanitizeTextField(originalText);
 
   const remainingErrors = lintErrors.filter((e) => !deterministicCodes.has(e.code));
   const deterministicChanged = fixedText !== originalText;

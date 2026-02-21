@@ -487,6 +487,16 @@ export async function POST(request: NextRequest) {
             event_type: "lint_fail",
           });
         }
+
+        // Update email funnel stage → receipt_completed (fire-and-forget)
+        if (receiptToken) {
+          supabase
+            .from("checklist_email_captures")
+            .update({ funnel_stage: "receipt_completed", updated_at: new Date().toISOString() })
+            .eq("anon_id", receiptToken as string)
+            .eq("funnel_stage", "lead")
+            .then(() => {});
+        }
       } catch (logErr) {
         logApi("warn", "DB logging failed", { endpoint: "/api/receipt", anon_id: receiptToken as string, error_code: "db_log_fail" });
       }

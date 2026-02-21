@@ -71,9 +71,12 @@ export async function GET(req: NextRequest) {
   const limitParam = parseInt(url.searchParams.get("limit") || "20", 10);
   const limit = Math.min(Math.max(limitParam, 1), 50);
 
-  // Extract authenticated user_id from cookie (if available)
+  // Extract authenticated user_id from Authorization header or cookie
   let authUserId: string | undefined;
-  const accessToken = req.cookies.get("sb-access-token")?.value;
+  const authHeader = req.headers.get("authorization") || "";
+  const accessToken = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : req.cookies.get("sb-access-token")?.value;
   if (accessToken) {
     try {
       const { data: { user } } = await supabase.auth.getUser(accessToken);
@@ -81,6 +84,16 @@ export async function GET(req: NextRequest) {
     } catch {
       // not authenticated — continue with anon-only query
     }
+  }
+
+  // Backfill user_id on receipts created before auth fix (fire-and-forget)
+  if (authUserId && anonId) {
+    supabase
+      .from("receipts")
+      .update({ user_id: authUserId })
+      .eq("session_id", anonId)
+      .is("user_id", null)
+      .then(() => {});
   }
 
   try {

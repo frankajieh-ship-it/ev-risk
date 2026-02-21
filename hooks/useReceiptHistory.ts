@@ -14,6 +14,7 @@ import {
   addToReceiptHistory,
   clearReceiptHistory,
 } from "@/lib/receipt-history";
+import { getSupabaseAuthClient } from "@/lib/supabase-auth";
 import type { ListingReceipt, ReceiptHistoryEntry } from "@/types/receipt";
 
 export interface UseReceiptHistoryReturn {
@@ -69,7 +70,18 @@ export function useReceiptHistory(
 
     try {
       const params = new URLSearchParams({ anon_id: receiptToken });
-      const res = await fetch(`/api/receipt/history?${params}`);
+
+      // Include Supabase auth token so server can query by user_id
+      const headers: Record<string, string> = {};
+      const supabase = getSupabaseAuthClient();
+      if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          headers["Authorization"] = `Bearer ${session.access_token}`;
+        }
+      }
+
+      const res = await fetch(`/api/receipt/history?${params}`, { headers });
 
       if (!res.ok) return;
 
