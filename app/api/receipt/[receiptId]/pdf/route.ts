@@ -35,6 +35,8 @@ export async function GET(
     return NextResponse.json({ error: "Purchase required to download PDF" }, { status: 402 });
   }
 
+  const packTier = status.pack_tier || "decision_pack";
+
   try {
     // 2. Load receipt
     const { data: receipt, error: receiptError } = await supabase
@@ -57,13 +59,17 @@ export async function GET(
       return NextResponse.json({ error: "Receipt data not available" }, { status: 400 });
     }
 
-    // 4. Optionally load deep dive
-    const { data: deepDive } = await supabase
-      .from("deep_dives")
-      .select("content")
-      .eq("scenario_type", "receipt")
-      .eq("scenario_id", receiptId)
-      .maybeSingle();
+    // 4. Optionally load deep dive (decision_pack only)
+    let deepDive: { content: any } | null = null;
+    if (packTier === "decision_pack") {
+      const { data } = await supabase
+        .from("deep_dives")
+        .select("content")
+        .eq("scenario_type", "receipt")
+        .eq("scenario_id", receiptId)
+        .maybeSingle();
+      deepDive = data;
+    }
 
     // 5. Transform to ReceiptPdfData
     const ls = receiptData.listing_summary || {};
@@ -140,6 +146,7 @@ export async function GET(
           vehicle_make: ls.make,
           vehicle_model: ls.model,
           has_deep_dive: !!deepDive?.content,
+          pack_tier: packTier,
         },
         ip_address: clientIP,
         user_agent: userAgent,

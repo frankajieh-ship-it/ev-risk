@@ -147,6 +147,10 @@ const VALID_EVENT_NAMES = [
   "schema_repair_attempted",
   "schema_repair_succeeded",
   "schema_repair_failed",
+  // Pack Tier / Upgrade Events
+  "pack_download",
+  "upgrade_shown",
+  "upgrade_started",
   // Legacy event names (for backward compatibility)
   "page_view",
 ] as const;

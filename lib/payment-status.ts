@@ -9,8 +9,11 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export type PurchaseStatus = "pending" | "paid" | "failed" | "refunded" | "none";
 
+export type PackTier = "starter_pack" | "decision_pack";
+
 export interface PaymentStatusResult {
   unlocked_base: boolean;
+  pack_tier: PackTier | null;
   purchase_status: PurchaseStatus;
   purchase_id?: string;
   compare_remaining: number;
@@ -29,6 +32,7 @@ export async function checkPurchaseStatus(
 ): Promise<PaymentStatusResult> {
   const none: PaymentStatusResult = {
     unlocked_base: false,
+    pack_tier: null,
     purchase_status: "none",
     compare_remaining: 0,
     compare_bound_to: null,
@@ -41,7 +45,7 @@ export async function checkPurchaseStatus(
     const { data: basePurchase } = await supabase
       .from("purchases")
       .select(
-        "purchase_id, status, compare_credit_total, compare_credit_used, compare_scenario_id, amount, anon_id"
+        "purchase_id, status, compare_credit_total, compare_credit_used, compare_scenario_id, amount, anon_id, pack_tier"
       )
       .eq("base_scenario_id", scenarioId)
       .eq("scenario_type", scenarioType)
@@ -57,6 +61,7 @@ export async function checkPurchaseStatus(
 
       return {
         unlocked_base: basePurchase.status === "paid",
+        pack_tier: (basePurchase.pack_tier as PackTier) || "decision_pack",
         purchase_status: basePurchase.status as PurchaseStatus,
         purchase_id: basePurchase.purchase_id,
         compare_remaining:
@@ -72,7 +77,7 @@ export async function checkPurchaseStatus(
     // Check if this scenario is a compare scenario bound to another purchase
     const { data: comparePurchase } = await supabase
       .from("purchases")
-      .select("purchase_id, status, compare_credit_used, anon_id")
+      .select("purchase_id, status, compare_credit_used, anon_id, pack_tier")
       .eq("compare_scenario_id", scenarioId)
       .eq("scenario_type", scenarioType)
       .eq("status", "paid")
@@ -81,6 +86,7 @@ export async function checkPurchaseStatus(
     if (comparePurchase && comparePurchase.anon_id === anonId) {
       return {
         unlocked_base: true, // accessible via compare credit
+        pack_tier: (comparePurchase.pack_tier as PackTier) || "decision_pack",
         purchase_status: "paid",
         purchase_id: comparePurchase.purchase_id,
         compare_remaining: 0, // credit already used
@@ -91,7 +97,7 @@ export async function checkPurchaseStatus(
     // Cross-unlock: if the same anon_id has ANY paid purchase, unlock
     const { data: anyPurchase } = await supabase
       .from("purchases")
-      .select("purchase_id, status, amount, anon_id")
+      .select("purchase_id, status, amount, anon_id, pack_tier")
       .eq("anon_id", anonId)
       .eq("status", "paid")
       .limit(1)
@@ -100,6 +106,7 @@ export async function checkPurchaseStatus(
     if (anyPurchase) {
       return {
         unlocked_base: true,
+        pack_tier: (anyPurchase.pack_tier as PackTier) || "decision_pack",
         purchase_status: "paid",
         purchase_id: anyPurchase.purchase_id,
         compare_remaining: 0,

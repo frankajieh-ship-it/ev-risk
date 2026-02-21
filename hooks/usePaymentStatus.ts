@@ -10,10 +10,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 type PurchaseStatus = "pending" | "paid" | "failed" | "refunded" | "none";
+type PackTier = "starter_pack" | "decision_pack";
 
 export interface UsePaymentStatusReturn {
   purchaseStatus: PurchaseStatus;
   isUnlocked: boolean;
+  packTier: PackTier | null;
   compareRemaining: number;
   compareBoundTo: string | null;
   purchaseId: string | null;
@@ -29,6 +31,7 @@ export function usePaymentStatus(
 ): UsePaymentStatusReturn {
   const [purchaseStatus, setPurchaseStatus] = useState<PurchaseStatus>("none");
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [packTier, setPackTier] = useState<PackTier | null>(null);
   const [compareRemaining, setCompareRemaining] = useState(0);
   const [compareBoundTo, setCompareBoundTo] = useState<string | null>(null);
   const [purchaseId, setPurchaseId] = useState<string | null>(null);
@@ -56,6 +59,7 @@ export function usePaymentStatus(
 
       setPurchaseStatus(data.purchase_status || "none");
       setIsUnlocked(data.unlocked_base === true);
+      setPackTier(data.pack_tier || null);
       setCompareRemaining(data.compare_remaining || 0);
       setCompareBoundTo(data.compare_bound_to || null);
       setPurchaseId(data.purchase_id || null);
@@ -75,6 +79,7 @@ export function usePaymentStatus(
   return {
     purchaseStatus,
     isUnlocked,
+    packTier,
     compareRemaining,
     compareBoundTo,
     purchaseId,

@@ -51,6 +51,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const packTier = status.pack_tier || "decision_pack";
+
   // 2. Check cache
   const { data: cached } = await supabase
     .from("deep_dives")
@@ -147,7 +149,7 @@ export async function POST(request: NextRequest) {
 
   // 5. Generate deep dive
   try {
-    const deepDive = await generateDeepDive(baseReceipt);
+    const deepDive = await generateDeepDive(baseReceipt, packTier);
 
     // 6. Cache in deep_dives table (upsert)
     await supabase
@@ -161,11 +163,12 @@ export async function POST(request: NextRequest) {
         { onConflict: "scenario_type,scenario_id" }
       );
 
-    console.log("[DeepDive] Generated:", { scenarioType, scenarioId });
+    console.log("[DeepDive] Generated:", { scenarioType, scenarioId, packTier });
 
     return NextResponse.json({
       success: true,
       deep_dive: deepDive,
+      pack_tier: packTier,
       cached: false,
     });
   } catch (err) {

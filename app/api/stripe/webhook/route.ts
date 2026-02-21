@@ -227,6 +227,8 @@ async function fulfillOrder(session: Stripe.Checkout.Session) {
 async function fulfillDecisionPack(session: Stripe.Checkout.Session) {
   const scenarioType = session.metadata?.scenario_type;
   const baseScenarioId = session.metadata?.base_scenario_id || session.client_reference_id;
+  const packTier = session.metadata?.pack_tier || "decision_pack";
+  const upgradeFrom = session.metadata?.upgrade_from || null;
 
   if (!baseScenarioId) {
     console.error("❌ No scenario_id in Decision Pack session");
@@ -238,6 +240,7 @@ async function fulfillDecisionPack(session: Stripe.Checkout.Session) {
       .from("purchases")
       .update({
         status: "paid",
+        pack_tier: packTier,
         stripe_payment_intent_id:
           typeof session.payment_intent === "string"
             ? session.payment_intent
@@ -256,10 +259,28 @@ async function fulfillDecisionPack(session: Stripe.Checkout.Session) {
       return false;
     }
 
-    console.log("✅ Decision Pack fulfilled:", {
+    // If this is an upgrade, update the original purchase's pack_tier too
+    if (upgradeFrom) {
+      await supabase
+        .from("purchases")
+        .update({ pack_tier: "decision_pack", updated_at: new Date().toISOString() })
+        .eq("purchase_id", upgradeFrom)
+        .eq("status", "paid");
+
+      // Delete cached starter deep dive so it regenerates as full
+      await supabase
+        .from("deep_dives")
+        .delete()
+        .eq("receipt_id", baseScenarioId);
+
+      console.log(`🔄 Upgrade applied: original purchase ${upgradeFrom} → decision_pack`);
+    }
+
+    console.log(`✅ ${packTier === "starter_pack" ? "Starter" : "Decision"} Pack fulfilled:`, {
       sessionId: session.id,
       scenarioType,
       baseScenarioId,
+      packTier,
       purchaseId: data.purchase_id,
       customerEmail: session.customer_details?.email,
       timestamp: new Date().toISOString(),
@@ -275,6 +296,8 @@ async function fulfillDecisionPack(session: Stripe.Checkout.Session) {
           purchase_id: data.purchase_id,
           stripe_session_id: session.id,
           amount: session.amount_total ? session.amount_total / 100 : 0,
+          pack_tier: packTier,
+          upgrade_from: upgradeFrom,
         },
         timestamp: new Date().toISOString(),
       });

@@ -647,9 +647,12 @@ Return ONLY the JSON object.`;
   }
 }
 
-// --- Deep Dive Generation (Decision Pack paid content) ---
+// --- Deep Dive Generation (Paid pack content) ---
+
+import type { PackTier } from "@/lib/price-assignment";
 
 const DEEP_DIVE_MODEL = "gpt-4o";
+const STARTER_DIVE_MODEL = "gpt-4o-mini";
 
 const DEEP_DIVE_SYSTEM_PROMPT = `You are OFFO Deep Dive Analyst, a paid upgrade tier of OFFO Lab's used-car analysis engine.
 
@@ -691,6 +694,29 @@ CONSTRAINTS:
 
 Use concrete numbers. Be specific to the exact vehicle. No generic advice.`;
 
+const STARTER_DIVE_SYSTEM_PROMPT = `You are OFFO Starter Analyst, part of OFFO Lab's used-car analysis engine.
+
+Given a base receipt (the free-tier analysis), produce a focused starter analysis with:
+1. Extended inspection checklist (10 items, specific to this vehicle)
+2. Negotiation scripts (3 scenarios)
+3. Deep verdict (expanded reasoning)
+
+OUTPUT: Return ONLY a valid JSON object matching this schema:
+{
+  "extended_inspection": ["<specific check item, 10-160 chars>", ...],
+  "negotiation_scripts": [
+    { "scenario": "<2-6 word scenario name>", "opening": "<opening line, 20-200 chars>", "body": "<full script, 40-600 chars>" }
+  ],
+  "verdict_deep": "<expanded verdict with reasoning, 100-800 chars>"
+}
+
+CONSTRAINTS:
+- extended_inspection: EXACTLY 10 items. Specific to this vehicle's make/model/drivetrain.
+- negotiation_scripts: EXACTLY 3 scenarios (e.g., "Cash offer", "Trade-in leverage", "Found issues").
+- verdict_deep: Synthesize all findings into actionable guidance.
+
+Use concrete numbers. Be specific to the exact vehicle. No generic advice.`;
+
 function buildDeepDiveUserPrompt(baseReceipt: ListingReceipt): string {
   const ls = baseReceipt.listing_summary;
   const parts: string[] = [
@@ -727,44 +753,70 @@ function buildDeepDiveUserPrompt(baseReceipt: ListingReceipt): string {
 }
 
 /**
- * Generate a deep dive analysis for a paid Decision Pack.
- * Uses gpt-4o for higher quality than the free-tier mini model.
+ * Generate a deep dive analysis for a paid pack.
+ * - decision_pack: full deep dive with gpt-4o (market comparison, cost, known issues, etc.)
+ * - starter_pack: focused starter analysis with gpt-4o-mini (inspection, negotiation, verdict only)
  */
 export async function generateDeepDive(
-  baseReceipt: ListingReceipt
+  baseReceipt: ListingReceipt,
+  tier: PackTier = "decision_pack"
 ): Promise<DeepDiveContent> {
   const userPrompt = buildDeepDiveUserPrompt(baseReceipt);
 
+  const isStarter = tier === "starter_pack";
+  const model = isStarter ? STARTER_DIVE_MODEL : DEEP_DIVE_MODEL;
+  const systemPrompt = isStarter ? STARTER_DIVE_SYSTEM_PROMPT : DEEP_DIVE_SYSTEM_PROMPT;
+
   const response = await openai.chat.completions.create({
-    model: DEEP_DIVE_MODEL,
+    model,
     messages: [
-      { role: "system", content: DEEP_DIVE_SYSTEM_PROMPT },
+      { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
     temperature: 0.3,
-    max_tokens: 4000,
+    max_tokens: isStarter ? 2000 : 4000,
     response_format: { type: "json_object" },
   });
 
   const content = response.choices[0]?.message?.content || "{}";
-  const parsed = JSON.parse(content) as DeepDiveContent;
+  const parsed = JSON.parse(content) as Partial<DeepDiveContent>;
 
-  // Basic validation
-  if (!parsed.market_comparison || !Array.isArray(parsed.market_comparison)) {
-    throw new Error("Deep dive missing market_comparison");
-  }
+  // Validation: starter only requires inspection, negotiation, verdict
   if (!parsed.extended_inspection || !Array.isArray(parsed.extended_inspection)) {
     throw new Error("Deep dive missing extended_inspection");
   }
   if (!parsed.negotiation_scripts || !Array.isArray(parsed.negotiation_scripts)) {
     throw new Error("Deep dive missing negotiation_scripts");
   }
-  if (!parsed.cost_of_ownership) {
-    throw new Error("Deep dive missing cost_of_ownership");
-  }
   if (!parsed.verdict_deep) {
     throw new Error("Deep dive missing verdict_deep");
   }
 
-  return parsed;
+  if (!isStarter) {
+    // Full pack requires all fields
+    if (!parsed.market_comparison || !Array.isArray(parsed.market_comparison)) {
+      throw new Error("Deep dive missing market_comparison");
+    }
+    if (!parsed.cost_of_ownership) {
+      throw new Error("Deep dive missing cost_of_ownership");
+    }
+  }
+
+  // Fill empty arrays/defaults for starter pack to match DeepDiveContent shape
+  const result: DeepDiveContent = {
+    market_comparison: parsed.market_comparison || [],
+    extended_inspection: parsed.extended_inspection,
+    negotiation_scripts: parsed.negotiation_scripts,
+    cost_of_ownership: parsed.cost_of_ownership || {
+      insurance_yr: 0,
+      maintenance_yr: 0,
+      fuel_or_charging_yr: 0,
+      depreciation_yr: 0,
+      total_3yr: 0,
+    },
+    model_known_issues: parsed.model_known_issues || [],
+    verdict_deep: parsed.verdict_deep,
+  };
+
+  return result;
 }
