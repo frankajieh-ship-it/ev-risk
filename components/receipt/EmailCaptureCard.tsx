@@ -8,10 +8,11 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CheckCircle, Loader2, Mail } from "lucide-react";
 import { getAttributionForEvent } from "@/lib/attribution";
 import { getOrCreatePersistentSessionId } from "@/lib/session-utils";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface EmailCaptureCardProps {
   receiptId?: string;
@@ -19,9 +20,15 @@ interface EmailCaptureCardProps {
 }
 
 export default function EmailCaptureCard({ receiptId, onSubmit }: EmailCaptureCardProps) {
+  const { trackEvent } = useEventTracking();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Track shown on mount
+  useEffect(() => {
+    trackEvent("email_capture_shown", { receipt_id: receiptId });
+  }, [receiptId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +52,7 @@ export default function EmailCaptureCard({ receiptId, onSubmit }: EmailCaptureCa
         const data = await res.json();
         if (data.success) {
           setStatus("success");
+          trackEvent("email_capture_submitted", { receipt_id: receiptId });
           onSubmit?.();
         } else {
           setErrorMsg(data.error || "Failed to send. Try again.");
@@ -64,6 +72,7 @@ export default function EmailCaptureCard({ receiptId, onSubmit }: EmailCaptureCa
         const data = await res.json();
         if (data.success) {
           setStatus("success");
+          trackEvent("email_capture_submitted", { receipt_id: receiptId });
           onSubmit?.();
         } else {
           setStatus("error");

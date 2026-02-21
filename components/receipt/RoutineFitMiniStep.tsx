@@ -7,7 +7,7 @@
  * fits the buyer's daily routine. Deterministic scoring, no API calls.
  */
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Activity, Check, RotateCcw } from "lucide-react";
 import {
   computeRoutineFitReceipt,
@@ -25,6 +25,36 @@ interface RoutineFitMiniStepProps {
 type ChargingAccess = "home" | "work" | "public";
 type Climate = "winter" | "mild" | "hot";
 type LongestTrip = "weekly" | "monthly" | "rarely";
+
+const ROUTINE_FIT_STORAGE_KEY = "offo_routine_fit";
+
+interface RoutineFitSavedData {
+  charging: ChargingAccess;
+  weeklyMiles: string;
+  climate: Climate;
+  longestTrip: LongestTrip;
+}
+
+function getSavedRoutineFit(): RoutineFitSavedData | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(ROUTINE_FIT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      typeof parsed.charging === "string" &&
+      typeof parsed.weeklyMiles === "string" &&
+      typeof parsed.climate === "string" &&
+      typeof parsed.longestTrip === "string"
+    ) {
+      return parsed as RoutineFitSavedData;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 function SelectionCard({
   selected,
@@ -84,6 +114,30 @@ export default function RoutineFitMiniStep({
   const [result, setResult] = useState<RoutineFitReceiptResult | null>(null);
   const hasTrackedStart = useRef(false);
 
+  // Hydrate from localStorage on mount
+  useEffect(() => {
+    const saved = getSavedRoutineFit();
+    if (!saved) return;
+
+    setCharging(saved.charging);
+    setWeeklyMiles(saved.weeklyMiles);
+    setClimate(saved.climate);
+    setLongestTrip(saved.longestTrip);
+
+    // Auto-compute if all fields are valid
+    const miles = Number(saved.weeklyMiles);
+    if (saved.charging && miles > 0 && saved.climate && saved.longestTrip) {
+      const input: RoutineFitReceiptInput = {
+        charging_access: saved.charging,
+        weekly_miles: miles,
+        climate: saved.climate,
+        longest_trip: saved.longestTrip,
+        mileage: receiptMileage,
+      };
+      setResult(computeRoutineFitReceipt(input));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const trackInteraction = () => {
     if (!hasTrackedStart.current) {
       hasTrackedStart.current = true;
@@ -121,6 +175,16 @@ export default function RoutineFitMiniStep({
     const res = computeRoutineFitReceipt(input);
     setResult(res);
 
+    // Persist inputs to localStorage
+    try {
+      localStorage.setItem(
+        ROUTINE_FIT_STORAGE_KEY,
+        JSON.stringify({ charging, weeklyMiles, climate, longestTrip })
+      );
+    } catch {
+      // localStorage might be full or unavailable
+    }
+
     trackEvent?.("routine_check_completed", {
       score: res.score,
       label: res.label,
@@ -140,6 +204,11 @@ export default function RoutineFitMiniStep({
     setLongestTrip(null);
     setResult(null);
     hasTrackedStart.current = false;
+    try {
+      localStorage.removeItem(ROUTINE_FIT_STORAGE_KEY);
+    } catch {
+      // localStorage might be unavailable
+    }
   };
 
   return (

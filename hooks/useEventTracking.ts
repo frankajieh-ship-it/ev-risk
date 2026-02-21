@@ -110,9 +110,11 @@ export function useEventTracking() {
             eventData: {
               ...(eventData || {}),
               persistent_session_id: getPersistentSessionId(),
+              anon_id: getPersistentSessionId(),
               region: getRegion(),
               sensitivity: "normal",
               source: "web",
+              is_test: window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1",
               ...(getAttributionForEvent() ? { attribution: getAttributionForEvent() } : {}),
             },
             visitorId: getVisitorId(),

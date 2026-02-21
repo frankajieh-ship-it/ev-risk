@@ -86,6 +86,10 @@ export default function SaveReceiptCTA({
       onSaveSuccess?.();
     } catch (err) {
       console.error("Save receipt error:", err);
+      trackEvent("save_receipt_failed", {
+        receipt_id: receipt.receipt_id,
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
       setSaveState("error");
       setError(err instanceof Error ? err.message : "Failed to save");
     }

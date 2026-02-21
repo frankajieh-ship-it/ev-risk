@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
       if (isSupabaseConfigured()) {
         try {
           await supabase.from("user_events").insert({
-            event_name: "receipt_extract_success",
+            event_name: "receipt_extract_succeeded",
             event_data: {
               receipt_token: receiptToken,
               vehicle_year: input.year || null,
@@ -281,6 +281,7 @@ export async function POST(request: NextRequest) {
           const { error: fbInsertErr } = await supabase.from("receipts").insert({
             id: fallbackReceipt.receipt_id,
             session_id: receiptToken,
+            user_id: userId || null,
             source: "receipt_page",
             page_source: (body.page_source as string) || null,
             listing_url: input.listing_url || null,
@@ -409,6 +410,7 @@ export async function POST(request: NextRequest) {
         const { error: receiptError } = await supabase.from("receipts").insert({
           id: finalReceipt.receipt_id,
           session_id: receiptToken,
+          user_id: userId || null,
           source: "receipt_page",
           page_source: (body.page_source as string) || null,
           listing_url: input.listing_url || null,
@@ -460,7 +462,7 @@ export async function POST(request: NextRequest) {
         // Log receipt_extract_success to user_events
         try {
           await supabase.from("user_events").insert({
-            event_name: "receipt_extract_success",
+            event_name: "receipt_extract_succeeded",
             event_data: {
               receipt_id: finalReceipt.receipt_id,
               receipt_token: receiptToken,
@@ -610,6 +612,7 @@ export async function POST(request: NextRequest) {
           const { error: fbInsertErr } = await supabase.from("receipts").insert({
             id: fallbackReceipt.receipt_id,
             session_id: receiptToken,
+            user_id: userId || null,
             source: "receipt_page",
             page_source: (body.page_source as string) || null,
             listing_url: input.listing_url || null,

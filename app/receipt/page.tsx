@@ -25,6 +25,7 @@ import FeedbackWidget from "@/components/FeedbackWidget";
 import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
 import VinCheckSection from "@/components/receipt/VinCheckSection";
 import DeepDiveSection from "@/components/receipt/DeepDiveSection";
+import NegotiatorSection from "@/components/receipt/NegotiatorSection";
 import PdfDownloadButton from "@/components/receipt/PdfDownloadButton";
 import CompareBadge from "@/components/receipt/CompareBadge";
 import CompareSelectModal from "@/components/receipt/CompareSelectModal";
@@ -521,6 +522,7 @@ export default function ReceiptPage() {
 
         // Track event
         trackEvent("receipt_generate", {
+          receipt_id: result.receipt.receipt_id,
           verdict: result.receipt.verdict,
           price_label: result.receipt.price_sanity?.label,
           lint_passed: result.lint_passed,
@@ -720,6 +722,13 @@ export default function ReceiptPage() {
                 isFixing={isFixing}
                 isFallback={isFallback}
                 onTrackLintFallback={handleLintFallback}
+              />
+
+              {/* Negotiator — Seller Strategy */}
+              <NegotiatorSection
+                receipt={receipt}
+                isUnlocked={isUnlocked}
+                onUpgradeClick={() => handlePremiumAction("negotiator_upsell")}
               />
 
               {/* VIN Check */}

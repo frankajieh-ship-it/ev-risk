@@ -85,7 +85,7 @@ export const VALID_EVENT_NAMES = [
   "receipt_generate",
   "receipt_regen",
   "receipt_history_viewed",
-  "receipt_extract_success",
+  "receipt_extract_succeeded",
   "receipt_extract_failed",
   "receipt_extract_fallback_used",
   "lint_failed_fallback_served",
@@ -174,7 +174,7 @@ function getEventType(eventName: ValidEventName): EventType {
     eventName === "email_confirmed" ||
     eventName === "report_generated" ||
     eventName === "report_generated_success" ||
-    eventName === "receipt_extract_success"
+    eventName === "receipt_extract_succeeded"
   ) {
     return "conversion";
   }

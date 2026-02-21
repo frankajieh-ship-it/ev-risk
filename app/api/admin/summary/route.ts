@@ -570,7 +570,7 @@ export async function GET(request: NextRequest) {
     // Server-side receipt events (from user_events)
     // -----------------------------------------------------------------------
 
-    const receiptExtractSuccess = countEvents(allUserEvents, "receipt_extract_success");
+    const receiptExtractSuccess = countEvents(allUserEvents, "receipt_extract_succeeded");
     const receiptExtractFailed = countEvents(allUserEvents, "receipt_extract_failed");
     const receiptExtractFallback = countEvents(allUserEvents, "receipt_extract_fallback_used");
     const receiptExtractTotal = receiptExtractSuccess + receiptExtractFailed;
@@ -797,7 +797,7 @@ export async function GET(request: NextRequest) {
     // Event coverage (Part E)
     // -----------------------------------------------------------------------
 
-    const RECEIPT_EVENTS = ["receipt_generate", "receipt_extract_success", "receipt_extract_failed", "receipt_extract_clicked"];
+    const RECEIPT_EVENTS = ["receipt_generate", "receipt_extract_succeeded", "receipt_extract_failed", "receipt_extract_clicked"];
     const ROUTINE_EVENTS = ["routine_check_started", "routine_field_completed"];
     const COPY_EVENTS = ["copy_reddit_draft", "copy_seller_message", "copy_checklist", "copy_click"];
 

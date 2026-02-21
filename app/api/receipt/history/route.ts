@@ -4,14 +4,16 @@
  * GET /api/receipt/history?anon_id=...&limit=20
  *
  * Returns receipt history from the database for a given session token.
+ * Also queries by authenticated user_id (from cookie) as a fallback,
+ * so history persists across devices / cleared localStorage.
  * Gracefully degrades: returns { entries: [] } on any error.
  */
 
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { ReceiptHistoryEntry } from "@/types/receipt";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ entries: [] });
   }
@@ -69,20 +71,60 @@ export async function GET(req: Request) {
   const limitParam = parseInt(url.searchParams.get("limit") || "20", 10);
   const limit = Math.min(Math.max(limitParam, 1), 50);
 
+  // Extract authenticated user_id from cookie (if available)
+  let authUserId: string | undefined;
+  const accessToken = req.cookies.get("sb-access-token")?.value;
+  if (accessToken) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser(accessToken);
+      authUserId = user?.id;
+    } catch {
+      // not authenticated — continue with anon-only query
+    }
+  }
+
   try {
-    const { data, error } = await supabase
+    // Query by session_id (existing behavior)
+    const { data: sessionData, error: sessionError } = await supabase
       .from("receipts")
       .select("id, created_at, output_json")
       .eq("session_id", anonId)
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    if (error || !data) {
-      console.error("[Receipt History] Query failed:", error?.message);
+    let allData = (sessionError || !sessionData) ? [] : sessionData;
+
+    // If authenticated, also query by user_id and merge
+    if (authUserId) {
+      const { data: userData } = await supabase
+        .from("receipts")
+        .select("id, created_at, output_json")
+        .eq("user_id", authUserId)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+
+      if (userData && userData.length > 0) {
+        const seen = new Set(allData.map((r) => r.id));
+        for (const row of userData) {
+          if (!seen.has(row.id)) {
+            allData.push(row);
+            seen.add(row.id);
+          }
+        }
+        allData.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        allData = allData.slice(0, limit);
+      }
+    }
+
+    if (sessionError && !authUserId) {
+      console.error("[Receipt History] Query failed:", sessionError?.message);
       return NextResponse.json({ entries: [] });
     }
 
-    const entries: ReceiptHistoryEntry[] = data
+    const entries: ReceiptHistoryEntry[] = allData
       .filter((row) => row.output_json)
       .map((row) => ({
         receipt_id: row.id,

@@ -72,7 +72,6 @@ const VALID_EVENT_NAMES = [
   "receipt_extract_clicked",
   "receipt_extract_succeeded",
   "receipt_extract_failed",
-  "receipt_extract_success",
   "receipt_extract_fallback_used",
   "lint_failed_fallback_served",
   "receipt_generate_clicked",
@@ -151,6 +150,15 @@ const VALID_EVENT_NAMES = [
   "pack_download",
   "upgrade_shown",
   "upgrade_started",
+  // Email Capture Card Events
+  "email_capture_shown",
+  "email_capture_submitted",
+  // Save Failure Events
+  "save_receipt_failed",
+  // Negotiator Events
+  "negotiator_shown",
+  "negotiator_copy_clicked",
+  "negotiator_upsell_clicked",
   // Legacy event names (for backward compatibility)
   "page_view",
 ] as const;
@@ -292,11 +300,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Merge tags into event data
+    // Merge tags + identifiers into event data for queryability
     const enrichedEventData = {
       ...eventData,
       _tags: tags,
       _user_id: userId || null,
+      _visitor_id: visitorId || null,
+      _session_id: sessionId || null,
     };
 
     const { error } = await supabase.from("user_events").insert({
