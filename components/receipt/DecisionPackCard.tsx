@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart2,
@@ -26,6 +26,7 @@ import { useEventTracking } from "@/hooks/useEventTracking";
 interface DecisionPackCardProps {
   receiptToken: string;
   receiptId: string;
+  triggerReason?: string | null;
   onDismiss?: () => void;
 }
 
@@ -41,6 +42,7 @@ const BENEFITS = [
 export default function DecisionPackCard({
   receiptToken,
   receiptId,
+  triggerReason,
   onDismiss,
 }: DecisionPackCardProps) {
   const { trackEvent } = useEventTracking();
@@ -50,14 +52,16 @@ export default function DecisionPackCard({
   const variant = assignPriceVariant(receiptToken, receiptId);
   const displayPrice = getDisplayPrice(variant);
 
-  // Track offer viewed on mount (single canonical event)
-  useEffect(() => {
-    trackEvent("paywall_shown", {
+  // paywall_shown is now fired by the parent (handlePremiumAction) with trigger_reason
+
+  const handleDismiss = () => {
+    trackEvent("paywall_dismissed", {
       receipt_id: receiptId,
+      trigger_reason: triggerReason || "unknown",
       price_variant: variant,
-      display_price: displayPrice,
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    onDismiss?.();
+  };
 
   const handleUnlock = async () => {
     setIsCheckingOut(true);
@@ -67,6 +71,7 @@ export default function DecisionPackCard({
       receipt_id: receiptId,
       price_variant: variant,
       display_price: displayPrice,
+      trigger_reason: triggerReason || "unknown",
     });
 
     try {
@@ -117,7 +122,7 @@ export default function DecisionPackCard({
       {/* Dismiss button */}
       {onDismiss && (
         <button
-          onClick={onDismiss}
+          onClick={handleDismiss}
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
           aria-label="Dismiss"
         >
@@ -174,7 +179,7 @@ export default function DecisionPackCard({
         {/* Dismiss link */}
         {onDismiss && (
           <button
-            onClick={onDismiss}
+            onClick={handleDismiss}
             className="w-full mt-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
           >
             Not now

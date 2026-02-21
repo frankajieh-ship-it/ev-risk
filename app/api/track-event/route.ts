@@ -125,6 +125,7 @@ const VALID_EVENT_NAMES = [
   "email_checklist_failed",
   // Canonical funnel aliases (Unified Plan naming)
   "paywall_shown",
+  "paywall_dismissed",
   "checkout_started",
   "checkout_completed",
   // Human Signal Events

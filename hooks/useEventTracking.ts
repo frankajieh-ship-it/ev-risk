@@ -77,10 +77,27 @@ export function useEventTracking() {
     return persistentSessionIdRef.current;
   }, []);
 
+  // Client-side dedup: prevent same event+key firing within 2s
+  const recentEventsRef = useRef<Map<string, number>>(new Map());
+
   // Track event
   const trackEvent = useCallback(
     async (eventName: string, eventData?: EventData) => {
       if (typeof window === "undefined") return;
+
+      // Dedup guard: same event + receipt_id within 2s
+      const dedupKey = `${eventName}:${eventData?.receipt_id || ""}`;
+      const now = Date.now();
+      const lastFired = recentEventsRef.current.get(dedupKey);
+      if (lastFired && now - lastFired < 2000) return;
+      recentEventsRef.current.set(dedupKey, now);
+
+      // Clean old entries periodically
+      if (recentEventsRef.current.size > 50) {
+        for (const [key, ts] of recentEventsRef.current) {
+          if (now - ts > 10000) recentEventsRef.current.delete(key);
+        }
+      }
 
       try {
         await fetch("/api/track-event", {

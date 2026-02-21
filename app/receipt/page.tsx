@@ -140,6 +140,8 @@ export default function ReceiptPage() {
   const [isLoadingDeepDive, setIsLoadingDeepDive] = useState(false);
   const [decisionPackDismissed, setDecisionPackDismissed] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallTrigger, setPaywallTrigger] = useState<string | null>(null);
+  const paywallShownForRef = useRef<Set<string>>(new Set());
 
   // Compare state
   const [compareReceipt, setCompareReceipt] = useState<ListingReceipt | null>(null);
@@ -318,15 +320,24 @@ export default function ReceiptPage() {
     });
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Delay paywall render so user reads receipt first
-  useEffect(() => {
-    if (receipt && paymentsEnabled && !isUnlocked) {
-      const timer = setTimeout(() => setShowPaywall(true), 4000);
-      return () => clearTimeout(timer);
-    } else {
-      setShowPaywall(false);
+  // Show paywall only when user clicks a premium-gated action
+  const handlePremiumAction = useCallback((trigger: string) => {
+    if (isUnlocked) return;
+    const rid = receipt?.receipt_id;
+    if (rid && paywallShownForRef.current.has(rid)) {
+      // Already shown for this receipt this session — just scroll to it
+      document.getElementById("decision-pack-card")?.scrollIntoView({ behavior: "smooth" });
+      return;
     }
-  }, [receipt, paymentsEnabled, isUnlocked]);
+    if (rid) paywallShownForRef.current.add(rid);
+    setShowPaywall(true);
+    setDecisionPackDismissed(false);
+    setPaywallTrigger(trigger);
+    trackEvent("paywall_shown", { receipt_id: rid, trigger_reason: trigger });
+    setTimeout(() => {
+      document.getElementById("decision-pack-card")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  }, [isUnlocked, receipt, trackEvent]);
 
   // Beforeunload guard — warn when receipt exists but not saved/emailed
   useEffect(() => {
@@ -709,17 +720,20 @@ export default function ReceiptPage() {
                   receiptId={receipt.receipt_id}
                   receiptToken={receiptToken}
                   isUnlocked={isUnlocked}
-                  onCheckoutRedirect={() => setDecisionPackDismissed(false)}
+                  onCheckoutRedirect={() => handlePremiumAction("download_pdf")}
                 />
               )}
 
-              {/* Decision Pack paywall (delayed 4s so user reads receipt first) */}
+              {/* Decision Pack paywall (shown on premium action click) */}
               {showPaywall && !decisionPackDismissed && !isPaymentLoading && (
-                <DecisionPackCard
-                  receiptToken={receiptToken}
-                  receiptId={receipt.receipt_id}
-                  onDismiss={() => setDecisionPackDismissed(true)}
-                />
+                <div id="decision-pack-card">
+                  <DecisionPackCard
+                    receiptToken={receiptToken}
+                    receiptId={receipt.receipt_id}
+                    triggerReason={paywallTrigger}
+                    onDismiss={() => setDecisionPackDismissed(true)}
+                  />
+                </div>
               )}
 
               {/* Deep dive content (when unlocked) */}

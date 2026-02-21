@@ -329,6 +329,13 @@ export async function POST(request: NextRequest) {
       );
 
       try {
+        if (isSupabaseConfigured()) {
+          supabase.from("receipt_events").insert({
+            session_id: receiptToken,
+            event_type: "schema_repair_attempted",
+          }).then(() => {}, () => {});
+        }
+
         const patched = await fixReceiptFormatting(
           finalReceipt as unknown as Record<string, unknown>,
           lintErrors
@@ -341,6 +348,20 @@ export async function POST(request: NextRequest) {
             lintPassed = revalidation.valid;
             lintErrors = revalidation.lintErrors;
             console.log("[Receipt API] Formatting fixer improved result");
+
+            if (isSupabaseConfigured()) {
+              supabase.from("receipt_events").insert({
+                session_id: receiptToken,
+                event_type: "schema_repair_succeeded",
+              }).then(() => {}, () => {});
+            }
+          } else {
+            if (isSupabaseConfigured()) {
+              supabase.from("receipt_events").insert({
+                session_id: receiptToken,
+                event_type: "schema_repair_failed",
+              }).then(() => {}, () => {});
+            }
           }
         }
       } catch (fixErr) {
@@ -681,12 +702,25 @@ async function handleFixOnly(
   }
 
   try {
+    if (isSupabaseConfigured()) {
+      supabase.from("receipt_events").insert({
+        session_id: receiptToken,
+        event_type: "schema_repair_attempted",
+      }).then(() => {}, () => {});
+    }
+
     const patched = await fixReceiptFormatting(
       receiptJson as Record<string, unknown>,
       lintErrors
     );
 
     if (!patched) {
+      if (isSupabaseConfigured()) {
+        supabase.from("receipt_events").insert({
+          session_id: receiptToken,
+          event_type: "schema_repair_failed",
+        }).then(() => {}, () => {});
+      }
       return NextResponse.json({
         success: true,
         receipt: validation.sanitized,
@@ -698,7 +732,7 @@ async function handleFixOnly(
 
     const revalidation = validateReceiptSchema(patched);
 
-    // Log regen event
+    // Log regen + repair result events
     if (isSupabaseConfigured()) {
       try {
         const receiptId =
@@ -707,6 +741,12 @@ async function handleFixOnly(
           receipt_id: receiptId,
           session_id: receiptToken,
           event_type: "regen",
+        });
+        await supabase.from("receipt_events").insert({
+          session_id: receiptToken,
+          event_type: revalidation.valid || revalidation.lintErrors.length < lintErrors.length
+            ? "schema_repair_succeeded"
+            : "schema_repair_failed",
         });
       } catch {
         // swallow
