@@ -10,6 +10,8 @@ import { X, Trash2, Shield, AlertTriangle, AlertCircle, Loader2 } from "lucide-r
 import { motion, AnimatePresence } from "framer-motion";
 import type { ReceiptHistoryEntry, Verdict } from "@/types/receipt";
 import { clearReceiptHistory } from "@/lib/receipt-history";
+import type { Region } from "@/lib/region";
+import { formatPrice } from "@/lib/region";
 
 interface ReceiptHistoryDrawerProps {
   isOpen: boolean;
@@ -18,6 +20,7 @@ interface ReceiptHistoryDrawerProps {
   onSelect: (entry: ReceiptHistoryEntry) => void;
   onClear: () => void;
   isLoading?: boolean;
+  region?: Region;
 }
 
 const VERDICT_BADGE: Record<
@@ -36,6 +39,7 @@ export default function ReceiptHistoryDrawer({
   onSelect,
   onClear,
   isLoading,
+  region = "US",
 }: ReceiptHistoryDrawerProps) {
   const handleClear = () => {
     clearReceiptHistory();
@@ -128,7 +132,7 @@ export default function ReceiptHistoryDrawer({
                         </p>
                         {entry.price && (
                           <p className="text-xs text-gray-500">
-                            ${entry.price.toLocaleString()}
+                            {formatPrice(entry.price, region)}
                           </p>
                         )}
                       </button>

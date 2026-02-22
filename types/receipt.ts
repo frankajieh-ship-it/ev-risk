@@ -76,6 +76,8 @@ export interface ReceiptGenerateRequest {
   receipt_token: string;
   session_id?: string;
   extraction_id?: string;
+  // Region
+  region?: "US" | "UK";
   // Mode
   mode?: ReceiptMode;
   // Compare listing B (Pro only)

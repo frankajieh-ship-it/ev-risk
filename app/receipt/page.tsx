@@ -33,6 +33,8 @@ import CompareView from "@/components/receipt/CompareView";
 import RoutineFitMiniStep from "@/components/receipt/RoutineFitMiniStep";
 import ShareModal from "@/components/receipt/ShareModal";
 import { useReceiptHistory } from "@/hooks/useReceiptHistory";
+import { useRegion } from "@/hooks/useRegion";
+import RegionSelector from "@/components/RegionSelector";
 import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent } from "@/types/receipt";
 
 // Generate or retrieve receipt token from localStorage
@@ -105,6 +107,7 @@ async function fetchWithRetry(
 export default function ReceiptPage() {
   const { trackEvent } = useEventTracking();
   const { isAuthenticated, isConfigured: authConfigured } = useAuth();
+  const { region, setRegion } = useRegion();
 
   // Core state
   const [receipt, setReceipt] = useState<ListingReceipt | null>(null);
@@ -458,6 +461,7 @@ export default function ReceiptPage() {
         const body: Record<string, unknown> = {
           receipt_token: receiptToken,
           mode: "single",
+          region,
         };
 
         if (pageSource) body.page_source = pageSource;
@@ -547,7 +551,7 @@ export default function ReceiptPage() {
         inFlightRef.current = false;
       }
     },
-    [receiptToken, trackEvent, addReceipt]
+    [receiptToken, region, trackEvent, addReceipt]
   );
 
   // Post receipt event to dedicated endpoint (fire-and-forget)
@@ -685,6 +689,8 @@ export default function ReceiptPage() {
             <ArrowLeft className="w-4 h-4" />
             EV-Risk
           </a>
+          <div className="flex items-center gap-3">
+            <RegionSelector region={region} onChange={setRegion} />
           <button
             onClick={() => {
               setHistoryOpen(true);
@@ -700,6 +706,7 @@ export default function ReceiptPage() {
               </span>
             )}
           </button>
+          </div>
         </div>
 
         {/* Hero */}
@@ -759,6 +766,7 @@ export default function ReceiptPage() {
                 isFixing={isFixing}
                 isFallback={isFallback}
                 onTrackLintFallback={handleLintFallback}
+                region={region}
               />
 
               {/* Negotiator — Seller Strategy */}
@@ -928,6 +936,7 @@ export default function ReceiptPage() {
         onSelect={handleHistorySelect}
         onClear={clearHistory}
         isLoading={isHistoryLoading}
+        region={region}
       />
 
       {/* Compare select modal — works for free (no purchaseId) and paid */}

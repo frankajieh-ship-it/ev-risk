@@ -217,6 +217,7 @@ export async function POST(request: NextRequest) {
     receipt_token: receiptToken as string,
     session_id: (body.session_id as string) || undefined,
     extraction_id: (body.extraction_id as string) || undefined,
+    region: body.region === "UK" ? "UK" : "US",
     mode: "single",
   };
 
@@ -292,6 +293,7 @@ export async function POST(request: NextRequest) {
               lint_passed: false,
               is_fallback: true,
               error_code: "schema_fail",
+              region: input.region || "US",
             },
             ip_address: clientIP,
             page_path: "/api/receipt",
@@ -350,6 +352,7 @@ export async function POST(request: NextRequest) {
         is_pro: isPro,
         features,
         fallback: true,
+        region: input.region || "US",
       };
 
       if (requestRowId) {
@@ -507,6 +510,7 @@ export async function POST(request: NextRequest) {
               vehicle_model: `${input.make || ""} ${input.model || ""}`.trim() || null,
               lint_passed: lintPassed,
               is_fallback: false,
+              region: input.region || "US",
             },
             ip_address: clientIP,
             page_path: "/api/receipt",
@@ -577,6 +581,7 @@ export async function POST(request: NextRequest) {
       vehicle_used,
       vehicle_category: vehicleClassification.category,
       extraction_id: input.extraction_id || null,
+      region: input.region || "US",
     };
 
     // Cache for idempotency
@@ -632,6 +637,7 @@ export async function POST(request: NextRequest) {
             message_safe: isTimeoutOrAIError ? "AI generation timed out" : "Generation failed",
             failure_reason: isTimeoutOrAIError ? "timeout_or_ai_error" : "generation_error",
             input_length: (input.listing_text || "").length,
+            region: input.region || "US",
           },
           ip_address: clientIP,
           page_path: "/api/receipt",
@@ -693,6 +699,7 @@ export async function POST(request: NextRequest) {
         is_pro: isPro,
         features,
         fallback: true,
+        region: input.region || "US",
       };
 
       // Cache fallback for idempotency (still a valid response)

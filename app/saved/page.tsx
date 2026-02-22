@@ -13,12 +13,13 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Bookmark, FileText, Zap, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { useRegion } from "@/hooks/useRegion";
 import LoginModal from "@/components/LoginModal";
 import type { SavedScenarioPreview } from "@/app/api/user/scenario/list/route";
 
 type TabFilter = "all" | "receipt" | "evroutine";
 
-function formatDate(dateString: string): string {
+function formatDate(dateString: string, locale = "en-US"): string {
   const date = new Date(dateString);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -27,7 +28,7 @@ function formatDate(dateString: string): string {
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
   if (diffDays < 7) return `${diffDays} days ago`;
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
@@ -67,6 +68,7 @@ export default function SavedPage() {
   const router = useRouter();
   const { isAuthenticated, session, isLoading: authLoading, isConfigured, isReady } = useAuth();
   const { trackEvent } = useEventTracking();
+  const { config: regionConfig } = useRegion();
 
   const [activeTab, setActiveTab] = useState<TabFilter>("all");
   const [scenarios, setScenarios] = useState<SavedScenarioPreview[]>([]);
@@ -305,7 +307,7 @@ export default function SavedPage() {
                       )}
 
                       <div className="flex items-center gap-3 text-xs text-gray-500 ml-6">
-                        <span>{formatDate(scenario.saved_at)}</span>
+                        <span>{formatDate(scenario.saved_at, regionConfig.locale)}</span>
                         <span className="capitalize text-gray-400">
                           {scenario.scenario_type === "receipt"
                             ? "Listing Receipt"

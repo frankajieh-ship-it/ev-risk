@@ -107,7 +107,12 @@ function buildUserPrompt(input: ReceiptGenerateRequest): string {
   if (input.model) fields.push(`Model: ${input.model}`);
   if (input.trim) fields.push(`Trim: ${input.trim}`);
   if (input.mileage) fields.push(`Mileage: ${input.mileage.toLocaleString()}`);
-  if (input.price) fields.push(`Asking Price: $${input.price.toLocaleString()}`);
+  if (input.price) {
+    const priceStr = input.region === "UK"
+      ? `£${input.price.toLocaleString()}`
+      : `$${input.price.toLocaleString()}`;
+    fields.push(`Asking Price: ${priceStr}`);
+  }
   if (input.vin) fields.push(`VIN: ${input.vin}`);
   if (input.location) fields.push(`Location: ${input.location}`);
   if (input.seller_type && input.seller_type !== "unknown")
@@ -177,6 +182,16 @@ function buildUserPrompt(input: ReceiptGenerateRequest): string {
     parts.push(
       `NOTE: Missing listing details: ${missing.join(", ")}. Acknowledge this in reddit_draft.body_uncertainty.`
     );
+    parts.push("");
+  }
+
+  // Region-specific instructions
+  if (input.region === "UK") {
+    parts.push("REGION: UK");
+    parts.push("- Use GBP (£) for all prices and fee estimates.");
+    parts.push("- Use UK terminology: V5C (not title), MOT (not inspection), dealer extras (not doc fees), HPI check (not Carfax).");
+    parts.push("- If estimating fees, use UK ranges (admin fees £99-£299, VAT 20%).");
+    parts.push("- Do not reference US-specific paperwork or pricing patterns.");
     parts.push("");
   }
 

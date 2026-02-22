@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import type { ListingReceipt, LintError } from "@/types/receipt";
 import { renderRedditDraft, type RedditDraftStyle } from "@/lib/reddit-draft-renderer";
+import type { Region } from "@/lib/region";
+import { formatPrice } from "@/lib/region";
 
 interface ReceiptOutputCardProps {
   receipt: ListingReceipt;
@@ -36,6 +38,7 @@ interface ReceiptOutputCardProps {
   isFallback?: boolean;
   onRegenerate?: () => void;
   onTrackLintFallback?: () => void;
+  region?: Region;
 }
 
 const VERDICT_STYLES = {
@@ -80,6 +83,7 @@ export default function ReceiptOutputCard({
   isFallback,
   onRegenerate,
   onTrackLintFallback,
+  region = "US",
 }: ReceiptOutputCardProps) {
   const [copied, setCopied] = useState(false);
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
@@ -142,7 +146,7 @@ export default function ReceiptOutputCard({
     .filter(Boolean)
     .join(" ");
   const priceStr = ls?.price
-    ? `${ls.currency || "$"}${ls.price.toLocaleString()}`
+    ? formatPrice(ls.price, region)
     : null;
 
   return (
@@ -191,6 +195,9 @@ export default function ReceiptOutputCard({
           </div>
         </div>
         <p className="text-sm text-gray-700 mt-2">{receipt.verdict_reason}</p>
+        {region === "UK" && (
+          <p className="text-xs text-gray-500 mt-1.5">UK Mode (beta) — prices in pounds, UK wording</p>
+        )}
       </div>
 
       {/* Prominent Copy Checklist — above the fold */}
