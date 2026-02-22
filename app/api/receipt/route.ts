@@ -553,6 +553,7 @@ export async function POST(request: NextRequest) {
     const isTimeoutOrAIError =
       error instanceof Error &&
       (error.message.includes("timeout") ||
+        error.message.includes("timed out") ||
         error.message.includes("Connection error") ||
         error.message.includes("503") ||
         error.message.includes("429") ||
@@ -560,6 +561,7 @@ export async function POST(request: NextRequest) {
         error.message.includes("aborted") ||
         error.name === "AbortError" ||
         error.name === "APIConnectionError" ||
+        error.name === "APIConnectionTimeoutError" ||
         error.name === "APIError");
 
     logApi("error", "Receipt generation failed", {
