@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // 7. Call OpenAI with internal deadline (race against Netlify's 26s kill)
-    const INTERNAL_DEADLINE_MS = 22_000; // 22s — leaves 4s for fallback + DB write
+    const INTERNAL_DEADLINE_MS = 24_000; // 24s — streaming keeps OpenAI conn alive; 2s buffer for fallback
     const elapsed = Date.now() - t0;
     const remainingMs = INTERNAL_DEADLINE_MS - elapsed;
 
