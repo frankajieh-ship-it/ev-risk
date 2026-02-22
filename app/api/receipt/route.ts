@@ -105,48 +105,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 5. Pro access check
+  // 5. Auth + idempotency in parallel (saves 1-2 Supabase round-trips)
   const accessToken = request.cookies.get("sb-access-token")?.value;
-  let userId: string | undefined;
-  let userEmail: string | undefined;
-  if (accessToken && isSupabaseConfigured()) {
-    try {
-      const { data: { user } } = await supabase.auth.getUser(accessToken);
-      userId = user?.id;
-      userEmail = user?.email || undefined;
-    } catch {
-      // not authenticated
-    }
-  }
-  const isPro = await checkIsPro(userId, userEmail);
-  const features = getFeatureFlags(isPro);
-  timings.auth = Date.now() - t0;
-
-  // 5b. Server-side rate limiting anchors
   const serverSessionId = request.cookies.get("receipt_session")?.value;
   const ipHash = hashIP(clientIP);
 
-  // 6. Daily free limit check
-  const dailyLimit = await checkDailyLimit(receiptToken as string, isPro, serverSessionId, ipHash || undefined);
-  if (!dailyLimit.allowed) {
-    const resetDate = new Date(dailyLimit.resetAt);
-    const retryAfterSec = Math.max(1, Math.ceil((resetDate.getTime() - Date.now()) / 1000));
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Daily limit reached. Resets at midnight UTC — come back tomorrow!",
-        remaining_free: 0,
-        resetAt: dailyLimit.resetAt,
-        retryAfter: retryAfterSec,
-      },
-      {
-        status: 429,
-        headers: { "Retry-After": String(retryAfterSec) },
-      }
-    );
-  }
-
-  // 6b. Idempotency check — same input within 5 min returns cached response
   const inputHash = computeInputHash({
     anon_id: receiptToken as string,
     year: typeof body.year === "number" ? body.year : undefined,
@@ -159,8 +122,34 @@ export async function POST(request: NextRequest) {
     listing_text: (body.listing_text as string) || null,
   });
 
-  const idempotency = await checkIdempotency(inputHash);
+  // Run auth chain and idempotency check concurrently
+  const authPromise = (async () => {
+    let userId: string | undefined;
+    let userEmail: string | undefined;
+    if (accessToken && isSupabaseConfigured()) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser(accessToken);
+        userId = user?.id;
+        userEmail = user?.email || undefined;
+      } catch {
+        // not authenticated
+      }
+    }
+    const isPro = await checkIsPro(userId, userEmail);
+    return { userId, userEmail, isPro };
+  })();
 
+  const [authResult, idempotency] = await Promise.all([
+    authPromise,
+    checkIdempotency(inputHash),
+  ]);
+
+  const { isPro } = authResult;
+  let { userId } = authResult;
+  const features = getFeatureFlags(isPro);
+  timings.auth = Date.now() - t0;
+
+  // 5b. Idempotency early returns
   if (idempotency.status === "cached" && idempotency.cachedResponse) {
     console.log(`[Receipt API] Returning cached response for hash ${inputHash.substring(0, 8)}`);
     return NextResponse.json(idempotency.cachedResponse);
@@ -180,7 +169,29 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const requestRowId = await claimRequest(inputHash, receiptToken as string, ipHash || undefined);
+  // 6. Daily free limit + claim request in parallel
+  const [dailyLimit, requestRowId] = await Promise.all([
+    checkDailyLimit(receiptToken as string, isPro, serverSessionId, ipHash || undefined),
+    claimRequest(inputHash, receiptToken as string, ipHash || undefined),
+  ]);
+
+  if (!dailyLimit.allowed) {
+    const resetDate = new Date(dailyLimit.resetAt);
+    const retryAfterSec = Math.max(1, Math.ceil((resetDate.getTime() - Date.now()) / 1000));
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Daily limit reached. Resets at midnight UTC — come back tomorrow!",
+        remaining_free: 0,
+        resetAt: dailyLimit.resetAt,
+        retryAfter: retryAfterSec,
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(retryAfterSec) },
+      }
+    );
+  }
 
   // 7. Build request
   const input: ReceiptGenerateRequest = {
