@@ -15,7 +15,7 @@ import { getTemplatePack } from "@/lib/vehicle-category-templates";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  timeout: 24_000,       // 24s hard cap — leaves 2s buffer for Netlify's 26s limit
+  timeout: 25_000,       // 25s — generous; streaming keeps connection alive
   maxRetries: 0,         // We handle retries ourselves; don't let the SDK retry silently
 });
 
@@ -23,6 +23,43 @@ const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
 // Time budget: skip retry if first call already consumed most of the allowed time
 const TIME_BUDGET_MS = 8000;
+
+// ---------------------------------------------------------------------------
+// Streaming helper — collects streamed chunks into a single string.
+// Streaming avoids the full-response SDK timeout and keeps the Netlify
+// connection alive with incremental data.
+// ---------------------------------------------------------------------------
+
+async function streamCompletion(
+  messages: OpenAI.ChatCompletionMessageParam[],
+  opts: { model?: string; temperature?: number; max_tokens?: number } = {},
+): Promise<{ content: string; usage: { prompt_tokens: number; completion_tokens: number } | null }> {
+  const stream = await openai.chat.completions.create({
+    model: opts.model || MODEL,
+    messages,
+    temperature: opts.temperature ?? 0.3,
+    max_tokens: opts.max_tokens ?? 1800,
+    response_format: { type: "json_object" },
+    stream: true,
+    stream_options: { include_usage: true },
+  });
+
+  const chunks: string[] = [];
+  let usage: { prompt_tokens: number; completion_tokens: number } | null = null;
+
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content;
+    if (delta) chunks.push(delta);
+    if (chunk.usage) {
+      usage = {
+        prompt_tokens: chunk.usage.prompt_tokens,
+        completion_tokens: chunk.usage.completion_tokens,
+      };
+    }
+  }
+
+  return { content: chunks.join(""), usage };
+}
 
 // --- System Prompt ---
 
@@ -273,15 +310,12 @@ export async function generateReceipt(
     { role: "user", content: userPrompt },
   ];
 
-  const firstResponse = await openai.chat.completions.create({
-    model: MODEL,
-    messages,
+  const firstResponse = await streamCompletion(messages, {
     temperature: 0.3,
     max_tokens: 1800,
-    response_format: { type: "json_object" },
   });
 
-  const firstContent = firstResponse.choices[0]?.message?.content || "{}";
+  const firstContent = firstResponse.content || "{}";
   let parsed: unknown;
 
   try {
@@ -343,15 +377,12 @@ Fix ONLY these issues and return the corrected complete JSON. Keep all other con
   messages.push({ role: "assistant", content: firstContent });
   messages.push({ role: "user", content: repairPrompt });
 
-  const retryResponse = await openai.chat.completions.create({
-    model: MODEL,
-    messages,
+  const retryResponse = await streamCompletion(messages, {
     temperature: 0.2,
     max_tokens: 1800,
-    response_format: { type: "json_object" },
   });
 
-  const retryContent = retryResponse.choices[0]?.message?.content || "{}";
+  const retryContent = retryResponse.content || "{}";
   let retryParsed: unknown;
 
   try {
