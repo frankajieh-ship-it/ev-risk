@@ -154,6 +154,25 @@ export interface DeepDiveContent {
   verdict_deep: string;
 }
 
+// --- Share Snapshot (public-safe subset for QR share pages) ---
+
+export interface ShareSnapshot {
+  verdict: Verdict;
+  verdict_reason: string;
+  risk_flags: string[];
+  must_answer_questions: string[];
+  price_sanity_label: PriceSanityLabel;
+  listing_summary: {
+    year: number | null;
+    make: string | null;
+    model: string | null;
+    price: number | null;
+    mileage: number | null;
+    seller_type: string | null;
+  };
+  timestamp: string;
+}
+
 // --- History Entry ---
 
 export interface ReceiptHistoryEntry {

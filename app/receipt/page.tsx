@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Receipt, History, ArrowLeft, Loader2, X, Mail, Bookmark } from "lucide-react";
+import { Receipt, History, ArrowLeft, Loader2, X, Mail, Bookmark, QrCode } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useAuth } from "@/hooks/useAuth";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
@@ -31,6 +31,7 @@ import CompareBadge from "@/components/receipt/CompareBadge";
 import CompareSelectModal from "@/components/receipt/CompareSelectModal";
 import CompareView from "@/components/receipt/CompareView";
 import RoutineFitMiniStep from "@/components/receipt/RoutineFitMiniStep";
+import ShareModal from "@/components/receipt/ShareModal";
 import { useReceiptHistory } from "@/hooks/useReceiptHistory";
 import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent } from "@/types/receipt";
 
@@ -149,6 +150,12 @@ export default function ReceiptPage() {
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [showCompareView, setShowCompareView] = useState(false);
   const [showCompareLoginModal, setShowCompareLoginModal] = useState(false);
+
+  // Share state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareSlug, setShareSlug] = useState("");
+  const [isSharing, setIsSharing] = useState(false);
 
   // VIN from extraction (passed to VinCheckSection)
   const [currentVin, setCurrentVin] = useState<string | undefined>(undefined);
@@ -594,6 +601,36 @@ export default function ReceiptPage() {
     });
   }, [trackEvent, receipt, lintErrors]);
 
+  // Handle share receipt
+  const handleShareClick = useCallback(async () => {
+    if (!receipt?.receipt_id || !receiptToken || isSharing) return;
+    setIsSharing(true);
+    trackEvent("share_qr_clicked", { receipt_id: receipt.receipt_id });
+
+    try {
+      const res = await fetch("/api/share/receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          receipt_id: receipt.receipt_id,
+          receipt_token: receiptToken,
+        }),
+      });
+
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success) {
+        setShareUrl(data.share_url);
+        setShareSlug(data.share_slug);
+        setShowShareModal(true);
+      }
+    } catch {
+      // Silently fail — share is non-critical
+    } finally {
+      setIsSharing(false);
+    }
+  }, [receipt, receiptToken, isSharing, trackEvent]);
+
   // Handle auto-fix
   const handleAutoFix = useCallback(async () => {
     if (!receipt || !receiptToken) return;
@@ -749,6 +786,16 @@ export default function ReceiptPage() {
                   onSaveSuccess={() => setHasSaved(true)}
                 />
               </div>
+
+              {/* Share receipt */}
+              <button
+                onClick={handleShareClick}
+                disabled={isSharing}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                <QrCode className="w-4 h-4" />
+                {isSharing ? "Generating link..." : "Share Receipt"}
+              </button>
 
               {/* PDF download (shown when payments are enabled) */}
               {paymentsEnabled && (
@@ -924,6 +971,18 @@ export default function ReceiptPage() {
           setEmailGateCompleted(true);
         }}
       />
+
+      {/* Share receipt modal */}
+      {receipt && (
+        <ShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          shareUrl={shareUrl}
+          shareSlug={shareSlug}
+          receiptId={receipt.receipt_id}
+          receipt={receipt}
+        />
+      )}
 
       {/* Floating save nudge bar */}
       <AnimatePresence>

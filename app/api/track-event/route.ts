@@ -159,6 +159,16 @@ const VALID_EVENT_NAMES = [
   "negotiator_shown",
   "negotiator_copy_clicked",
   "negotiator_upsell_clicked",
+  // Share / QR Events
+  "share_qr_clicked",
+  "share_link_created",
+  "share_link_copied",
+  "share_qr_downloaded",
+  "share_card_downloaded",
+  "share_modal_opened",
+  "share_link_opened",
+  "share_link_landing_view",
+  "share_link_to_receipt_start_click",
   // Legacy event names (for backward compatibility)
   "page_view",
 ] as const;
