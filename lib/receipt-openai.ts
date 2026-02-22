@@ -277,7 +277,7 @@ export async function generateReceipt(
     model: MODEL,
     messages,
     temperature: 0.3,
-    max_tokens: 2500,
+    max_tokens: 1800,
     response_format: { type: "json_object" },
   });
 
@@ -347,7 +347,7 @@ Fix ONLY these issues and return the corrected complete JSON. Keep all other con
     model: MODEL,
     messages,
     temperature: 0.2,
-    max_tokens: 2500,
+    max_tokens: 1800,
     response_format: { type: "json_object" },
   });
 

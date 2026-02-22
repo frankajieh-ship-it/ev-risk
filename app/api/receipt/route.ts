@@ -221,8 +221,34 @@ export async function POST(request: NextRequest) {
   };
 
   try {
-    // 7. Call OpenAI
-    const { receipt, retried } = await generateReceipt(input);
+    // 7. Call OpenAI with internal deadline (race against Netlify's 26s kill)
+    const INTERNAL_DEADLINE_MS = 22_000; // 22s — leaves 4s for fallback + DB write
+    const elapsed = Date.now() - t0;
+    const remainingMs = INTERNAL_DEADLINE_MS - elapsed;
+
+    const deadlineError = Symbol("deadline");
+    const deadlinePromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(deadlineError), Math.max(remainingMs, 1000))
+    );
+
+    let receipt: Awaited<ReturnType<typeof generateReceipt>>["receipt"];
+    let retried: boolean;
+
+    try {
+      const result = await Promise.race([
+        generateReceipt(input),
+        deadlinePromise,
+      ]);
+      receipt = result.receipt;
+      retried = result.retried;
+    } catch (raceErr) {
+      if (raceErr === deadlineError) {
+        console.log(`[Receipt API] Internal deadline hit at ${Date.now() - t0}ms, returning fallback`);
+        throw new Error("Request timed out.");
+      }
+      throw raceErr;
+    }
+
     timings.openai = Date.now() - t0;
 
     // 8. Validate receipt (Zod parse + lint)
