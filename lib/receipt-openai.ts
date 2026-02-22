@@ -15,7 +15,7 @@ import { getTemplatePack } from "@/lib/vehicle-category-templates";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  timeout: 20_000,       // 20s hard cap — leaves 6s buffer for Netlify's 26s limit
+  timeout: 24_000,       // 24s hard cap — leaves 2s buffer for Netlify's 26s limit
   maxRetries: 0,         // We handle retries ourselves; don't let the SDK retry silently
 });
 
