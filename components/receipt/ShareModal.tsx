@@ -55,23 +55,21 @@ export default function ShareModal({
         const qrCanvas = qrRef.current?.querySelector("canvas");
         if (!qrCanvas) return;
 
-        // Load OFFO logo
-        const logoImg = new Image();
-        logoImg.crossOrigin = "anonymous";
-        await new Promise<void>((resolve, reject) => {
-          logoImg.onload = () => resolve();
-          logoImg.onerror = () => reject(new Error("Logo load failed"));
-          logoImg.src = "/offo-lab-logo.png";
-        });
-
-        // Create offscreen canvas
+        // Create offscreen canvas (landscape for social sharing)
         const canvas = document.createElement("canvas");
-        canvas.width = 1080;
-        canvas.height = 1080;
+        canvas.width = 1200;
+        canvas.height = 900;
+
+        // Derive short verdict tagline from first risk flag
+        const firstFlag = receipt.risk_flags?.[0] || "";
+        const verdictShort = firstFlag.length > 35
+          ? firstFlag.slice(0, 32) + "..."
+          : firstFlag || receipt.verdict_reason.slice(0, 35);
 
         generateShareCard(canvas, {
           verdict: receipt.verdict as "GREEN" | "YELLOW" | "RED",
           verdictReason: receipt.verdict_reason,
+          verdictShort,
           riskFlags: (receipt.risk_flags || []).slice(0, 3),
           year: receipt.listing_summary?.year ?? null,
           make: receipt.listing_summary?.make ?? null,
@@ -79,7 +77,7 @@ export default function ShareModal({
           price: receipt.listing_summary?.price ?? null,
           mileage: receipt.listing_summary?.mileage ?? null,
           shareSlug,
-        }, qrCanvas as HTMLCanvasElement, logoImg);
+        }, qrCanvas as HTMLCanvasElement);
 
         setCardDataUrl(canvas.toDataURL("image/png"));
       } catch (err) {
@@ -163,7 +161,7 @@ export default function ShareModal({
               <div ref={qrRef} className="absolute -left-[9999px]">
                 <QRCodeCanvas
                   value={fullUrl}
-                  size={360}
+                  size={330}
                   level="H"
                   includeMargin={false}
                 />
@@ -172,7 +170,7 @@ export default function ShareModal({
               {/* Card preview */}
               <div className="flex justify-center mb-4">
                 {isGeneratingCard ? (
-                  <div className="w-full aspect-square bg-gray-50 rounded-xl flex items-center justify-center">
+                  <div className="w-full aspect-[4/3] bg-gray-50 rounded-xl flex items-center justify-center">
                     <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
                   </div>
                 ) : cardDataUrl ? (
@@ -182,7 +180,7 @@ export default function ShareModal({
                     className="w-full rounded-xl shadow-sm border border-gray-100"
                   />
                 ) : (
-                  <div className="w-full aspect-square bg-gray-50 rounded-xl flex items-center justify-center text-sm text-gray-400">
+                  <div className="w-full aspect-[4/3] bg-gray-50 rounded-xl flex items-center justify-center text-sm text-gray-400">
                     Generating card...
                   </div>
                 )}
