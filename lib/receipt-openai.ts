@@ -15,6 +15,8 @@ import { getTemplatePack } from "@/lib/vehicle-category-templates";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  timeout: 20_000,       // 20s hard cap — leaves 6s buffer for Netlify's 26s limit
+  maxRetries: 0,         // We handle retries ourselves; don't let the SDK retry silently
 });
 
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
@@ -166,7 +168,7 @@ function buildUserPrompt(input: ReceiptGenerateRequest): string {
   }
 
   if (input.listing_text) {
-    const trimmed = input.listing_text.substring(0, 8000);
+    const trimmed = input.listing_text.substring(0, 5000);
     parts.push("LISTING TEXT:");
     parts.push(trimmed);
     parts.push("");
