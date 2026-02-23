@@ -776,6 +776,7 @@ export default function ReceiptPage() {
                 receipt={receipt}
                 isUnlocked={isUnlocked}
                 onUpgradeClick={() => handlePremiumAction("negotiator_upsell")}
+                freeMode={freeMode}
               />
 
               {/* VIN Check */}

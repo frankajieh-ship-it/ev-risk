@@ -27,6 +27,7 @@ interface NegotiatorSectionProps {
   receipt: ListingReceipt;
   isUnlocked: boolean;
   onUpgradeClick: () => void;
+  freeMode?: boolean;
 }
 
 type CopiedKey = "opener" | "talking" | "questions" | "walkaway" | "offer" | "all" | null;
@@ -35,6 +36,7 @@ export default function NegotiatorSection({
   receipt,
   isUnlocked,
   onUpgradeClick,
+  freeMode = false,
 }: NegotiatorSectionProps) {
   const { trackEvent } = useEventTracking();
   const [copied, setCopied] = useState<CopiedKey>(null);
@@ -262,8 +264,8 @@ export default function NegotiatorSection({
           </StrategyBlock>
         )}
 
-        {/* Upsell CTA for paid negotiation scripts */}
-        {!isUnlocked && (
+        {/* Upsell CTA for paid negotiation scripts (hidden in free mode) */}
+        {!isUnlocked && !freeMode && (
           <div className="border-t border-gray-100 pt-4 mt-2">
             <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl border border-indigo-200 p-4 flex items-center justify-between gap-4">
               <div>
