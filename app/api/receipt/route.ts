@@ -28,6 +28,7 @@ import { getFeatureFlags } from "@/lib/feature-flags";
 import { computeInputHash, checkIdempotency, claimRequest, completeRequest, failRequest } from "@/lib/receipt-idempotency";
 import { renderRedditDraft } from "@/lib/reddit-draft-renderer";
 import { classifyVehicle } from "@/lib/vehicle-classifier";
+import { scoreReceipt } from "@/lib/receipt-scoring";
 import { isInternalTester } from "@/lib/rollout-flags";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
 import { logApi } from "@/lib/api-logger";
@@ -433,6 +434,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 9b. Deterministic scoring post-processing
+    const aiVerdict = finalReceipt.verdict;
+    if (finalReceipt.listing_signals && Array.isArray(finalReceipt.listing_signals) && finalReceipt.listing_signals.length > 0) {
+      try {
+        const scoringResult = scoreReceipt(finalReceipt.listing_signals as string[]);
+        finalReceipt = {
+          ...finalReceipt,
+          verdict: scoringResult.verdict,
+          fit_score: scoringResult.fit_score,
+          evidence_score: scoringResult.evidence_score,
+          evidence_label: scoringResult.evidence_label,
+          scoring_reasons: scoringResult.scoring_reasons,
+          why_not_green: scoringResult.why_not_green,
+          verify_before_visit: scoringResult.verify_before_visit,
+        };
+        console.log(`[Receipt API] Scoring: fit=${scoringResult.fit_score} evidence=${scoringResult.evidence_score} verdict=${scoringResult.verdict} (AI said ${aiVerdict})`);
+      } catch (scoreErr) {
+        console.error("[Receipt API] Scoring engine error, keeping AI verdict:", scoreErr);
+      }
+    }
+
     timings.validate = Date.now() - t0;
 
     // 10. Increment daily counter (in-memory fallback)
@@ -511,6 +533,10 @@ export async function POST(request: NextRequest) {
               lint_passed: lintPassed,
               is_fallback: false,
               region: input.region || "US",
+              fit_score: finalReceipt.fit_score ?? null,
+              evidence_score: finalReceipt.evidence_score ?? null,
+              evidence_label: finalReceipt.evidence_label ?? null,
+              ai_verdict: aiVerdict ?? null,
             },
             ip_address: clientIP,
             page_path: "/api/receipt",
@@ -582,6 +608,9 @@ export async function POST(request: NextRequest) {
       vehicle_category: vehicleClassification.category,
       extraction_id: input.extraction_id || null,
       region: input.region || "US",
+      fit_score: finalReceipt.fit_score ?? null,
+      evidence_score: finalReceipt.evidence_score ?? null,
+      evidence_label: finalReceipt.evidence_label ?? null,
     };
 
     // Cache for idempotency

@@ -9,6 +9,8 @@ export type { Receipt as ListingReceipt } from "@/lib/receipt-schema-validator";
 export type { LintError } from "@/lib/receipt-schema-validator";
 export type { RedditDraft } from "@/lib/receipt-schema-validator";
 export type { VehicleCategory, VehicleClassification } from "@/lib/vehicle-classifier";
+export type { ListingSignalId, ScoringCategory } from "@/lib/receipt-rules";
+export type { EvidenceLabel, ScoringReason, ReceiptScoringResult } from "@/lib/receipt-scoring";
 import type { Receipt } from "@/lib/receipt-schema-validator";
 
 // --- Derived sub-types from Zod schema ---
@@ -181,6 +183,8 @@ export interface ReceiptHistoryEntry {
   receipt_id: string;
   created_at: string; // ISO
   verdict: Verdict;
+  evidence_label?: "STRONG" | "PARTIAL" | "MISSING";
+  fit_score?: number;
   year: number | null;
   make: string | null;
   model: string | null;

@@ -37,6 +37,8 @@ export function addToReceiptHistory(receipt: ListingReceipt): void {
       receipt_id: receipt.receipt_id,
       created_at: new Date().toISOString(),
       verdict: receipt.verdict,
+      evidence_label: receipt.evidence_label,
+      fit_score: receipt.fit_score,
       year: receipt.listing_summary?.year || null,
       make: receipt.listing_summary?.make || null,
       model: receipt.listing_summary?.model || null,

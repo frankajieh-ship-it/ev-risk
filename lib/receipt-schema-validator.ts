@@ -111,6 +111,24 @@ export const ReceiptSchema = z.object({
   compare: CompareSectionSchema.nullable().optional(),
   operator_notes: OperatorNotesSchema,
   reddit_draft: RedditDraftSchema.nullable().optional(),
+  // --- Scoring fields (AI extracts listing_signals; rest injected by post-processing) ---
+  listing_signals: z.array(z.string()).optional(),
+  fit_score: z.number().min(0).max(100).optional(),
+  evidence_score: z.number().min(0).max(100).optional(),
+  evidence_label: z.enum(["STRONG", "PARTIAL", "MISSING"]).optional(),
+  scoring_reasons: z.array(z.object({
+    signal_id: z.string(),
+    category: z.enum(["routine_friction", "listing_risk", "missing_proof"]),
+    points: z.number(),
+    label: z.string(),
+  })).optional(),
+  why_not_green: z.array(z.object({
+    signal_id: z.string(),
+    category: z.enum(["routine_friction", "listing_risk", "missing_proof"]),
+    points: z.number(),
+    label: z.string(),
+  })).optional(),
+  verify_before_visit: z.array(z.string().max(200)).max(5).optional(),
 });
 
 export type Receipt = z.infer<typeof ReceiptSchema>;

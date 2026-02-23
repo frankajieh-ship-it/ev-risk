@@ -125,6 +125,15 @@ export default function ReceiptHistoryDrawer({
                             <Icon className="w-3 h-3" />
                             {entry.verdict}
                           </div>
+                          {entry.receipt?.evidence_label && (
+                            <div className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                              entry.receipt.evidence_label === "STRONG" ? "bg-blue-50 text-blue-600" :
+                              entry.receipt.evidence_label === "PARTIAL" ? "bg-gray-100 text-gray-500" :
+                              "bg-orange-50 text-orange-600"
+                            }`}>
+                              {entry.receipt.evidence_label}
+                            </div>
+                          )}
                           <span className="text-xs text-gray-400">{timeStr}</span>
                         </div>
                         <p className="text-sm font-medium text-gray-900 truncate">

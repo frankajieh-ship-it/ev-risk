@@ -12,6 +12,7 @@ import type { LintError } from "@/lib/receipt-schema-validator";
 import { validateReceiptSchema, sanitizeTextField } from "@/lib/receipt-schema-validator";
 import { classifyVehicle } from "@/lib/vehicle-classifier";
 import { getTemplatePack } from "@/lib/vehicle-category-templates";
+import { scoreFallbackReceipt } from "@/lib/receipt-scoring";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -68,9 +69,9 @@ const SYSTEM_PROMPT = `You are OFFO Receipt Bot. Analyze a car listing → retur
 Return ONLY valid JSON. No markdown, no explanation.
 
 SCHEMA:
-{"schema_version":"v1","receipt_id":"<UUID v4>","mode":"single","verdict":"GREEN|YELLOW|RED","verdict_reason":"4-180ch","price_sanity":{"label":"UNDERPRICED|FAIR|OVERPRICED|UNKNOWN","confidence":0.0-1.0,"basis":"LISTING_ONLY|USER_MARKET_RANGE|UNKNOWN","rationale_short":"4-180ch","user_market_range":null},"risk_flags":["1-120ch","1-120ch","1-120ch"],"must_answer_questions":["1-140ch","1-140ch","1-140ch"],"inspect_first":["1-140ch",x5],"negotiation_opener":"8-420ch","one_followup_question":"max160ch or null","reddit_draft":{"title":"10-200ch, starts with year/make/model+price","body_facts":["5-200ch",1-5 items],"body_uncertainty":["5-200ch",0-3],"body_next_steps":["5-200ch",0-3],"questions":["10-200ch, EXACTLY 1"],"style":{"format":"short_paragraph","max_questions":1}},"receipt_details":{"fee_estimates":{"currency":"USD","notes":"max220ch","tax_estimate_range":{"low":N,"high":N}|null,"doc_fee_estimate_range":{"low":N,"high":N}|null},"common_listing_tricks":["1-140ch",3-10],"walk_away_triggers":["1-140ch",3-10]},"compare":null,"operator_notes":{"rationale":"10-500ch","assumptions":["1-120ch",0-6],"what_would_change_verdict":["1-140ch",0-4]},"listing_summary":{"listing_url":"str","url_domain":"str","country":"US|UK|CA|AU|OTHER","zip_or_postcode":"str","price":N,"currency":"str","mileage":N,"mileage_unit":"mi|km|unknown","year":N,"make":"str","model":"str","trim":"str|null","seller_type":"dealer|private|unknown","title_status":"clean|salvage|rebuilt|unknown","accidents_reported":"yes|no|unknown","service_history":"yes|no|unknown","owners":N|null,"carfax_available":"yes|no|unknown","financing_vs_cash":"financing|cash|unknown"}}
+{"schema_version":"v1","receipt_id":"<UUID v4>","mode":"single","verdict":"GREEN|YELLOW|RED","verdict_reason":"4-180ch","price_sanity":{"label":"UNDERPRICED|FAIR|OVERPRICED|UNKNOWN","confidence":0.0-1.0,"basis":"LISTING_ONLY|USER_MARKET_RANGE|UNKNOWN","rationale_short":"4-180ch","user_market_range":null},"risk_flags":["1-120ch","1-120ch","1-120ch"],"must_answer_questions":["1-140ch","1-140ch","1-140ch"],"inspect_first":["1-140ch",x5],"negotiation_opener":"8-420ch","one_followup_question":"max160ch or null","reddit_draft":{"title":"10-200ch, starts with year/make/model+price","body_facts":["5-200ch",1-5 items],"body_uncertainty":["5-200ch",0-3],"body_next_steps":["5-200ch",0-3],"questions":["10-200ch, EXACTLY 1"],"style":{"format":"short_paragraph","max_questions":1}},"receipt_details":{"fee_estimates":{"currency":"USD","notes":"max220ch","tax_estimate_range":{"low":N,"high":N}|null,"doc_fee_estimate_range":{"low":N,"high":N}|null},"common_listing_tricks":["1-140ch",3-10],"walk_away_triggers":["1-140ch",3-10]},"compare":null,"operator_notes":{"rationale":"10-500ch","assumptions":["1-120ch",0-6],"what_would_change_verdict":["1-140ch",0-4]},"listing_summary":{"listing_url":"str","url_domain":"str","country":"US|UK|CA|AU|OTHER","zip_or_postcode":"str","price":N,"currency":"str","mileage":N,"mileage_unit":"mi|km|unknown","year":N,"make":"str","model":"str","trim":"str|null","seller_type":"dealer|private|unknown","title_status":"clean|salvage|rebuilt|unknown","accidents_reported":"yes|no|unknown","service_history":"yes|no|unknown","owners":N|null,"carfax_available":"yes|no|unknown","financing_vs_cash":"financing|cash|unknown"},"listing_signals":["signal_id",...]}
 
-ARRAY COUNTS (linter enforced): risk_flags=3, must_answer_questions=3, inspect_first=5, reddit_draft.questions=1.
+ARRAY COUNTS (linter enforced): risk_flags=3, must_answer_questions=3, inspect_first=5, reddit_draft.questions=1. listing_signals=3-20.
 
 RULES:
 - reddit_draft body: first-person buyer voice ("I plan to...", "I wasn't able to confirm..."). Never imperative ("Check the...", "Verify...").
@@ -81,7 +82,18 @@ RULES:
 - DCFC: if DCFC_SUPPORT=unknown, say "confirm DC fast charging support" — don't assume it.
 - Location: if ambiguous, say "local listing" — don't guess a city.
 - GREEN=fair price+no red flags. YELLOW=concerns or missing info. RED=major red flags or overpriced.
-- Tone: direct, specific, concrete numbers. Like a friend who's bought 50 cars.`;
+- Tone: direct, specific, concrete numbers. Like a friend who's bought 50 cars.
+
+SIGNAL LIBRARY — use exact IDs in listing_signals[]:
+Hard blockers: title_salvage, frame_damage_major, routine_impossible, dcfc_required_but_absent, odometer_title_mismatch
+Fit penalties: no_home_charging, single_site_dependency, plan_b_weak, winter_high_exposure, longest_day_tight_buffer, public_charging_cost_risk, multi_driver_one_charger, price_over_market_10_15, price_over_market_15_plus, prior_damage_minor, ownership_turnover_high, battery_replaced_unverified, dealer_addon_pressure, model_known_limit_vs_routine
+Evidence bonuses: clean_title_explicit, battery_report_recent, battery_warranty_info, service_records_shown, dcfc_confirmed, charging_port_photo, vin_decoded, ownership_history_clear, fees_disclosed, tire_condition_visible, recall_status_clear
+Evidence penalties: battery_proof_missing, battery_warranty_unclear, service_records_missing, dcfc_unclear, ownership_history_unclear, fees_unclear, tire_condition_unclear, title_status_unclear, vin_missing
+
+SIGNAL RULES:
+- Include EVERY signal that applies. Err on the side of including more signals.
+- Hard blockers: only if strong evidence. Evidence bonuses: only if listing explicitly shows it. Evidence penalties: if listing does NOT address it.
+- "Not mentioned" = the corresponding "missing" or "unclear" penalty applies.`;
 
 // --- User Prompt Builder ---
 
@@ -338,12 +350,22 @@ export function buildFallbackReceipt(input: ReceiptGenerateRequest): ListingRece
   const label = `${year > 0 ? year + " " : ""}${make} ${model}`;
   const priceStr = price > 0 ? `$${price.toLocaleString()}` : "unlisted price";
 
+  // Derive verdict from structured fields instead of hardcoding YELLOW
+  const scoring = scoreFallbackReceipt({
+    title_status: input.title_status,
+    service_history: input.service_history,
+    accidents_reported: input.accidents_reported,
+    owners: input.owners,
+    carfax_available: input.carfax_available,
+    vin: input.vin,
+  });
+
   return {
     receipt_id: uuidv4(),
     schema_version: "v1",
     mode: "single",
-    verdict: "YELLOW",
-    verdict_reason: `AI analysis timed out for this ${label}. Basic receipt generated from listing data.`,
+    verdict: scoring.verdict,
+    verdict_reason: `AI analysis timed out for this ${label}. Scores based on available listing data.`,
     price_sanity: {
       label: "UNKNOWN",
       confidence: 0,
@@ -407,6 +429,14 @@ export function buildFallbackReceipt(input: ReceiptGenerateRequest): ListingRece
         "Accident history or title issues could move this toward RED",
       ],
     },
+    // Scoring fields from deterministic engine
+    listing_signals: [],
+    fit_score: scoring.fit_score,
+    evidence_score: scoring.evidence_score,
+    evidence_label: scoring.evidence_label,
+    scoring_reasons: scoring.scoring_reasons,
+    why_not_green: scoring.why_not_green,
+    verify_before_visit: scoring.verify_before_visit,
   } as ListingReceipt;
 }
 

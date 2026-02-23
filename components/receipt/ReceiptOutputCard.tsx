@@ -21,6 +21,7 @@ import {
   Wrench,
   HelpCircle,
   FileText,
+  FileSearch,
 } from "lucide-react";
 import type { ListingReceipt, LintError } from "@/types/receipt";
 import { renderRedditDraft, type RedditDraftStyle } from "@/lib/reddit-draft-renderer";
@@ -70,6 +71,18 @@ const PRICE_STYLES = {
   FAIR: { bg: "bg-blue-50", text: "text-blue-700", label: "Fair Price" },
   OVERPRICED: { bg: "bg-red-50", text: "text-red-700", label: "Overpriced" },
   UNKNOWN: { bg: "bg-gray-50", text: "text-gray-600", label: "Price Unknown" },
+};
+
+const EVIDENCE_STYLES: Record<string, { bg: string; text: string }> = {
+  STRONG: { bg: "bg-blue-100", text: "text-blue-700" },
+  PARTIAL: { bg: "bg-gray-100", text: "text-gray-600" },
+  MISSING: { bg: "bg-orange-100", text: "text-orange-700" },
+};
+
+const REASON_CATEGORY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  routine_friction: { bg: "bg-blue-50", text: "text-blue-600", label: "Routine" },
+  listing_risk: { bg: "bg-red-50", text: "text-red-600", label: "Risk" },
+  missing_proof: { bg: "bg-orange-50", text: "text-orange-600", label: "Proof" },
 };
 
 export default function ReceiptOutputCard({
@@ -185,6 +198,11 @@ export default function ReceiptOutputCard({
               <span className={`text-sm font-medium ${verdict.text} opacity-80`}>
                 — {verdict.label}
               </span>
+              {receipt.evidence_label && (
+                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${EVIDENCE_STYLES[receipt.evidence_label]?.bg || "bg-gray-100"} ${EVIDENCE_STYLES[receipt.evidence_label]?.text || "text-gray-600"}`}>
+                  {receipt.evidence_label} Evidence
+                </span>
+              )}
             </div>
             {vehicleDesc && (
               <p className="text-sm text-gray-700 mt-0.5">
@@ -198,7 +216,58 @@ export default function ReceiptOutputCard({
         {region === "UK" && (
           <p className="text-xs text-gray-500 mt-1.5">UK Mode (beta) — prices in pounds, UK wording</p>
         )}
+        {typeof receipt.fit_score === "number" && typeof receipt.evidence_score === "number" && (
+          <div className="flex gap-4 mt-3">
+            <div className="flex-1">
+              <div className="flex justify-between text-xs text-gray-500 mb-0.5">
+                <span>Fit</span>
+                <span>{receipt.fit_score}/100</span>
+              </div>
+              <div className="h-1.5 bg-white/50 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${
+                  receipt.fit_score >= 75 ? "bg-green-500" : receipt.fit_score >= 45 ? "bg-yellow-500" : "bg-red-500"
+                }`} style={{ width: `${receipt.fit_score}%` }} />
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="flex justify-between text-xs text-gray-500 mb-0.5">
+                <span>Evidence</span>
+                <span>{receipt.evidence_score}/100</span>
+              </div>
+              <div className="h-1.5 bg-white/50 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full ${
+                  receipt.evidence_score >= 75 ? "bg-blue-500" : receipt.evidence_score >= 45 ? "bg-gray-400" : "bg-orange-500"
+                }`} style={{ width: `${receipt.evidence_score}%` }} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Why not GREEN? */}
+      {receipt.why_not_green && receipt.why_not_green.length > 0 && receipt.verdict !== "GREEN" && (
+        <div className="px-5 py-3 bg-gray-50 border-b border-gray-200">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+            Why not GREEN?
+          </p>
+          <ul className="space-y-1">
+            {receipt.why_not_green.map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
+              const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
+              return (
+                <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium mt-0.5 ${catStyle.bg} ${catStyle.text}`}>
+                    {catStyle.label}
+                  </span>
+                  <span className="flex-1">{reason.label}</span>
+                  {reason.points !== 0 && (
+                    <span className="text-xs text-gray-400 whitespace-nowrap">{reason.points}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {/* Prominent Copy Checklist — above the fold */}
       <div className="px-5 pt-4">
@@ -395,6 +464,23 @@ export default function ReceiptOutputCard({
             ))}
           </ul>
         </Section>
+
+        {/* Verify Before Visit */}
+        {receipt.verify_before_visit && receipt.verify_before_visit.length > 0 && (
+          <Section
+            icon={<FileSearch className="w-4 h-4 text-purple-500" />}
+            title="Verify Before Visit"
+          >
+            <ul className="space-y-2">
+              {receipt.verify_before_visit.map((item: string, i: number) => (
+                <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                  <span className="text-purple-400 font-bold mt-0.5">{i + 1}.</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )}
 
         {/* Negotiation Opener */}
         <Section
