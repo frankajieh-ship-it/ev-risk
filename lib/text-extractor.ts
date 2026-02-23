@@ -7,7 +7,13 @@
 import OpenAI from "openai";
 import type { FetchedListingFields } from "@/types/receipt";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openai;
+}
 
 export interface TextExtractionResult {
   fields: FetchedListingFields;
@@ -19,7 +25,7 @@ export interface TextExtractionResult {
 export async function extractFieldsFromText(
   text: string
 ): Promise<TextExtractionResult> {
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       {

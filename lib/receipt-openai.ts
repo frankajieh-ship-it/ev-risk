@@ -14,11 +14,17 @@ import { classifyVehicle } from "@/lib/vehicle-classifier";
 import { getTemplatePack } from "@/lib/vehicle-category-templates";
 import { scoreFallbackReceipt } from "@/lib/receipt-scoring";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  timeout: 25_000,       // 25s — generous; streaming keeps connection alive
-  maxRetries: 0,         // We handle retries ourselves; don't let the SDK retry silently
-});
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      timeout: 25_000,
+      maxRetries: 0,
+    });
+  }
+  return _openai;
+}
 
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
@@ -35,7 +41,7 @@ async function streamCompletion(
   messages: OpenAI.ChatCompletionMessageParam[],
   opts: { model?: string; temperature?: number; max_tokens?: number } = {},
 ): Promise<{ content: string; usage: { prompt_tokens: number; completion_tokens: number } | null }> {
-  const stream = await openai.chat.completions.create({
+  const stream = await getOpenAI().chat.completions.create({
     model: opts.model || MODEL,
     messages,
     temperature: opts.temperature ?? 0.3,
@@ -527,7 +533,7 @@ Return a JSON object with ONLY the fixed field: { "receipt_reddit_text": "..." }
 Return ONLY the JSON object.`;
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: MODEL,
       messages: [
         {
@@ -706,7 +712,7 @@ export async function generateDeepDive(
   const model = isStarter ? STARTER_DIVE_MODEL : DEEP_DIVE_MODEL;
   const systemPrompt = isStarter ? STARTER_DIVE_SYSTEM_PROMPT : DEEP_DIVE_SYSTEM_PROMPT;
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model,
     messages: [
       { role: "system", content: systemPrompt },
