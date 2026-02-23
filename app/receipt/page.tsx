@@ -186,6 +186,7 @@ export default function ReceiptPage() {
     packTier,
     isLoading: isPaymentLoading,
     paymentsEnabled,
+    freeMode,
     refetch: refetchPayment,
   } = usePaymentStatus("receipt", receipt?.receipt_id ?? null, receiptToken);
 
@@ -334,6 +335,7 @@ export default function ReceiptPage() {
 
   // Show paywall only when user clicks a premium-gated action
   const handlePremiumAction = useCallback((trigger: string) => {
+    if (freeMode) return;
     // For upgrades from starter_pack, redirect directly to checkout
     if (trigger === "upgrade_to_decision" && isUnlocked && packTier === "starter_pack" && receipt?.receipt_id) {
       trackEvent("upgrade_started", { receipt_id: receipt.receipt_id, from_tier: "starter_pack" });
@@ -375,7 +377,7 @@ export default function ReceiptPage() {
     setTimeout(() => {
       document.getElementById("decision-pack-card")?.scrollIntoView({ behavior: "smooth" });
     }, 100);
-  }, [isUnlocked, packTier, receipt, receiptToken, purchaseId, trackEvent]);
+  }, [freeMode, isUnlocked, packTier, receipt, receiptToken, purchaseId, trackEvent]);
 
   // Beforeunload guard — warn when receipt exists but not saved/emailed
   useEffect(() => {
@@ -737,7 +739,7 @@ export default function ReceiptPage() {
           }}
           isGenerating={isGenerating}
           generatingStep={generatingStep}
-          remainingFree={remainingFree}
+          remainingFree={freeMode ? null : remainingFree}
           error={error}
           isPro={isPro}
           prefillText={prefillText}
@@ -805,8 +807,8 @@ export default function ReceiptPage() {
                 {isSharing ? "Generating link..." : "Share Receipt"}
               </button>
 
-              {/* PDF download (shown when payments are enabled) */}
-              {paymentsEnabled && (
+              {/* PDF download (shown when payments are enabled, hidden in free mode) */}
+              {paymentsEnabled && !freeMode && (
                 <PdfDownloadButton
                   receiptId={receipt.receipt_id}
                   receiptToken={receiptToken}
@@ -815,8 +817,8 @@ export default function ReceiptPage() {
                 />
               )}
 
-              {/* Decision Pack paywall (shown on premium action click) */}
-              {showPaywall && !decisionPackDismissed && !isPaymentLoading && (
+              {/* Decision Pack paywall (shown on premium action click, hidden in free mode) */}
+              {showPaywall && !decisionPackDismissed && !isPaymentLoading && !freeMode && (
                 <div id="decision-pack-card">
                   <DecisionPackCard
                     receiptToken={receiptToken}
@@ -827,8 +829,8 @@ export default function ReceiptPage() {
                 </div>
               )}
 
-              {/* Deep dive content (when unlocked) */}
-              {isUnlocked && deepDive && (
+              {/* Deep dive content (when unlocked, hidden in free mode) */}
+              {isUnlocked && deepDive && !freeMode && (
                 <DeepDiveSection
                   deepDive={deepDive}
                   receiptId={receipt.receipt_id}
@@ -837,8 +839,8 @@ export default function ReceiptPage() {
                 />
               )}
 
-              {/* Upgrade prompt for starter_pack users */}
-              {isUnlocked && packTier === "starter_pack" && deepDive && (
+              {/* Upgrade prompt for starter_pack users (hidden in free mode) */}
+              {isUnlocked && packTier === "starter_pack" && deepDive && !freeMode && (
                 <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl border border-indigo-200 p-4 flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm font-semibold text-gray-800">
@@ -857,8 +859,8 @@ export default function ReceiptPage() {
                 </div>
               )}
 
-              {/* Deep dive loading spinner */}
-              {isUnlocked && isLoadingDeepDive && !deepDive && (
+              {/* Deep dive loading spinner (hidden in free mode) */}
+              {isUnlocked && isLoadingDeepDive && !deepDive && !freeMode && (
                 <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-500">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Generating your deep dive analysis...

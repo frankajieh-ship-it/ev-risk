@@ -21,6 +21,7 @@ export interface UsePaymentStatusReturn {
   purchaseId: string | null;
   isLoading: boolean;
   paymentsEnabled: boolean;
+  freeMode: boolean;
   refetch: () => Promise<void>;
 }
 
@@ -37,6 +38,7 @@ export function usePaymentStatus(
   const [purchaseId, setPurchaseId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [paymentsEnabled, setPaymentsEnabled] = useState(false);
+  const [freeMode, setFreeMode] = useState(false);
   const fetchingRef = useRef(false);
 
   const fetchStatus = useCallback(async () => {
@@ -64,6 +66,7 @@ export function usePaymentStatus(
       setCompareBoundTo(data.compare_bound_to || null);
       setPurchaseId(data.purchase_id || null);
       setPaymentsEnabled(data.payments_enabled === true);
+      setFreeMode(data.free_mode === true);
     } catch {
       // Silently fail — payment UI just won't show
     } finally {
@@ -85,6 +88,7 @@ export function usePaymentStatus(
     purchaseId,
     isLoading,
     paymentsEnabled,
+    freeMode,
     refetch: fetchStatus,
   };
 }

@@ -16,6 +16,7 @@ export interface PaymentFlags {
   pdf_download_enabled: boolean;
   deepdive_enabled: boolean;
   compare_enabled: boolean;
+  free_mode: boolean;
 }
 
 /**
@@ -27,7 +28,16 @@ export function getPaymentFlags(): PaymentFlags {
     pdf_download_enabled: process.env.FLAG_PDF_DOWNLOAD_ENABLED === "true",
     deepdive_enabled: process.env.FLAG_DEEPDIVE_ENABLED === "true",
     compare_enabled: process.env.FLAG_COMPARE_ENABLED === "true",
+    free_mode: process.env.FLAG_FREE_MODE === "true",
   };
+}
+
+/**
+ * Check if free mode is active.
+ * When true, all monetization is disabled — no rate limits, no paywalls, no upgrade prompts.
+ */
+export function isFreeMode(): boolean {
+  return process.env.FLAG_FREE_MODE === "true";
 }
 
 /**
@@ -45,6 +55,7 @@ export function isInternalTester(anonId: string): boolean {
  * Returns true if globally enabled OR if user is an internal tester.
  */
 export function isPaymentsEnabledFor(anonId: string): boolean {
+  if (isFreeMode()) return false;
   const flags = getPaymentFlags();
   if (flags.payments_enabled) return true;
   return isInternalTester(anonId);

@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { checkPurchaseStatus } from "@/lib/payment-status";
-import { isPaymentsEnabledFor } from "@/lib/rollout-flags";
+import { isPaymentsEnabledFor, isFreeMode } from "@/lib/rollout-flags";
 
 const VALID_SCENARIO_TYPES = ["receipt", "evroutine"];
 
@@ -36,8 +36,11 @@ export async function GET(request: NextRequest) {
 
   const status = await checkPurchaseStatus(scenarioType, scenarioId, anonId);
 
+  const freeMode = isFreeMode();
+
   return NextResponse.json({
     ...status,
-    payments_enabled: isPaymentsEnabledFor(anonId),
+    payments_enabled: freeMode ? false : isPaymentsEnabledFor(anonId),
+    free_mode: freeMode,
   });
 }

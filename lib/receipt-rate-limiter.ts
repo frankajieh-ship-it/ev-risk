@@ -8,7 +8,7 @@
 
 import { RateLimiter } from "@/lib/rate-limiter";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { isInternalTester } from "@/lib/rollout-flags";
+import { isInternalTester, isFreeMode } from "@/lib/rollout-flags";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -34,7 +34,7 @@ export async function checkDailyLimit(
   serverSessionId?: string,
   ipHash?: string
 ): Promise<{ allowed: boolean; remaining: number; resetAt: string }> {
-  if (isPro || isInternalTester(receiptToken)) {
+  if (isPro || isInternalTester(receiptToken) || isFreeMode()) {
     return { allowed: true, remaining: 999, resetAt: "" };
   }
 
