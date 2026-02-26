@@ -7,20 +7,19 @@
 
 import { Resend } from "resend";
 
-const resendApiKey = process.env.RESEND_API_KEY;
-
 let resendClient: Resend | null = null;
 
 function getResend(): Resend | null {
-  if (!resendApiKey) return null;
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
   if (!resendClient) {
-    resendClient = new Resend(resendApiKey);
+    resendClient = new Resend(key);
   }
   return resendClient;
 }
 
 export function isResendConfigured(): boolean {
-  return !!resendApiKey;
+  return !!process.env.RESEND_API_KEY;
 }
 
 export async function sendChecklistEmail(
