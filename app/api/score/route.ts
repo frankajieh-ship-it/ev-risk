@@ -15,10 +15,32 @@ import { computeOwnershipRisk } from "@/lib/compute-ownership-risk";
 import { buildConfidencePlan } from "@/lib/confidence-actions";
 import { buildReportContract } from "@/lib/build-report-contract";
 import { findRangeDataByModel } from "@/lib/data";
+import { guardTurnstile } from "@/lib/turnstile";
+import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
+
+const scoreBurstLimiter = new RateLimiter(
+  60 * 60 * 1000, // 1 hour
+  process.env.NODE_ENV === "development" ? 100 : 5
+);
 
 export async function POST(request: NextRequest) {
+  const clientIP = getClientIP(request);
+
   try {
     const body = await request.json();
+
+    // Bot protection (honeypot + Turnstile)
+    const blocked = await guardTurnstile(body, clientIP, "/api/score");
+    if (blocked) return blocked;
+
+    // Rate limit (5/hr per IP)
+    const burst = scoreBurstLimiter.check(clientIP);
+    if (!burst.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": "3600" } }
+      );
+    }
 
     // ============================================
     // V2 BRANCH: Separate Routine Fit + Ownership Risk

@@ -119,6 +119,7 @@ export function useEventTracking() {
             },
             visitorId: getVisitorId(),
             sessionId: getSessionId(),
+            userId: (() => { try { return localStorage.getItem("offo_user_id") || undefined; } catch { return undefined; } })(),
             pagePath: window.location.pathname,
             timestamp: new Date().toISOString(),
           }),

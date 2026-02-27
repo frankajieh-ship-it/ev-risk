@@ -13,6 +13,7 @@ import { Receipt, History, ArrowLeft, Loader2, X, Mail, Bookmark, QrCode } from 
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useAuth } from "@/hooks/useAuth";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
+import { useTurnstile } from "@/hooks/useTurnstile";
 import LoginModal from "@/components/LoginModal";
 import ReceiptInputCard from "@/components/receipt/ReceiptInputCard";
 import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
@@ -189,6 +190,11 @@ export default function ReceiptPage() {
     freeMode,
     refetch: refetchPayment,
   } = usePaymentStatus("receipt", receipt?.receipt_id ?? null, receiptToken);
+
+  const { execute: executeTurnstile } = useTurnstile({
+    containerId: "turnstile-receipt",
+    action: "receipt-submit",
+  });
 
   useEffect(() => {
     setReceiptToken(getOrCreateReceiptToken());
@@ -460,10 +466,15 @@ export default function ReceiptPage() {
       setCurrentVin(data.fields.vin || undefined);
 
       try {
+        // Turnstile bot protection
+        const turnstileToken = await executeTurnstile();
+
         const body: Record<string, unknown> = {
           receipt_token: receiptToken,
           mode: "single",
           region,
+          turnstileToken: turnstileToken || undefined,
+          leave_this_empty: "",
         };
 
         if (pageSource) body.page_source = pageSource;
@@ -501,6 +512,11 @@ export default function ReceiptPage() {
         const result = await res.json();
 
         if (!res.ok || !result.success) {
+          // Turnstile rejection
+          if (res.status === 403 && result.captcha_required) {
+            setError("Verification failed. Please refresh and try again.");
+            return;
+          }
           // Friendly 429 messages with time info
           if (res.status === 429 && result.resetAt) {
             const resetDate = new Date(result.resetAt);
@@ -553,7 +569,7 @@ export default function ReceiptPage() {
         inFlightRef.current = false;
       }
     },
-    [receiptToken, region, trackEvent, addReceipt]
+    [receiptToken, region, trackEvent, addReceipt, executeTurnstile]
   );
 
   // Post receipt event to dedicated endpoint (fire-and-forget)
@@ -681,6 +697,7 @@ export default function ReceiptPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      <div id="turnstile-receipt" />
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

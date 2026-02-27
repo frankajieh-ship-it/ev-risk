@@ -29,7 +29,8 @@ function getOpenAI(): OpenAI {
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
 // Time budget: skip retry if first call already consumed most of the allowed time
-const TIME_BUDGET_MS = 8000;
+// 6s keeps ~19s for the retry + post-processing within Netlify's 26s function limit
+const TIME_BUDGET_MS = 6000;
 
 // ---------------------------------------------------------------------------
 // Streaming helper — collects streamed chunks into a single string.

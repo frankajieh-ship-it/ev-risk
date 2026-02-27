@@ -169,6 +169,12 @@ const VALID_EVENT_NAMES = [
   "share_link_opened",
   "share_link_landing_view",
   "share_link_to_receipt_start_click",
+  // Turnstile Bot Protection Events
+  "turnstile_verified",
+  "turnstile_blocked",
+  // Identity Attach Events
+  "attach_anon",
+  "attach_anon_failed",
   // Legacy event names (for backward compatibility)
   "page_view",
 ] as const;
@@ -324,6 +330,7 @@ export async function POST(req: NextRequest) {
       event_data: enrichedEventData,
       visitor_id: visitorId || null,
       session_id: sessionId || null,
+      user_id: userId || null,
       page_path: pagePath || null,
       ip_address: ip,
       user_agent: userAgent,

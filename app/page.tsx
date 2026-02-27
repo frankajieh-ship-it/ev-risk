@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { useTurnstile } from "@/hooks/useTurnstile";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
 import { Receipt } from "lucide-react";
@@ -33,6 +34,11 @@ export default function Home() {
   });
 
   const { trackButtonClick, trackUrlAutofillAttempt, trackEvent, trackCTAClick, trackLandingView, trackIntakeStarted } = useEventTracking();
+
+  const { execute: executeTurnstile } = useTurnstile({
+    containerId: "turnstile-score",
+    action: "score-submit",
+  });
 
   // Fire landing_view on mount
   useEffect(() => {
@@ -72,12 +78,17 @@ export default function Home() {
     });
 
     try {
+      // Turnstile bot protection
+      const turnstileToken = await executeTurnstile();
+
       const response = await fetch("/api/score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           schema_version: "v2",
           routine,
+          turnstileToken: turnstileToken || undefined,
+          leave_this_empty: "",
           ...(vehicleData ? {
             model: vehicleData.model,
             year: vehicleData.year,
@@ -89,6 +100,10 @@ export default function Home() {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
+        // Turnstile rejection
+        if (response.status === 403 && result.captcha_required) {
+          throw new Error("Verification failed. Please refresh and try again.");
+        }
         throw new Error(result.error || result.details?.join(", ") || "Scoring failed");
       }
 
@@ -226,6 +241,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      <div id="turnstile-score" />
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 py-3">

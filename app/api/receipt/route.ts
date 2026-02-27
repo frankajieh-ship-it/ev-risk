@@ -30,6 +30,7 @@ import { renderRedditDraft } from "@/lib/reddit-draft-renderer";
 import { classifyVehicle } from "@/lib/vehicle-classifier";
 import { scoreReceipt } from "@/lib/receipt-scoring";
 import { isInternalTester } from "@/lib/rollout-flags";
+import { guardTurnstile } from "@/lib/turnstile";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
 import { logApi } from "@/lib/api-logger";
 
@@ -48,6 +49,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { success: false, error: "Invalid request body" },
       { status: 400 }
+    );
+  }
+
+  // 1b. Bot protection — honeypot check is instant (no await)
+  if (body.leave_this_empty) {
+    return NextResponse.json(
+      { success: false, error: "Request blocked", captcha_required: true },
+      { status: 403 }
     );
   }
 
@@ -106,7 +115,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 5. Auth + idempotency in parallel (saves 1-2 Supabase round-trips)
+  // 5. Turnstile + Auth + idempotency ALL in parallel (saves 2-4s)
   const accessToken = request.cookies.get("sb-access-token")?.value;
   const serverSessionId = request.cookies.get("receipt_session")?.value;
   const ipHash = hashIP(clientIP);
@@ -123,7 +132,9 @@ export async function POST(request: NextRequest) {
     listing_text: (body.listing_text as string) || null,
   });
 
-  // Run auth chain and idempotency check concurrently
+  // Run Turnstile, auth chain, and idempotency check concurrently
+  const turnstilePromise = guardTurnstile(body, clientIP, "/api/receipt");
+
   const authPromise = (async () => {
     let userId: string | undefined;
     let userEmail: string | undefined;
@@ -140,10 +151,14 @@ export async function POST(request: NextRequest) {
     return { userId, userEmail, isPro };
   })();
 
-  const [authResult, idempotency] = await Promise.all([
+  const [blocked, authResult, idempotency] = await Promise.all([
+    turnstilePromise,
     authPromise,
     checkIdempotency(inputHash),
   ]);
+
+  // Turnstile rejection — return 403
+  if (blocked) return blocked;
 
   const { isPro } = authResult;
   let { userId } = authResult;
@@ -224,7 +239,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // 7. Call OpenAI with internal deadline (race against Netlify's 26s kill)
-    const INTERNAL_DEADLINE_MS = 24_000; // 24s — streaming keeps OpenAI conn alive; 2s buffer for fallback
+    const INTERNAL_DEADLINE_MS = 25_000; // 25s — fallback writes are fire-and-forget, only ~200ms needed for response
     const elapsed = Date.now() - t0;
     const remainingMs = INTERNAL_DEADLINE_MS - elapsed;
 
@@ -643,38 +658,27 @@ export async function POST(request: NextRequest) {
       error_message: error instanceof Error ? error.message : "Unknown",
     });
 
-    // Log generate_fail event
+    // Log events fire-and-forget (don't block response with DB writes on timeout path)
     if (isSupabaseConfigured()) {
-      try {
-        await supabase.from("receipt_events").insert({
-          session_id: receiptToken,
-          event_type: isTimeoutOrAIError ? "generate_timeout" : "generate_fail",
-        });
-      } catch {
-        // swallow logging errors
-      }
-    }
+      supabase.from("receipt_events").insert({
+        session_id: receiptToken,
+        event_type: isTimeoutOrAIError ? "generate_timeout" : "generate_fail",
+      }).then(() => {}, () => {});
 
-    // Log receipt_extract_failed to user_events
-    if (isSupabaseConfigured()) {
-      try {
-        await supabase.from("user_events").insert({
-          event_name: "receipt_extract_failed",
-          event_data: {
-            receipt_token: receiptToken,
-            error_code: isTimeoutOrAIError ? "generate_timeout" : "generate_fail",
-            message_safe: isTimeoutOrAIError ? "AI generation timed out" : "Generation failed",
-            failure_reason: isTimeoutOrAIError ? "timeout_or_ai_error" : "generation_error",
-            input_length: (input.listing_text || "").length,
-            region: input.region || "US",
-          },
-          ip_address: clientIP,
-          page_path: "/api/receipt",
-          timestamp: new Date().toISOString(),
-        });
-      } catch {
-        // swallow
-      }
+      supabase.from("user_events").insert({
+        event_name: "receipt_extract_failed",
+        event_data: {
+          receipt_token: receiptToken,
+          error_code: isTimeoutOrAIError ? "generate_timeout" : "generate_fail",
+          message_safe: isTimeoutOrAIError ? "AI generation timed out" : "Generation failed",
+          failure_reason: isTimeoutOrAIError ? "timeout_or_ai_error" : "generation_error",
+          input_length: (input.listing_text || "").length,
+          region: input.region || "US",
+        },
+        ip_address: clientIP,
+        page_path: "/api/receipt",
+        timestamp: new Date().toISOString(),
+      }).then(() => {}, () => {});
     }
 
     // On timeout/AI errors, return a fallback receipt instead of an error
@@ -686,41 +690,34 @@ export async function POST(request: NextRequest) {
       // Still increment daily counter
       incrementDailyCount(receiptToken as string);
 
-      // Save fallback receipt to DB so checkout can find it
-      let errorFallbackDbSaved = false;
+      // Save fallback receipt to DB fire-and-forget (don't block the response)
       if (isSupabaseConfigured()) {
-        try {
-          const urlDomain = input.listing_url
-            ? new URL(input.listing_url).hostname.replace("www.", "")
-            : null;
-          const { error: fbInsertErr } = await supabase.from("receipts").insert({
-            id: fallbackReceipt.receipt_id,
-            session_id: receiptToken,
-            user_id: userId || null,
-            source: "receipt_page",
-            page_source: (body.page_source as string) || null,
-            listing_url: input.listing_url || null,
-            url_domain: urlDomain,
-            listing_text: input.listing_text ? input.listing_text.substring(0, 5000) : null,
-            input_json: input,
-            output_json: fallbackReceipt,
-            mode: "single",
-            is_pro: isPro,
-          });
-          if (fbInsertErr) {
-            console.error("[Receipt API] Error-fallback DB insert failed:", fbInsertErr.message, fbInsertErr.code);
-          } else {
-            errorFallbackDbSaved = true;
-          }
-        } catch {
-          // non-critical
-        }
+        const urlDomain = input.listing_url
+          ? (() => { try { return new URL(input.listing_url!).hostname.replace("www.", ""); } catch { return null; } })()
+          : null;
+        supabase.from("receipts").insert({
+          id: fallbackReceipt.receipt_id,
+          session_id: receiptToken,
+          user_id: userId || null,
+          source: "receipt_page",
+          page_source: (body.page_source as string) || null,
+          listing_url: input.listing_url || null,
+          url_domain: urlDomain,
+          listing_text: input.listing_text ? input.listing_text.substring(0, 5000) : null,
+          input_json: input,
+          output_json: fallbackReceipt,
+          mode: "single",
+          is_pro: isPro,
+        }).then(
+          ({ error: e }) => { if (e) console.error("[Receipt API] Error-fallback DB insert failed:", e.message); },
+          () => {}
+        );
       }
 
       const fallbackPayload = {
         success: true,
         receipt: fallbackReceipt,
-        db_saved: errorFallbackDbSaved,
+        db_saved: false, // fire-and-forget — don't claim saved
         lint_passed: true,
         lint_errors: [],
         lint_error_codes: [],
@@ -731,9 +728,10 @@ export async function POST(request: NextRequest) {
         region: input.region || "US",
       };
 
-      // Cache fallback for idempotency (still a valid response)
+      // Cache fallback for idempotency fire-and-forget
       if (requestRowId) {
-        await completeRequest(requestRowId, fallbackReceipt.receipt_id, fallbackPayload);
+        completeRequest(requestRowId, fallbackReceipt.receipt_id, fallbackPayload)
+          .catch(() => {});
       }
 
       return NextResponse.json(fallbackPayload);

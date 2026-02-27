@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import JsonLd from "@/components/seo/JsonLd";
 import { HumanSignalCollector } from "@/components/HumanSignalCollector";
 import "./globals.css";
@@ -66,6 +67,10 @@ export default function RootLayout({
           }}
         />
         <HumanSignalCollector />
+        <Script
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+          strategy="afterInteractive"
+        />
         {children}
       </body>
     </html>

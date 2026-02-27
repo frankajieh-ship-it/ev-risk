@@ -16,7 +16,7 @@ import { useEventTracking } from "@/hooks/useEventTracking";
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { trackEmailConfirmed } = useEventTracking();
+  const { trackEmailConfirmed, trackEvent } = useEventTracking();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [hasTracked, setHasTracked] = useState(false);
@@ -56,6 +56,18 @@ function AuthCallbackContent() {
 
         if (session) {
           console.log("[Auth Callback] Session found from hash:", session.user?.email);
+
+          // Persist user_id for event tracking attribution
+          if (session.user?.id) {
+            try {
+              localStorage.setItem("offo_user_id", session.user.id);
+              trackEvent("attach_anon", {
+                user_id: session.user.id,
+                persistent_session_id: localStorage.getItem("offo_persistent_session") || undefined,
+              });
+            } catch {}
+          }
+
           trackAuthSuccess(session.user?.id);
           setStatus("success");
 
@@ -82,8 +94,15 @@ function AuthCallbackContent() {
 
           // Get session to track user ID
           const { data: { session: newSession } } = await supabase.auth.getSession();
-          if (newSession) {
-            trackAuthSuccess(newSession.user?.id);
+          if (newSession?.user?.id) {
+            try {
+              localStorage.setItem("offo_user_id", newSession.user.id);
+              trackEvent("attach_anon", {
+                user_id: newSession.user.id,
+                persistent_session_id: localStorage.getItem("offo_persistent_session") || undefined,
+              });
+            } catch {}
+            trackAuthSuccess(newSession.user.id);
           }
 
           setStatus("success");
@@ -117,6 +136,15 @@ function AuthCallbackContent() {
 
           if (session) {
             console.log("[Auth Callback] Session found after wait:", session.user?.email);
+            if (session.user?.id) {
+              try {
+                localStorage.setItem("offo_user_id", session.user.id);
+                trackEvent("attach_anon", {
+                  user_id: session.user.id,
+                  persistent_session_id: localStorage.getItem("offo_persistent_session") || undefined,
+                });
+              } catch {}
+            }
             trackAuthSuccess(session.user?.id);
             setStatus("success");
             setTimeout(() => {
