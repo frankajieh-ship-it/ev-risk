@@ -142,6 +142,14 @@ export default function ReceiptPage() {
   // Single-flight guard
   const inFlightRef = useRef(false);
 
+  // Store last generation input for regenerate
+  const lastGenerateInputRef = useRef<{
+    listing_url?: string;
+    listing_text?: string;
+    fields: StructuredListingFields;
+    extraction_id?: string;
+  } | null>(null);
+
   // Decision Pack state
   const [deepDive, setDeepDive] = useState<DeepDiveContent | null>(null);
   const [isLoadingDeepDive, setIsLoadingDeepDive] = useState(false);
@@ -410,6 +418,8 @@ export default function ReceiptPage() {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
 
+      lastGenerateInputRef.current = data;
+
       setIsGenerating(true);
       setError(null);
       setReceipt(null);
@@ -528,6 +538,18 @@ export default function ReceiptPage() {
     },
     [receiptToken, region, trackEvent, addReceipt, executeTurnstile]
   );
+
+  // Regenerate: re-submit the last input to get a fresh AI analysis
+  const handleRegenerate = useCallback(() => {
+    const lastInput = lastGenerateInputRef.current;
+    if (!lastInput) return;
+    trackEvent("receipt_regenerate", {
+      receipt_id: receipt?.receipt_id,
+      was_fallback: isFallback,
+      was_similarity: isSimilarityMatch,
+    });
+    handleGenerate(lastInput);
+  }, [handleGenerate, receipt?.receipt_id, isFallback, isSimilarityMatch, trackEvent]);
 
   // Post receipt event to dedicated endpoint (fire-and-forget)
   const postReceiptEvent = useCallback(
@@ -742,6 +764,7 @@ export default function ReceiptPage() {
                 isFixing={isFixing}
                 isFallback={isFallback}
                 isSimilarityMatch={isSimilarityMatch}
+                onRegenerate={isFallback ? handleRegenerate : undefined}
                 onTrackLintFallback={handleLintFallback}
                 region={region}
               />
