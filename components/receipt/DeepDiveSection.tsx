@@ -1,5 +1,5 @@
 /**
- * DeepDiveSection — Renders the Decision Pack deep dive content
+ * DeepDiveSection — Renders the Buyer Pass deep dive content
  *
  * Market comparison, negotiation scripts, cost of ownership,
  * extended inspection, model-specific issues, and deep verdict.
@@ -21,23 +21,16 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { DeepDiveContent } from "@/types/receipt";
-import type { PackTier } from "@/lib/price-assignment";
-import { Lock, ArrowUpCircle } from "lucide-react";
 
 interface DeepDiveSectionProps {
   deepDive: DeepDiveContent;
   receiptId: string;
-  packTier?: PackTier;
-  onUpgradeClick?: () => void;
 }
 
 export default function DeepDiveSection({
   deepDive,
   receiptId,
-  packTier = "decision_pack",
-  onUpgradeClick,
 }: DeepDiveSectionProps) {
-  const isStarter = packTier === "starter_pack";
   const [copiedScript, setCopiedScript] = useState<number | null>(null);
   const [openScript, setOpenScript] = useState<number | null>(0);
 
@@ -62,7 +55,7 @@ export default function DeepDiveSection({
       <div className="flex items-center gap-2">
         <Sparkles className="w-5 h-5 text-blue-600" />
         <h2 className="text-lg font-bold text-gray-900">
-          {isStarter ? "Starter Pack" : "Decision Pack — Deep Dive"}
+          Buyer Pass — Deep Dive
         </h2>
       </div>
 
@@ -80,58 +73,49 @@ export default function DeepDiveSection({
       </div>
 
       {/* Market Comparison */}
-      {isStarter ? (
-        <LockedSection
-          icon={BarChart2}
-          title="Market Comparison"
-          description="See 3-5 similar listings and how this price compares"
-          onUpgrade={onUpgradeClick}
-        />
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <BarChart2 className="w-4 h-4 text-blue-500" />
-              <h3 className="text-sm font-semibold text-gray-900">Market Comparison</h3>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left px-4 py-2 font-medium text-gray-600">Vehicle</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Price</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">Mileage</th>
-                  <th className="text-right px-4 py-2 font-medium text-gray-600">vs. Yours</th>
-                  <th className="text-left px-4 py-2 font-medium text-gray-600">Source</th>
-                </tr>
-              </thead>
-              <tbody>
-                {deepDive.market_comparison.map((comp, i) => (
-                  <tr key={i} className="border-b border-gray-100 last:border-0">
-                    <td className="px-4 py-2.5 text-gray-800">{comp.title}</td>
-                    <td className="px-4 py-2.5 text-right text-gray-800 font-medium">
-                      ${comp.price.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2.5 text-right text-gray-600">
-                      {comp.mileage.toLocaleString()} mi
-                    </td>
-                    <td
-                      className={`px-4 py-2.5 text-right font-medium ${
-                        comp.delta_pct < 0 ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {comp.delta_pct > 0 ? "+" : ""}
-                      {comp.delta_pct.toFixed(1)}%
-                    </td>
-                    <td className="px-4 py-2.5 text-gray-500 text-xs">{comp.source}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <BarChart2 className="w-4 h-4 text-blue-500" />
+            <h3 className="text-sm font-semibold text-gray-900">Market Comparison</h3>
           </div>
         </div>
-      )}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="text-left px-4 py-2 font-medium text-gray-600">Vehicle</th>
+                <th className="text-right px-4 py-2 font-medium text-gray-600">Price</th>
+                <th className="text-right px-4 py-2 font-medium text-gray-600">Mileage</th>
+                <th className="text-right px-4 py-2 font-medium text-gray-600">vs. Yours</th>
+                <th className="text-left px-4 py-2 font-medium text-gray-600">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {deepDive.market_comparison.map((comp, i) => (
+                <tr key={i} className="border-b border-gray-100 last:border-0">
+                  <td className="px-4 py-2.5 text-gray-800">{comp.title}</td>
+                  <td className="px-4 py-2.5 text-right text-gray-800 font-medium">
+                    ${comp.price.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-gray-600">
+                    {comp.mileage.toLocaleString()} mi
+                  </td>
+                  <td
+                    className={`px-4 py-2.5 text-right font-medium ${
+                      comp.delta_pct < 0 ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {comp.delta_pct > 0 ? "+" : ""}
+                    {comp.delta_pct.toFixed(1)}%
+                  </td>
+                  <td className="px-4 py-2.5 text-gray-500 text-xs">{comp.source}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Extended Inspection */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
@@ -211,45 +195,29 @@ export default function DeepDiveSection({
       </div>
 
       {/* Cost of Ownership */}
-      {isStarter ? (
-        <LockedSection
-          icon={DollarSign}
-          title="3-Year Cost of Ownership"
-          description="Insurance, maintenance, fuel, and depreciation estimates"
-          onUpgrade={onUpgradeClick}
-        />
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <DollarSign className="w-4 h-4 text-blue-500" />
-            <h3 className="text-sm font-semibold text-gray-900">3-Year Cost of Ownership</h3>
-          </div>
-          <div className="space-y-2">
-            <CostRow label="Insurance" value={deepDive.cost_of_ownership.insurance_yr} />
-            <CostRow label="Maintenance" value={deepDive.cost_of_ownership.maintenance_yr} />
-            <CostRow label="Fuel / Charging" value={deepDive.cost_of_ownership.fuel_or_charging_yr} />
-            <CostRow label="Depreciation" value={deepDive.cost_of_ownership.depreciation_yr} />
-            <div className="border-t-2 border-gray-300 pt-2 mt-3">
-              <div className="flex justify-between">
-                <span className="text-sm font-bold text-gray-900">3-Year Total</span>
-                <span className="text-sm font-bold text-gray-900">
-                  ${deepDive.cost_of_ownership.total_3yr.toLocaleString()}
-                </span>
-              </div>
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <DollarSign className="w-4 h-4 text-blue-500" />
+          <h3 className="text-sm font-semibold text-gray-900">3-Year Cost of Ownership</h3>
+        </div>
+        <div className="space-y-2">
+          <CostRow label="Insurance" value={deepDive.cost_of_ownership.insurance_yr} />
+          <CostRow label="Maintenance" value={deepDive.cost_of_ownership.maintenance_yr} />
+          <CostRow label="Fuel / Charging" value={deepDive.cost_of_ownership.fuel_or_charging_yr} />
+          <CostRow label="Depreciation" value={deepDive.cost_of_ownership.depreciation_yr} />
+          <div className="border-t-2 border-gray-300 pt-2 mt-3">
+            <div className="flex justify-between">
+              <span className="text-sm font-bold text-gray-900">3-Year Total</span>
+              <span className="text-sm font-bold text-gray-900">
+                ${deepDive.cost_of_ownership.total_3yr.toLocaleString()}
+              </span>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Model Known Issues */}
-      {isStarter ? (
-        <LockedSection
-          icon={AlertTriangle}
-          title="Model-Specific Known Issues"
-          description="Common problems reported for this exact year, make, and model"
-          onUpgrade={onUpgradeClick}
-        />
-      ) : deepDive.model_known_issues.length > 0 ? (
+      {deepDive.model_known_issues.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-yellow-500" />
@@ -266,7 +234,7 @@ export default function DeepDiveSection({
             ))}
           </ul>
         </div>
-      ) : null}
+      )}
     </motion.div>
   );
 }
@@ -278,38 +246,6 @@ function CostRow({ label, value }: { label: string; value: number }) {
       <span className="text-gray-800 font-medium">
         ${value.toLocaleString()}/yr
       </span>
-    </div>
-  );
-}
-
-function LockedSection({
-  icon: Icon,
-  title,
-  description,
-  onUpgrade,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
-  onUpgrade?: () => void;
-}) {
-  return (
-    <div className="bg-gray-50 rounded-2xl border border-gray-200 p-5 opacity-75">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className="w-4 h-4 text-gray-400" />
-        <h3 className="text-sm font-semibold text-gray-500">{title}</h3>
-        <Lock className="w-3.5 h-3.5 text-gray-400 ml-auto" />
-      </div>
-      <p className="text-xs text-gray-400 mb-3">{description}</p>
-      {onUpgrade && (
-        <button
-          onClick={onUpgrade}
-          className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
-        >
-          <ArrowUpCircle className="w-3.5 h-3.5" />
-          Upgrade to Decision Pack
-        </button>
-      )}
     </div>
   );
 }

@@ -150,6 +150,9 @@ const VALID_EVENT_NAMES = [
   "pack_download",
   "upgrade_shown",
   "upgrade_started",
+  // Buyer Pass Events
+  "buyer_pass_activated",
+  "receipt_credit_used",
   // Email Capture Card Events
   "email_capture_shown",
   "email_capture_submitted",

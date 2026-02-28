@@ -286,7 +286,7 @@ export default function NegotiatorSection({
                 className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
               >
                 <ArrowUpCircle className="w-3.5 h-3.5" />
-                Unlock — $4.99
+                Get Buyer Pass — $9.99
               </button>
             </div>
           </div>

@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         if (session.payment_status === "paid") {
           // Route by product type
           if (session.metadata?.scenario_type) {
-            await fulfillDecisionPack(session);
+            await fulfillBuyerPass(session);
           } else {
             await fulfillOrder(session);
           }
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       case "checkout.session.async_payment_succeeded": {
         const session = event.data.object as Stripe.Checkout.Session;
         if (session.metadata?.scenario_type) {
-          await fulfillDecisionPack(session);
+          await fulfillBuyerPass(session);
         } else {
           await fulfillOrder(session);
         }
@@ -221,14 +221,13 @@ async function fulfillOrder(session: Stripe.Checkout.Session) {
 }
 
 /**
- * Fulfill Decision Pack purchase (receipt or evroutine scenario)
+ * Fulfill Buyer Pass purchase (receipt or evroutine scenario)
  * Marks the purchase as paid in the purchases table
  */
-async function fulfillDecisionPack(session: Stripe.Checkout.Session) {
+async function fulfillBuyerPass(session: Stripe.Checkout.Session) {
   const scenarioType = session.metadata?.scenario_type;
   const baseScenarioId = session.metadata?.base_scenario_id || session.client_reference_id;
-  const packTier = session.metadata?.pack_tier || "decision_pack";
-  const upgradeFrom = session.metadata?.upgrade_from || null;
+  const packTier = session.metadata?.pack_tier || "buyer_pass";
 
   if (!baseScenarioId) {
     console.error("❌ No scenario_id in Decision Pack session");
@@ -259,24 +258,7 @@ async function fulfillDecisionPack(session: Stripe.Checkout.Session) {
       return false;
     }
 
-    // If this is an upgrade, update the original purchase's pack_tier too
-    if (upgradeFrom) {
-      await supabase
-        .from("purchases")
-        .update({ pack_tier: "decision_pack", updated_at: new Date().toISOString() })
-        .eq("purchase_id", upgradeFrom)
-        .eq("status", "paid");
-
-      // Delete cached starter deep dive so it regenerates as full
-      await supabase
-        .from("deep_dives")
-        .delete()
-        .eq("receipt_id", baseScenarioId);
-
-      console.log(`🔄 Upgrade applied: original purchase ${upgradeFrom} → decision_pack`);
-    }
-
-    console.log(`✅ ${packTier === "starter_pack" ? "Starter" : "Decision"} Pack fulfilled:`, {
+    console.log(`✅ Buyer Pass fulfilled:`, {
       sessionId: session.id,
       scenarioType,
       baseScenarioId,
@@ -286,21 +268,20 @@ async function fulfillDecisionPack(session: Stripe.Checkout.Session) {
       timestamp: new Date().toISOString(),
     });
 
-    // Log canonical checkout_completed event
+    // Log checkout_completed + buyer_pass_activated events
     try {
-      await supabase.from("user_events").insert({
-        event_name: "checkout_completed",
-        event_data: {
-          scenario_type: scenarioType,
-          scenario_id: baseScenarioId,
-          purchase_id: data.purchase_id,
-          stripe_session_id: session.id,
-          amount: session.amount_total ? session.amount_total / 100 : 0,
-          pack_tier: packTier,
-          upgrade_from: upgradeFrom,
-        },
-        timestamp: new Date().toISOString(),
-      });
+      const eventData = {
+        scenario_type: scenarioType,
+        scenario_id: baseScenarioId,
+        purchase_id: data.purchase_id,
+        stripe_session_id: session.id,
+        amount: session.amount_total ? session.amount_total / 100 : 0,
+        pack_tier: packTier,
+      };
+      await supabase.from("user_events").insert([
+        { event_name: "checkout_completed", event_data: eventData, timestamp: new Date().toISOString() },
+        { event_name: "buyer_pass_activated", event_data: eventData, timestamp: new Date().toISOString() },
+      ]);
     } catch {
       // Non-critical — don't fail fulfillment over analytics
     }

@@ -1,9 +1,11 @@
 /**
  * Receipt Rate Limiter
  *
- * Two layers:
+ * Two layers for free users:
  * 1. Burst: 5 requests/hour per IP (in-memory)
- * 2. Daily: 1 free receipt/day per receipt_token (Supabase query)
+ * 2. Daily: 3 free receipts/day per receipt_token (Supabase query)
+ *
+ * Buyer Pass holders: 10 receipt credits (from purchases table)
  */
 
 import { RateLimiter } from "@/lib/rate-limiter";
@@ -27,6 +29,9 @@ const dailyLimitFallback = new Map<string, { count: number; resetAt: number }>()
  * Check daily free limit for a receipt token.
  * Uses receipt_events table to count today's generates.
  * Checks client token, server session cookie, and IP hash.
+ *
+ * If the user has a paid Buyer Pass with remaining credits,
+ * they bypass the daily limit entirely (credits are checked separately).
  */
 export async function checkDailyLimit(
   receiptToken: string,
@@ -36,6 +41,30 @@ export async function checkDailyLimit(
 ): Promise<{ allowed: boolean; remaining: number; resetAt: string }> {
   if (isPro || isInternalTester(receiptToken) || isFreeMode()) {
     return { allowed: true, remaining: 999, resetAt: "" };
+  }
+
+  // Check for Buyer Pass credits before applying daily limit
+  if (isSupabaseConfigured()) {
+    try {
+      const { data: purchase } = await supabase
+        .from("purchases")
+        .select("receipt_credits_total, receipt_credits_used")
+        .eq("anon_id", receiptToken)
+        .eq("status", "paid")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (purchase && purchase.receipt_credits_total > 0) {
+        const remaining = Math.max(0, purchase.receipt_credits_total - purchase.receipt_credits_used);
+        if (remaining > 0) {
+          return { allowed: true, remaining, resetAt: "" };
+        }
+        // Credits exhausted — fall through to daily limit
+      }
+    } catch {
+      // Fall through to daily limit check
+    }
   }
 
   const now = new Date();
@@ -140,5 +169,51 @@ export function incrementDailyCount(receiptToken: string): void {
   const entry = dailyLimitFallback.get(receiptToken);
   if (entry && Date.now() < entry.resetAt) {
     entry.count++;
+  }
+}
+
+/**
+ * Decrement a receipt credit after successful generation.
+ * Returns the number of remaining credits, or -1 if no purchase found.
+ */
+export async function decrementReceiptCredit(anonId: string): Promise<number> {
+  if (!isSupabaseConfigured()) return -1;
+
+  try {
+    // Find the active Buyer Pass purchase
+    const { data: purchase } = await supabase
+      .from("purchases")
+      .select("purchase_id, receipt_credits_total, receipt_credits_used")
+      .eq("anon_id", anonId)
+      .eq("status", "paid")
+      .gt("receipt_credits_total", 0)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!purchase) return -1;
+
+    const remaining = purchase.receipt_credits_total - purchase.receipt_credits_used;
+    if (remaining <= 0) return 0;
+
+    // Increment used count
+    const { error } = await supabase
+      .from("purchases")
+      .update({
+        receipt_credits_used: purchase.receipt_credits_used + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("purchase_id", purchase.purchase_id)
+      .eq("receipt_credits_used", purchase.receipt_credits_used); // Optimistic concurrency
+
+    if (error) {
+      console.error("[Receipt Rate Limiter] Credit decrement failed:", error.message);
+      return remaining; // Don't block on error
+    }
+
+    return remaining - 1;
+  } catch (err) {
+    console.error("[Receipt Rate Limiter] Credit decrement error:", err);
+    return -1;
   }
 }

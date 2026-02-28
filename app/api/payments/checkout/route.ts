@@ -1,18 +1,12 @@
 /**
- * OFFO Pack — Universal Checkout Endpoint
+ * OFFO Buyer Pass — Checkout Endpoint
  *
  * POST /api/payments/checkout
- * Creates a Stripe Checkout Session for a receipt or evroutine scenario.
+ * Creates a Stripe Checkout Session for a Buyer Pass purchase.
  *
- * Two-tier pricing:
- *   - Starter Pack ($4.99): seller questions, negotiation scripts, basic PDF
- *   - Decision Pack ($9.99): full deep dive, market comparison, compare credit
+ * Buyer Pass ($9.99): 10 receipt credits, full AI analysis, deep-dive, PDF export.
  *
- * If the scenario already has a paid purchase at the requested tier (or higher),
- * returns the existing purchase status instead of creating a new session.
- *
- * Upgrade flow: pass `upgrade_from` purchase_id to skip existing-purchase check
- * and create a new session for the higher tier.
+ * If the scenario already has a paid purchase, returns the existing status.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -56,8 +50,7 @@ export async function POST(request: NextRequest) {
   const anonId = body.anon_id as string;
   const userId = (body.user_id as string) || null;
   const pageSource = (body.page_source as string) || null;
-  const packTier: PackTier = (body.pack_tier as string) === "starter_pack" ? "starter_pack" : "decision_pack";
-  const upgradeFrom = (body.upgrade_from as string) || null;
+  const packTier: PackTier = "buyer_pass";
 
   // Validate required fields
   if (!scenarioType || !VALID_SCENARIO_TYPES.includes(scenarioType as ScenarioType)) {
@@ -96,30 +89,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  // 2. Check for existing paid purchase (skip if upgrading)
-  if (!upgradeFrom) {
-    const { data: existingPurchase } = await supabase
-      .from("purchases")
-      .select("purchase_id, status, price_variant, amount, pack_tier")
-      .eq("base_scenario_id", scenarioId)
-      .eq("scenario_type", scenarioType)
-      .eq("status", "paid")
-      .maybeSingle();
+  // 2. Check for existing paid purchase
+  const { data: existingPurchase } = await supabase
+    .from("purchases")
+    .select("purchase_id, status, price_variant, amount, pack_tier")
+    .eq("base_scenario_id", scenarioId)
+    .eq("scenario_type", scenarioType)
+    .eq("status", "paid")
+    .maybeSingle();
 
-    if (existingPurchase) {
-      // If they already have a decision_pack, no need to buy again
-      // If they have starter_pack and are requesting starter_pack, also skip
-      const existingTier = (existingPurchase.pack_tier as PackTier) || "decision_pack";
-      if (existingTier === "decision_pack" || existingTier === packTier) {
-        return NextResponse.json({
-          status: "paid",
-          purchase_id: existingPurchase.purchase_id,
-          price_variant: existingPurchase.price_variant,
-          amount: existingPurchase.amount,
-          pack_tier: existingTier,
-        });
-      }
-    }
+  if (existingPurchase) {
+    return NextResponse.json({
+      status: "paid",
+      purchase_id: existingPurchase.purchase_id,
+      price_variant: existingPurchase.price_variant,
+      amount: existingPurchase.amount,
+      pack_tier: existingPurchase.pack_tier || "buyer_pass",
+    });
   }
 
   // 3. Resolve price variant from pack tier
@@ -151,7 +137,6 @@ export async function POST(request: NextRequest) {
         ...(pageSource && { page_source: pageSource }),
         price_variant: variant,
         pack_tier: packTier,
-        ...(upgradeFrom && { upgrade_from: upgradeFrom }),
         ...utmFields,
       },
       success_url: `${origin}${scenarioType === "evroutine" ? "/report" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
@@ -162,12 +147,8 @@ export async function POST(request: NextRequest) {
     if (stripePriceId) {
       sessionParams.line_items = [{ price: stripePriceId, quantity: 1 }];
     } else {
-      const productName = packTier === "starter_pack"
-        ? "OFFO Starter Pack"
-        : "OFFO Decision Pack";
-      const productDescription = packTier === "starter_pack"
-        ? "Extended seller questions, negotiation scripts, and PDF download."
-        : "Unlock Deep Dive analysis, PDF download, and one compare credit for this scenario.";
+      const productName = "OFFO Buyer Pass";
+      const productDescription = "10 receipts with full AI analysis, deep-dive, and PDF export.";
 
       sessionParams.line_items = [
         {
@@ -202,7 +183,8 @@ export async function POST(request: NextRequest) {
       amount: amountCents,
       currency: "usd",
       page_source: pageSource,
-      ...(upgradeFrom && { upgrade_from: upgradeFrom }),
+      receipt_credits_total: 10,
+      receipt_credits_used: 0,
       utm_source: utmFields.utm_source || null,
       utm_medium: utmFields.utm_medium || null,
       utm_campaign: utmFields.utm_campaign || null,

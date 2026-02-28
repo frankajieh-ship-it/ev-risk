@@ -17,7 +17,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIP } from "@/lib/rate-limiter";
-import { receiptBurstLimiter, checkDailyLimit, incrementDailyCount } from "@/lib/receipt-rate-limiter";
+import { receiptBurstLimiter, checkDailyLimit, incrementDailyCount, decrementReceiptCredit } from "@/lib/receipt-rate-limiter";
 import { generateReceipt, fixReceiptFormatting, buildEnhancedFallbackReceipt } from "@/lib/receipt-openai";
 import { extractSignalsFromText } from "@/lib/receipt-signal-extractor";
 import { validateReceiptSchema } from "@/lib/receipt-schema-validator";
@@ -259,7 +259,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // 7. Call OpenAI with internal deadline (race against Netlify's 26s kill)
-    const INTERNAL_DEADLINE_MS = 25_000; // 25s — fallback writes are fire-and-forget, only ~200ms needed for response
+    const INTERNAL_DEADLINE_MS = 25_500; // 25.5s — fallback writes are fire-and-forget, only ~200ms needed for response
     const elapsed = Date.now() - t0;
     const remainingMs = INTERNAL_DEADLINE_MS - elapsed;
 
@@ -343,6 +343,7 @@ export async function POST(request: NextRequest) {
       // Return a fallback receipt so the user always gets a result
       const fallbackReceipt = buildEnhancedFallbackReceipt(input, ruleSignals, ruleScoring);
       incrementDailyCount(receiptToken as string);
+      decrementReceiptCredit(receiptToken as string).catch(() => {});
       timings.total = Date.now() - t0;
       console.log(`[Receipt API] Returning fallback receipt after schema fail (${timings.total}ms)`);
 
@@ -492,10 +493,23 @@ export async function POST(request: NextRequest) {
 
     timings.validate = Date.now() - t0;
 
-    // 10. Increment daily counter (in-memory fallback)
+    // 10. Increment daily counter (in-memory fallback) + decrement Buyer Pass credit
     incrementDailyCount(receiptToken as string);
+    const creditResult = await decrementReceiptCredit(receiptToken as string);
+    if (creditResult >= 0 && isSupabaseConfigured()) {
+      supabase.from("user_events").insert({
+        event_name: "receipt_credit_used",
+        event_data: {
+          receipt_id: finalReceipt.receipt_id,
+          receipt_token: receiptToken,
+          credits_remaining: creditResult,
+        },
+        page_path: "/api/receipt",
+        timestamp: new Date().toISOString(),
+      }).then(() => {}, () => {});
+    }
 
-    // 10. Log to Supabase
+    // 10b. Log to Supabase
     let dbSaved = false;
     if (isSupabaseConfigured()) {
       try {
@@ -710,8 +724,9 @@ export async function POST(request: NextRequest) {
       timings.total = Date.now() - t0;
       console.log(`[Receipt API] Returning fallback receipt after error (${timings.total}ms)`);
 
-      // Still increment daily counter
+      // Still increment daily counter + decrement credit
       incrementDailyCount(receiptToken as string);
+      decrementReceiptCredit(receiptToken as string).catch(() => {});
 
       // Save fallback receipt to DB fire-and-forget (don't block the response)
       if (isSupabaseConfigured()) {

@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const packTier = status.pack_tier || "decision_pack";
+  const packTier = status.pack_tier || "buyer_pass";
 
   // 2. Check cache
   const { data: cached } = await supabase

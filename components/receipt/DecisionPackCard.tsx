@@ -1,9 +1,8 @@
 /**
- * DecisionPackCard — Two-tier paywall for OFFO paid packs
+ * BuyerPassCard — Single-tier paywall for OFFO Buyer Pass
  *
- * Shows Starter Pack ($4.99) and Decision Pack ($9.99) side by side.
- * Starter: seller questions, negotiation scripts, PDF.
- * Decision: everything in Starter plus market comparison, cost estimate, compare credit.
+ * Shows a single Buyer Pass ($9.99) card with benefits.
+ * 10 receipts with full AI analysis, deep-dive, and PDF export.
  */
 
 "use client";
@@ -14,17 +13,13 @@ import {
   BarChart2,
   MessageSquare,
   FileDown,
-  GitCompare,
   Search,
-  DollarSign,
   Sparkles,
   X,
   Loader2,
-  Check,
-  Crown,
+  ShoppingBag,
 } from "lucide-react";
-import { getDisplayPrice, getVariantForTier } from "@/lib/price-assignment";
-import type { PackTier } from "@/lib/price-assignment";
+import { BUYER_PASS_PRICE } from "@/lib/price-assignment";
 import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface DecisionPackCardProps {
@@ -34,16 +29,12 @@ interface DecisionPackCardProps {
   onDismiss?: () => void;
 }
 
-const STARTER_BENEFITS = [
-  { icon: Search, text: "Extended 10-point inspection checklist" },
+const BUYER_PASS_BENEFITS = [
+  { icon: ShoppingBag, text: "10 receipt credits" },
+  { icon: Search, text: "Full AI analysis with deep-dive" },
   { icon: MessageSquare, text: "3 ready-to-use negotiation scripts" },
-  { icon: FileDown, text: "PDF download of your receipt" },
-];
-
-const DECISION_ONLY_BENEFITS = [
-  { icon: BarChart2, text: "Market comparison with 3–5 similar listings" },
-  { icon: DollarSign, text: "3-year cost of ownership estimate" },
-  { icon: GitCompare, text: "1 compare credit — side-by-side analysis" },
+  { icon: BarChart2, text: "Market comparison with similar listings" },
+  { icon: FileDown, text: "PDF export of every receipt" },
 ];
 
 export default function DecisionPackCard({
@@ -53,11 +44,8 @@ export default function DecisionPackCard({
   onDismiss,
 }: DecisionPackCardProps) {
   const { trackEvent } = useEventTracking();
-  const [checkingOutTier, setCheckingOutTier] = useState<PackTier | null>(null);
+  const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const starterPrice = getDisplayPrice(getVariantForTier("starter_pack"));
-  const decisionPrice = getDisplayPrice(getVariantForTier("decision_pack"));
 
   const handleDismiss = () => {
     trackEvent("paywall_dismissed", {
@@ -67,14 +55,14 @@ export default function DecisionPackCard({
     onDismiss?.();
   };
 
-  const handleUnlock = async (tier: PackTier) => {
-    setCheckingOutTier(tier);
+  const handleUnlock = async () => {
+    setCheckingOut(true);
     setError(null);
 
     trackEvent("checkout_started", {
       receipt_id: receiptId,
-      pack_tier: tier,
-      display_price: getDisplayPrice(getVariantForTier(tier)),
+      pack_tier: "buyer_pass",
+      display_price: BUYER_PASS_PRICE,
       trigger_reason: triggerReason || "unknown",
     });
 
@@ -86,7 +74,6 @@ export default function DecisionPackCard({
           scenario_type: "receipt",
           scenario_id: receiptId,
           anon_id: receiptToken,
-          pack_tier: tier,
           page_source: "receipt_page",
         }),
       });
@@ -111,7 +98,7 @@ export default function DecisionPackCard({
     } catch {
       setError("Connection error. Please try again.");
     } finally {
-      setCheckingOutTier(null);
+      setCheckingOut(false);
     }
   };
 
@@ -142,87 +129,39 @@ export default function DecisionPackCard({
           </h3>
         </div>
 
-        {/* Two-tier grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          {/* Starter Pack */}
-          <div className="border border-gray-200 rounded-xl p-4 bg-white">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-semibold text-gray-800">Starter Pack</h4>
-              <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
-                {starterPrice}
-              </span>
-            </div>
-            <ul className="space-y-2 mb-4">
-              {STARTER_BENEFITS.map(({ icon: Icon, text }, i) => (
-                <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
-                  <Icon className="w-3.5 h-3.5 text-blue-400 flex-shrink-0 mt-0.5" />
-                  <span>{text}</span>
-                </li>
-              ))}
-            </ul>
-            <button
-              onClick={() => handleUnlock("starter_pack")}
-              disabled={checkingOutTier !== null}
-              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg font-medium text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all disabled:opacity-60"
-            >
-              {checkingOutTier === "starter_pack" ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Redirecting...
-                </>
-              ) : (
-                <>Get Starter — {starterPrice}</>
-              )}
-            </button>
+        {/* Single Buyer Pass card */}
+        <div className="border-2 border-indigo-300 rounded-xl p-4 bg-white mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-semibold text-gray-800">OFFO Buyer Pass</h4>
+            <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">
+              {BUYER_PASS_PRICE}
+            </span>
           </div>
-
-          {/* Decision Pack */}
-          <div className="relative border-2 border-indigo-300 rounded-xl p-4 bg-white">
-            <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
-              <span className="inline-flex items-center gap-1 bg-indigo-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">
-                <Crown className="w-3 h-3" /> Best value
-              </span>
-            </div>
-            <div className="flex items-center justify-between mb-3 mt-1">
-              <h4 className="text-sm font-semibold text-gray-800">Decision Pack</h4>
-              <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">
-                {decisionPrice}
-              </span>
-            </div>
-            <ul className="space-y-2 mb-1">
-              {STARTER_BENEFITS.map(({ text }, i) => (
-                <li key={i} className="flex items-start gap-2 text-xs text-gray-500">
-                  <Check className="w-3.5 h-3.5 text-green-400 flex-shrink-0 mt-0.5" />
-                  <span>{text}</span>
-                </li>
-              ))}
-            </ul>
-            <ul className="space-y-2 mb-4">
-              {DECISION_ONLY_BENEFITS.map(({ icon: Icon, text }, i) => (
-                <li key={i} className="flex items-start gap-2 text-xs text-gray-700 font-medium">
-                  <Icon className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0 mt-0.5" />
-                  <span>{text}</span>
-                </li>
-              ))}
-            </ul>
-            <button
-              onClick={() => handleUnlock("decision_pack")}
-              disabled={checkingOutTier !== null}
-              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg font-medium text-xs text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-60 shadow-sm"
-            >
-              {checkingOutTier === "decision_pack" ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Redirecting...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Get Decision Pack — {decisionPrice}
-                </>
-              )}
-            </button>
-          </div>
+          <ul className="space-y-2 mb-4">
+            {BUYER_PASS_BENEFITS.map(({ icon: Icon, text }, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs text-gray-700">
+                <Icon className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0 mt-0.5" />
+                <span>{text}</span>
+              </li>
+            ))}
+          </ul>
+          <button
+            onClick={handleUnlock}
+            disabled={checkingOut}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg font-medium text-xs text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-60 shadow-sm"
+          >
+            {checkingOut ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Redirecting...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3.5 h-3.5" />
+                Get Buyer Pass — {BUYER_PASS_PRICE}
+              </>
+            )}
+          </button>
         </div>
 
         {/* Error */}

@@ -1,5 +1,5 @@
 /**
- * OFFO Decision Pack — Payment Status Hook
+ * OFFO Buyer Pass — Payment Status Hook
  *
  * Client-side hook for managing payment state on the receipt page.
  * Fetches /api/payments/status and exposes entitlement info.
@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 type PurchaseStatus = "pending" | "paid" | "failed" | "refunded" | "none";
-type PackTier = "starter_pack" | "decision_pack";
+type PackTier = "buyer_pass";
 
 export interface UsePaymentStatusReturn {
   purchaseStatus: PurchaseStatus;

@@ -35,7 +35,7 @@ export async function GET(
     return NextResponse.json({ error: "Purchase required to download PDF" }, { status: 402 });
   }
 
-  const packTier = status.pack_tier || "decision_pack";
+  const packTier = status.pack_tier || "buyer_pass";
 
   try {
     // 2. Load receipt
@@ -59,9 +59,9 @@ export async function GET(
       return NextResponse.json({ error: "Receipt data not available" }, { status: 400 });
     }
 
-    // 4. Optionally load deep dive (decision_pack only)
+    // 4. Load deep dive if available
     let deepDive: { content: any } | null = null;
-    if (packTier === "decision_pack") {
+    {
       const { data } = await supabase
         .from("deep_dives")
         .select("content")

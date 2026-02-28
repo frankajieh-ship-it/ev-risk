@@ -342,32 +342,6 @@ export default function ReceiptPage() {
   // Show paywall only when user clicks a premium-gated action
   const handlePremiumAction = useCallback((trigger: string) => {
     if (freeMode) return;
-    // For upgrades from starter_pack, redirect directly to checkout
-    if (trigger === "upgrade_to_decision" && isUnlocked && packTier === "starter_pack" && receipt?.receipt_id) {
-      trackEvent("upgrade_started", { receipt_id: receipt.receipt_id, from_tier: "starter_pack" });
-      (async () => {
-        try {
-          const res = await fetch("/api/payments/checkout", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              scenario_type: "receipt",
-              scenario_id: receipt.receipt_id,
-              anon_id: receiptToken,
-              pack_tier: "decision_pack",
-              upgrade_from: purchaseId,
-              page_source: "receipt_page_upgrade",
-            }),
-          });
-          const data = await res.json();
-          if (data.url) window.location.href = data.url;
-        } catch {
-          // Silently fail
-        }
-      })();
-      return;
-    }
-
     if (isUnlocked) return;
     const rid = receipt?.receipt_id;
     if (rid && paywallShownForRef.current.has(rid)) {
@@ -852,29 +826,7 @@ export default function ReceiptPage() {
                 <DeepDiveSection
                   deepDive={deepDive}
                   receiptId={receipt.receipt_id}
-                  packTier={packTier || "decision_pack"}
-                  onUpgradeClick={() => handlePremiumAction("upgrade_to_decision")}
                 />
-              )}
-
-              {/* Upgrade prompt for starter_pack users (hidden in free mode) */}
-              {isUnlocked && packTier === "starter_pack" && deepDive && !freeMode && (
-                <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl border border-indigo-200 p-4 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">
-                      Want the full analysis?
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Upgrade to Decision Pack for market comparison, cost estimates, and more.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handlePremiumAction("upgrade_to_decision")}
-                    className="flex-shrink-0 px-4 py-2 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
-                  >
-                    Upgrade — $9.99
-                  </button>
-                </div>
               )}
 
               {/* Deep dive loading spinner (hidden in free mode) */}
