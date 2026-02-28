@@ -73,7 +73,7 @@ export function useTurnstile({ containerId, action }: UseTurnstileOptions) {
 
       widgetIdRef.current = window.turnstile.render(container, {
         sitekey: siteKey,
-        size: "invisible",
+        size: "flexible",
         execution: "execute",
         action: action || "submit",
         callback: (token: string) => {
