@@ -94,7 +94,21 @@ interface SummaryData {
     free_count: number;
   }>;
   scenario_saves: { clicked: number; succeeded: number };
-  email_captures: { submitted: number };
+  saved_listings: {
+    total: number;
+    unique_users: number;
+    by_type: { receipt: number; evroutine: number };
+    top_savers: Array<{ user_id: string; count: number; latest_vehicle: string }>;
+  };
+  email_captures: { submitted: number; sent: number; failed: number };
+  email_deliveries: {
+    total: number;
+    sent: number;
+    failed: number;
+    success_rate: number;
+    unique_recipients: number;
+    by_type: { receipt: number; evroutine: number };
+  };
   receipt_server_events: {
     extract_success: number;
     extract_failed: number;
@@ -312,12 +326,27 @@ export default function AdminDashboard() {
       ["Total Feedback", s.feedback.total_feedback],
       ["Recommendation Rate", `${s.feedback.recommendation_rate}%`],
       [""],
-      ["=== SCENARIO SAVES ==="],
-      ["Save Clicked", s.scenario_saves.clicked],
-      ["Save Succeeded", s.scenario_saves.succeeded],
+      ["=== SAVED LISTINGS ==="],
+      ["Total Saved", s.saved_listings.total],
+      ["Unique Users", s.saved_listings.unique_users],
+      ["Receipt Saves", s.saved_listings.by_type.receipt],
+      ["EVRoutine Saves", s.saved_listings.by_type.evroutine],
+      ["Save Clicked (events)", s.scenario_saves.clicked],
+      ["Save Succeeded (events)", s.scenario_saves.succeeded],
       [""],
-      ["=== EMAIL CAPTURES ==="],
-      ["Emails Submitted", s.email_captures.submitted],
+      ["=== EMAIL DELIVERIES ==="],
+      ["Total Emails", s.email_deliveries.total],
+      ["Sent", s.email_deliveries.sent],
+      ["Failed", s.email_deliveries.failed],
+      ["Success Rate", `${s.email_deliveries.success_rate}%`],
+      ["Unique Recipients", s.email_deliveries.unique_recipients],
+      ["Receipt Emails", s.email_deliveries.by_type.receipt],
+      ["EVRoutine Emails", s.email_deliveries.by_type.evroutine],
+      [""],
+      ["=== EMAIL EVENTS ==="],
+      ["Submitted (client)", s.email_captures.submitted],
+      ["Sent (client)", s.email_captures.sent],
+      ["Failed (client)", s.email_captures.failed],
       [""],
       ["=== SERVER-SIDE RECEIPT EVENTS ==="],
       ["Extract Total", s.receipt_server_events?.extract_total ?? 0],
@@ -726,19 +755,54 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Scenario Saves & Email Captures */}
+        {/* Saved Listings & Email Deliveries */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">💾 Scenario Saves</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <FunnelCard label="Save Clicked" value={s.scenario_saves.clicked} color="indigo" />
-              <FunnelCard label="Save Succeeded" value={s.scenario_saves.succeeded} color="green" />
+            <h2 className="text-xl font-bold text-gray-900 mb-4">💾 Saved Listings</h2>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <FunnelCard label="Total Saved" value={s.saved_listings.total} color="indigo" />
+              <FunnelCard label="Unique Users" value={s.saved_listings.unique_users} color="green" />
+              <FunnelCard label="Receipt Saves" value={s.saved_listings.by_type.receipt} color="blue" />
+              <FunnelCard label="EVRoutine Saves" value={s.saved_listings.by_type.evroutine} color="purple" />
             </div>
+            <div className="grid grid-cols-2 gap-3 mb-4 pt-3 border-t border-gray-100">
+              <FunnelCard label="Save Clicked" value={s.scenario_saves.clicked} color="gray" />
+              <FunnelCard label="Save Succeeded" value={s.scenario_saves.succeeded} color="gray" />
+            </div>
+            {s.saved_listings.top_savers.length > 0 && (
+              <div className="pt-3 border-t border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Top Savers</h3>
+                <div className="space-y-1.5">
+                  {s.saved_listings.top_savers.map((saver, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
+                      <span className="font-mono text-gray-600">{saver.user_id}...</span>
+                      <span className="text-gray-500 text-xs truncate mx-2">{saver.latest_vehicle}</span>
+                      <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-medium text-xs">{saver.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">📧 Email Captures</h2>
-            <div className="grid grid-cols-1 gap-4">
-              <FunnelCard label="Emails Submitted" value={s.email_captures.submitted} color="blue" />
+            <h2 className="text-xl font-bold text-gray-900 mb-4">📧 Email Deliveries</h2>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <FunnelCard label="Total Sent" value={s.email_deliveries.sent} color="green" />
+              <FunnelCard label="Failed" value={s.email_deliveries.failed} color="red" />
+              <FunnelCard label="Unique Recipients" value={s.email_deliveries.unique_recipients} color="blue" />
+              <FunnelCard label="Success Rate" value={`${s.email_deliveries.success_rate}%`} color="indigo" />
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-4 pt-3 border-t border-gray-100">
+              <FunnelCard label="Receipt Emails" value={s.email_deliveries.by_type.receipt} color="gray" />
+              <FunnelCard label="EVRoutine Emails" value={s.email_deliveries.by_type.evroutine} color="gray" />
+            </div>
+            <div className="pt-3 border-t border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Client Events</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <FunnelCard label="Submitted" value={s.email_captures.submitted} color="gray" />
+                <FunnelCard label="Sent" value={s.email_captures.sent} color="gray" />
+                <FunnelCard label="Failed" value={s.email_captures.failed} color="gray" />
+              </div>
             </div>
           </div>
         </div>

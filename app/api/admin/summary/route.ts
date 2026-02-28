@@ -559,12 +559,107 @@ export async function GET(request: NextRequest) {
     };
 
     // -----------------------------------------------------------------------
+    // Saved listings (from saved_scenarios table)
+    // -----------------------------------------------------------------------
+
+    let saved_listings = {
+      total: 0,
+      unique_users: 0,
+      by_type: { receipt: 0, evroutine: 0 },
+      top_savers: [] as { user_id: string; count: number; latest_vehicle: string }[],
+    };
+
+    try {
+      const { data: savedRows } = await supabase
+        .from("saved_scenarios")
+        .select("user_id, scenario_type, vehicle_model, vehicle_year, saved_at")
+        .gte("saved_at", window.start)
+        .lte("saved_at", window.end);
+
+      if (savedRows && savedRows.length > 0) {
+        const userSaves = new Map<string, { count: number; latest_vehicle: string; latest_at: string }>();
+        for (const r of savedRows) {
+          const existing = userSaves.get(r.user_id);
+          const vehicle = [r.vehicle_year, r.vehicle_model].filter(Boolean).join(" ") || "Unknown";
+          if (existing) {
+            existing.count++;
+            if (r.saved_at > existing.latest_at) {
+              existing.latest_vehicle = vehicle;
+              existing.latest_at = r.saved_at;
+            }
+          } else {
+            userSaves.set(r.user_id, { count: 1, latest_vehicle: vehicle, latest_at: r.saved_at });
+          }
+        }
+
+        saved_listings = {
+          total: savedRows.length,
+          unique_users: userSaves.size,
+          by_type: {
+            receipt: savedRows.filter((r) => r.scenario_type === "receipt").length,
+            evroutine: savedRows.filter((r) => r.scenario_type === "evroutine").length,
+          },
+          top_savers: Array.from(userSaves.entries())
+            .sort((a, b) => b[1].count - a[1].count)
+            .slice(0, 5)
+            .map(([uid, info]) => ({
+              user_id: uid.substring(0, 8),
+              count: info.count,
+              latest_vehicle: info.latest_vehicle,
+            })),
+        };
+      }
+    } catch {
+      // Non-critical — dashboard still works without this section
+    }
+
+    // -----------------------------------------------------------------------
     // Email captures (from user_events)
     // -----------------------------------------------------------------------
 
     const email_captures = {
       submitted: countEvents(allUserEvents, "email_checklist_submit"),
+      sent: countEvents(allUserEvents, "email_checklist_sent"),
+      failed: countEvents(allUserEvents, "email_checklist_failed"),
     };
+
+    // -----------------------------------------------------------------------
+    // Email deliveries (from email_checklist_deliveries table)
+    // -----------------------------------------------------------------------
+
+    let email_deliveries = {
+      total: 0,
+      sent: 0,
+      failed: 0,
+      success_rate: 0,
+      unique_recipients: 0,
+      by_type: { receipt: 0, evroutine: 0 },
+    };
+
+    try {
+      const { data: emailRows } = await supabase
+        .from("email_checklist_deliveries")
+        .select("scenario_type, email_hash, delivery_status, created_at")
+        .gte("created_at", window.start)
+        .lte("created_at", window.end);
+
+      if (emailRows && emailRows.length > 0) {
+        const sentCount = emailRows.filter((r) => r.delivery_status === "sent").length;
+        email_deliveries = {
+          total: emailRows.length,
+          sent: sentCount,
+          failed: emailRows.filter((r) => r.delivery_status === "failed").length,
+          success_rate: Math.round((sentCount / emailRows.length) * 1000) / 10,
+          unique_recipients: new Set(emailRows.map((r) => r.email_hash)).size,
+          by_type: {
+            receipt: emailRows.filter((r) => r.scenario_type === "receipt").length,
+            evroutine: emailRows.filter((r) => r.scenario_type === "evroutine").length,
+          },
+        };
+      }
+    } catch {
+      // Non-critical
+    }
 
     // -----------------------------------------------------------------------
     // Server-side receipt events (from user_events)
@@ -1008,7 +1103,9 @@ export async function GET(request: NextRequest) {
       daily_trend,
       top_vehicles,
       scenario_saves,
+      saved_listings,
       email_captures,
+      email_deliveries,
       receipt_server_events,
       report_server_events,
       routine_engagement,
