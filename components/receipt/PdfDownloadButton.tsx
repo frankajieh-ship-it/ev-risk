@@ -13,6 +13,7 @@ interface PdfDownloadButtonProps {
   receiptToken: string;
   isUnlocked: boolean;
   onCheckoutRedirect?: () => void;
+  compact?: boolean;
 }
 
 export default function PdfDownloadButton({
@@ -20,6 +21,7 @@ export default function PdfDownloadButton({
   receiptToken,
   isUnlocked,
   onCheckoutRedirect,
+  compact = false,
 }: PdfDownloadButtonProps) {
   const { trackEvent } = useEventTracking();
   const [isDownloading, setIsDownloading] = useState(false);
@@ -43,32 +45,39 @@ export default function PdfDownloadButton({
     }
   };
 
+  const baseCompact = "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all";
+  const baseFull = "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all";
+
+  const getClassName = () => {
+    const base = compact ? baseCompact : baseFull;
+    if (isUnlocked) {
+      return isDownloading
+        ? `${base} bg-blue-50 text-blue-400 border border-blue-200 cursor-wait`
+        : `${base} ${compact ? "border" : "border-2"} border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300`;
+    }
+    return `${base} ${compact ? "border" : "border-2"} border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50`;
+  };
+
   return (
     <button
       onClick={handleClick}
       disabled={isDownloading}
-      className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${
-        isUnlocked
-          ? isDownloading
-            ? "bg-blue-50 text-blue-400 border border-blue-200 cursor-wait"
-            : "border-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300"
-          : "border-2 border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
-      }`}
+      className={getClassName()}
     >
       {isDownloading ? (
         <>
           <Loader2 className="w-4 h-4 animate-spin" />
-          Preparing PDF...
+          {!compact && "Preparing PDF..."}
         </>
       ) : isUnlocked ? (
         <>
           <FileDown className="w-4 h-4" />
-          Download PDF
+          {compact ? "PDF" : "Download PDF"}
         </>
       ) : (
         <>
           <Lock className="w-4 h-4" />
-          Unlock to Download PDF
+          {compact ? "PDF" : "Unlock to Download PDF"}
         </>
       )}
     </button>

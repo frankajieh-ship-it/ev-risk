@@ -33,6 +33,7 @@ import { scoreReceipt } from "@/lib/receipt-scoring";
 import { isInternalTester } from "@/lib/rollout-flags";
 import { guardTurnstile } from "@/lib/turnstile";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
+import { findSimilarReceipt } from "@/lib/receipt-similarity";
 import { logApi } from "@/lib/api-logger";
 
 export const maxDuration = 60;
@@ -718,15 +719,111 @@ export async function POST(request: NextRequest) {
       }).then(() => {}, () => {});
     }
 
-    // On timeout/AI errors, return a fallback receipt instead of an error
+    // On timeout/AI errors, try similarity match first, then fall back to deterministic receipt
     if (isTimeoutOrAIError) {
-      const fallbackReceipt = buildEnhancedFallbackReceipt(input, ruleSignals, ruleScoring);
-      timings.total = Date.now() - t0;
-      console.log(`[Receipt API] Returning fallback receipt after error (${timings.total}ms)`);
-
       // Still increment daily counter + decrement credit
       incrementDailyCount(receiptToken as string);
       decrementReceiptCredit(receiptToken as string).catch(() => {});
+
+      // Try to find a similar successful receipt from the database
+      const similarResult = await findSimilarReceipt(input).catch(() => null);
+
+      if (similarResult) {
+        // Use the similar receipt's AI analysis with current vehicle's details overlaid
+        const { v4: uuidv4 } = await import("uuid");
+        const newReceiptId = uuidv4();
+        const similarReceipt = {
+          ...similarResult.receipt,
+          receipt_id: newReceiptId,
+          listing_summary: {
+            ...similarResult.receipt.listing_summary,
+            listing_url: input.listing_url || "",
+            url_domain: input.listing_url ? (() => { try { return new URL(input.listing_url!).hostname.replace("www.", ""); } catch { return ""; } })() : "",
+            year: input.year || similarResult.receipt.listing_summary?.year || 0,
+            make: input.make || similarResult.receipt.listing_summary?.make || "Unknown",
+            model: input.model || similarResult.receipt.listing_summary?.model || "Vehicle",
+            trim: input.trim || similarResult.receipt.listing_summary?.trim || null,
+            price: input.price || similarResult.receipt.listing_summary?.price || 0,
+            mileage: input.mileage || similarResult.receipt.listing_summary?.mileage || 0,
+          },
+          verdict_reason: `Based on analysis of a similar ${input.year || ""} ${input.make || ""} ${input.model || "vehicle"}. ${similarResult.confidence >= 0.7 ? "High" : "Medium"} confidence match. Regenerate for a vehicle-specific analysis.`.trim().replace(/\s+/g, " "),
+        };
+
+        timings.total = Date.now() - t0;
+        console.log(`[Receipt API] Returning similarity-matched receipt (confidence=${similarResult.confidence.toFixed(2)}, matched=${similarResult.matchedReceiptId}) after ${timings.total}ms`);
+
+        // Log similarity match events fire-and-forget
+        if (isSupabaseConfigured()) {
+          const urlDomain = input.listing_url
+            ? (() => { try { return new URL(input.listing_url!).hostname.replace("www.", ""); } catch { return null; } })()
+            : null;
+
+          supabase.from("receipts").insert({
+            id: newReceiptId,
+            session_id: receiptToken,
+            user_id: userId || null,
+            source: "receipt_page",
+            page_source: (body.page_source as string) || null,
+            listing_url: input.listing_url || null,
+            url_domain: urlDomain,
+            listing_text: input.listing_text ? input.listing_text.substring(0, 5000) : null,
+            input_json: input,
+            output_json: similarReceipt,
+            mode: "single",
+            is_pro: isPro,
+          }).then(
+            ({ error: e }) => { if (e) console.error("[Receipt API] Similarity DB insert failed:", e.message); },
+            () => {}
+          );
+
+          supabase.from("receipt_events").insert({
+            receipt_id: newReceiptId,
+            session_id: receiptToken,
+            event_type: "similarity_match",
+          }).then(() => {}, () => {});
+
+          supabase.from("user_events").insert({
+            event_name: "receipt_similarity_match",
+            event_data: {
+              receipt_id: newReceiptId,
+              receipt_token: receiptToken,
+              matched_receipt_id: similarResult.matchedReceiptId,
+              similarity_confidence: similarResult.confidence,
+              match_details: similarResult.matchDetails,
+            },
+            ip_address: clientIP,
+            page_path: "/api/receipt",
+            timestamp: new Date().toISOString(),
+          }).then(() => {}, () => {});
+        }
+
+        const similarPayload = {
+          success: true,
+          receipt: similarReceipt,
+          db_saved: false,
+          lint_passed: true,
+          lint_errors: [],
+          lint_error_codes: [],
+          remaining_free: Math.max(0, dailyLimit.remaining - 1),
+          is_pro: isPro,
+          features,
+          fallback: true,
+          similarity_match: true,
+          similarity_confidence: similarResult.confidence,
+          region: input.region || "US",
+        };
+
+        if (requestRowId) {
+          completeRequest(requestRowId, newReceiptId, similarPayload).catch(() => {});
+        }
+
+        return NextResponse.json(similarPayload);
+      }
+
+      // No similarity match found — use deterministic fallback
+      const fallbackReceipt = buildEnhancedFallbackReceipt(input, ruleSignals, ruleScoring);
+      timings.total = Date.now() - t0;
+      console.log(`[Receipt API] Returning fallback receipt after error (${timings.total}ms)`);
 
       // Save fallback receipt to DB fire-and-forget (don't block the response)
       if (isSupabaseConfigured()) {
@@ -755,7 +852,7 @@ export async function POST(request: NextRequest) {
       const fallbackPayload = {
         success: true,
         receipt: fallbackReceipt,
-        db_saved: false, // fire-and-forget — don't claim saved
+        db_saved: false,
         lint_passed: true,
         lint_errors: [],
         lint_error_codes: [],

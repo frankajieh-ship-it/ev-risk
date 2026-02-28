@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Receipt, History, ArrowLeft, Loader2, X, Mail, Bookmark, QrCode } from "lucide-react";
+import { Receipt, History, ArrowLeft, Loader2, QrCode } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useAuth } from "@/hooks/useAuth";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
@@ -120,6 +120,7 @@ export default function ReceiptPage() {
   const [error, setError] = useState<string | null>(null);
   const [remainingFree, setRemainingFree] = useState<number | null>(null);
   const [isFallback, setIsFallback] = useState(false);
+  const [isSimilarityMatch, setIsSimilarityMatch] = useState(false);
 
   // History
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -172,7 +173,6 @@ export default function ReceiptPage() {
   // Retention capture state
   const [hasSaved, setHasSaved] = useState(false);
   const [hasEmailed, setHasEmailed] = useState(false);
-  const [showSaveNudge, setShowSaveNudge] = useState(false);
 
   // Prefill from SEO page
   const [prefillText, setPrefillText] = useState<string | null>(null);
@@ -359,25 +359,6 @@ export default function ReceiptPage() {
     }, 100);
   }, [freeMode, isUnlocked, packTier, receipt, receiptToken, purchaseId, trackEvent]);
 
-  // Beforeunload guard — warn when receipt exists but not saved/emailed
-  useEffect(() => {
-    if (!receipt || hasSaved || hasEmailed) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [receipt, hasSaved, hasEmailed]);
-
-  // Save nudge bar — show 15s after receipt, dismiss on save/email
-  useEffect(() => {
-    if (!receipt || hasSaved || hasEmailed) {
-      setShowSaveNudge(false);
-      return;
-    }
-    const timer = setTimeout(() => setShowSaveNudge(true), 15000);
-    return () => clearTimeout(timer);
-  }, [receipt, hasSaved, hasEmailed]);
 
   // Auto-load bound comparison when compareBoundTo is set
   useEffect(() => {
@@ -435,6 +416,7 @@ export default function ReceiptPage() {
       setLintPassed(true);
       setLintErrors([]);
       setIsFallback(false);
+      setIsSimilarityMatch(false);
       setCompareReceipt(null);
       setShowCompareView(false);
       setCurrentVin(data.fields.vin || undefined);
@@ -513,6 +495,7 @@ export default function ReceiptPage() {
         setLintPassed(result.lint_passed);
         setLintErrors(result.lint_error_codes || []);
         setIsFallback(!!result.fallback);
+        setIsSimilarityMatch(!!result.similarity_match);
         if (typeof result.remaining_free === "number") {
           setRemainingFree(result.remaining_free);
         }
@@ -711,10 +694,10 @@ export default function ReceiptPage() {
             </span>
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-700 to-green-600 bg-clip-text text-transparent mb-2">
-            Don&apos;t get burned on a used car deal
+            Get a second opinion before the test drive
           </h1>
           <p className="text-gray-600">
-            Paste a listing. Get the red flags, fair price check, and exactly what to ask the seller.
+            Paste a listing. Get the fair price check, key questions, and a pre-visit checklist.
           </p>
         </div>
 
@@ -758,9 +741,30 @@ export default function ReceiptPage() {
                 onAutoFix={handleAutoFix}
                 isFixing={isFixing}
                 isFallback={isFallback}
+                isSimilarityMatch={isSimilarityMatch}
                 onTrackLintFallback={handleLintFallback}
                 region={region}
               />
+
+              {/* Buyer Pass teaser — proactive, not gated */}
+              {!isUnlocked && !freeMode && paymentsEnabled && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 p-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">
+                      Checking more than one listing?
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Buyer Pass gives you 10 full receipt checks, negotiation scripts, and PDF export.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handlePremiumAction("inline_teaser")}
+                    className="flex-shrink-0 px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    Unlock — $9.99
+                  </button>
+                </div>
+              )}
 
               {/* Negotiator — Seller Strategy */}
               <NegotiatorSection
@@ -768,6 +772,14 @@ export default function ReceiptPage() {
                 isUnlocked={isUnlocked}
                 onUpgradeClick={() => handlePremiumAction("negotiator_upsell")}
                 freeMode={freeMode}
+              />
+
+              {/* Routine Fit — moved up for prominence */}
+              <RoutineFitMiniStep
+                receiptMileage={receipt.listing_summary?.mileage}
+                receiptPrice={receipt.listing_summary?.price}
+                receiptSellerType={receipt.listing_summary?.seller_type}
+                trackEvent={trackEvent}
               />
 
               {/* VIN Check */}
@@ -781,33 +793,33 @@ export default function ReceiptPage() {
                 trackEvent={trackEvent}
               />
 
-              {/* Save receipt */}
-              <div id="save-receipt-cta">
-                <SaveReceiptCTA
-                  receipt={receipt}
-                  onSaveSuccess={() => setHasSaved(true)}
-                />
+              {/* Action row — Save / Share / PDF */}
+              <div id="save-receipt-cta" className="flex items-center gap-2">
+                <div className="flex-1">
+                  <SaveReceiptCTA
+                    receipt={receipt}
+                    onSaveSuccess={() => setHasSaved(true)}
+                    compact
+                  />
+                </div>
+                <button
+                  onClick={handleShareClick}
+                  disabled={isSharing}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  <QrCode className="w-4 h-4" />
+                  Share
+                </button>
+                {paymentsEnabled && !freeMode && (
+                  <PdfDownloadButton
+                    receiptId={receipt.receipt_id}
+                    receiptToken={receiptToken}
+                    isUnlocked={isUnlocked}
+                    onCheckoutRedirect={() => handlePremiumAction("download_pdf")}
+                    compact
+                  />
+                )}
               </div>
-
-              {/* Share receipt */}
-              <button
-                onClick={handleShareClick}
-                disabled={isSharing}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                <QrCode className="w-4 h-4" />
-                {isSharing ? "Generating link..." : "Share Receipt"}
-              </button>
-
-              {/* PDF download (shown when payments are enabled, hidden in free mode) */}
-              {paymentsEnabled && !freeMode && (
-                <PdfDownloadButton
-                  receiptId={receipt.receipt_id}
-                  receiptToken={receiptToken}
-                  isUnlocked={isUnlocked}
-                  onCheckoutRedirect={() => handlePremiumAction("download_pdf")}
-                />
-              )}
 
               {/* Decision Pack paywall (shown on premium action click, hidden in free mode) */}
               {showPaywall && !decisionPackDismissed && !isPaymentLoading && !freeMode && (
@@ -859,14 +871,6 @@ export default function ReceiptPage() {
                   }}
                 />
               )}
-
-              {/* Routine Fit mini-step */}
-              <RoutineFitMiniStep
-                receiptMileage={receipt.listing_summary?.mileage}
-                receiptPrice={receipt.listing_summary?.price}
-                receiptSellerType={receipt.listing_summary?.seller_type}
-                trackEvent={trackEvent}
-              />
 
               {/* Details accordion */}
               {receipt.receipt_details && (
@@ -965,50 +969,6 @@ export default function ReceiptPage() {
         />
       )}
 
-      {/* Floating save nudge bar */}
-      <AnimatePresence>
-        {showSaveNudge && (
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 40 }}
-            className="fixed bottom-4 left-4 right-4 z-40 mx-auto max-w-md bg-white border border-gray-200 rounded-xl shadow-lg p-3 flex items-center gap-3"
-          >
-            <div className="flex-1 text-sm text-gray-700 font-medium">
-              Don&apos;t lose this receipt
-            </div>
-            <button
-              onClick={() => {
-                setShowSaveNudge(false);
-                // Scroll to email capture section
-                document.getElementById("email-capture-card")?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap"
-            >
-              <Mail className="w-3.5 h-3.5" />
-              Email it
-            </button>
-            <button
-              onClick={() => {
-                setShowSaveNudge(false);
-                // Scroll to save CTA section
-                document.getElementById("save-receipt-cta")?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors whitespace-nowrap"
-            >
-              <Bookmark className="w-3.5 h-3.5" />
-              Save it
-            </button>
-            <button
-              onClick={() => setShowSaveNudge(false)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

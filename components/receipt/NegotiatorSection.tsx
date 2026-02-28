@@ -16,6 +16,7 @@ import {
   CheckCircle,
   AlertTriangle,
   HelpCircle,
+  Search,
   XCircle,
   DollarSign,
   ArrowUpCircle,
@@ -30,7 +31,7 @@ interface NegotiatorSectionProps {
   freeMode?: boolean;
 }
 
-type CopiedKey = "opener" | "talking" | "questions" | "walkaway" | "offer" | "all" | null;
+type CopiedKey = "opener" | "talking" | "questions" | "inspect" | "walkaway" | "offer" | "all" | null;
 
 export default function NegotiatorSection({
   receipt,
@@ -112,6 +113,12 @@ export default function NegotiatorSection({
     lines.push("MUST-ASK QUESTIONS:");
     receipt.must_answer_questions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
     lines.push("");
+
+    if (receipt.inspect_first && receipt.inspect_first.length > 0) {
+      lines.push("INSPECT FIRST:");
+      receipt.inspect_first.forEach((item, i) => lines.push(`${i + 1}. ${item}`));
+      lines.push("");
+    }
 
     if (walkAwayTriggers.length > 0) {
       lines.push("WALK-AWAY TRIGGERS:");
@@ -212,6 +219,33 @@ export default function NegotiatorSection({
             ))}
           </ol>
         </StrategyBlock>
+
+        {/* Inspect First */}
+        {receipt.inspect_first && receipt.inspect_first.length > 0 && (
+          <StrategyBlock
+            icon={<Search className="w-4 h-4 text-orange-500" />}
+            title="Inspect First"
+            subtitle="Check these before discussing price"
+            onCopy={() =>
+              copyText(
+                receipt.inspect_first.map((item, i) => `${i + 1}. ${item}`).join("\n"),
+                "inspect"
+              )
+            }
+            copied={copied === "inspect"}
+          >
+            <ol className="space-y-1.5">
+              {receipt.inspect_first.map((item, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                  <span className="text-orange-400 font-bold flex-shrink-0 w-5 text-right">
+                    {i + 1}.
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ol>
+          </StrategyBlock>
+        )}
 
         {/* Walk-Away Triggers */}
         {walkAwayTriggers.length > 0 && (

@@ -14,11 +14,9 @@ import {
   CheckCircle,
   AlertTriangle,
   Shield,
-  MessageSquare,
   Search,
   DollarSign,
   AlertCircle,
-  Wrench,
   HelpCircle,
   FileSearch,
 } from "lucide-react";
@@ -35,6 +33,7 @@ interface ReceiptOutputCardProps {
   onAutoFix?: () => void;
   isFixing?: boolean;
   isFallback?: boolean;
+  isSimilarityMatch?: boolean;
   onRegenerate?: () => void;
   onTrackLintFallback?: () => void;
   region?: Region;
@@ -92,6 +91,7 @@ export default function ReceiptOutputCard({
   onAutoFix,
   isFixing,
   isFallback,
+  isSimilarityMatch,
   onRegenerate,
   onTrackLintFallback,
   region = "US",
@@ -139,14 +139,16 @@ export default function ReceiptOutputCard({
     >
       {/* Fallback banner */}
       {isFallback && (
-        <div className="bg-amber-50 border-b border-amber-200 px-5 py-3 flex items-center justify-between">
-          <p className="text-sm text-amber-800">
-            Quick receipt — AI analysis timed out. Tap Regenerate for a full analysis.
+        <div className={`${isSimilarityMatch ? "bg-blue-50 border-b border-blue-200" : "bg-amber-50 border-b border-amber-200"} px-5 py-3 flex items-center justify-between`}>
+          <p className={`text-sm ${isSimilarityMatch ? "text-blue-800" : "text-amber-800"}`}>
+            {isSimilarityMatch
+              ? "Based on a similar vehicle — Tap Regenerate for vehicle-specific analysis."
+              : "Quick receipt — AI analysis timed out. Tap Regenerate for a full analysis."}
           </p>
           {onRegenerate && (
             <button
               onClick={onRegenerate}
-              className="text-sm font-medium text-amber-700 hover:text-amber-900 underline whitespace-nowrap ml-3"
+              className={`text-sm font-medium underline whitespace-nowrap ml-3 ${isSimilarityMatch ? "text-blue-700 hover:text-blue-900" : "text-amber-700 hover:text-amber-900"}`}
             >
               Regenerate
             </button>
@@ -379,20 +381,29 @@ export default function ReceiptOutputCard({
           </div>
         )}
 
-        {/* Risk Flags */}
-        <Section
-          icon={<AlertTriangle className="w-4 h-4 text-red-500" />}
-          title="Risk Flags"
-        >
-          <ul className="space-y-2">
-            {receipt.risk_flags.map((flag, i) => (
-              <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
-                <span className="text-red-400 mt-0.5">!</span>
-                <span>{flag}</span>
-              </li>
-            ))}
-          </ul>
-        </Section>
+        {/* Risk Flags (reframed for GREEN verdicts) */}
+        {(() => {
+          const isGreen = receipt.verdict === "GREEN";
+          return (
+            <Section
+              icon={isGreen
+                ? <Search className="w-4 h-4 text-amber-500" />
+                : <AlertTriangle className="w-4 h-4 text-red-500" />}
+              title={isGreen ? "What to Verify" : "Risk Flags"}
+            >
+              <ul className="space-y-2">
+                {receipt.risk_flags.map((flag, i) => (
+                  <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                    {isGreen
+                      ? <span className="text-amber-400 font-bold mt-0.5">{i + 1}.</span>
+                      : <span className="text-red-400 mt-0.5">!</span>}
+                    <span>{flag}</span>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          );
+        })()}
 
         {/* Must Answer Questions */}
         <Section
@@ -418,21 +429,6 @@ export default function ReceiptOutputCard({
           </ul>
         </Section>
 
-        {/* Inspect First */}
-        <Section
-          icon={<Search className="w-4 h-4 text-orange-500" />}
-          title="Inspect First"
-        >
-          <ul className="space-y-2">
-            {receipt.inspect_first.map((item, i) => (
-              <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
-                <Wrench className="w-3.5 h-3.5 text-orange-400 flex-shrink-0 mt-0.5" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        </Section>
-
         {/* Verify Before Visit */}
         {receipt.verify_before_visit && receipt.verify_before_visit.length > 0 && (
           <Section
@@ -450,29 +446,6 @@ export default function ReceiptOutputCard({
           </Section>
         )}
 
-        {/* Negotiation Opener */}
-        <Section
-          icon={<MessageSquare className="w-4 h-4 text-green-500" />}
-          title="Negotiation Opener"
-          onCopy={() =>
-            copySection(receipt.negotiation_opener, "opener")
-          }
-          copied={copiedSection === "opener"}
-        >
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-            <p className="text-sm text-gray-800">
-              {receipt.negotiation_opener}
-            </p>
-          </div>
-        </Section>
-
-        {/* Follow-up Question */}
-        {receipt.one_followup_question && (
-          <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
-            <span className="font-medium text-gray-700">Follow-up: </span>
-            {receipt.one_followup_question}
-          </div>
-        )}
 
         {/* Lint errors — itemized list + auto-fix */}
         {!lintPassed && lintErrors.length > 0 && (

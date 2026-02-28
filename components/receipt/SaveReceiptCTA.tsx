@@ -17,6 +17,7 @@ import type { ListingReceipt } from "@/types/receipt";
 interface SaveReceiptCTAProps {
   receipt: ListingReceipt;
   onSaveSuccess?: () => void;
+  compact?: boolean;
 }
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -27,6 +28,7 @@ const ACTIVE_RECEIPT_KEY = "offo_active_receipt_id";
 export default function SaveReceiptCTA({
   receipt,
   onSaveSuccess,
+  compact = false,
 }: SaveReceiptCTAProps) {
   const { isAuthenticated, session, isConfigured, isReady } = useAuth();
   const { trackEvent } = useEventTracking();
@@ -137,37 +139,51 @@ export default function SaveReceiptCTA({
 
   if (!isConfigured) return null;
 
+  const fullClass = "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-all";
+  const compactClass = "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition-colors";
+
   return (
     <>
       {saveState === "idle" && (
         <button
           onClick={handleClick}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-all"
+          className={compact ? compactClass : fullClass}
         >
           <Bookmark className="w-4 h-4" />
-          {isAuthenticated ? "Save This Receipt" : "Sign in to Save"}
+          {compact
+            ? (isAuthenticated ? "Save" : "Save")
+            : (isAuthenticated ? "Save This Receipt" : "Sign in to Save")}
         </button>
       )}
 
       {saveState === "saving" && (
-        <div className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border-2 border-gray-200 text-gray-500">
+        <div className={compact
+          ? "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-500"
+          : "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border-2 border-gray-200 text-gray-500"
+        }>
           <Loader2 className="w-4 h-4 animate-spin" />
-          Saving...
+          {!compact && "Saving..."}
         </div>
       )}
 
       {saveState === "saved" && (
-        <div className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border-2 border-green-200 text-green-700 bg-green-50">
+        <div className={compact
+          ? "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-green-200 text-green-700 bg-green-50"
+          : "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border-2 border-green-200 text-green-700 bg-green-50"
+        }>
           <CheckCircle className="w-4 h-4" />
-          Receipt Saved!
+          {compact ? "Saved" : "Receipt Saved!"}
         </div>
       )}
 
       {saveState === "error" && (
-        <div className="w-full">
-          <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border-2 border-red-200 text-red-700 bg-red-50">
+        <div className={compact ? "" : "w-full"}>
+          <div className={compact
+            ? "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-red-200 text-red-700 bg-red-50"
+            : "flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border-2 border-red-200 text-red-700 bg-red-50"
+          }>
             <AlertCircle className="w-4 h-4" />
-            {error || "Failed to save"}
+            {compact ? "Error" : (error || "Failed to save")}
           </div>
           <button
             onClick={() => {
