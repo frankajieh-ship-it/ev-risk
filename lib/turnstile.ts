@@ -132,15 +132,14 @@ export async function guardTurnstile(
     );
   }
 
-  // 2. Token presence
+  // 2. Token presence — warn but don't block (rate limiter is the backstop)
   const token = body.turnstileToken;
   if (!token || typeof token !== "string") {
-    console.warn(`[Turnstile] Token missing on ${endpoint}`);
-    logBotEvent("turnstile_blocked", endpoint, clientIP, { reason: "turnstile_missing" });
-    return NextResponse.json(
-      { success: false, error: "Verification required", captcha_required: true },
-      { status: 403 }
-    );
+    console.warn(`[Turnstile] Token missing on ${endpoint} — allowing (fail-open)`);
+    logBotEvent("turnstile_blocked", endpoint, clientIP, { reason: "turnstile_missing", action: "allowed_failopen" });
+    delete body.turnstileToken;
+    delete body.leave_this_empty;
+    return null; // pass through
   }
 
   // 3. Verify with Cloudflare

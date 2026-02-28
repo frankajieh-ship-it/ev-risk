@@ -82,7 +82,8 @@ export function useTurnstile({ containerId, action }: UseTurnstileOptions) {
             resolveRef.current = null;
           }
         },
-        "error-callback": () => {
+        "error-callback": (errorCode: string) => {
+          console.warn("[Turnstile] Challenge error:", errorCode);
           if (resolveRef.current) {
             resolveRef.current(null);
             resolveRef.current = null;
@@ -146,6 +147,7 @@ export function useTurnstile({ containerId, action }: UseTurnstileOptions) {
       // Safety timeout: 8s (well under 30s fetch timeout)
       setTimeout(() => {
         if (resolveRef.current) {
+          console.warn("[Turnstile] Challenge timed out after 8s");
           resolveRef.current(null);
           resolveRef.current = null;
         }
