@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Copy,
@@ -20,11 +20,9 @@ import {
   AlertCircle,
   Wrench,
   HelpCircle,
-  FileText,
   FileSearch,
 } from "lucide-react";
 import type { ListingReceipt, LintError } from "@/types/receipt";
-import { renderRedditDraft, type RedditDraftStyle } from "@/lib/reddit-draft-renderer";
 import type { Region } from "@/lib/region";
 import { formatPrice } from "@/lib/region";
 
@@ -98,9 +96,7 @@ export default function ReceiptOutputCard({
   onTrackLintFallback,
   region = "US",
 }: ReceiptOutputCardProps) {
-  const [copied, setCopied] = useState(false);
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
-  const [draftStyle, setDraftStyle] = useState<RedditDraftStyle>("short_paragraph");
   const fallbackFiredRef = useRef(false);
 
   useEffect(() => {
@@ -121,37 +117,9 @@ export default function ReceiptOutputCard({
     }
   };
 
-  const displayText = useMemo(() => {
-    if (receipt.reddit_draft) {
-      try {
-        return renderRedditDraft(
-          receipt.reddit_draft as Parameters<typeof renderRedditDraft>[0],
-          draftStyle
-        );
-      } catch {
-        return receipt.receipt_reddit_text;
-      }
-    }
-    return receipt.receipt_reddit_text;
-  }, [receipt.reddit_draft, receipt.receipt_reddit_text, draftStyle]);
-
   const verdict = VERDICT_STYLES[receipt.verdict];
   const VerdictIcon = verdict.icon;
   const price = PRICE_STYLES[receipt.price_sanity?.label || "UNKNOWN"];
-
-  const handleCopy = async () => {
-    if (!lintPassed) return;
-
-    try {
-      await navigator.clipboard.writeText(displayText);
-      setCopied(true);
-      onCopy?.();
-      onTrackCopy?.("reddit_draft");
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Copy failed:", err);
-    }
-  };
 
   // Vehicle description
   const ls = receipt.listing_summary;
@@ -506,45 +474,6 @@ export default function ReceiptOutputCard({
           </div>
         )}
 
-        {/* Reddit Post Draft Preview */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-gray-500" />
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Reddit Post Draft Preview
-              </h3>
-            </div>
-            <span className="text-xs text-gray-400">
-              {displayText.length}/900 chars
-            </span>
-          </div>
-          {receipt.reddit_draft && (
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 mb-3">
-              {(["short_paragraph", "standard", "bullets"] as const).map((style) => (
-                <button
-                  key={style}
-                  onClick={() => setDraftStyle(style)}
-                  className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-md transition-all ${
-                    draftStyle === style
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  {style === "short_paragraph"
-                    ? "Short"
-                    : style === "standard"
-                    ? "Standard"
-                    : "Bullets"}
-                </button>
-              ))}
-            </div>
-          )}
-          <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
-            {displayText}
-          </pre>
-        </div>
-
         {/* Lint errors — itemized list + auto-fix */}
         {!lintPassed && lintErrors.length > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
@@ -574,30 +503,6 @@ export default function ReceiptOutputCard({
           </div>
         )}
 
-        {/* Copy button */}
-        <button
-          onClick={handleCopy}
-          disabled={!lintPassed}
-          className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-sm transition-all ${
-            !lintPassed
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-              : copied
-              ? "bg-green-100 text-green-700 border border-green-200"
-              : "border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:bg-blue-50"
-          }`}
-        >
-          {copied ? (
-            <>
-              <CheckCircle className="w-4 h-4" />
-              Copied to clipboard!
-            </>
-          ) : (
-            <>
-              <Copy className="w-4 h-4" />
-              Copy Reddit Post Draft
-            </>
-          )}
-        </button>
       </div>
     </motion.div>
   );

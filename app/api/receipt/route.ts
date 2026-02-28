@@ -18,7 +18,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIP } from "@/lib/rate-limiter";
 import { receiptBurstLimiter, checkDailyLimit, incrementDailyCount } from "@/lib/receipt-rate-limiter";
-import { generateReceipt, fixReceiptFormatting, buildFallbackReceipt } from "@/lib/receipt-openai";
+import { generateReceipt, fixReceiptFormatting, buildEnhancedFallbackReceipt } from "@/lib/receipt-openai";
+import { extractSignalsFromText } from "@/lib/receipt-signal-extractor";
 import { validateReceiptSchema } from "@/lib/receipt-schema-validator";
 import type { LintError } from "@/lib/receipt-schema-validator";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -237,6 +238,25 @@ export async function POST(request: NextRequest) {
     mode: "single",
   };
 
+  // 6b. Extract signals deterministically from text (< 5ms, no network)
+  const ruleClassification = classifyVehicle(
+    input.make || "", input.model || "", input.trim, input.listing_text
+  );
+  const ruleSignals = extractSignalsFromText(
+    input.listing_text || null,
+    {
+      title_status: input.title_status,
+      service_history: input.service_history,
+      accidents_reported: input.accidents_reported,
+      owners: input.owners,
+      vin: input.vin,
+      carfax_available: input.carfax_available,
+    },
+    ruleClassification
+  );
+  const ruleScoring = scoreReceipt(ruleSignals);
+  timings.rules = Date.now() - t0;
+
   try {
     // 7. Call OpenAI with internal deadline (race against Netlify's 26s kill)
     const INTERNAL_DEADLINE_MS = 25_000; // 25s — fallback writes are fire-and-forget, only ~200ms needed for response
@@ -321,7 +341,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Return a fallback receipt so the user always gets a result
-      const fallbackReceipt = buildFallbackReceipt(input);
+      const fallbackReceipt = buildEnhancedFallbackReceipt(input, ruleSignals, ruleScoring);
       incrementDailyCount(receiptToken as string);
       timings.total = Date.now() - t0;
       console.log(`[Receipt API] Returning fallback receipt after schema fail (${timings.total}ms)`);
@@ -674,6 +694,9 @@ export async function POST(request: NextRequest) {
           failure_reason: isTimeoutOrAIError ? "timeout_or_ai_error" : "generation_error",
           input_length: (input.listing_text || "").length,
           region: input.region || "US",
+          rule_signal_count: ruleSignals.length,
+          rule_verdict: ruleScoring.verdict,
+          rule_fit_score: ruleScoring.fit_score,
         },
         ip_address: clientIP,
         page_path: "/api/receipt",
@@ -683,7 +706,7 @@ export async function POST(request: NextRequest) {
 
     // On timeout/AI errors, return a fallback receipt instead of an error
     if (isTimeoutOrAIError) {
-      const fallbackReceipt = buildFallbackReceipt(input);
+      const fallbackReceipt = buildEnhancedFallbackReceipt(input, ruleSignals, ruleScoring);
       timings.total = Date.now() - t0;
       console.log(`[Receipt API] Returning fallback receipt after error (${timings.total}ms)`);
 

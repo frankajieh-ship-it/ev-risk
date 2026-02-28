@@ -13,6 +13,8 @@ import { validateReceiptSchema, sanitizeTextField } from "@/lib/receipt-schema-v
 import { classifyVehicle } from "@/lib/vehicle-classifier";
 import { getTemplatePack } from "@/lib/vehicle-category-templates";
 import { scoreFallbackReceipt } from "@/lib/receipt-scoring";
+import type { ReceiptScoringResult } from "@/lib/receipt-scoring";
+import { RULES_BY_ID, type ListingSignalId } from "@/lib/receipt-rules";
 
 let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI {
@@ -438,6 +440,165 @@ export function buildFallbackReceipt(input: ReceiptGenerateRequest): ListingRece
     },
     // Scoring fields from deterministic engine
     listing_signals: [],
+    fit_score: scoring.fit_score,
+    evidence_score: scoring.evidence_score,
+    evidence_label: scoring.evidence_label,
+    scoring_reasons: scoring.scoring_reasons,
+    why_not_green: scoring.why_not_green,
+    verify_before_visit: scoring.verify_before_visit,
+  } as ListingReceipt;
+}
+
+// --- Enhanced Fallback Receipt (rule-extracted signals, no AI call) ---
+
+/**
+ * Signal-to-question mapping for evidence penalties.
+ * Each key is a penalty signal ID, value is a buyer-facing question.
+ */
+const PENALTY_QUESTIONS: Partial<Record<ListingSignalId, string>> = {
+  battery_proof_missing: "Can you provide a recent battery health report or state-of-health percentage?",
+  service_records_missing: "Are service or maintenance records available for this vehicle?",
+  title_status_unclear: "What is the title status — clean, salvage, or rebuilt?",
+  fees_unclear: "What is the full out-the-door price including all dealer fees and add-ons?",
+  battery_warranty_unclear: "Is the battery still under the manufacturer warranty, and when does it expire?",
+  dcfc_unclear: "Does this vehicle support DC fast charging (CCS or CHAdeMO)?",
+  ownership_history_unclear: "How many previous owners has this vehicle had?",
+  tire_condition_unclear: "What is the current tire tread depth or condition?",
+  vin_missing: "Can you provide the full 17-digit VIN for a history check?",
+};
+
+const GENERIC_QUESTIONS = [
+  "Has this vehicle been in any accidents or had major repairs?",
+  "Is the title clean, and are there any liens on the vehicle?",
+  "Can the seller provide recent maintenance or inspection records?",
+];
+
+const GENERIC_INSPECT = [
+  "Check for uneven panel gaps or paint mismatches indicating body work",
+  "Inspect tire wear patterns for alignment or suspension issues",
+  "Test all electronics, AC, and infotainment systems",
+  "Look under the vehicle for rust, fluid leaks, or frame damage",
+  "Take it for a test drive on highway and listen for unusual noises",
+];
+
+/**
+ * Builds a signal-specific fallback receipt from deterministically extracted
+ * signals. Replaces generic "AI timed out" boilerplate with specific risk
+ * flags, questions, and scoring derived from listing text patterns.
+ */
+export function buildEnhancedFallbackReceipt(
+  input: ReceiptGenerateRequest,
+  signals: ListingSignalId[],
+  scoring: ReceiptScoringResult
+): ListingReceipt {
+  const year = input.year || 0;
+  const make = input.make || "Unknown";
+  const model = input.model || "Vehicle";
+  const price = input.price || 0;
+  const mileage = input.mileage || 0;
+  const label = `${year > 0 ? year + " " : ""}${make} ${model}`;
+  const priceStr = price > 0 ? `$${price.toLocaleString()}` : "unlisted price";
+
+  // --- Risk flags: top 3 scoring reasons by severity ---
+  const riskFlags = scoring.scoring_reasons
+    .filter((r) => r.points <= 0)
+    .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
+    .slice(0, 3)
+    .map((r) => r.label);
+  // Pad to 3 if we don't have enough
+  const genericRisks = [
+    "Verify title status and accident history independently",
+    "Check service records and maintenance history before purchase",
+    "Confirm all pricing details including fees before committing",
+  ];
+  while (riskFlags.length < 3) {
+    const filler = genericRisks[riskFlags.length];
+    if (filler && !riskFlags.includes(filler)) riskFlags.push(filler);
+    else break;
+  }
+
+  // --- Questions: from evidence penalty signals ---
+  const questions: string[] = [];
+  const signalSet = new Set(signals);
+  for (const [penaltyId, question] of Object.entries(PENALTY_QUESTIONS)) {
+    if (signalSet.has(penaltyId as ListingSignalId) && questions.length < 3) {
+      questions.push(question!);
+    }
+  }
+  // Pad to 3
+  for (const q of GENERIC_QUESTIONS) {
+    if (questions.length >= 3) break;
+    if (!questions.includes(q)) questions.push(q);
+  }
+
+  // --- Inspect first: from verify_before_visit, padded from generics ---
+  const inspectFirst = [...scoring.verify_before_visit];
+  for (const item of GENERIC_INSPECT) {
+    if (inspectFirst.length >= 5) break;
+    if (!inspectFirst.includes(item)) inspectFirst.push(item);
+  }
+
+  // listing_signals is string[] of signal IDs
+  const listingSignals = signals.filter((id) => RULES_BY_ID.has(id));
+
+  return {
+    receipt_id: uuidv4(),
+    schema_version: "v1",
+    mode: "single",
+    verdict: scoring.verdict,
+    verdict_reason: `Quick analysis based on listing details. Regenerate for full AI-powered assessment.`,
+    price_sanity: {
+      label: "UNKNOWN",
+      confidence: 0,
+      basis: "UNKNOWN",
+      rationale_short: "AI analysis was unavailable — price not evaluated",
+      user_market_range: null,
+    },
+    risk_flags: riskFlags,
+    must_answer_questions: questions,
+    inspect_first: inspectFirst,
+    negotiation_opener: price > 0
+      ? `I am interested in the ${label} listed at ${priceStr}. Before we discuss price further, I would like to verify a few details about the vehicle history and condition.`
+      : `I am interested in the ${label}. Before we discuss terms, I would like to verify a few details about the vehicle history and condition.`,
+    one_followup_question: null,
+    receipt_reddit_text: `${label} at ${priceStr} — looking for community input.\n\nThis is a quick receipt generated from listing data. Key signals found: ${signals.length > 0 ? signals.slice(0, 5).join(", ") : "none"}. Full AI analysis was unavailable.\n\nHas anyone had experience with this vehicle and what should I watch out for?`,
+    reddit_draft: null,
+    listing_summary: {
+      listing_url: input.listing_url || "",
+      url_domain: input.listing_url ? (() => { try { return new URL(input.listing_url).hostname.replace("www.", ""); } catch { return ""; } })() : "",
+      country: input.country || "US",
+      zip_or_postcode: input.zip_or_postcode || "",
+      price,
+      currency: "USD",
+      mileage,
+      mileage_unit: "mi",
+      year,
+      make,
+      model,
+      trim: input.trim || null,
+      seller_type: input.seller_type || "unknown",
+      title_status: input.title_status || "unknown",
+      accidents_reported: input.accidents_reported || "unknown",
+      service_history: input.service_history || "unknown",
+      owners: input.owners || null,
+      carfax_available: input.carfax_available || "unknown",
+    },
+    receipt_details: null,
+    compare: null,
+    operator_notes: {
+      rationale: `AI analysis timed out. This receipt was generated from ${signals.length} signals extracted from listing text and structured fields. Regenerate for a complete AI-powered analysis with pricing and deep-dive content.`,
+      assumptions: [
+        "Signals extracted from listing text via pattern matching",
+        "No independent price or market analysis performed",
+      ],
+      what_would_change_verdict: scoring.verdict === "GREEN"
+        ? ["Accident history or title issues discovered later could move this toward RED"]
+        : [
+            "A clean Carfax and service records could move this toward GREEN",
+            "Accident history or title issues could move this toward RED",
+          ],
+    },
+    listing_signals: listingSignals,
     fit_score: scoring.fit_score,
     evidence_score: scoring.evidence_score,
     evidence_label: scoring.evidence_label,

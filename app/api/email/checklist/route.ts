@@ -258,8 +258,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (!result.success) {
+      console.error("[Email Checklist API] Resend failed:", result.error);
       return NextResponse.json(
-        { success: false, error: "Failed to send email. Please try again." },
+        { success: false, error: result.error || "Failed to send email. Please try again." },
         { status: 500 }
       );
     }
@@ -270,8 +271,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error("[Email Checklist API] Error:", err);
+    const message = err instanceof Error ? err.message : "Failed to send email";
     return NextResponse.json(
-      { success: false, error: "Failed to send email" },
+      { success: false, error: message },
       { status: 500 }
     );
   }

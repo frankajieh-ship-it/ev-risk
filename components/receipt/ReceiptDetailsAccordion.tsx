@@ -112,7 +112,7 @@ export default function ReceiptDetailsAccordion({
           isOpen={open === "operator"}
           onToggle={() => toggle("operator")}
           icon={<Brain className="w-4 h-4 text-purple-500" />}
-          title="How the AI Thinks"
+          title="How summary was made"
         >
           <div className="space-y-3 text-sm">
             <p className="text-gray-700">{operatorNotes.rationale}</p>
