@@ -18,12 +18,12 @@ export function middleware(request: NextRequest) {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://challenges.cloudflare.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://challenges.cloudflare.com https://www.googletagmanager.com https://googleads.g.doubleclick.net",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
       "frame-src https://js.stripe.com https://challenges.cloudflare.com",
-      "connect-src 'self' https://api.stripe.com https://*.supabase.co https://*.nsvcs.net https://vpic.nhtsa.dot.gov https://challenges.cloudflare.com",
+      "connect-src 'self' https://api.stripe.com https://*.supabase.co https://*.nsvcs.net https://vpic.nhtsa.dot.gov https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://googleads.g.doubleclick.net",
     ].join("; ")
   );
 
