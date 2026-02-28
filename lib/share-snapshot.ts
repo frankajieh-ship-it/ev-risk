@@ -7,6 +7,7 @@
  */
 
 import type { ShareSnapshot, PriceSanityLabel } from "@/types/receipt";
+import { humanizeFlag } from "@/lib/receipt-rules";
 
 export function createShareSnapshot(receipt: Record<string, unknown>): ShareSnapshot {
   const ls = (receipt.listing_summary || {}) as Record<string, unknown>;
@@ -16,7 +17,7 @@ export function createShareSnapshot(receipt: Record<string, unknown>): ShareSnap
     verdict: (receipt.verdict as ShareSnapshot["verdict"]) || "YELLOW",
     verdict_reason: (receipt.verdict_reason as string) || "",
     risk_flags: Array.isArray(receipt.risk_flags)
-      ? (receipt.risk_flags as string[]).slice(0, 3)
+      ? (receipt.risk_flags as string[]).slice(0, 3).map(humanizeFlag)
       : [],
     must_answer_questions: Array.isArray(receipt.must_answer_questions)
       ? (receipt.must_answer_questions as string[]).slice(0, 3)

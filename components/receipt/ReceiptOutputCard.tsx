@@ -23,6 +23,7 @@ import {
 import type { ListingReceipt, LintError } from "@/types/receipt";
 import type { Region } from "@/lib/region";
 import { formatPrice } from "@/lib/region";
+import { humanizeFlag } from "@/lib/receipt-rules";
 
 interface ReceiptOutputCardProps {
   receipt: ListingReceipt;
@@ -288,7 +289,7 @@ export default function ReceiptOutputCard({
               {receipt.risk_flags.slice(0, 3).map((flag, i) => (
                 <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
                   <span className="text-red-400 mt-0.5">!</span>
-                  <span>{flag}</span>
+                  <span>{humanizeFlag(flag)}</span>
                 </li>
               ))}
             </ul>
@@ -310,7 +311,7 @@ export default function ReceiptOutputCard({
             onClick={() => {
               const lines: string[] = [];
               lines.push(`Verdict: ${receipt.verdict}`);
-              receipt.risk_flags.slice(0, 3).forEach((f) => lines.push(`! ${f}`));
+              receipt.risk_flags.slice(0, 3).forEach((f) => lines.push(`! ${humanizeFlag(f)}`));
               if (receipt.must_answer_questions[0]) {
                 lines.push(`Ask: ${receipt.must_answer_questions[0]}`);
               }
@@ -397,7 +398,7 @@ export default function ReceiptOutputCard({
                     {isGreen
                       ? <span className="text-amber-400 font-bold mt-0.5">{i + 1}.</span>
                       : <span className="text-red-400 mt-0.5">!</span>}
-                    <span>{flag}</span>
+                    <span>{humanizeFlag(flag)}</span>
                   </li>
                 ))}
               </ul>

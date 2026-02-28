@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { checkPurchaseStatus } from "@/lib/payment-status";
 import { renderPdf } from "@/lib/pdf/render-client";
+import { humanizeFlag } from "@/lib/receipt-rules";
 import type { ReceiptPdfData } from "@/lib/pdf/shared-types";
 
 export async function GET(
@@ -86,7 +87,7 @@ export async function GET(
             rationale: receiptData.price_sanity.rationale_short || "",
           }
         : null,
-      riskFlags: receiptData.risk_flags || [],
+      riskFlags: (receiptData.risk_flags || []).map(humanizeFlag),
       mustAnswerQuestions: receiptData.must_answer_questions || [],
       inspectFirst: receiptData.inspect_first || [],
       negotiationOpener: receiptData.negotiation_opener || "",

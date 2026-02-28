@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { QRCodeCanvas } from "qrcode.react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { generateShareCard } from "@/lib/share-card-renderer";
+import { humanizeFlag } from "@/lib/receipt-rules";
 import type { ListingReceipt } from "@/types/receipt";
 
 interface ShareModalProps {
@@ -61,7 +62,7 @@ export default function ShareModal({
         canvas.height = 900;
 
         // Derive short verdict tagline from first risk flag
-        const firstFlag = receipt.risk_flags?.[0] || "";
+        const firstFlag = humanizeFlag(receipt.risk_flags?.[0] || "");
         const verdictShort = firstFlag.length > 35
           ? firstFlag.slice(0, 32) + "..."
           : firstFlag || receipt.verdict_reason.slice(0, 35);
@@ -70,7 +71,7 @@ export default function ShareModal({
           verdict: receipt.verdict as "GREEN" | "YELLOW" | "RED",
           verdictReason: receipt.verdict_reason,
           verdictShort,
-          riskFlags: (receipt.risk_flags || []).slice(0, 3),
+          riskFlags: (receipt.risk_flags || []).slice(0, 3).map(humanizeFlag),
           year: receipt.listing_summary?.year ?? null,
           make: receipt.listing_summary?.make ?? null,
           model: receipt.listing_summary?.model ?? null,

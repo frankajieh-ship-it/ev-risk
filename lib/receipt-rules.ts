@@ -139,3 +139,40 @@ export const RULES_BY_ID = new Map<string, ReceiptRule>(
 
 /** All valid signal IDs for validation */
 export const VALID_SIGNAL_IDS = new Set<string>(ALL_RULES.map((r) => r.id));
+
+/**
+ * Convert a risk flag to a human-readable label.
+ *
+ * If the flag is a known signal ID (e.g. "battery_proof_missing"), returns the
+ * label from the rules table. If it looks like a signal ID (contains underscore
+ * or matches after removing underscores) but isn't in the table, falls back to
+ * title-casing the snake_case string. If it's already a sentence, returns as-is.
+ */
+export function humanizeFlag(flag: string): string {
+  if (!flag) return flag;
+
+  // Direct lookup by signal ID
+  const rule = RULES_BY_ID.get(flag);
+  if (rule) return rule.label;
+
+  // Check if it's a smashed-together signal ID (e.g. "batteryproofmissing")
+  // by comparing against known IDs with underscores stripped
+  for (const r of ALL_RULES) {
+    if (r.id.replace(/_/g, "") === flag.toLowerCase().replace(/[^a-z]/g, "")) {
+      return r.label;
+    }
+  }
+
+  // Already human-readable (contains spaces or long enough sentence)
+  if (flag.includes(" ")) return flag;
+
+  // Unknown snake_case — title-case it as a last resort
+  if (flag.includes("_")) {
+    return flag
+      .split("_")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  }
+
+  return flag;
+}

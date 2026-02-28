@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { sendChecklistEmail, isResendConfigured } from "@/lib/resend";
+import { humanizeFlag } from "@/lib/receipt-rules";
 import { createHash } from "crypto";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -74,7 +75,7 @@ function buildChecklistHtml(receipt: any): string {
   const verdictLabel = getVerdictLabel(receipt.verdict);
 
   const riskFlagsHtml = (receipt.risk_flags || [])
-    .map((flag: string) => `<li style="margin-bottom:6px;color:#374151;">${flag}</li>`)
+    .map((flag: string) => `<li style="margin-bottom:6px;color:#374151;">${humanizeFlag(flag)}</li>`)
     .join("");
 
   const mustAskHtml = (receipt.must_answer_questions || [])
