@@ -99,7 +99,7 @@ export default function EmailCaptureCard({ receiptId, onSubmit }: EmailCaptureCa
       <div className="flex items-center gap-2 mb-2">
         <Mail className="w-4 h-4 text-blue-600" />
         <p className="text-sm font-medium text-gray-700">
-          {receiptId ? "Email me this checklist" : "Get the next version of this checklist free."}
+          {receiptId ? "Save this receipt to your inbox" : "Get the next version of this checklist free."}
         </p>
       </div>
       <form onSubmit={handleSubmit} className="flex gap-2">
@@ -124,7 +124,7 @@ export default function EmailCaptureCard({ receiptId, onSubmit }: EmailCaptureCa
         </button>
       </form>
       <p className="text-xs text-gray-400 mt-1.5">
-        {receiptId ? "Verdict, risk flags, and checklist — straight to your inbox." : "One email. No spam."}
+        {receiptId ? "Full verdict, questions to ask, and negotiation script — one tap to reference at the dealership." : "One email. No spam."}
       </p>
       {status === "error" && (
         <p className="text-xs text-red-500 mt-1">

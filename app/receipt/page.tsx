@@ -21,7 +21,7 @@ import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
 import ReceiptDetailsAccordion from "@/components/receipt/ReceiptDetailsAccordion";
 import ReceiptHistoryDrawer from "@/components/receipt/ReceiptHistoryDrawer";
 import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
-import EmailGateModal from "@/components/receipt/EmailGateModal";
+// EmailGateModal removed — 100% skip rate, replaced by inline EmailCaptureCard
 import DecisionPackCard from "@/components/receipt/DecisionPackCard";
 import FeedbackWidget from "@/components/FeedbackWidget";
 import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
@@ -174,10 +174,7 @@ export default function ReceiptPage() {
   // VIN from extraction (passed to VinCheckSection)
   const [currentVin, setCurrentVin] = useState<string | undefined>(undefined);
 
-  // Email gate state
-  const [showEmailGate, setShowEmailGate] = useState(false);
-  const [emailGateCompleted, setEmailGateCompleted] = useState(false);
-  const [emailGateVehicle, setEmailGateVehicle] = useState("");
+  // Email gate removed (100% skip rate) — inline EmailCaptureCard handles email now
 
   // Retention capture state
   const [hasSaved, setHasSaved] = useState(false);
@@ -209,14 +206,7 @@ export default function ReceiptPage() {
   useEffect(() => {
     setReceiptToken(getOrCreateReceiptToken());
 
-    // Check if email gate should be suppressed
-    const skippedAt = localStorage.getItem("offo_email_gate_skipped");
-    if (skippedAt && Date.now() - parseInt(skippedAt) < 7 * 24 * 60 * 60 * 1000) {
-      setEmailGateCompleted(true);
-    }
-    if (localStorage.getItem("offo_email_captured")) {
-      setEmailGateCompleted(true);
-    }
+    // Email gate localStorage cleanup (gate removed)
 
     // Check for prefilled listing text from SEO page
     const storedText = sessionStorage.getItem("offo_listing_text");
@@ -358,26 +348,7 @@ export default function ReceiptPage() {
     });
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Show email gate after receipt renders (moved from pre-receipt extraction)
-  useEffect(() => {
-    if (!receipt?.receipt_id || emailGateCompleted) return;
-    const timer = setTimeout(() => {
-      const summary = [
-        receipt.listing_summary?.year,
-        receipt.listing_summary?.make,
-        receipt.listing_summary?.model,
-      ]
-        .filter(Boolean)
-        .join(" ") || "your vehicle";
-      setEmailGateVehicle(summary);
-      setShowEmailGate(true);
-      trackEvent("email_gate_shown", {
-        vehicle: receipt.listing_summary,
-        timing: "post_receipt",
-      });
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, [receipt?.receipt_id, emailGateCompleted]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Email gate useEffect removed — inline EmailCaptureCard handles email capture now
 
   // Show paywall only when user clicks a premium-gated action
   const handlePremiumAction = useCallback((trigger: string) => {
@@ -871,6 +842,19 @@ export default function ReceiptPage() {
                 )}
               </div>
 
+              {/* Email capture — moved up for visibility */}
+              <div id="email-capture-card">
+                <EmailCaptureCard
+                  receiptId={receipt.receipt_id}
+                  onSubmit={() => {
+                    setHasEmailed(true);
+                    trackEvent("email_checklist_submit", {
+                      receipt_id: receipt.receipt_id,
+                    });
+                  }}
+                />
+              </div>
+
               {/* Decision Pack paywall (shown on premium action click, hidden in free mode) */}
               {showPaywall && !decisionPackDismissed && !isPaymentLoading && !freeMode && (
                 <div id="decision-pack-card">
@@ -930,19 +914,6 @@ export default function ReceiptPage() {
                   listingSummary={receipt.listing_summary}
                 />
               )}
-
-              {/* Email capture */}
-              <div id="email-capture-card">
-                <EmailCaptureCard
-                  receiptId={receipt.receipt_id}
-                  onSubmit={() => {
-                    setHasEmailed(true);
-                    trackEvent("email_checklist_submit", {
-                      receipt_id: receipt.receipt_id,
-                    });
-                  }}
-                />
-              </div>
 
               {/* Feedback */}
               <FeedbackWidget
@@ -1010,19 +981,7 @@ export default function ReceiptPage() {
         }
       />
 
-      {/* Email gate modal (after extraction success) */}
-      <EmailGateModal
-        isOpen={showEmailGate}
-        vehicleSummary={emailGateVehicle}
-        onSubmit={() => {
-          setShowEmailGate(false);
-          setEmailGateCompleted(true);
-        }}
-        onSkip={() => {
-          setShowEmailGate(false);
-          setEmailGateCompleted(true);
-        }}
-      />
+      {/* Email gate modal removed — 100% skip rate, inline capture card is better */}
 
       {/* Share receipt modal */}
       {receipt && (
