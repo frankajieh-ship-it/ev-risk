@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
@@ -551,6 +552,17 @@ export default function Home() {
           />
         </section>
       )}
+
+      <footer className="text-center py-6 text-sm text-gray-500">
+        Questions, feedback, or bugs?{" "}
+        <Link
+          href="/contact"
+          onClick={() => trackEvent("contact_click_footer", { page: "/" })}
+          className="text-indigo-600 hover:text-indigo-700"
+        >
+          Contact us
+        </Link>
+      </footer>
     </div>
   );
 }

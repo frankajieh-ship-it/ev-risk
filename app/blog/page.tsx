@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 export default function BlogPage() {
   // Track blog page visits
   useVisitorTracking();
+  const { trackEvent } = useEventTracking();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
@@ -77,6 +79,16 @@ export default function BlogPage() {
       <footer className="max-w-4xl mx-auto px-4 py-12 text-center text-gray-500 text-sm">
         <p>
           OFFO Labs · Building decision intelligence that reduces regret
+        </p>
+        <p className="mt-2">
+          Questions, feedback, or bugs?{" "}
+          <Link
+            href="/contact"
+            onClick={() => trackEvent("contact_click_footer", { page: "/blog" })}
+            className="text-indigo-600 hover:text-indigo-700"
+          >
+            Contact us
+          </Link>
         </p>
       </footer>
     </div>

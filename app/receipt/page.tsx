@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { Receipt, History, ArrowLeft, Loader2, QrCode } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
@@ -182,8 +183,9 @@ export default function ReceiptPage() {
   const [hasSaved, setHasSaved] = useState(false);
   const [hasEmailed, setHasEmailed] = useState(false);
 
-  // Prefill from SEO page
+  // Prefill from SEO page or extension
   const [prefillText, setPrefillText] = useState<string | null>(null);
+  const [prefillUrl, setPrefillUrl] = useState<string | null>(null);
   const [pageSource, setPageSource] = useState<string | null>(null);
 
   // Payment status hook
@@ -228,8 +230,17 @@ export default function ReceiptPage() {
       sessionStorage.removeItem("offo_page_source");
     }
 
-    // Resume saved receipt from /saved dashboard
+    // Check for extension prefill (?url=...&ext=true)
     const params = new URLSearchParams(window.location.search);
+    const extUrl = params.get("url");
+    const extFlag = params.get("ext");
+    if (extUrl && extFlag === "true") {
+      setPrefillUrl(extUrl);
+      setPageSource("extension");
+      window.history.replaceState({}, "", "/receipt");
+    }
+
+    // Resume saved receipt from /saved dashboard
     const resumeId = params.get("resume");
 
     // Also check for receipt stored before auth redirect
@@ -346,6 +357,27 @@ export default function ReceiptPage() {
       verdict: receipt.verdict,
     });
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Show email gate after receipt renders (moved from pre-receipt extraction)
+  useEffect(() => {
+    if (!receipt?.receipt_id || emailGateCompleted) return;
+    const timer = setTimeout(() => {
+      const summary = [
+        receipt.listing_summary?.year,
+        receipt.listing_summary?.make,
+        receipt.listing_summary?.model,
+      ]
+        .filter(Boolean)
+        .join(" ") || "your vehicle";
+      setEmailGateVehicle(summary);
+      setShowEmailGate(true);
+      trackEvent("email_gate_shown", {
+        vehicle: receipt.listing_summary,
+        timing: "post_receipt",
+      });
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [receipt?.receipt_id, emailGateCompleted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show paywall only when user clicks a premium-gated action
   const handlePremiumAction = useCallback((trigger: string) => {
@@ -726,19 +758,14 @@ export default function ReceiptPage() {
         {/* Input Card */}
         <ReceiptInputCard
           onGenerate={handleGenerate}
-          onExtractionSuccess={(vehicleSummary) => {
-            if (!emailGateCompleted) {
-              setEmailGateVehicle(vehicleSummary);
-              setShowEmailGate(true);
-              trackEvent("email_gate_shown", { vehicle: vehicleSummary });
-            }
-          }}
+          onExtractionSuccess={() => {}}
           isGenerating={isGenerating}
           generatingStep={generatingStep}
           remainingFree={freeMode ? null : remainingFree}
           error={error}
           isPro={isPro}
           prefillText={prefillText}
+          prefillUrl={prefillUrl}
           trackEvent={trackEvent}
           receiptToken={receiptToken}
           hasResult={!!receipt}
@@ -922,6 +949,23 @@ export default function ReceiptPage() {
                 contextType="receipt"
                 contextId={receipt.receipt_id}
               />
+
+              {/* Contact/feedback link */}
+              <p className="text-center text-sm text-gray-500 pt-2">
+                Found this helpful? Got questions?{" "}
+                <Link
+                  href={`/contact?from=receipt&receiptId=${receipt.receipt_id}&verdict=${receipt.verdict}`}
+                  onClick={() =>
+                    trackEvent("contact_click_post_receipt", {
+                      receipt_id: receipt.receipt_id,
+                      verdict: receipt.verdict,
+                    })
+                  }
+                  className="text-indigo-600 hover:text-indigo-700 underline"
+                >
+                  Tell us
+                </Link>
+              </p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -992,6 +1036,16 @@ export default function ReceiptPage() {
         />
       )}
 
+      <footer className="text-center py-6 text-sm text-gray-500">
+        Questions, feedback, or bugs?{" "}
+        <Link
+          href="/contact"
+          onClick={() => trackEvent("contact_click_footer", { page: "/receipt" })}
+          className="text-indigo-600 hover:text-indigo-700"
+        >
+          Contact us
+        </Link>
+      </footer>
     </div>
   );
 }

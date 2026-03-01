@@ -129,6 +129,17 @@ export const VALID_EVENT_NAMES = [
   "vin_decode_failed",
   "vin_mismatch_flagged",
   "recall_check_clicked",
+
+  // Contact/Feedback Page Events
+  "contact_page_viewed",
+  "contact_form_submitted",
+  "contact_click_footer",
+  "contact_click_post_receipt",
+
+  // Extension Events
+  "extension_badge_clicked",
+  "extension_receipt_started",
+  "extension_install_page_viewed",
 ] as const;
 
 export type ValidEventName = (typeof VALID_EVENT_NAMES)[number];

@@ -1,0 +1,1 @@
+"use strict";(()=>{var e=document.getElementById("enableToggle");chrome.storage.local.get(["enabled"],l=>{e.checked=l.enabled!==!1});e.addEventListener("change",()=>{chrome.storage.local.set({enabled:e.checked})});})();

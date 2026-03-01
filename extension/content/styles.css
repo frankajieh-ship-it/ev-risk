@@ -1,0 +1,104 @@
+/* OFFO Badge — floating pill on CarGurus pages */
+
+.offo-badge {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: auto;
+}
+
+.offo-badge.offo-badge-enter {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.offo-badge.offo-badge-exit {
+  opacity: 0;
+  transform: translateY(16px);
+}
+
+.offo-badge-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid #e0e7ff;
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+  max-width: 280px;
+}
+
+.offo-badge-inner:hover {
+  box-shadow: 0 6px 32px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.offo-badge-inner:active {
+  transform: translateY(0);
+}
+
+.offo-badge-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #eef2ff;
+  border-radius: 10px;
+  color: #4f46e5;
+  flex-shrink: 0;
+}
+
+.offo-badge-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.offo-badge-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.2;
+}
+
+.offo-badge-subtitle {
+  font-size: 11px;
+  color: #6b7280;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.offo-badge-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+  padding: 0;
+  margin-left: auto;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.offo-badge-close:hover {
+  color: #6b7280;
+  background: #f3f4f6;
+}

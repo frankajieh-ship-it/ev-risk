@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "OFFO — Used Car Deal Checker",
+  "version": "1.0.0",
+  "description": "One-click deal check on CarGurus EV listings. Get risk flags, fair price, and must-ask questions.",
+  "permissions": ["activeTab", "storage"],
+  "content_scripts": [
+    {
+      "matches": ["*://*.cargurus.com/*"],
+      "js": ["content/detector.js", "content/badge.js"],
+      "css": ["content/styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

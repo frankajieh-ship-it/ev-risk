@@ -1,0 +1,14 @@
+{
+  "name": "offo-extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch"
+  },
+  "devDependencies": {
+    "chrome-types": "^0.1.420",
+    "esbuild": "^0.24.0"
+  }
+}

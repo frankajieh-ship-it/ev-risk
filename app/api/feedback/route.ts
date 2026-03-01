@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate feedback type
-    const validTypes = ["general", "bug", "feature", "accuracy", "ux"];
+    const validTypes = ["general", "bug", "feature", "accuracy", "ux", "question", "success_story"];
     if (!validTypes.includes(feedbackType)) {
       return NextResponse.json(
         { success: false, error: "Invalid feedback type" },

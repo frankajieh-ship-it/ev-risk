@@ -39,6 +39,7 @@ interface ReceiptInputCardProps {
   error: string | null;
   isPro?: boolean;
   prefillText?: string | null;
+  prefillUrl?: string | null;
   trackEvent?: (eventName: string, eventData?: Record<string, any>) => void;
   receiptToken?: string;
   hasResult?: boolean;
@@ -89,6 +90,7 @@ export default function ReceiptInputCard({
   remainingFree,
   error,
   prefillText,
+  prefillUrl,
   trackEvent,
   receiptToken,
   hasResult = false,
@@ -140,6 +142,18 @@ export default function ReceiptInputCard({
       setListingText(prefillText);
     }
   }, [prefillText]);
+
+  // Prefill from extension (?url=...&ext=true)
+  const prefillUrlHandled = useRef(false);
+  useEffect(() => {
+    if (prefillUrl && !prefillUrlHandled.current) {
+      prefillUrlHandled.current = true;
+      setInputMode("url");
+      setListingUrl(prefillUrl);
+      // Auto-trigger extraction after a short delay for UI to settle
+      setTimeout(() => handleExtract(prefillUrl), 200);
+    }
+  }, [prefillUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup auto-extract timer on unmount
   useEffect(() => {
