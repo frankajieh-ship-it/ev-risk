@@ -217,7 +217,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // SSRF: HTTPS only
+  // Auto-upgrade http to https — all major listing sites support it
+  if (parsedUrl.protocol === "http:") {
+    parsedUrl = new URL(parsedUrl.href.replace(/^http:/, "https:"));
+  }
+
+  // SSRF: block non-HTTPS schemes (ftp://, file://, etc.)
   if (parsedUrl.protocol !== "https:") {
     return NextResponse.json(
       { success: false, error: "Only HTTPS URLs are supported" },
