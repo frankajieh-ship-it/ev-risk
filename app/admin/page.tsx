@@ -32,9 +32,18 @@ interface SummaryData {
     unique_customers_by_email: number;
   };
   revenue: {
-    paid_count: number;
     total_revenue: number;
-    price_per_report: number;
+    buyer_pass: {
+      paid: number;
+      pending: number;
+      failed: number;
+      refunded: number;
+      revenue: number;
+    };
+    legacy_reports: {
+      paid_count: number;
+      revenue: number;
+    };
   };
   receipt_pipeline: {
     url_scrape_attempts: number;
@@ -350,8 +359,14 @@ export default function AdminDashboard() {
       ["Unique Customers (by email)", s.overview.unique_customers_by_email],
       [""],
       ["=== REVENUE ==="],
-      ["Total Revenue", `$${s.revenue.total_revenue}`],
-      ["Paid Report Count", s.revenue.paid_count],
+      ["Total Revenue", `$${s.revenue.total_revenue.toFixed(2)}`],
+      ["Buyer Pass Paid", s.revenue.buyer_pass.paid],
+      ["Buyer Pass Revenue", `$${s.revenue.buyer_pass.revenue.toFixed(2)}`],
+      ["Buyer Pass Pending", s.revenue.buyer_pass.pending],
+      ["Buyer Pass Failed", s.revenue.buyer_pass.failed],
+      ["Buyer Pass Refunded", s.revenue.buyer_pass.refunded],
+      ["Legacy Reports Paid", s.revenue.legacy_reports.paid_count],
+      ["Legacy Report Revenue", `$${s.revenue.legacy_reports.revenue}`],
       [""],
       ["=== RECEIPT PIPELINE ==="],
       ["URL Scrape Attempts", s.receipt_pipeline.url_scrape_attempts],
@@ -649,7 +664,7 @@ export default function AdminDashboard() {
           <MetricCard title="Receipts Generated" value={s.receipt_pipeline.receipts_generated} subtitle={`${s.overview.total_receipts} receipts · ${s.overview.total_reports} EV-Risk reports stored`} icon="🧾" />
           <MetricCard title="Unique Sessions" value={s.overview.unique_sessions} subtitle={`${s.overview.unique_customers_by_email} with email (paid)`} icon="👥" />
           <MetricCard title="EV-Risk Reports" value={s.report_funnel.report_gen_started} subtitle={`${s.overview.total_reports} stored · ${s.report_funnel.report_gen_succeeded} persisted`} icon="📊" />
-          <MetricCard title="Total Revenue" value={`$${s.revenue.total_revenue}`} subtitle={`${s.revenue.paid_count} paid @ $${s.revenue.price_per_report}`} icon="💵" />
+          <MetricCard title="Total Revenue" value={`$${s.revenue.total_revenue.toFixed(2)}`} subtitle={`${s.revenue.buyer_pass.paid} Buyer Pass · ${s.revenue.legacy_reports.paid_count} reports${s.revenue.buyer_pass.pending > 0 ? ` · ${s.revenue.buyer_pass.pending} pending` : ""}`} icon="💵" />
         </div>
 
         {/* Quick Summary / Insights */}
@@ -779,7 +794,8 @@ export default function AdminDashboard() {
                 <FunnelCard label="Paywall Dismissed" value={s.post_receipt_engagement.monetization.paywall_dismissed} color="red" />
                 <FunnelCard label="Checkout Started" value={s.post_receipt_engagement.monetization.checkout_started} color="green"
                   subtitle={`${s.post_receipt_engagement.monetization.paywall_to_checkout_rate}% of paywall`} />
-                <FunnelCard label="Revenue" value={`$${s.post_receipt_engagement.monetization.checkout_started * 9.99}`} color="green" />
+                <FunnelCard label="Paid" value={s.revenue.buyer_pass.paid} color="green"
+                  subtitle={`$${s.revenue.buyer_pass.revenue.toFixed(2)} confirmed`} />
               </div>
             </div>
 

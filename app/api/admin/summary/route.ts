@@ -225,6 +225,13 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(50);
 
+    // 9. Purchases (Buyer Pass payments from Stripe)
+    const purchasesPromise = supabase
+      .from("purchases")
+      .select("status, amount, currency, price_variant, scenario_type, created_at")
+      .gte("created_at", window.start)
+      .lt("created_at", window.end);
+
     const [
       { data: receipts },
       { data: receiptEvents },
@@ -234,6 +241,7 @@ export async function GET(request: NextRequest) {
       { data: feedback },
       { data: recentEvents },
       { data: recentReceiptEvents },
+      { data: purchases },
     ] = await Promise.all([
       receiptsPromise,
       receiptEventsPromise,
@@ -243,6 +251,7 @@ export async function GET(request: NextRequest) {
       feedbackPromise,
       recentEventsPromise,
       recentReceiptEventsPromise,
+      purchasesPromise,
     ]);
 
     const allReceipts = receipts || [];
@@ -284,13 +293,32 @@ export async function GET(request: NextRequest) {
     };
 
     // -----------------------------------------------------------------------
-    // Revenue
+    // Revenue (from purchases table — real Stripe payments only)
     // -----------------------------------------------------------------------
 
+    const allPurchases = purchases || [];
+    const paidPurchases = allPurchases.filter((p) => p.status === "paid");
+    const pendingPurchases = allPurchases.filter((p) => p.status === "pending");
+    const failedPurchases = allPurchases.filter((p) => p.status === "failed");
+    const refundedPurchases = allPurchases.filter((p) => p.status === "refunded");
+
+    // Sum confirmed revenue (amount is in cents)
+    const buyerPassRevenue = paidPurchases.reduce((sum, p) => sum + (p.amount || 0), 0) / 100;
+    const legacyReportRevenue = paidReports.length * 15;
+
     const revenue = {
-      paid_count: paidReports.length,
-      total_revenue: paidReports.length * 15,
-      price_per_report: 15,
+      total_revenue: buyerPassRevenue + legacyReportRevenue,
+      buyer_pass: {
+        paid: paidPurchases.length,
+        pending: pendingPurchases.length,
+        failed: failedPurchases.length,
+        refunded: refundedPurchases.length,
+        revenue: buyerPassRevenue,
+      },
+      legacy_reports: {
+        paid_count: paidReports.length,
+        revenue: legacyReportRevenue,
+      },
     };
 
     // -----------------------------------------------------------------------
