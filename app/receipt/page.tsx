@@ -12,6 +12,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { Receipt, History, ArrowLeft, Loader2, QrCode } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { useAuth } from "@/hooks/useAuth";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { useTurnstile } from "@/hooks/useTurnstile";
@@ -108,6 +109,7 @@ async function fetchWithRetry(
 
 export default function ReceiptPage() {
   const { trackEvent } = useEventTracking();
+  useVisitorTracking();
   const { isAuthenticated, isConfigured: authConfigured } = useAuth();
   const { region, setRegion } = useRegion();
 
@@ -347,6 +349,15 @@ export default function ReceiptPage() {
       verdict: receipt.verdict,
     });
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Track Buyer Pass teaser impression
+  useEffect(() => {
+    if (!receipt?.receipt_id || isUnlocked || freeMode || !paymentsEnabled) return;
+    trackEvent("buyer_pass_teaser_shown", {
+      receipt_id: receipt.receipt_id,
+      verdict: receipt.verdict,
+    });
+  }, [receipt?.receipt_id, isUnlocked, freeMode, paymentsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Email gate useEffect removed — inline EmailCaptureCard handles email capture now
 
@@ -772,17 +783,17 @@ export default function ReceiptPage() {
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 p-4 flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm font-semibold text-gray-800">
-                      Checking more than one listing?
+                      Want the full picture on this {[receipt.listing_summary?.year, receipt.listing_summary?.make, receipt.listing_summary?.model].filter(Boolean).join(" ") || "listing"}?
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      Buyer Pass gives you 10 full receipt checks, negotiation scripts, and PDF export.
+                      Deep market comparison, 3-year cost projection, and ready-to-send negotiation scripts. Plus 9 more receipt checks.
                     </p>
                   </div>
                   <button
                     onClick={() => handlePremiumAction("inline_teaser")}
                     className="flex-shrink-0 px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap"
                   >
-                    Unlock — $9.99
+                    Get Buyer Pass — $9.99
                   </button>
                 </div>
               )}

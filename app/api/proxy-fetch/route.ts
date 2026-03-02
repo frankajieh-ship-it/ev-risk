@@ -8,12 +8,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIP, extractionRateLimiter } from "@/lib/rate-limiter";
 
-// User agent rotation to avoid detection
+// User agent rotation — keep current with latest stable browser versions
 const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:135.0) Gecko/20100101 Firefox/135.0',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15',
 ];
 
 function getRandomUserAgent(): string {
@@ -67,6 +67,13 @@ export async function POST(request: NextRequest) {
       'carvana.com',
       'carfax.com',
       'kbb.com',
+      'truecar.com',
+      'edmunds.com',
+      'vroom.com',
+      'carmax.com',
+      'autotempest.com',
+      'hemmings.com',
+      'facebook.com',
     ];
 
     const isAllowed = allowedDomains.some(domain =>
@@ -140,7 +147,7 @@ export async function POST(request: NextRequest) {
         html.includes('Just a moment') ||
         html.includes('challenge-platform') ||
         html.includes('access denied') ||
-        html.length < 10000;
+        html.length < 2000;
 
       if (isBlocked) {
         console.warn('[Proxy Fetch] Possible blocking detected');

@@ -76,6 +76,7 @@ const VALID_EVENT_NAMES = [
   "lint_failed_fallback_served",
   "receipt_generate_clicked",
   "receipt_result_viewed",
+  "buyer_pass_teaser_shown",
   // Routine Fit Mini-step Events
   "routine_check_started",
   "routine_check_completed",

@@ -60,6 +60,10 @@ function captureFromUrl(): Partial<Attribution> | null {
   return hasAny ? attr : null;
 }
 
+// Derives traffic source from UTM params or referrer.
+// Paid campaigns MUST include UTM params in the ad URL to distinguish from organic:
+//   e.g. ?utm_source=reddit&utm_medium=paid&utm_campaign=launch_v1
+// Without UTMs, paid Reddit traffic is tagged as "reddit" (same as organic).
 function derivePageSource(attr: Partial<Attribution>): string {
   if (attr.utm_source) return attr.utm_source;
 

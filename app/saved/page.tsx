@@ -3,7 +3,8 @@
  *
  * /saved
  * Shows user's saved receipts and EV routine results with tabs.
- * Requires authentication — shows LoginModal if not logged in.
+ * Anonymous users see localStorage-saved receipts.
+ * Authenticated users see server-saved + localStorage results merged.
  */
 
 "use client";
@@ -14,10 +15,51 @@ import { ArrowLeft, Bookmark, FileText, Zap, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useRegion } from "@/hooks/useRegion";
-import LoginModal from "@/components/LoginModal";
 import type { SavedScenarioPreview } from "@/app/api/user/scenario/list/route";
 
 type TabFilter = "all" | "receipt" | "evroutine";
+
+const LOCAL_STORAGE_KEY = "offo_saved_receipts";
+
+interface LocalSavedReceipt {
+  receipt_id: string;
+  vehicle: string;
+  verdict: string;
+  verdict_reason: string | null;
+  price: number | null;
+  mileage: number | null;
+  saved_at: string;
+}
+
+function getLocalSavedReceipts(): LocalSavedReceipt[] {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+/** Convert a localStorage receipt into the same shape the card renderer expects */
+function localToPreview(local: LocalSavedReceipt): SavedScenarioPreview {
+  return {
+    id: `local_${local.receipt_id}`,
+    scenario_type: "receipt",
+    receipt_id: local.receipt_id,
+    scenario_hash: `receipt_${local.receipt_id}`,
+    vehicle_model: local.vehicle || "Unknown Vehicle",
+    vehicle_year: 0,
+    fit_signal: local.verdict,
+    one_sentence_verdict: local.verdict_reason,
+    title: local.vehicle
+      ? `${local.vehicle} — ${local.verdict === "GREEN" ? "Good Deal" : local.verdict === "YELLOW" ? "Fair Deal" : local.verdict === "RED" ? "Poor Deal" : local.verdict}`
+      : null,
+    saved_at: local.saved_at,
+    is_comparison: false,
+    last_viewed_at: null,
+    notes: null,
+    inputs: {},
+  };
+}
 
 function formatDate(dateString: string, locale = "en-US"): string {
   const date = new Date(dateString);
@@ -66,7 +108,7 @@ function getVerdictStyles(
 
 export default function SavedPage() {
   const router = useRouter();
-  const { isAuthenticated, session, isLoading: authLoading, isConfigured, isReady } = useAuth();
+  const { isAuthenticated, session, isLoading: authLoading, isReady } = useAuth();
   const { trackEvent } = useEventTracking();
   const { config: regionConfig } = useRegion();
 
@@ -75,54 +117,79 @@ export default function SavedPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
-  const [showLoginModal, setShowLoginModal] = useState(false);
 
   useEffect(() => {
     trackEvent("saved_dashboard_viewed");
   }, [trackEvent]);
 
+  // Load saved scenarios: localStorage for everyone, + server for authenticated users
   useEffect(() => {
-    if (!isAuthenticated || !isReady || !session?.access_token) {
-      setScenarios([]);
-      return;
-    }
-
-    const fetchScenarios = async () => {
+    const loadScenarios = async () => {
       setLoading(true);
       setError(null);
 
-      try {
-        const res = await fetch(
-          `/api/user/scenario/list?type=${activeTab}&limit=50`,
-          {
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-            },
-          }
-        );
+      // 1. Always load localStorage receipts
+      const localReceipts = getLocalSavedReceipts();
+      const localPreviews: SavedScenarioPreview[] = localReceipts.map(localToPreview);
 
-        const data = await res.json();
+      // 2. If authenticated, also fetch server-saved scenarios
+      let serverScenarios: SavedScenarioPreview[] = [];
 
-        if (!res.ok || !data.success) {
-          if (res.status === 401 || res.status === 403) {
-            setScenarios([]);
-            return;
+      if (isAuthenticated && isReady && session?.access_token) {
+        try {
+          const res = await fetch(
+            `/api/user/scenario/list?type=${activeTab}&limit=50`,
+            {
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+              },
+            }
+          );
+
+          const data = await res.json();
+
+          if (res.ok && data.success) {
+            serverScenarios = data.scenarios;
           }
-          throw new Error(data.error || "Failed to load saved results");
+        } catch (err) {
+          console.error("Load saved scenarios error:", err);
+          // Don't block — localStorage results still show
         }
-
-        setScenarios(data.scenarios);
-        setTotal(data.total);
-      } catch (err) {
-        console.error("Load saved scenarios error:", err);
-        setError(err instanceof Error ? err.message : "Failed to load");
-      } finally {
-        setLoading(false);
       }
+
+      // 3. Merge and deduplicate (server wins if same receipt_id exists in both)
+      const serverReceiptIds = new Set(
+        serverScenarios
+          .filter((s) => s.scenario_type === "receipt" && s.receipt_id)
+          .map((s) => s.receipt_id)
+      );
+
+      const uniqueLocalPreviews = localPreviews.filter(
+        (lp) => !serverReceiptIds.has(lp.receipt_id)
+      );
+
+      let merged = [...serverScenarios, ...uniqueLocalPreviews];
+
+      // 4. Apply tab filter
+      if (activeTab === "receipt") {
+        merged = merged.filter((s) => s.scenario_type === "receipt");
+      } else if (activeTab === "evroutine") {
+        merged = merged.filter((s) => s.scenario_type === "evroutine");
+      }
+
+      // Sort by saved_at descending
+      merged.sort((a, b) => new Date(b.saved_at).getTime() - new Date(a.saved_at).getTime());
+
+      setScenarios(merged);
+      setTotal(merged.length);
+      setLoading(false);
     };
 
-    fetchScenarios();
-  }, [isAuthenticated, isReady, session?.access_token, activeTab]);
+    // Wait for auth to finish loading before fetching
+    if (!authLoading) {
+      loadScenarios();
+    }
+  }, [isAuthenticated, isReady, session?.access_token, activeTab, authLoading]);
 
   const handleScenarioClick = (scenario: SavedScenarioPreview) => {
     trackEvent("saved_scenario_resumed", {
@@ -149,44 +216,6 @@ export default function SavedPage() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-      </div>
-    );
-  }
-
-  // Not authenticated — show login prompt
-  if (!authLoading && !isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-        <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-          <Bookmark className="w-12 h-12 mx-auto text-indigo-400 mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Your Saved Results
-          </h1>
-          <p className="text-gray-600 mb-8">
-            Sign in to view your saved receipts and EV routine results.
-          </p>
-          <button
-            onClick={() => setShowLoginModal(true)}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
-          >
-            Sign In
-          </button>
-          <div className="mt-4">
-            <button
-              onClick={() => router.push("/")}
-              className="text-sm text-indigo-600 hover:text-indigo-700 underline"
-            >
-              Back to Home
-            </button>
-          </div>
-        </div>
-
-        <LoginModal
-          isOpen={showLoginModal}
-          onClose={() => setShowLoginModal(false)}
-          onSuccess={() => setShowLoginModal(false)}
-          redirectPath="/saved"
-        />
       </div>
     );
   }

@@ -36,11 +36,11 @@ interface SummaryData {
     total_revenue: number;
     price_per_report: number;
   };
-  receipt_funnel: {
-    extraction_attempts: number;
-    extraction_successes: number;
-    extraction_failures: number;
-    extraction_success_rate: number;
+  receipt_pipeline: {
+    url_scrape_attempts: number;
+    url_scrape_successes: number;
+    url_scrape_failures: number;
+    url_scrape_success_rate: number;
     receipts_generated: number;
     lint_failures: number;
     regens: number;
@@ -109,11 +109,11 @@ interface SummaryData {
     unique_recipients: number;
     by_type: { receipt: number; evroutine: number };
   };
-  receipt_server_events: {
-    extract_success: number;
-    extract_failed: number;
-    extract_fallback_used: number;
-    extract_total: number;
+  ai_generation: {
+    succeeded: number;
+    failed: number;
+    fallback_used: number;
+    total: number;
     success_rate: number;
   };
   report_server_events: {
@@ -138,6 +138,10 @@ interface SummaryData {
     attempts: number;
     successes: number;
     failures: number;
+  }>;
+  attribution: Array<{
+    source: string;
+    event_count: number;
   }>;
   risk_distribution: Array<{
     category: string;
@@ -290,19 +294,19 @@ export default function AdminDashboard() {
       ["Total Revenue", `$${s.revenue.total_revenue}`],
       ["Paid Report Count", s.revenue.paid_count],
       [""],
-      ["=== RECEIPT FUNNEL ==="],
-      ["Extraction Attempts", s.receipt_funnel.extraction_attempts],
-      ["Extraction Successes", s.receipt_funnel.extraction_successes],
-      ["Extraction Failures", s.receipt_funnel.extraction_failures],
-      ["Extraction Success Rate", `${s.receipt_funnel.extraction_success_rate}%`],
-      ["Receipts Generated", s.receipt_funnel.receipts_generated],
-      ["Lint Failures", s.receipt_funnel.lint_failures],
-      ["Regens", s.receipt_funnel.regens],
-      ["Total Copies", s.receipt_funnel.copies],
-      ["Copy Reddit Draft", s.receipt_funnel.copy_reddit_draft],
-      ["Copy Seller Message", s.receipt_funnel.copy_seller_message],
-      ["Copy Checklist", s.receipt_funnel.copy_checklist],
-      ["Lint Fallback Served", s.receipt_funnel.lint_failed_fallback_served],
+      ["=== RECEIPT PIPELINE ==="],
+      ["URL Scrape Attempts", s.receipt_pipeline.url_scrape_attempts],
+      ["URL Scrape Successes", s.receipt_pipeline.url_scrape_successes],
+      ["URL Scrape Failures", s.receipt_pipeline.url_scrape_failures],
+      ["URL Scrape Success Rate", `${s.receipt_pipeline.url_scrape_success_rate}%`],
+      ["Receipts Generated", s.receipt_pipeline.receipts_generated],
+      ["Lint Failures", s.receipt_pipeline.lint_failures],
+      ["Regens", s.receipt_pipeline.regens],
+      ["Total Copies", s.receipt_pipeline.copies],
+      ["Copy Reddit Draft", s.receipt_pipeline.copy_reddit_draft],
+      ["Copy Seller Message", s.receipt_pipeline.copy_seller_message],
+      ["Copy Checklist", s.receipt_pipeline.copy_checklist],
+      ["Lint Fallback Served", s.receipt_pipeline.lint_failed_fallback_served],
       [""],
       ["=== REPORT FUNNEL (Legacy EV-Risk) ==="],
       ["Form Submissions", s.report_funnel.form_submissions],
@@ -348,12 +352,12 @@ export default function AdminDashboard() {
       ["Sent (client)", s.email_captures.sent],
       ["Failed (client)", s.email_captures.failed],
       [""],
-      ["=== SERVER-SIDE RECEIPT EVENTS ==="],
-      ["Extract Total", s.receipt_server_events?.extract_total ?? 0],
-      ["Extract Success", s.receipt_server_events?.extract_success ?? 0],
-      ["Extract Failed", s.receipt_server_events?.extract_failed ?? 0],
-      ["Extract Success Rate", `${s.receipt_server_events?.success_rate ?? 0}%`],
-      ["Fallback Used", s.receipt_server_events?.extract_fallback_used ?? 0],
+      ["=== AI GENERATION ==="],
+      ["Generation Total", s.ai_generation?.total ?? 0],
+      ["Generation Succeeded", s.ai_generation?.succeeded ?? 0],
+      ["Generation Failed", s.ai_generation?.failed ?? 0],
+      ["Generation Success Rate", `${s.ai_generation?.success_rate ?? 0}%`],
+      ["Fallback Used", s.ai_generation?.fallback_used ?? 0],
       [""],
       ["=== SERVER-SIDE REPORT EVENTS ==="],
       ["Generated Total", s.report_server_events?.generated_total ?? 0],
@@ -369,6 +373,9 @@ export default function AdminDashboard() {
       [""],
       ["=== ENTRY MODE ==="],
       ["Total Mode Selections", s.entry_mode?.total_selections ?? 0],
+      [""],
+      ["=== ATTRIBUTION ==="],
+      ...(s.attribution || []).map((a) => [a.source, a.event_count] as [string, number]),
       [""],
       ["=== SESSION CLASSIFICATION ==="],
       ["Total Sessions", s.session_classification?.total_sessions ?? 0],
@@ -552,7 +559,7 @@ export default function AdminDashboard() {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <MetricCard title="Receipts Generated" value={s.receipt_funnel.receipts_generated} subtitle={`${s.overview.total_receipts} receipts · ${s.overview.total_reports} EV-Risk reports stored`} icon="🧾" />
+          <MetricCard title="Receipts Generated" value={s.receipt_pipeline.receipts_generated} subtitle={`${s.overview.total_receipts} receipts · ${s.overview.total_reports} EV-Risk reports stored`} icon="🧾" />
           <MetricCard title="Unique Sessions" value={s.overview.unique_sessions} subtitle={`${s.overview.unique_customers_by_email} with email (paid)`} icon="👥" />
           <MetricCard title="EV-Risk Reports" value={s.report_funnel.report_gen_started} subtitle={`${s.overview.total_reports} stored · ${s.report_funnel.report_gen_succeeded} persisted`} icon="📊" />
           <MetricCard title="Total Revenue" value={`$${s.revenue.total_revenue}`} subtitle={`${s.revenue.paid_count} paid @ $${s.revenue.price_per_report}`} icon="💵" />
@@ -602,37 +609,37 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Receipt Funnel */}
+        {/* Receipt Pipeline */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">🧾 Receipt Funnel</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Receipt Pipeline</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-            <FunnelCard label="Extractions" value={s.receipt_funnel.extraction_attempts} color="blue" />
-            <FunnelCard label="Extract Success" value={`${s.receipt_funnel.extraction_success_rate}%`} color="green" />
-            <FunnelCard label="Receipts Generated" value={s.receipt_funnel.receipts_generated} color="purple" />
-            <FunnelCard label="Lint Failures" value={s.receipt_funnel.lint_failures} color="red" />
-            <FunnelCard label="Lint Fallback" value={s.receipt_funnel.lint_failed_fallback_served} color="amber" />
-            <FunnelCard label="Copy (Total)" value={s.receipt_funnel.copies} color="indigo" />
-            <FunnelCard label="Regens" value={s.receipt_funnel.regens} color="gray" />
+            <FunnelCard label="URL Scrapes" value={s.receipt_pipeline.url_scrape_attempts} color="blue" />
+            <FunnelCard label="Scrape Success" value={`${s.receipt_pipeline.url_scrape_success_rate}%`} color="green" />
+            <FunnelCard label="Receipts Generated" value={s.receipt_pipeline.receipts_generated} color="purple" />
+            <FunnelCard label="Lint Failures" value={s.receipt_pipeline.lint_failures} color="red" />
+            <FunnelCard label="Lint Fallback" value={s.receipt_pipeline.lint_failed_fallback_served} color="amber" />
+            <FunnelCard label="Copy (Total)" value={s.receipt_pipeline.copies} color="indigo" />
+            <FunnelCard label="Regens" value={s.receipt_pipeline.regens} color="gray" />
             <FunnelCard
               label="Copy Breakdown"
-              value={`${s.receipt_funnel.copy_reddit_draft}/${s.receipt_funnel.copy_seller_message}/${s.receipt_funnel.copy_checklist}`}
+              value={`${s.receipt_pipeline.copy_reddit_draft}/${s.receipt_pipeline.copy_seller_message}/${s.receipt_pipeline.copy_checklist}`}
               color="emerald"
               subtitle="Reddit / Seller / Checklist"
             />
           </div>
         </div>
 
-        {/* Server-Side Receipt Events */}
-        {s.receipt_server_events?.extract_total > 0 && (
+        {/* AI Generation */}
+        {s.ai_generation?.total > 0 && (
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-1">Server-Side Receipt Events</h2>
-            <p className="text-sm text-gray-500 mb-4">Tracked server-side in /api/receipt</p>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">AI Generation</h2>
+            <p className="text-sm text-gray-500 mb-4">OpenAI receipt generation tracked server-side</p>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <FunnelCard label="Extract Total" value={s.receipt_server_events.extract_total} color="blue" />
-              <FunnelCard label="Extract Success" value={s.receipt_server_events.extract_success} color="green" />
-              <FunnelCard label="Extract Failed" value={s.receipt_server_events.extract_failed} color="red" />
-              <FunnelCard label="Success Rate" value={`${s.receipt_server_events.success_rate}%`} color="emerald" />
-              <FunnelCard label="Fallback Used" value={s.receipt_server_events.extract_fallback_used} color="amber" />
+              <FunnelCard label="Total" value={s.ai_generation.total} color="blue" />
+              <FunnelCard label="Succeeded" value={s.ai_generation.succeeded} color="green" />
+              <FunnelCard label="Failed" value={s.ai_generation.failed} color="red" />
+              <FunnelCard label="Success Rate" value={`${s.ai_generation.success_rate}%`} color="emerald" />
+              <FunnelCard label="Fallback Used" value={s.ai_generation.fallback_used} color="amber" />
             </div>
           </div>
         )}
@@ -664,6 +671,22 @@ export default function AdminDashboard() {
                     <span className="text-red-600">{d.failures} fail</span>
                     <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">{d.attempts} total</span>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Attribution */}
+        {s.attribution && s.attribution.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Traffic Attribution</h2>
+            <p className="text-sm text-gray-500 mb-3">page_source from event payloads</p>
+            <div className="space-y-2">
+              {s.attribution.slice(0, 10).map((a, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="font-medium font-mono text-sm">{a.source}</span>
+                  <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-medium text-sm">{a.event_count} events</span>
                 </div>
               ))}
             </div>

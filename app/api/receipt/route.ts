@@ -35,6 +35,7 @@ import { guardTurnstile } from "@/lib/turnstile";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
 import { findSimilarReceipt } from "@/lib/receipt-similarity";
 import { logApi } from "@/lib/api-logger";
+import { detectListingSource } from "@/lib/listing-scraper";
 
 export const maxDuration = 60;
 
@@ -557,6 +558,7 @@ export async function POST(request: NextRequest) {
             session_id: receiptToken,
             event_type: "generate",
             url_domain: urlDomain,
+            listing_source: urlDomain ? detectListingSource(urlDomain) : "text_paste",
             verdict: finalReceipt.verdict,
             price_label: finalReceipt.price_sanity?.label || null,
             ip_hash: ipHash || null,

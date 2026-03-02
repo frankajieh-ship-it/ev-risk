@@ -256,6 +256,20 @@ export async function POST(req: NextRequest) {
       } catch {
         // Non-critical — don't fail the request
       }
+
+      // Track in user_events for summary builder visibility
+      const eventName = result.success ? "email_checklist_sent" : "email_checklist_failed";
+      supabase.from("user_events").insert({
+        event_name: eventName,
+        event_data: {
+          receipt_id,
+          email_hash: hashEmail(email),
+          ...(result.error ? { error: result.error } : {}),
+        },
+        ip_address: clientIP,
+        page_path: "/api/email/checklist",
+        timestamp: new Date().toISOString(),
+      }).then(() => {}, () => {});
     }
 
     if (!result.success) {

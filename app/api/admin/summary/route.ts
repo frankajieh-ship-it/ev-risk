@@ -296,11 +296,11 @@ export async function GET(request: NextRequest) {
     const fetchFailures = countReceiptEvents(allReceiptEvents, "fetch_fail");
     const extractionAttempts = fetchSuccesses + fetchFailures;
 
-    const receipt_funnel = {
-      extraction_attempts: extractionAttempts,
-      extraction_successes: fetchSuccesses,
-      extraction_failures: fetchFailures,
-      extraction_success_rate:
+    const receipt_pipeline = {
+      url_scrape_attempts: extractionAttempts,
+      url_scrape_successes: fetchSuccesses,
+      url_scrape_failures: fetchFailures,
+      url_scrape_success_rate:
         extractionAttempts > 0
           ? Math.round((fetchSuccesses / extractionAttempts) * 1000) / 10
           : 0,
@@ -670,11 +670,11 @@ export async function GET(request: NextRequest) {
     const receiptExtractFallback = countEvents(allUserEvents, "receipt_extract_fallback_used");
     const receiptExtractTotal = receiptExtractSuccess + receiptExtractFailed;
 
-    const receipt_server_events = {
-      extract_success: receiptExtractSuccess,
-      extract_failed: receiptExtractFailed,
-      extract_fallback_used: receiptExtractFallback,
-      extract_total: receiptExtractTotal,
+    const ai_generation = {
+      succeeded: receiptExtractSuccess,
+      failed: receiptExtractFailed,
+      fallback_used: receiptExtractFallback,
+      total: receiptExtractTotal,
       success_rate:
         receiptExtractTotal > 0
           ? Math.round((receiptExtractSuccess / receiptExtractTotal) * 1000) / 10
@@ -769,6 +769,25 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.attempts - a.attempts)
       .slice(0, 15);
+
+    // -----------------------------------------------------------------------
+    // Attribution (page_source from event_data)
+    // -----------------------------------------------------------------------
+
+    // Only count attribution on meaningful funnel events (not all events)
+    const ATTRIBUTION_EVENTS = new Set([
+      "landing_view", "receipt_extract_clicked", "receipt_result_viewed",
+      "email_capture_submitted", "scenario_save_success", "buyer_pass_teaser_shown",
+    ]);
+    const attributionMap = new Map<string, number>();
+    for (const e of allUserEvents) {
+      if (!ATTRIBUTION_EVENTS.has(e.event_name)) continue;
+      const source = (e.event_data as any)?.page_source || "unknown";
+      attributionMap.set(source, (attributionMap.get(source) || 0) + 1);
+    }
+    const attribution = Array.from(attributionMap.entries())
+      .map(([source, event_count]) => ({ source, event_count }))
+      .sort((a, b) => b.event_count - a.event_count);
 
     // -----------------------------------------------------------------------
     // Session profiles + bot scoring (Part A+B)
@@ -929,34 +948,38 @@ export async function GET(request: NextRequest) {
 
     // 2. Drop-off
     if (sessLanding > 0) {
-      const receiptPct = Math.round((sessReceipt / sessLanding) * 100);
+      const receiptPct = Math.min(100, Math.round((sessReceipt / sessLanding) * 100));
       insights.push(
-        `${coverage.pct_landing}% of sessions had a landing_view but only ${receiptPct}% of those reached a receipt event.`
+        `${sessLanding} sessions had a landing_view; ${sessReceipt} reached a receipt event (${receiptPct}% conversion).`
+      );
+    } else if (sessReceipt > 0) {
+      insights.push(
+        `${sessReceipt} sessions had receipt events but no landing_view was tracked — likely a tracking gap.`
       );
     }
 
     // 3. Errors
-    if (receipt_funnel.extraction_attempts > 0) {
-      const failRate = 100 - receipt_funnel.extraction_success_rate;
-      let msg = `${receipt_funnel.extraction_failures} extraction failures (${failRate}% failure rate).`;
+    if (receipt_pipeline.url_scrape_attempts > 0) {
+      const failRate = 100 - receipt_pipeline.url_scrape_success_rate;
+      let msg = `${receipt_pipeline.url_scrape_failures} URL scrape failures (${failRate}% failure rate).`;
       if (failRate > 20) msg += " This is above the 20% threshold — investigate.";
       insights.push(msg);
     }
 
     // 4. Engagement
-    const copyTotal = receipt_funnel.copy_reddit_draft + receipt_funnel.copy_seller_message + receipt_funnel.copy_checklist;
+    const copyTotal = receipt_pipeline.copy_reddit_draft + receipt_pipeline.copy_seller_message + receipt_pipeline.copy_checklist;
     if (copyTotal > 0) {
-      let msg = `Copy actions: ${receipt_funnel.copy_reddit_draft} reddit, ${receipt_funnel.copy_seller_message} seller, ${receipt_funnel.copy_checklist} checklist.`;
-      if (receipt_funnel.copy_checklist > receipt_funnel.copy_reddit_draft) {
+      let msg = `Copy actions: ${receipt_pipeline.copy_reddit_draft} reddit, ${receipt_pipeline.copy_seller_message} seller, ${receipt_pipeline.copy_checklist} checklist.`;
+      if (receipt_pipeline.copy_checklist > receipt_pipeline.copy_reddit_draft) {
         msg += " Checklist copies outnumber Reddit drafts — the prominent button is working.";
       }
       insights.push(msg);
     }
 
     // 5. Lint
-    if (receipt_funnel.lint_failures > 0) {
+    if (receipt_pipeline.lint_failures > 0) {
       insights.push(
-        `${receipt_funnel.lint_failures} lint failures, ${receipt_funnel.lint_failed_fallback_served} fallback cards served.`
+        `${receipt_pipeline.lint_failures} lint failures, ${receipt_pipeline.lint_failed_fallback_served} fallback cards served.`
       );
     }
 
@@ -1095,7 +1118,7 @@ export async function GET(request: NextRequest) {
       },
       overview,
       revenue,
-      receipt_funnel,
+      receipt_pipeline,
       report_funnel,
       visitors: visitorsSection,
       why_checkpoint,
@@ -1106,11 +1129,12 @@ export async function GET(request: NextRequest) {
       saved_listings,
       email_captures,
       email_deliveries,
-      receipt_server_events,
+      ai_generation,
       report_server_events,
       routine_engagement,
       entry_mode,
       extraction_domains,
+      attribution,
       risk_distribution,
       verdict_distribution,
       recent_feedback,

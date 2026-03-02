@@ -51,7 +51,7 @@ export interface VehicleData {
   location?: string;
 
   // Data quality tracking
-  dataSource: 'autotrader' | 'cargurus' | 'cars.com' | 'carvana' | 'unknown';
+  dataSource: 'autotrader' | 'cargurus' | 'cars.com' | 'carvana' | 'facebook' | 'carfax' | 'truecar' | 'edmunds' | 'kbb' | 'vroom' | 'carmax' | 'autotempest' | 'hemmings' | 'unknown';
   confidence: 'high' | 'medium' | 'low';
   extractedFields: string[];
   missingFields: string[];
@@ -75,6 +75,15 @@ export function detectListingSource(url: string): VehicleData['dataSource'] {
   if (urlLower.includes('cargurus.com')) return 'cargurus';
   if (urlLower.includes('cars.com')) return 'cars.com';
   if (urlLower.includes('carvana.com')) return 'carvana';
+  if (urlLower.includes('facebook.com/marketplace') || urlLower.includes('fbmarketplace')) return 'facebook';
+  if (urlLower.includes('carfax.com')) return 'carfax';
+  if (urlLower.includes('truecar.com')) return 'truecar';
+  if (urlLower.includes('edmunds.com')) return 'edmunds';
+  if (urlLower.includes('kbb.com')) return 'kbb';
+  if (urlLower.includes('vroom.com')) return 'vroom';
+  if (urlLower.includes('carmax.com')) return 'carmax';
+  if (urlLower.includes('autotempest.com')) return 'autotempest';
+  if (urlLower.includes('hemmings.com')) return 'hemmings';
 
   return 'unknown';
 }
@@ -82,7 +91,7 @@ export function detectListingSource(url: string): VehicleData['dataSource'] {
 /**
  * Type definition for data sources
  */
-type DataSource = 'autotrader' | 'cargurus' | 'cars.com' | 'carvana' | 'unknown';
+type DataSource = 'autotrader' | 'cargurus' | 'cars.com' | 'carvana' | 'facebook' | 'carfax' | 'truecar' | 'edmunds' | 'kbb' | 'vroom' | 'carmax' | 'autotempest' | 'hemmings' | 'unknown';
 
 /**
  * Checks if URL is a search/listing page vs individual vehicle page
@@ -585,7 +594,7 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
       try {
         const response = await fetch(url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
             'Accept-Encoding': 'gzip, deflate, br',
@@ -676,7 +685,7 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
                       html.includes('challenge-platform') ||
                       html.includes('akamai-block') ||
                       html.includes('Autotrader - page unavailable') ||
-                      html.length < 10000;
+                      html.length < 2000;
 
     if (isBlocked) {
       diagnostics.botProtectionDetected = true;

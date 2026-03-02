@@ -3,15 +3,14 @@
 /**
  * SaveReceiptCTA — "Save This Receipt" button on receipt results
  *
- * Triggers login modal if not authenticated, then saves the receipt
- * to saved_scenarios with scenario_type="receipt".
+ * Anonymous users: saves to localStorage (instant, no login required).
+ * Authenticated users: saves to server via /api/user/scenario/save.
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { Bookmark, CheckCircle, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventTracking } from "@/hooks/useEventTracking";
-import LoginModal from "@/components/LoginModal";
 import type { ListingReceipt } from "@/types/receipt";
 
 interface SaveReceiptCTAProps {
@@ -22,17 +21,53 @@ interface SaveReceiptCTAProps {
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-const PENDING_SAVE_KEY = "offo_pending_receipt_save";
-const ACTIVE_RECEIPT_KEY = "offo_active_receipt_id";
+const LOCAL_STORAGE_KEY = "offo_saved_receipts";
+
+interface LocalSavedReceipt {
+  receipt_id: string;
+  vehicle: string;
+  verdict: string;
+  verdict_reason: string | null;
+  price: number | null;
+  mileage: number | null;
+  saved_at: string;
+}
+
+function saveToLocalStorage(receipt: ListingReceipt): boolean {
+  try {
+    const existing: LocalSavedReceipt[] = JSON.parse(
+      localStorage.getItem(LOCAL_STORAGE_KEY) || "[]"
+    );
+    // Deduplicate by receipt_id
+    if (existing.some((r) => r.receipt_id === receipt.receipt_id)) {
+      return true; // Already saved
+    }
+    const summary = receipt.listing_summary;
+    existing.push({
+      receipt_id: receipt.receipt_id,
+      vehicle: [summary?.year, summary?.make, summary?.model, summary?.trim]
+        .filter(Boolean)
+        .join(" "),
+      verdict: receipt.verdict,
+      verdict_reason: receipt.verdict_reason || null,
+      price: summary?.price || null,
+      mileage: summary?.mileage || null,
+      saved_at: new Date().toISOString(),
+    });
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(existing));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export default function SaveReceiptCTA({
   receipt,
   onSaveSuccess,
   compact = false,
 }: SaveReceiptCTAProps) {
-  const { isAuthenticated, session, isConfigured, isReady } = useAuth();
+  const { isAuthenticated, session, isReady } = useAuth();
   const { trackEvent } = useEventTracking();
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -42,11 +77,22 @@ export default function SaveReceiptCTA({
     .join(" ");
   const scenarioHash = `receipt_${receipt.receipt_id}`;
 
-  const doSave = useCallback(async () => {
-    if (!session?.access_token || !isReady) return;
+  // Check if already saved (localStorage)
+  useEffect(() => {
+    try {
+      const existing: LocalSavedReceipt[] = JSON.parse(
+        localStorage.getItem(LOCAL_STORAGE_KEY) || "[]"
+      );
+      if (existing.some((r) => r.receipt_id === receipt.receipt_id)) {
+        setSaveState("saved");
+      }
+    } catch {
+      // ignore
+    }
+  }, [receipt.receipt_id]);
 
-    setSaveState("saving");
-    setError(null);
+  const doServerSave = useCallback(async () => {
+    if (!session?.access_token || !isReady) return;
 
     try {
       const res = await fetch("/api/user/scenario/save", {
@@ -73,71 +119,50 @@ export default function SaveReceiptCTA({
       });
 
       const data = await res.json();
-
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to save");
       }
-
-      trackEvent("save_receipt_succeeded", {
-        receipt_id: receipt.receipt_id,
-        scenario_id: data.scenario_id,
-        is_new: data.is_new,
-      });
-
-      setSaveState("saved");
-      onSaveSuccess?.();
-    } catch (err) {
-      console.error("Save receipt error:", err);
-      trackEvent("save_receipt_failed", {
-        receipt_id: receipt.receipt_id,
-        error: err instanceof Error ? err.message : "Unknown error",
-      });
-      setSaveState("error");
-      setError(err instanceof Error ? err.message : "Failed to save");
-    }
-  }, [session, isReady, receipt, scenarioHash, vehicle, summary, trackEvent, onSaveSuccess]);
-
-  // Auto-save after login if there's a pending save
-  useEffect(() => {
-    if (!isAuthenticated || !isReady) return;
-    try {
-      const pending = localStorage.getItem(PENDING_SAVE_KEY);
-      if (pending === receipt.receipt_id) {
-        localStorage.removeItem(PENDING_SAVE_KEY);
-        doSave();
-      }
     } catch {
-      // localStorage unavailable
+      // Server save failed — localStorage save is the fallback
     }
-  }, [isAuthenticated, isReady, receipt.receipt_id, doSave]);
+  }, [session, isReady, receipt, scenarioHash, vehicle, summary]);
 
   const handleClick = () => {
-    trackEvent("save_receipt_clicked", {
+    trackEvent("scenario_save_clicked", {
       receipt_id: receipt.receipt_id,
       is_authenticated: isAuthenticated,
     });
 
-    if (!isAuthenticated || !session?.access_token) {
-      // Store pending save + active receipt for after login redirect
-      try {
-        localStorage.setItem(PENDING_SAVE_KEY, receipt.receipt_id);
-        localStorage.setItem(ACTIVE_RECEIPT_KEY, receipt.receipt_id);
-      } catch {
-        // localStorage unavailable
-      }
-      setShowLoginModal(true);
+    setSaveState("saving");
+    setError(null);
+
+    // Always save to localStorage first (works for everyone)
+    const localSuccess = saveToLocalStorage(receipt);
+
+    if (!localSuccess) {
+      trackEvent("scenario_save_failed", {
+        receipt_id: receipt.receipt_id,
+        error: "localStorage unavailable",
+      });
+      setSaveState("error");
+      setError("Could not save — browser storage unavailable");
       return;
     }
 
-    doSave();
-  };
+    // Also save to server if authenticated (fire-and-forget)
+    if (isAuthenticated && session?.access_token) {
+      doServerSave();
+    }
 
-  const handleLoginSuccess = () => {
-    setShowLoginModal(false);
-    // Auto-save will trigger via the useEffect above
-  };
+    trackEvent("scenario_save_success", {
+      receipt_id: receipt.receipt_id,
+      is_new: true,
+      storage: isAuthenticated ? "server+local" : "local",
+    });
 
-  if (!isConfigured) return null;
+    setSaveState("saved");
+    onSaveSuccess?.();
+  };
 
   const fullClass = "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-all";
   const compactClass = "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition-colors";
@@ -150,9 +175,7 @@ export default function SaveReceiptCTA({
           className={compact ? compactClass : fullClass}
         >
           <Bookmark className="w-4 h-4" />
-          {compact
-            ? (isAuthenticated ? "Save" : "Save")
-            : (isAuthenticated ? "Save This Receipt" : "Sign in to Save")}
+          {compact ? "Save" : "Save This Receipt"}
         </button>
       )}
 
@@ -196,17 +219,6 @@ export default function SaveReceiptCTA({
           </button>
         </div>
       )}
-
-      <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        onSuccess={handleLoginSuccess}
-        redirectPath={
-          typeof window !== "undefined"
-            ? window.location.pathname + window.location.search
-            : undefined
-        }
-      />
     </>
   );
 }

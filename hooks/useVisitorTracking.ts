@@ -92,6 +92,26 @@ export function useVisitorTracking(options: TrackingOptions = {}) {
     // Listen for popstate (back/forward navigation)
     window.addEventListener("popstate", handleRouteChange);
 
+    // Intercept pushState/replaceState for SPA navigation (Next.js Link/router.push)
+    const originalPushState = history.pushState.bind(history);
+    const originalReplaceState = history.replaceState.bind(history);
+    let lastTrackedPath = window.location.pathname;
+
+    history.pushState = (...args: Parameters<typeof history.pushState>) => {
+      originalPushState(...args);
+      if (window.location.pathname !== lastTrackedPath) {
+        lastTrackedPath = window.location.pathname;
+        handleRouteChange();
+      }
+    };
+    history.replaceState = (...args: Parameters<typeof history.replaceState>) => {
+      originalReplaceState(...args);
+      if (window.location.pathname !== lastTrackedPath) {
+        lastTrackedPath = window.location.pathname;
+        handleRouteChange();
+      }
+    };
+
     // Track page unload (session duration)
     const handleBeforeUnload = () => {
       if (trackSessionDuration) {
@@ -115,6 +135,8 @@ export function useVisitorTracking(options: TrackingOptions = {}) {
     return () => {
       window.removeEventListener("popstate", handleRouteChange);
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      history.pushState = originalPushState;
+      history.replaceState = originalReplaceState;
     };
   }, [enabled, trackPageViews, trackSessionDuration]);
 
