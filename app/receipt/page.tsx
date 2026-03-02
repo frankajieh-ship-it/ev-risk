@@ -708,7 +708,7 @@ export default function ReceiptPage() {
         }}
         regionSelector={<RegionSelector region={region} onChange={setRegion} />}
       />
-      <div id="turnstile-receipt" />
+      <div id="turnstile-receipt" className="hidden" />
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Hero */}
         <div className="text-center mb-8">
