@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Receipt, History, ArrowLeft, Loader2, QrCode } from "lucide-react";
+import { Receipt, Loader2, QrCode } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { initAttribution } from "@/lib/attribution";
@@ -18,6 +18,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import LoginModal from "@/components/LoginModal";
+import Header from "@/components/landing/Header";
+import HowItWorksSection from "@/components/landing/HowItWorksSection";
+import ExampleAnalysisSection from "@/components/landing/ExampleAnalysisSection";
+import UniqueAdvantageSection from "@/components/landing/UniqueAdvantageSection";
+import PricingSection from "@/components/landing/PricingSection";
+import Footer from "@/components/landing/Footer";
 import ReceiptInputCard from "@/components/receipt/ReceiptInputCard";
 import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
 import ReceiptDetailsAccordion from "@/components/receipt/ReceiptDetailsAccordion";
@@ -694,37 +700,16 @@ export default function ReceiptPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      <Header
+        historyCount={history.length}
+        onHistoryClick={() => {
+          setHistoryOpen(true);
+          trackEvent("receipt_history_viewed");
+        }}
+        regionSelector={<RegionSelector region={region} onChange={setRegion} />}
+      />
       <div id="turnstile-receipt" />
       <div className="max-w-2xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <a
-            href="/"
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            EV-Risk
-          </a>
-          <div className="flex items-center gap-3">
-            <RegionSelector region={region} onChange={setRegion} />
-          <button
-            onClick={() => {
-              setHistoryOpen(true);
-              trackEvent("receipt_history_viewed");
-            }}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            <History className="w-4 h-4" />
-            History
-            {history.length > 0 && (
-              <span className="bg-gray-200 text-gray-600 text-xs px-1.5 py-0.5 rounded-full">
-                {history.length}
-              </span>
-            )}
-          </button>
-          </div>
-        </div>
-
         {/* Hero */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-3">
@@ -957,6 +942,18 @@ export default function ReceiptPage() {
         </AnimatePresence>
       </div>
 
+      {/* Marketing sections — visible before first receipt */}
+      {!receipt && (
+        <>
+          <HowItWorksSection />
+          <ExampleAnalysisSection />
+          <UniqueAdvantageSection />
+          <PricingSection />
+        </>
+      )}
+
+      <Footer />
+
       {/* History drawer */}
       <ReceiptHistoryDrawer
         isOpen={historyOpen}
@@ -1010,16 +1007,6 @@ export default function ReceiptPage() {
         />
       )}
 
-      <footer className="text-center py-6 text-sm text-gray-500">
-        Questions, feedback, or bugs?{" "}
-        <Link
-          href="/contact"
-          onClick={() => trackEvent("contact_click_footer", { page: "/receipt" })}
-          className="text-indigo-600 hover:text-indigo-700"
-        >
-          Contact us
-        </Link>
-      </footer>
     </div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
 import {
   ShoppingBag,
   Search,
@@ -21,8 +20,6 @@ const benefits = [
 ];
 
 export default function PricingSection() {
-  const router = useRouter();
-
   return (
     <section id="pricing" className="py-16 md:py-24 bg-gradient-to-b from-gray-50 to-white">
       <div className="max-w-7xl mx-auto px-4">
@@ -72,7 +69,7 @@ export default function PricingSection() {
 
             {/* CTA */}
             <button
-              onClick={() => router.push("/receipt")}
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-600/20"
             >
               <Sparkles className="w-4 h-4" />
