@@ -73,11 +73,11 @@ export default function PricingSection() {
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-600/20"
             >
               <Sparkles className="w-4 h-4" />
-              Get Buyer Pass
+              Try a free analysis
             </button>
 
             <p className="text-xs text-gray-400 text-center mt-3">
-              Start with a free analysis. Upgrade when you&apos;re ready.
+              Free first analysis. Upgrade to Buyer Pass anytime.
             </p>
           </div>
         </motion.div>
