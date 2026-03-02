@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Receipt, History, ArrowLeft, Loader2, QrCode } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
+import { initAttribution } from "@/lib/attribution";
 import { useAuth } from "@/hooks/useAuth";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { useTurnstile } from "@/hooks/useTurnstile";
@@ -222,13 +223,16 @@ export default function ReceiptPage() {
       sessionStorage.removeItem("offo_page_source");
     }
 
-    // Check for extension prefill (?url=...&ext=true)
+    // Capture UTM attribution BEFORE cleaning the URL (replaceState wipes params)
+    initAttribution();
+
+    // Check for URL prefill (?url=...&ext=true or ?url=...&src=landing)
     const params = new URLSearchParams(window.location.search);
     const extUrl = params.get("url");
-    const extFlag = params.get("ext");
-    if (extUrl && extFlag === "true") {
+    if (extUrl) {
       setPrefillUrl(extUrl);
-      setPageSource("extension");
+      const src = params.get("src") || (params.get("ext") === "true" ? "extension" : "direct_url");
+      setPageSource(src);
       window.history.replaceState({}, "", "/receipt");
     }
 
