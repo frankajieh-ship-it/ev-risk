@@ -263,9 +263,14 @@ export async function GET(request: NextRequest) {
         .filter((r) => r.customer_email)
         .map((r) => r.customer_email)
     );
+    // Count unique sessions from user_events (reliable) instead of receipt_events (sparse)
+    const RECEIPT_SESSION_EVENTS = new Set([
+      "receipt_generate", "receipt_extract_clicked", "receipt_extract_succeeded",
+      "receipt_extract_failed", "receipt_result_viewed", "receipt_generate_clicked",
+    ]);
     const uniqueReceiptSessions = new Set(
-      allReceiptEvents
-        .filter((e) => e.event_type === "generate" && e.session_id)
+      allUserEvents
+        .filter((e) => RECEIPT_SESSION_EVENTS.has(e.event_name) && e.session_id)
         .map((e) => e.session_id)
     );
 
@@ -296,6 +301,10 @@ export async function GET(request: NextRequest) {
     const fetchFailures = countReceiptEvents(allReceiptEvents, "fetch_fail");
     const extractionAttempts = fetchSuccesses + fetchFailures;
 
+    // Use user_events as primary source (reliable), receipt_events as fallback
+    const receiptsGenFromUserEvents = countEvents(allUserEvents, "receipt_generate");
+    const receiptsGenFromReceiptEvents = countReceiptEvents(allReceiptEvents, "generate");
+
     const receipt_pipeline = {
       url_scrape_attempts: extractionAttempts,
       url_scrape_successes: fetchSuccesses,
@@ -304,13 +313,26 @@ export async function GET(request: NextRequest) {
         extractionAttempts > 0
           ? Math.round((fetchSuccesses / extractionAttempts) * 1000) / 10
           : 0,
-      receipts_generated: countReceiptEvents(allReceiptEvents, "generate"),
-      lint_failures: countReceiptEvents(allReceiptEvents, "lint_fail"),
-      regens: countReceiptEvents(allReceiptEvents, "regen"),
-      copies: countReceiptEvents(allReceiptEvents, "copy"),
+      receipts_generated: Math.max(receiptsGenFromUserEvents, receiptsGenFromReceiptEvents),
+      lint_failures: Math.max(
+        countReceiptEvents(allReceiptEvents, "lint_fail"),
+        countEvents(allUserEvents, "receipt_lint_failed")
+      ),
+      regens: Math.max(
+        countReceiptEvents(allReceiptEvents, "regen"),
+        countEvents(allUserEvents, "receipt_regen")
+      ),
+      copies: Math.max(
+        countReceiptEvents(allReceiptEvents, "copy"),
+        countEvents(allUserEvents, "copy_checklist") +
+        countEvents(allUserEvents, "copy_reddit_draft") +
+        countEvents(allUserEvents, "copy_seller_message") +
+        countEvents(allUserEvents, "negotiator_copy_clicked")
+      ),
       copy_reddit_draft: countEvents(allUserEvents, "copy_reddit_draft"),
       copy_seller_message: countEvents(allUserEvents, "copy_seller_message"),
       copy_checklist: countEvents(allUserEvents, "copy_checklist"),
+      negotiator_copy: countEvents(allUserEvents, "negotiator_copy_clicked"),
       lint_failed_fallback_served: countEvents(allUserEvents, "lint_failed_fallback_served"),
     };
 
@@ -617,10 +639,145 @@ export async function GET(request: NextRequest) {
     // Email captures (from user_events)
     // -----------------------------------------------------------------------
 
+    // Count both event names: receipt page fires "email_checklist_submit",
+    // EmailCaptureCard fires "email_capture_submitted" — both mean "user submitted email"
     const email_captures = {
-      submitted: countEvents(allUserEvents, "email_checklist_submit"),
+      submitted: countEvents(allUserEvents, "email_checklist_submit") +
+                 countEvents(allUserEvents, "email_capture_submitted"),
       sent: countEvents(allUserEvents, "email_checklist_sent"),
       failed: countEvents(allUserEvents, "email_checklist_failed"),
+    };
+
+    // -----------------------------------------------------------------------
+    // Post-receipt engagement funnel (from user_events)
+    // -----------------------------------------------------------------------
+
+    const receiptViewed = countEvents(allUserEvents, "receipt_result_viewed");
+
+    // Copy engagement
+    const copyChecklist = countEvents(allUserEvents, "copy_checklist");
+    const copyRedditDraft = countEvents(allUserEvents, "copy_reddit_draft");
+    const copySellerMessage = countEvents(allUserEvents, "copy_seller_message");
+    const negotiatorShown = countEvents(allUserEvents, "negotiator_shown");
+    const negotiatorCopyClicked = countEvents(allUserEvents, "negotiator_copy_clicked");
+    const totalCopyActions = copyChecklist + copyRedditDraft + copySellerMessage + negotiatorCopyClicked;
+
+    // Share engagement
+    const shareQrClicked = countEvents(allUserEvents, "share_qr_clicked");
+    const shareModalOpened = countEvents(allUserEvents, "share_modal_opened");
+    const shareLinkCopied = countEvents(allUserEvents, "share_link_copied");
+    const shareCardDownloaded = countEvents(allUserEvents, "share_card_downloaded");
+
+    // Email capture (use both event names)
+    const emailCaptureShown = countEvents(allUserEvents, "email_capture_shown");
+    const emailCaptureSubmitted = countEvents(allUserEvents, "email_capture_submitted") +
+                                  countEvents(allUserEvents, "email_checklist_submit");
+
+    // Save
+    const saveClicked = countEvents(allUserEvents, "scenario_save_clicked");
+    const saveSucceeded = countEvents(allUserEvents, "scenario_save_success");
+
+    // PDF
+    const downloadPdfClicked = countEvents(allUserEvents, "download_pdf_clicked");
+
+    // VIN check
+    const vinEntered = countEvents(allUserEvents, "vin_entered");
+    const vinDecodeSucceeded = countEvents(allUserEvents, "vin_decode_succeeded");
+    const vinDecodeFailed = countEvents(allUserEvents, "vin_decode_failed");
+    const recallCheckClicked = countEvents(allUserEvents, "recall_check_clicked");
+
+    // Paywall / monetization
+    const buyerPassTeaserShown = countEvents(allUserEvents, "buyer_pass_teaser_shown");
+    const paywallShown = countEvents(allUserEvents, "paywall_shown");
+    const paywallDismissed = countEvents(allUserEvents, "paywall_dismissed");
+    const checkoutStarted = countEvents(allUserEvents, "checkout_started");
+
+    // Feedback
+    const feedbackShown = countEvents(allUserEvents, "feedback_shown");
+    const feedbackSubmitted = countEvents(allUserEvents, "feedback_submitted");
+
+    // Other post-receipt
+    const contactClickPostReceipt = countEvents(allUserEvents, "contact_click_post_receipt");
+    const receiptHistoryViewed = countEvents(allUserEvents, "receipt_history_viewed");
+
+    // Helper: percentage of receipt viewers
+    const pctOf = (n: number) =>
+      receiptViewed > 0 ? Math.round((n / receiptViewed) * 1000) / 10 : 0;
+
+    const post_receipt_engagement = {
+      receipt_result_viewed: receiptViewed,
+
+      copy: {
+        checklist: copyChecklist,
+        reddit_draft: copyRedditDraft,
+        seller_message: copySellerMessage,
+        negotiator_shown: negotiatorShown,
+        negotiator_copy: negotiatorCopyClicked,
+        total: totalCopyActions,
+        pct_of_viewers: pctOf(totalCopyActions),
+      },
+
+      share: {
+        qr_clicked: shareQrClicked,
+        modal_opened: shareModalOpened,
+        link_copied: shareLinkCopied,
+        card_downloaded: shareCardDownloaded,
+        pct_initiated: pctOf(shareQrClicked),
+      },
+
+      email: {
+        shown: emailCaptureShown,
+        submitted: emailCaptureSubmitted,
+        submit_rate: emailCaptureShown > 0
+          ? Math.round((emailCaptureSubmitted / emailCaptureShown) * 1000) / 10
+          : 0,
+        pct_of_viewers: pctOf(emailCaptureSubmitted),
+      },
+
+      save: {
+        clicked: saveClicked,
+        succeeded: saveSucceeded,
+        pct_saved: pctOf(saveSucceeded),
+      },
+
+      pdf: {
+        download_clicked: downloadPdfClicked,
+        pct_downloaded: pctOf(downloadPdfClicked),
+      },
+
+      vin_check: {
+        entered: vinEntered,
+        decode_succeeded: vinDecodeSucceeded,
+        decode_failed: vinDecodeFailed,
+        recall_clicked: recallCheckClicked,
+        pct_used: pctOf(vinEntered),
+      },
+
+      monetization: {
+        teaser_shown: buyerPassTeaserShown,
+        paywall_shown: paywallShown,
+        paywall_dismissed: paywallDismissed,
+        checkout_started: checkoutStarted,
+        teaser_to_paywall_rate: buyerPassTeaserShown > 0
+          ? Math.round((paywallShown / buyerPassTeaserShown) * 1000) / 10
+          : 0,
+        paywall_to_checkout_rate: paywallShown > 0
+          ? Math.round((checkoutStarted / paywallShown) * 1000) / 10
+          : 0,
+      },
+
+      feedback: {
+        shown: feedbackShown,
+        submitted: feedbackSubmitted,
+        submit_rate: feedbackShown > 0
+          ? Math.round((feedbackSubmitted / feedbackShown) * 1000) / 10
+          : 0,
+      },
+
+      other: {
+        contact_clicked: contactClickPostReceipt,
+        history_viewed: receiptHistoryViewed,
+      },
     };
 
     // -----------------------------------------------------------------------
@@ -913,7 +1070,7 @@ export async function GET(request: NextRequest) {
 
     const RECEIPT_EVENTS = ["receipt_generate", "receipt_extract_succeeded", "receipt_extract_failed", "receipt_extract_clicked"];
     const ROUTINE_EVENTS = ["routine_check_started", "routine_field_completed"];
-    const COPY_EVENTS = ["copy_reddit_draft", "copy_seller_message", "copy_checklist", "copy_click"];
+    const COPY_EVENTS = ["copy_reddit_draft", "copy_seller_message", "copy_checklist", "copy_click", "negotiator_copy_clicked"];
 
     let sessLanding = 0, sessReceipt = 0, sessRoutine = 0, sessCopy = 0;
     for (const p of sessionProfiles) {
@@ -966,14 +1123,38 @@ export async function GET(request: NextRequest) {
       insights.push(msg);
     }
 
-    // 4. Engagement
-    const copyTotal = receipt_pipeline.copy_reddit_draft + receipt_pipeline.copy_seller_message + receipt_pipeline.copy_checklist;
-    if (copyTotal > 0) {
-      let msg = `Copy actions: ${receipt_pipeline.copy_reddit_draft} reddit, ${receipt_pipeline.copy_seller_message} seller, ${receipt_pipeline.copy_checklist} checklist.`;
-      if (receipt_pipeline.copy_checklist > receipt_pipeline.copy_reddit_draft) {
-        msg += " Checklist copies outnumber Reddit drafts — the prominent button is working.";
+    // 4. Post-receipt engagement
+    if (receiptViewed > 0) {
+      const anyEngagement = totalCopyActions + shareQrClicked + emailCaptureSubmitted +
+        saveSucceeded + downloadPdfClicked + vinEntered;
+      const engagementRate = Math.round((anyEngagement / receiptViewed) * 100);
+      insights.push(
+        `Post-receipt: ${receiptViewed} views → ${anyEngagement} engagement actions (${engagementRate}%). ` +
+        `Copy: ${totalCopyActions}, Email: ${emailCaptureSubmitted}, Save: ${saveSucceeded}, ` +
+        `Share: ${shareQrClicked}, VIN: ${vinEntered}, PDF: ${downloadPdfClicked}.`
+      );
+
+      if (checkoutStarted === 0 && paywallShown > 0) {
+        insights.push(
+          `${paywallShown} users saw the paywall but 0 started checkout — paywall-to-checkout is the critical gap.`
+        );
       }
-      insights.push(msg);
+
+      if (feedbackShown > 0 && feedbackSubmitted === 0) {
+        insights.push(
+          `Feedback widget shown ${feedbackShown} times but 0 submissions — users aren't engaging with it.`
+        );
+      }
+    }
+
+    // 4b. Copy breakdown
+    const copyTotal = receipt_pipeline.copy_reddit_draft + receipt_pipeline.copy_seller_message +
+      receipt_pipeline.copy_checklist + (receipt_pipeline.negotiator_copy || 0);
+    if (copyTotal > 0) {
+      insights.push(
+        `Copy breakdown: ${receipt_pipeline.copy_checklist} checklist, ${receipt_pipeline.negotiator_copy || 0} negotiator, ` +
+        `${receipt_pipeline.copy_reddit_draft} reddit, ${receipt_pipeline.copy_seller_message} seller.`
+      );
     }
 
     // 5. Lint
@@ -1119,6 +1300,7 @@ export async function GET(request: NextRequest) {
       overview,
       revenue,
       receipt_pipeline,
+      post_receipt_engagement,
       report_funnel,
       visitors: visitorsSection,
       why_checkpoint,

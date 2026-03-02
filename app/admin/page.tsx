@@ -48,7 +48,66 @@ interface SummaryData {
     copy_reddit_draft: number;
     copy_seller_message: number;
     copy_checklist: number;
+    negotiator_copy: number;
     lint_failed_fallback_served: number;
+  };
+  post_receipt_engagement: {
+    receipt_result_viewed: number;
+    copy: {
+      checklist: number;
+      reddit_draft: number;
+      seller_message: number;
+      negotiator_shown: number;
+      negotiator_copy: number;
+      total: number;
+      pct_of_viewers: number;
+    };
+    share: {
+      qr_clicked: number;
+      modal_opened: number;
+      link_copied: number;
+      card_downloaded: number;
+      pct_initiated: number;
+    };
+    email: {
+      shown: number;
+      submitted: number;
+      submit_rate: number;
+      pct_of_viewers: number;
+    };
+    save: {
+      clicked: number;
+      succeeded: number;
+      pct_saved: number;
+    };
+    pdf: {
+      download_clicked: number;
+      pct_downloaded: number;
+    };
+    vin_check: {
+      entered: number;
+      decode_succeeded: number;
+      decode_failed: number;
+      recall_clicked: number;
+      pct_used: number;
+    };
+    monetization: {
+      teaser_shown: number;
+      paywall_shown: number;
+      paywall_dismissed: number;
+      checkout_started: number;
+      teaser_to_paywall_rate: number;
+      paywall_to_checkout_rate: number;
+    };
+    feedback: {
+      shown: number;
+      submitted: number;
+      submit_rate: number;
+    };
+    other: {
+      contact_clicked: number;
+      history_viewed: number;
+    };
   };
   report_funnel: {
     form_submissions: number;
@@ -306,7 +365,35 @@ export default function AdminDashboard() {
       ["Copy Reddit Draft", s.receipt_pipeline.copy_reddit_draft],
       ["Copy Seller Message", s.receipt_pipeline.copy_seller_message],
       ["Copy Checklist", s.receipt_pipeline.copy_checklist],
+      ["Copy Negotiator", s.receipt_pipeline.negotiator_copy],
       ["Lint Fallback Served", s.receipt_pipeline.lint_failed_fallback_served],
+      [""],
+      ["=== POST-RECEIPT ENGAGEMENT ==="],
+      ["Receipt Views (base)", s.post_receipt_engagement?.receipt_result_viewed ?? 0],
+      ["Copy Total", s.post_receipt_engagement?.copy?.total ?? 0],
+      ["Copy Checklist", s.post_receipt_engagement?.copy?.checklist ?? 0],
+      ["Copy Negotiator", s.post_receipt_engagement?.copy?.negotiator_copy ?? 0],
+      ["Copy Reddit Draft", s.post_receipt_engagement?.copy?.reddit_draft ?? 0],
+      ["Copy Seller Message", s.post_receipt_engagement?.copy?.seller_message ?? 0],
+      ["Copy % of Viewers", `${s.post_receipt_engagement?.copy?.pct_of_viewers ?? 0}%`],
+      ["Share QR Clicked", s.post_receipt_engagement?.share?.qr_clicked ?? 0],
+      ["Share Link Copied", s.post_receipt_engagement?.share?.link_copied ?? 0],
+      ["Share Card Downloaded", s.post_receipt_engagement?.share?.card_downloaded ?? 0],
+      ["Email Capture Shown", s.post_receipt_engagement?.email?.shown ?? 0],
+      ["Email Capture Submitted", s.post_receipt_engagement?.email?.submitted ?? 0],
+      ["Email Submit Rate", `${s.post_receipt_engagement?.email?.submit_rate ?? 0}%`],
+      ["Save Clicked", s.post_receipt_engagement?.save?.clicked ?? 0],
+      ["Save Succeeded", s.post_receipt_engagement?.save?.succeeded ?? 0],
+      ["PDF Downloaded", s.post_receipt_engagement?.pdf?.download_clicked ?? 0],
+      ["VIN Entered", s.post_receipt_engagement?.vin_check?.entered ?? 0],
+      ["VIN Decode Succeeded", s.post_receipt_engagement?.vin_check?.decode_succeeded ?? 0],
+      ["VIN Decode Failed", s.post_receipt_engagement?.vin_check?.decode_failed ?? 0],
+      ["Teaser Shown", s.post_receipt_engagement?.monetization?.teaser_shown ?? 0],
+      ["Paywall Shown", s.post_receipt_engagement?.monetization?.paywall_shown ?? 0],
+      ["Paywall Dismissed", s.post_receipt_engagement?.monetization?.paywall_dismissed ?? 0],
+      ["Checkout Started", s.post_receipt_engagement?.monetization?.checkout_started ?? 0],
+      ["Feedback Shown", s.post_receipt_engagement?.feedback?.shown ?? 0],
+      ["Feedback Submitted", s.post_receipt_engagement?.feedback?.submitted ?? 0],
       [""],
       ["=== REPORT FUNNEL (Legacy EV-Risk) ==="],
       ["Form Submissions", s.report_funnel.form_submissions],
@@ -628,6 +715,87 @@ export default function AdminDashboard() {
             />
           </div>
         </div>
+
+        {/* Post-Receipt Engagement Funnel */}
+        {s.post_receipt_engagement && s.post_receipt_engagement.receipt_result_viewed > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border-l-4 border-orange-400">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Post-Receipt Engagement</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              What users do after viewing their receipt ({s.post_receipt_engagement.receipt_result_viewed} views)
+            </p>
+
+            {/* Copy Actions */}
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                Copy Actions ({s.post_receipt_engagement.copy.pct_of_viewers}% of viewers)
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <FunnelCard label="Checklist" value={s.post_receipt_engagement.copy.checklist} color="green" />
+                <FunnelCard label="Negotiator" value={s.post_receipt_engagement.copy.negotiator_copy} color="emerald" />
+                <FunnelCard label="Reddit Draft" value={s.post_receipt_engagement.copy.reddit_draft} color="green" />
+                <FunnelCard label="Seller Msg" value={s.post_receipt_engagement.copy.seller_message} color="green" />
+                <FunnelCard label="Total Copies" value={s.post_receipt_engagement.copy.total} color="emerald"
+                  subtitle={`${s.post_receipt_engagement.copy.pct_of_viewers}% of viewers`} />
+              </div>
+            </div>
+
+            {/* Share */}
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">
+                Share ({s.post_receipt_engagement.share.pct_initiated}% initiated)
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <FunnelCard label="QR Clicked" value={s.post_receipt_engagement.share.qr_clicked} color="purple" />
+                <FunnelCard label="Modal Opened" value={s.post_receipt_engagement.share.modal_opened} color="purple" />
+                <FunnelCard label="Link Copied" value={s.post_receipt_engagement.share.link_copied} color="indigo" />
+                <FunnelCard label="Card Downloaded" value={s.post_receipt_engagement.share.card_downloaded} color="indigo" />
+              </div>
+            </div>
+
+            {/* Email + Save + PDF + VIN */}
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Capture & Save</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <FunnelCard label="Email Shown" value={s.post_receipt_engagement.email.shown} color="blue" />
+                <FunnelCard label="Email Submitted" value={s.post_receipt_engagement.email.submitted} color="blue"
+                  subtitle={`${s.post_receipt_engagement.email.submit_rate}% rate`} />
+                <FunnelCard label="Save Clicked" value={s.post_receipt_engagement.save.clicked} color="indigo" />
+                <FunnelCard label="Save Succeeded" value={s.post_receipt_engagement.save.succeeded} color="indigo"
+                  subtitle={`${s.post_receipt_engagement.save.pct_saved}% of viewers`} />
+                <FunnelCard label="PDF Download" value={s.post_receipt_engagement.pdf.download_clicked} color="gray"
+                  subtitle={`${s.post_receipt_engagement.pdf.pct_downloaded}% of viewers`} />
+                <FunnelCard label="VIN Checked" value={s.post_receipt_engagement.vin_check.entered} color="amber"
+                  subtitle={`${s.post_receipt_engagement.vin_check.pct_used}% of viewers`} />
+              </div>
+            </div>
+
+            {/* Monetization Funnel */}
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Monetization Funnel</h3>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <FunnelCard label="Teaser Shown" value={s.post_receipt_engagement.monetization.teaser_shown} color="amber" />
+                <FunnelCard label="Paywall Shown" value={s.post_receipt_engagement.monetization.paywall_shown} color="amber"
+                  subtitle={`${s.post_receipt_engagement.monetization.teaser_to_paywall_rate}% of teaser`} />
+                <FunnelCard label="Paywall Dismissed" value={s.post_receipt_engagement.monetization.paywall_dismissed} color="red" />
+                <FunnelCard label="Checkout Started" value={s.post_receipt_engagement.monetization.checkout_started} color="green"
+                  subtitle={`${s.post_receipt_engagement.monetization.paywall_to_checkout_rate}% of paywall`} />
+                <FunnelCard label="Revenue" value={`$${s.post_receipt_engagement.monetization.checkout_started * 9.99}`} color="green" />
+              </div>
+            </div>
+
+            {/* Feedback */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Feedback & Other</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <FunnelCard label="Feedback Shown" value={s.post_receipt_engagement.feedback.shown} color="gray" />
+                <FunnelCard label="Feedback Submitted" value={s.post_receipt_engagement.feedback.submitted} color="gray"
+                  subtitle={`${s.post_receipt_engagement.feedback.submit_rate}% rate`} />
+                <FunnelCard label="Contact Clicked" value={s.post_receipt_engagement.other.contact_clicked} color="gray" />
+                <FunnelCard label="History Viewed" value={s.post_receipt_engagement.other.history_viewed} color="gray" />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* AI Generation */}
         {s.ai_generation?.total > 0 && (

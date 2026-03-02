@@ -101,8 +101,10 @@ function injectBadge(vehicle: { year?: string; make?: string; model?: string }, 
 }
 
 // Listen for detection events from detector.ts
+console.log("[OFFO] Badge script loaded, listening for events");
 window.addEventListener("offo-detection", ((e: CustomEvent) => {
   const { isEV, vehicle, url } = e.detail;
+  console.log("[OFFO] Badge received event:", { isEV, vehicle, url });
 
   if (isEV && vehicle) {
     // Check if extension is enabled
@@ -118,3 +120,6 @@ window.addEventListener("offo-detection", ((e: CustomEvent) => {
     removeBadge();
   }
 }) as EventListener);
+
+// Request current detection state (detector.ts may have already run before we loaded)
+window.dispatchEvent(new CustomEvent("offo-request-detection"));
