@@ -66,7 +66,7 @@ export default function SaveReceiptCTA({
   onSaveSuccess,
   compact = false,
 }: SaveReceiptCTAProps) {
-  const { isAuthenticated, session, isReady } = useAuth();
+  const { isAuthenticated, session } = useAuth();
   const { trackEvent } = useEventTracking();
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +92,7 @@ export default function SaveReceiptCTA({
   }, [receipt.receipt_id]);
 
   const doServerSave = useCallback(async () => {
-    if (!session?.access_token || !isReady) return;
+    if (!session?.access_token) return;
 
     try {
       const res = await fetch("/api/user/scenario/save", {
@@ -120,12 +120,12 @@ export default function SaveReceiptCTA({
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to save");
+        console.warn("[SaveReceipt] Server save failed:", data.error);
       }
-    } catch {
-      // Server save failed — localStorage save is the fallback
+    } catch (err) {
+      console.warn("[SaveReceipt] Server save error:", err instanceof Error ? err.message : err);
     }
-  }, [session, isReady, receipt, scenarioHash, vehicle, summary]);
+  }, [session, receipt, scenarioHash, vehicle, summary]);
 
   const handleClick = () => {
     trackEvent("scenario_save_clicked", {

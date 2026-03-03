@@ -6,6 +6,7 @@
  */
 
 import type { ListingReceipt } from "@/types/receipt";
+import { humanizeFlag } from "@/lib/receipt-rules";
 
 /**
  * Compute delta bullets between two receipts.
@@ -81,12 +82,12 @@ export function computeReceiptDelta(
   const uniqueToB = receiptB.risk_flags.filter((f) => !flagsA.has(f));
   if (uniqueToA.length > 0) {
     bullets.push(
-      `${nameA} has a unique risk: "${uniqueToA[0]}"`
+      `${nameA} has a unique risk: "${humanizeFlag(uniqueToA[0])}"`
     );
   }
   if (uniqueToB.length > 0) {
     bullets.push(
-      `${nameB} has a unique risk: "${uniqueToB[0]}"`
+      `${nameB} has a unique risk: "${humanizeFlag(uniqueToB[0])}"`
     );
   }
 

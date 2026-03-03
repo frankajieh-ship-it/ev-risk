@@ -22,6 +22,7 @@ import {
   ArrowUpCircle,
 } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { humanizeFlag } from "@/lib/receipt-rules";
 import type { ListingReceipt } from "@/types/receipt";
 
 interface NegotiatorSectionProps {
@@ -107,7 +108,7 @@ export default function NegotiatorSection({
     lines.push("");
 
     lines.push("TALKING POINTS (from risk flags):");
-    receipt.risk_flags.forEach((f, i) => lines.push(`${i + 1}. ${f}`));
+    receipt.risk_flags.forEach((f, i) => lines.push(`${i + 1}. ${humanizeFlag(f)}`));
     lines.push("");
 
     lines.push("MUST-ASK QUESTIONS:");
@@ -177,7 +178,7 @@ export default function NegotiatorSection({
           subtitle="Leverage these in your negotiation"
           onCopy={() =>
             copyText(
-              receipt.risk_flags.map((f, i) => `${i + 1}. ${f}`).join("\n"),
+              receipt.risk_flags.map((f, i) => `${i + 1}. ${humanizeFlag(f)}`).join("\n"),
               "talking"
             )
           }
@@ -189,7 +190,7 @@ export default function NegotiatorSection({
                 <span className="text-red-400 font-bold flex-shrink-0 w-5 text-right">
                   {i + 1}.
                 </span>
-                <span>{flag}</span>
+                <span>{humanizeFlag(flag)}</span>
               </li>
             ))}
           </ol>

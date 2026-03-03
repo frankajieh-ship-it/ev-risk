@@ -18,6 +18,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { computeReceiptDelta } from "@/lib/compare-receipts";
+import { humanizeFlag } from "@/lib/receipt-rules";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import type { ListingReceipt } from "@/types/receipt";
 
@@ -104,7 +105,7 @@ function ReceiptCard({ receipt, label }: { receipt: ListingReceipt; label: strin
           {receipt.risk_flags.slice(0, 3).map((flag, i) => (
             <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
               <span className="text-red-400 mt-0.5">!</span>
-              <span>{flag}</span>
+              <span>{humanizeFlag(flag)}</span>
             </li>
           ))}
         </ul>
