@@ -83,34 +83,41 @@ export async function POST(req: NextRequest) {
       isNovelScenario = !existing || existing.length === 0;
     }
 
+    // Build update payload — only include fields that were actually provided
+    // so a second call (e.g. to write back fit_signal) doesn't overwrite inputs
+    const updatePayload: Record<string, unknown> = {
+      completed_at: new Date().toISOString(),
+    };
+
+    if (inputs && Object.keys(inputs).length > 0) updatePayload.inputs = inputs;
+    if (fit_signal) updatePayload.fit_signal = fit_signal;
+    if (fade_label) updatePayload.fade_label = fade_label;
+    if (friction_bullets.length > 0) updatePayload.friction_bullets = friction_bullets;
+    if (why_not_100.length > 0) updatePayload.why_not_100 = why_not_100;
+    if (risk_tags.length > 0) updatePayload.risk_tags = risk_tags;
+
+    // P0/P1: New seasonal & predictability fields
+    if (climate_seasonality) updatePayload.climate_seasonality = climate_seasonality;
+    if (winter_long_days) updatePayload.winter_long_days = winter_long_days;
+    if (parked_outside) updatePayload.parked_outside = parked_outside;
+    if (seasonal_sensitivity) updatePayload.seasonal_sensitivity = seasonal_sensitivity;
+    if (seasonal_trigger_tags.length > 0) updatePayload.seasonal_trigger_tags = seasonal_trigger_tags;
+    if (charging_anchor_type) updatePayload.charging_anchor_type = charging_anchor_type;
+    if (backup_option) updatePayload.backup_option = backup_option;
+    if (public_anchor_reliability) updatePayload.public_anchor_reliability = public_anchor_reliability;
+    if (predictability_level) updatePayload.predictability_level = predictability_level;
+    if (planning_tolerance) updatePayload.planning_tolerance = planning_tolerance;
+
+    // IP Defensibility: Scenario fingerprinting
+    if (scenarioFingerprint) updatePayload.scenario_fingerprint = scenarioFingerprint;
+    if (summaryId) updatePayload.summary_id = summaryId;
+    updatePayload.engine_version = engineVersion;
+    if (isNovelScenario) updatePayload.is_novel_scenario = isNovelScenario;
+
     // Update session with completion data
     const { error } = await supabase
       .from("evroutine_sessions")
-      .update({
-        inputs: inputs || {},
-        fit_signal: fit_signal || null,
-        fade_label: fade_label || null,
-        friction_bullets: friction_bullets,
-        why_not_100: why_not_100,
-        risk_tags: risk_tags,
-        completed_at: new Date().toISOString(),
-        // P0/P1: New seasonal & predictability fields
-        climate_seasonality: climate_seasonality || null,
-        winter_long_days: winter_long_days || null,
-        parked_outside: parked_outside || null,
-        seasonal_sensitivity: seasonal_sensitivity || null,
-        seasonal_trigger_tags: seasonal_trigger_tags,
-        charging_anchor_type: charging_anchor_type || null,
-        backup_option: backup_option || null,
-        public_anchor_reliability: public_anchor_reliability || null,
-        predictability_level: predictability_level || null,
-        planning_tolerance: planning_tolerance || null,
-        // IP Defensibility: Scenario fingerprinting
-        scenario_fingerprint: scenarioFingerprint,
-        summary_id: summaryId,
-        engine_version: engineVersion,
-        is_novel_scenario: isNovelScenario,
-      })
+      .update(updatePayload)
       .eq("id", session_id)
       .select("id")
       .single();

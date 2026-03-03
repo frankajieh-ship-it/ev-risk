@@ -32,6 +32,7 @@ import { generateDebugData } from "@/lib/debug-helpers";
 import { generateMissingDataExplanations, getPrimaryMissingExplanation, generatePersonalizationOpportunities } from "@/lib/missing-data-generator";
 import { calculateRoutineFitClient } from "@/lib/routine-fit-client";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { assignPriceVariant, getDisplayPrice } from "@/lib/price-assignment";
 import type { Region } from "@/lib/regionCopy";
@@ -183,6 +184,8 @@ function ReportContent() {
 
   // Event tracking
   const { trackButtonClick, trackEvent, trackReportGenerateClick } = useEventTracking();
+  const { trackResultsViewed, completeSession } = useSessionTracking();
+  const hasTrackedResultsViewed = useRef(false);
 
   // Initialize anonId from localStorage
   useEffect(() => {
@@ -404,6 +407,35 @@ function ReportContent() {
       });
     }
   }, [reportData, reportId, trackEvent]);
+
+  // Track results viewed + write back fit_signal to evroutine_sessions
+  useEffect(() => {
+    if (hasTrackedResultsViewed.current) return;
+
+    // Determine fit_signal from whichever report format loaded
+    const fitSignal =
+      reportV2ContractData?.default_view?.fit_verdict?.label ||
+      reportV2Data?.primary?.routine_fit?.label ||
+      reportData?.confidence?.fit_signal ||
+      null;
+
+    // Only fire once we have some report data
+    if (!reportData && !reportV2Data && !reportV2ContractData) return;
+    hasTrackedResultsViewed.current = true;
+
+    // Mark session results as viewed (fire-and-forget)
+    trackResultsViewed().catch(() => {});
+
+    // Write back fit_signal to evroutine_sessions if available
+    if (fitSignal) {
+      completeSession({}, { fit_signal: fitSignal as any }).catch(() => {});
+    }
+
+    trackEvent("routine_score_viewed", {
+      fit_signal: fitSignal,
+      report_id: reportId || null,
+    });
+  }, [reportData, reportV2Data, reportV2ContractData, reportId, trackResultsViewed, completeSession, trackEvent]);
 
   // V2 Contract Rendering Path (new Default View + Appendix)
   if (reportV2ContractData) {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
@@ -35,6 +36,7 @@ export default function Home() {
   });
 
   const { trackButtonClick, trackUrlAutofillAttempt, trackEvent, trackCTAClick, trackLandingView, trackIntakeStarted } = useEventTracking();
+  const { startSession, completeSession } = useSessionTracking();
 
   const { execute: executeTurnstile } = useTurnstile({
     containerId: "turnstile-score",
@@ -142,12 +144,56 @@ export default function Home() {
     setCurrentStep("vehicle");
     trackButtonClick("routine_step_complete", "homepage");
     trackIntakeStarted();
+
+    // Session tracking: start session + complete with routine inputs
+    startSession({ source: "homepage" }).then((sid) => {
+      if (sid) {
+        completeSession(
+          {
+            chargingAccess: routine.charging_access,
+            weeklyMiles: routine.weekly_miles,
+            climate: routine.climate,
+            longestDayPattern: routine.longest_day_pattern,
+          },
+          {}
+        ).catch(() => {});
+      }
+    }).catch(() => {});
+
+    trackEvent("routine_check_completed", {
+      charging_access: routine.charging_access,
+      climate: routine.climate,
+      source: "homepage",
+    });
   };
 
   const handleRoutineSkipVehicle = (routine: MinimumViableRoutine) => {
     setRoutineData(routine);
     trackButtonClick("routine_skip_vehicle", "homepage");
     trackIntakeStarted();
+
+    // Session tracking: start session + complete with routine inputs
+    startSession({ source: "homepage" }).then((sid) => {
+      if (sid) {
+        completeSession(
+          {
+            chargingAccess: routine.charging_access,
+            weeklyMiles: routine.weekly_miles,
+            climate: routine.climate,
+            longestDayPattern: routine.longest_day_pattern,
+          },
+          {}
+        ).catch(() => {});
+      }
+    }).catch(() => {});
+
+    trackEvent("routine_check_completed", {
+      charging_access: routine.charging_access,
+      climate: routine.climate,
+      source: "homepage",
+      skipped_vehicle: true,
+    });
+
     generateV2Report(routine);
   };
 
