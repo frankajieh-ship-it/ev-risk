@@ -9,8 +9,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Receipt, Loader2, QrCode } from "lucide-react";
+import { Receipt, Loader2, QrCode, ArrowLeft } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { initAttribution } from "@/lib/attribution";
@@ -45,19 +46,8 @@ import ShareModal from "@/components/receipt/ShareModal";
 import { useReceiptHistory } from "@/hooks/useReceiptHistory";
 import { useRegion } from "@/hooks/useRegion";
 import RegionSelector from "@/components/RegionSelector";
+import { getOrCreateReceiptToken } from "@/lib/session-utils";
 import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent } from "@/types/receipt";
-
-// Generate or retrieve receipt token from localStorage
-function getOrCreateReceiptToken(): string {
-  if (typeof window === "undefined") return "";
-  const key = "offo_receipt_token";
-  let token = localStorage.getItem(key);
-  if (!token) {
-    token = `rt_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-    localStorage.setItem(key, token);
-  }
-  return token;
-}
 
 // Persist/retrieve current receipt ID across auth redirects
 const ACTIVE_RECEIPT_KEY = "offo_active_receipt_id";
@@ -117,8 +107,14 @@ async function fetchWithRetry(
 export default function ReceiptPage() {
   const { trackEvent } = useEventTracking();
   useVisitorTracking();
+  const router = useRouter();
   const { isAuthenticated, isConfigured: authConfigured } = useAuth();
   const { region, setRegion } = useRegion();
+
+  // Return-to-routine state
+  const [returnToRoutine, setReturnToRoutine] = useState(false);
+  const [routineRunId, setRoutineRunId] = useState<string | null>(null);
+  const [routineVehicleReady, setRoutineVehicleReady] = useState(false);
 
   // Core state
   const [receipt, setReceipt] = useState<ListingReceipt | null>(null);
@@ -232,8 +228,14 @@ export default function ReceiptPage() {
     // Capture UTM attribution BEFORE cleaning the URL (replaceState wipes params)
     initAttribution();
 
-    // Check for URL prefill (?url=...&ext=true or ?url=...&src=landing)
+    // Check for return-to-routine flow (?return_to=routine&run_id=X)
     const params = new URLSearchParams(window.location.search);
+    if (params.get("return_to") === "routine" && params.get("run_id")) {
+      setReturnToRoutine(true);
+      setRoutineRunId(params.get("run_id"));
+    }
+
+    // Check for URL prefill (?url=...&ext=true or ?url=...&src=landing)
     const extUrl = params.get("url");
     if (extUrl) {
       setPrefillUrl(extUrl);
@@ -689,6 +691,23 @@ export default function ReceiptPage() {
     }
   }, [receipt, receiptToken, lintErrors, trackEvent]);
 
+  // Handle extraction fields for return-to-routine flow
+  const handleExtractionFields = useCallback((fields: { year?: number; make?: string; model?: string; trim?: string; mileage?: number }) => {
+    if (!returnToRoutine) return;
+    try {
+      localStorage.setItem("offo_routine_vehicle", JSON.stringify(fields));
+      setRoutineVehicleReady(true);
+    } catch {
+      // ignore
+    }
+  }, [returnToRoutine]);
+
+  // Return to routine with vehicle data
+  const handleReturnToRoutine = useCallback(() => {
+    if (!routineRunId) return;
+    router.push(`/routine/results?run_id=${routineRunId}&apply_vehicle=true`);
+  }, [routineRunId, router]);
+
   // View historical receipt
   const handleHistorySelect = useCallback((entry: ReceiptHistoryEntry) => {
     setReceipt(entry.receipt);
@@ -730,6 +749,7 @@ export default function ReceiptPage() {
         <ReceiptInputCard
           onGenerate={handleGenerate}
           onExtractionSuccess={() => {}}
+          onExtractionFields={handleExtractionFields}
           isGenerating={isGenerating}
           generatingStep={generatingStep}
           remainingFree={freeMode ? null : remainingFree}
@@ -741,6 +761,35 @@ export default function ReceiptPage() {
           receiptToken={receiptToken}
           hasResult={!!receipt}
         />
+
+        {/* Return to Routine banner — shown when coming from routine and vehicle extracted */}
+        {returnToRoutine && routineVehicleReady && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200"
+          >
+            <p className="text-sm font-medium text-gray-900 mb-2">
+              Vehicle data extracted! Return to your routine analysis to see updated results.
+            </p>
+            <button
+              onClick={handleReturnToRoutine}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Return to Routine with Vehicle Data
+            </button>
+          </motion.div>
+        )}
+
+        {/* Return to Routine hint — shown before extraction */}
+        {returnToRoutine && !routineVehicleReady && (
+          <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-200">
+            <p className="text-xs text-blue-700">
+              Paste a listing URL above to extract vehicle data, then return to your routine analysis.
+            </p>
+          </div>
+        )}
 
         {/* Output */}
         <AnimatePresence>

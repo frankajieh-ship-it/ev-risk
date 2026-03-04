@@ -8,8 +8,9 @@ import { createHash } from "crypto";
 // Salt for IP hashing (in production, use env variable)
 const IP_HASH_SALT = process.env.IP_HASH_SALT || "evroutine-session-salt-2024";
 
-// Persistent session cookie name
+// Persistent session keys
 const PERSISTENT_SESSION_KEY = "offo_persistent_session";
+const RECEIPT_TOKEN_KEY = "offo_receipt_token";
 
 /**
  * Get or create a persistent session ID (client-side only)
@@ -37,6 +38,28 @@ export function getOrCreatePersistentSessionId(): string | null {
 export function getPersistentSessionId(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(PERSISTENT_SESSION_KEY);
+}
+
+/**
+ * Get or create a receipt token (client-side only)
+ * Used as anon_id for the payment system (purchases table)
+ */
+export function getOrCreateReceiptToken(): string {
+  if (typeof window === "undefined") return "";
+  let token = localStorage.getItem(RECEIPT_TOKEN_KEY);
+  if (!token) {
+    token = `rt_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+    localStorage.setItem(RECEIPT_TOKEN_KEY, token);
+  }
+  return token;
+}
+
+/**
+ * Get the receipt token if it exists (doesn't create one)
+ */
+export function getReceiptToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(RECEIPT_TOKEN_KEY);
 }
 
 /**

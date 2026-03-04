@@ -35,6 +35,7 @@ import { useEventTracking } from "@/hooks/useEventTracking";
 import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { assignPriceVariant, getDisplayPrice } from "@/lib/price-assignment";
+import { getOrCreateReceiptToken } from "@/lib/session-utils";
 import type { Region } from "@/lib/regionCopy";
 import type { KnownDataPoint, UnknownDataPoint, RiskFactor } from "@/types/report";
 import type { EvRiskReportV2 } from "@/types/v2";
@@ -154,17 +155,8 @@ interface ReportData {
   timestamp: string;
 }
 
-// Generate or retrieve receipt token from localStorage (shared with receipt page)
-function getOrCreateAnonId(): string {
-  if (typeof window === "undefined") return "";
-  const key = "offo_receipt_token";
-  let token = localStorage.getItem(key);
-  if (!token) {
-    token = `rt_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-    localStorage.setItem(key, token);
-  }
-  return token;
-}
+// Use shared receipt token utility
+const getOrCreateAnonId = getOrCreateReceiptToken;
 
 function ReportContent() {
   const searchParams = useSearchParams();

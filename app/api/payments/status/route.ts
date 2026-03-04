@@ -12,7 +12,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { checkPurchaseStatus } from "@/lib/payment-status";
 import { isPaymentsEnabledFor, isFreeMode } from "@/lib/rollout-flags";
 
-const VALID_SCENARIO_TYPES = ["receipt", "evroutine"];
+const VALID_SCENARIO_TYPES = ["receipt", "evroutine", "routine"];
 
 export async function GET(request: NextRequest) {
   if (!isSupabaseConfigured()) {

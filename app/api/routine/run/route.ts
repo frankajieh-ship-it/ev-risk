@@ -24,6 +24,7 @@ import {
   inferWeatherFallback,
 } from "@/lib/weather-client";
 import { getChargerClient } from "@/lib/charger-client";
+import { checkPurchaseStatus } from "@/lib/payment-status";
 import type { MinimumViableRoutine } from "@/types/v2";
 import type {
   VehicleProfile,
@@ -72,9 +73,16 @@ export async function POST(req: NextRequest) {
       // Optional enrichment
       vehicle_profile_id,
       home_location_zip,
+      // Manual vehicle override (from listing extraction)
+      vehicle_year: manualVehicleYear,
+      vehicle_make: manualVehicleMake,
+      vehicle_model: manualVehicleModel,
+      vehicle_range_mi: manualVehicleRange,
       // Run config
       run_type = "baseline",
       scenario_name,
+      // Payment token (for server-side limit check)
+      receipt_token,
     } = body;
 
     // Validate required routine fields
@@ -103,6 +111,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ============================
+    // 0. Enforce 3-free scenario limit
+    // ============================
+    if (anon_session_id) {
+      // Get profile IDs for this session
+      const { data: profiles } = await supabase
+        .from("routine_profiles")
+        .select("id")
+        .eq("anon_session_id", anon_session_id);
+
+      if (profiles && profiles.length > 0) {
+        const profileIds = profiles.map((p: { id: string }) => p.id);
+        const { count: runCount } = await supabase
+          .from("routine_runs")
+          .select("id", { count: "exact", head: true })
+          .in("profile_id", profileIds);
+
+        if ((runCount ?? 0) >= 3) {
+          // Check if user has paid via receipt token
+          let isPaid = false;
+          if (receipt_token && typeof receipt_token === "string" && receipt_token.length >= 5) {
+            const status = await checkPurchaseStatus("routine", "routine-unlock", receipt_token);
+            isPaid = status.unlocked_base;
+          }
+
+          if (!isPaid) {
+            return NextResponse.json(
+              { success: false, error: "free_limit_reached", run_count: runCount },
+              { status: 402 }
+            );
+          }
+        }
+      }
+    }
+
     // Build MVR
     const routine: MinimumViableRoutine = {
       charging_access,
@@ -123,6 +166,26 @@ export async function POST(req: NextRequest) {
         .eq("id", vehicle_profile_id)
         .single();
       if (vp) vehicle = vp as VehicleProfile;
+    }
+
+    // Fallback: manual vehicle from listing extraction
+    if (!vehicle && manualVehicleMake && manualVehicleYear) {
+      vehicle = {
+        id: "manual",
+        year: manualVehicleYear,
+        make: manualVehicleMake,
+        model: manualVehicleModel || "Unknown",
+        usable_range_band: "medium",
+        usable_range_mi_estimate: manualVehicleRange || 200,
+        dc_fast_band: "okay",
+        ac_home_charge_band: "okay",
+        winter_sensitivity_band: "moderate",
+        efficiency_band: "medium",
+        connector_types: [],
+        is_active: true,
+        data_source: "listing_extraction",
+        created_at: new Date().toISOString(),
+      } as VehicleProfile;
     }
 
     // ============================
@@ -293,6 +356,12 @@ export async function POST(req: NextRequest) {
       plan_b: planB,
       weather_data: weatherData,
       nearby_chargers: nearbyChargers,
+      data_sources: {
+        weather_live: weatherApiSuccess,
+        chargers_live: chargerApiSuccess,
+        has_vehicle: !!vehicle,
+        has_zip: !!home_location_zip,
+      },
     });
   } catch (error) {
     logApi("error", "Routine run error", {

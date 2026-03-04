@@ -33,6 +33,7 @@ interface ReceiptInputCardProps {
     extraction_id?: string;
   }) => void;
   onExtractionSuccess?: (vehicleSummary: string) => void;
+  onExtractionFields?: (fields: { year?: number; make?: string; model?: string; trim?: string; mileage?: number }) => void;
   isGenerating: boolean;
   generatingStep?: number;
   remainingFree: number | null;
@@ -85,6 +86,7 @@ const GENERATE_STEPS = ["Checking risks...", "Analyzing pricing...", "Building y
 export default function ReceiptInputCard({
   onGenerate,
   onExtractionSuccess,
+  onExtractionFields,
   isGenerating,
   generatingStep = 0,
   remainingFree,
@@ -320,6 +322,7 @@ export default function ReceiptInputCard({
       // Notify parent for email gate
       const summary = [f.year, f.make, f.model].filter(Boolean).join(" ");
       onExtractionSuccess?.(summary || "your vehicle");
+      onExtractionFields?.({ year: f.year, make: f.make, model: f.model, trim: f.trim, mileage: f.mileage });
     } catch (err) {
       trackEvent?.("receipt_extract_failed", {
         input_mode: inputMode,

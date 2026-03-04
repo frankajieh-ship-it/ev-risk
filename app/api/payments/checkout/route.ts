@@ -27,7 +27,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
     })
   : null;
 
-const VALID_SCENARIO_TYPES = ["receipt", "evroutine"] as const;
+const VALID_SCENARIO_TYPES = ["receipt", "evroutine", "routine"] as const;
 type ScenarioType = (typeof VALID_SCENARIO_TYPES)[number];
 
 export async function POST(request: NextRequest) {
@@ -64,15 +64,17 @@ export async function POST(request: NextRequest) {
   }
 
   // 1. Validate scenario exists and verify ownership
-  const tableName = scenarioType === "receipt" ? "receipts" : "reports";
-  const idColumn = scenarioType === "receipt" ? "id" : "id";
-  const ownerColumn = scenarioType === "receipt" ? "session_id" : null;
+  const tableMap: Record<string, { table: string; select: string; ownerColumn: string | null }> = {
+    receipt: { table: "receipts", select: "id, session_id", ownerColumn: "session_id" },
+    evroutine: { table: "reports", select: "id", ownerColumn: null },
+    routine: { table: "routine_runs", select: "id", ownerColumn: null },
+  };
+  const { table: tableName, select: selectColumns, ownerColumn } = tableMap[scenarioType] || tableMap.evroutine;
 
-  const selectColumns = scenarioType === "receipt" ? "id, session_id" : "id";
   const { data: scenario, error: scenarioError } = await supabase
     .from(tableName)
     .select(selectColumns)
-    .eq(idColumn, scenarioId)
+    .eq("id", scenarioId)
     .maybeSingle();
 
   if (scenarioError || !scenario) {
@@ -85,7 +87,7 @@ export async function POST(request: NextRequest) {
 
   // Verify ownership for receipts (session_id = receipt_token = anon_id)
   const scenarioRecord = scenario as unknown as Record<string, unknown>;
-  if (ownerColumn && scenarioRecord.session_id && scenarioRecord.session_id !== anonId) {
+  if (ownerColumn && scenarioRecord[ownerColumn] && scenarioRecord[ownerColumn] !== anonId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
@@ -139,8 +141,8 @@ export async function POST(request: NextRequest) {
         pack_tier: packTier,
         ...utmFields,
       },
-      success_url: `${origin}${scenarioType === "evroutine" ? "/report" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}${scenarioType === "evroutine" ? "/report" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=cancel`,
+      success_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=cancel`,
     };
 
     // Use pre-created Price if available, otherwise inline price_data
