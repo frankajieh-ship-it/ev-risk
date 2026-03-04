@@ -50,55 +50,81 @@ interface RunResult {
   data_sources?: DataSources;
 }
 
-// Compute a charging quality grade from nearby chargers
-function computeChargingGrade(chargers: ChargerSearchResult[]): {
+// Charging grade result with per-dimension breakdown and risk flags
+interface ChargingGradeResult {
   grade: "A" | "B" | "C" | "D" | "F";
   label: string;
   summary: string;
   color: { bg: string; text: string; border: string };
-} {
+  dimensions: {
+    density: { score: number; total: number; label: string };
+    dcfc: { score: number; total: number; label: string };
+    networks: { score: number; total: number; label: string };
+    proximity: { score: number; total: number; label: string };
+    access: { score: number; total: number; label: string };
+  };
+  risks: string[];
+}
+
+// Compute a charging quality grade from nearby chargers
+function computeChargingGrade(chargers: ChargerSearchResult[]): ChargingGradeResult {
+  const emptyDims = {
+    density: { score: 0, total: 30, label: "No chargers found" },
+    dcfc: { score: 0, total: 25, label: "No data" },
+    networks: { score: 0, total: 15, label: "No data" },
+    proximity: { score: 0, total: 15, label: "No data" },
+    access: { score: 0, total: 15, label: "No data" },
+  };
+
   if (chargers.length === 0) {
-    return { grade: "F", label: "No Data", summary: "No charger data available for your area", color: { bg: "bg-gray-50", text: "text-gray-500", border: "border-gray-200" } };
+    return { grade: "F", label: "No Data", summary: "No charger data available for your area", color: { bg: "bg-gray-50", text: "text-gray-500", border: "border-gray-200" }, dimensions: emptyDims, risks: [] };
   }
 
-  let score = 0;
-
   // Density (0–30 pts)
-  if (chargers.length >= 15) score += 30;
-  else if (chargers.length >= 8) score += 22;
-  else if (chargers.length >= 4) score += 14;
-  else score += 6;
+  let densityScore = 0;
+  if (chargers.length >= 15) densityScore = 30;
+  else if (chargers.length >= 8) densityScore = 22;
+  else if (chargers.length >= 4) densityScore = 14;
+  else densityScore = 6;
 
   // DCFC availability (0–25 pts)
   const dcfcCount = chargers.filter((c) => c.level_type === "DCFC").length;
+  const l2Count = chargers.filter((c) => c.level_type === "L2").length;
   const dcfcRatio = dcfcCount / chargers.length;
-  if (dcfcRatio >= 0.4) score += 25;
-  else if (dcfcRatio >= 0.2) score += 18;
-  else if (dcfcCount >= 1) score += 10;
+  let dcfcScore = 0;
+  if (dcfcRatio >= 0.4) dcfcScore = 25;
+  else if (dcfcRatio >= 0.2) dcfcScore = 18;
+  else if (dcfcCount >= 1) dcfcScore = 10;
 
   // Network variety (0–15 pts)
   const networks = new Set(chargers.map((c) => c.network).filter(Boolean));
-  if (networks.size >= 4) score += 15;
-  else if (networks.size >= 2) score += 10;
-  else if (networks.size >= 1) score += 5;
+  let networkScore = 0;
+  if (networks.size >= 4) networkScore = 15;
+  else if (networks.size >= 2) networkScore = 10;
+  else if (networks.size >= 1) networkScore = 5;
 
-  // Proximity (0–15 pts) — closest charger distance
+  // Proximity (0–15 pts)
   const withDist = chargers.filter((c) => c.distance_mi !== undefined);
+  let proximityScore = 0;
+  let closestMi = 0;
   if (withDist.length > 0) {
-    const closest = Math.min(...withDist.map((c) => c.distance_mi!));
-    if (closest <= 1) score += 15;
-    else if (closest <= 3) score += 10;
-    else if (closest <= 5) score += 6;
+    closestMi = Math.min(...withDist.map((c) => c.distance_mi!));
+    if (closestMi <= 1) proximityScore = 15;
+    else if (closestMi <= 3) proximityScore = 10;
+    else if (closestMi <= 5) proximityScore = 6;
   }
 
   // 24h access (0–15 pts)
   const h24Count = chargers.filter((c) => c.hours_24).length;
-  const h24Ratio = chargers.length > 0 ? h24Count / chargers.length : 0;
-  if (h24Ratio >= 0.5) score += 15;
-  else if (h24Ratio >= 0.25) score += 10;
-  else if (h24Count >= 1) score += 5;
+  const h24Pct = Math.round((h24Count / chargers.length) * 100);
+  let accessScore = 0;
+  if (h24Pct >= 50) accessScore = 15;
+  else if (h24Pct >= 25) accessScore = 10;
+  else if (h24Count >= 1) accessScore = 5;
 
-  const grade = score >= 80 ? "A" : score >= 60 ? "B" : score >= 40 ? "C" : score >= 20 ? "D" : "F";
+  const totalScore = densityScore + dcfcScore + networkScore + proximityScore + accessScore;
+  const grade = totalScore >= 80 ? "A" as const : totalScore >= 60 ? "B" as const : totalScore >= 40 ? "C" as const : totalScore >= 20 ? "D" as const : "F" as const;
+
   const colors = {
     A: { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
     B: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
@@ -113,7 +139,39 @@ function computeChargingGrade(chargers: ChargerSearchResult[]): {
   if (dcfcCount > 0) parts.push(`${dcfcCount} DC fast`);
   if (networks.size > 1) parts.push(`${networks.size} networks`);
 
-  return { grade, label: labels[grade], summary: parts.join(" · "), color: colors[grade] };
+  // Build dimension labels
+  const networkNames = [...networks].slice(0, 3).join(", ");
+  const dimensions = {
+    density: { score: densityScore, total: 30, label: `${chargers.length} charger${chargers.length !== 1 ? "s" : ""} within 10 mi` },
+    dcfc: { score: dcfcScore, total: 25, label: dcfcCount > 0 ? `${dcfcCount} DC fast, ${l2Count} Level 2` : `${l2Count} Level 2 only` },
+    networks: { score: networkScore, total: 15, label: networks.size > 0 ? `${networks.size} network${networks.size !== 1 ? "s" : ""} (${networkNames}${networks.size > 3 ? "…" : ""})` : "Unknown" },
+    proximity: { score: proximityScore, total: 15, label: withDist.length > 0 ? `Closest: ${closestMi.toFixed(1)} mi` : "Distance unknown" },
+    access: { score: accessScore, total: 15, label: `${h24Pct}% open 24 hours` },
+  };
+
+  // Detect risk flags
+  const risks: string[] = [];
+
+  if (networks.size === 1 && chargers.length > 1) {
+    const netName = [...networks][0];
+    risks.push(`All chargers are on ${netName} — a network outage would leave no backup`);
+  }
+
+  if (dcfcCount === 0) {
+    risks.push("No DC fast chargers — emergency top-ups require longer Level 2 sessions");
+  }
+
+  const within5mi = chargers.filter((c) => (c.distance_mi ?? 99) <= 5);
+  if (within5mi.length <= 1) {
+    risks.push("Only 1 charger within 5 miles — limited backup if it\u2019s unavailable");
+  }
+
+  const restrictedPct = chargers.length > 0 ? (chargers.length - h24Count) / chargers.length : 0;
+  if (restrictedPct > 0.75) {
+    risks.push("Most chargers have restricted hours — plan charging during business hours");
+  }
+
+  return { grade, label: labels[grade], summary: parts.join(" · "), color: colors[grade], dimensions, risks };
 }
 
 // Transform RoutineFitScore → FitVerdict for the existing block
@@ -819,39 +877,62 @@ function RoutineResultsContent() {
 
       {/* 6. Charging Quality Grade */}
       {nearby_chargers.length > 0 && (() => {
-        const chargingGrade = computeChargingGrade(nearby_chargers);
-        const dcfcCount = nearby_chargers.filter((c) => c.level_type === "DCFC").length;
-        const l2Count = nearby_chargers.filter((c) => c.level_type === "L2").length;
+        const cg = computeChargingGrade(nearby_chargers);
+        const dims = [
+          { key: "density", name: "Density", ...cg.dimensions.density },
+          { key: "dcfc", name: "DC Fast", ...cg.dimensions.dcfc },
+          { key: "networks", name: "Networks", ...cg.dimensions.networks },
+          { key: "proximity", name: "Proximity", ...cg.dimensions.proximity },
+          { key: "access", name: "24h Access", ...cg.dimensions.access },
+        ];
         return (
-          <div className={`p-4 rounded-xl border ${chargingGrade.color.border} ${chargingGrade.color.bg}`}>
+          <div className={`p-4 rounded-xl border ${cg.color.border} ${cg.color.bg}`}>
+            {/* Header */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Zap className="w-5 h-5 text-blue-600 flex-shrink-0" />
                 <p className="text-sm font-semibold text-gray-900">Charging in Your Area</p>
               </div>
-              <span className={`text-sm font-bold px-2.5 py-0.5 rounded-full border ${chargingGrade.color.border} ${chargingGrade.color.text} ${chargingGrade.color.bg}`}>
-                {chargingGrade.grade} — {chargingGrade.label}
+              <span className={`text-sm font-bold px-2.5 py-0.5 rounded-full border ${cg.color.border} ${cg.color.text} ${cg.color.bg}`}>
+                {cg.grade} — {cg.label}
               </span>
             </div>
-            <p className="text-xs text-gray-600 mb-3">{chargingGrade.summary}</p>
-            {/* Breakdown chips */}
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {dcfcCount > 0 && (
-                <span className="inline-flex items-center gap-1 text-xs bg-white px-2 py-1 rounded-full border border-gray-200 text-gray-700">
-                  <Zap className="w-3 h-3 text-amber-500" /> {dcfcCount} DC Fast
-                </span>
-              )}
-              {l2Count > 0 && (
-                <span className="inline-flex items-center gap-1 text-xs bg-white px-2 py-1 rounded-full border border-gray-200 text-gray-700">
-                  <Zap className="w-3 h-3 text-green-500" /> {l2Count} Level 2
-                </span>
-              )}
-              {new Set(nearby_chargers.map((c) => c.network).filter(Boolean)).size > 0 && (
-                <span className="inline-flex items-center gap-1 text-xs bg-white px-2 py-1 rounded-full border border-gray-200 text-gray-700">
-                  <Radio className="w-3 h-3 text-blue-500" /> {new Set(nearby_chargers.map((c) => c.network).filter(Boolean)).size} networks
-                </span>
-              )}
+            <p className="text-xs text-gray-600 mb-4">{cg.summary}</p>
+
+            {/* Dimension breakdown */}
+            <div className="space-y-2.5 mb-4">
+              {dims.map((d) => {
+                const pct = Math.round((d.score / d.total) * 100);
+                return (
+                  <div key={d.key} className="flex items-center gap-3 text-xs">
+                    <span className="w-16 text-gray-500 font-medium flex-shrink-0">{d.name}</span>
+                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          pct >= 70 ? "bg-green-500" : pct >= 40 ? "bg-yellow-500" : "bg-red-400"
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="w-8 text-gray-400 text-right flex-shrink-0">{d.score}/{d.total}</span>
+                    <span className="text-gray-600 min-w-0 truncate">{d.label}</span>
+                  </div>
+                );
+              })}
             </div>
+
+            {/* Risk flags */}
+            {cg.risks.length > 0 && (
+              <div className="space-y-1.5 mb-4">
+                {cg.risks.map((risk, i) => (
+                  <div key={i} className="flex items-start gap-2 text-xs p-2 bg-amber-50 rounded-lg border border-amber-200">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <span className="text-amber-800">{risk}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Top chargers */}
             <div className="flex flex-wrap gap-2">
               {nearby_chargers.slice(0, 4).map((charger) => (
