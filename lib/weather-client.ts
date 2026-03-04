@@ -13,6 +13,7 @@ import type { WeatherData, TemperatureBand } from "@/types/routine-v2";
 // ============================================
 
 interface OWMCurrentResponse {
+  coord: { lat: number; lon: number };
   main: { temp: number; feels_like: number };
   weather: Array<{ main: string; description: string }>;
   name: string;
@@ -40,7 +41,7 @@ class WeatherClient {
     zipCode: string,
     region: "US" | "UK"
   ): Promise<
-    { success: true; data: WeatherData } | { success: false; error: string }
+    { success: true; data: WeatherData; coord: { lat: number; lon: number } } | { success: false; error: string }
   > {
     const timer = startTimer();
 
@@ -100,7 +101,7 @@ class WeatherClient {
         temp_band: temperatureBand,
       });
 
-      return { success: true, data };
+      return { success: true, data, coord: current.coord };
     } catch (error) {
       logApi("error", "Weather fetch failed", {
         endpoint: "weather-client",

@@ -193,12 +193,14 @@ export async function POST(req: NextRequest) {
     // ============================
     let weatherData: WeatherData | undefined;
     let weatherApiSuccess = false;
+    let weatherCoord: { lat: number; lon: number } | undefined;
 
     const weatherClient = getWeatherClient();
     if (weatherClient && home_location_zip) {
       const result = await weatherClient.getWeatherByZip(home_location_zip, "US");
       if (result.success) {
         weatherData = result.data;
+        weatherCoord = result.coord;
         weatherApiSuccess = true;
       }
     }
@@ -219,6 +221,7 @@ export async function POST(req: NextRequest) {
         const result = await chargerClient.searchByZip(home_location_zip, {
           radius_miles: 10,
           connector_types: connectorTypes,
+          coord: weatherCoord,
         });
         if (result.success) {
           nearbyChargers = result.data;

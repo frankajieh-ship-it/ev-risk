@@ -57,62 +57,34 @@ class ChargerClient {
     options?: {
       radius_miles?: number;
       connector_types?: string[];
+      coord?: { lat: number; lon: number };
     }
   ): Promise<
     | { success: true; data: ChargerSearchResult[] }
     | { success: false; error: string }
   > {
-    const timer = startTimer();
-    const radius = options?.radius_miles || 10;
+    // NREL deprecated the `location` param on nearest.json (Feb 2025).
+    // We now require lat/lon. If pre-fetched coord is available, use it;
+    // otherwise geocode via OpenWeather's /weather endpoint.
+    let lat: number;
+    let lon: number;
 
-    try {
-      const params = new URLSearchParams({
-        api_key: this.apiKey,
-        fuel_type: "ELEC",
-        location: zipCode,
-        radius: radius.toString(),
-        status: "E", // Available stations
-        access: "public",
-        limit: "20",
-      });
-
-      if (options?.connector_types?.length) {
-        params.append("ev_connector_type", options.connector_types.join(","));
+    if (options?.coord) {
+      lat = options.coord.lat;
+      lon = options.coord.lon;
+    } else {
+      const geo = await geocodeZip(zipCode);
+      if (!geo) {
+        return { success: false, error: "Could not geocode ZIP code" };
       }
-
-      const res = await fetch(
-        `${this.baseUrl}/nearest.json?${params}`,
-        { signal: AbortSignal.timeout(8000) }
-      );
-
-      if (!res.ok) {
-        throw new Error(`NREL API ${res.status}`);
-      }
-
-      const data: NRELResponse = await res.json();
-      const chargers = data.fuel_stations.map((s) => transformStation(s));
-
-      logApi("info", "Charger search success", {
-        endpoint: "charger-client",
-        elapsed_ms: timer(),
-        zip: zipCode,
-        results: chargers.length,
-      });
-
-      return { success: true, data: chargers };
-    } catch (error) {
-      logApi("error", "Charger search failed", {
-        endpoint: "charger-client",
-        elapsed_ms: timer(),
-        error_code: "CHARGER_API_ERROR",
-        zip: zipCode,
-      });
-
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
+      lat = geo.lat;
+      lon = geo.lon;
     }
+
+    return this.searchByLocation(lat, lon, {
+      radius_miles: options?.radius_miles,
+      connector_types: options?.connector_types,
+    });
   }
 
   async searchByLocation(
@@ -235,6 +207,35 @@ function normalizeConnector(type: string): string {
     "NACS": "NACS",
   };
   return map[type] || type;
+}
+
+// ============================================
+// ZIP → LAT/LON GEOCODING
+// ============================================
+
+/**
+ * Geocode a US ZIP code to lat/lon using OpenWeather's /weather endpoint.
+ * This is a lightweight call that returns coord in the response.
+ * Returns null if geocoding fails.
+ */
+async function geocodeZip(zipCode: string): Promise<{ lat: number; lon: number } | null> {
+  const owKey = process.env.OPENWEATHER_API_KEY;
+  if (!owKey) return null;
+
+  try {
+    const res = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?zip=${zipCode},us&appid=${owKey}`,
+      { signal: AbortSignal.timeout(5000) }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.coord?.lat && data.coord?.lon) {
+      return { lat: data.coord.lat, lon: data.coord.lon };
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 // ============================================
