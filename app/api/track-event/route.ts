@@ -179,6 +179,19 @@ const VALID_EVENT_NAMES = [
   // Identity Attach Events
   "attach_anon",
   "attach_anon_failed",
+  // EVRoutine V2 Events
+  "routine_profile_started",
+  "routine_profile_completed",
+  "routine_result_viewed",
+  "break_first_viewed",
+  "plan_b_viewed",
+  "routine_saved",
+  "charger_api_success",
+  "charger_api_empty",
+  "weather_api_success",
+  "weather_api_fallback",
+  "routine_step_blocked",
+  "toggle_weekly_vs_commute",
   // Legacy event names (for backward compatibility)
   "page_view",
 ] as const;

@@ -9,6 +9,43 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { v4 as uuidv4 } from "uuid";
 
+export async function GET(request: NextRequest) {
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json(
+      { success: false, error: "Database not configured" },
+      { status: 503 }
+    );
+  }
+
+  const reportId = request.nextUrl.searchParams.get("reportId");
+  if (!reportId) {
+    return NextResponse.json({ error: "Missing reportId" }, { status: 400 });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("reports")
+      .select("payload_json, status")
+      .eq("id", reportId)
+      .single();
+
+    if (error || !data) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      payload_json: data.payload_json,
+      status: data.status,
+    });
+  } catch (error) {
+    console.error("Report GET error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch report" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   if (!isSupabaseConfigured()) {
     return NextResponse.json(

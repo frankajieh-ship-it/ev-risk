@@ -182,6 +182,11 @@ function ReportContent() {
   const [region, setRegion] = useState<Region>("US");
   const [anonId, setAnonId] = useState("");
 
+  // Payment polling state
+  const [isPollingPayment, setIsPollingPayment] = useState(false);
+  const isUnlockedRef = useRef(false);
+  const checkoutReturnRef = useRef(false);
+
   // Event tracking
   const { trackButtonClick, trackEvent, trackReportGenerateClick } = useEventTracking();
   const { trackResultsViewed, completeSession } = useSessionTracking();
@@ -198,6 +203,9 @@ function ReportContent() {
     paymentsEnabled,
     refetch: refetchPayment,
   } = usePaymentStatus("evroutine", reportId, anonId);
+
+  // Keep isUnlockedRef in sync
+  useEffect(() => { isUnlockedRef.current = isUnlocked; }, [isUnlocked]);
 
   // Track if we've already tracked vehicle checkout for this session
   const hasTrackedCheckout = useRef(false);
@@ -355,8 +363,38 @@ function ReportContent() {
             router.push("/");
           }
         } else {
-          console.log("[Report Page] No stored data for checkout return, redirecting to home");
-          router.push("/");
+          // sessionStorage empty — try to load from DB using scenario_id
+          const scenarioId = searchParams.get("scenario_id");
+          if (scenarioId) {
+            (async () => {
+              try {
+                const res = await fetch(`/api/report/free?reportId=${scenarioId}`);
+                if (res.ok) {
+                  const dbData = await res.json();
+                  if (dbData.payload_json) {
+                    const parsed = dbData.payload_json;
+                    if (parsed.schema_version === "v2" && parsed.default_view) {
+                      setReportV2ContractData(parsed as EvRiskReportV2Contract);
+                    } else if (parsed.schema_version === "v2") {
+                      setReportV2Data(parsed as EvRiskReportV2);
+                    } else {
+                      setReportData(parsed as ReportData);
+                    }
+                    setReportId(scenarioId);
+                    console.log("[Report Page] Restored report from DB after checkout");
+                    return;
+                  }
+                }
+              } catch (e) {
+                console.error("[Report Page] Failed to fetch report from DB:", e);
+              }
+              console.log("[Report Page] No stored data for checkout return, redirecting to home");
+              router.push("/");
+            })();
+          } else {
+            console.log("[Report Page] No stored data for checkout return, redirecting to home");
+            router.push("/");
+          }
         }
       } else {
         console.log("[Report Page] No data or payload found, redirecting to home");
@@ -371,6 +409,9 @@ function ReportContent() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") !== "success") return;
 
+    // Flag that we're returning from checkout (for auto-download)
+    checkoutReturnRef.current = true;
+
     // Clean URL
     const url = new URL(window.location.href);
     url.searchParams.delete("checkout");
@@ -380,16 +421,35 @@ function ReportContent() {
     window.history.replaceState({}, "", url.pathname + url.search);
 
     // Poll payment status until unlocked (max 30s)
+    setIsPollingPayment(true);
     let attempts = 0;
     const maxAttempts = 15;
     const poll = setInterval(async () => {
       attempts++;
       await refetchPayment();
-      if (attempts >= maxAttempts) clearInterval(poll);
+      if (isUnlockedRef.current || attempts >= maxAttempts) {
+        clearInterval(poll);
+        setIsPollingPayment(false);
+      }
     }, 2000);
 
     return () => clearInterval(poll);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-download PDF when payment unlocks after checkout return
+  useEffect(() => {
+    if (isUnlocked && checkoutReturnRef.current && reportId) {
+      checkoutReturnRef.current = false; // Only trigger once
+      setTimeout(() => {
+        const link = document.createElement("a");
+        link.href = `/api/report/${reportId}/pdf`;
+        link.download = "EV-Risk-Report.pdf";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }, 500);
+    }
+  }, [isUnlocked, reportId]);
 
   // Track vehicle checkout when report data loads
   useEffect(() => {
@@ -449,6 +509,7 @@ function ReportContent() {
         paymentsEnabled={paymentsEnabled}
         anonId={anonId}
         reportId={reportId}
+        isPollingPayment={isPollingPayment}
       />
     );
   }

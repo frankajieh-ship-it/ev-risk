@@ -6,6 +6,7 @@ import type { EvRiskReportV2Contract } from "@/types/v2-contract";
 import { FitVerdictV2Block } from "./blocks/FitVerdictV2Block";
 import { FallbackPlanV2Block } from "./blocks/FallbackPlanV2Block";
 import { StressFlagsV2Block } from "./blocks/StressFlagsV2Block";
+import { WhatBreaksFirstV2Block } from "./blocks/WhatBreaksFirstV2Block";
 import { FollowupQuestionBlock } from "./blocks/FollowupQuestionBlock";
 import { AppendixSection } from "./blocks/AppendixSection";
 import { InputChipsBar } from "./blocks/InputChipsBar";
@@ -21,6 +22,7 @@ interface ResultPageV2SplitProps {
   paymentsEnabled?: boolean;
   anonId?: string;
   reportId?: string | null;
+  isPollingPayment?: boolean;
 }
 
 export function ResultPageV2Split({
@@ -32,6 +34,7 @@ export function ResultPageV2Split({
   paymentsEnabled = false,
   anonId = "",
   reportId = null,
+  isPollingPayment = false,
 }: ResultPageV2SplitProps) {
   const [pdfState, setPdfState] = useState<"idle" | "loading" | "done" | "error">("idle");
 
@@ -179,6 +182,14 @@ export function ResultPageV2Split({
           {/* Stress Flags (max 2) */}
           <StressFlagsV2Block flags={default_view.stress_flags} />
 
+          {/* What Breaks First */}
+          {_internal.routine_fit.breakpoints_ranked.length > 0 && (
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 mb-4">What Breaks First</h2>
+              <WhatBreaksFirstV2Block breakpoints={_internal.routine_fit.breakpoints_ranked} />
+            </div>
+          )}
+
           {/* Follow-up Question */}
           <FollowupQuestionBlock question={default_view.one_followup_question} />
 
@@ -220,6 +231,13 @@ export function ResultPageV2Split({
           <AppendixSection appendix={appendix} />
         </motion.div>
 
+        {/* Payment polling indicator */}
+        {isPollingPayment && (
+          <div className="text-center py-3 px-4 bg-blue-50 rounded-xl text-sm text-blue-700 animate-pulse">
+            Confirming your payment...
+          </div>
+        )}
+
         {/* Download PDF / Checkout */}
         <div className="mt-8 text-center">
           {paymentsEnabled && !isUnlocked ? (
@@ -253,6 +271,17 @@ export function ResultPageV2Split({
               )}
             </>
           )}
+        </div>
+
+        {/* Deep Routine Analysis CTA */}
+        <div className="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-100 text-center">
+          <p className="text-sm text-gray-700 mb-2">
+            Want weather-adjusted scoring and real charger data near you?
+          </p>
+          <a href="/routine"
+             className="inline-block px-5 py-2 text-sm font-semibold text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-100 transition-colors">
+            Try the deep routine analysis
+          </a>
         </div>
 
         {/* Footer */}

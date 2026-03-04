@@ -85,9 +85,13 @@ export async function POST(req: NextRequest) {
 
     // Build update payload — only include fields that were actually provided
     // so a second call (e.g. to write back fit_signal) doesn't overwrite inputs
-    const updatePayload: Record<string, unknown> = {
-      completed_at: new Date().toISOString(),
-    };
+    const updatePayload: Record<string, unknown> = {};
+
+    // Only set completed_at on the first call (when inputs are provided)
+    // Subsequent calls (e.g. to write back fit_signal from report page) should not overwrite it
+    if (inputs && Object.keys(inputs).length > 0) {
+      updatePayload.completed_at = new Date().toISOString();
+    }
 
     if (inputs && Object.keys(inputs).length > 0) updatePayload.inputs = inputs;
     if (fit_signal) updatePayload.fit_signal = fit_signal;
