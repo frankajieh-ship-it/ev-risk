@@ -6,9 +6,9 @@
   directory = "netlify/functions"
   external_node_modules = ["openai"]
 
-# Extend default timeout for AI-heavy API routes (max 26s on Pro)
+# Extend function timeout for AI-heavy API routes (Netlify default max: 60s)
 [functions."*"]
-  timeout = 26
+  timeout = 60
 
 # Use esbuild for our custom render-pdf function (bundles @react-pdf into the function)
 [functions.render-pdf]

@@ -260,8 +260,8 @@ export async function POST(request: NextRequest) {
   timings.rules = Date.now() - t0;
 
   try {
-    // 7. Call OpenAI with internal deadline (race against Netlify's 26s kill)
-    const INTERNAL_DEADLINE_MS = 25_500; // 25.5s — fallback writes are fire-and-forget, only ~200ms needed for response
+    // 7. Call OpenAI with internal deadline (race against Netlify's 60s kill)
+    const INTERNAL_DEADLINE_MS = 55_000; // 55s — leaves 5s buffer for fallback writes + response serialization
     const elapsed = Date.now() - t0;
     const remainingMs = INTERNAL_DEADLINE_MS - elapsed;
 
