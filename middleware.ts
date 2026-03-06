@@ -35,6 +35,19 @@ export function middleware(request: NextRequest) {
     );
   }
 
+  // Geo-detect region via Netlify x-country header (ISO 3166)
+  // Sets offo_region cookie for UK visitors on first visit (not httpOnly — client reads it)
+  if (!request.cookies.get("offo_region")) {
+    const country = request.headers.get("x-country");
+    if (country === "GB") {
+      response.cookies.set("offo_region", "UK", {
+        maxAge: 365 * 24 * 60 * 60,
+        path: "/",
+        sameSite: "lax",
+      });
+    }
+  }
+
   // Receipt session cookie — httpOnly, server-side rate limiting anchor
   if (!request.cookies.get("receipt_session")) {
     const sessionId = `rs_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;

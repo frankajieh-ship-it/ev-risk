@@ -674,6 +674,9 @@ export async function GET(request: NextRequest) {
                  countEvents(allUserEvents, "email_capture_submitted"),
       sent: countEvents(allUserEvents, "email_checklist_sent"),
       failed: countEvents(allUserEvents, "email_checklist_failed"),
+      // Auth-flow email events (magic link login via LoginModal + auth callback)
+      auth_email_entered: countEvents(allUserEvents, "email_entry_submitted"),
+      auth_email_confirmed: countEvents(allUserEvents, "email_confirmed"),
     };
 
     // -----------------------------------------------------------------------
@@ -756,6 +759,8 @@ export async function GET(request: NextRequest) {
       email: {
         shown: emailCaptureShown,
         submitted: emailCaptureSubmitted,
+        auth_entered: countEvents(allUserEvents, "email_entry_submitted"),
+        auth_confirmed: countEvents(allUserEvents, "email_confirmed"),
         submit_rate: emailCaptureShown > 0
           ? Math.round((emailCaptureSubmitted / emailCaptureShown) * 1000) / 10
           : 0,

@@ -19,6 +19,7 @@ import {
   AlertCircle,
   HelpCircle,
   FileSearch,
+  Lock,
 } from "lucide-react";
 import type { ListingReceipt, LintError } from "@/types/receipt";
 import type { Region } from "@/lib/region";
@@ -36,8 +37,11 @@ interface ReceiptOutputCardProps {
   isFallback?: boolean;
   isSimilarityMatch?: boolean;
   onRegenerate?: () => void;
+  isRegenerating?: boolean;
   onTrackLintFallback?: () => void;
   region?: Region;
+  sellerPackUnlocked?: boolean;
+  onSellerPackUpgrade?: () => void;
 }
 
 const VERDICT_STYLES = {
@@ -94,8 +98,11 @@ export default function ReceiptOutputCard({
   isFallback,
   isSimilarityMatch,
   onRegenerate,
+  isRegenerating,
   onTrackLintFallback,
   region = "US",
+  sellerPackUnlocked,
+  onSellerPackUpgrade,
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const fallbackFiredRef = useRef(false);
@@ -149,9 +156,10 @@ export default function ReceiptOutputCard({
           {onRegenerate && (
             <button
               onClick={onRegenerate}
-              className={`text-sm font-medium underline whitespace-nowrap ml-3 ${isSimilarityMatch ? "text-blue-700 hover:text-blue-900" : "text-amber-700 hover:text-amber-900"}`}
+              disabled={isRegenerating}
+              className={`text-sm font-medium underline whitespace-nowrap ml-3 ${isRegenerating ? "opacity-50 cursor-not-allowed" : ""} ${isSimilarityMatch ? "text-blue-700 hover:text-blue-900" : "text-amber-700 hover:text-amber-900"}`}
             >
-              Regenerate
+              {isRegenerating ? "Generating..." : "Regenerate"}
             </button>
           )}
         </div>
@@ -243,14 +251,18 @@ export default function ReceiptOutputCard({
       {/* Prominent Copy Checklist — above the fold */}
       <div className="px-5 pt-4">
         <button
-          onClick={() =>
+          onClick={() => {
+            if (sellerPackUnlocked === false && receipt.must_answer_questions.length > 2) {
+              onSellerPackUpgrade?.();
+              return;
+            }
             copySection(
               receipt.must_answer_questions
                 .map((q, i) => `${i + 1}. ${q}`)
                 .join("\n"),
               "must-ask"
-            )
-          }
+            );
+          }}
           className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-sm transition-all ${
             copiedSection === "must-ask"
               ? "bg-blue-100 text-blue-700 border border-blue-200"
@@ -407,28 +419,54 @@ export default function ReceiptOutputCard({
         })()}
 
         {/* Must Answer Questions */}
-        <Section
-          icon={<HelpCircle className="w-4 h-4 text-blue-500" />}
-          title="Must-Ask Questions"
-          onCopy={() =>
-            copySection(
-              receipt.must_answer_questions
-                .map((q, i) => `${i + 1}. ${q}`)
-                .join("\n"),
-              "must-ask"
-            )
-          }
-          copied={copiedSection === "must-ask"}
-        >
-          <ul className="space-y-2">
-            {receipt.must_answer_questions.map((q, i) => (
-              <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
-                <span className="text-blue-500 font-bold mt-0.5">{i + 1}.</span>
-                <span>{q}</span>
-              </li>
-            ))}
-          </ul>
-        </Section>
+        {(() => {
+          const questions = receipt.must_answer_questions;
+          const showAll = sellerPackUnlocked !== false || questions.length <= 2;
+          const visibleQuestions = showAll ? questions : questions.slice(0, 2);
+          const lockedCount = showAll ? 0 : questions.length - 2;
+
+          return (
+            <Section
+              icon={<HelpCircle className="w-4 h-4 text-blue-500" />}
+              title="Must-Ask Questions"
+              onCopy={showAll ? () =>
+                copySection(
+                  questions.map((q, i) => `${i + 1}. ${q}`).join("\n"),
+                  "must-ask"
+                ) : undefined
+              }
+              copied={copiedSection === "must-ask"}
+            >
+              <ul className="space-y-2">
+                {visibleQuestions.map((q, i) => (
+                  <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                    <span className="text-blue-500 font-bold mt-0.5">{i + 1}.</span>
+                    <span>{q}</span>
+                  </li>
+                ))}
+                {lockedCount > 0 && (
+                  <>
+                    {questions.slice(2).map((_, i) => (
+                      <li key={`locked-${i}`} className="text-sm flex items-start gap-2 select-none">
+                        <span className="text-gray-300 font-bold mt-0.5">{i + 3}.</span>
+                        <span className="text-gray-300 blur-[5px]">This question is locked — unlock to see</span>
+                      </li>
+                    ))}
+                    <li>
+                      <button
+                        onClick={onSellerPackUpgrade}
+                        className="flex items-center gap-1.5 text-xs font-medium text-green-600 hover:text-green-700 transition-colors mt-1"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        Unlock all {questions.length} questions
+                      </button>
+                    </li>
+                  </>
+                )}
+              </ul>
+            </Section>
+          );
+        })()}
 
         {/* Verify Before Visit */}
         {receipt.verify_before_visit && receipt.verify_before_visit.length > 0 && (
@@ -476,6 +514,19 @@ export default function ReceiptOutputCard({
             )}
           </div>
         )}
+
+      {/* Regenerate button — always visible for non-fallback receipts */}
+      {!isFallback && onRegenerate && (
+        <div className="px-5 pb-4">
+          <button
+            onClick={onRegenerate}
+            disabled={isRegenerating}
+            className="w-full py-2.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isRegenerating ? "Generating fresh analysis..." : "Regenerate analysis"}
+          </button>
+        </div>
+      )}
 
       </div>
     </motion.div>

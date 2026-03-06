@@ -275,6 +275,7 @@ export async function POST(req: NextRequest) {
       userId,
       pagePath,
       timestamp,
+      dedupe_key,
     } = body;
 
     // Validate event payload
@@ -342,7 +343,7 @@ export async function POST(req: NextRequest) {
       _session_id: sessionId || null,
     };
 
-    const { error } = await supabase.from("user_events").insert({
+    const insertRow: Record<string, unknown> = {
       event_name: eventName,
       event_data: enrichedEventData,
       visitor_id: visitorId || null,
@@ -352,9 +353,24 @@ export async function POST(req: NextRequest) {
       ip_address: ip,
       user_agent: userAgent,
       timestamp: eventTimestamp,
-    });
+    };
+
+    // Include dedupe_key if provided (unique partial index enforces dedup)
+    if (dedupe_key && typeof dedupe_key === "string") {
+      insertRow.dedupe_key = dedupe_key;
+    }
+
+    const { error } = await supabase.from("user_events").insert(insertRow);
 
     if (error) {
+      // Unique constraint violation on dedupe_key = event already exists
+      if (error.code === "23505" && dedupe_key) {
+        return NextResponse.json({
+          success: true,
+          message: "Event deduplicated",
+          deduplicated: true,
+        });
+      }
       logApi("error", "Event insert failed", { endpoint: "/api/track-event", error_code: "db_insert", event_name: eventName });
       return NextResponse.json(
         { success: false, error: error.message },

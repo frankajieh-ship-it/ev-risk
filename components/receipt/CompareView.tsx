@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { computeReceiptDelta } from "@/lib/compare-receipts";
 import { humanizeFlag } from "@/lib/receipt-rules";
+import { formatPrice, type Region } from "@/lib/region";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import type { ListingReceipt } from "@/types/receipt";
 
@@ -27,6 +28,7 @@ type Verdict = "GREEN" | "YELLOW" | "RED";
 interface CompareViewProps {
   receiptA: ListingReceipt;
   receiptB: ListingReceipt;
+  region?: Region;
 }
 
 const VERDICT_STYLE: Record<
@@ -138,7 +140,7 @@ function ReceiptCard({ receipt, label }: { receipt: ListingReceipt; label: strin
   );
 }
 
-export default function CompareView({ receiptA, receiptB }: CompareViewProps) {
+export default function CompareView({ receiptA, receiptB, region = "US" }: CompareViewProps) {
   const { trackEvent } = useEventTracking();
   const [copied, setCopied] = useState(false);
 
@@ -163,8 +165,8 @@ export default function CompareView({ receiptA, receiptB }: CompareViewProps) {
     const lines = [
       `Comparing ${nameA || "Listing A"} vs ${nameB || "Listing B"}:`,
       "",
-      `${nameA || "A"}: ${receiptA.verdict} verdict, $${receiptA.listing_summary.price.toLocaleString()}`,
-      `${nameB || "B"}: ${receiptB.verdict} verdict, $${receiptB.listing_summary.price.toLocaleString()}`,
+      `${nameA || "A"}: ${receiptA.verdict} verdict, ${formatPrice(receiptA.listing_summary.price, region)}`,
+      `${nameB || "B"}: ${receiptB.verdict} verdict, ${formatPrice(receiptB.listing_summary.price, region)}`,
       "",
       "Key Differences:",
       ...deltaHits.map((b) => `  \u2192 ${b}`),

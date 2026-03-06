@@ -29,9 +29,6 @@ export default function RegionSelector({ region, onChange }: RegionSelectorProps
           >
             <span>{opt.flag}</span>
             <span>{opt.label}</span>
-            {opt.value === "UK" && active && (
-              <span className="text-[10px] text-gray-400 font-normal">(beta)</span>
-            )}
           </button>
         );
       })}

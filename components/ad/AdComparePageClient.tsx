@@ -72,8 +72,8 @@ export default function AdComparePageClient() {
             2025 Kia EV6 vs 2023 Tesla Model 3
           </h1>
           <p className="text-base text-gray-600 leading-relaxed max-w-xl mx-auto">
-            Same price range, very different risk profiles. One listing got a
-            GREEN verdict. The other timed out entirely. See what OFFO found.
+            Same price range, very different risk profiles. One got a
+            GREEN verdict. The other got RED. See what OFFO found.
           </p>
         </div>
 

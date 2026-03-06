@@ -52,10 +52,15 @@ export interface IdempotencyResult {
  * Check if an identical request was recently made.
  * Returns "cached" with output_json if completed within TTL,
  * "processing" if still in-flight, or "new" if no match.
+ *
+ * Pass skipCache: true to bypass the cache (used by regenerate
+ * to force a fresh AI call with the same input).
  */
 export async function checkIdempotency(
-  inputHash: string
+  inputHash: string,
+  skipCache?: boolean
 ): Promise<IdempotencyResult> {
+  if (skipCache) return { status: "new" };
   if (!isSupabaseConfigured()) return { status: "new" };
 
   try {

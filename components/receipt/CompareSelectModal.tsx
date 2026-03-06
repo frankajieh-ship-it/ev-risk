@@ -20,6 +20,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { formatPrice, type Region } from "@/lib/region";
 import type { ReceiptHistoryEntry, Verdict } from "@/types/receipt";
 import type { ListingReceipt } from "@/types/receipt";
 
@@ -30,6 +31,7 @@ interface CompareSelectModalProps {
   currentReceiptId: string;
   purchaseId?: string;
   onCompareComplete: (compareReceipt: ListingReceipt) => void;
+  region?: Region;
 }
 
 const VERDICT_BADGE: Record<
@@ -70,6 +72,7 @@ export default function CompareSelectModal({
   currentReceiptId,
   purchaseId,
   onCompareComplete,
+  region = "US",
 }: CompareSelectModalProps) {
   const { trackEvent } = useEventTracking();
   const [selectedEntry, setSelectedEntry] = useState<ReceiptHistoryEntry | null>(null);
@@ -253,7 +256,7 @@ export default function CompareSelectModal({
                             </p>
                             {entry.price && (
                               <p className="text-xs text-gray-500">
-                                ${entry.price.toLocaleString()}
+                                {formatPrice(entry.price, region)}
                               </p>
                             )}
                           </button>

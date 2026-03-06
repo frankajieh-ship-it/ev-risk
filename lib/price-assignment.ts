@@ -1,14 +1,48 @@
 /**
- * OFFO Buyer Pass — Price Assignment
+ * OFFO Price Assignment
  *
- * Single-tier pricing: Buyer Pass $9.99 one-time (10 receipt credits)
+ * Multi-tier pricing:
+ *   - Buyer Pass $9.99 (10 receipt credits, deep-dive, PDF)
+ *   - Seller Questions Pack $2.99 / $4.99 (A/B test, 1 receipt, full questions + checklist)
+ *
+ * GBP display prices are approximate (display-only, Stripe charges USD).
  */
 
-export type PriceVariant = "999";
-export type PackTier = "buyer_pass";
+import type { Region } from "@/lib/region";
+
+export type PriceVariant = "299" | "499" | "999";
+export type PackTier = "buyer_pass" | "seller_questions";
 
 export const BUYER_PASS_PRICE = "$9.99";
 export const BUYER_PASS_CREDITS = 10;
+
+export const SELLER_PACK_PRICE_A = "$2.99";
+export const SELLER_PACK_PRICE_B = "$4.99";
+
+const USD_DISPLAY: Record<PriceVariant, string> = {
+  "299": "$2.99",
+  "499": "$4.99",
+  "999": "$9.99",
+};
+
+const GBP_DISPLAY: Record<PriceVariant, string> = {
+  "299": "\u00A32.49",
+  "499": "\u00A33.99",
+  "999": "\u00A37.99",
+};
+
+/**
+ * Assign a Seller Pack A/B variant using a deterministic hash of anon_id.
+ * 50/50 split: even hash → $2.99, odd → $4.99
+ */
+export function assignSellerPackVariant(anonId: string): "299" | "499" {
+  let hash = 0;
+  for (let i = 0; i < anonId.length; i++) {
+    hash = ((hash << 5) - hash) + anonId.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash) % 2 === 0 ? "299" : "499";
+}
 
 /**
  * Assign a price variant. Always returns "999" (Buyer Pass).
@@ -21,9 +55,12 @@ export function assignPriceVariant(
 }
 
 /**
- * Get variant for a given pack tier. Always returns "999".
+ * Get variant for a given pack tier.
  */
-export function getVariantForTier(_tier: PackTier): PriceVariant {
+export function getVariantForTier(tier: PackTier, anonId?: string): PriceVariant {
+  if (tier === "seller_questions" && anonId) {
+    return assignSellerPackVariant(anonId);
+  }
   return "999";
 }
 
@@ -31,27 +68,48 @@ export function getVariantForTier(_tier: PackTier): PriceVariant {
  * Get the Stripe Price ID from env vars.
  * Returns null if not configured (falls back to inline pricing).
  */
-export function getStripePriceId(_variant: PriceVariant): string | null {
-  return process.env.STRIPE_PRICE_USD_999 || null;
+export function getStripePriceId(variant: PriceVariant): string | null {
+  switch (variant) {
+    case "299": return process.env.STRIPE_PRICE_USD_299 || null;
+    case "499": return process.env.STRIPE_PRICE_USD_499 || null;
+    case "999": return process.env.STRIPE_PRICE_USD_999 || null;
+  }
 }
 
 /**
- * Get display price string.
+ * Get display price string in USD.
  */
-export function getDisplayPrice(_variant: PriceVariant): string {
-  return BUYER_PASS_PRICE;
+export function getDisplayPrice(variant: PriceVariant): string {
+  return USD_DISPLAY[variant];
+}
+
+/**
+ * Get display price for the user's region.
+ * UK users see approximate GBP; all others see USD.
+ * Stripe always charges in USD.
+ */
+export function getDisplayPriceForRegion(
+  variant: PriceVariant,
+  region: Region = "US"
+): string {
+  if (region === "UK") return GBP_DISPLAY[variant];
+  return USD_DISPLAY[variant];
 }
 
 /**
  * Get amount in cents.
  */
-export function getAmountCents(_variant: PriceVariant): number {
-  return 999;
+export function getAmountCents(variant: PriceVariant): number {
+  switch (variant) {
+    case "299": return 299;
+    case "499": return 499;
+    case "999": return 999;
+  }
 }
 
 /**
  * Validate that a string is a valid price variant.
  */
 export function isValidVariant(v: string): v is PriceVariant {
-  return v === "999";
+  return v === "299" || v === "499" || v === "999";
 }

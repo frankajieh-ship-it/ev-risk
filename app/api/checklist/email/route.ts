@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -71,6 +72,20 @@ export async function POST(req: NextRequest) {
           .eq("email", normalizedEmail)
           .is("utm_source", null);
 
+        // Still track the attempt for analytics
+        const dupHash = createHash("sha256").update(normalizedEmail).digest("hex");
+        supabase.from("user_events").insert({
+          event_name: "email_capture_submitted",
+          event_data: {
+            email_hash: dupHash,
+            source: "capture_only",
+            already_subscribed: true,
+          },
+          anon_id: anon_id || persistent_session_id || null,
+          page_path: "/api/checklist/email",
+          timestamp: new Date().toISOString(),
+        }).then(() => {}, () => {});
+
         return NextResponse.json({ success: true, already_subscribed: true });
       }
       console.error("Email capture insert error:", error);
@@ -79,6 +94,20 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Track in user_events for analytics visibility
+    const emailHash = createHash("sha256").update(normalizedEmail).digest("hex");
+    supabase.from("user_events").insert({
+      event_name: "email_capture_submitted",
+      event_data: {
+        email_hash: emailHash,
+        source: "capture_only",
+        page_source: attribution?.page_source || null,
+      },
+      anon_id: anon_id || persistent_session_id || null,
+      page_path: "/api/checklist/email",
+      timestamp: new Date().toISOString(),
+    }).then(() => {}, () => {});
 
     return NextResponse.json({ success: true });
   } catch (err) {

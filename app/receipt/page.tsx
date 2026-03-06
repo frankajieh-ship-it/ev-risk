@@ -32,6 +32,7 @@ import ReceiptHistoryDrawer from "@/components/receipt/ReceiptHistoryDrawer";
 import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
 // EmailGateModal removed — 100% skip rate, replaced by inline EmailCaptureCard
 import DecisionPackCard from "@/components/receipt/DecisionPackCard";
+import SellerPackCard from "@/components/receipt/SellerPackCard";
 import FeedbackWidget from "@/components/FeedbackWidget";
 import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
 import VinCheckSection from "@/components/receipt/VinCheckSection";
@@ -47,6 +48,7 @@ import { useReceiptHistory } from "@/hooks/useReceiptHistory";
 import { useRegion } from "@/hooks/useRegion";
 import RegionSelector from "@/components/RegionSelector";
 import { getOrCreateReceiptToken } from "@/lib/session-utils";
+import { getDisplayPriceForRegion, getVariantForTier } from "@/lib/price-assignment";
 import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent } from "@/types/receipt";
 
 // Persist/retrieve current receipt ID across auth redirects
@@ -164,6 +166,10 @@ export default function ReceiptPage() {
   const [paywallTrigger, setPaywallTrigger] = useState<string | null>(null);
   const paywallShownForRef = useRef<Set<string>>(new Set());
 
+  // Seller Pack state
+  const [showSellerPackPaywall, setShowSellerPackPaywall] = useState(false);
+  const [sellerPackDismissed, setSellerPackDismissed] = useState(false);
+
   // Compare state
   const [compareReceipt, setCompareReceipt] = useState<ListingReceipt | null>(null);
   const [showCompareModal, setShowCompareModal] = useState(false);
@@ -200,6 +206,7 @@ export default function ReceiptPage() {
     isLoading: isPaymentLoading,
     paymentsEnabled,
     freeMode,
+    sellerPackUnlocked,
     refetch: refetchPayment,
   } = usePaymentStatus("receipt", receipt?.receipt_id ?? null, receiptToken);
 
@@ -371,6 +378,16 @@ export default function ReceiptPage() {
     });
   }, [receipt?.receipt_id, isUnlocked, freeMode, paymentsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Track Seller Pack teaser impression (locked questions visible)
+  useEffect(() => {
+    if (!receipt?.receipt_id || sellerPackUnlocked || freeMode || !paymentsEnabled) return;
+    if ((receipt.must_answer_questions?.length || 0) <= 2) return;
+    trackEvent("seller_pack_teaser_shown", {
+      receipt_id: receipt.receipt_id,
+      question_count: receipt.must_answer_questions.length,
+    });
+  }, [receipt?.receipt_id, sellerPackUnlocked, freeMode, paymentsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Email gate useEffect removed — inline EmailCaptureCard handles email capture now
 
   // Show paywall only when user clicks a premium-gated action
@@ -393,6 +410,16 @@ export default function ReceiptPage() {
     }, 100);
   }, [freeMode, isUnlocked, packTier, receipt, receiptToken, purchaseId, trackEvent]);
 
+  // Show seller pack paywall when user clicks a gated question
+  const handleSellerPackAction = useCallback(() => {
+    if (freeMode || sellerPackUnlocked) return;
+    setShowSellerPackPaywall(true);
+    setSellerPackDismissed(false);
+    trackEvent("seller_pack_cta_clicked", { receipt_id: receipt?.receipt_id });
+    setTimeout(() => {
+      document.getElementById("seller-pack-card")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  }, [freeMode, sellerPackUnlocked, receipt, trackEvent]);
 
   // Auto-load bound comparison when compareBoundTo is set
   useEffect(() => {
@@ -439,6 +466,7 @@ export default function ReceiptPage() {
       listing_text?: string;
       fields: StructuredListingFields;
       extraction_id?: string;
+      force_regenerate?: boolean;
     }) => {
       if (!receiptToken) return;
       if (inFlightRef.current) return;
@@ -468,6 +496,8 @@ export default function ReceiptPage() {
           turnstileToken: turnstileToken || undefined,
           leave_this_empty: "",
         };
+
+        if (data.force_regenerate) body.force_regenerate = true;
 
         if (pageSource) body.page_source = pageSource;
         if (data.extraction_id) body.extraction_id = data.extraction_id;
@@ -574,7 +604,7 @@ export default function ReceiptPage() {
       was_fallback: isFallback,
       was_similarity: isSimilarityMatch,
     });
-    handleGenerate(lastInput);
+    handleGenerate({ ...lastInput, force_regenerate: true });
   }, [handleGenerate, receipt?.receipt_id, isFallback, isSimilarityMatch, trackEvent]);
 
   // Post receipt event to dedicated endpoint (fire-and-forget)
@@ -811,9 +841,12 @@ export default function ReceiptPage() {
                 isFixing={isFixing}
                 isFallback={isFallback}
                 isSimilarityMatch={isSimilarityMatch}
-                onRegenerate={isFallback ? handleRegenerate : undefined}
+                onRegenerate={handleRegenerate}
+                isRegenerating={isGenerating}
                 onTrackLintFallback={handleLintFallback}
                 region={region}
+                sellerPackUnlocked={sellerPackUnlocked}
+                onSellerPackUpgrade={handleSellerPackAction}
               />
 
               {/* Buyer Pass teaser — proactive, not gated */}
@@ -831,7 +864,7 @@ export default function ReceiptPage() {
                     onClick={() => handlePremiumAction("inline_teaser")}
                     className="flex-shrink-0 px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap"
                   >
-                    Get Buyer Pass — $9.99
+                    Get Buyer Pass — {getDisplayPriceForRegion("999", region)}
                   </button>
                 </div>
               )}
@@ -842,6 +875,9 @@ export default function ReceiptPage() {
                 isUnlocked={isUnlocked}
                 onUpgradeClick={() => handlePremiumAction("negotiator_upsell")}
                 freeMode={freeMode}
+                region={region}
+                sellerPackUnlocked={sellerPackUnlocked}
+                onSellerPackUpgrade={handleSellerPackAction}
               />
 
               {/* Routine Fit — moved up for prominence */}
@@ -912,6 +948,20 @@ export default function ReceiptPage() {
                     receiptId={receipt.receipt_id}
                     triggerReason={paywallTrigger}
                     onDismiss={() => setDecisionPackDismissed(true)}
+                    region={region}
+                  />
+                </div>
+              )}
+
+              {/* Seller Pack paywall (shown on seller pack action click) */}
+              {showSellerPackPaywall && !sellerPackDismissed && !sellerPackUnlocked && !freeMode && paymentsEnabled && (
+                <div id="seller-pack-card">
+                  <SellerPackCard
+                    receiptToken={receiptToken}
+                    receiptId={receipt.receipt_id}
+                    displayPrice={getDisplayPriceForRegion(getVariantForTier("seller_questions", receiptToken), region)}
+                    questionCount={receipt.must_answer_questions?.length || 0}
+                    onDismiss={() => setSellerPackDismissed(true)}
                   />
                 </div>
               )}
@@ -921,6 +971,7 @@ export default function ReceiptPage() {
                 <DeepDiveSection
                   deepDive={deepDive}
                   receiptId={receipt.receipt_id}
+                  region={region}
                 />
               )}
 
@@ -937,6 +988,7 @@ export default function ReceiptPage() {
                 <CompareView
                   receiptA={receipt}
                   receiptB={compareReceipt}
+                  region={region}
                 />
               )}
 
@@ -961,6 +1013,7 @@ export default function ReceiptPage() {
                   details={receipt.receipt_details}
                   operatorNotes={receipt.operator_notes}
                   listingSummary={receipt.listing_summary}
+                  region={region}
                 />
               )}
 
@@ -1022,6 +1075,7 @@ export default function ReceiptPage() {
           history={history}
           currentReceiptId={receipt.receipt_id}
           purchaseId={purchaseId || undefined}
+          region={region}
           onCompareComplete={(compareRcpt) => {
             setCompareReceipt(compareRcpt);
             setShowCompareView(true);

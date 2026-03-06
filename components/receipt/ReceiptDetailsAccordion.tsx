@@ -7,12 +7,14 @@
 
 import { useState } from "react";
 import { ChevronDown, DollarSign, Eye, Ban, Brain } from "lucide-react";
+import { formatPrice, type Region } from "@/lib/region";
 import type { ReceiptDetails, OperatorNotes, ListingSummary } from "@/types/receipt";
 
 interface ReceiptDetailsAccordionProps {
   details: ReceiptDetails;
   operatorNotes?: OperatorNotes;
   listingSummary?: ListingSummary;
+  region?: Region;
 }
 
 type SectionId = "fees" | "tricks" | "walkaway" | "operator" | "listing";
@@ -21,6 +23,7 @@ export default function ReceiptDetailsAccordion({
   details,
   operatorNotes,
   listingSummary,
+  region = "US",
 }: ReceiptDetailsAccordionProps) {
   const [open, setOpen] = useState<SectionId | null>(null);
 
@@ -42,19 +45,19 @@ export default function ReceiptDetailsAccordion({
           <div className="space-y-2 text-sm text-gray-700">
             {details.fee_estimates.tax_estimate_range && (
               <div className="flex justify-between">
-                <span>Tax estimate:</span>
+                <span>{region === "UK" ? "VAT estimate:" : "Tax estimate:"}</span>
                 <span className="font-medium">
-                  ${details.fee_estimates.tax_estimate_range.low.toLocaleString()} –
-                  ${details.fee_estimates.tax_estimate_range.high.toLocaleString()}
+                  {formatPrice(details.fee_estimates.tax_estimate_range.low, region)} –
+                  {formatPrice(details.fee_estimates.tax_estimate_range.high, region)}
                 </span>
               </div>
             )}
             {details.fee_estimates.doc_fee_estimate_range && (
               <div className="flex justify-between">
-                <span>Doc fee estimate:</span>
+                <span>{region === "UK" ? "Admin fee estimate:" : "Doc fee estimate:"}</span>
                 <span className="font-medium">
-                  ${details.fee_estimates.doc_fee_estimate_range.low.toLocaleString()} –
-                  ${details.fee_estimates.doc_fee_estimate_range.high.toLocaleString()}
+                  {formatPrice(details.fee_estimates.doc_fee_estimate_range.low, region)} –
+                  {formatPrice(details.fee_estimates.doc_fee_estimate_range.high, region)}
                 </span>
               </div>
             )}

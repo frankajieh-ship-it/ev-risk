@@ -20,9 +20,12 @@ import {
   XCircle,
   DollarSign,
   ArrowUpCircle,
+  Lock,
 } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { humanizeFlag } from "@/lib/receipt-rules";
+import { formatPrice, type Region } from "@/lib/region";
+import { getDisplayPriceForRegion } from "@/lib/price-assignment";
 import type { ListingReceipt } from "@/types/receipt";
 
 interface NegotiatorSectionProps {
@@ -30,6 +33,9 @@ interface NegotiatorSectionProps {
   isUnlocked: boolean;
   onUpgradeClick: () => void;
   freeMode?: boolean;
+  region?: Region;
+  sellerPackUnlocked?: boolean;
+  onSellerPackUpgrade?: () => void;
 }
 
 type CopiedKey = "opener" | "talking" | "questions" | "inspect" | "walkaway" | "offer" | "all" | null;
@@ -39,6 +45,9 @@ export default function NegotiatorSection({
   isUnlocked,
   onUpgradeClick,
   freeMode = false,
+  region = "US",
+  sellerPackUnlocked,
+  onSellerPackUpgrade,
 }: NegotiatorSectionProps) {
   const { trackEvent } = useEventTracking();
   const [copied, setCopied] = useState<CopiedKey>(null);
@@ -75,22 +84,21 @@ export default function NegotiatorSection({
       const low = Math.round(price * 0.82);
       const high = Math.round(price * 0.9);
       offerRange = {
-        low: `$${low.toLocaleString()}`,
-        high: `$${high.toLocaleString()}`,
+        low: formatPrice(low, region),
+        high: formatPrice(high, region),
         rationale: "This listing appears overpriced. Start 10-18% below asking.",
       };
     } else if (priceSanity.label === "FAIR") {
       const low = Math.round(price * 0.93);
-      const high = `$${price.toLocaleString()}`;
       offerRange = {
-        low: `$${low.toLocaleString()}`,
-        high,
+        low: formatPrice(low, region),
+        high: formatPrice(price, region),
         rationale: "Price is fair. You have room to negotiate 5-7% below.",
       };
     } else if (priceSanity.label === "UNDERPRICED") {
       offerRange = {
-        low: `$${price.toLocaleString()}`,
-        high: `$${price.toLocaleString()}`,
+        low: formatPrice(price, region),
+        high: formatPrice(price, region),
         rationale: "This looks underpriced — offer at or near asking before someone else does.",
       };
     }
@@ -197,29 +205,59 @@ export default function NegotiatorSection({
         </StrategyBlock>
 
         {/* Must-Ask Questions */}
-        <StrategyBlock
-          icon={<HelpCircle className="w-4 h-4 text-blue-500" />}
-          title="Must-Ask Questions"
-          subtitle="Don't leave without answers"
-          onCopy={() =>
-            copyText(
-              receipt.must_answer_questions.map((q, i) => `${i + 1}. ${q}`).join("\n"),
-              "questions"
-            )
-          }
-          copied={copied === "questions"}
-        >
-          <ol className="space-y-1.5">
-            {receipt.must_answer_questions.map((q, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                <span className="text-blue-500 font-bold flex-shrink-0 w-5 text-right">
-                  {i + 1}.
-                </span>
-                <span>{q}</span>
-              </li>
-            ))}
-          </ol>
-        </StrategyBlock>
+        {(() => {
+          const questions = receipt.must_answer_questions;
+          const showAll = sellerPackUnlocked !== false || questions.length <= 2;
+          const visibleQuestions = showAll ? questions : questions.slice(0, 2);
+          const lockedCount = showAll ? 0 : questions.length - 2;
+
+          return (
+            <StrategyBlock
+              icon={<HelpCircle className="w-4 h-4 text-blue-500" />}
+              title="Must-Ask Questions"
+              subtitle="Don't leave without answers"
+              onCopy={showAll ? () =>
+                copyText(
+                  questions.map((q, i) => `${i + 1}. ${q}`).join("\n"),
+                  "questions"
+                ) : undefined
+              }
+              copied={copied === "questions"}
+            >
+              <ol className="space-y-1.5">
+                {visibleQuestions.map((q, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                    <span className="text-blue-500 font-bold flex-shrink-0 w-5 text-right">
+                      {i + 1}.
+                    </span>
+                    <span>{q}</span>
+                  </li>
+                ))}
+                {lockedCount > 0 && (
+                  <>
+                    {questions.slice(2).map((_, i) => (
+                      <li key={`locked-${i}`} className="flex items-start gap-2 text-sm select-none">
+                        <span className="text-gray-300 font-bold flex-shrink-0 w-5 text-right">
+                          {i + 3}.
+                        </span>
+                        <span className="text-gray-300 blur-[5px]">This question is locked — unlock to see</span>
+                      </li>
+                    ))}
+                    <li className="mt-1">
+                      <button
+                        onClick={onSellerPackUpgrade}
+                        className="flex items-center gap-1.5 text-xs font-medium text-green-600 hover:text-green-700 transition-colors"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        Unlock all {questions.length} questions
+                      </button>
+                    </li>
+                  </>
+                )}
+              </ol>
+            </StrategyBlock>
+          );
+        })()}
 
         {/* Inspect First */}
         {receipt.inspect_first && receipt.inspect_first.length > 0 && (
@@ -321,7 +359,7 @@ export default function NegotiatorSection({
                 className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
               >
                 <ArrowUpCircle className="w-3.5 h-3.5" />
-                Get Buyer Pass — $9.99
+                Get Buyer Pass — {getDisplayPriceForRegion("999", region)}
               </button>
             </div>
           </div>
@@ -344,7 +382,7 @@ function StrategyBlock({
   icon: React.ReactNode;
   title: string;
   subtitle?: string;
-  onCopy: () => void;
+  onCopy?: () => void;
   copied: boolean;
   children: React.ReactNode;
 }) {
@@ -358,7 +396,7 @@ function StrategyBlock({
             <span className="text-xs text-gray-400 hidden sm:inline">— {subtitle}</span>
           )}
         </div>
-        <CopyButton onClick={onCopy} copied={copied} />
+        {onCopy && <CopyButton onClick={onCopy} copied={copied} />}
       </div>
       {children}
     </div>

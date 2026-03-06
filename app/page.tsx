@@ -289,53 +289,6 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <div id="turnstile-score" />
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            {/* Brand */}
-            <div>
-              <div className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-                EV-Risk™
-              </div>
-              <div className="text-xs md:text-sm text-gray-600 font-medium">by OFFO Lab</div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-3">
-              <a
-                href="/receipt"
-                className="flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
-              >
-                <Receipt className="w-4 h-4" />
-                <span className="hidden sm:inline">Listing Receipt</span>
-                <span className="sm:hidden">Receipt</span>
-              </a>
-              <a
-                href="/blog"
-                className="hidden sm:block text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                Insights
-              </a>
-              {isAuthenticated ? (
-                <button
-                  onClick={() => logout()}
-                  className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  Sign out
-                </button>
-              ) : (
-                <button
-                  onClick={() => setShowLoginModal(true)}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                >
-                  Sign in
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
 
       {/* Hero Section - Compact for mobile */}
       <section className="relative overflow-hidden">

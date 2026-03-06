@@ -80,17 +80,42 @@ export function useEventTracking() {
   // Client-side dedup: prevent same event+key firing within 2s
   const recentEventsRef = useRef<Map<string, number>>(new Map());
 
+  // View ID: generated per receipt render, used for fire-once-per-view dedup
+  const viewIdRef = useRef<string | null>(null);
+  const viewReceiptIdRef = useRef<string | null>(null);
+
+  /** Get or generate a view_id. Resets when receipt_id changes. */
+  const getViewId = useCallback((receiptId?: string) => {
+    if (receiptId && receiptId !== viewReceiptIdRef.current) {
+      viewReceiptIdRef.current = receiptId;
+      viewIdRef.current = `view-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    }
+    return viewIdRef.current;
+  }, []);
+
+  // Events that should only fire once per view_id
+  const DEDUP_EVENTS = new Set([
+    "receipt_result_viewed",
+    "buyer_pass_teaser_shown",
+    "paywall_shown",
+    "receipt_generate",
+    "lint_failed_fallback_served",
+  ]);
+
   // Track event
   const trackEvent = useCallback(
     async (eventName: string, eventData?: EventData) => {
       if (typeof window === "undefined") return;
 
+      const receiptId = eventData?.receipt_id || "";
+      const viewId = getViewId(receiptId || undefined);
+
       // Dedup guard: same event + receipt_id within 2s
-      const dedupKey = `${eventName}:${eventData?.receipt_id || ""}`;
+      const clientDedupKey = `${eventName}:${receiptId}`;
       const now = Date.now();
-      const lastFired = recentEventsRef.current.get(dedupKey);
+      const lastFired = recentEventsRef.current.get(clientDedupKey);
       if (lastFired && now - lastFired < 2000) return;
-      recentEventsRef.current.set(dedupKey, now);
+      recentEventsRef.current.set(clientDedupKey, now);
 
       // Clean old entries periodically
       if (recentEventsRef.current.size > 50) {
@@ -98,6 +123,11 @@ export function useEventTracking() {
           if (now - ts > 10000) recentEventsRef.current.delete(key);
         }
       }
+
+      // Server-side dedupe_key for critical events
+      const serverDedupeKey = DEDUP_EVENTS.has(eventName) && (receiptId || viewId)
+        ? `${eventName}:${receiptId}:${viewId || ""}`
+        : undefined;
 
       try {
         await fetch("/api/track-event", {
@@ -115,6 +145,7 @@ export function useEventTracking() {
               sensitivity: "normal",
               source: "web",
               is_test: window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1",
+              ...(viewId ? { view_id: viewId } : {}),
               ...(getAttributionForEvent() ? { attribution: getAttributionForEvent() } : {}),
             },
             visitorId: getVisitorId(),
@@ -122,6 +153,7 @@ export function useEventTracking() {
             userId: (() => { try { return localStorage.getItem("offo_user_id") || undefined; } catch { return undefined; } })(),
             pagePath: window.location.pathname,
             timestamp: new Date().toISOString(),
+            ...(serverDedupeKey ? { dedupe_key: serverDedupeKey } : {}),
           }),
         });
       } catch (error) {
@@ -129,7 +161,7 @@ export function useEventTracking() {
         // Fail silently - don't disrupt user experience
       }
     },
-    [getVisitorId, getSessionId, getPersistentSessionId]
+    [getVisitorId, getSessionId, getPersistentSessionId, getViewId]
   );
 
   // Specific event trackers

@@ -21,6 +21,8 @@ import {
   type PackTier,
 } from "@/lib/price-assignment";
 
+const VALID_PACK_TIERS: PackTier[] = ["buyer_pass", "seller_questions"];
+
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
       apiVersion: "2025-12-15.clover",
@@ -50,7 +52,10 @@ export async function POST(request: NextRequest) {
   const anonId = body.anon_id as string;
   const userId = (body.user_id as string) || null;
   const pageSource = (body.page_source as string) || null;
-  const packTier: PackTier = "buyer_pass";
+  const rawTier = (body.pack_tier as string) || "buyer_pass";
+  const packTier: PackTier = VALID_PACK_TIERS.includes(rawTier as PackTier)
+    ? (rawTier as PackTier)
+    : "buyer_pass";
 
   // Validate required fields
   if (!scenarioType || !VALID_SCENARIO_TYPES.includes(scenarioType as ScenarioType)) {
@@ -110,8 +115,8 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // 3. Resolve price variant from pack tier
-  const variant: PriceVariant = getVariantForTier(packTier);
+  // 3. Resolve price variant from pack tier (seller pack uses A/B via anonId hash)
+  const variant: PriceVariant = getVariantForTier(packTier, anonId);
 
   // 4. Get Stripe Price ID or use inline price
   const stripePriceId = getStripePriceId(variant);
@@ -149,8 +154,11 @@ export async function POST(request: NextRequest) {
     if (stripePriceId) {
       sessionParams.line_items = [{ price: stripePriceId, quantity: 1 }];
     } else {
-      const productName = "OFFO Buyer Pass";
-      const productDescription = "10 receipts with full AI analysis, deep-dive, and PDF export.";
+      const isSeller = packTier === "seller_questions";
+      const productName = isSeller ? "OFFO Seller Questions Pack" : "OFFO Buyer Pass";
+      const productDescription = isSeller
+        ? "Full seller questions pack + inspect-first checklist for this listing."
+        : "10 receipts with full AI analysis, deep-dive, and PDF export.";
 
       sessionParams.line_items = [
         {
@@ -173,6 +181,7 @@ export async function POST(request: NextRequest) {
     });
 
     // 6. Insert pending purchase row
+    const receiptCredits = packTier === "seller_questions" ? 1 : 10;
     const { error: insertError } = await supabase.from("purchases").insert({
       stripe_session_id: session.id,
       status: "pending",
@@ -185,7 +194,7 @@ export async function POST(request: NextRequest) {
       amount: amountCents,
       currency: "usd",
       page_source: pageSource,
-      receipt_credits_total: 10,
+      receipt_credits_total: receiptCredits,
       receipt_credits_used: 0,
       utm_source: utmFields.utm_source || null,
       utm_medium: utmFields.utm_medium || null,

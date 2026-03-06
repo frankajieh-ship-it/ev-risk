@@ -20,16 +20,19 @@ import {
   ChevronDown,
   Sparkles,
 } from "lucide-react";
+import { formatPrice, type Region } from "@/lib/region";
 import type { DeepDiveContent } from "@/types/receipt";
 
 interface DeepDiveSectionProps {
   deepDive: DeepDiveContent;
   receiptId: string;
+  region?: Region;
 }
 
 export default function DeepDiveSection({
   deepDive,
   receiptId,
+  region = "US",
 }: DeepDiveSectionProps) {
   const [copiedScript, setCopiedScript] = useState<number | null>(null);
   const [openScript, setOpenScript] = useState<number | null>(0);
@@ -96,7 +99,7 @@ export default function DeepDiveSection({
                 <tr key={i} className="border-b border-gray-100 last:border-0">
                   <td className="px-4 py-2.5 text-gray-800">{comp.title}</td>
                   <td className="px-4 py-2.5 text-right text-gray-800 font-medium">
-                    ${comp.price.toLocaleString()}
+                    {formatPrice(comp.price, region)}
                   </td>
                   <td className="px-4 py-2.5 text-right text-gray-600">
                     {comp.mileage.toLocaleString()} mi
@@ -201,15 +204,15 @@ export default function DeepDiveSection({
           <h3 className="text-sm font-semibold text-gray-900">3-Year Cost of Ownership</h3>
         </div>
         <div className="space-y-2">
-          <CostRow label="Insurance" value={deepDive.cost_of_ownership.insurance_yr} />
-          <CostRow label="Maintenance" value={deepDive.cost_of_ownership.maintenance_yr} />
-          <CostRow label="Fuel / Charging" value={deepDive.cost_of_ownership.fuel_or_charging_yr} />
-          <CostRow label="Depreciation" value={deepDive.cost_of_ownership.depreciation_yr} />
+          <CostRow label="Insurance" value={deepDive.cost_of_ownership.insurance_yr} region={region} />
+          <CostRow label="Maintenance" value={deepDive.cost_of_ownership.maintenance_yr} region={region} />
+          <CostRow label="Fuel / Charging" value={deepDive.cost_of_ownership.fuel_or_charging_yr} region={region} />
+          <CostRow label="Depreciation" value={deepDive.cost_of_ownership.depreciation_yr} region={region} />
           <div className="border-t-2 border-gray-300 pt-2 mt-3">
             <div className="flex justify-between">
               <span className="text-sm font-bold text-gray-900">3-Year Total</span>
               <span className="text-sm font-bold text-gray-900">
-                ${deepDive.cost_of_ownership.total_3yr.toLocaleString()}
+                {formatPrice(deepDive.cost_of_ownership.total_3yr, region)}
               </span>
             </div>
           </div>
@@ -239,12 +242,12 @@ export default function DeepDiveSection({
   );
 }
 
-function CostRow({ label, value }: { label: string; value: number }) {
+function CostRow({ label, value, region = "US" }: { label: string; value: number; region?: Region }) {
   return (
     <div className="flex justify-between text-sm">
       <span className="text-gray-600">{label}</span>
       <span className="text-gray-800 font-medium">
-        ${value.toLocaleString()}/yr
+        {formatPrice(value, region)}/yr
       </span>
     </div>
   );

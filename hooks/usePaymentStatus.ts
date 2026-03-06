@@ -10,7 +10,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 type PurchaseStatus = "pending" | "paid" | "failed" | "refunded" | "none";
-type PackTier = "buyer_pass";
+type PackTier = "buyer_pass" | "seller_questions";
+type EntitlementLevel = "free" | "seller_pack" | "buyer_pass";
 
 export interface UsePaymentStatusReturn {
   purchaseStatus: PurchaseStatus;
@@ -22,6 +23,8 @@ export interface UsePaymentStatusReturn {
   isLoading: boolean;
   paymentsEnabled: boolean;
   freeMode: boolean;
+  entitlementLevel: EntitlementLevel;
+  sellerPackUnlocked: boolean;
   refetch: () => Promise<void>;
 }
 
@@ -39,6 +42,8 @@ export function usePaymentStatus(
   const [isLoading, setIsLoading] = useState(false);
   const [paymentsEnabled, setPaymentsEnabled] = useState(false);
   const [freeMode, setFreeMode] = useState(false);
+  const [entitlementLevel, setEntitlementLevel] = useState<EntitlementLevel>("free");
+  const [sellerPackUnlocked, setSellerPackUnlocked] = useState(false);
   const fetchingRef = useRef(false);
 
   const fetchStatus = useCallback(async () => {
@@ -67,6 +72,8 @@ export function usePaymentStatus(
       setPurchaseId(data.purchase_id || null);
       setPaymentsEnabled(data.payments_enabled === true);
       setFreeMode(data.free_mode === true);
+      setEntitlementLevel(data.entitlement_level || "free");
+      setSellerPackUnlocked(data.seller_pack_unlocked === true);
     } catch {
       // Silently fail — payment UI just won't show
     } finally {
@@ -89,6 +96,8 @@ export function usePaymentStatus(
     isLoading,
     paymentsEnabled,
     freeMode,
+    entitlementLevel,
+    sellerPackUnlocked,
     refetch: fetchStatus,
   };
 }

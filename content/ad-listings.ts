@@ -79,7 +79,7 @@ export const KIA_EV6_RECEIPT: ListingReceipt = {
   reddit_draft: null,
 };
 
-// --- 2023 Tesla Model 3 Performance AWD (RED — analysis timed out) ---
+// --- 2023 Tesla Model 3 Performance AWD (RED verdict) ---
 
 export const TESLA_MODEL3_RECEIPT: ListingReceipt = {
   receipt_id: "ad-tesla-model3-2023-cargurus",
@@ -87,18 +87,20 @@ export const TESLA_MODEL3_RECEIPT: ListingReceipt = {
   mode: "single",
   verdict: "RED",
   verdict_reason:
-    "AI analysis timed out. No risk assessment could be completed. Verify title, accident history, and all key details independently before proceeding.",
+    "High mileage for a 2023 Performance model, unknown seller type and title status, no service history provided, and no accident report. Too many unknowns at this price point — proceed with extreme caution.",
   price_sanity: {
-    label: "UNKNOWN",
-    confidence: 0,
-    basis: "UNKNOWN",
+    label: "OVERPRICED",
+    confidence: 0.65,
+    basis: "LISTING_ONLY",
     rationale_short:
-      "Price analysis could not be completed due to analysis timeout. Verify pricing independently.",
+      "At $31,631 with 27,844 miles, this is on the high side for a 2023 Model 3 Performance with no documented history. Comparable listings with clean titles and service records are priced similarly or lower.",
   },
   risk_flags: [
-    "AI analysis timed out — regenerate for full risk assessment",
-    "Verify title status and accident history independently",
-    "Check service records and maintenance history before purchase",
+    "title_status_unknown",
+    "accident_history_unknown",
+    "service_history_missing",
+    "seller_type_unknown",
+    "high_mileage_for_year",
   ],
   must_answer_questions: [
     "Has this vehicle been in any accidents or had major repairs?",
@@ -113,7 +115,7 @@ export const TESLA_MODEL3_RECEIPT: ListingReceipt = {
     "Check all four tires for even wear and remaining tread",
   ],
   negotiation_opener:
-    "Without a completed risk analysis, the pricing and condition of this vehicle cannot be fully verified. Before discussing price, I'd need to see the full vehicle history report, Tesla service records, and a battery health check.",
+    "This listing has several unknowns — no title status, no accident report, and no service history. Before discussing price, I'd need to see the full vehicle history report, Tesla service records, and a battery health check.",
   one_followup_question:
     "Why is a 2023 Performance model with 27,844 miles being sold now, and is there any remaining Tesla warranty coverage?",
   receipt_reddit_text: "",
@@ -141,11 +143,11 @@ export const TESLA_MODEL3_RECEIPT: ListingReceipt = {
   compare: null,
   operator_notes: {
     rationale:
-      "Analysis was unable to complete within the timeout window. All risk flags and must-ask questions are conservative defaults. The buyer should independently verify every aspect of this listing before proceeding.",
+      "Multiple critical data points are missing — title status, accident history, service records, and seller type are all unknown. The high mileage for a 2023 model year combined with these gaps creates significant risk. The price is not justified without documentation.",
     assumptions: [
-      "No data could be extracted or analyzed due to timeout",
-      "All fields marked unknown as a safety default",
-      "Pricing not validated against market data",
+      "Price compared against similar 2023 Model 3 Performance listings on CarGurus",
+      "Title and accident status assumed unknown due to missing documentation",
+      "Battery health assumed unknown without Tesla service records",
     ],
   },
   reddit_draft: null,

@@ -259,17 +259,22 @@ export async function POST(req: NextRequest) {
 
       // Track in user_events for summary builder visibility
       const eventName = result.success ? "email_checklist_sent" : "email_checklist_failed";
-      supabase.from("user_events").insert({
-        event_name: eventName,
-        event_data: {
-          receipt_id,
-          email_hash: hashEmail(email),
-          ...(result.error ? { error: result.error } : {}),
-        },
-        ip_address: clientIP,
-        page_path: "/api/email/checklist",
-        timestamp: new Date().toISOString(),
-      }).then(() => {}, () => {});
+      try {
+        await supabase.from("user_events").insert({
+          event_name: eventName,
+          event_data: {
+            receipt_id,
+            email_hash: hashEmail(email),
+            ...(result.error ? { error: result.error } : {}),
+          },
+          anon_id: anon_id || null,
+          ip_address: clientIP,
+          page_path: "/api/email/checklist",
+          timestamp: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.error("[Email Checklist] Failed to track event:", e);
+      }
     }
 
     if (!result.success) {

@@ -9,7 +9,9 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export type PurchaseStatus = "pending" | "paid" | "failed" | "refunded" | "none";
 
-export type PackTier = "buyer_pass";
+export type PackTier = "buyer_pass" | "seller_questions";
+
+export type EntitlementLevel = "free" | "seller_pack" | "buyer_pass";
 
 export interface PaymentStatusResult {
   unlocked_base: boolean;
@@ -21,6 +23,8 @@ export interface PaymentStatusResult {
   price_paid?: number;
   receipt_credits_remaining: number;
   receipt_credits_total: number;
+  entitlement_level: EntitlementLevel;
+  seller_pack_unlocked: boolean;
 }
 
 /**
@@ -40,7 +44,16 @@ export async function checkPurchaseStatus(
     compare_bound_to: null,
     receipt_credits_remaining: 0,
     receipt_credits_total: 0,
+    entitlement_level: "free",
+    seller_pack_unlocked: false,
   };
+
+  // Derive entitlement level from pack_tier (buyer_pass ⊃ seller_pack)
+  function deriveEntitlement(tier: string | null): { entitlement_level: EntitlementLevel; seller_pack_unlocked: boolean } {
+    if (tier === "buyer_pass") return { entitlement_level: "buyer_pass", seller_pack_unlocked: true };
+    if (tier === "seller_questions") return { entitlement_level: "seller_pack", seller_pack_unlocked: true };
+    return { entitlement_level: "free", seller_pack_unlocked: false };
+  }
 
   if (!isSupabaseConfigured()) return none;
 
@@ -66,9 +79,10 @@ export async function checkPurchaseStatus(
       const creditsTotal = basePurchase.receipt_credits_total || 0;
       const creditsUsed = basePurchase.receipt_credits_used || 0;
 
+      const tier = (basePurchase.pack_tier as PackTier) || "buyer_pass";
       return {
         unlocked_base: basePurchase.status === "paid",
-        pack_tier: (basePurchase.pack_tier as PackTier) || "buyer_pass",
+        pack_tier: tier,
         purchase_status: basePurchase.status as PurchaseStatus,
         purchase_id: basePurchase.purchase_id,
         compare_remaining:
@@ -80,6 +94,7 @@ export async function checkPurchaseStatus(
         price_paid: basePurchase.status === "paid" ? basePurchase.amount : undefined,
         receipt_credits_remaining: basePurchase.status === "paid" ? Math.max(0, creditsTotal - creditsUsed) : 0,
         receipt_credits_total: creditsTotal,
+        ...deriveEntitlement(basePurchase.status === "paid" ? tier : null),
       };
     }
 
@@ -95,16 +110,18 @@ export async function checkPurchaseStatus(
     if (comparePurchase && comparePurchase.anon_id === anonId) {
       const creditsTotal = comparePurchase.receipt_credits_total || 0;
       const creditsUsed = comparePurchase.receipt_credits_used || 0;
+      const compareTier = (comparePurchase.pack_tier as PackTier) || "buyer_pass";
 
       return {
         unlocked_base: true, // accessible via compare credit
-        pack_tier: (comparePurchase.pack_tier as PackTier) || "buyer_pass",
+        pack_tier: compareTier,
         purchase_status: "paid",
         purchase_id: comparePurchase.purchase_id,
         compare_remaining: 0, // credit already used
         compare_bound_to: scenarioId,
         receipt_credits_remaining: Math.max(0, creditsTotal - creditsUsed),
         receipt_credits_total: creditsTotal,
+        ...deriveEntitlement(compareTier),
       };
     }
 
@@ -120,10 +137,11 @@ export async function checkPurchaseStatus(
     if (anyPurchase) {
       const creditsTotal = anyPurchase.receipt_credits_total || 0;
       const creditsUsed = anyPurchase.receipt_credits_used || 0;
+      const anyTier = (anyPurchase.pack_tier as PackTier) || "buyer_pass";
 
       return {
         unlocked_base: true,
-        pack_tier: (anyPurchase.pack_tier as PackTier) || "buyer_pass",
+        pack_tier: anyTier,
         purchase_status: "paid",
         purchase_id: anyPurchase.purchase_id,
         compare_remaining: 0,
@@ -131,6 +149,7 @@ export async function checkPurchaseStatus(
         price_paid: anyPurchase.amount,
         receipt_credits_remaining: Math.max(0, creditsTotal - creditsUsed),
         receipt_credits_total: creditsTotal,
+        ...deriveEntitlement(anyTier),
       };
     }
 
