@@ -36,6 +36,7 @@ import SellerPackCard from "@/components/receipt/SellerPackCard";
 import FeedbackWidget from "@/components/FeedbackWidget";
 import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
 import VinCheckSection from "@/components/receipt/VinCheckSection";
+import ModelInfoSection from "@/components/receipt/ModelInfoSection";
 import DeepDiveSection from "@/components/receipt/DeepDiveSection";
 import NegotiatorSection from "@/components/receipt/NegotiatorSection";
 import PdfDownloadButton from "@/components/receipt/PdfDownloadButton";
@@ -49,7 +50,7 @@ import { useRegion } from "@/hooks/useRegion";
 import RegionSelector from "@/components/RegionSelector";
 import { getOrCreateReceiptToken } from "@/lib/session-utils";
 import { getDisplayPriceForRegion, getVariantForTier } from "@/lib/price-assignment";
-import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent } from "@/types/receipt";
+import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent, GenerationStatus } from "@/types/receipt";
 
 // Persist/retrieve current receipt ID across auth redirects
 const ACTIVE_RECEIPT_KEY = "offo_active_receipt_id";
@@ -129,6 +130,8 @@ export default function ReceiptPage() {
   const [remainingFree, setRemainingFree] = useState<number | null>(null);
   const [isFallback, setIsFallback] = useState(false);
   const [isSimilarityMatch, setIsSimilarityMatch] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const upgradePollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // History
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -360,6 +363,74 @@ export default function ReceiptPage() {
     return () => timers.forEach(clearTimeout);
   }, [isGenerating]);
 
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (upgradePollingRef.current) clearInterval(upgradePollingRef.current);
+    };
+  }, []);
+
+  // Poll for AI upgrade when receipt is in "lite" status
+  const startUpgradePolling = useCallback((receiptId: string) => {
+    // Clear any existing polling
+    if (upgradePollingRef.current) clearInterval(upgradePollingRef.current);
+
+    setIsUpgrading(true);
+    let attempts = 0;
+    const maxAttempts = 20;
+
+    const poll = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await fetch(`/api/receipt/${encodeURIComponent(receiptId)}/status`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.generation_status === "full" && data.receipt) {
+          clearInterval(poll);
+          upgradePollingRef.current = null;
+          setReceipt(data.receipt);
+          setIsUpgrading(false);
+          setIsFallback(false);
+
+          // Update history with upgraded receipt
+          addReceipt(data.receipt);
+
+          trackEvent("receipt_full_ready", {
+            receipt_id: receiptId,
+            polls_count: attempts,
+            upgrade_ms: attempts * 3000,
+          });
+        } else if (data.generation_status === "failed") {
+          clearInterval(poll);
+          upgradePollingRef.current = null;
+          setIsUpgrading(false);
+
+          trackEvent("receipt_upgrade_failed", {
+            receipt_id: receiptId,
+            polls_count: attempts,
+          });
+        }
+      } catch {
+        // Network error — keep polling
+      }
+
+      if (attempts >= maxAttempts) {
+        clearInterval(poll);
+        upgradePollingRef.current = null;
+        setIsUpgrading(false);
+
+        trackEvent("receipt_upgrade_failed", {
+          receipt_id: receiptId,
+          polls_count: attempts,
+          reason: "max_attempts",
+        });
+      }
+    }, 3000);
+
+    upgradePollingRef.current = poll;
+  }, [trackEvent, addReceipt]);
+
   // Track receipt result viewed
   useEffect(() => {
     if (!receipt?.receipt_id) return;
@@ -474,6 +545,13 @@ export default function ReceiptPage() {
 
       lastGenerateInputRef.current = data;
 
+      // Clear any in-progress upgrade polling
+      if (upgradePollingRef.current) {
+        clearInterval(upgradePollingRef.current);
+        upgradePollingRef.current = null;
+      }
+      setIsUpgrading(false);
+
       setIsGenerating(true);
       setError(null);
       setReceipt(null);
@@ -572,6 +650,16 @@ export default function ReceiptPage() {
         // Add to history
         addReceipt(result.receipt);
 
+        // Start polling if this is a lite receipt (async AI upgrade in progress)
+        if (result.generation_status === "lite" && result.receipt_id) {
+          startUpgradePolling(result.receipt_id);
+          trackEvent("receipt_lite_shown", {
+            receipt_id: result.receipt.receipt_id,
+            verdict: result.receipt.verdict,
+            fit_score: result.receipt.fit_score,
+          });
+        }
+
         // Track event
         trackEvent("receipt_generate", {
           receipt_id: result.receipt.receipt_id,
@@ -579,6 +667,7 @@ export default function ReceiptPage() {
           price_label: result.receipt.price_sanity?.label,
           lint_passed: result.lint_passed,
           fallback: !!result.fallback,
+          generation_status: result.generation_status || "full",
         });
       } catch (err) {
         const isAbort = err instanceof DOMException && err.name === "AbortError";
@@ -592,7 +681,7 @@ export default function ReceiptPage() {
         inFlightRef.current = false;
       }
     },
-    [receiptToken, region, trackEvent, addReceipt, executeTurnstile]
+    [receiptToken, region, trackEvent, addReceipt, executeTurnstile, startUpgradePolling]
   );
 
   // Regenerate: re-submit the last input to get a fresh AI analysis
@@ -847,6 +936,7 @@ export default function ReceiptPage() {
                 region={region}
                 sellerPackUnlocked={sellerPackUnlocked}
                 onSellerPackUpgrade={handleSellerPackAction}
+                isUpgrading={isUpgrading}
               />
 
               {/* Buyer Pass teaser — proactive, not gated */}
@@ -898,6 +988,17 @@ export default function ReceiptPage() {
                 existingVin={currentVin}
                 trackEvent={trackEvent}
               />
+
+              {/* Model Info — research links */}
+              {receipt.listing_summary?.make && receipt.listing_summary?.model && (
+                <ModelInfoSection
+                  make={receipt.listing_summary.make}
+                  model={receipt.listing_summary.model}
+                  year={receipt.listing_summary.year}
+                  region={region}
+                  trackEvent={trackEvent}
+                />
+              )}
 
               {/* Action row — Save / Share / PDF */}
               <div id="save-receipt-cta" className="flex items-center gap-2">

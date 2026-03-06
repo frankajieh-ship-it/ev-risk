@@ -42,6 +42,7 @@ interface ReceiptOutputCardProps {
   region?: Region;
   sellerPackUnlocked?: boolean;
   onSellerPackUpgrade?: () => void;
+  isUpgrading?: boolean;
 }
 
 const VERDICT_STYLES = {
@@ -103,6 +104,7 @@ export default function ReceiptOutputCard({
   region = "US",
   sellerPackUnlocked,
   onSellerPackUpgrade,
+  isUpgrading,
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const fallbackFiredRef = useRef(false);
@@ -162,6 +164,16 @@ export default function ReceiptOutputCard({
               {isRegenerating ? "Generating..." : "Regenerate"}
             </button>
           )}
+        </div>
+      )}
+
+      {/* AI upgrade in progress indicator */}
+      {isUpgrading && (
+        <div className="bg-blue-50 border-b border-blue-200 px-5 py-2.5 flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
+          <p className="text-sm text-blue-700">
+            AI analysis in progress — your receipt will auto-update with deeper insights.
+          </p>
         </div>
       )}
 

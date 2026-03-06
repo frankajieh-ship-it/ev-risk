@@ -362,6 +362,10 @@ export async function GET(request: NextRequest) {
       copy_checklist: countEvents(allUserEvents, "copy_checklist"),
       negotiator_copy: countEvents(allUserEvents, "negotiator_copy_clicked"),
       lint_failed_fallback_served: countEvents(allUserEvents, "lint_failed_fallback_served"),
+      // Progressive receipt metrics
+      receipt_lite_shown: countEvents(allUserEvents, "receipt_lite_shown"),
+      receipt_full_ready: countEvents(allUserEvents, "receipt_full_ready"),
+      receipt_upgrade_failed: countEvents(allUserEvents, "receipt_upgrade_failed"),
     };
 
     // -----------------------------------------------------------------------
@@ -810,6 +814,7 @@ export async function GET(request: NextRequest) {
       other: {
         contact_clicked: contactClickPostReceipt,
         history_viewed: receiptHistoryViewed,
+        model_info_link_clicked: countEvents(allUserEvents, "model_info_link_clicked"),
       },
     };
 
@@ -910,6 +915,7 @@ export async function GET(request: NextRequest) {
       check_started: countEvents(allUserEvents, "routine_check_started"),
       check_completed: countEvents(allUserEvents, "routine_check_completed"),
       score_viewed: countEvents(allUserEvents, "routine_score_viewed"),
+      result_viewed: countEvents(allUserEvents, "routine_result_viewed"),
     };
 
     // -----------------------------------------------------------------------

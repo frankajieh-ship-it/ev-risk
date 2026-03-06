@@ -168,7 +168,7 @@ interface SummaryData {
     by_type: { receipt: number; evroutine: number };
     top_savers: Array<{ user_id: string; count: number; latest_vehicle: string }>;
   };
-  email_captures: { submitted: number; sent: number; failed: number };
+  email_captures: { submitted: number; sent: number; failed: number; auth_email_entered: number; auth_email_confirmed: number };
   email_deliveries: {
     total: number;
     sent: number;
@@ -196,6 +196,7 @@ interface SummaryData {
     check_started: number;
     check_completed: number;
     score_viewed: number;
+    result_viewed: number;
   };
   entry_mode: {
     total_selections: number;
@@ -453,6 +454,8 @@ export default function AdminDashboard() {
       ["Submitted (client)", s.email_captures.submitted],
       ["Sent (client)", s.email_captures.sent],
       ["Failed (client)", s.email_captures.failed],
+      ["Auth Email Entered", s.email_captures.auth_email_entered ?? 0],
+      ["Auth Email Confirmed", s.email_captures.auth_email_confirmed ?? 0],
       [""],
       ["=== AI GENERATION ==="],
       ["Generation Total", s.ai_generation?.total ?? 0],
@@ -1009,6 +1012,8 @@ export default function AdminDashboard() {
                 <FunnelCard label="Submitted" value={s.email_captures.submitted} color="gray" />
                 <FunnelCard label="Sent" value={s.email_captures.sent} color="gray" />
                 <FunnelCard label="Failed" value={s.email_captures.failed} color="gray" />
+                <FunnelCard label="Auth Entered" value={s.email_captures.auth_email_entered} color="gray" />
+                <FunnelCard label="Auth Confirmed" value={s.email_captures.auth_email_confirmed} color="gray" />
               </div>
             </div>
           </div>
@@ -1023,6 +1028,7 @@ export default function AdminDashboard() {
                 <FunnelCard label="Check Started" value={s.routine_engagement.check_started} color="blue" />
                 <FunnelCard label="Check Completed" value={s.routine_engagement.check_completed} color="green" />
                 <FunnelCard label="Score Viewed" value={s.routine_engagement.score_viewed} color="purple" />
+                <FunnelCard label="Result Viewed" value={s.routine_engagement.result_viewed} color="cyan" />
                 <FunnelCard label="Field Completions" value={s.routine_engagement.total_field_completions} color="indigo" />
               </div>
               {s.routine_engagement.fields.length > 0 && (

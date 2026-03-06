@@ -49,6 +49,21 @@ export interface StructuredListingFields {
   zip_or_postcode?: string;
 }
 
+// --- VehicleFacts (canonical input object with provenance tracking) ---
+
+export type FieldSource = "user" | "extracted" | "vin" | "unknown";
+
+export interface VehicleFacts extends StructuredListingFields {
+  listing_url?: string;
+  listing_text?: string;
+  listing_source?: string; // "autotrader", "cargurus", "text_paste", "manual"
+  confidence_fields: Partial<Record<keyof StructuredListingFields, FieldSource>>;
+}
+
+// --- Progressive Generation Status ---
+
+export type GenerationStatus = "lite" | "generating" | "full" | "failed";
+
 // --- API Request / Response ---
 
 export interface ReceiptGenerateRequest {
@@ -90,6 +105,8 @@ export interface ReceiptGenerateRequest {
 export interface ReceiptGenerateResponse {
   success: true;
   receipt: import("@/lib/receipt-schema-validator").Receipt;
+  receipt_id: string;
+  generation_status: GenerationStatus;
   lint_passed: boolean;
   lint_errors: string[];
   lint_error_codes: import("@/lib/receipt-schema-validator").LintError[];

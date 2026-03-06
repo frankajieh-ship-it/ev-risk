@@ -319,6 +319,12 @@ export default function ReceiptInputCard({
         listing_source: data.listing_source || null,
       });
 
+      // Auto-expand form so user can confirm extracted fields
+      setDetailsOpen(true);
+      setTimeout(() => {
+        document.getElementById("vehicle-details-section")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 100);
+
       // Notify parent for email gate
       const summary = [f.year, f.make, f.model].filter(Boolean).join(" ");
       onExtractionSuccess?.(summary || "your vehicle");
@@ -346,11 +352,27 @@ export default function ReceiptInputCard({
     if (isGenerating || isExtracting) return;
     lastGenerateRef.current = now;
 
-    trackEvent?.("receipt_generate_clicked", {
+    // Build confidence map for VehicleFacts
+    const confidenceFields: Record<string, string> = {};
+    for (const key of Object.keys(fields)) {
+      if (dirtyFields.has(key as keyof StructuredListingFields)) {
+        confidenceFields[key] = "user";
+      } else if (fieldConfidence[key] === "extracted") {
+        confidenceFields[key] = "extracted";
+      } else if (fieldConfidence[key]) {
+        confidenceFields[key] = fieldConfidence[key];
+      } else {
+        confidenceFields[key] = "unknown";
+      }
+    }
+
+    trackEvent?.("vehicle_facts_form_submitted", {
       input_mode: inputMode,
       anon_id: receiptToken,
       has_extraction: hasExtracted,
       fields_filled: filledRequired.length,
+      confidence_fields: confidenceFields,
+      listing_source: listingSource || (inputMode === "text" ? "text_paste" : "manual"),
     });
 
     onGenerate({
@@ -606,7 +628,17 @@ export default function ReceiptInputCard({
         <button
           type="button"
           id="vehicle-details-section"
-          onClick={() => setDetailsOpen(!detailsOpen)}
+          onClick={() => {
+            const opening = !detailsOpen;
+            setDetailsOpen(opening);
+            if (opening) {
+              trackEvent?.("vehicle_facts_form_shown", {
+                fields_extracted: extractedFieldNames.length,
+                input_mode: inputMode,
+                anon_id: receiptToken,
+              });
+            }
+          }}
           className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors w-full"
         >
           <ChevronDown
@@ -614,7 +646,13 @@ export default function ReceiptInputCard({
               detailsOpen ? "rotate-180" : ""
             }`}
           />
-          {detailsOpen ? "Hide details" : "Add details"}
+          {detailsOpen
+            ? "Hide details"
+            : hasExtracted
+              ? "Confirm these details"
+              : extractError
+                ? "Enter vehicle details"
+                : "Add details"}
           {!detailsOpen && detailFieldCount > 0 && (
             <span className="text-xs text-green-600 ml-1">
               ({detailFieldCount} field{detailFieldCount !== 1 ? "s" : ""} filled)

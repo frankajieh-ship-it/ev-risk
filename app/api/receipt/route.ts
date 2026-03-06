@@ -261,9 +261,163 @@ export async function POST(request: NextRequest) {
   const ruleScoring = scoreReceipt(ruleSignals);
   timings.rules = Date.now() - t0;
 
+  // --- RECEIPT LITE: Return deterministic receipt immediately (<2s) ---
+  const liteReceipt = buildEnhancedFallbackReceipt(input, ruleSignals, ruleScoring);
+
+  // Save lite receipt to DB
+  let liteDbSaved = false;
+  if (isSupabaseConfigured()) {
+    const urlDomain = input.listing_url
+      ? (() => { try { return new URL(input.listing_url!).hostname.replace("www.", ""); } catch { return null; } })()
+      : null;
+    const { error: insertErr } = await supabase.from("receipts").insert({
+      id: liteReceipt.receipt_id,
+      session_id: receiptToken,
+      user_id: userId || null,
+      source: "receipt_page",
+      page_source: (body.page_source as string) || null,
+      listing_url: input.listing_url || null,
+      url_domain: urlDomain,
+      listing_text: input.listing_text ? input.listing_text.substring(0, 5000) : null,
+      input_json: input,
+      output_json: liteReceipt,
+      mode: "single",
+      is_pro: isPro,
+      generation_status: "lite",
+    });
+    if (insertErr) {
+      console.error("[Receipt API] Lite DB insert failed:", insertErr.message, insertErr.code);
+    } else {
+      liteDbSaved = true;
+    }
+
+    // Log generate event
+    supabase.from("receipt_events").insert({
+      receipt_id: liteReceipt.receipt_id,
+      session_id: receiptToken,
+      event_type: "generate",
+      url_domain: urlDomain,
+      listing_source: urlDomain ? detectListingSource(urlDomain) : "text_paste",
+      verdict: liteReceipt.verdict,
+      price_label: liteReceipt.price_sanity?.label || null,
+      ip_hash: ipHash || null,
+    }).then(() => {}, () => {});
+
+    // Log user event
+    supabase.from("user_events").insert({
+      event_name: "receipt_extract_succeeded",
+      event_data: {
+        receipt_id: liteReceipt.receipt_id,
+        receipt_token: receiptToken,
+        vehicle_year: input.year || null,
+        vehicle_model: `${input.make || ""} ${input.model || ""}`.trim() || null,
+        lint_passed: true,
+        is_fallback: false,
+        is_lite: true,
+        region: input.region || "US",
+        fit_score: liteReceipt.fit_score ?? null,
+        evidence_score: liteReceipt.evidence_score ?? null,
+        evidence_label: liteReceipt.evidence_label ?? null,
+      },
+      ip_address: clientIP,
+      page_path: "/api/receipt",
+      timestamp: new Date().toISOString(),
+    }).then(() => {}, () => {});
+
+    // Update email funnel stage (fire-and-forget)
+    if (receiptToken) {
+      supabase
+        .from("checklist_email_captures")
+        .update({ funnel_stage: "receipt_completed", updated_at: new Date().toISOString() })
+        .eq("anon_id", receiptToken as string)
+        .eq("funnel_stage", "lead")
+        .then(() => {});
+    }
+  }
+
+  incrementDailyCount(receiptToken as string);
+  decrementReceiptCredit(receiptToken as string).catch(() => {});
+
+  timings.total = Date.now() - t0;
+  console.log(`[Receipt API] Returning Receipt Lite in ${timings.total}ms (signals=${ruleSignals.length} verdict=${ruleScoring.verdict} fit=${ruleScoring.fit_score})`);
+
+  const litePayload = {
+    success: true,
+    receipt: liteReceipt,
+    receipt_id: liteReceipt.receipt_id,
+    generation_status: "lite" as const,
+    db_saved: liteDbSaved,
+    lint_passed: true,
+    lint_errors: [],
+    lint_error_codes: [] as LintError[],
+    remaining_free: Math.max(0, dailyLimit.remaining - 1),
+    is_pro: isPro,
+    features,
+    fallback: false,
+    region: input.region || "US",
+    vehicle_category: ruleClassification.category,
+  };
+
+  // Cache for idempotency
+  if (requestRowId) {
+    await completeRequest(requestRowId, liteReceipt.receipt_id, litePayload);
+  }
+
+  // Fire-and-forget: trigger async AI upgrade in the same invocation
+  upgradeReceiptAsync({
+    receiptId: liteReceipt.receipt_id,
+    input,
+    features,
+    receiptToken: receiptToken as string,
+    userId,
+    clientIP,
+    ipHash,
+    t0,
+    ruleSignals,
+    ruleScoring,
+    ruleClassification,
+    isPro,
+    body,
+  }).catch((err) => {
+    console.error("[Receipt API] Async upgrade error:", err instanceof Error ? err.message : err);
+  });
+
+  return NextResponse.json(litePayload);
+}
+
+// --- Async AI Upgrade (fire-and-forget after lite response) ---
+
+interface UpgradeParams {
+  receiptId: string;
+  input: ReceiptGenerateRequest;
+  features: ReturnType<typeof getFeatureFlags>;
+  receiptToken: string;
+  userId: string | undefined;
+  clientIP: string;
+  ipHash: string | null;
+  t0: number;
+  ruleSignals: string[];
+  ruleScoring: ReturnType<typeof scoreReceipt>;
+  ruleClassification: ReturnType<typeof classifyVehicle>;
+  isPro: boolean;
+  body: Record<string, unknown>;
+}
+
+async function upgradeReceiptAsync(params: UpgradeParams) {
+  const { receiptId, input, features, receiptToken, userId, clientIP, ipHash, t0, ruleSignals, ruleScoring, ruleClassification, isPro, body } = params;
+
+  if (!isSupabaseConfigured()) return;
+
+  // Mark as generating
+  await supabase.from("receipts")
+    .update({ generation_status: "generating" })
+    .eq("id", receiptId);
+
+  const timings: Record<string, number> = {};
+
   try {
-    // 7. Call OpenAI with internal deadline (race against Netlify's 60s kill)
-    const INTERNAL_DEADLINE_MS = 55_000; // 55s — leaves 5s buffer for fallback writes + response serialization
+    // Call OpenAI with internal deadline (race against Netlify's 60s kill)
+    const INTERNAL_DEADLINE_MS = 55_000;
     const elapsed = Date.now() - t0;
     const remainingMs = INTERNAL_DEADLINE_MS - elapsed;
 
@@ -284,7 +438,7 @@ export async function POST(request: NextRequest) {
       retried = result.retried;
     } catch (raceErr) {
       if (raceErr === deadlineError) {
-        console.log(`[Receipt API] Internal deadline hit at ${Date.now() - t0}ms, returning fallback`);
+        console.log(`[Receipt Upgrade] Internal deadline hit at ${Date.now() - t0}ms`);
         throw new Error("Request timed out.");
       }
       throw raceErr;
@@ -292,131 +446,48 @@ export async function POST(request: NextRequest) {
 
     timings.openai = Date.now() - t0;
 
-    // 8. Validate receipt (Zod parse + lint)
+    // Validate receipt (Zod parse + lint)
     let validation = validateReceiptSchema(receipt);
     let lintPassed = validation.valid;
     let lintErrors = validation.lintErrors;
     let finalReceipt = validation.sanitized || receipt;
 
-    // 8a. If Zod parse failed (schema_fail), use fallback receipt instead of hard 422
+    // If Zod parse failed (schema_fail), mark as failed — lite receipt is already served
     if (!validation.sanitized && validation.errors.length > 0 && validation.lintErrors.length === 0) {
-      logApi("error", "Schema validation failed", {
+      logApi("error", "Schema validation failed in async upgrade", {
         endpoint: "/api/receipt",
-        anon_id: receiptToken as string,
+        anon_id: receiptToken,
         error_code: "schema_fail",
         elapsed_ms: Date.now() - t0,
         retried,
         errors: validation.errors,
       });
 
-      // Log schema_fail event
-      if (isSupabaseConfigured()) {
-        try {
-          await supabase.from("receipt_events").insert({
-            session_id: receiptToken,
-            event_type: "schema_fail",
-          });
-        } catch {
-          // swallow
-        }
-      }
+      supabase.from("receipt_events").insert({
+        session_id: receiptToken,
+        event_type: "schema_fail",
+      }).then(() => {}, () => {});
 
-      // Log receipt_extract_success (fallback) to user_events
-      if (isSupabaseConfigured()) {
-        try {
-          await supabase.from("user_events").insert({
-            event_name: "receipt_extract_succeeded",
-            event_data: {
-              receipt_token: receiptToken,
-              vehicle_year: input.year || null,
-              vehicle_model: `${input.make || ""} ${input.model || ""}`.trim() || null,
-              lint_passed: false,
-              is_fallback: true,
-              error_code: "schema_fail",
-              region: input.region || "US",
-            },
-            ip_address: clientIP,
-            page_path: "/api/receipt",
-            timestamp: new Date().toISOString(),
-          });
-        } catch {
-          // swallow
-        }
-      }
+      await supabase.from("receipts")
+        .update({ generation_status: "failed" })
+        .eq("id", receiptId);
 
-      // Return a fallback receipt so the user always gets a result
-      const fallbackReceipt = buildEnhancedFallbackReceipt(input, ruleSignals, ruleScoring);
-      incrementDailyCount(receiptToken as string);
-      decrementReceiptCredit(receiptToken as string).catch(() => {});
-      timings.total = Date.now() - t0;
-      console.log(`[Receipt API] Returning fallback receipt after schema fail (${timings.total}ms)`);
-
-      // Save fallback receipt to DB so checkout can find it
-      let fallbackDbSaved = false;
-      if (isSupabaseConfigured()) {
-        try {
-          const urlDomain = input.listing_url
-            ? new URL(input.listing_url).hostname.replace("www.", "")
-            : null;
-          const { error: fbInsertErr } = await supabase.from("receipts").insert({
-            id: fallbackReceipt.receipt_id,
-            session_id: receiptToken,
-            user_id: userId || null,
-            source: "receipt_page",
-            page_source: (body.page_source as string) || null,
-            listing_url: input.listing_url || null,
-            url_domain: urlDomain,
-            listing_text: input.listing_text ? input.listing_text.substring(0, 5000) : null,
-            input_json: input,
-            output_json: fallbackReceipt,
-            mode: "single",
-            is_pro: isPro,
-          });
-          if (fbInsertErr) {
-            console.error("[Receipt API] Fallback DB insert failed:", fbInsertErr.message, fbInsertErr.code);
-          } else {
-            fallbackDbSaved = true;
-          }
-        } catch {
-          // non-critical
-        }
-      }
-
-      const fallbackPayload = {
-        success: true,
-        receipt: fallbackReceipt,
-        db_saved: fallbackDbSaved,
-        lint_passed: true,
-        lint_errors: [],
-        lint_error_codes: [],
-        remaining_free: Math.max(0, dailyLimit.remaining - 1),
-        is_pro: isPro,
-        features,
-        fallback: true,
-        region: input.region || "US",
-      };
-
-      if (requestRowId) {
-        await completeRequest(requestRowId, fallbackReceipt.receipt_id, fallbackPayload);
-      }
-
-      return NextResponse.json(fallbackPayload);
+      console.log(`[Receipt Upgrade] Schema fail for ${receiptId}, keeping lite receipt`);
+      return;
     }
 
-    // 8b. If lint failed, try formatting fixer
+    // If lint failed, try formatting fixer
     if (!lintPassed && lintErrors.length > 0) {
       console.log(
-        `[Receipt API] Lint errors after ${retried ? "retry" : "first attempt"}:`,
+        `[Receipt Upgrade] Lint errors after ${retried ? "retry" : "first attempt"}:`,
         lintErrors.map((e) => e.code)
       );
 
       try {
-        if (isSupabaseConfigured()) {
-          supabase.from("receipt_events").insert({
-            session_id: receiptToken,
-            event_type: "schema_repair_attempted",
-          }).then(() => {}, () => {});
-        }
+        supabase.from("receipt_events").insert({
+          session_id: receiptToken,
+          event_type: "schema_repair_attempted",
+        }).then(() => {}, () => {});
 
         const patched = await fixReceiptFormatting(
           finalReceipt as unknown as Record<string, unknown>,
@@ -429,34 +500,30 @@ export async function POST(request: NextRequest) {
             validation = revalidation;
             lintPassed = revalidation.valid;
             lintErrors = revalidation.lintErrors;
-            console.log("[Receipt API] Formatting fixer improved result");
+            console.log("[Receipt Upgrade] Formatting fixer improved result");
 
-            if (isSupabaseConfigured()) {
-              supabase.from("receipt_events").insert({
-                session_id: receiptToken,
-                event_type: "schema_repair_succeeded",
-              }).then(() => {}, () => {});
-            }
+            supabase.from("receipt_events").insert({
+              session_id: receiptToken,
+              event_type: "schema_repair_succeeded",
+            }).then(() => {}, () => {});
           } else {
-            if (isSupabaseConfigured()) {
-              supabase.from("receipt_events").insert({
-                session_id: receiptToken,
-                event_type: "schema_repair_failed",
-              }).then(() => {}, () => {});
-            }
+            supabase.from("receipt_events").insert({
+              session_id: receiptToken,
+              event_type: "schema_repair_failed",
+            }).then(() => {}, () => {});
           }
         }
       } catch (fixErr) {
         logApi("warn", "Formatting fixer error", {
           endpoint: "/api/receipt",
-          anon_id: receiptToken as string,
+          anon_id: receiptToken,
           error_code: "format_fix_fail",
           elapsed_ms: Date.now() - t0,
         });
       }
     }
 
-    // 9. Post-gen rendering: if reddit_draft exists, render receipt_reddit_text deterministically
+    // Post-gen rendering: if reddit_draft exists, render receipt_reddit_text deterministically
     if (
       finalReceipt.reddit_draft &&
       typeof finalReceipt.reddit_draft === "object" &&
@@ -474,7 +541,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 9b. Deterministic scoring post-processing
+    // Deterministic scoring post-processing
     const aiVerdict = finalReceipt.verdict;
     if (finalReceipt.listing_signals && Array.isArray(finalReceipt.listing_signals) && finalReceipt.listing_signals.length > 0) {
       try {
@@ -496,7 +563,7 @@ export async function POST(request: NextRequest) {
             verify_before_visit: v2Result.verify_before_visit,
             scoring_version: "v2",
           } as typeof finalReceipt;
-          console.log(`[Receipt API] Scoring V2: risk=${v2Result.risk_points} confidence=${v2Result.confidence_points} verdict=${v2Result.verdict} (AI said ${aiVerdict})`);
+          console.log(`[Receipt Upgrade] Scoring V2: risk=${v2Result.risk_points} confidence=${v2Result.confidence_points} verdict=${v2Result.verdict} (AI said ${aiVerdict})`);
         } else {
           const scoringResult = scoreReceipt(finalReceipt.listing_signals as string[]);
           finalReceipt = {
@@ -509,193 +576,75 @@ export async function POST(request: NextRequest) {
             why_not_green: scoringResult.why_not_green,
             verify_before_visit: scoringResult.verify_before_visit,
           };
-          console.log(`[Receipt API] Scoring V1: fit=${scoringResult.fit_score} evidence=${scoringResult.evidence_score} verdict=${scoringResult.verdict} (AI said ${aiVerdict})`);
+          console.log(`[Receipt Upgrade] Scoring V1: fit=${scoringResult.fit_score} evidence=${scoringResult.evidence_score} verdict=${scoringResult.verdict} (AI said ${aiVerdict})`);
         }
       } catch (scoreErr) {
-        console.error("[Receipt API] Scoring engine error, keeping AI verdict:", scoreErr);
+        console.error("[Receipt Upgrade] Scoring engine error, keeping AI verdict:", scoreErr);
       }
     }
 
-    timings.validate = Date.now() - t0;
+    // Keep receipt_id consistent with the lite receipt
+    finalReceipt = { ...finalReceipt, receipt_id: receiptId } as typeof finalReceipt;
 
-    // 10. Increment daily counter (in-memory fallback) + decrement Buyer Pass credit
-    incrementDailyCount(receiptToken as string);
-    const creditResult = await decrementReceiptCredit(receiptToken as string);
-    if (creditResult >= 0 && isSupabaseConfigured()) {
-      supabase.from("user_events").insert({
-        event_name: "receipt_credit_used",
-        event_data: {
-          receipt_id: finalReceipt.receipt_id,
-          receipt_token: receiptToken,
-          credits_remaining: creditResult,
-        },
-        page_path: "/api/receipt",
-        timestamp: new Date().toISOString(),
+    // Update receipt with full AI output
+    const { error: updateError } = await supabase.from("receipts").update({
+      output_json: finalReceipt,
+      generation_status: "full",
+    }).eq("id", receiptId);
+
+    if (updateError) {
+      console.error("[Receipt Upgrade] DB update failed:", updateError.message, updateError.code);
+    }
+
+    // Log upgrade event
+    const urlDomain = input.listing_url
+      ? (() => { try { return new URL(input.listing_url!).hostname.replace("www.", ""); } catch { return null; } })()
+      : null;
+
+    supabase.from("receipt_events").insert({
+      receipt_id: receiptId,
+      session_id: receiptToken,
+      event_type: "ai_upgrade_complete",
+      url_domain: urlDomain,
+      listing_source: urlDomain ? detectListingSource(urlDomain) : "text_paste",
+      verdict: finalReceipt.verdict,
+      price_label: finalReceipt.price_sanity?.label || null,
+      ip_hash: ipHash || null,
+    }).then(() => {}, () => {});
+
+    // Log to user_events
+    supabase.from("user_events").insert({
+      event_name: "receipt_full_ready",
+      event_data: {
+        receipt_id: receiptId,
+        receipt_token: receiptToken,
+        vehicle_year: input.year || null,
+        vehicle_model: `${input.make || ""} ${input.model || ""}`.trim() || null,
+        lint_passed: lintPassed,
+        region: input.region || "US",
+        fit_score: finalReceipt.fit_score ?? null,
+        evidence_score: finalReceipt.evidence_score ?? null,
+        evidence_label: finalReceipt.evidence_label ?? null,
+        ai_verdict: aiVerdict ?? null,
+        upgrade_ms: Date.now() - t0,
+      },
+      ip_address: clientIP,
+      page_path: "/api/receipt",
+      timestamp: new Date().toISOString(),
+    }).then(() => {}, () => {});
+
+    // Log lint_fail event if applicable
+    if (!lintPassed) {
+      supabase.from("receipt_events").insert({
+        receipt_id: receiptId,
+        session_id: receiptToken,
+        event_type: "lint_fail",
       }).then(() => {}, () => {});
     }
 
-    // 10b. Log to Supabase
-    let dbSaved = false;
-    if (isSupabaseConfigured()) {
-      try {
-        // Insert receipt record
-        const urlDomain = input.listing_url
-          ? new URL(input.listing_url).hostname.replace("www.", "")
-          : null;
+    console.log(`[Receipt Upgrade] Successfully upgraded ${receiptId} to full in ${Date.now() - t0}ms`);
 
-        const { error: receiptError } = await supabase.from("receipts").insert({
-          id: finalReceipt.receipt_id,
-          session_id: receiptToken,
-          user_id: userId || null,
-          source: "receipt_page",
-          page_source: (body.page_source as string) || null,
-          listing_url: input.listing_url || null,
-          url_domain: urlDomain,
-          listing_text: input.listing_text
-            ? input.listing_text.substring(0, 5000)
-            : null,
-          input_json: input,
-          output_json: finalReceipt,
-          mode: "single",
-          is_pro: isPro,
-        });
-
-        if (receiptError) {
-          console.error("[Receipt API] DB insert failed:", receiptError.message, receiptError.code);
-          logApi("warn", "Failed to log receipt to DB", {
-            endpoint: "/api/receipt",
-            anon_id: receiptToken as string,
-            error_code: "db_receipt_insert",
-            error_message: receiptError.message,
-            receipt_id: finalReceipt.receipt_id,
-          });
-        } else {
-          dbSaved = true;
-        }
-
-        // Insert generate event
-        const { error: eventError } = await supabase
-          .from("receipt_events")
-          .insert({
-            receipt_id: finalReceipt.receipt_id,
-            session_id: receiptToken,
-            event_type: "generate",
-            url_domain: urlDomain,
-            listing_source: urlDomain ? detectListingSource(urlDomain) : "text_paste",
-            verdict: finalReceipt.verdict,
-            price_label: finalReceipt.price_sanity?.label || null,
-            ip_hash: ipHash || null,
-          });
-
-        if (eventError) {
-          logApi("warn", "Failed to log receipt event", {
-            endpoint: "/api/receipt",
-            anon_id: receiptToken as string,
-            error_code: "db_event_insert",
-            receipt_id: finalReceipt.receipt_id,
-          });
-        }
-
-        // Log receipt_extract_success to user_events
-        try {
-          await supabase.from("user_events").insert({
-            event_name: "receipt_extract_succeeded",
-            event_data: {
-              receipt_id: finalReceipt.receipt_id,
-              receipt_token: receiptToken,
-              vehicle_year: input.year || null,
-              vehicle_model: `${input.make || ""} ${input.model || ""}`.trim() || null,
-              lint_passed: lintPassed,
-              is_fallback: false,
-              region: input.region || "US",
-              fit_score: finalReceipt.fit_score ?? null,
-              evidence_score: finalReceipt.evidence_score ?? null,
-              evidence_label: finalReceipt.evidence_label ?? null,
-              ai_verdict: aiVerdict ?? null,
-            },
-            ip_address: clientIP,
-            page_path: "/api/receipt",
-            timestamp: new Date().toISOString(),
-          });
-        } catch {
-          // swallow — non-critical
-        }
-
-        // Log lint_fail event if applicable
-        if (!lintPassed) {
-          await supabase.from("receipt_events").insert({
-            receipt_id: finalReceipt.receipt_id,
-            session_id: receiptToken,
-            event_type: "lint_fail",
-          });
-        }
-
-        // Update email funnel stage → receipt_completed (fire-and-forget)
-        if (receiptToken) {
-          supabase
-            .from("checklist_email_captures")
-            .update({ funnel_stage: "receipt_completed", updated_at: new Date().toISOString() })
-            .eq("anon_id", receiptToken as string)
-            .eq("funnel_stage", "lead")
-            .then(() => {});
-        }
-      } catch (logErr) {
-        logApi("warn", "DB logging failed", { endpoint: "/api/receipt", anon_id: receiptToken as string, error_code: "db_log_fail" });
-      }
-    }
-
-    timings.db = Date.now() - t0;
-
-    // 12. Vehicle classification
-    const vehicleClassification = classifyVehicle(
-      input.make || "",
-      input.model || "",
-      input.trim,
-      input.listing_text
-    );
-
-    // 13. Build vehicle_used echo
-    const vehicle_used: Record<string, unknown> = {};
-    for (const key of [
-      "year", "make", "model", "trim", "mileage", "price", "vin", "location",
-      "seller_type", "title_status", "country", "zip_or_postcode",
-    ]) {
-      if ((input as unknown as Record<string, unknown>)[key] !== undefined) {
-        vehicle_used[key] = (input as unknown as Record<string, unknown>)[key];
-      }
-    }
-
-    // 13. Return response
-    timings.total = Date.now() - t0;
-    console.log(`[Receipt API] timings: parse=${timings.parse}ms auth=${timings.auth}ms openai=${timings.openai}ms validate=${timings.validate}ms db=${timings.db}ms total=${timings.total}ms retried=${retried}`);
-
-    const responsePayload = {
-      success: true,
-      receipt: finalReceipt,
-      db_saved: dbSaved,
-      lint_passed: lintPassed,
-      lint_errors: validation.errors,
-      lint_error_codes: lintErrors,
-      remaining_free: Math.max(0, dailyLimit.remaining - 1),
-      is_pro: isPro,
-      features,
-      vehicle_used,
-      vehicle_category: vehicleClassification.category,
-      extraction_id: input.extraction_id || null,
-      region: input.region || "US",
-      fit_score: finalReceipt.fit_score ?? null,
-      evidence_score: finalReceipt.evidence_score ?? null,
-      evidence_label: finalReceipt.evidence_label ?? null,
-    };
-
-    // Cache for idempotency
-    if (requestRowId) {
-      await completeRequest(requestRowId, finalReceipt.receipt_id, responsePayload);
-    }
-
-    return NextResponse.json(responsePayload);
   } catch (error) {
-    // Differentiate error codes
     const isTimeoutOrAIError =
       error instanceof Error &&
       (error.message.includes("timeout") ||
@@ -710,207 +659,83 @@ export async function POST(request: NextRequest) {
         error.name === "APIConnectionTimeoutError" ||
         error.name === "APIError");
 
-    logApi("error", "Receipt generation failed", {
+    logApi("error", "Async receipt upgrade failed", {
       endpoint: "/api/receipt",
-      anon_id: receiptToken as string,
-      error_code: isTimeoutOrAIError ? "generate_timeout" : "generate_fail",
+      anon_id: receiptToken,
+      error_code: isTimeoutOrAIError ? "upgrade_timeout" : "upgrade_fail",
       elapsed_ms: Date.now() - t0,
       error_message: error instanceof Error ? error.message : "Unknown",
     });
 
-    // Log events fire-and-forget (don't block response with DB writes on timeout path)
-    if (isSupabaseConfigured()) {
-      supabase.from("receipt_events").insert({
-        session_id: receiptToken,
-        event_type: isTimeoutOrAIError ? "generate_timeout" : "generate_fail",
-      }).then(() => {}, () => {});
+    // Log failure events
+    supabase.from("receipt_events").insert({
+      receipt_id: receiptId,
+      session_id: receiptToken,
+      event_type: isTimeoutOrAIError ? "upgrade_timeout" : "upgrade_fail",
+    }).then(() => {}, () => {});
 
-      supabase.from("user_events").insert({
-        event_name: "receipt_extract_failed",
-        event_data: {
-          receipt_token: receiptToken,
-          error_code: isTimeoutOrAIError ? "generate_timeout" : "generate_fail",
-          message_safe: isTimeoutOrAIError ? "AI generation timed out" : "Generation failed",
-          failure_reason: isTimeoutOrAIError ? "timeout_or_ai_error" : "generation_error",
-          input_length: (input.listing_text || "").length,
-          region: input.region || "US",
-          rule_signal_count: ruleSignals.length,
-          rule_verdict: ruleScoring.verdict,
-          rule_fit_score: ruleScoring.fit_score,
-        },
-        ip_address: clientIP,
-        page_path: "/api/receipt",
-        timestamp: new Date().toISOString(),
-      }).then(() => {}, () => {});
-    }
+    supabase.from("user_events").insert({
+      event_name: "receipt_upgrade_failed",
+      event_data: {
+        receipt_id: receiptId,
+        receipt_token: receiptToken,
+        error_code: isTimeoutOrAIError ? "upgrade_timeout" : "upgrade_fail",
+        rule_signal_count: ruleSignals.length,
+        rule_verdict: ruleScoring.verdict,
+        rule_fit_score: ruleScoring.fit_score,
+      },
+      ip_address: clientIP,
+      page_path: "/api/receipt",
+      timestamp: new Date().toISOString(),
+    }).then(() => {}, () => {});
 
-    // On timeout/AI errors, try similarity match first, then fall back to deterministic receipt
+    // Try similarity match to upgrade the lite receipt
     if (isTimeoutOrAIError) {
-      // Still increment daily counter + decrement credit
-      incrementDailyCount(receiptToken as string);
-      decrementReceiptCredit(receiptToken as string).catch(() => {});
+      try {
+        const similarResult = await findSimilarReceipt(input);
+        if (similarResult) {
+          const similarReceipt = {
+            ...similarResult.receipt,
+            receipt_id: receiptId,
+            listing_summary: {
+              ...similarResult.receipt.listing_summary,
+              listing_url: input.listing_url || "",
+              url_domain: input.listing_url ? (() => { try { return new URL(input.listing_url!).hostname.replace("www.", ""); } catch { return ""; } })() : "",
+              year: input.year || similarResult.receipt.listing_summary?.year || 0,
+              make: input.make || similarResult.receipt.listing_summary?.make || "Unknown",
+              model: input.model || similarResult.receipt.listing_summary?.model || "Vehicle",
+              trim: input.trim || similarResult.receipt.listing_summary?.trim || null,
+              price: input.price || similarResult.receipt.listing_summary?.price || 0,
+              mileage: input.mileage || similarResult.receipt.listing_summary?.mileage || 0,
+            },
+            verdict_reason: `Based on analysis of a similar ${input.year || ""} ${input.make || ""} ${input.model || "vehicle"}. ${similarResult.confidence >= 0.7 ? "High" : "Medium"} confidence match.`.trim().replace(/\s+/g, " "),
+          };
 
-      // Try to find a similar successful receipt from the database
-      const similarResult = await findSimilarReceipt(input).catch(() => null);
-
-      if (similarResult) {
-        // Use the similar receipt's AI analysis with current vehicle's details overlaid
-        const { v4: uuidv4 } = await import("uuid");
-        const newReceiptId = uuidv4();
-        const similarReceipt = {
-          ...similarResult.receipt,
-          receipt_id: newReceiptId,
-          listing_summary: {
-            ...similarResult.receipt.listing_summary,
-            listing_url: input.listing_url || "",
-            url_domain: input.listing_url ? (() => { try { return new URL(input.listing_url!).hostname.replace("www.", ""); } catch { return ""; } })() : "",
-            year: input.year || similarResult.receipt.listing_summary?.year || 0,
-            make: input.make || similarResult.receipt.listing_summary?.make || "Unknown",
-            model: input.model || similarResult.receipt.listing_summary?.model || "Vehicle",
-            trim: input.trim || similarResult.receipt.listing_summary?.trim || null,
-            price: input.price || similarResult.receipt.listing_summary?.price || 0,
-            mileage: input.mileage || similarResult.receipt.listing_summary?.mileage || 0,
-          },
-          verdict_reason: `Based on analysis of a similar ${input.year || ""} ${input.make || ""} ${input.model || "vehicle"}. ${similarResult.confidence >= 0.7 ? "High" : "Medium"} confidence match. Regenerate for a vehicle-specific analysis.`.trim().replace(/\s+/g, " "),
-        };
-
-        timings.total = Date.now() - t0;
-        console.log(`[Receipt API] Returning similarity-matched receipt (confidence=${similarResult.confidence.toFixed(2)}, matched=${similarResult.matchedReceiptId}) after ${timings.total}ms`);
-
-        // Log similarity match events fire-and-forget
-        if (isSupabaseConfigured()) {
-          const urlDomain = input.listing_url
-            ? (() => { try { return new URL(input.listing_url!).hostname.replace("www.", ""); } catch { return null; } })()
-            : null;
-
-          supabase.from("receipts").insert({
-            id: newReceiptId,
-            session_id: receiptToken,
-            user_id: userId || null,
-            source: "receipt_page",
-            page_source: (body.page_source as string) || null,
-            listing_url: input.listing_url || null,
-            url_domain: urlDomain,
-            listing_text: input.listing_text ? input.listing_text.substring(0, 5000) : null,
-            input_json: input,
+          await supabase.from("receipts").update({
             output_json: similarReceipt,
-            mode: "single",
-            is_pro: isPro,
-          }).then(
-            ({ error: e }) => { if (e) console.error("[Receipt API] Similarity DB insert failed:", e.message); },
-            () => {}
-          );
+            generation_status: "full",
+          }).eq("id", receiptId);
 
           supabase.from("receipt_events").insert({
-            receipt_id: newReceiptId,
+            receipt_id: receiptId,
             session_id: receiptToken,
             event_type: "similarity_match",
           }).then(() => {}, () => {});
 
-          supabase.from("user_events").insert({
-            event_name: "receipt_similarity_match",
-            event_data: {
-              receipt_id: newReceiptId,
-              receipt_token: receiptToken,
-              matched_receipt_id: similarResult.matchedReceiptId,
-              similarity_confidence: similarResult.confidence,
-              match_details: similarResult.matchDetails,
-            },
-            ip_address: clientIP,
-            page_path: "/api/receipt",
-            timestamp: new Date().toISOString(),
-          }).then(() => {}, () => {});
+          console.log(`[Receipt Upgrade] Similarity match for ${receiptId} (confidence=${similarResult.confidence.toFixed(2)})`);
+          return;
         }
-
-        const similarPayload = {
-          success: true,
-          receipt: similarReceipt,
-          db_saved: false,
-          lint_passed: true,
-          lint_errors: [],
-          lint_error_codes: [],
-          remaining_free: Math.max(0, dailyLimit.remaining - 1),
-          is_pro: isPro,
-          features,
-          fallback: true,
-          similarity_match: true,
-          similarity_confidence: similarResult.confidence,
-          region: input.region || "US",
-        };
-
-        if (requestRowId) {
-          completeRequest(requestRowId, newReceiptId, similarPayload).catch(() => {});
-        }
-
-        return NextResponse.json(similarPayload);
+      } catch {
+        // Similarity search failed — fall through to mark as failed
       }
-
-      // No similarity match found — use deterministic fallback
-      const fallbackReceipt = buildEnhancedFallbackReceipt(input, ruleSignals, ruleScoring);
-      timings.total = Date.now() - t0;
-      console.log(`[Receipt API] Returning fallback receipt after error (${timings.total}ms)`);
-
-      // Save fallback receipt to DB fire-and-forget (don't block the response)
-      if (isSupabaseConfigured()) {
-        const urlDomain = input.listing_url
-          ? (() => { try { return new URL(input.listing_url!).hostname.replace("www.", ""); } catch { return null; } })()
-          : null;
-        supabase.from("receipts").insert({
-          id: fallbackReceipt.receipt_id,
-          session_id: receiptToken,
-          user_id: userId || null,
-          source: "receipt_page",
-          page_source: (body.page_source as string) || null,
-          listing_url: input.listing_url || null,
-          url_domain: urlDomain,
-          listing_text: input.listing_text ? input.listing_text.substring(0, 5000) : null,
-          input_json: input,
-          output_json: fallbackReceipt,
-          mode: "single",
-          is_pro: isPro,
-        }).then(
-          ({ error: e }) => { if (e) console.error("[Receipt API] Error-fallback DB insert failed:", e.message); },
-          () => {}
-        );
-      }
-
-      const fallbackPayload = {
-        success: true,
-        receipt: fallbackReceipt,
-        db_saved: false,
-        lint_passed: true,
-        lint_errors: [],
-        lint_error_codes: [],
-        remaining_free: Math.max(0, dailyLimit.remaining - 1),
-        is_pro: isPro,
-        features,
-        fallback: true,
-        region: input.region || "US",
-      };
-
-      // Cache fallback for idempotency fire-and-forget
-      if (requestRowId) {
-        completeRequest(requestRowId, fallbackReceipt.receipt_id, fallbackPayload)
-          .catch(() => {});
-      }
-
-      return NextResponse.json(fallbackPayload);
     }
 
-    // Non-recoverable error — mark request as failed so retry is allowed
-    if (requestRowId) {
-      await failRequest(requestRowId, error instanceof Error ? error.message : "Unknown error");
-    }
+    // No recovery possible — mark as failed (lite receipt stays)
+    await supabase.from("receipts")
+      .update({ generation_status: "failed" })
+      .eq("id", receiptId);
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error
-          ? error.message
-          : "Failed to generate receipt",
-      },
-      { status: 500 }
-    );
+    console.log(`[Receipt Upgrade] Failed for ${receiptId}, keeping lite receipt`);
   }
 }
 
