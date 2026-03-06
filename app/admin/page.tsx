@@ -664,7 +664,7 @@ export default function AdminDashboard() {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <MetricCard title="Receipts Generated" value={s.receipt_pipeline.receipts_generated} subtitle={`${s.overview.total_receipts} receipts · ${s.overview.total_reports} EV-Risk reports stored`} icon="🧾" />
+          <MetricCard title="Receipts Generated" value={s.receipt_pipeline.receipts_generated} subtitle={`${s.overview.unique_sessions} unique sessions · ${s.overview.total_reports} EV-Risk reports`} icon="🧾" />
           <MetricCard title="Unique Sessions" value={s.overview.unique_sessions} subtitle={`${s.overview.unique_customers_by_email} with email (paid)`} icon="👥" />
           <MetricCard title="EV-Risk Reports" value={s.report_funnel.report_gen_started} subtitle={`${s.overview.total_reports} stored · ${s.report_funnel.report_gen_succeeded} persisted`} icon="📊" />
           <MetricCard title="Total Revenue" value={`$${s.revenue.total_revenue.toFixed(2)}`} subtitle={`${s.revenue.buyer_pass.paid} Buyer Pass · ${s.revenue.legacy_reports.paid_count} reports${s.revenue.buyer_pass.pending > 0 ? ` · ${s.revenue.buyer_pass.pending} pending` : ""}`} icon="💵" />

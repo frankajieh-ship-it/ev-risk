@@ -329,7 +329,8 @@ export async function GET(request: NextRequest) {
     const fetchFailures = countReceiptEvents(allReceiptEvents, "fetch_fail");
     const extractionAttempts = fetchSuccesses + fetchFailures;
 
-    // Use user_events as primary source (reliable), receipt_events as fallback
+    // DB rows are ground truth; client-side events may undercount (late addition, ad blockers)
+    const receiptsGenFromDB = allReceipts.length;
     const receiptsGenFromUserEvents = countEvents(allUserEvents, "receipt_generate");
     const receiptsGenFromReceiptEvents = countReceiptEvents(allReceiptEvents, "generate");
 
@@ -341,7 +342,7 @@ export async function GET(request: NextRequest) {
         extractionAttempts > 0
           ? Math.round((fetchSuccesses / extractionAttempts) * 1000) / 10
           : 0,
-      receipts_generated: Math.max(receiptsGenFromUserEvents, receiptsGenFromReceiptEvents),
+      receipts_generated: Math.max(receiptsGenFromDB, receiptsGenFromUserEvents, receiptsGenFromReceiptEvents),
       lint_failures: Math.max(
         countReceiptEvents(allReceiptEvents, "lint_fail"),
         countEvents(allUserEvents, "receipt_lint_failed")
