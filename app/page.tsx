@@ -288,7 +288,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <div id="turnstile-score" />
+      <div id="turnstile-score" className="hidden" />
 
       {/* Hero Section - Compact for mobile */}
       <section className="relative overflow-hidden">
