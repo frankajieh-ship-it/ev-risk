@@ -517,10 +517,9 @@ export async function GET(request: NextRequest) {
       { receipts: number; reports_free: number; reports_paid: number }
     >();
 
-    // Receipt generates from receipt_events
-    for (const e of allReceiptEvents) {
-      if (e.event_type !== "generate") continue;
-      const date = e.created_at?.split("T")[0] || "unknown";
+    // Receipt generates from receipts table (ground truth, not event-based)
+    for (const r of allReceipts) {
+      const date = r.created_at?.split("T")[0] || "unknown";
       if (!dailyMap.has(date))
         dailyMap.set(date, { receipts: 0, reports_free: 0, reports_paid: 0 });
       dailyMap.get(date)!.receipts++;
