@@ -14,9 +14,6 @@ let supabaseAuthClient: SupabaseClient | null = null;
 
 // Only initialize on client side
 if (typeof window !== "undefined" && supabaseUrl && supabaseAnonKey) {
-  // Debug: Log the Supabase URL being used (remove after confirming fix)
-  console.log("[Supabase Auth] Initializing with URL:", supabaseUrl);
-
   supabaseAuthClient = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       autoRefreshToken: true,
@@ -51,6 +48,12 @@ export async function sendMagicLink(email: string): Promise<{ success: boolean; 
     return { success: false, error: "Auth not configured" };
   }
 
+  // Validate email format before sending to Supabase
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailRegex.test(email.trim())) {
+    return { success: false, error: "Please enter a valid email address" };
+  }
+
   // Client-side cooldown to prevent Supabase rate limit errors
   if (typeof window !== "undefined") {
     const lastSent = localStorage.getItem(COOLDOWN_KEY);
@@ -66,9 +69,8 @@ export async function sendMagicLink(email: string): Promise<{ success: boolean; 
     }
   }
 
-  const redirectTo = typeof window !== "undefined"
-    ? `${window.location.origin}/auth/callback`
-    : undefined;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "");
+  const redirectTo = siteUrl ? `${siteUrl}/auth/callback` : undefined;
 
   const { error } = await supabaseAuthClient.auth.signInWithOtp({
     email,
@@ -145,6 +147,27 @@ export function onAuthStateChange(
   const { data: { subscription } } = supabaseAuthClient.auth.onAuthStateChange(callback);
 
   return () => subscription.unsubscribe();
+}
+
+/**
+ * User role type for B2B platform
+ */
+export type UserRole = "buyer" | "dealer_admin" | "dealer_user";
+
+/**
+ * Extract role from user metadata (set during onboarding)
+ */
+export function getUserRole(user: User | null): UserRole | null {
+  if (!user) return null;
+  return (user.user_metadata?.role as UserRole) || null;
+}
+
+/**
+ * Extract dealer_id from user metadata (set during dealer onboarding)
+ */
+export function getUserDealerId(user: User | null): string | null {
+  if (!user) return null;
+  return (user.user_metadata?.dealer_id as string) || null;
 }
 
 export type { User, Session };

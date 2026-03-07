@@ -679,10 +679,11 @@ export default function ReceiptInputCard({
                   onChange={(e) =>
                     updateField(
                       "price",
-                      e.target.value ? Number(e.target.value) : undefined
+                      e.target.value ? Math.max(0, Number(e.target.value)) : undefined
                     )
                   }
                   placeholder="32500"
+                  min="0"
                   className={getInputClass(
                     fieldConfidence.price,
                     dirtyFields.has("price")
@@ -700,10 +701,11 @@ export default function ReceiptInputCard({
                   onChange={(e) =>
                     updateField(
                       "mileage",
-                      e.target.value ? Number(e.target.value) : undefined
+                      e.target.value ? Math.max(0, Number(e.target.value)) : undefined
                     )
                   }
                   placeholder="45000"
+                  min="0"
                   className={getInputClass(
                     fieldConfidence.mileage,
                     dirtyFields.has("mileage")

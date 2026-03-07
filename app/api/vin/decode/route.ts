@@ -3,55 +3,18 @@
  *
  * Validates a VIN, calls NHTSA vPIC to decode it, detects mismatches
  * against the listing data, and caches results on the receipts row.
+ *
+ * Core decode logic lives in lib/vin-service.ts.
  */
 
 import { NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
+import { validateVin, decodeVin, detectMismatches } from "@/lib/vin-service";
+import type { DecodedVin } from "@/lib/vin-service";
 
 // 10 VIN decodes per 10 minutes per identity
 const vinRateLimiter = new RateLimiter(10 * 60 * 1000, 10);
-
-// VIN validation: 17 alphanumeric chars, no I/O/Q
-const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/i;
-
-// Common make aliases for fuzzy mismatch detection
-const MAKE_ALIASES: Record<string, string[]> = {
-  chevrolet: ["chevy"],
-  volkswagen: ["vw"],
-  "mercedes-benz": ["mercedes", "mb"],
-  "land rover": ["landrover"],
-  bmw: ["bayerische motoren werke"],
-};
-
-function normalizeMake(make: string): string {
-  const lower = make.toLowerCase().trim();
-  // Check if it's an alias
-  for (const [canonical, aliases] of Object.entries(MAKE_ALIASES)) {
-    if (lower === canonical || aliases.includes(lower)) {
-      return canonical;
-    }
-  }
-  return lower;
-}
-
-interface DecodedVin {
-  year: number;
-  make: string;
-  model: string;
-  trim: string;
-  engine: string;
-  drive_type: string;
-  fuel_type: string;
-  body_class: string;
-  plant_country: string;
-}
-
-interface VinMismatch {
-  field: string;
-  listing_value: string;
-  decoded_value: string;
-}
 
 export async function POST(request: Request) {
   try {
@@ -66,9 +29,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const cleanVin = vin.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/gi, "");
+    const cleanVin = validateVin(vin);
 
-    if (!VIN_REGEX.test(cleanVin)) {
+    if (!cleanVin) {
       return NextResponse.json(
         { success: false, error: "Invalid VIN. Must be 17 characters (letters A-H, J-N, P, R-Z and digits 0-9)." },
         { status: 400 }
@@ -120,8 +83,7 @@ export async function POST(request: Request) {
           .single();
 
         if (cached?.vin_decode) {
-          // Re-compute mismatches against current listing data
-          const mismatches = detectMismatches(cached.vin_decode, { year, make, model });
+          const mismatches = detectMismatches(cached.vin_decode as DecodedVin, { year, make, model });
           return NextResponse.json({
             success: true,
             decoded: cached.vin_decode,
@@ -135,117 +97,44 @@ export async function POST(request: Request) {
       }
     }
 
-    // --- Call NHTSA vPIC ---
-    const nhtsaUrl = `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValuesExtended/${cleanVin}?format=json`;
+    // --- Decode via shared service ---
+    const result = await decodeVin(cleanVin, { year, make, model });
 
-    let nhtsaResponse: Response;
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-
-      nhtsaResponse = await fetch(nhtsaUrl, { signal: controller.signal });
-      clearTimeout(timeout);
-    } catch (err) {
-      // Update status to failed if Supabase is configured
+    if (!result.success) {
+      // Persist failure status
       if (isSupabaseConfigured()) {
+        const status = result.code === "unrecognized" ? "invalid_vin" : "failed";
         await supabase
           .from("receipts")
           .update({
             vin: cleanVin,
-            vin_decode_status: "failed",
+            vin_decode_status: status,
             vin_checked_at: new Date().toISOString(),
           })
           .eq("id", receipt_id)
           .then(() => {});
       }
 
-      const isAbort = err instanceof DOMException && err.name === "AbortError";
+      const httpStatus =
+        result.code === "unrecognized" ? 400 :
+        result.code === "not_found" ? 404 : 502;
+
       return NextResponse.json(
-        {
-          success: false,
-          error: isAbort
-            ? "NHTSA service timed out. Try again in a minute."
-            : "NHTSA service unavailable. Try again in a minute.",
-        },
-        { status: 502 }
+        { success: false, error: result.error },
+        { status: httpStatus }
       );
     }
 
-    if (!nhtsaResponse.ok) {
-      return NextResponse.json(
-        { success: false, error: "NHTSA service returned an error. Try again later." },
-        { status: 502 }
-      );
-    }
-
-    const nhtsaData = await nhtsaResponse.json();
-    const result = nhtsaData?.Results?.[0];
-
-    if (!result) {
-      return NextResponse.json(
-        { success: false, error: "VIN not found in NHTSA database." },
-        { status: 404 }
-      );
-    }
-
-    // Check error codes — "0" = success, "1" = partial (still usable)
-    const errorCode = result.ErrorCode?.toString() || "";
-    const errorCodes = errorCode.split(",").map((c: string) => c.trim());
-    const hasOnlySuccessCodes = errorCodes.every(
-      (c: string) => c === "0" || c === "1" || c === ""
-    );
-
-    if (!hasOnlySuccessCodes && !result.Make && !result.ModelYear) {
-      if (isSupabaseConfigured()) {
-        await supabase
-          .from("receipts")
-          .update({
-            vin: cleanVin,
-            vin_decode_status: "invalid_vin",
-            vin_checked_at: new Date().toISOString(),
-          })
-          .eq("id", receipt_id)
-          .then(() => {});
-      }
-
-      return NextResponse.json(
-        { success: false, error: "VIN not recognized by NHTSA. Please double-check the VIN." },
-        { status: 400 }
-      );
-    }
-
-    // --- Parse decoded fields ---
-    const engineParts = [
-      result.DisplacementL ? `${parseFloat(result.DisplacementL).toFixed(1)}L` : null,
-      result.EngineCylinders ? `${result.EngineCylinders}-Cylinder` : null,
-      result.EngineModel || null,
-    ].filter(Boolean);
-
-    const decoded: DecodedVin = {
-      year: parseInt(result.ModelYear, 10) || 0,
-      make: result.Make || "",
-      model: result.Model || "",
-      trim: result.Trim || "",
-      engine: engineParts.join(" ") || "",
-      drive_type: result.DriveType || "",
-      fuel_type: result.FuelTypePrimary || "",
-      body_class: result.BodyClass || "",
-      plant_country: result.PlantCountry || "",
-    };
-
-    // --- Detect mismatches ---
-    const mismatches = detectMismatches(decoded, { year, make, model });
-
-    // --- Persist to Supabase ---
+    // --- Persist success to Supabase ---
     if (isSupabaseConfigured()) {
       await supabase
         .from("receipts")
         .update({
           vin: cleanVin,
           vin_decode_status: "success",
-          vin_decode: decoded,
+          vin_decode: result.decoded,
           vin_checked_at: new Date().toISOString(),
-          vin_mismatch_flags: mismatches.length > 0 ? mismatches : null,
+          vin_mismatch_flags: result.mismatches.length > 0 ? result.mismatches : null,
         })
         .eq("id", receipt_id)
         .then(() => {});
@@ -253,9 +142,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      decoded,
-      mismatches,
-      recall_url: `https://www.nhtsa.gov/recalls?vin=${cleanVin}`,
+      decoded: result.decoded,
+      mismatches: result.mismatches,
+      recall_url: result.recall_url,
     });
   } catch (err) {
     console.error("[VIN Decode] Unexpected error:", err);
@@ -264,49 +153,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
-
-function detectMismatches(
-  decoded: DecodedVin,
-  listing: { year?: number; make?: string; model?: string }
-): VinMismatch[] {
-  const mismatches: VinMismatch[] = [];
-
-  // Year mismatch
-  if (listing.year && decoded.year && listing.year !== decoded.year) {
-    mismatches.push({
-      field: "year",
-      listing_value: String(listing.year),
-      decoded_value: String(decoded.year),
-    });
-  }
-
-  // Make mismatch (fuzzy via aliases)
-  if (listing.make && decoded.make) {
-    const normalizedListing = normalizeMake(listing.make);
-    const normalizedDecoded = normalizeMake(decoded.make);
-    if (normalizedListing !== normalizedDecoded) {
-      mismatches.push({
-        field: "make",
-        listing_value: listing.make,
-        decoded_value: decoded.make,
-      });
-    }
-  }
-
-  // Model mismatch (case-insensitive)
-  if (listing.model && decoded.model) {
-    const listingModel = listing.model.toLowerCase().trim();
-    const decodedModel = decoded.model.toLowerCase().trim();
-    // Only flag if they don't share a common prefix (e.g., "RAV4 Prime" vs "RAV4")
-    if (listingModel !== decodedModel && !listingModel.startsWith(decodedModel) && !decodedModel.startsWith(listingModel)) {
-      mismatches.push({
-        field: "model",
-        listing_value: listing.model,
-        decoded_value: decoded.model,
-      });
-    }
-  }
-
-  return mismatches;
 }

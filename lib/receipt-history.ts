@@ -54,6 +54,18 @@ export function addToReceiptHistory(receipt: ListingReceipt): void {
   }
 }
 
+export function deleteReceiptFromHistory(receiptId: string): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    const history = getReceiptHistory();
+    const updated = history.filter((e) => e.receipt_id !== receiptId);
+    localStorage.setItem(RECEIPT_HISTORY_KEY, JSON.stringify(updated));
+  } catch {
+    // localStorage error
+  }
+}
+
 export function clearReceiptHistory(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(RECEIPT_HISTORY_KEY);

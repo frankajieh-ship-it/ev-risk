@@ -12,6 +12,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   getReceiptHistory,
   addToReceiptHistory,
+  deleteReceiptFromHistory,
   clearReceiptHistory,
 } from "@/lib/receipt-history";
 import { getSupabaseAuthClient } from "@/lib/supabase-auth";
@@ -21,6 +22,7 @@ export interface UseReceiptHistoryReturn {
   history: ReceiptHistoryEntry[];
   isLoading: boolean;
   addReceipt: (receipt: ListingReceipt) => void;
+  deleteReceipt: (receiptId: string) => void;
   clearHistory: () => void;
   refetch: () => Promise<void>;
 }
@@ -139,6 +141,11 @@ export function useReceiptHistory(
     []
   );
 
+  const deleteReceipt = useCallback((receiptId: string) => {
+    deleteReceiptFromHistory(receiptId);
+    setHistory((prev) => prev.filter((e) => e.receipt_id !== receiptId));
+  }, []);
+
   const clearHistoryFn = useCallback(() => {
     clearReceiptHistory();
     setHistory([]);
@@ -148,6 +155,7 @@ export function useReceiptHistory(
     history,
     isLoading,
     addReceipt,
+    deleteReceipt,
     clearHistory: clearHistoryFn,
     refetch: fetchAndMerge,
   };

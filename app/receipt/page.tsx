@@ -147,6 +147,7 @@ export default function ReceiptPage() {
     history,
     isLoading: isHistoryLoading,
     addReceipt,
+    deleteReceipt,
     clearHistory,
   } = useReceiptHistory(receiptToken);
 
@@ -1164,6 +1165,7 @@ export default function ReceiptPage() {
         history={history}
         onSelect={handleHistorySelect}
         onClear={clearHistory}
+        onDelete={deleteReceipt}
         isLoading={isHistoryLoading}
         region={region}
       />

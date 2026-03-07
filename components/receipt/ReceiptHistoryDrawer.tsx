@@ -9,7 +9,7 @@
 import { X, Trash2, Shield, AlertTriangle, AlertCircle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ReceiptHistoryEntry, Verdict } from "@/types/receipt";
-import { clearReceiptHistory } from "@/lib/receipt-history";
+import { clearReceiptHistory, deleteReceiptFromHistory } from "@/lib/receipt-history";
 import type { Region } from "@/lib/region";
 import { formatPrice } from "@/lib/region";
 
@@ -19,6 +19,7 @@ interface ReceiptHistoryDrawerProps {
   history: ReceiptHistoryEntry[];
   onSelect: (entry: ReceiptHistoryEntry) => void;
   onClear: () => void;
+  onDelete?: (receiptId: string) => void;
   isLoading?: boolean;
   region?: Region;
 }
@@ -38,12 +39,19 @@ export default function ReceiptHistoryDrawer({
   history,
   onSelect,
   onClear,
+  onDelete,
   isLoading,
   region = "US",
 }: ReceiptHistoryDrawerProps) {
   const handleClear = () => {
     clearReceiptHistory();
     onClear();
+  };
+
+  const handleDelete = (e: React.MouseEvent, receiptId: string) => {
+    e.stopPropagation();
+    deleteReceiptFromHistory(receiptId);
+    onDelete?.(receiptId);
   };
 
   return (
@@ -113,38 +121,49 @@ export default function ReceiptHistoryDrawer({
                     const timeStr = formatRelative(entry.created_at);
 
                     return (
-                      <button
+                      <div
                         key={entry.receipt_id}
-                        onClick={() => onSelect(entry)}
-                        className="w-full text-left px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                        className="relative group"
                       >
-                        <div className="flex items-center gap-2 mb-1">
-                          <div
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}
-                          >
-                            <Icon className="w-3 h-3" />
-                            {entry.verdict}
-                          </div>
-                          {entry.receipt?.evidence_label && (
-                            <div className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
-                              entry.receipt.evidence_label === "STRONG" ? "bg-blue-50 text-blue-600" :
-                              entry.receipt.evidence_label === "PARTIAL" ? "bg-gray-100 text-gray-500" :
-                              "bg-orange-50 text-orange-600"
-                            }`}>
-                              {entry.receipt.evidence_label}
+                        <button
+                          onClick={() => onSelect(entry)}
+                          className="w-full text-left px-5 py-3.5 hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <div
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}
+                            >
+                              <Icon className="w-3 h-3" />
+                              {entry.verdict}
                             </div>
-                          )}
-                          <span className="text-xs text-gray-400">{timeStr}</span>
-                        </div>
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {vehicle || "Unknown Vehicle"}
-                        </p>
-                        {entry.price && (
-                          <p className="text-xs text-gray-500">
-                            {formatPrice(entry.price, region)}
+                            {entry.receipt?.evidence_label && (
+                              <div className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                                entry.receipt.evidence_label === "STRONG" ? "bg-blue-50 text-blue-600" :
+                                entry.receipt.evidence_label === "PARTIAL" ? "bg-gray-100 text-gray-500" :
+                                "bg-orange-50 text-orange-600"
+                              }`}>
+                                {entry.receipt.evidence_label}
+                              </div>
+                            )}
+                            <span className="text-xs text-gray-400">{timeStr}</span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {vehicle || "Unknown Vehicle"}
                           </p>
-                        )}
-                      </button>
+                          {entry.price && (
+                            <p className="text-xs text-gray-500">
+                              {formatPrice(entry.price, region)}
+                            </p>
+                          )}
+                        </button>
+                        <button
+                          onClick={(e) => handleDelete(e, entry.receipt_id)}
+                          className="absolute top-3 right-3 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-50 text-gray-300 hover:text-red-500 transition-all"
+                          title="Delete receipt"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>

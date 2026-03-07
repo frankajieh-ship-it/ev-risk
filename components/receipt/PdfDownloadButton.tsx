@@ -1,17 +1,17 @@
 /**
- * PdfDownloadButton — PDF download for receipt, gated by purchase status
+ * PdfDownloadButton — PDF download for receipt (free for all users)
  */
 
 "use client";
 
 import { useState } from "react";
-import { FileDown, Lock, Loader2 } from "lucide-react";
+import { FileDown, Loader2 } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface PdfDownloadButtonProps {
   receiptId: string;
   receiptToken: string;
-  isUnlocked: boolean;
+  isUnlocked?: boolean;
   onCheckoutRedirect?: () => void;
   compact?: boolean;
 }
@@ -19,8 +19,6 @@ interface PdfDownloadButtonProps {
 export default function PdfDownloadButton({
   receiptId,
   receiptToken,
-  isUnlocked,
-  onCheckoutRedirect,
   compact = false,
 }: PdfDownloadButtonProps) {
   const { trackEvent } = useEventTracking();
@@ -29,55 +27,39 @@ export default function PdfDownloadButton({
   const handleClick = () => {
     trackEvent("download_pdf_clicked", {
       receipt_id: receiptId,
-      is_unlocked: isUnlocked,
     });
 
-    if (isUnlocked) {
-      setIsDownloading(true);
-      window.open(
-        `/api/receipt/${receiptId}/pdf?anon_id=${encodeURIComponent(receiptToken)}`,
-        "_blank"
-      );
-      // Reset after a short delay (download starts in new tab)
-      setTimeout(() => setIsDownloading(false), 3000);
-    } else {
-      onCheckoutRedirect?.();
-    }
+    setIsDownloading(true);
+    window.open(
+      `/api/receipt/${receiptId}/pdf?anon_id=${encodeURIComponent(receiptToken)}`,
+      "_blank"
+    );
+    setTimeout(() => setIsDownloading(false), 3000);
   };
 
   const baseCompact = "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all";
   const baseFull = "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all";
 
-  const getClassName = () => {
-    const base = compact ? baseCompact : baseFull;
-    if (isUnlocked) {
-      return isDownloading
-        ? `${base} bg-blue-50 text-blue-400 border border-blue-200 cursor-wait`
-        : `${base} ${compact ? "border" : "border-2"} border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300`;
-    }
-    return `${base} ${compact ? "border" : "border-2"} border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50`;
-  };
+  const base = compact ? baseCompact : baseFull;
+  const className = isDownloading
+    ? `${base} bg-blue-50 text-blue-400 border border-blue-200 cursor-wait`
+    : `${base} ${compact ? "border" : "border-2"} border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300`;
 
   return (
     <button
       onClick={handleClick}
       disabled={isDownloading}
-      className={getClassName()}
+      className={className}
     >
       {isDownloading ? (
         <>
           <Loader2 className="w-4 h-4 animate-spin" />
           {!compact && "Preparing PDF..."}
         </>
-      ) : isUnlocked ? (
+      ) : (
         <>
           <FileDown className="w-4 h-4" />
           {compact ? "PDF" : "Download PDF"}
-        </>
-      ) : (
-        <>
-          <Lock className="w-4 h-4" />
-          {compact ? "PDF" : "Unlock to Download PDF"}
         </>
       )}
     </button>

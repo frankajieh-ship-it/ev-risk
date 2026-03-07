@@ -14,8 +14,11 @@ import {
   onAuthStateChange,
   isSupabaseAuthConfigured,
   getSupabaseAuthClient,
+  getUserRole,
+  getUserDealerId,
   type User,
   type Session,
+  type UserRole,
 } from "@/lib/supabase-auth";
 
 interface AuthState {
@@ -25,12 +28,16 @@ interface AuthState {
   isAuthenticated: boolean;
   isConfigured: boolean;
   isReady: boolean; // True when auth is fully validated (after SIGNED_IN)
+  role: UserRole | null;
+  dealerId: string | null;
 }
 
 interface UseAuthReturn extends AuthState {
   login: (email: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<{ success: boolean; error?: string }>;
   refreshSession: () => Promise<void>;
+  isDealer: boolean;
+  isDealerAdmin: boolean;
 }
 
 export function useAuth(): UseAuthReturn {
@@ -41,6 +48,8 @@ export function useAuth(): UseAuthReturn {
     isAuthenticated: false,
     isConfigured: false,
     isReady: false,
+    role: null,
+    dealerId: null,
   });
 
   // Track when we're actively refreshing to avoid race conditions
@@ -66,6 +75,8 @@ export function useAuth(): UseAuthReturn {
           isAuthenticated: !!user,
           isConfigured: true,
           isReady: false, // Don't set ready here - wait for SIGNED_IN event
+          role: getUserRole(user),
+          dealerId: getUserDealerId(user),
         });
       } catch (error) {
         console.error("Auth init error:", error);
@@ -81,26 +92,32 @@ export function useAuth(): UseAuthReturn {
 
       if (event === "SIGNED_IN") {
         // Fresh login - token is fully validated
+        const u = session?.user ?? null;
         setState((prev) => ({
           ...prev,
           session,
-          user: session?.user ?? null,
-          isAuthenticated: !!session?.user,
+          user: u,
+          isAuthenticated: !!u,
           isLoading: false,
           isReady: true,
+          role: getUserRole(u),
+          dealerId: getUserDealerId(u),
         }));
       } else if (event === "TOKEN_REFRESHED") {
         // Only set ready if we're NOT in the middle of our own refresh
         // (our refresh promise will handle setting isReady)
         if (!isRefreshingRef.current) {
           console.log("[useAuth] TOKEN_REFRESHED (not from our refresh), setting ready");
+          const trUser = session?.user ?? null;
           setState((prev) => ({
             ...prev,
             session,
-            user: session?.user ?? null,
-            isAuthenticated: !!session?.user,
+            user: trUser,
+            isAuthenticated: !!trUser,
             isLoading: false,
             isReady: true,
+            role: getUserRole(trUser),
+            dealerId: getUserDealerId(trUser),
           }));
         } else {
           console.log("[useAuth] TOKEN_REFRESHED (during our refresh), ignoring - will wait for promise");
@@ -113,13 +130,16 @@ export function useAuth(): UseAuthReturn {
           console.log("[useAuth] INITIAL_SESSION with user, refreshing session to validate token...");
 
           // Set basic state but NOT ready yet
+          const isUser = session?.user ?? null;
           setState((prev) => ({
             ...prev,
             session,
-            user: session?.user ?? null,
+            user: isUser,
             isAuthenticated: true,
             isLoading: false,
             isReady: false, // Wait for refresh to complete
+            role: getUserRole(isUser),
+            dealerId: getUserDealerId(isUser),
           }));
 
           // Trigger a session refresh to ensure token is valid on Supabase backend
@@ -145,6 +165,8 @@ export function useAuth(): UseAuthReturn {
                   isAuthenticated: true,
                   isLoading: false,
                   isReady: true,
+                  role: getUserRole(refreshedSession.user),
+                  dealerId: getUserDealerId(refreshedSession.user),
                 }));
               } else {
                 // No session after refresh - user needs to re-authenticate
@@ -183,6 +205,8 @@ export function useAuth(): UseAuthReturn {
           user: null,
           isAuthenticated: false,
           isReady: false,
+          role: null,
+          dealerId: null,
         }));
       }
     });
@@ -211,6 +235,8 @@ export function useAuth(): UseAuthReturn {
         session: null,
         isAuthenticated: false,
         isReady: false,
+        role: null,
+        dealerId: null,
       }));
     }
     return result;
@@ -226,13 +252,20 @@ export function useAuth(): UseAuthReturn {
       session,
       user,
       isAuthenticated: !!user,
+      role: getUserRole(user),
+      dealerId: getUserDealerId(user),
     }));
   }, []);
+
+  const isDealer = state.role === "dealer_admin" || state.role === "dealer_user";
+  const isDealerAdmin = state.role === "dealer_admin";
 
   return {
     ...state,
     login,
     logout,
     refreshSession,
+    isDealer,
+    isDealerAdmin,
   };
 }

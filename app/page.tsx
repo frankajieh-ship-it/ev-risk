@@ -24,6 +24,14 @@ type WizardStep = "routine" | "vehicle" | "generating";
 export default function Home() {
   const router = useRouter();
 
+  // Forward auth hash fragments (error or success) to the callback page
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && (hash.includes("error=") || hash.includes("access_token="))) {
+      window.location.href = `/auth/callback${hash}`;
+    }
+  }, []);
+
   // Auth state for saved scenarios
   const { isAuthenticated, logout } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -131,7 +139,7 @@ export default function Home() {
       });
       router.push(`/report?${params.toString()}`);
     } catch (err) {
-      console.error("[Frontend] V2 score error:", err);
+      console.warn("[Frontend] V2 score error:", err);
       setGenerateError(err instanceof Error ? err.message : "An error occurred");
       // Go back to vehicle step so user can retry
       setCurrentStep("vehicle");

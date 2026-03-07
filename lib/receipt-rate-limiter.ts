@@ -115,9 +115,14 @@ export async function checkDailyLimit(
         }
       }
 
-      // If we got here via Supabase path, calculate remaining
+      // If we got here via Supabase path, sync in-memory and return
       if (!error) {
         const used = count || 0;
+        // Keep in-memory map in sync so incrementDailyCount works
+        dailyLimitFallback.set(receiptToken, {
+          count: used,
+          resetAt: tomorrowStart.getTime(),
+        });
         return {
           allowed: true,
           remaining: Math.max(0, FREE_DAILY_LIMIT - used),

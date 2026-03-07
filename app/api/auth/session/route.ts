@@ -108,9 +108,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get redirect URL from request origin
-    const origin = req.headers.get("origin") || "http://localhost:3000";
-    const redirectTo = `${origin}/auth/callback`;
+    // Get redirect URL — prefer explicit env var over request origin
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || req.headers.get("origin") || "http://localhost:3000";
+    const redirectTo = `${siteUrl}/auth/callback`;
 
     // Send magic link
     const { error } = await supabase.auth.admin.generateLink({

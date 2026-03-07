@@ -60,6 +60,24 @@ export function middleware(request: NextRequest) {
     });
   }
 
+  // Protected routes — require Supabase auth cookie (client-side layout does full JWT check)
+  const isProtectedRoute =
+    request.nextUrl.pathname.startsWith("/workspace") ||
+    request.nextUrl.pathname.startsWith("/dealer");
+
+  if (isProtectedRoute) {
+    // Supabase stores auth in sb-*-auth-token cookies
+    const hasAuthCookie = Array.from(request.cookies.getAll()).some(
+      (c) => c.name.includes("-auth-token")
+    );
+
+    if (!hasAuthCookie) {
+      const loginUrl = new URL("/auth/login", request.url);
+      loginUrl.searchParams.set("redirect", request.nextUrl.pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   // Admin Panel IP Restriction
   if (request.nextUrl.pathname.startsWith("/admin")) {
     const allowedIPs = (process.env.ADMIN_ALLOWED_IPS || "").split(",").filter(Boolean);
