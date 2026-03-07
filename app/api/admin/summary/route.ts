@@ -358,6 +358,7 @@ export async function GET(request: NextRequest) {
         countEvents(allUserEvents, "copy_seller_message") +
         countEvents(allUserEvents, "negotiator_copy_clicked")
       ),
+      copies_legacy: countReceiptEvents(allReceiptEvents, "copy"),
       copy_reddit_draft: countEvents(allUserEvents, "copy_reddit_draft"),
       copy_seller_message: countEvents(allUserEvents, "copy_seller_message"),
       copy_checklist: countEvents(allUserEvents, "copy_checklist"),
@@ -689,13 +690,15 @@ export async function GET(request: NextRequest) {
 
     const receiptViewed = countEvents(allUserEvents, "receipt_result_viewed");
 
-    // Copy engagement
+    // Copy engagement (use max of legacy receipt_events + granular user_events)
     const copyChecklist = countEvents(allUserEvents, "copy_checklist");
     const copyRedditDraft = countEvents(allUserEvents, "copy_reddit_draft");
     const copySellerMessage = countEvents(allUserEvents, "copy_seller_message");
     const negotiatorShown = countEvents(allUserEvents, "negotiator_shown");
     const negotiatorCopyClicked = countEvents(allUserEvents, "negotiator_copy_clicked");
-    const totalCopyActions = copyChecklist + copyRedditDraft + copySellerMessage + negotiatorCopyClicked;
+    const granularCopyTotal = copyChecklist + copyRedditDraft + copySellerMessage + negotiatorCopyClicked;
+    const legacyCopyTotal = countReceiptEvents(allReceiptEvents, "copy");
+    const totalCopyActions = Math.max(granularCopyTotal, legacyCopyTotal);
 
     // Share engagement
     const shareQrClicked = countEvents(allUserEvents, "share_qr_clicked");

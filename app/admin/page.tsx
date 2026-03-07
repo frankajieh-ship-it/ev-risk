@@ -54,6 +54,7 @@ interface SummaryData {
     lint_failures: number;
     regens: number;
     copies: number;
+    copies_legacy: number;
     copy_reddit_draft: number;
     copy_seller_message: number;
     copy_checklist: number;
@@ -723,13 +724,17 @@ export default function AdminDashboard() {
             <FunnelCard label="Receipts Generated" value={s.receipt_pipeline.receipts_generated} color="purple" />
             <FunnelCard label="Lint Failures" value={s.receipt_pipeline.lint_failures} color="red" />
             <FunnelCard label="Lint Fallback" value={s.receipt_pipeline.lint_failed_fallback_served} color="amber" />
-            <FunnelCard label="Copy (Total)" value={s.receipt_pipeline.copies} color="indigo" />
+            <FunnelCard label="Copy (Total)" value={s.receipt_pipeline.copies} color="indigo"
+              subtitle={s.receipt_pipeline.copies_legacy > (s.receipt_pipeline.copy_reddit_draft + s.receipt_pipeline.copy_seller_message + s.receipt_pipeline.copy_checklist + s.receipt_pipeline.negotiator_copy)
+                ? `${s.receipt_pipeline.copies_legacy - (s.receipt_pipeline.copy_reddit_draft + s.receipt_pipeline.copy_seller_message + s.receipt_pipeline.copy_checklist + s.receipt_pipeline.negotiator_copy)} pre-tracking`
+                : undefined}
+            />
             <FunnelCard label="Regens" value={s.receipt_pipeline.regens} color="gray" />
             <FunnelCard
               label="Copy Breakdown"
-              value={`${s.receipt_pipeline.copy_reddit_draft}/${s.receipt_pipeline.copy_seller_message}/${s.receipt_pipeline.copy_checklist}`}
+              value={`${s.receipt_pipeline.copy_checklist}/${s.receipt_pipeline.negotiator_copy}/${s.receipt_pipeline.copy_reddit_draft}/${s.receipt_pipeline.copy_seller_message}`}
               color="emerald"
-              subtitle="Reddit / Seller / Checklist"
+              subtitle="Check / Nego / Reddit / Seller"
             />
           </div>
         </div>
