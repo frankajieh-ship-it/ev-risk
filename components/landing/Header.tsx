@@ -2,19 +2,34 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { History } from "lucide-react";
+import { History, Menu, X, User, Building } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import LoginModal from "@/components/LoginModal";
 
 interface HeaderProps {
+  variant?: "receipt" | "homepage";
   historyCount?: number;
   onHistoryClick?: () => void;
   regionSelector?: ReactNode;
 }
 
-export default function Header({ historyCount, onHistoryClick, regionSelector }: HeaderProps) {
-  const { isAuthenticated, logout } = useAuth();
+const personaLinks = [
+  { label: "Shoppers", href: "#fit-check", isScroll: true },
+  { label: "Owners", href: "/receipt", isScroll: false },
+  { label: "Dealers", href: "/dealer", isScroll: false },
+];
+
+export default function Header({ variant = "receipt", historyCount, onHistoryClick, regionSelector }: HeaderProps) {
+  const { isAuthenticated, isDealer, logout } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleScrollClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    const el = document.querySelector(href);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+    setMobileOpen(false);
+  };
 
   return (
     <>
@@ -25,46 +40,191 @@ export default function Header({ historyCount, onHistoryClick, regionSelector }:
               OFFO
             </Link>
 
-            <div className="flex items-center gap-4">
-              {regionSelector}
-              <span
-                className="text-sm font-medium text-gray-400 cursor-default hidden sm:inline"
-                title="Coming soon"
-              >
-                Deal Watch
-              </span>
-              {onHistoryClick && (
-                <button
-                  onClick={onHistoryClick}
-                  className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  <History className="w-4 h-4" />
-                  History
-                  {(historyCount ?? 0) > 0 && (
-                    <span className="bg-gray-200 text-gray-600 text-xs px-1.5 py-0.5 rounded-full">
-                      {historyCount}
-                    </span>
+            {variant === "homepage" ? (
+              <>
+                {/* Desktop nav */}
+                <div className="hidden md:flex items-center gap-6">
+                  {personaLinks.map((link) =>
+                    link.isScroll ? (
+                      <a
+                        key={link.label}
+                        href={link.href}
+                        onClick={(e) => handleScrollClick(e, link.href)}
+                        className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                      >
+                        {link.label}
+                      </a>
+                    ) : (
+                      <Link
+                        key={link.label}
+                        href={link.href}
+                        className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                      >
+                        {link.label}
+                      </Link>
+                    )
                   )}
-                </button>
-              )}
-              {isAuthenticated ? (
+
+                  {isAuthenticated && (
+                    <>
+                      <Link
+                        href="/hub"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                      >
+                        <User className="w-3.5 h-3.5" />
+                        My Workspace
+                      </Link>
+                      {isDealer && (
+                        <Link
+                          href="/dealer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                        >
+                          <Building className="w-3.5 h-3.5" />
+                          Dealer
+                        </Link>
+                      )}
+                    </>
+                  )}
+
+                  {isAuthenticated ? (
+                    <button
+                      onClick={() => logout()}
+                      className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                    >
+                      Sign out
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowLogin(true)}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                    >
+                      Sign in
+                    </button>
+                  )}
+                </div>
+
+                {/* Mobile hamburger */}
                 <button
-                  onClick={() => logout()}
-                  className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                  onClick={() => setMobileOpen(!mobileOpen)}
+                  className="md:hidden p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                  aria-label="Toggle menu"
                 >
-                  Sign out
+                  {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                 </button>
-              ) : (
-                <button
-                  onClick={() => setShowLogin(true)}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+              </>
+            ) : (
+              /* Receipt variant — existing behavior */
+              <div className="flex items-center gap-4">
+                {regionSelector}
+                <span
+                  className="text-sm font-medium text-gray-400 cursor-default hidden sm:inline"
+                  title="Coming soon"
                 >
-                  Sign in
-                </button>
-              )}
-            </div>
+                  Deal Watch
+                </span>
+                {onHistoryClick && (
+                  <button
+                    onClick={onHistoryClick}
+                    className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    <History className="w-4 h-4" />
+                    History
+                    {(historyCount ?? 0) > 0 && (
+                      <span className="bg-gray-200 text-gray-600 text-xs px-1.5 py-0.5 rounded-full">
+                        {historyCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+                {isAuthenticated ? (
+                  <button
+                    onClick={() => logout()}
+                    className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    Sign out
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowLogin(true)}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                  >
+                    Sign in
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Mobile dropdown — homepage variant only */}
+        {variant === "homepage" && mobileOpen && (
+          <div className="md:hidden border-t border-gray-100 bg-white/95 backdrop-blur-md">
+            <div className="px-4 py-4 space-y-3">
+              {personaLinks.map((link) =>
+                link.isScroll ? (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    onClick={(e) => handleScrollClick(e, link.href)}
+                    className="block text-sm font-medium text-gray-700 hover:text-gray-900 py-2"
+                  >
+                    {link.label}
+                  </a>
+                ) : (
+                  <Link
+                    key={link.label}
+                    href={link.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="block text-sm font-medium text-gray-700 hover:text-gray-900 py-2"
+                  >
+                    {link.label}
+                  </Link>
+                )
+              )}
+
+              <div className="border-t border-gray-100 pt-3">
+                {isAuthenticated && (
+                  <div className="flex flex-col gap-2 mb-3">
+                    <Link
+                      href="/hub"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium"
+                    >
+                      <User className="w-3.5 h-3.5" />
+                      My Workspace
+                    </Link>
+                    {isDealer && (
+                      <Link
+                        href="/dealer"
+                        onClick={() => setMobileOpen(false)}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium"
+                      >
+                        <Building className="w-3.5 h-3.5" />
+                        Dealer
+                      </Link>
+                    )}
+                  </div>
+                )}
+
+                {isAuthenticated ? (
+                  <button
+                    onClick={() => { logout(); setMobileOpen(false); }}
+                    className="text-sm font-medium text-gray-500 hover:text-gray-700 py-2"
+                  >
+                    Sign out
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setShowLogin(true); setMobileOpen(false); }}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 py-2"
+                  >
+                    Sign in
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
       <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
     </>

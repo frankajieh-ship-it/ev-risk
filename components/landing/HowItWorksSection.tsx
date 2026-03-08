@@ -1,9 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Link2, Search, ClipboardCheck } from "lucide-react";
+import { Link2, Search, ClipboardCheck, MessageSquare, Cpu, FileCheck } from "lucide-react";
 
-const steps = [
+const receiptSteps = [
   {
     number: 1,
     icon: Link2,
@@ -30,6 +30,33 @@ const steps = [
   },
 ];
 
+const fitCheckSteps = [
+  {
+    number: 1,
+    icon: MessageSquare,
+    title: "Tell us your routine",
+    description:
+      "Answer 4 quick questions about your charging access, driving habits, climate, and long days.",
+    color: "bg-blue-100 text-blue-600",
+  },
+  {
+    number: 2,
+    icon: Cpu,
+    title: "We analyze the fit",
+    description:
+      "Our engine checks range, charging predictability, and routine friction for your specific situation.",
+    color: "bg-green-100 text-green-600",
+  },
+  {
+    number: 3,
+    icon: FileCheck,
+    title: "Get your verdict",
+    description:
+      "See if an EV fits your life, what breaks first, and your Plan B — all in under 30 seconds.",
+    color: "bg-indigo-100 text-indigo-600",
+  },
+];
+
 const containerVariants = {
   hidden: {},
   visible: {
@@ -42,7 +69,16 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
-export default function HowItWorksSection() {
+interface HowItWorksSectionProps {
+  variant?: "receipt" | "fit-check";
+}
+
+export default function HowItWorksSection({ variant = "receipt" }: HowItWorksSectionProps) {
+  const steps = variant === "fit-check" ? fitCheckSteps : receiptSteps;
+  const subtitle = variant === "fit-check"
+    ? "Three steps to knowing if an EV fits your life"
+    : "Three steps to confident used EV shopping";
+
   return (
     <section id="how-it-works" className="py-16 md:py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4">
@@ -51,7 +87,7 @@ export default function HowItWorksSection() {
             How OFFO works
           </h2>
           <p className="text-gray-500 text-base">
-            Three steps to confident used EV shopping
+            {subtitle}
           </p>
         </div>
 

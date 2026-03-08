@@ -17,10 +17,11 @@ export default function Footer() {
           <div>
             <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Product</h4>
             <ul className="space-y-2 text-sm">
-              <li><a href="#how-it-works" className="hover:text-white transition-colors">How it Works</a></li>
-              <li><a href="#pricing" className="hover:text-white transition-colors">Buyer Pass</a></li>
-              <li><span className="text-gray-500">Deal Watch <span className="text-xs">(coming soon)</span></span></li>
+              <li><Link href="/" className="hover:text-white transition-colors">EV Fit Check</Link></li>
+              <li><Link href="/receipt" className="hover:text-white transition-colors">Listing Receipt</Link></li>
+              <li><Link href="/dealer" className="hover:text-white transition-colors">Dealer Workspace</Link></li>
               <li><Link href="/extension" className="hover:text-white transition-colors">Browser Extension</Link></li>
+              <li><span className="text-gray-500">Deal Watch <span className="text-xs">(coming soon)</span></span></li>
             </ul>
           </div>
 

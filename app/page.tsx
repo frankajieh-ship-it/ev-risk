@@ -9,13 +9,18 @@ import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-import { Receipt, ArrowRight, User, Building, Megaphone } from "lucide-react";
+import { Receipt, Megaphone } from "lucide-react";
 import TrustMicrocopy from "@/components/TrustMicrocopy";
 import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
 import VehicleInputTabs from "@/components/VehicleInputTabs";
 import SavedScenariosList from "@/components/SavedScenariosList";
 import LoginModal from "@/components/LoginModal";
 import RoutineStep from "@/components/RoutineStep";
+import Header from "@/components/landing/Header";
+import Footer from "@/components/landing/Footer";
+import PersonaCardsSection from "@/components/landing/PersonaCardsSection";
+import HowItWorksSection from "@/components/landing/HowItWorksSection";
+import UniqueAdvantageSection from "@/components/landing/UniqueAdvantageSection";
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 import type { MinimumViableRoutine } from "@/types/v2";
 
@@ -41,7 +46,7 @@ export default function Home() {
   }, []);
 
   // Auth state for saved scenarios
-  const { isAuthenticated, isDealer, logout } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Track visitor on homepage
@@ -306,35 +311,10 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <div id="turnstile-score" className="hidden" />
 
-      {/* Top Nav — workspace link for signed-in users */}
-      {isAuthenticated && (
-        <div className="bg-white/80 backdrop-blur border-b border-gray-200/60">
-          <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-800">OFFO</span>
-            <div className="flex items-center gap-3">
-              <Link
-                href="/hub"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-              >
-                <User className="w-3.5 h-3.5" />
-                My Workspace
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-              {isDealer && (
-                <Link
-                  href="/dealer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
-                >
-                  <Building className="w-3.5 h-3.5" />
-                  Dealer
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 1. Header with persona nav */}
+      <Header variant="homepage" />
 
-      {/* Announcement Banner */}
+      {/* 2. Announcement Banner */}
       <div className="bg-gradient-to-r from-blue-600 to-green-600">
         <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-center gap-2 text-white text-sm">
           <Megaphone className="w-4 h-4 shrink-0" />
@@ -346,15 +326,15 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Hero Section - Compact for mobile */}
+      {/* 3. Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="relative max-w-7xl mx-auto px-4 pt-6 pb-4 md:pt-12 md:pb-8">
+        <div className="relative max-w-7xl mx-auto px-4 pt-8 pb-6 md:pt-16 md:pb-12">
           <div className="text-center max-w-4xl mx-auto">
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="text-2xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 md:mb-6"
+              className="text-2xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 md:mb-5"
             >
               Find out if an EV{" "}
               <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
@@ -366,51 +346,41 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-base md:text-lg text-gray-600 mb-4 md:mb-6 max-w-2xl mx-auto"
+              className="text-base md:text-lg text-gray-600 mb-2 md:mb-3 max-w-2xl mx-auto"
             >
               Get a fit verdict, what breaks first, and a fallback plan — based on how you actually drive and charge.
+            </motion.p>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+              className="text-sm text-gray-500 mb-5 md:mb-6"
+            >
+              Join thousands of EV shoppers making informed decisions
             </motion.p>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="mb-4 md:mb-6"
+              className="mb-6 md:mb-8"
             >
               <TrustMicrocopy />
             </motion.div>
 
-            {/* "What you get" pills */}
+            {/* CTAs */}
             {currentStep === "routine" && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
-                className="flex flex-wrap items-center justify-center gap-2"
-              >
-                {["Fit verdict", "What breaks first", "Plan B fallback"].map((item) => (
-                  <span
-                    key={item}
-                    className="px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full"
-                  >
-                    {item}
-                  </span>
-                ))}
-              </motion.div>
-            )}
-
-            {/* Primary CTA */}
-            {currentStep === "routine" && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3"
+                className="flex flex-col sm:flex-row items-center justify-center gap-3"
               >
                 <button
                   onClick={() => {
                     trackCTAClick("start_fit_check");
-                    document.getElementById("routine-form")?.scrollIntoView({ behavior: "smooth" });
+                    document.getElementById("fit-check")?.scrollIntoView({ behavior: "smooth" });
                   }}
                   className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/25 text-base"
                 >
@@ -421,125 +391,38 @@ export default function Home() {
                   onClick={() => trackCTAClick("listing_receipt")}
                   className="px-6 py-3 text-blue-600 font-medium rounded-xl border border-blue-200 hover:bg-blue-50 transition-colors text-sm"
                 >
-                  Have a listing? Check if the deal is legit &rarr;
+                  Check a listing deal &rarr;
                 </a>
+                <Link
+                  href="/dealer"
+                  onClick={() => trackCTAClick("dealer_cta")}
+                  className="px-6 py-3 text-green-600 font-medium rounded-xl border border-green-200 hover:bg-green-50 transition-colors text-sm"
+                >
+                  Are you a dealer?
+                </Link>
               </motion.div>
             )}
           </div>
         </div>
       </section>
 
-      {/* Step Indicator */}
-      {currentStep !== "generating" && (
-        <div className="max-w-3xl mx-auto px-4 mb-6">
-          <div className="flex items-center justify-center gap-3">
-            <div className={`flex items-center gap-2 ${currentStep === "routine" ? "text-blue-600" : "text-gray-500"}`}>
-              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                currentStep === "routine" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
-              }`}>1</span>
-              <span className="text-sm font-medium hidden sm:inline">Your Routine</span>
-            </div>
-            <div className="w-8 h-px bg-gray-300" />
-            <div className={`flex items-center gap-2 ${currentStep === "vehicle" ? "text-blue-600" : "text-gray-500"}`}>
-              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                currentStep === "vehicle" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
-              }`}>2</span>
-              <span className="text-sm font-medium hidden sm:inline">Vehicle</span>
-              <span className="text-xs text-gray-500 hidden sm:inline">(optional)</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 4. Persona Value Prop Cards — Shoppers / Owners / Dealers */}
+      {currentStep === "routine" && <PersonaCardsSection />}
 
-      {/* Wizard Content */}
-      <section id="routine-form" className="max-w-3xl mx-auto px-4 pb-6 md:pb-12">
-        {/* Step 1: Routine */}
-        {currentStep === "routine" && (
-          <RoutineStep
-            onComplete={handleRoutineComplete}
-            onSkipVehicle={handleRoutineSkipVehicle}
-          />
-        )}
+      {/* 5. How OFFO Works */}
+      {currentStep === "routine" && <HowItWorksSection variant="fit-check" />}
 
-        {/* Step 2: Vehicle */}
-        {currentStep === "vehicle" && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
-            {/* Back to routine */}
-            <div className="mb-4">
-              <button
-                onClick={() => setCurrentStep("routine")}
-                className="flex items-center text-gray-500 hover:text-gray-700 transition-colors text-sm"
-              >
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Back to routine
-              </button>
-            </div>
+      {/* 6. Unique Advantage */}
+      {currentStep === "routine" && <UniqueAdvantageSection />}
 
-            {generateError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                {generateError}
-              </div>
-            )}
-
-            <VehicleInputTabs
-              onExtract={handleExtractListing}
-              extracting={extracting}
-              error={extractError}
-              warnings={extractWarnings}
-              extractedData={showExtractedData ? extractedVehicleData : null}
-              onConfirm={handleConfirmExtracted}
-              onReset={() => {
-                setExtractedVehicleData(null);
-                setShowExtractedData(false);
-                setExtractError(null);
-              }}
-              onManualSubmit={handleManualEntryInline}
-            />
-
-            {/* Skip vehicle option */}
-            <div className="mt-4 text-center">
-              <button
-                onClick={() => generateV2Report(routineData!)}
-                className="text-sm text-gray-500 hover:text-blue-600 underline transition-colors"
-              >
-                Skip vehicle — see routine fit only
-              </button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Generating state */}
-        {currentStep === "generating" && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-16"
-          >
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-6">
-              <svg className="w-8 h-8 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Analyzing your routine fit...</h3>
-            <p className="text-gray-600">Building your personalized report</p>
-          </motion.div>
-        )}
-      </section>
-
-      {/* Key Insight Section - Only show on routine step */}
+      {/* 7. Key Insight Quote */}
       {currentStep === "routine" && (
         <section className="max-w-4xl mx-auto px-4 py-12">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
             className="bg-gradient-to-br from-blue-50 to-green-50 border border-blue-100 rounded-2xl p-8 text-center"
           >
             <p className="text-xl font-semibold text-gray-900 mb-3">
@@ -553,11 +436,11 @@ export default function Home() {
             </p>
           </motion.div>
 
-          {/* Listing Receipt secondary link */}
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.8 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
             className="mt-6 text-center"
           >
             <a
@@ -575,21 +458,132 @@ export default function Home() {
         </section>
       )}
 
-      {/* Manual Entry Modal (URL parse failure fallback) */}
-      <ManualEntryModal
-        isOpen={manualEntryOpen}
-        onClose={() => setManualEntryOpen(false)}
-        onSubmit={handleManualEntry}
-        missingFields={manualEntryMissingFields}
-      />
+      {/* 8. EV Fit Check Wizard */}
+      <section id="fit-check" className="py-12 md:py-20">
+        <div className="max-w-3xl mx-auto px-4">
+          {/* Wizard heading — only on routine step */}
+          {currentStep === "routine" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="text-center mb-8"
+            >
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+                Ready to check your EV fit?
+              </h2>
+              <p className="text-gray-500">
+                Answer 4 quick questions. No signup needed.
+              </p>
+            </motion.div>
+          )}
 
-      {/* Login Modal */}
-      <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-      />
+          {/* Step Indicator */}
+          {currentStep !== "generating" && (
+            <div className="mb-6">
+              <div className="flex items-center justify-center gap-3">
+                <div className={`flex items-center gap-2 ${currentStep === "routine" ? "text-blue-600" : "text-gray-500"}`}>
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
+                    currentStep === "routine" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
+                  }`}>1</span>
+                  <span className="text-sm font-medium hidden sm:inline">Your Routine</span>
+                </div>
+                <div className="w-8 h-px bg-gray-300" />
+                <div className={`flex items-center gap-2 ${currentStep === "vehicle" ? "text-blue-600" : "text-gray-500"}`}>
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
+                    currentStep === "vehicle" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
+                  }`}>2</span>
+                  <span className="text-sm font-medium hidden sm:inline">Vehicle</span>
+                  <span className="text-xs text-gray-500 hidden sm:inline">(optional)</span>
+                </div>
+              </div>
+            </div>
+          )}
 
-      {/* Saved Scenarios List - Only shown to authenticated users */}
+          {/* Wizard Content */}
+          {/* Step 1: Routine */}
+          {currentStep === "routine" && (
+            <RoutineStep
+              onComplete={handleRoutineComplete}
+              onSkipVehicle={handleRoutineSkipVehicle}
+            />
+          )}
+
+          {/* Step 2: Vehicle */}
+          {currentStep === "vehicle" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              {/* Back to routine */}
+              <div className="mb-4">
+                <button
+                  onClick={() => setCurrentStep("routine")}
+                  className="flex items-center text-gray-500 hover:text-gray-700 transition-colors text-sm"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Back to routine
+                </button>
+              </div>
+
+              {generateError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                  {generateError}
+                </div>
+              )}
+
+              <VehicleInputTabs
+                onExtract={handleExtractListing}
+                extracting={extracting}
+                error={extractError}
+                warnings={extractWarnings}
+                extractedData={showExtractedData ? extractedVehicleData : null}
+                onConfirm={handleConfirmExtracted}
+                onReset={() => {
+                  setExtractedVehicleData(null);
+                  setShowExtractedData(false);
+                  setExtractError(null);
+                }}
+                onManualSubmit={handleManualEntryInline}
+              />
+
+              {/* Skip vehicle option */}
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => generateV2Report(routineData!)}
+                  className="text-sm text-gray-500 hover:text-blue-600 underline transition-colors"
+                >
+                  Skip vehicle — see routine fit only
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Generating state */}
+          {currentStep === "generating" && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-16"
+            >
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-6">
+                <svg className="w-8 h-8 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Analyzing your routine fit...</h3>
+              <p className="text-gray-600">Building your personalized report</p>
+            </motion.div>
+          )}
+        </div>
+      </section>
+
+      {/* 9. Saved Scenarios — authenticated users only */}
       {isAuthenticated && currentStep === "routine" && (
         <section className="max-w-3xl mx-auto px-4 pb-12">
           <SavedScenariosList
@@ -608,16 +602,20 @@ export default function Home() {
         </section>
       )}
 
-      <footer className="text-center py-6 text-sm text-gray-500">
-        Questions, feedback, or bugs?{" "}
-        <Link
-          href="/contact"
-          onClick={() => trackEvent("contact_click_footer", { page: "/" })}
-          className="text-indigo-600 hover:text-indigo-700"
-        >
-          Contact us
-        </Link>
-      </footer>
+      {/* 10. Footer */}
+      <Footer />
+
+      {/* Modals */}
+      <ManualEntryModal
+        isOpen={manualEntryOpen}
+        onClose={() => setManualEntryOpen(false)}
+        onSubmit={handleManualEntry}
+        missingFields={manualEntryMissingFields}
+      />
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+      />
     </div>
   );
 }
