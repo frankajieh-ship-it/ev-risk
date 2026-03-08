@@ -15,7 +15,7 @@ import { ShoppingCart, Building, ArrowLeft, Loader2, LogOut } from "lucide-react
 import { useAuth } from "@/hooks/useAuth";
 
 export default function HubPage() {
-  const { isAuthenticated, isLoading, isReady, role, isDealer, logout } = useAuth();
+  const { isAuthenticated, isLoading, isReady, isDealer, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -23,13 +23,6 @@ export default function HubPage() {
       router.replace("/auth/login");
     }
   }, [isLoading, isAuthenticated, router]);
-
-  // If buyer-only, skip hub and go straight to workspace
-  useEffect(() => {
-    if (!isLoading && isReady && role === "buyer") {
-      router.replace("/workspace");
-    }
-  }, [isLoading, isReady, role, router]);
 
   if (isLoading || !isReady || !isAuthenticated) {
     return (
