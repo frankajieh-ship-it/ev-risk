@@ -71,7 +71,7 @@ function AuthCallbackContent() {
           trackAuthSuccess(session.user?.id);
           setStatus("success");
 
-          const redirectTo = localStorage.getItem("auth_redirect") || "/";
+          const redirectTo = localStorage.getItem("auth_redirect") || "/workspace";
           localStorage.removeItem("auth_redirect");
 
           setTimeout(() => {
@@ -108,7 +108,7 @@ function AuthCallbackContent() {
           setStatus("success");
 
           // Get redirect URL from localStorage or default to home
-          const redirectTo = localStorage.getItem("auth_redirect") || "/";
+          const redirectTo = localStorage.getItem("auth_redirect") || "/workspace";
           localStorage.removeItem("auth_redirect");
 
           // Short delay to show success message
@@ -147,13 +147,15 @@ function AuthCallbackContent() {
             }
             trackAuthSuccess(session.user?.id);
             setStatus("success");
+            const fallbackRedirect = localStorage.getItem("auth_redirect") || "/workspace";
+            localStorage.removeItem("auth_redirect");
             setTimeout(() => {
-              router.push("/");
+              router.push(fallbackRedirect);
             }, 1500);
           } else {
             // No session found
-            console.log("[Auth Callback] No session found, redirecting to home");
-            router.push("/");
+            console.log("[Auth Callback] No session found, redirecting to login");
+            router.push("/auth/login");
           }
         }
       }

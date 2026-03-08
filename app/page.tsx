@@ -24,8 +24,16 @@ type WizardStep = "routine" | "vehicle" | "generating";
 export default function Home() {
   const router = useRouter();
 
-  // Forward auth hash fragments (error or success) to the callback page
+  // Forward auth redirects (PKCE code or hash fragments) to the callback page
   useEffect(() => {
+    // PKCE flow: Supabase redirects to Site URL with ?code= query param
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (code) {
+      window.location.href = `/auth/callback?code=${encodeURIComponent(code)}`;
+      return;
+    }
+    // Legacy/fallback: hash fragment with error or access_token
     const hash = window.location.hash;
     if (hash && (hash.includes("error=") || hash.includes("access_token="))) {
       window.location.href = `/auth/callback${hash}`;
