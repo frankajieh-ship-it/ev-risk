@@ -12,6 +12,20 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseAuthClient } from "@/lib/supabase-auth";
 import { Suspense } from "react";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import type { Session } from "@supabase/supabase-js";
+
+/** Determine where to send user after auth based on role metadata. */
+function getPostAuthRedirect(session: Session | null): string {
+  const stored = localStorage.getItem("auth_redirect");
+  if (stored) {
+    localStorage.removeItem("auth_redirect");
+    return stored;
+  }
+  const role = session?.user?.user_metadata?.role;
+  if (!role) return "/onboarding";
+  if (role === "dealer_admin" || role === "dealer_user") return "/dealer";
+  return "/workspace";
+}
 
 function AuthCallbackContent() {
   const router = useRouter();
@@ -71,9 +85,7 @@ function AuthCallbackContent() {
           trackAuthSuccess(session.user?.id);
           setStatus("success");
 
-          const redirectTo = localStorage.getItem("auth_redirect") || "/workspace";
-          localStorage.removeItem("auth_redirect");
-
+          const redirectTo = getPostAuthRedirect(session);
           setTimeout(() => {
             router.push(redirectTo);
           }, 1500);
@@ -107,11 +119,7 @@ function AuthCallbackContent() {
 
           setStatus("success");
 
-          // Get redirect URL from localStorage or default to home
-          const redirectTo = localStorage.getItem("auth_redirect") || "/workspace";
-          localStorage.removeItem("auth_redirect");
-
-          // Short delay to show success message
+          const redirectTo = getPostAuthRedirect(newSession);
           setTimeout(() => {
             router.push(redirectTo);
           }, 1500);
@@ -147,10 +155,9 @@ function AuthCallbackContent() {
             }
             trackAuthSuccess(session.user?.id);
             setStatus("success");
-            const fallbackRedirect = localStorage.getItem("auth_redirect") || "/workspace";
-            localStorage.removeItem("auth_redirect");
+            const redirectTo = getPostAuthRedirect(session);
             setTimeout(() => {
-              router.push(fallbackRedirect);
+              router.push(redirectTo);
             }, 1500);
           } else {
             // No session found

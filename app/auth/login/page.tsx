@@ -14,7 +14,7 @@ import { ArrowLeft, Mail, Loader2, Check } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 function LoginForm() {
-  const { login, isAuthenticated, isReady } = useAuth();
+  const { login, isAuthenticated, isReady, role, isDealer } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/workspace";
@@ -24,11 +24,14 @@ function LoginForm() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
 
+  // Role-aware redirect for already-authenticated users
   useEffect(() => {
     if (isAuthenticated && isReady) {
-      router.replace(redirect);
+      if (!role) router.replace("/onboarding");
+      else if (isDealer) router.replace("/dealer");
+      else router.replace(redirect);
     }
-  }, [isAuthenticated, isReady, router, redirect]);
+  }, [isAuthenticated, isReady, role, isDealer, router, redirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
