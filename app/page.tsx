@@ -9,7 +9,7 @@ import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-import { Receipt } from "lucide-react";
+import { Receipt, ArrowRight, User, Building, Megaphone } from "lucide-react";
 import TrustMicrocopy from "@/components/TrustMicrocopy";
 import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
 import VehicleInputTabs from "@/components/VehicleInputTabs";
@@ -41,7 +41,7 @@ export default function Home() {
   }, []);
 
   // Auth state for saved scenarios
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, isDealer, logout } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Track visitor on homepage
@@ -305,6 +305,46 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <div id="turnstile-score" className="hidden" />
+
+      {/* Top Nav — workspace link for signed-in users */}
+      {isAuthenticated && (
+        <div className="bg-white/80 backdrop-blur border-b border-gray-200/60">
+          <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between">
+            <span className="text-sm font-semibold text-gray-800">OFFO</span>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/hub"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                <User className="w-3.5 h-3.5" />
+                My Workspace
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              {isDealer && (
+                <Link
+                  href="/dealer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+                >
+                  <Building className="w-3.5 h-3.5" />
+                  Dealer
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Announcement Banner */}
+      <div className="bg-gradient-to-r from-blue-600 to-green-600">
+        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-center gap-2 text-white text-sm">
+          <Megaphone className="w-4 h-4 shrink-0" />
+          <span className="font-medium">New: Dealer workspaces are live!</span>
+          <span className="hidden sm:inline text-white/80">List your EV inventory and connect with buyers.</span>
+          <Link href={isAuthenticated ? "/hub" : "/auth/login"} className="underline font-semibold hover:text-white/90 ml-1">
+            Get started &rarr;
+          </Link>
+        </div>
+      </div>
 
       {/* Hero Section - Compact for mobile */}
       <section className="relative overflow-hidden">
