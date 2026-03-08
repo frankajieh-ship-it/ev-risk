@@ -55,7 +55,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
   }
 
   // Only allow updating specific fields
-  const allowed = ["make", "model", "year", "trim", "vin", "price_cents", "mileage", "exterior_color", "status"];
+  const allowed = ["make", "model", "year", "trim", "vin", "price_cents", "mileage", "exterior_color", "status", "photo_urls"];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updates[key] = body[key];
