@@ -60,23 +60,9 @@ export function middleware(request: NextRequest) {
     });
   }
 
-  // Protected routes — require Supabase auth cookie (client-side layout does full JWT check)
-  const isProtectedRoute =
-    request.nextUrl.pathname.startsWith("/workspace") ||
-    request.nextUrl.pathname.startsWith("/dealer");
-
-  if (isProtectedRoute) {
-    // Supabase stores auth in sb-*-auth-token cookies
-    const hasAuthCookie = Array.from(request.cookies.getAll()).some(
-      (c) => c.name.includes("-auth-token")
-    );
-
-    if (!hasAuthCookie) {
-      const loginUrl = new URL("/auth/login", request.url);
-      loginUrl.searchParams.set("redirect", request.nextUrl.pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-  }
+  // Protected routes (/workspace, /dealer) are guarded client-side by
+  // their layouts via useAuth(). The Supabase JS client stores sessions
+  // in localStorage (not cookies), so middleware can't check auth state.
 
   // Admin Panel IP Restriction
   if (request.nextUrl.pathname.startsWith("/admin")) {
