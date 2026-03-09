@@ -107,26 +107,74 @@ export default function DemoPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Hero Section */}
-      <div className="container mx-auto px-4 py-16 text-center">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            See How OFFO Analyzes Your EV Match
+      <div className="container mx-auto px-4 py-12 md:py-16">
+        <div className="max-w-4xl mx-auto">
+          {/* Badge */}
+          <div className="flex justify-center mb-6">
+            <span className="inline-flex items-center px-4 py-2 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold">
+              <span className="mr-2">✨</span> Try Before You Buy - 100% Free
+            </span>
+          </div>
+
+          {/* Main Headline */}
+          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 text-center leading-tight">
+            See <span className="text-blue-600">Exactly</span> What You Get
           </h1>
-          <p className="text-xl text-gray-600 mb-4">
-            Explore 5 realistic scenarios — no VIN required
+
+          <p className="text-xl md:text-2xl text-gray-600 mb-6 text-center">
+            Explore 5 real-world EV scenarios — no signup, no VIN required
           </p>
-          <p className="text-base text-gray-500">
-            See exactly what you'll get: fit scores, stress flags, breakpoints, and buyer diligence checklists
+
+          {/* Value Props */}
+          <div className="grid md:grid-cols-3 gap-4 mb-8 max-w-2xl mx-auto">
+            <div className="flex items-start gap-2 text-sm text-gray-700">
+              <span className="text-green-500 mt-0.5">✓</span>
+              <span><strong>Full analysis</strong> in 30 seconds</span>
+            </div>
+            <div className="flex items-start gap-2 text-sm text-gray-700">
+              <span className="text-green-500 mt-0.5">✓</span>
+              <span><strong>Real data</strong> from actual owners</strong></span>
+            </div>
+            <div className="flex items-start gap-2 text-sm text-gray-700">
+              <span className="text-green-500 mt-0.5">✓</span>
+              <span><strong>Green/Yellow/Red</strong> verdicts</span>
+            </div>
+          </div>
+
+          <p className="text-center text-gray-500 text-sm mb-4">
+            👇 Pick any scenario to see the complete OFFO report
           </p>
         </div>
       </div>
 
       {/* Demo Cards Grid */}
       <div className="container mx-auto px-4 pb-16">
+        {/* Section Header */}
+        <div className="text-center mb-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
+            5 Real Scenarios, 5 Different Outcomes
+          </h2>
+          <p className="text-gray-600">
+            From perfect fits to deal-breakers — see how OFFO catches what you'd miss
+          </p>
+        </div>
+
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
           {Object.entries(DEMO_METADATA).map(([slug, meta]) => (
             <DemoCard key={slug} slug={slug} meta={meta} onCardClick={handleCardClick} />
           ))}
+        </div>
+
+        {/* Social Proof */}
+        <div className="mt-12 text-center">
+          <p className="text-sm text-gray-500 mb-2">Trusted by EV shoppers nationwide</p>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400">
+            <span>🔒 No credit card required</span>
+            <span className="hidden sm:inline">•</span>
+            <span>⚡ Results in &lt; 1 minute</span>
+            <span className="hidden sm:inline">•</span>
+            <span>📊 Transparent analysis</span>
+          </div>
         </div>
       </div>
 

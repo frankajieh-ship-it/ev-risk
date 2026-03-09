@@ -88,7 +88,7 @@ export default function DemoReportClient({ slug }: DemoReportClientProps) {
         isUnlocked={true}  // Always unlocked in demo
         paymentsEnabled={false}  // No payment gate
         anonId="demo-user"
-        reportId={`demo-${slug}`}
+        reportId={null}  // No PDF download for demos
         isPollingPayment={false}
       />
 
