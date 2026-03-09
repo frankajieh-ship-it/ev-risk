@@ -68,6 +68,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
   const [bodyStyle, setBodyStyle] = useState<MinimumViableRoutine["body_style"] | null>(null);
   const [homeType, setHomeType] = useState<MinimumViableRoutine["home_type"] | null>(null);
   const [canInstallCharger, setCanInstallCharger] = useState<MinimumViableRoutine["can_install_charger"] | null>(null);
+  const [sharedCharger, setSharedCharger] = useState<boolean | null>(null);
   const [overnightDwellHours, setOvernightDwellHours] = useState<number | null>(null);
 
   // --- Deep Fit fields ---
@@ -100,6 +101,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
     ...(bodyStyle ? { body_style: bodyStyle } : {}),
     ...(homeType ? { home_type: homeType } : {}),
     ...(canInstallCharger ? { can_install_charger: canInstallCharger } : {}),
+    ...(sharedCharger != null ? { shared_charger: sharedCharger } : {}),
     ...(overnightDwellHours ? { overnight_dwell_hours: overnightDwellHours } : {}),
     // Deep Fit additions
     ...(longestDayMiles ? { longest_day_miles: Number(longestDayMiles) } : {}),
@@ -551,6 +553,35 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
                       />
                     ))}
                   </div>
+                </fieldset>
+
+                {/* Q7b2: Share charger with partner */}
+                <fieldset className="mb-5">
+                  <legend className="sr-only">Do you share this charger with a partner?</legend>
+                  <label className="block text-xs font-medium text-gray-600 mb-2">
+                    Share this charger with a partner?
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { value: true, label: "Yes", desc: "Shared charging" },
+                      { value: false, label: "No", desc: "Just me" },
+                    ]).map((opt) => (
+                      <SelectionCard
+                        key={opt.value.toString()}
+                        selected={sharedCharger === opt.value}
+                        onClick={() => {
+                          setSharedCharger(opt.value);
+                          if (sharedCharger !== opt.value) trackField("shared_charger");
+                        }}
+                        label={opt.label}
+                        desc={opt.desc}
+                        ariaLabel={`Select ${opt.label} — ${opt.desc}`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Shared chargers reduce available charging windows.
+                  </p>
                 </fieldset>
 
                 {/* Q7c: Overnight dwell time */}

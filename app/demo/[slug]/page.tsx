@@ -6,11 +6,18 @@
  */
 
 import { notFound } from "next/navigation";
-import { isDemoSlug } from "@/lib/demo-data";
+import { DEMO_REPORTS, isDemoSlug } from "@/lib/demo-data";
 import DemoReportClient from "./DemoReportClient";
 
 interface DemoReportPageProps {
   params: Promise<{ slug: string }>;
+}
+
+// Generate static params for all demo slugs
+export async function generateStaticParams() {
+  return Object.keys(DEMO_REPORTS).map((slug) => ({
+    slug,
+  }));
 }
 
 // Server component wrapper to unwrap params

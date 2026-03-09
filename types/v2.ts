@@ -23,6 +23,7 @@ export interface MinimumViableRoutine {
   home_type?: "house" | "apartment" | "condo" | "other";
   can_install_charger?: "yes" | "no" | "need_permission";
   overnight_dwell_hours?: number;
+  shared_charger?: boolean;
 
   // Deep Fit additions
   longest_day_miles?: number;

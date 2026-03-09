@@ -347,38 +347,43 @@ export default function Home() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
-                className="flex flex-col sm:flex-row items-center justify-center gap-3"
+                className="flex flex-col items-center justify-center gap-4"
               >
+                {/* Primary CTA */}
                 <button
                   onClick={() => {
                     trackCTAClick("start_fit_check");
                     document.getElementById("fit-check")?.scrollIntoView({ behavior: "smooth" });
                   }}
-                  className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/25 text-base"
+                  className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/25 text-base w-full sm:w-auto"
                 >
                   Start EV fit check
                 </button>
-                <Link
-                  href="/demo"
-                  onClick={() => trackCTAClick("try_demo")}
-                  className="px-6 py-3 text-gray-600 font-medium rounded-xl border border-gray-300 hover:bg-gray-50 transition-colors text-sm"
-                >
-                  Try a Demo First &rarr;
-                </Link>
-                <a
-                  href="/receipt"
-                  onClick={() => trackCTAClick("listing_receipt")}
-                  className="px-6 py-3 text-blue-600 font-medium rounded-xl border border-blue-200 hover:bg-blue-50 transition-colors text-sm"
-                >
-                  Check a listing deal &rarr;
-                </a>
-                <Link
-                  href="/dealer"
-                  onClick={() => trackCTAClick("dealer_cta")}
-                  className="px-6 py-3 text-green-600 font-medium rounded-xl border border-green-200 hover:bg-green-50 transition-colors text-sm"
-                >
-                  Are you a dealer?
-                </Link>
+
+                {/* Secondary CTAs */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto">
+                  <Link
+                    href="/demo"
+                    onClick={() => trackCTAClick("try_demo")}
+                    className="px-6 py-2.5 text-gray-600 font-medium rounded-xl border border-gray-300 hover:bg-gray-50 transition-colors text-sm w-full sm:w-auto text-center"
+                  >
+                    Try a Demo First →
+                  </Link>
+                  <a
+                    href="/receipt"
+                    onClick={() => trackCTAClick("listing_receipt")}
+                    className="px-6 py-2.5 text-blue-600 font-medium rounded-xl border border-blue-200 hover:bg-blue-50 transition-colors text-sm w-full sm:w-auto text-center"
+                  >
+                    Check a listing deal →
+                  </a>
+                  <Link
+                    href="/dealer"
+                    onClick={() => trackCTAClick("dealer_cta")}
+                    className="px-6 py-2.5 text-green-600 font-medium rounded-xl border border-green-200 hover:bg-green-50 transition-colors text-sm w-full sm:w-auto text-center"
+                  >
+                    Are you a dealer?
+                  </Link>
+                </div>
               </motion.div>
             )}
           </div>
