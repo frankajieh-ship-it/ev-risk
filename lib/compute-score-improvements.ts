@@ -7,7 +7,8 @@
 
 import type { MinimumViableRoutine, RoutineFitScore } from "@/types/v2";
 import type { ScoreImprovement } from "@/types/recommendations";
-import { computeRoutineFit, type VehicleBasics } from "./compute-routine-fit";
+import { computeRoutineFit } from "./compute-routine-fit";
+import type { VehicleBasics } from "./compute-routine-fit";
 
 const MIN_DELTA_THRESHOLD = 3; // Minimum point improvement to suggest
 
