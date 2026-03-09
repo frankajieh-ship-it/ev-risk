@@ -184,10 +184,7 @@ export function ResultPageV2Split({
 
           {/* What Breaks First */}
           {_internal.routine_fit.breakpoints_ranked.length > 0 && (
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-4">What Breaks First</h2>
-              <WhatBreaksFirstV2Block breakpoints={_internal.routine_fit.breakpoints_ranked} />
-            </div>
+            <WhatBreaksFirstV2Block breakpoints={_internal.routine_fit.breakpoints_ranked} />
           )}
 
           {/* Follow-up Question */}
