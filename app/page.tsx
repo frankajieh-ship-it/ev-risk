@@ -13,6 +13,7 @@ import { Receipt, Megaphone } from "lucide-react";
 import TrustMicrocopy from "@/components/TrustMicrocopy";
 import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
 import VehicleInputTabs from "@/components/VehicleInputTabs";
+import VehicleRecommendations from "@/components/VehicleRecommendations";
 import SavedScenariosList from "@/components/SavedScenariosList";
 import LoginModal from "@/components/LoginModal";
 import RoutineStep from "@/components/RoutineStep";
@@ -24,7 +25,7 @@ import UniqueAdvantageSection from "@/components/landing/UniqueAdvantageSection"
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 import type { MinimumViableRoutine } from "@/types/v2";
 
-type WizardStep = "routine" | "vehicle" | "generating";
+type WizardStep = "routine" | "recommendations" | "vehicle_manual" | "generating";
 
 export default function Home() {
   const router = useRouter();
@@ -154,15 +155,15 @@ export default function Home() {
     } catch (err) {
       console.warn("[Frontend] V2 score error:", err);
       setGenerateError(err instanceof Error ? err.message : "An error occurred");
-      // Go back to vehicle step so user can retry
-      setCurrentStep("vehicle");
+      // Go back to recommendations so user can retry
+      setCurrentStep("recommendations");
     }
   };
 
   // Routine step handlers
   const handleRoutineComplete = (routine: MinimumViableRoutine) => {
     setRoutineData(routine);
-    setCurrentStep("vehicle");
+    setCurrentStep("recommendations");
     trackButtonClick("routine_step_complete", "homepage");
     trackIntakeStarted();
 
@@ -188,35 +189,6 @@ export default function Home() {
     });
   };
 
-  const handleRoutineSkipVehicle = (routine: MinimumViableRoutine) => {
-    setRoutineData(routine);
-    trackButtonClick("routine_skip_vehicle", "homepage");
-    trackIntakeStarted();
-
-    // Session tracking: start session + complete with routine inputs
-    startSession({ source: "homepage" }).then((sid) => {
-      if (sid) {
-        completeSession(
-          {
-            chargingAccess: routine.charging_access,
-            weeklyMiles: routine.weekly_miles,
-            climate: routine.climate,
-            longestDayPattern: routine.longest_day_pattern,
-          },
-          {}
-        ).catch(() => {});
-      }
-    }).catch(() => {});
-
-    trackEvent("routine_check_completed", {
-      charging_access: routine.charging_access,
-      climate: routine.climate,
-      source: "homepage",
-      skipped_vehicle: true,
-    });
-
-    generateV2Report(routine);
-  };
 
   // Vehicle step: URL extraction
   const handleExtractListing = async (url: string) => {
@@ -490,12 +462,11 @@ export default function Home() {
                   <span className="text-sm font-medium hidden sm:inline">Your Routine</span>
                 </div>
                 <div className="w-8 h-px bg-gray-300" />
-                <div className={`flex items-center gap-2 ${currentStep === "vehicle" ? "text-blue-600" : "text-gray-500"}`}>
+                <div className={`flex items-center gap-2 ${currentStep === "recommendations" || currentStep === "vehicle_manual" ? "text-blue-600" : "text-gray-500"}`}>
                   <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                    currentStep === "vehicle" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
+                    currentStep === "recommendations" || currentStep === "vehicle_manual" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
                   }`}>2</span>
-                  <span className="text-sm font-medium hidden sm:inline">Vehicle</span>
-                  <span className="text-xs text-gray-500 hidden sm:inline">(optional)</span>
+                  <span className="text-sm font-medium hidden sm:inline">Find Your EV</span>
                 </div>
               </div>
             </div>
@@ -506,27 +477,36 @@ export default function Home() {
           {currentStep === "routine" && (
             <RoutineStep
               onComplete={handleRoutineComplete}
-              onSkipVehicle={handleRoutineSkipVehicle}
             />
           )}
 
-          {/* Step 2: Vehicle */}
-          {currentStep === "vehicle" && (
+          {/* Step 2a: Vehicle Recommendations */}
+          {currentStep === "recommendations" && routineData && (
+            <VehicleRecommendations
+              routine={routineData}
+              onSelectVehicle={(vehicle) => generateV2Report(routineData, vehicle)}
+              onSwitchToManual={() => setCurrentStep("vehicle_manual")}
+              onBack={() => setCurrentStep("routine")}
+            />
+          )}
+
+          {/* Step 2b: Manual Vehicle Entry (fallback) */}
+          {currentStep === "vehicle_manual" && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
             >
-              {/* Back to routine */}
+              {/* Back to recommendations */}
               <div className="mb-4">
                 <button
-                  onClick={() => setCurrentStep("routine")}
+                  onClick={() => setCurrentStep("recommendations")}
                   className="flex items-center text-gray-500 hover:text-gray-700 transition-colors text-sm"
                 >
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                   </svg>
-                  Back to routine
+                  Back to recommendations
                 </button>
               </div>
 
@@ -550,16 +530,6 @@ export default function Home() {
                 }}
                 onManualSubmit={handleManualEntryInline}
               />
-
-              {/* Skip vehicle option */}
-              <div className="mt-4 text-center">
-                <button
-                  onClick={() => generateV2Report(routineData!)}
-                  className="text-sm text-gray-500 hover:text-blue-600 underline transition-colors"
-                >
-                  Skip vehicle — see routine fit only
-                </button>
-              </div>
             </motion.div>
           )}
 
