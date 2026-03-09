@@ -133,7 +133,7 @@ export default function DemoPage() {
             </div>
             <div className="flex items-start gap-2 text-sm text-gray-700">
               <span className="text-green-500 mt-0.5">✓</span>
-              <span><strong>Real data</strong> from actual owners</strong></span>
+              <span><strong>Real data</strong> from actual owners</span>
             </div>
             <div className="flex items-start gap-2 text-sm text-gray-700">
               <span className="text-green-500 mt-0.5">✓</span>
