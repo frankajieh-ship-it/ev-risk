@@ -140,6 +140,13 @@ export const VALID_EVENT_NAMES = [
   "extension_badge_clicked",
   "extension_receipt_started",
   "extension_install_page_viewed",
+
+  // Demo/Sandbox Events
+  "demo_landing_viewed",
+  "demo_card_clicked",
+  "demo_report_viewed",
+  "demo_cta_clicked",
+  "demo_convert_clicked",
 ] as const;
 
 export type ValidEventName = (typeof VALID_EVENT_NAMES)[number];

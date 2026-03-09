@@ -358,6 +358,13 @@ export default function Home() {
                 >
                   Start EV fit check
                 </button>
+                <Link
+                  href="/demo"
+                  onClick={() => trackCTAClick("try_demo")}
+                  className="px-6 py-3 text-gray-600 font-medium rounded-xl border border-gray-300 hover:bg-gray-50 transition-colors text-sm"
+                >
+                  Try a Demo First &rarr;
+                </Link>
                 <a
                   href="/receipt"
                   onClick={() => trackCTAClick("listing_receipt")}

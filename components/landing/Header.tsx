@@ -38,7 +38,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center">
-              <Image src="/offo-logo.png" alt="OFFO" width={80} height={32} className="h-8 w-auto" priority />
+              <Image src="/offo-logo.png" alt="OFFO" width={100} height={40} className="h-10 w-auto" priority />
             </Link>
 
             {variant === "homepage" ? (

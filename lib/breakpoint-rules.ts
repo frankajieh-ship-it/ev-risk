@@ -153,7 +153,7 @@ const RULES: BreakpointRule[] = [
       mvr.longest_day_pattern === "once_a_week" ? 100 : 95,
     build: (ctx) => ({
       id: "public_charging_predictability",
-      title: "Public charging availability breaks your routine",
+      title: "Map 2-3 reliable public chargers to build routine predictability",
       break_point: `Any evening when your usual charger is occupied — ${Math.round(ctx.effectiveDailyMiles)} mi/day on public charging leaves no buffer to skip a session`,
       trigger: `Your ${ctx.mvr.weekly_miles ? ctx.mvr.weekly_miles + ' mi/week' : Math.round(ctx.effectiveDailyMiles) + ' mi/day'} depends entirely on public station availability`,
       evidence: [
@@ -174,7 +174,7 @@ const RULES: BreakpointRule[] = [
       mvr.charging_access === "public" ? 95 : 85,
     build: (ctx) => ({
       id: "winter_charging_friction",
-      title: "Winter charging friction spikes without home charging",
+      title: "Home charging is advised during winter to avoid friction",
       break_point: `Cold weeknights when you need a top-up — ${ctx.mvr.charging_access} charging in winter is slower and less reliable`,
       trigger: `Winter + ${ctx.mvr.charging_access} charging — cold cuts ~25% from your ${ctx.effectiveRange} mi range, leaving ~${Math.round(ctx.effectiveRange * 0.75)} mi effective`,
       evidence: [
@@ -194,7 +194,7 @@ const RULES: BreakpointRule[] = [
     severity: () => 65,
     build: (ctx) => ({
       id: "winter_range_buffer",
-      title: "Winter range drops catch you short on longer days",
+      title: "Plan for 25% range loss on cold long days and charge to 90% beforehand",
       break_point: `Your longest driving day in a cold snap — at ~${Math.round(ctx.effectiveRange * 0.75)} mi effective winter range vs. your ${Math.round(ctx.effectiveDailyMiles)} mi daily need`,
       trigger: `Winter cuts your ${ctx.effectiveRange} mi range by 20-40%, pushing daily usage to ~${Math.round((ctx.effectiveDailyMiles / (ctx.effectiveRange * 0.75)) * 100)}% of effective range`,
       evidence: [
@@ -220,7 +220,7 @@ const RULES: BreakpointRule[] = [
     },
     build: (ctx) => ({
       id: "tight_daily_range",
-      title: "Daily driving leaves little buffer for detours",
+      title: "Consider a vehicle with 20%+ more range for schedule flexibility",
       break_point: "Any day with an unplanned stop or detour",
       trigger: `Your daily driving uses ${Math.round((ctx.effectiveDailyMiles / ctx.effectiveRange) * 100)}% of available range`,
       evidence: [
@@ -242,7 +242,7 @@ const RULES: BreakpointRule[] = [
       mvr.charging_access === "public" ? 90 : 80,
     build: (ctx) => ({
       id: "weekly_long_days_no_home",
-      title: "Weekly long days drain you without home recovery",
+      title: "Set up a backup charging plan for your weekly long days",
       break_point: `The day before your weekly long day — with ${ctx.mvr.charging_access} charging only, one missed session leaves you short on ${Math.round(ctx.effectiveDailyMiles)} mi`,
       trigger: `Weekly long days + ${ctx.mvr.charging_access} charging — your ${ctx.mvr.weekly_miles ? ctx.mvr.weekly_miles + ' mi/week' : Math.round(ctx.effectiveDailyMiles * 5) + ' mi/week'} needs consistent sessions`,
       evidence: [
@@ -263,7 +263,7 @@ const RULES: BreakpointRule[] = [
       mvr.charging_access === "public" ? 55 : 45,
     build: (ctx) => ({
       id: "monthly_trip_planning",
-      title: "Monthly longer trips require charging planning",
+      title: "Pre-plan charging stops for your monthly long trips",
       break_point: `Your monthly trip day without planned stops — at ${ctx.effectiveRange} mi range, trips over ${Math.round(ctx.effectiveRange * 0.7)} mi need at least one charging stop`,
       trigger: `Monthly trips from a ${ctx.effectiveRange} mi range vehicle + ${ctx.mvr.charging_access} charging — each trip needs a charging plan`,
       evidence: [
@@ -284,7 +284,7 @@ const RULES: BreakpointRule[] = [
       mvr.longest_day_pattern === "once_a_week" ? 65 : 55,
     build: (ctx) => ({
       id: "work_charger_dependency",
-      title: "Workplace charging could change without notice",
+      title: "Have a public charging backup mapped in case work charging changes",
       break_point: `Any week you lose work charging — your ${Math.round(ctx.effectiveDailyMiles)} mi/day habit has no home backup`,
       trigger: `Your ${ctx.mvr.weekly_miles ? ctx.mvr.weekly_miles + ' mi/week' : Math.round(ctx.effectiveDailyMiles * 5) + ' mi/week'} depends on workplace charging you don't control`,
       evidence: [
@@ -308,7 +308,7 @@ const RULES: BreakpointRule[] = [
     },
     build: (ctx) => ({
       id: "heat_range_compound",
-      title: "Heat reduces range on your highest-usage days",
+      title: "Precondition cabin while plugged in to preserve range in hot weather",
       break_point: "Hot days when AC is running and your commute is at its longest",
       trigger: `Hot climate + ${Math.round((ctx.effectiveDailyMiles / ctx.effectiveRange) * 100)}% daily range usage — AC compounds the drain`,
       evidence: [
@@ -329,7 +329,7 @@ const RULES: BreakpointRule[] = [
       mvr.charging_access === "public" ? 40 : 30,
     build: (ctx) => ({
       id: "schedule_disruption_fragility",
-      title: "Schedule changes disrupt your charging rhythm",
+      title: "Keep above 50% charge to handle unexpected schedule changes",
       break_point: `Any week with schedule changes — without home charging, your ${Math.round(ctx.effectiveDailyMiles)} mi/day routine has little flexibility`,
       trigger: `${formatCharging(ctx.mvr.charging_access)} access for ${ctx.mvr.weekly_miles ? ctx.mvr.weekly_miles + ' mi/week' : Math.round(ctx.effectiveDailyMiles * 5) + ' mi/week'} leaves less room for disruptions`,
       evidence: [
@@ -348,7 +348,7 @@ const RULES: BreakpointRule[] = [
     severity: () => 20,
     build: (ctx) => ({
       id: "charging_routine_consistency",
-      title: "Maintaining a consistent charging routine",
+      title: "Build a consistent charging routine to reduce mental load",
       break_point: `Any week your ${ctx.mvr.charging_access} charging rhythm breaks — at ${Math.round((ctx.effectiveDailyMiles / ctx.effectiveRange) * 100)}% daily range usage, skipping sessions adds up`,
       trigger: `${formatCharging(ctx.mvr.charging_access)} charging for ${ctx.mvr.weekly_miles ? ctx.mvr.weekly_miles + ' mi/week' : Math.round(ctx.effectiveDailyMiles * 5) + ' mi/week'} — consistency is the foundation of low-friction EV ownership`,
       evidence: [

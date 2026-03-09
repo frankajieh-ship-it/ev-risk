@@ -1,0 +1,393 @@
+Below is an implementor-ready spec for the “One-time Deep Dive” monetization test that protects trust and measures the right metric (paid per completed free scenario).
+
+Goal
+
+Add a one-time purchase add-on that appears only after a user successfully generates and views a free report. No interruptions mid-input. No banners.
+
+Deep Dive includes:
+
+Deep Dive Checklist (shareable)
+
+Compare Mode (side-by-side)
+
+Save History (scenario archive)
+
+Price test: $9 vs $15 one-time (A/B).
+
+Primary metric: paid conversion per completed free scenario (not per visit).
+Guardrail metric: refunds or complaints must stay near zero.
+
+1) UX placement and rules
+Where it appears
+
+Result screen only, below the free output (after user has received value).
+
+What it looks like
+
+A single inline module (card) with:
+
+Title: “Want a deeper decision checklist?”
+
+Bullets: “Checklist + Compare + Save history”
+
+One-time label: “One-time purchase, no subscription”
+
+CTA button: “Unlock Deep Dive”
+
+Secondary action: “No thanks” (just dismisses, no nagging)
+
+Hard constraints
+
+No modal popups mid-input
+
+No paywall blocking free report
+
+No repeated nagging across the same session (store dismissed state for that scenario)
+
+2) Experiment design (A/B price)
+Assignment
+
+Deterministic bucketing by stable ID:
+
+Prefer user_id if logged in
+
+Else anon_id stored in localStorage cookie (UUID)
+
+Variants:
+
+price_variant = A → $9
+
+price_variant = B → $15
+
+Persist variant so user sees consistent price across sessions.
+
+Rollout controls
+
+Feature flag deep_dive_enabled (server + client)
+
+Start at 10–25% traffic or only User1 cohort if you have that concept
+
+Ramp only after webhook and entitlement flow is proven
+
+3) Data model (Supabase)
+Tables to add
+
+purchases
+
+id uuid pk default gen_random_uuid()
+
+user_id uuid null (Supabase auth user id)
+
+anon_id text null
+
+scenario_id uuid not null
+
+product text not null (e.g., deep_dive)
+
+price_variant text not null (A or B)
+
+amount_cents int not null
+
+currency text default 'usd'
+
+provider text default 'stripe'
+
+provider_session_id text unique
+
+provider_payment_intent_id text null
+
+status text not null (pending, paid, refunded, failed)
+
+created_at timestamptz default now()
+
+paid_at timestamptz null
+
+refunded_at timestamptz null
+
+entitlements
+
+id uuid pk default gen_random_uuid()
+
+user_id uuid null
+
+anon_id text null
+
+scenario_id uuid not null
+
+product text not null (deep_dive)
+
+features jsonb not null (e.g., { "checklist": true, "compare": true, "history": true })
+
+created_at timestamptz default now()
+
+expires_at timestamptz null (null for perpetual)
+
+complaints
+
+id uuid pk default gen_random_uuid()
+
+purchase_id uuid null
+
+user_id uuid null
+
+anon_id text null
+
+scenario_id uuid null
+
+type text not null (refund_request, billing_issue, confusing_offer, bug)
+
+details text null
+
+created_at timestamptz default now()
+
+Notes
+
+Keep entitlements scoped to scenario_id to make it feel fair and non-scammy: they paid to deepen this exact decision.
+
+Optionally later: also grant account-level entitlement for compare/history if you decide.
+
+4) Payment flow (Stripe recommended)
+Stripe setup
+
+Create one Stripe Product: Deep Dive
+
+Create two Stripe Prices:
+
+price_deep_dive_A = $9
+
+price_deep_dive_B = $15
+
+Checkout method
+
+Use Stripe Checkout Session (fast, reliable, minimal trust friction).
+
+Metadata to attach to session:
+
+scenario_id
+
+anon_id
+
+user_id (if available)
+
+price_variant
+
+product = deep_dive
+
+Success URL should land back on the same results page:
+
+/result?scenario_id=...&purchase=success
+Cancel URL:
+
+/result?scenario_id=...&purchase=cancel
+
+5) API routes (Netlify / Next API)
+
+All routes must use your isSupabaseConfigured() guard (503 on misconfig).
+
+A) Create checkout session
+
+POST /api/deep-dive/checkout
+Body:
+
+scenario_id
+
+anon_id
+
+user_id (optional, derived server-side if you have auth cookie)
+Response:
+
+checkout_url
+
+price_variant
+
+session_id
+
+Server logic:
+
+Validate scenario exists and belongs to a completed free flow:
+
+Must have report_generated = true (or equivalent)
+
+Determine price_variant deterministically (same anon_id/user_id always)
+
+Create Stripe Checkout Session with the correct price
+
+Insert purchases row with status = pending
+
+B) Stripe webhook
+
+POST /api/webhooks/stripe
+Handle events:
+
+checkout.session.completed:
+
+Mark purchase paid
+
+Insert entitlements row
+
+charge.refunded or payment_intent.payment_failed:
+
+Update purchase status accordingly
+
+Log complaint if refund is triggered via your support path
+
+Important:
+
+Verify webhook signature
+
+Idempotency: if event arrives twice, do not double-insert entitlements
+
+C) Entitlement check
+
+GET /api/deep-dive/entitlement?scenario_id=...
+Returns:
+
+has_entitlement: boolean
+
+features
+
+Resolution priority:
+
+If logged in: match user_id
+
+Else: match anon_id
+
+If user later logs in, consider a “claim purchase” endpoint that migrates anon entitlement → user_id.
+
+6) Frontend implementation
+Result page changes
+
+After rendering the free report content, fire event free_report_viewed.
+
+Call entitlement endpoint:
+
+If entitled → show Deep Dive sections expanded (Checklist, Compare, Save)
+
+Else → show the Deep Dive offer card at bottom
+
+Offer card behavior
+
+On render: deep_dive_offer_shown
+
+On click CTA: deep_dive_cta_clicked
+
+Call /api/deep-dive/checkout, then redirect to checkout_url
+
+On return with purchase=success:
+
+Poll entitlement endpoint (or refresh once)
+
+Fire deep_dive_unlocked
+
+Deep Dive content
+
+Checklist: generate a structured “What to verify next” list + fallback plan + “what would change the decision”
+
+Compare Mode:
+
+Allow selecting two saved scenarios and show side-by-side:
+
+verdict
+
+top friction points
+
+buffer assumption
+
+fallback plan
+
+what to verify next
+
+Save History:
+
+Save scenario summary + timestamp
+
+If anonymous, keep local cache and offer “save to account” with email magic link (optional, do not block)
+
+7) Analytics events (must-have)
+
+Track in Supabase analytics table(s) you already created.
+
+Event names (minimum):
+
+free_report_completed (already should exist)
+
+free_report_viewed
+
+deep_dive_offer_shown
+
+deep_dive_cta_clicked
+
+deep_dive_checkout_started
+
+deep_dive_checkout_completed
+
+deep_dive_unlocked_viewed
+
+deep_dive_refund_requested (from your support button)
+
+deep_dive_complaint_submitted
+
+Critical: compute KPI as
+deep_dive_checkout_completed / free_report_completed
+per variant.
+
+Include properties:
+
+scenario_id
+
+anon_id or user_id
+
+price_variant
+
+source (utm or referrer)
+
+subreddit if you capture it
+
+8) Trust and safety guardrails
+Copy requirements
+
+“One-time purchase”
+
+“No subscription”
+
+“You keep the free report”
+
+“Unlock deeper checklist, compare, and saves”
+
+No dark patterns
+
+No countdown timers
+
+No forced account creation
+
+No interrupting mid-flow
+
+Refund and complaint handling
+
+Add a small “Billing issue?” link in the offer card that opens a simple form (writes to complaints)
+
+If refund rate > 2% (or any meaningful complaints), pause rollout via feature flag
+
+9) Acceptance criteria (QA)
+
+User can complete free scenario and see report without any purchase prompts earlier.
+
+Offer shows only on result screen after report content renders.
+
+A/B price is stable per anon_id or user_id.
+
+Stripe payment success unlocks Deep Dive within 5 seconds (webhook + entitlement).
+
+Entitlement persists across refresh and return visits for the same scenario.
+
+Analytics events fire for every step; KPI denominator is free_report_completed, not visits.
+
+On misconfigured Supabase env vars, endpoints return 503 (not 500).
+
+10) Minimal code sketch (route contracts)
+// POST /api/deep-dive/checkout
+type CheckoutReq = { scenario_id: string; anon_id: string };
+type CheckoutRes = { checkout_url: string; price_variant: "A" | "B"; session_id: string };
+
+// GET /api/deep-dive/entitlement?scenario_id=...
+type EntitlementRes = { has_entitlement: boolean; features?: { checklist: boolean;

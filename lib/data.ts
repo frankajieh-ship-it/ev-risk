@@ -45,6 +45,7 @@ export interface RangeDeltaRow {
   delta_percent: number;
   chemistry: string;
   battery_kwh: number;
+  msrp_usd: number;
 }
 
 export interface RecallRow {
@@ -127,7 +128,8 @@ export function loadRangeDeltaData(): RangeDeltaRow[] {
     cast: (value, context) => {
       // Cast numeric columns
       if (context.column === "year" || context.column === "epa_range_mi" ||
-          context.column === "real_world_range_mi" || context.column === "battery_kwh") {
+          context.column === "real_world_range_mi" || context.column === "battery_kwh" ||
+          context.column === "msrp_usd") {
         return parseInt(value);
       }
       if (context.column === "delta_percent") {

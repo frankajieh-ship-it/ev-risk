@@ -760,15 +760,28 @@ function RoutineResultsContent() {
 
           {/* Link to receipt page as alternative */}
           {inputMode !== "manual" && (
-            <div className="text-center">
-              <span className="text-xs text-gray-400">or</span>
-              <Link
-                href={`/receipt?return_to=routine&run_id=${result.run_id}`}
-                className="block mt-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
-              >
-                Go to Full Receipt Analysis &rarr;
-              </Link>
-              <span className="text-xs text-gray-400">(returns here with vehicle data)</span>
+            <div className="text-center space-y-2">
+              <div>
+                <span className="text-xs text-gray-400">or</span>
+                <Link
+                  href={`/receipt?return_to=routine&run_id=${result.run_id}`}
+                  className="block mt-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
+                >
+                  Go to Full Receipt Analysis &rarr;
+                </Link>
+                <span className="text-xs text-gray-400">(returns here with vehicle data)</span>
+              </div>
+              {extractError && (
+                <div className="pt-2 border-t border-gray-200">
+                  <Link
+                    href="/demo"
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                  >
+                    Try a Demo Report First &rarr;
+                  </Link>
+                  <p className="text-xs text-gray-400 mt-0.5">See how OFFO works with sample scenarios</p>
+                </div>
+              )}
             </div>
           )}
         </div>
