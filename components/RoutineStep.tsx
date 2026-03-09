@@ -1,15 +1,37 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-import { Check } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Check, MapPin } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { inferClimateFromZip } from "@/lib/zip-climate-mapping";
+import type { ClimateSeasonality } from "@/types";
 import type { MinimumViableRoutine } from "@/types/v2";
 import { validateMVR } from "@/types/v2";
 
+/** Map ZIP-inferred ClimateSeasonality → routine climate value */
+function mapZipClimateToRoutine(cs: ClimateSeasonality): MinimumViableRoutine["climate"] | null {
+  switch (cs) {
+    case "COLD_WINTER": return "winter";
+    case "HOT_SUMMER": return "hot";
+    case "MILD": return "mild";
+    case "MIXED": return "mild"; // mixed seasons → mild (closest match)
+    default: return null;
+  }
+}
+
+function climateLabel(cs: ClimateSeasonality): string {
+  switch (cs) {
+    case "COLD_WINTER": return "Cold winters";
+    case "HOT_SUMMER": return "Hot";
+    case "MILD": return "Mild";
+    case "MIXED": return "Mild (mixed seasons)";
+    default: return "";
+  }
+}
+
 interface RoutineStepProps {
   onComplete: (routine: MinimumViableRoutine) => void;
-  onSkipVehicle: (routine: MinimumViableRoutine) => void;
 }
 
 type MilesMode = "weekly" | "commute";
@@ -26,7 +48,7 @@ function getMissingFieldHint(errors: string[]): string | null {
   return "Complete all fields to continue";
 }
 
-export default function RoutineStep({ onComplete, onSkipVehicle }: RoutineStepProps) {
+export default function RoutineStep({ onComplete }: RoutineStepProps) {
   const { trackEvent } = useEventTracking();
   const [chargingAccess, setChargingAccess] = useState<MinimumViableRoutine["charging_access"] | null>(null);
   const [milesMode, setMilesMode] = useState<MilesMode>("weekly");
@@ -34,6 +56,10 @@ export default function RoutineStep({ onComplete, onSkipVehicle }: RoutineStepPr
   const [commuteMiles, setCommuteMiles] = useState<string>("");
   const [climate, setClimate] = useState<MinimumViableRoutine["climate"] | null>(null);
   const [longestDay, setLongestDay] = useState<MinimumViableRoutine["longest_day_pattern"] | null>(null);
+
+  // ZIP → climate autofill
+  const [zipCode, setZipCode] = useState("");
+  const [zipClimateNote, setZipClimateNote] = useState<string | null>(null);
 
   // Refs for scroll-to-field
   const chargingRef = useRef<HTMLFieldSetElement>(null);
@@ -94,10 +120,22 @@ export default function RoutineStep({ onComplete, onSkipVehicle }: RoutineStepPr
     onComplete(buildRoutine() as MinimumViableRoutine);
   };
 
-  const handleSkip = () => {
-    if (!isValid) return;
-    trackEvent("clicked_skip_vehicle");
-    onSkipVehicle(buildRoutine() as MinimumViableRoutine);
+  // ZIP code → auto-fill climate
+  const handleZipChange = (value: string) => {
+    // Allow only digits, max 5
+    const clean = value.replace(/\D/g, "").slice(0, 5);
+    setZipCode(clean);
+    setZipClimateNote(null);
+
+    if (clean.length === 5) {
+      const inferred = inferClimateFromZip(clean, "US");
+      const mapped = mapZipClimateToRoutine(inferred);
+      if (mapped) {
+        setClimate(mapped);
+        setZipClimateNote(`Climate set to "${climateLabel(inferred)}" based on ZIP ${clean}`);
+        trackEvent("zip_climate_autofill", { zip: clean, climate: mapped, raw: inferred });
+      }
+    }
   };
 
   // Reusable card button component
@@ -254,12 +292,41 @@ export default function RoutineStep({ onComplete, onSkipVehicle }: RoutineStepPr
           </p>
         </div>
 
-        {/* Q3: Climate */}
+        {/* Q3: Climate (with ZIP autofill) */}
         <fieldset ref={climateRef}>
           <legend className="sr-only">What&apos;s your climate like?</legend>
           <label className="block text-sm font-semibold text-gray-700 mb-3">
             What&apos;s your climate like?
           </label>
+
+          {/* ZIP autofill */}
+          <div className="mb-4">
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Enter ZIP code to auto-detect"
+                value={zipCode}
+                onChange={(e) => handleZipChange(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-gray-900 text-sm"
+              />
+            </div>
+            <AnimatePresence>
+              {zipClimateNote && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="mt-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 flex items-center gap-1.5"
+                >
+                  <Check className="w-3.5 h-3.5 shrink-0" />
+                  {zipClimateNote}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
+
           <div className="grid grid-cols-3 gap-3">
             {([
               { value: "winter" as const, label: "Cold winters", desc: "Regular snow & ice" },
@@ -271,6 +338,7 @@ export default function RoutineStep({ onComplete, onSkipVehicle }: RoutineStepPr
                 selected={climate === opt.value}
                 onClick={() => {
                   setClimate(opt.value);
+                  setZipClimateNote(null);
                   if (climate !== opt.value) trackField("climate");
                 }}
                 label={opt.label}
@@ -279,7 +347,7 @@ export default function RoutineStep({ onComplete, onSkipVehicle }: RoutineStepPr
               />
             ))}
           </div>
-          <p className="text-xs text-gray-500 mt-2">Affects range buffer, charging speed, and routine friction.</p>
+          <p className="text-xs text-gray-500 mt-2">Affects range buffer, charging speed, and routine friction. {zipCode.length === 5 ? "You can override the auto-detected climate above." : ""}</p>
         </fieldset>
 
         {/* Q4: Longest Day Pattern */}
@@ -328,17 +396,6 @@ export default function RoutineStep({ onComplete, onSkipVehicle }: RoutineStepPr
             }`}
           >
             Next: Choose Vehicle
-          </button>
-          <button
-            onClick={handleSkip}
-            disabled={!isValid}
-            className={`w-full py-2.5 px-6 rounded-xl font-medium transition-all ${
-              isValid
-                ? "border border-gray-300 text-gray-700 hover:bg-gray-50"
-                : "border border-gray-200 text-gray-300 cursor-not-allowed"
-            }`}
-          >
-            Skip vehicle — get routine-only result
           </button>
         </div>
       </div>
