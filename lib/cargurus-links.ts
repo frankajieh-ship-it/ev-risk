@@ -1,22 +1,23 @@
 /**
  * CarGurus URL Builder
  *
- * Generates CarGurus shopping search URLs with location and vehicle filtering.
- * URL format: https://www.cargurus.com/shopping/results/?searchterms={make}+{model}+{year}&zip={zip}&distance={distance}
+ * Generates Google search URLs that return CarGurus listings as top results.
+ * This approach works around CarGurus' complex internal URL structure (entityId, makeModelTrimPaths)
+ * which requires internal IDs we don't have access to.
  */
 
 /**
- * Build a CarGurus search URL for a given vehicle.
- * Links to filtered search results showing available inventory.
+ * Build a Google search URL that returns CarGurus results for a given vehicle.
+ * Google will show relevant CarGurus listings as the top result.
  *
  * @param make - Vehicle make (e.g., "Tesla")
  * @param modelShort - Short model name (e.g., "Model 3")
  * @param options - Optional parameters to enhance search
  * @param options.year - Vehicle year for filtering
  * @param options.zip - User's ZIP code for location-based search
- * @param options.range_mi - Real-world range (not used in URL, reserved for future)
- * @param options.battery_kwh - Battery size (not used in URL, reserved for future)
- * @returns CarGurus shopping search URL with location and vehicle filtering
+ * @param options.range_mi - Real-world range (not used in search)
+ * @param options.battery_kwh - Battery size (not used in search)
+ * @returns Google search URL that returns CarGurus listings
  */
 export function getCarGurusUrl(
   make: string,
@@ -28,27 +29,16 @@ export function getCarGurusUrl(
     battery_kwh?: number;
   }
 ): string {
-  // Build search terms: "Make Model Year" (e.g., "Tesla Model 3 2023")
-  const searchTerms = [make, modelShort, options?.year]
+  // Build Google search query that returns CarGurus results
+  const searchTerms = [
+    options?.year,
+    make,
+    modelShort,
+    "CarGurus",
+    options?.zip ? `near ${options.zip}` : null,
+  ]
     .filter(Boolean)
-    .join(" ")
-    .replace(/\s+/g, "+"); // Replace spaces with + for URL encoding
+    .join(" ");
 
-  // Base URL: CarGurus shopping results page
-  const baseUrl = "https://www.cargurus.com/shopping/results/";
-
-  // Build query parameters
-  const params = new URLSearchParams();
-  params.append("searchterms", searchTerms);
-
-  // Add location filtering if ZIP provided
-  if (options?.zip) {
-    params.append("zip", options.zip);
-    params.append("distance", "50"); // 50 mile radius
-  }
-
-  // Note: range_mi and battery_kwh are not standard CarGurus params
-  // Reserved for future use if CarGurus adds support or we implement custom search
-
-  return `${baseUrl}?${params.toString()}`;
+  return `https://www.google.com/search?q=${encodeURIComponent(searchTerms)}`;
 }
