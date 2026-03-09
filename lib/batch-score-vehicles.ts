@@ -61,7 +61,6 @@ export function batchScoreVehicles(
         model: row.model,
         year: row.year,
         real_world_range_mi: row.real_world_range_mi,
-        msrp_usd: row.msrp_usd,
         sub_category: classification.subCategory,
       };
 
