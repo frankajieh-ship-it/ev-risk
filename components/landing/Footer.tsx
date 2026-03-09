@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Footer() {
   return (
@@ -7,7 +8,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           {/* Brand */}
           <div>
-            <span className="text-xl font-bold text-white">OFFO</span>
+            <Image src="/offo-logo.png" alt="OFFO" width={72} height={28} className="h-7 w-auto" />
             <p className="mt-2 text-sm leading-relaxed">
               Your trusted second opinion for used EV shopping. Know if it&apos;s a good deal before the test drive.
             </p>

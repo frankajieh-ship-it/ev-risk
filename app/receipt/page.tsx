@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Receipt, Loader2, QrCode, ArrowLeft } from "lucide-react";
@@ -852,9 +853,11 @@ export default function ReceiptPage() {
         {/* Hero */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-3">
-            <Receipt className="w-6 h-6 text-blue-600" />
+            <Image src="/offo-logo.png" alt="OFFO" width={64} height={26} className="h-6 w-auto" />
+            <span className="text-xs font-medium text-gray-400">|</span>
+            <Receipt className="w-5 h-5 text-blue-600" />
             <span className="text-xs font-medium text-blue-600 uppercase tracking-wider">
-              by OFFO Lab
+              Listing Receipt
             </span>
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-700 to-green-600 bg-clip-text text-transparent mb-2">

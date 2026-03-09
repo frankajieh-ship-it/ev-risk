@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { ShoppingCart, Building, Loader2, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getSupabaseAuthClient } from "@/lib/supabase-auth";
@@ -93,6 +94,7 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="max-w-lg w-full">
         <div className="text-center mb-8">
+          <Image src="/offo-logo.png" alt="OFFO" width={96} height={38} className="h-10 w-auto mx-auto mb-3" />
           <h1 className="text-2xl font-bold text-gray-900">Welcome to OFFO</h1>
           <p className="text-sm text-gray-500 mt-2">How will you be using the platform?</p>
         </div>

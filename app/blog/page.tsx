@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { useEventTracking } from "@/hooks/useEventTracking";
 
@@ -20,7 +21,10 @@ export default function BlogPage() {
           >
             ← Back to OFFO Labs
           </Link>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">OFFO Labs Blog</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <Image src="/offo-logo.png" alt="OFFO" width={80} height={32} className="h-8 w-auto" />
+            <h1 className="text-4xl font-bold text-gray-900">Labs Blog</h1>
+          </div>
           <p className="text-gray-600">Systems thinking about decisions that matter</p>
         </div>
       </header>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function FeedbackPage() {
   const [formData, setFormData] = useState({
@@ -110,11 +111,8 @@ export default function FeedbackPage() {
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="text-center mb-10">
-          <Link
-            href="/"
-            className="inline-block mb-6 text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent hover:opacity-80 transition-opacity"
-          >
-            EV-Risk™
+          <Link href="/" className="inline-block mb-6 hover:opacity-80 transition-opacity">
+            <Image src="/offo-logo.png" alt="OFFO" width={120} height={48} className="h-12 w-auto" />
           </Link>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             📣 Help Us Improve

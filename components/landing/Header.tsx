@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { History, Menu, X, User, Building } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import LoginModal from "@/components/LoginModal";
@@ -36,8 +37,8 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-              OFFO
+            <Link href="/" className="flex items-center">
+              <Image src="/offo-logo.png" alt="OFFO" width={80} height={32} className="h-8 w-auto" priority />
             </Link>
 
             {variant === "homepage" ? (
