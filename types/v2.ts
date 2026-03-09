@@ -16,6 +16,20 @@ export interface MinimumViableRoutine {
   climate: "winter" | "mild" | "hot";
   longest_day_pattern: "once_a_week" | "monthly_trip" | "rare_road_trip";
   region?: "US" | "UK";
+
+  // Quick Fit additions
+  budget_max?: number;
+  body_style?: "sedan" | "suv" | "truck" | "hatchback" | "any";
+  home_type?: "house" | "apartment" | "condo" | "other";
+  can_install_charger?: "yes" | "no" | "need_permission";
+  overnight_dwell_hours?: number;
+
+  // Deep Fit additions
+  longest_day_miles?: number;
+  parking_exposure?: "garage" | "outdoor" | "street";
+  min_comfortable_soc?: number;
+  towing_needs?: "none" | "light" | "heavy";
+  wants_carplay?: boolean;
 }
 
 export function validateMVR(
