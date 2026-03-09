@@ -15,7 +15,10 @@ import { computeOwnershipRisk } from "@/lib/compute-ownership-risk";
 import { guardTurnstile } from "@/lib/turnstile";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import { getSupabaseAdmin } from "@/lib/api-auth";
-import type { VehicleRecommendation, DealerListingMatch } from "@/types/recommendations";
+import { getWeatherClient, inferWeatherFallback } from "@/lib/weather-client";
+import { getChargerClient } from "@/lib/charger-client";
+import type { VehicleRecommendation, DealerListingMatch, DataSources } from "@/types/recommendations";
+import type { WeatherData } from "@/types/routine-v2";
 
 const recLimiter = new RateLimiter(
   60 * 60 * 1000, // 1 hour window
@@ -55,26 +58,95 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. Score all vehicles
-    const rangeData = loadRangeDeltaData();
-    const scored = batchScoreVehicles(routine, rangeData);
+    // Extract ZIP code from routine (user provided it during climate selection)
+    const zipCode = body.zip_code as string | undefined;
 
-    // 2. Query dealer inventory (optional — gracefully degrades)
+    // ============================
+    // 1. Fetch weather data
+    // ============================
+    let weatherData: WeatherData | undefined;
+    let weatherLive = false;
+    let locationName: string | undefined;
+
+    if (zipCode) {
+      const weatherClient = getWeatherClient();
+      if (weatherClient) {
+        const result = await weatherClient.getWeatherByZip(zipCode, "US");
+        if (result.success) {
+          weatherData = result.data;
+          weatherLive = true;
+          locationName = result.data?.location_used;
+        }
+      }
+    }
+    // Fallback to inference if API failed or no ZIP
+    if (!weatherData) {
+      weatherData = inferWeatherFallback(routine.climate, zipCode);
+    }
+
+    // ============================
+    // 2. Search nearby chargers (public charging only)
+    // ============================
+    let chargerCount = 0;
+    let chargersLive = false;
+
+    if (routine.charging_access === "public" && zipCode) {
+      const chargerClient = getChargerClient();
+      if (chargerClient) {
+        try {
+          const chargers = await chargerClient.searchByZip(zipCode, {
+            radius_miles: 10,
+            connector_types: ["J1772", "CCS", "CHAdeMO", "NACS"],
+          });
+          if (chargers.success && chargers.data) {
+            chargerCount = chargers.data.length;
+            chargersLive = true;
+          }
+        } catch (err) {
+          console.warn("[recommendations] Charger search failed:", err);
+          // Gracefully degrade
+        }
+      }
+    }
+
+    // ============================
+    // 3. Score all vehicles (with V2 scoring if real-time data available)
+    // ============================
+    const rangeData = loadRangeDeltaData();
+    const scored = batchScoreVehicles(
+      routine,
+      rangeData,
+      weatherData || chargerCount > 0
+        ? { weather: weatherData, chargerCount }
+        : undefined
+    );
+
+    // 4. Query dealer inventory (optional — gracefully degrades)
     const dealerMap = await fetchDealerInventoryMatches(scored);
 
-    // 3. Merge dealer listings into recommendations
+    // 5. Merge dealer listings into recommendations
     const recommendations: VehicleRecommendation[] = scored.map((v) => ({
       ...v,
       dealer_listings: dealerMap.get(normalizeModelKey(v.make, v.model_short)) ?? [],
     }));
 
-    // 4. Build dealer questions (use no-vehicle ownership risk for generic questions)
+    // 6. Build dealer questions (use no-vehicle ownership risk for generic questions)
     const ownershipRisk = computeOwnershipRisk();
     const dealerQuestions = buildDealerQuestionsV2(routine, ownershipRisk);
 
-    // 5. Build routine summary
+    // 7. Build routine summary
     const weeklyMiles = routine.weekly_miles
       ?? (routine.commute_miles_roundtrip ? routine.commute_miles_roundtrip * 5 : 100);
+
+    // 8. Build data sources metadata
+    const dataSources: DataSources = {
+      weather_live: weatherLive,
+      chargers_live: chargersLive,
+      weather_temp_f: weatherData?.current_temp_f,
+      weather_condition: weatherData?.current_conditions,
+      charger_count: chargerCount,
+      location_name: locationName,
+    };
 
     return NextResponse.json({
       success: true,
@@ -85,6 +157,8 @@ export async function POST(request: NextRequest) {
         weekly_miles: weeklyMiles,
         climate: routine.climate,
       },
+      data_sources: dataSources,
+      user_zip_code: zipCode ?? null,
     });
   } catch (error) {
     console.error("[recommendations] Error:", error);

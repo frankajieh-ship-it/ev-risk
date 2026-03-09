@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Zap, MapPin, ArrowRight } from "lucide-react";
+import { ChevronDown, Zap, MapPin, ArrowRight, ExternalLink } from "lucide-react";
 import type { VehicleRecommendation } from "@/types/recommendations";
+import { getCarGurusUrl } from "@/lib/cargurus-links";
+import { ScoreImprovementSuggestions } from "./blocks/ScoreImprovementSuggestions";
 
 const fitColors: Record<string, { bg: string; text: string; border: string }> = {
   "Great Fit": { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
@@ -24,13 +26,14 @@ interface RecommendationCardProps {
   recommendation: VehicleRecommendation;
   onSelect: () => void;
   muted?: boolean;
+  userZipCode?: string | null;
 }
 
 function formatPrice(cents: number): string {
   return "$" + Math.round(cents / 100).toLocaleString();
 }
 
-export default function RecommendationCard({ recommendation: rec, onSelect, muted }: RecommendationCardProps) {
+export default function RecommendationCard({ recommendation: rec, onSelect, muted, userZipCode }: RecommendationCardProps) {
   const [expanded, setExpanded] = useState(false);
   const colors = fitColors[rec.fit_label] ?? fitColors["Mixed Fit"];
   const badgeBg = scoreBadgeColors[rec.fit_label] ?? "bg-gray-500";
@@ -77,6 +80,11 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
           </p>
         )}
 
+        {/* Score improvement suggestions */}
+        {rec.score_improvements && (
+          <ScoreImprovementSuggestions improvements={rec.score_improvements} />
+        )}
+
         {/* Dealer availability */}
         {hasDealers && (
           <button
@@ -89,8 +97,8 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
           </button>
         )}
 
-        {/* Action button */}
-        <div className="mt-4">
+        {/* Action buttons */}
+        <div className="mt-4 space-y-2">
           <button
             onClick={onSelect}
             className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
@@ -98,6 +106,20 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
             See Full Report
             <ArrowRight className="w-4 h-4" />
           </button>
+          <a
+            href={getCarGurusUrl(rec.make, rec.model_short, {
+              year: rec.year,
+              zip: userZipCode ?? undefined,
+              range_mi: rec.real_world_range_mi,
+              battery_kwh: rec.battery_kwh,
+            })}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-gray-500 hover:text-blue-600 transition-colors"
+          >
+            Browse on CarGurus
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
         </div>
       </div>
 

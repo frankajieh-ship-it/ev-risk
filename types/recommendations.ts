@@ -6,6 +6,14 @@
 
 import type { RoutineFitScore } from "./v2";
 
+export interface ScoreImprovement {
+  type: "routine_change" | "vehicle_selection" | "optimized";
+  suggestion: string;
+  score_delta: number;
+  dimension: string;
+  priority: number;
+}
+
 export interface DealerListingMatch {
   dealer_name: string;
   dealer_slug: string;
@@ -37,6 +45,18 @@ export interface VehicleRecommendation {
 
   /** Matched dealer inventory */
   dealer_listings: DealerListingMatch[];
+
+  /** Score improvement suggestions */
+  score_improvements?: ScoreImprovement[];
+}
+
+export interface DataSources {
+  weather_live: boolean;
+  chargers_live: boolean;
+  weather_temp_f?: number;
+  weather_condition?: string;
+  charger_count: number;
+  location_name?: string;
 }
 
 export interface RecommendationsResponse {
@@ -52,4 +72,6 @@ export interface RecommendationsResponse {
     weekly_miles: number;
     climate: string;
   };
+  data_sources?: DataSources;
+  user_zip_code?: string | null;
 }

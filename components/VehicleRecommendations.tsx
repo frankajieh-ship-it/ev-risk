@@ -59,6 +59,7 @@ export default function VehicleRecommendations({
 
   const [recommendations, setRecommendations] = useState<VehicleRecommendation[]>([]);
   const [dealerQuestions, setDealerQuestions] = useState<string[]>([]);
+  const [userZipCode, setUserZipCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -90,6 +91,7 @@ export default function VehicleRecommendations({
         if (!cancelled) {
           setRecommendations(data.recommendations);
           setDealerQuestions(data.dealer_questions.top_3);
+          setUserZipCode(data.user_zip_code ?? null);
           trackEvent("recommendations_viewed", {
             count: data.recommendations.length,
             great_fit_count: data.recommendations.filter(r => r.fit_label === "Great Fit").length,
@@ -215,6 +217,7 @@ export default function VehicleRecommendations({
                   key={rec.model}
                   recommendation={rec}
                   onSelect={() => handleSelect(rec)}
+                  userZipCode={userZipCode}
                 />
               ))}
             </div>
@@ -243,6 +246,7 @@ export default function VehicleRecommendations({
                       recommendation={rec}
                       onSelect={() => handleSelect(rec)}
                       muted
+                      userZipCode={userZipCode}
                     />
                   ))}
                 </div>
