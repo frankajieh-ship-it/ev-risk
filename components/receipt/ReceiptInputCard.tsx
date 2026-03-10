@@ -25,6 +25,11 @@ import type { FetchedListingFields, StructuredListingFields } from "@/types/rece
 
 type InputMode = "url" | "text";
 
+type ExtractError = {
+  message: string;
+  isWarning?: boolean;
+};
+
 interface ReceiptInputCardProps {
   onGenerate: (data: {
     listing_url?: string;
@@ -101,7 +106,7 @@ export default function ReceiptInputCard({
   const [listingUrl, setListingUrl] = useState("");
   const [listingText, setListingText] = useState("");
   const [isExtracting, setIsExtracting] = useState(false);
-  const [extractError, setExtractError] = useState<string | null>(null);
+  const [extractError, setExtractError] = useState<ExtractError | null>(null);
   const [extractStep, setExtractStep] = useState(0);
 
   // Structured fields
@@ -187,6 +192,15 @@ export default function ReceiptInputCard({
     setLastAutoExtractedUrl(pasted);
     setExtractError(null);
 
+    // Check if URL is from CarGurus
+    const isCarGurusUrl = pasted.toLowerCase().includes('cargurus.com');
+    if (!isCarGurusUrl && pasted.length > 10) {
+      setExtractError({
+        message: "This URL is from a different site. CarGurus URLs work best with auto-extraction. For other sites, consider using the 'Paste Text' tab for better results.",
+        isWarning: true
+      });
+    }
+
     if (autoExtractTimerRef.current) clearTimeout(autoExtractTimerRef.current);
     autoExtractTimerRef.current = setTimeout(() => handleExtract(pasted), 300);
   };
@@ -253,26 +267,26 @@ export default function ReceiptInputCard({
 
         // Show specific error based on diagnostics
         if (data.diagnostics?.botProtectionDetected) {
-          setExtractError(
-            "This site blocked auto-extraction. Paste the listing text instead."
-          );
+          setExtractError({
+            message: "This site blocked auto-extraction. Paste the listing text instead."
+          });
           // Auto-switch to text mode and focus
           setInputMode("text");
           setTimeout(() => textareaRef.current?.focus(), 100);
         } else if (data.diagnostics?.failureReason === "timeout") {
-          setExtractError(
-            "Extraction timed out. Paste the listing text instead."
-          );
+          setExtractError({
+            message: "Extraction timed out. Paste the listing text instead."
+          });
           setInputMode("text");
           setTimeout(() => textareaRef.current?.focus(), 100);
         } else if (data.diagnostics?.failureReason === "search_page") {
-          setExtractError(
-            "That looks like a search page. Paste a link to a single listing instead."
-          );
+          setExtractError({
+            message: "That looks like a search page. Paste a link to a single listing instead."
+          });
         } else {
-          setExtractError(
-            "Couldn't detect enough listing fields. Fill in the required fields below or try pasting the listing text."
-          );
+          setExtractError({
+            message: "Couldn't detect enough listing fields. Fill in the required fields below or try pasting the listing text."
+          });
           // Open details so user can fill manually
           setDetailsOpen(true);
         }
@@ -337,7 +351,9 @@ export default function ReceiptInputCard({
         failure_reason: "network_error",
         input_length: inputMode === "url" ? (urlOverride ?? listingUrl.trim()).length : listingText.trim().length,
       });
-      setExtractError("Network error — try again or paste the listing text");
+      setExtractError({
+        message: "Network error — try again or paste the listing text"
+      });
     } finally {
       setIsExtracting(false);
     }
@@ -434,7 +450,7 @@ export default function ReceiptInputCard({
                   if (hasResult) setDirtyAfterResult(true);
                 }}
                 onPaste={handleUrlPaste}
-                placeholder="https://www.autotrader.com/cars-for-sale/..."
+                placeholder="https://www.cargurus.com/Cars/..."
                 className="flex-1 px-4 py-3 rounded-lg border border-gray-200 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
                 disabled={isGenerating || isExtracting}
               />
@@ -457,6 +473,24 @@ export default function ReceiptInputCard({
               </button>
             </div>
 
+            {/* Helper text for URL input */}
+            <p className="text-xs text-gray-500 flex items-start gap-1">
+              <span className="text-blue-500">💡</span>
+              <span>
+                <strong>Tip:</strong> CarGurus URLs work best here. For other sites, use the{" "}
+                <button
+                  onClick={() => {
+                    setInputMode("text");
+                    trackEvent?.("helper_text_switch_to_text", { from: "url_helper" });
+                  }}
+                  className="text-blue-600 hover:text-blue-700 font-medium underline"
+                >
+                  Paste Text
+                </button>{" "}
+                tab.
+              </span>
+            </p>
+
             {/* Extraction loading with step progress */}
             {isExtracting && (
               <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
@@ -467,10 +501,20 @@ export default function ReceiptInputCard({
 
             {/* Extract error with fallback options */}
             {extractError && !isExtracting && (
-              <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <div>
-                  <span>{extractError}</span>
+              <div className={`flex items-start gap-2 text-sm p-3 rounded-lg ${
+                extractError.isWarning
+                  ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                  : 'bg-red-50 text-red-600'
+              }`}>
+                {extractError.isWarning ? (
+                  <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                )}
+                <div className="flex-1">
+                  <span>{extractError.message}</span>
                   <div className="flex gap-3 mt-1.5">
                     <button
                       onClick={() => {
@@ -556,10 +600,20 @@ export default function ReceiptInputCard({
 
             {/* Extract error with fallback */}
             {extractError && !isExtracting && (
-              <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div className={`flex items-start gap-2 text-sm p-3 rounded-lg ${
+                extractError.isWarning
+                  ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                  : 'bg-red-50 text-red-600'
+              }`}>
+                {extractError.isWarning ? (
+                  <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                )}
                 <div>
-                  <span>{extractError}</span>
+                  <span>{extractError.message}</span>
                   <button
                     onClick={() => {
                       setDetailsOpen(true);

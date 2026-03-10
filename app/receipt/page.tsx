@@ -1155,7 +1155,8 @@ export default function ReceiptPage() {
           <HowItWorksSection />
           <ExampleAnalysisSection />
           <UniqueAdvantageSection />
-          <PricingSection />
+          {/* One-time purchase section removed per user request */}
+          {/* <PricingSection /> */}
         </>
       )}
 
