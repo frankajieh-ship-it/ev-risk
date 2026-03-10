@@ -20,6 +20,50 @@ interface SummaryWindow {
   timezone: string;
 }
 
+interface RetentionData {
+  window: string;
+  start_date: string;
+  end_date: string;
+  total_unique_visitors: number;
+  total_sessions: number;
+  total_events: number;
+  repeat_users: {
+    total: number;
+    percentage: number;
+    by_visit_count: {
+      "2_visits": number;
+      "3_5_visits": number;
+      "6_10_visits": number;
+      "11_plus_visits": number;
+    };
+    top_power_users: Array<{
+      visitor_id: string;
+      visit_count: number;
+      session_count: number;
+      first_visit: string;
+      last_visit: string;
+      days_active: number;
+    }>;
+  };
+  active_users: {
+    daily_active_users: number;
+    weekly_active_users: number;
+    monthly_active_users: number;
+    dau_wau_ratio: number;
+    dau_mau_ratio: number;
+  };
+  user_segments: {
+    one_time_users: number;
+    occasional_users: number;
+    frequent_users: number;
+    power_users: number;
+  };
+  session_patterns: {
+    avg_sessions_per_user: number;
+    avg_events_per_session: number;
+  };
+}
+
 interface SummaryData {
   success: boolean;
   window: SummaryWindow;
@@ -285,6 +329,7 @@ export default function AdminDashboard() {
   const [apiKey, setApiKey] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [summary, setSummary] = useState<SummaryData | null>(null);
+  const [retentionData, setRetentionData] = useState<RetentionData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [period, setPeriod] = useState<Period>("last_30_days");
@@ -325,6 +370,9 @@ export default function AdminDashboard() {
         setSummary(data);
         setIsAuthenticated(true);
         sessionStorage.setItem("admin_api_key", key);
+
+        // Fetch retention data in parallel
+        fetchRetention(key, selectedPeriod);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");
         setSummary(null);
@@ -334,6 +382,29 @@ export default function AdminDashboard() {
     },
     [period]
   );
+
+  const fetchRetention = async (key: string, selectedPeriod: Period = period) => {
+    try {
+      const windowMap: Record<Period, string> = {
+        day: "today",
+        week: "week",
+        last_30_days: "last_30_days",
+        month_to_date: "month",
+        custom: "last_30_days",
+      };
+
+      const response = await fetch(`/api/admin/user-retention?window=${windowMap[selectedPeriod]}`, {
+        headers: { Authorization: `Bearer ${key}` },
+      });
+
+      if (response.ok) {
+        const data: RetentionData = await response.json();
+        setRetentionData(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch retention data:", err);
+    }
+  };
 
   // -------------------------------------------------------------------------
   // Export (reads from summary state — no race condition)
@@ -729,6 +800,184 @@ export default function AdminDashboard() {
               <FunnelCard label="Routine Event" value={`${s.coverage.pct_routine}%`} color="indigo" subtitle={`${s.coverage.sessions_with_routine_event} sessions`} />
               <FunnelCard label="Copy Event" value={`${s.coverage.pct_copy}%`} color="green" subtitle={`${s.coverage.sessions_with_copy_event} sessions`} />
             </div>
+          </div>
+        )}
+
+        {/* User Retention & Engagement */}
+        {retentionData && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border-l-4 border-indigo-400">
+            <h2 className="text-2xl font-bold text-gray-900 mb-1">User Retention & Engagement</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Tracking repeated users, active users, and engagement patterns
+            </p>
+
+            {/* Key Metrics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-blue-50 rounded-xl p-4">
+                <p className="text-sm text-blue-600 font-medium mb-1">Total Unique Users</p>
+                <p className="text-3xl font-bold text-blue-900">{retentionData.total_unique_visitors}</p>
+                <p className="text-xs text-blue-700 mt-1">Last 30 days</p>
+              </div>
+              <div className="bg-purple-50 rounded-xl p-4">
+                <p className="text-sm text-purple-600 font-medium mb-1">Repeat Users</p>
+                <p className="text-3xl font-bold text-purple-900">{retentionData.repeat_users.total}</p>
+                <p className="text-xs text-purple-700 mt-1">{retentionData.repeat_users.percentage}% of total</p>
+              </div>
+              <div className="bg-green-50 rounded-xl p-4">
+                <p className="text-sm text-green-600 font-medium mb-1">Daily Active Users</p>
+                <p className="text-3xl font-bold text-green-900">{retentionData.active_users.daily_active_users}</p>
+                <p className="text-xs text-green-700 mt-1">Today</p>
+              </div>
+              <div className="bg-indigo-50 rounded-xl p-4">
+                <p className="text-sm text-indigo-600 font-medium mb-1">DAU/MAU Ratio</p>
+                <p className="text-3xl font-bold text-indigo-900">{Math.round(retentionData.active_users.dau_mau_ratio * 100)}%</p>
+                <p className="text-xs text-indigo-700 mt-1">Stickiness</p>
+              </div>
+            </div>
+
+            {/* Active Users Breakdown */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Active Users Breakdown</h3>
+              <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+                <FunnelCard label="DAU" value={retentionData.active_users.daily_active_users} color="green" subtitle="Daily" />
+                <FunnelCard label="WAU" value={retentionData.active_users.weekly_active_users} color="blue" subtitle="Weekly" />
+                <FunnelCard label="MAU" value={retentionData.active_users.monthly_active_users} color="purple" subtitle="Monthly" />
+                <FunnelCard label="DAU/WAU" value={`${Math.round(retentionData.active_users.dau_wau_ratio * 100)}%`} color="indigo" subtitle="Stickiness" />
+                <FunnelCard label="DAU/MAU" value={`${Math.round(retentionData.active_users.dau_mau_ratio * 100)}%`} color="indigo" subtitle="Stickiness" />
+              </div>
+            </div>
+
+            {/* User Segmentation */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">User Segments by Visit Count</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="relative">
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-sm text-gray-600 font-medium mb-1">One-time Users</p>
+                    <p className="text-2xl font-bold text-gray-900">{retentionData.user_segments.one_time_users}</p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {Math.round((retentionData.user_segments.one_time_users / retentionData.total_unique_visitors) * 100)}% of total
+                    </p>
+                  </div>
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-1 bg-gray-300 rounded-b-xl"
+                    style={{ width: `${(retentionData.user_segments.one_time_users / retentionData.total_unique_visitors) * 100}%` }}
+                  />
+                </div>
+                <div className="relative">
+                  <div className="bg-blue-50 rounded-xl p-4">
+                    <p className="text-sm text-blue-600 font-medium mb-1">Occasional (2-5)</p>
+                    <p className="text-2xl font-bold text-blue-900">{retentionData.user_segments.occasional_users}</p>
+                    <p className="text-xs text-blue-700 mt-1">
+                      {Math.round((retentionData.user_segments.occasional_users / retentionData.total_unique_visitors) * 100)}% of total
+                    </p>
+                  </div>
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-1 bg-blue-400 rounded-b-xl"
+                    style={{ width: `${(retentionData.user_segments.occasional_users / retentionData.total_unique_visitors) * 100}%` }}
+                  />
+                </div>
+                <div className="relative">
+                  <div className="bg-green-50 rounded-xl p-4">
+                    <p className="text-sm text-green-600 font-medium mb-1">Frequent (6-10)</p>
+                    <p className="text-2xl font-bold text-green-900">{retentionData.user_segments.frequent_users}</p>
+                    <p className="text-xs text-green-700 mt-1">
+                      {Math.round((retentionData.user_segments.frequent_users / retentionData.total_unique_visitors) * 100)}% of total
+                    </p>
+                  </div>
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-1 bg-green-400 rounded-b-xl"
+                    style={{ width: `${(retentionData.user_segments.frequent_users / retentionData.total_unique_visitors) * 100}%` }}
+                  />
+                </div>
+                <div className="relative">
+                  <div className="bg-purple-50 rounded-xl p-4">
+                    <p className="text-sm text-purple-600 font-medium mb-1">Power (11+)</p>
+                    <p className="text-2xl font-bold text-purple-900">{retentionData.user_segments.power_users}</p>
+                    <p className="text-xs text-purple-700 mt-1">
+                      {Math.round((retentionData.user_segments.power_users / retentionData.total_unique_visitors) * 100)}% of total
+                    </p>
+                  </div>
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-1 bg-purple-400 rounded-b-xl"
+                    style={{ width: `${(retentionData.user_segments.power_users / retentionData.total_unique_visitors) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Repeat User Breakdown */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Repeat Users by Visit Count</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <FunnelCard label="2 Visits" value={retentionData.repeat_users.by_visit_count["2_visits"]} color="blue" />
+                <FunnelCard label="3-5 Visits" value={retentionData.repeat_users.by_visit_count["3_5_visits"]} color="indigo" />
+                <FunnelCard label="6-10 Visits" value={retentionData.repeat_users.by_visit_count["6_10_visits"]} color="purple" />
+                <FunnelCard label="11+ Visits" value={retentionData.repeat_users.by_visit_count["11_plus_visits"]} color="purple" />
+              </div>
+            </div>
+
+            {/* Session Patterns */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Session Patterns</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <FunnelCard
+                  label="Avg Sessions per User"
+                  value={retentionData.session_patterns.avg_sessions_per_user.toFixed(1)}
+                  color="gray"
+                />
+                <FunnelCard
+                  label="Avg Events per Session"
+                  value={retentionData.session_patterns.avg_events_per_session.toFixed(1)}
+                  color="gray"
+                />
+              </div>
+            </div>
+
+            {/* Top Power Users Table */}
+            {retentionData.repeat_users.top_power_users.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Top Power Users (Most Active)</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-700">Visitor ID</th>
+                        <th className="px-3 py-2 text-right font-medium text-gray-700">Visits</th>
+                        <th className="px-3 py-2 text-right font-medium text-gray-700">Sessions</th>
+                        <th className="px-3 py-2 text-right font-medium text-gray-700">Days Active</th>
+                        <th className="px-3 py-2 text-right font-medium text-gray-700">Last Visit</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {retentionData.repeat_users.top_power_users.slice(0, 10).map((user, idx) => {
+                        const lastVisit = new Date(user.last_visit);
+                        const daysAgo = Math.floor((Date.now() - lastVisit.getTime()) / (1000 * 60 * 60 * 24));
+                        return (
+                          <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-3 py-2 font-mono text-xs text-gray-600">
+                              {user.visitor_id.substring(0, 16)}...
+                            </td>
+                            <td className="px-3 py-2 text-right font-bold text-purple-600">
+                              {user.visit_count}
+                            </td>
+                            <td className="px-3 py-2 text-right text-gray-700">
+                              {user.session_count}
+                            </td>
+                            <td className="px-3 py-2 text-right text-gray-700">
+                              {user.days_active}
+                            </td>
+                            <td className="px-3 py-2 text-right text-gray-600 text-xs">
+                              {daysAgo === 0 ? "today" : daysAgo === 1 ? "1 day ago" : `${daysAgo} days ago`}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
