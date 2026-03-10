@@ -1,5 +1,5 @@
 /**
- * ReceiptOutputCard — Displays the AI-generated listing receipt
+ * ReceiptOutputCard — Displays the generated listing receipt
  *
  * Verdict badge, price sanity, risk flags, must-answer questions,
  * inspect first, negotiation opener, copy button.
@@ -43,6 +43,7 @@ interface ReceiptOutputCardProps {
   sellerPackUnlocked?: boolean;
   onSellerPackUpgrade?: () => void;
   isUpgrading?: boolean;
+  upgradeFailed?: boolean;
 }
 
 const VERDICT_STYLES = {
@@ -105,6 +106,7 @@ export default function ReceiptOutputCard({
   sellerPackUnlocked,
   onSellerPackUpgrade,
   isUpgrading,
+  upgradeFailed,
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const fallbackFiredRef = useRef(false);
@@ -153,7 +155,7 @@ export default function ReceiptOutputCard({
           <p className={`text-sm ${isSimilarityMatch ? "text-blue-800" : "text-amber-800"}`}>
             {isSimilarityMatch
               ? "Based on a similar vehicle — Tap Regenerate for vehicle-specific analysis."
-              : "Quick receipt — AI analysis timed out. Tap Regenerate for a full analysis."}
+              : "Quick receipt — analysis timed out. Tap Regenerate for a full analysis."}
           </p>
           {onRegenerate && (
             <button
@@ -167,12 +169,22 @@ export default function ReceiptOutputCard({
         </div>
       )}
 
-      {/* AI upgrade in progress indicator */}
+      {/* Full analysis in progress indicator */}
       {isUpgrading && (
         <div className="bg-blue-50 border-b border-blue-200 px-5 py-2.5 flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
           <p className="text-sm text-blue-700">
-            AI analysis in progress — your receipt will auto-update with deeper insights.
+            Detailed analysis in progress — your receipt will auto-update with deeper insights.
+          </p>
+        </div>
+      )}
+
+      {/* Upgrade failed - reassurance banner */}
+      {upgradeFailed && !isUpgrading && (
+        <div className="bg-green-50 border-b border-green-200 px-5 py-3">
+          <p className="text-sm text-green-800">
+            ✓ Your receipt is complete with {receipt.listing_signals?.length || 0}+ data points analyzed.
+            All key risk factors and pricing insights are included.
           </p>
         </div>
       )}

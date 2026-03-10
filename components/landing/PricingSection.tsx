@@ -13,7 +13,7 @@ import { BUYER_PASS_PRICE } from "@/lib/price-assignment";
 
 const benefits = [
   { icon: ShoppingBag, text: "10 receipt credits" },
-  { icon: Search, text: "Full AI analysis with deep-dive" },
+  { icon: Search, text: "Full analysis with deep-dive" },
   { icon: MessageSquare, text: "3 ready-to-use negotiation scripts" },
   { icon: BarChart2, text: "Market comparison with similar listings" },
   { icon: FileDown, text: "PDF export of every receipt" },

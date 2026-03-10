@@ -3,7 +3,7 @@
  *
  * Always visible on every receipt. Combines negotiation_opener, risk_flags,
  * must_answer_questions, walk_away_triggers, and price_sanity into a
- * ready-to-use negotiation package. No new AI call needed.
+ * ready-to-use negotiation package. Generated from the existing receipt.
  */
 
 "use client";

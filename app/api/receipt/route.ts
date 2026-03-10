@@ -363,7 +363,7 @@ export async function POST(request: NextRequest) {
     await completeRequest(requestRowId, liteReceipt.receipt_id, litePayload);
   }
 
-  // Fire-and-forget: trigger async AI upgrade in the same invocation
+  // Fire-and-forget: trigger async upgrade in the same invocation
   upgradeReceiptAsync({
     receiptId: liteReceipt.receipt_id,
     input,
@@ -380,6 +380,22 @@ export async function POST(request: NextRequest) {
     body,
   }).catch((err) => {
     console.error("[Receipt API] Async upgrade error:", err instanceof Error ? err.message : err);
+
+    // Log the outer error too (this shouldn't normally happen since upgradeReceiptAsync handles its own errors)
+    if (isSupabaseConfigured()) {
+      supabase.from("receipt_events").insert({
+        receipt_id: liteReceipt.receipt_id,
+        session_id: receiptToken as string,
+        event_type: "upgrade_exception",
+      }).then(() => {}, () => {});
+
+      logApi("error", "Unhandled upgrade exception", {
+        endpoint: "/api/receipt",
+        anon_id: receiptToken as string,
+        error_code: "upgrade_exception",
+        error_message: err instanceof Error ? err.message : String(err),
+      });
+    }
   });
 
   return NextResponse.json(litePayload);

@@ -2,7 +2,7 @@
  * OFFO Listing Receipt Page
  *
  * /receipt
- * Paste a car listing URL or text, get an AI-powered deal receipt.
+ * Paste a car listing URL or text, get an instant deal receipt.
  */
 
 "use client";
@@ -91,7 +91,7 @@ async function fetchWithRetry(
         continue;
       }
 
-      // Retry on 503/504 (gateway timeout, AI unavailable)
+      // Retry on 503/504 (gateway timeout, service unavailable)
       if (res.status === 503 || res.status === 504) {
         if (attempt < maxRetries) {
           await new Promise((r) => setTimeout(r, (attempt + 1) * 2000));
@@ -132,6 +132,7 @@ export default function ReceiptPage() {
   const [isFallback, setIsFallback] = useState(false);
   const [isSimilarityMatch, setIsSimilarityMatch] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
+  const [upgradeFailed, setUpgradeFailed] = useState(false);
   const upgradePollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // History
@@ -372,7 +373,7 @@ export default function ReceiptPage() {
     };
   }, []);
 
-  // Poll for AI upgrade when receipt is in "lite" status
+  // Poll for full analysis upgrade when receipt is in "lite" status
   const startUpgradePolling = useCallback((receiptId: string) => {
     // Clear any existing polling
     if (upgradePollingRef.current) clearInterval(upgradePollingRef.current);
@@ -407,6 +408,7 @@ export default function ReceiptPage() {
           clearInterval(poll);
           upgradePollingRef.current = null;
           setIsUpgrading(false);
+          setUpgradeFailed(true);
 
           trackEvent("receipt_upgrade_failed", {
             receipt_id: receiptId,
@@ -561,6 +563,7 @@ export default function ReceiptPage() {
       setLintErrors([]);
       setIsFallback(false);
       setIsSimilarityMatch(false);
+      setUpgradeFailed(false);
       setCompareReceipt(null);
       setShowCompareView(false);
       setCurrentVin(data.fields.vin || undefined);
@@ -652,7 +655,7 @@ export default function ReceiptPage() {
         // Add to history
         addReceipt(result.receipt);
 
-        // Start polling if this is a lite receipt (async AI upgrade in progress)
+        // Start polling if this is a lite receipt (async full analysis in progress)
         if (result.generation_status === "lite" && result.receipt_id) {
           startUpgradePolling(result.receipt_id);
           trackEvent("receipt_lite_shown", {
@@ -686,7 +689,7 @@ export default function ReceiptPage() {
     [receiptToken, region, trackEvent, addReceipt, executeTurnstile, startUpgradePolling]
   );
 
-  // Regenerate: re-submit the last input to get a fresh AI analysis
+  // Regenerate: re-submit the last input to get a fresh analysis
   const handleRegenerate = useCallback(() => {
     const lastInput = lastGenerateInputRef.current;
     if (!lastInput) return;
@@ -939,6 +942,7 @@ export default function ReceiptPage() {
                 sellerPackUnlocked={sellerPackUnlocked}
                 onSellerPackUpgrade={handleSellerPackAction}
                 isUpgrading={isUpgrading}
+                upgradeFailed={upgradeFailed}
               />
 
               {/* Buyer Pass teaser — proactive, not gated */}

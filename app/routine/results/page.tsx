@@ -15,10 +15,12 @@ import { MapPin, Clock, Shield, Thermometer, ArrowLeft, LinkIcon, Loader2, Trend
 import { FitVerdictV2Block } from "@/components/blocks/FitVerdictV2Block";
 import { WhatBreaksFirstV2Block } from "@/components/blocks/WhatBreaksFirstV2Block";
 import { StressFlagsV2Block } from "@/components/blocks/StressFlagsV2Block";
+import WhyTheseCarsBlock from "@/components/blocks/WhyTheseCarsBlock";
+import HowWeDecidedBlock from "@/components/blocks/HowWeDecidedBlock";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { getOrCreatePersistentSessionId, getOrCreateReceiptToken } from "@/lib/session-utils";
 import { generateFitOneLiner } from "@/lib/fit-verdict-liner";
-import type { RoutineFitScore } from "@/types/v2";
+import type { RoutineFitScore, MinimumViableRoutine } from "@/types/v2";
 import type { FitVerdict, StressFlagContract } from "@/types/v2-contract";
 import type {
   WeatherData,
@@ -39,10 +41,12 @@ interface DataSources {
   chargers_live: boolean;
   has_vehicle: boolean;
   has_zip: boolean;
+  location_name?: string;
 }
 
 interface RunResult {
   run_id: string;
+  routine?: MinimumViableRoutine; // User routine inputs
   fit_score: RoutineFitScore;
   plan_b: Omit<PlanBCard, "id" | "run_id" | "created_at">;
   weather_data?: WeatherData;
@@ -588,6 +592,14 @@ function RoutineResultsContent() {
         </motion.div>
       )}
 
+      {/* Why These Cars Fit You - Input Recap */}
+      {result.routine && (
+        <WhyTheseCarsBlock
+          routine={result.routine}
+          zipCode={result.data_sources?.location_name || null}
+        />
+      )}
+
       {/* 1. Fit Verdict */}
       <FitVerdictV2Block fitVerdict={fitVerdict} />
 
@@ -861,6 +873,14 @@ function RoutineResultsContent() {
       {/* 4. Stress Flags */}
       {stressFlags.length > 0 && (
         <StressFlagsV2Block flags={stressFlags} />
+      )}
+
+      {/* How We Decided - Explainability */}
+      {result.routine && (
+        <HowWeDecidedBlock
+          routine={result.routine}
+          hasVehicleData={hasVehicleData}
+        />
       )}
 
       {/* 5. Weather Context */}

@@ -24,6 +24,7 @@ import { useEventTracking } from "@/hooks/useEventTracking";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { getOrCreatePersistentSessionId, getOrCreateReceiptToken } from "@/lib/session-utils";
 import type { RoutineProfile } from "@/types/routine-v2";
+import { MATCHMAKER_COPY } from "@/lib/copy/matchmaker";
 
 type ProfileData = Omit<RoutineProfile, "id" | "created_at" | "updated_at">;
 
@@ -302,6 +303,16 @@ function RoutinePageContent() {
           <ArrowLeft className="w-4 h-4" />
           Back to Home
         </Link>
+
+        {/* Landing Tagline */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-3">
+            {MATCHMAKER_COPY.landing.h1}
+          </h1>
+          <p className="text-lg text-gray-600">
+            {MATCHMAKER_COPY.landing.subtext}
+          </p>
+        </div>
 
         {/* Checkout return confirmation */}
         {isPollingPayment && (

@@ -22,7 +22,7 @@ const personas = [
     icon: Receipt,
     title: "For Owners",
     description:
-      "Already found a listing? Paste the URL and get an AI-powered deal receipt with price comparison and risk flags.",
+      "Already found a listing? Paste the URL and get an instant deal receipt with price comparison and risk flags.",
     cta: "Check a Listing",
     href: "/receipt",
     isScroll: false,

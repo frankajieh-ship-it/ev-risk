@@ -344,10 +344,10 @@ Fix ONLY these issues and return the corrected complete JSON. Keep all other con
   };
 }
 
-// --- Fallback Receipt (no AI call) ---
+// --- Fallback Receipt (analysis skipped) ---
 
 /**
- * Builds a minimal receipt from structured input fields when the AI call
+ * Builds a minimal receipt from structured input fields when the analysis
  * times out or fails. Returns a YELLOW verdict with generic checklist items.
  */
 export function buildFallbackReceipt(input: ReceiptGenerateRequest): ListingReceipt {
@@ -374,16 +374,16 @@ export function buildFallbackReceipt(input: ReceiptGenerateRequest): ListingRece
     schema_version: "v1",
     mode: "single",
     verdict: scoring.verdict,
-    verdict_reason: `AI analysis timed out for this ${label}. Scores based on available listing data.`,
+    verdict_reason: `Analysis timed out for this ${label}. Scores based on available listing data.`,
     price_sanity: {
       label: "UNKNOWN",
       confidence: 0,
       basis: "UNKNOWN",
-      rationale_short: "AI analysis was unavailable — price not evaluated",
+      rationale_short: "Analysis was unavailable — price not evaluated",
       user_market_range: null,
     },
     risk_flags: [
-      "AI analysis timed out — regenerate for full risk assessment",
+      "Analysis timed out — regenerate for full risk assessment",
       "Verify title status and accident history independently",
       "Check service records and maintenance history before purchase",
     ],
@@ -403,7 +403,7 @@ export function buildFallbackReceipt(input: ReceiptGenerateRequest): ListingRece
       ? `I am interested in the ${label} listed at ${priceStr}. Before we discuss price further, I would like to verify a few details about the vehicle history and condition.`
       : `I am interested in the ${label}. Before we discuss terms, I would like to verify a few details about the vehicle history and condition.`,
     one_followup_question: null,
-    receipt_reddit_text: `${label} at ${priceStr} — looking for community input.\n\nThis is a basic receipt generated from listing data. AI analysis was unavailable, so no detailed risk assessment or pricing analysis is included. Key details worth confirming include title status, accident history, and maintenance records.\n\nHas anyone had experience with this vehicle and what should I watch out for?`,
+    receipt_reddit_text: `${label} at ${priceStr} — looking for community input.\n\nThis is a basic receipt generated from listing data. Detailed analysis was unavailable, so no complete risk assessment or pricing analysis is included. Key details worth confirming include title status, accident history, and maintenance records.\n\nHas anyone had experience with this vehicle and what should I watch out for?`,
     reddit_draft: null,
     listing_summary: {
       listing_url: input.listing_url || "",
@@ -428,7 +428,7 @@ export function buildFallbackReceipt(input: ReceiptGenerateRequest): ListingRece
     receipt_details: null,
     compare: null,
     operator_notes: {
-      rationale: `AI analysis timed out after the model took too long to respond. This fallback receipt was generated from the structured fields provided. Regenerate for a complete AI-powered analysis.`,
+      rationale: `Analysis timed out after taking too long to respond. This fallback receipt was generated from the structured fields provided. Regenerate for a complete detailed analysis.`,
       assumptions: [
         "All listing details taken at face value from user input",
         "No independent price or market analysis performed",
@@ -449,7 +449,7 @@ export function buildFallbackReceipt(input: ReceiptGenerateRequest): ListingRece
   } as ListingReceipt;
 }
 
-// --- Enhanced Fallback Receipt (rule-extracted signals, no AI call) ---
+// --- Enhanced Fallback Receipt (rule-extracted signals) ---
 
 /**
  * Signal-to-question mapping for evidence penalties.
@@ -483,7 +483,7 @@ const GENERIC_INSPECT = [
 
 /**
  * Builds a signal-specific fallback receipt from deterministically extracted
- * signals. Replaces generic "AI timed out" boilerplate with specific risk
+ * signals. Replaces generic "analysis timed out" boilerplate with specific risk
  * flags, questions, and scoring derived from listing text patterns.
  */
 export function buildEnhancedFallbackReceipt(
@@ -546,12 +546,12 @@ export function buildEnhancedFallbackReceipt(
     schema_version: "v1",
     mode: "single",
     verdict: scoring.verdict,
-    verdict_reason: `Quick analysis based on listing details. Regenerate for full AI-powered assessment.`,
+    verdict_reason: `Quick analysis based on listing details. Regenerate for full detailed assessment.`,
     price_sanity: {
       label: "UNKNOWN",
       confidence: 0,
       basis: "UNKNOWN",
-      rationale_short: "AI analysis was unavailable — price not evaluated",
+      rationale_short: "Detailed analysis was unavailable — price not evaluated",
       user_market_range: null,
     },
     risk_flags: riskFlags,
@@ -561,7 +561,7 @@ export function buildEnhancedFallbackReceipt(
       ? `I am interested in the ${label} listed at ${priceStr}. Before we discuss price further, I would like to verify a few details about the vehicle history and condition.`
       : `I am interested in the ${label}. Before we discuss terms, I would like to verify a few details about the vehicle history and condition.`,
     one_followup_question: null,
-    receipt_reddit_text: `${label} at ${priceStr} — looking for community input.\n\nThis is a quick receipt generated from listing data. Key signals found: ${signals.length > 0 ? signals.slice(0, 5).join(", ") : "none"}. Full AI analysis was unavailable.\n\nHas anyone had experience with this vehicle and what should I watch out for?`,
+    receipt_reddit_text: `${label} at ${priceStr} — looking for community input.\n\nThis is a quick receipt generated from listing data. Key signals found: ${signals.length > 0 ? signals.slice(0, 5).join(", ") : "none"}. Full detailed analysis was unavailable.\n\nHas anyone had experience with this vehicle and what should I watch out for?`,
     reddit_draft: null,
     listing_summary: {
       listing_url: input.listing_url || "",
@@ -586,7 +586,7 @@ export function buildEnhancedFallbackReceipt(
     receipt_details: null,
     compare: null,
     operator_notes: {
-      rationale: `AI analysis timed out. This receipt was generated from ${signals.length} signals extracted from listing text and structured fields. Regenerate for a complete AI-powered analysis with pricing and deep-dive content.`,
+      rationale: `Analysis timed out. This receipt was generated from ${signals.length} signals extracted from listing text and structured fields. Regenerate for a complete detailed analysis with pricing and deep-dive content.`,
       assumptions: [
         "Signals extracted from listing text via pattern matching",
         "No independent price or market analysis performed",
@@ -637,7 +637,7 @@ function applyDeterministicFixesToReceipt(
 /**
  * Lightweight fix for lint errors.
  * First applies deterministic regex fixes. If that resolves all issues,
- * skips the OpenAI call entirely. Otherwise calls AI for remaining fixes.
+ * skips the processing call entirely. Otherwise processes remaining fixes.
  */
 export async function fixReceiptFormatting(
   receipt: Record<string, unknown>,
@@ -658,12 +658,12 @@ export async function fixReceiptFormatting(
   const remainingErrors = lintErrors.filter((e) => !deterministicCodes.has(e.code));
   const deterministicChanged = fixedText !== originalText;
 
-  // If deterministic fixes resolved everything, skip AI call
+  // If deterministic fixes resolved everything, skip processing call
   if (remainingErrors.length === 0 && deterministicChanged) {
     return { ...receipt, receipt_reddit_text: fixedText };
   }
 
-  // Step 2: AI fix for remaining errors
+  // Step 2: Process remaining errors
   const textToFix = deterministicChanged ? fixedText : originalText;
   const errorsToFix = remainingErrors.length > 0 ? remainingErrors : lintErrors;
 

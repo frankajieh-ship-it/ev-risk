@@ -2,7 +2,7 @@
  * BuyerPassCard — Single-tier paywall for OFFO Buyer Pass
  *
  * Shows a single Buyer Pass ($9.99) card with benefits.
- * 10 receipts with full AI analysis, deep-dive, and PDF export.
+ * 10 receipts with full analysis, deep-dive, and PDF export.
  */
 
 "use client";
@@ -33,7 +33,7 @@ interface DecisionPackCardProps {
 
 const BUYER_PASS_BENEFITS = [
   { icon: ShoppingBag, text: "10 receipt credits" },
-  { icon: Search, text: "Full AI analysis with deep-dive" },
+  { icon: Search, text: "Full analysis with deep-dive" },
   { icon: MessageSquare, text: "3 ready-to-use negotiation scripts" },
   { icon: BarChart2, text: "Market comparison with similar listings" },
   { icon: FileDown, text: "PDF export of every receipt" },
