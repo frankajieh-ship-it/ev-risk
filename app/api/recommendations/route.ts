@@ -25,6 +25,51 @@ const recLimiter = new RateLimiter(
   process.env.NODE_ENV === "development" ? 100 : 10
 );
 
+/**
+ * Randomize vehicle order within each fit score tier.
+ * Prevents brand bias when multiple vehicles have identical scores.
+ *
+ * Uses Fisher-Yates shuffle for unbiased randomization within each score group.
+ *
+ * @example
+ * Input:  [Tesla 85, Hyundai 85, Ford 85, Nissan 80, Kia 80]
+ * Output: [Ford 85, Hyundai 85, Tesla 85, Kia 80, Nissan 80] (randomized within tiers)
+ */
+function randomizeWithinScoreTiers(vehicles: VehicleRecommendation[]): VehicleRecommendation[] {
+  if (vehicles.length <= 1) return vehicles;
+
+  // Group by fit_score
+  const scoreGroups = new Map<number, VehicleRecommendation[]>();
+
+  for (const vehicle of vehicles) {
+    const score = vehicle.fit_score;
+    if (!scoreGroups.has(score)) {
+      scoreGroups.set(score, []);
+    }
+    scoreGroups.get(score)!.push(vehicle);
+  }
+
+  // Randomize within each group using Fisher-Yates shuffle
+  for (const [score, group] of scoreGroups.entries()) {
+    if (group.length > 1) {
+      for (let i = group.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [group[i], group[j]] = [group[j], group[i]];
+      }
+    }
+  }
+
+  // Recombine in descending score order
+  const sortedScores = Array.from(scoreGroups.keys()).sort((a, b) => b - a);
+  const result: VehicleRecommendation[] = [];
+
+  for (const score of sortedScores) {
+    result.push(...scoreGroups.get(score)!);
+  }
+
+  return result;
+}
+
 export async function POST(request: NextRequest) {
   const clientIP = getClientIP(request);
 
@@ -125,20 +170,23 @@ export async function POST(request: NextRequest) {
     const dealerMap = await fetchDealerInventoryMatches(scored);
 
     // 5. Merge dealer listings into recommendations
-    const recommendations: VehicleRecommendation[] = scored.map((v) => ({
+    const withDealers: VehicleRecommendation[] = scored.map((v) => ({
       ...v,
       dealer_listings: dealerMap.get(normalizeModelKey(v.make, v.model_short)) ?? [],
     }));
 
-    // 6. Build dealer questions (use no-vehicle ownership risk for generic questions)
+    // 6. Randomize within score tiers to avoid brand bias
+    const recommendations = randomizeWithinScoreTiers(withDealers);
+
+    // 7. Build dealer questions (use no-vehicle ownership risk for generic questions)
     const ownershipRisk = computeOwnershipRisk();
     const dealerQuestions = buildDealerQuestionsV2(routine, ownershipRisk);
 
-    // 7. Build routine summary
+    // 8. Build routine summary
     const weeklyMiles = routine.weekly_miles
       ?? (routine.commute_miles_roundtrip ? routine.commute_miles_roundtrip * 5 : 100);
 
-    // 8. Build data sources metadata
+    // 9. Build data sources metadata
     const dataSources: DataSources = {
       weather_live: weatherLive,
       chargers_live: chargersLive,
