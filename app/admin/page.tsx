@@ -198,6 +198,14 @@ interface SummaryData {
     check_completed: number;
     score_viewed: number;
     result_viewed: number;
+    // NEW: Comprehensive analytics (March 2026)
+    form_completed: number;
+    form_partial_abandon: number;
+    vehicle_list_generated: number;
+    vehicle_full_report_clicked: number;
+    external_link_clicked: number;
+    offo_dealer_viewed: number;
+    offo_dealer_message_sent: number;
   };
   entry_mode: {
     total_selections: number;
@@ -476,6 +484,15 @@ export default function AdminDashboard() {
       ["Check Completed", s.routine_engagement?.check_completed ?? 0],
       ["Score Viewed", s.routine_engagement?.score_viewed ?? 0],
       ["Total Field Completions", s.routine_engagement?.total_field_completions ?? 0],
+      [""],
+      ["=== NEW ANALYTICS (March 2026) ==="],
+      ["Form Completed", s.routine_engagement?.form_completed ?? 0],
+      ["Form Partial Abandon", s.routine_engagement?.form_partial_abandon ?? 0],
+      ["Vehicle Lists Generated", s.routine_engagement?.vehicle_list_generated ?? 0],
+      ["Full Report Clicks", s.routine_engagement?.vehicle_full_report_clicked ?? 0],
+      ["External Link Clicks", s.routine_engagement?.external_link_clicked ?? 0],
+      ["Dealer Views", s.routine_engagement?.offo_dealer_viewed ?? 0],
+      ["Dealer Messages", s.routine_engagement?.offo_dealer_message_sent ?? 0],
       [""],
       ["=== ENTRY MODE ==="],
       ["Total Mode Selections", s.entry_mode?.total_selections ?? 0],
@@ -1029,6 +1046,8 @@ export default function AdminDashboard() {
           {s.routine_engagement && (s.routine_engagement.check_started > 0 || s.routine_engagement.total_field_completions > 0) && (
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4">Routine Fit Engagement</h2>
+
+              {/* Legacy metrics */}
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <FunnelCard label="Check Started" value={s.routine_engagement.check_started} color="blue" />
                 <FunnelCard label="Check Completed" value={s.routine_engagement.check_completed} color="green" />
@@ -1036,6 +1055,21 @@ export default function AdminDashboard() {
                 <FunnelCard label="Result Viewed" value={s.routine_engagement.result_viewed} color="cyan" />
                 <FunnelCard label="Field Completions" value={s.routine_engagement.total_field_completions} color="indigo" />
               </div>
+
+              {/* NEW: Comprehensive analytics (March 2026) */}
+              {(s.routine_engagement.form_completed > 0 || s.routine_engagement.vehicle_list_generated > 0) && (
+                <>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3 mt-6">New Analytics (March 2026)</h3>
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <FunnelCard label="Form Completed" value={s.routine_engagement.form_completed} color="green" />
+                    <FunnelCard label="Form Abandoned" value={s.routine_engagement.form_partial_abandon} color="amber" />
+                    <FunnelCard label="Vehicle Lists" value={s.routine_engagement.vehicle_list_generated} color="blue" />
+                    <FunnelCard label="Reports Clicked" value={s.routine_engagement.vehicle_full_report_clicked} color="purple" />
+                    <FunnelCard label="External Links" value={s.routine_engagement.external_link_clicked} color="cyan" />
+                    <FunnelCard label="Dealer Views" value={s.routine_engagement.offo_dealer_viewed} color="indigo" />
+                  </div>
+                </>
+              )}
               {s.routine_engagement.fields.length > 0 && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-gray-700">Per-Field Breakdown</h3>

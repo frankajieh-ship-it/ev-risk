@@ -919,6 +919,14 @@ export async function GET(request: NextRequest) {
       check_completed: countEvents(allUserEvents, "routine_check_completed"),
       score_viewed: countEvents(allUserEvents, "routine_score_viewed"),
       result_viewed: countEvents(allUserEvents, "routine_result_viewed"),
+      // NEW: Comprehensive analytics (March 2026)
+      form_completed: countEvents(allUserEvents, "routine_form_completed"),
+      form_partial_abandon: countEvents(allUserEvents, "routine_form_partial_abandon"),
+      vehicle_list_generated: countEvents(allUserEvents, "vehicle_list_generated"),
+      vehicle_full_report_clicked: countEvents(allUserEvents, "vehicle_full_report_clicked"),
+      external_link_clicked: countEvents(allUserEvents, "external_link_clicked"),
+      offo_dealer_viewed: countEvents(allUserEvents, "offo_dealer_viewed"),
+      offo_dealer_message_sent: countEvents(allUserEvents, "offo_dealer_message_sent"),
     };
 
     // -----------------------------------------------------------------------
