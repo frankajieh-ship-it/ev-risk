@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Search, AlertCircle, MessageSquare } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
@@ -55,7 +55,7 @@ export default function VehicleRecommendations({
   onSwitchToManual,
   onBack,
 }: VehicleRecommendationsProps) {
-  const { trackEvent } = useEventTracking();
+  const { trackEvent, trackVehicleListGenerated, trackVehicleFullReportClicked } = useEventTracking();
 
   const [recommendations, setRecommendations] = useState<VehicleRecommendation[]>([]);
   const [dealerQuestions, setDealerQuestions] = useState<string[]>([]);
@@ -64,6 +64,9 @@ export default function VehicleRecommendations({
   const [error, setError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [showLowFit, setShowLowFit] = useState(false);
+
+  // Track page load time for "See Full Report" click tracking (NEW: March 2026)
+  const pageLoadTimeRef = useRef(Date.now());
 
   const weeklyMiles = routine.weekly_miles
     ?? (routine.commute_miles_roundtrip ? routine.commute_miles_roundtrip * 5 : 100);
@@ -92,11 +95,38 @@ export default function VehicleRecommendations({
           setRecommendations(data.recommendations);
           setDealerQuestions(data.dealer_questions.top_3);
           setUserZipCode(data.user_zip_code ?? null);
+
+          // Legacy event tracking
           trackEvent("recommendations_viewed", {
             count: data.recommendations.length,
             great_fit_count: data.recommendations.filter(r => r.fit_label === "Great Fit").length,
             good_fit_count: data.recommendations.filter(r => r.fit_label === "Good Fit").length,
           });
+
+          // NEW: Comprehensive vehicle list generation tracking (March 2026)
+          const topVehicle = data.recommendations[0]; // Already sorted by fit score
+          if (topVehicle) {
+            trackVehicleListGenerated({
+              total_vehicles_shown: data.recommendations.length,
+              top_vehicle: {
+                make: topVehicle.make,
+                model: topVehicle.model_short,
+                year: topVehicle.year,
+                fit_score: topVehicle.fit_score,
+                fit_label: topVehicle.fit_label,
+                range_mi: topVehicle.real_world_range_mi,
+                battery_kwh: topVehicle.battery_kwh,
+              },
+              user_routine: {
+                daily_miles: weeklyMiles / 7,
+                home_charging: routine.charging_access === "home",
+                zip: data.user_zip_code || "",
+                shared_charger: false, // Not tracked in this flow
+              },
+              generation_time_ms: 0, // Time tracked on backend, not available here
+              session_id: "", // Will be added by tracking hook
+            });
+          }
         }
       } catch {
         if (!cancelled) {
@@ -127,12 +157,34 @@ export default function VehicleRecommendations({
   );
 
   const handleSelect = (rec: VehicleRecommendation) => {
+    // Legacy event tracking
     trackEvent("recommendation_selected", {
       model: rec.model,
       year: rec.year,
       fit_score: rec.fit_score,
       fit_label: rec.fit_label,
     });
+
+    // NEW: Comprehensive "See Full Report" click tracking (March 2026)
+    const positionInList = recommendations.findIndex(r =>
+      r.make === rec.make && r.model_short === rec.model_short && r.year === rec.year
+    ) + 1;
+
+    trackVehicleFullReportClicked({
+      vehicle: {
+        make: rec.make,
+        model: rec.model_short,
+        year: rec.year,
+        fit_score: rec.fit_score,
+        fit_label: rec.fit_label,
+      },
+      position_in_list: positionInList,
+      total_vehicles_in_list: recommendations.length,
+      time_on_page_seconds: Math.floor((Date.now() - pageLoadTimeRef.current) / 1000),
+      clicked_from: "vehicle_card",
+      session_id: "", // Will be added by tracking hook
+    });
+
     onSelectVehicle({ model: rec.model, year: rec.year });
   };
 

@@ -56,7 +56,7 @@ function getMissingFieldHint(errors: string[]): string | null {
 }
 
 export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
-  const { trackEvent } = useEventTracking();
+  const { trackEvent, trackRoutineFormPartialAbandon } = useEventTracking();
 
   // Core routine fields (same as RoutineStep)
   const [chargingAccess, setChargingAccess] = useState<MinimumViableRoutine["charging_access"] | null>(null);
@@ -84,6 +84,91 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
   useEffect(() => {
     trackEvent("routine_step_viewed");
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Track page load time for abandon tracking (NEW: March 2026)
+  const pageLoadTimeRef = useRef(Date.now());
+  const lastFieldTouchedRef = useRef<string>("");
+  const formCompletedRef = useRef(false);
+
+  // Update last field touched whenever any field changes
+  useEffect(() => {
+    if (chargingAccess !== null) lastFieldTouchedRef.current = "charging_access";
+  }, [chargingAccess]);
+
+  useEffect(() => {
+    if (weeklyMiles || commuteMiles) lastFieldTouchedRef.current = milesMode === "weekly" ? "weekly_miles" : "commute_miles";
+  }, [weeklyMiles, commuteMiles, milesMode]);
+
+  useEffect(() => {
+    if (zipCode) lastFieldTouchedRef.current = "zip_code";
+  }, [zipCode]);
+
+  useEffect(() => {
+    if (climate !== null) lastFieldTouchedRef.current = "climate";
+  }, [climate]);
+
+  useEffect(() => {
+    if (longestDay !== null) lastFieldTouchedRef.current = "longest_day";
+  }, [longestDay]);
+
+  useEffect(() => {
+    if (selectedVehicleId) lastFieldTouchedRef.current = "vehicle";
+  }, [selectedVehicleId]);
+
+  useEffect(() => {
+    if (sharedCharger) lastFieldTouchedRef.current = "shared_charger";
+  }, [sharedCharger]);
+
+  // Track partial abandon on page unload (NEW: March 2026)
+  useEffect(() => {
+    const getFilledFields = (): string[] => {
+      const fields: string[] = [];
+      if (chargingAccess !== null) fields.push("charging_access");
+      if (weeklyMiles || commuteMiles) fields.push("miles");
+      if (zipCode) fields.push("zip_code");
+      if (climate !== null) fields.push("climate");
+      if (longestDay !== null) fields.push("longest_day");
+      if (selectedVehicleId) fields.push("vehicle");
+      if (sharedCharger) fields.push("shared_charger");
+      return fields;
+    };
+
+    const handleBeforeUnload = () => {
+      const filledFields = getFilledFields();
+      if (filledFields.length > 0 && !formCompletedRef.current) {
+        const timeOnPage = Math.floor((Date.now() - pageLoadTimeRef.current) / 1000);
+        trackRoutineFormPartialAbandon({
+          fields_filled: filledFields,
+          time_on_page_seconds: timeOnPage,
+          last_field_touched: lastFieldTouchedRef.current || "unknown",
+          abandon_trigger: "navigation",
+        });
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        const filledFields = getFilledFields();
+        if (filledFields.length > 0 && !formCompletedRef.current) {
+          const timeOnPage = Math.floor((Date.now() - pageLoadTimeRef.current) / 1000);
+          trackRoutineFormPartialAbandon({
+            fields_filled: filledFields,
+            time_on_page_seconds: timeOnPage,
+            last_field_touched: lastFieldTouchedRef.current || "unknown",
+            abandon_trigger: "visibility_change",
+          });
+        }
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [chargingAccess, weeklyMiles, commuteMiles, zipCode, climate, longestDay, selectedVehicleId, sharedCharger, trackRoutineFormPartialAbandon]);
 
   // Load vehicle profiles
   useEffect(() => {
@@ -183,6 +268,9 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
       has_vehicle: hasVehicle,
       climate_auto_detected: climateAutoDetected,
     });
+
+    // Mark form as completed to prevent abandon tracking
+    formCompletedRef.current = true;
 
     onComplete({
       anon_session_id: "", // Set by caller

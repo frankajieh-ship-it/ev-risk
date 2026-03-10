@@ -523,6 +523,134 @@ export function useEventTracking() {
     [trackEvent]
   );
 
+  // === New Analytics Tracking (March 2026) ===
+
+  const trackRoutineFormCompleted = useCallback(
+    (data: {
+      daily_miles: number;
+      home_charging: boolean;
+      zip: string;
+      shared_charger: boolean;
+      submission_time_seconds: number;
+      fields_filled: string[];
+    }) => {
+      trackEvent("routine_form_completed", data);
+    },
+    [trackEvent]
+  );
+
+  const trackRoutineFormPartialAbandon = useCallback(
+    (data: {
+      fields_filled: string[];
+      time_on_page_seconds: number;
+      last_field_touched: string;
+      abandon_trigger: string;
+    }) => {
+      trackEvent("routine_form_partial_abandon", data);
+    },
+    [trackEvent]
+  );
+
+  const trackVehicleListGenerated = useCallback(
+    (data: {
+      total_vehicles_shown: number;
+      top_vehicle: {
+        make: string;
+        model: string;
+        year: number;
+        fit_score: number;
+        fit_label: string;
+        range_mi: number;
+        battery_kwh: number;
+      };
+      user_routine: {
+        daily_miles: number;
+        home_charging: boolean;
+        zip: string;
+        shared_charger: boolean;
+      };
+      generation_time_ms: number;
+      session_id: string;
+    }) => {
+      trackEvent("vehicle_list_generated", data);
+    },
+    [trackEvent]
+  );
+
+  const trackVehicleFullReportClicked = useCallback(
+    (data: {
+      vehicle: {
+        make: string;
+        model: string;
+        year: number;
+        fit_score: number;
+        fit_label: string;
+      };
+      position_in_list: number;
+      total_vehicles_in_list: number;
+      time_on_page_seconds: number;
+      clicked_from: "vehicle_card" | "dealer_page";
+      session_id: string;
+    }) => {
+      trackEvent("vehicle_full_report_clicked", data);
+    },
+    [trackEvent]
+  );
+
+  const trackExternalLinkClicked = useCallback(
+    (data: {
+      link_type: "cargurus" | "autotrader" | "cars_com" | "dealer_website" | "other";
+      destination_url: string;
+      vehicle_context?: {
+        make: string;
+        model: string;
+        year: number;
+      };
+      clicked_from_page: string;
+      link_text: string;
+      session_id: string;
+    }) => {
+      trackEvent("external_link_clicked", data);
+    },
+    [trackEvent]
+  );
+
+  const trackOffoDealerViewed = useCallback(
+    (data: {
+      dealer_id: string;
+      dealer_name: string;
+      viewed_from: "vehicle_card" | "dealer_directory" | "search" | "direct_link";
+      vehicle_context?: {
+        make: string;
+        model: string;
+        year: number;
+      };
+      session_id: string;
+    }) => {
+      trackEvent("offo_dealer_viewed", data);
+    },
+    [trackEvent]
+  );
+
+  const trackOffoDealerMessageSent = useCallback(
+    (data: {
+      dealer_id: string;
+      dealer_name: string;
+      message_length_chars: number;
+      included_vehicle_context: boolean;
+      vehicle_context?: {
+        make: string;
+        model: string;
+        year: number;
+      };
+      message_sent_from: "dealer_page" | "vehicle_card" | "chat_widget";
+      session_id: string;
+    }) => {
+      trackEvent("offo_dealer_message_sent", data);
+    },
+    [trackEvent]
+  );
+
   return {
     trackEvent,
     trackFormSubmit,
@@ -564,6 +692,14 @@ export function useEventTracking() {
     trackSaveClick,
     trackSaveSuccess,
     trackCopyClick,
+    // New analytics tracking (March 2026)
+    trackRoutineFormCompleted,
+    trackRoutineFormPartialAbandon,
+    trackVehicleListGenerated,
+    trackVehicleFullReportClicked,
+    trackExternalLinkClicked,
+    trackOffoDealerViewed,
+    trackOffoDealerMessageSent,
     // Expose persistent session ID for external use
     getPersistentSessionId,
   };

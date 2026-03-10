@@ -194,6 +194,14 @@ const VALID_EVENT_NAMES = [
   "toggle_weekly_vs_commute",
   // Legacy event names (for backward compatibility)
   "page_view",
+  // New Analytics Tracking Events (March 2026)
+  "routine_form_completed",
+  "routine_form_partial_abandon",
+  "vehicle_list_generated",
+  "vehicle_full_report_clicked",
+  "external_link_clicked",
+  "offo_dealer_viewed",
+  "offo_dealer_message_sent",
 ] as const;
 
 // Events that should be deduplicated by report_id (to prevent double-counting)
@@ -207,6 +215,14 @@ const IP_RELEVANT_EVENTS = [
   "constraint_detected",
   "scenario_save_success",
   "report_generated",
+  // New analytics events (March 2026)
+  "routine_form_completed",
+  "routine_form_partial_abandon",
+  "vehicle_list_generated",
+  "vehicle_full_report_clicked",
+  "external_link_clicked",
+  "offo_dealer_viewed",
+  "offo_dealer_message_sent",
 ];
 
 // Events that are enterprise-ready
@@ -216,6 +232,12 @@ const ENTERPRISE_READY_EVENTS = [
   "report_generated",
   "report_generated_success",
   "email_checklist_submit",
+  // New analytics events (March 2026)
+  "routine_form_completed",
+  "vehicle_list_generated",
+  "vehicle_full_report_clicked",
+  "offo_dealer_viewed",
+  "offo_dealer_message_sent",
 ];
 
 // Validate event payload

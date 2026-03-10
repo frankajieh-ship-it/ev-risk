@@ -32,7 +32,7 @@ const FREE_LIMIT = 3;
 function RoutinePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { trackEvent } = useEventTracking();
+  const { trackEvent, trackRoutineFormCompleted } = useEventTracking();
 
   // Session tokens
   const [persistentId, setPersistentId] = useState("");
@@ -164,6 +164,9 @@ function RoutinePageContent() {
     }
   };
 
+  // Track page load time for completion tracking
+  const pageLoadTimeRef = useRef(Date.now());
+
   // Form submit handler
   const handleComplete = async (profile: ProfileData) => {
     setIsLoading(true);
@@ -200,6 +203,28 @@ function RoutinePageContent() {
 
       trackEvent("routine_profile_completed", {
         profile_id: profileData.profile_id,
+      });
+
+      // Track form completion (NEW: March 2026)
+      const submissionTimeSeconds = Math.floor((Date.now() - pageLoadTimeRef.current) / 1000);
+      const fieldsCompleted: string[] = [];
+      if (profile.home_charging !== undefined) fieldsCompleted.push("home_charging");
+      if (profile.weekly_miles || profile.commute_miles_roundtrip) fieldsCompleted.push("miles");
+      if (profile.home_location_zip) fieldsCompleted.push("zip");
+      if (profile.shared_charger !== undefined) fieldsCompleted.push("shared_charger");
+      if (profile.climate_band) fieldsCompleted.push("climate");
+      if (profile.longest_day_pattern) fieldsCompleted.push("longest_day");
+      if (profile.vehicle_profile_id) fieldsCompleted.push("vehicle");
+
+      trackRoutineFormCompleted({
+        daily_miles: profile.commute_miles_roundtrip
+          ? profile.commute_miles_roundtrip / 5
+          : (profile.weekly_miles || 0) / 7,
+        home_charging: Boolean(profile.home_charging),
+        zip: profile.home_location_zip || "",
+        shared_charger: Boolean(profile.shared_charger),
+        submission_time_seconds: submissionTimeSeconds,
+        fields_filled: fieldsCompleted,
       });
 
       // 2. Execute run (includes receipt_token for server-side limit check)

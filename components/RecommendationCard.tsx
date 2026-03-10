@@ -7,6 +7,7 @@ import { ChevronDown, Zap, MapPin, ArrowRight, ExternalLink } from "lucide-react
 import type { VehicleRecommendation } from "@/types/recommendations";
 import { getCarGurusUrl } from "@/lib/cargurus-links";
 import { ScoreImprovementSuggestions } from "./blocks/ScoreImprovementSuggestions";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 const fitColors: Record<string, { bg: string; text: string; border: string }> = {
   "Great Fit": { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
@@ -34,11 +35,39 @@ function formatPrice(cents: number): string {
 }
 
 export default function RecommendationCard({ recommendation: rec, onSelect, muted, userZipCode }: RecommendationCardProps) {
+  const { trackExternalLinkClicked } = useEventTracking();
   const [expanded, setExpanded] = useState(false);
   const colors = fitColors[rec.fit_label] ?? fitColors["Mixed Fit"];
   const badgeBg = scoreBadgeColors[rec.fit_label] ?? "bg-gray-500";
   const hasDealers = rec.dealer_listings.length > 0;
   const totalListings = rec.dealer_listings.reduce((sum, d) => sum + d.listing_count, 0);
+
+  // Generate CarGurus URL
+  const carGurusUrl = getCarGurusUrl(rec.make, rec.model_short, {
+    year: rec.year,
+    zip: userZipCode ?? undefined,
+    range_mi: rec.real_world_range_mi,
+    battery_kwh: rec.battery_kwh,
+  });
+
+  // Handle external link clicks (NEW: March 2026)
+  const handleCarGurusClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    trackExternalLinkClicked({
+      link_type: "cargurus",
+      destination_url: carGurusUrl,
+      vehicle_context: {
+        make: rec.make,
+        model: rec.model_short,
+        year: rec.year,
+      },
+      clicked_from_page: window.location.pathname,
+      link_text: "Browse on CarGurus",
+      session_id: "", // Will be added by tracking hook
+    });
+    // Open link in new tab
+    window.open(carGurusUrl, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div className={`rounded-2xl border-2 ${colors.border} ${muted ? "opacity-70" : ""} bg-white overflow-hidden transition-shadow hover:shadow-md`}>
@@ -107,14 +136,8 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
             <ArrowRight className="w-4 h-4" />
           </button>
           <a
-            href={getCarGurusUrl(rec.make, rec.model_short, {
-              year: rec.year,
-              zip: userZipCode ?? undefined,
-              range_mi: rec.real_world_range_mi,
-              battery_kwh: rec.battery_kwh,
-            })}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={carGurusUrl}
+            onClick={handleCarGurusClick}
             className="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-gray-500 hover:text-blue-600 transition-colors"
           >
             Browse on CarGurus
