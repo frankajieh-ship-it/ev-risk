@@ -1,0 +1,49 @@
+{
+  "name": "OFFO - Used Car Deal Checker",
+  "short_name": "OFFO",
+  "description": "Paste a used car listing. Get an AI-powered deal verdict, risk flags, and must-ask questions in seconds. Free.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "16x16 32x32",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/offo-logo-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/offo-logo.png",
+      "sizes": "528x271",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["automotive", "finance", "utilities"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Check New Deal",
+      "short_name": "New Check",
+      "description": "Start a new used car deal check",
+      "url": "/",
+      "icons": [
+        {
+          "src": "/offo-logo-icon.png",
+          "sizes": "1024x1024"
+        }
+      ]
+    }
+  ]
+}

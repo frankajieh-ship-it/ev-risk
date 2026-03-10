@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://offolab.com"),
   title: {
     default: "OFFO | Used Car Deal Checker",
     template: "%s | OFFO",
@@ -26,18 +27,39 @@ export const metadata: Metadata = {
     title: "OFFO | Used Car Deal Checker",
     description:
       "Paste a used car listing. Get a deal verdict in seconds.",
+    url: "https://offolab.com",
     siteName: "OFFO",
+    images: [
+      {
+        url: "/offo-logo.png",
+        width: 1200,
+        height: 630,
+        alt: "OFFO - Used Car Deal Checker",
+      },
+    ],
+    locale: "en_US",
     type: "website",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "OFFO | Used Car Deal Checker",
     description: "Paste a used car listing. Get a deal verdict in seconds.",
+    images: ["/offo-logo.png"],
   },
   robots: {
     index: true,
     follow: true,
   },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/offo-logo-icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
