@@ -246,7 +246,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
 
   // Track field completions
   const trackField = (field: string) => {
-    trackEvent("routine_field_completed", { field });
+    trackEvent("routine_field_completed", { field_id: field });
   };
 
   const handleSubmit = () => {
@@ -261,6 +261,14 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
     }
 
     const selectedVehicle = vehicleProfiles.find((v) => v.id === selectedVehicleId);
+
+    // Track routine check started (when user submits the form)
+    trackEvent("routine_check_started", {
+      charging_access: chargingAccess,
+      has_zip: hasZip,
+      has_vehicle: hasVehicle,
+      climate_auto_detected: climateAutoDetected,
+    });
 
     trackEvent("routine_check_completed", {
       charging_access: chargingAccess,

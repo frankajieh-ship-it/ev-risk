@@ -149,7 +149,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
 
   // Track field completions
   const trackField = (field: string) => {
-    trackEvent("routine_field_completed", { field });
+    trackEvent("routine_field_completed", { field_id: field });
   };
 
   const handleNext = () => {
