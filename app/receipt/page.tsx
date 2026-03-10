@@ -115,6 +115,11 @@ export default function ReceiptPage() {
   const { isAuthenticated, isConfigured: authConfigured } = useAuth();
   const { region, setRegion } = useRegion();
 
+  // Redirect to home page
+  useEffect(() => {
+    router.push("/");
+  }, [router]);
+
   // Return-to-routine state
   const [returnToRoutine, setReturnToRoutine] = useState(false);
   const [routineRunId, setRoutineRunId] = useState<string | null>(null);
