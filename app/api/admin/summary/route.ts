@@ -156,6 +156,8 @@ export async function GET(request: NextRequest) {
     const dateParam = searchParams.get("date");
     const startParam = searchParams.get("start");
     const endParam = searchParams.get("end");
+    // "humans" = only human + likely_human sessions (default); "all" = include bots/suspicious
+    const filterMode = searchParams.get("filter") === "all" ? "all" : "humans";
 
     const window = getWindowBoundaries(period, dateParam, startParam, endParam);
 
@@ -262,6 +264,118 @@ export async function GET(request: NextRequest) {
     const allFeedback = feedback || [];
 
     // -----------------------------------------------------------------------
+    // Session profiles + bot scoring (computed early so filter is available)
+    // -----------------------------------------------------------------------
+
+    const HUMAN_SIGNAL_EVENTS = ["page_visible_10s", "scroll_depth_25", "first_interaction"];
+    const BOT_UA_PATTERNS = /bot|crawler|spider|headless|scraper|wget|curl|python-requests/i;
+
+    interface SessionProfile {
+      session_id: string;
+      visitor_id: string | null;
+      ip_address: string | null;
+      user_agent: string | null;
+      event_count: number;
+      event_names: Set<string>;
+      first_event: string;
+      last_event: string;
+      duration_ms: number;
+      human_signals: number;
+      bot_score: number;
+      actor_label: "human" | "likely_human" | "suspicious" | "likely_bot";
+    }
+
+    const sessionMap = new Map<string, {
+      visitor_id: string | null;
+      ip_address: string | null;
+      user_agent: string | null;
+      event_count: number;
+      event_names: Set<string>;
+      timestamps: number[];
+    }>();
+
+    for (const e of allUserEvents) {
+      const sid = (e as any).session_id || "unknown";
+      if (!sessionMap.has(sid)) {
+        sessionMap.set(sid, {
+          visitor_id: e.visitor_id,
+          ip_address: (e as any).ip_address || null,
+          user_agent: (e as any).user_agent || null,
+          event_count: 0,
+          event_names: new Set(),
+          timestamps: [],
+        });
+      }
+      const s = sessionMap.get(sid)!;
+      s.event_count++;
+      s.event_names.add(e.event_name);
+      s.timestamps.push(new Date(e.timestamp || "").getTime());
+    }
+
+    function computeBotScore(
+      eventNames: Set<string>,
+      durationMs: number,
+      eventCount: number,
+      userAgent: string | null
+    ): number {
+      let score = 50;
+      if (eventNames.has("page_visible_10s")) score -= 15;
+      if (eventNames.has("scroll_depth_25")) score -= 15;
+      if (eventNames.has("first_interaction")) score -= 15;
+      if (durationMs > 5000) score -= 10;
+      if (eventNames.size >= 2) score -= 5;
+      if (userAgent && BOT_UA_PATTERNS.test(userAgent)) score += 40;
+      if (!userAgent) score += 20;
+      if (eventCount === 1) score += 10;
+      if (durationMs === 0 && eventCount > 1) score += 15;
+      return Math.max(0, Math.min(100, score));
+    }
+
+    function getActorLabel(score: number): "human" | "likely_human" | "suspicious" | "likely_bot" {
+      if (score <= 25) return "human";
+      if (score <= 50) return "likely_human";
+      if (score <= 75) return "suspicious";
+      return "likely_bot";
+    }
+
+    const sessionProfiles: SessionProfile[] = [];
+    for (const [sid, s] of sessionMap) {
+      const sorted = s.timestamps.sort((a, b) => a - b);
+      const first = sorted[0] || 0;
+      const last = sorted[sorted.length - 1] || 0;
+      const durationMs = last - first;
+      const humanSignals = HUMAN_SIGNAL_EVENTS.filter((e) => s.event_names.has(e)).length;
+      const botScore = computeBotScore(s.event_names, durationMs, s.event_count, s.user_agent);
+      sessionProfiles.push({
+        session_id: sid,
+        visitor_id: s.visitor_id,
+        ip_address: s.ip_address,
+        user_agent: s.user_agent,
+        event_count: s.event_count,
+        event_names: s.event_names,
+        first_event: new Date(first).toISOString(),
+        last_event: new Date(last).toISOString(),
+        duration_ms: durationMs,
+        human_signals: humanSignals,
+        bot_score: botScore,
+        actor_label: getActorLabel(botScore),
+      });
+    }
+
+    // Apply bot filter: human-only by default, all with ?filter=all
+    const humanSessionIds = filterMode === "humans"
+      ? new Set(
+          sessionProfiles
+            .filter((p) => p.actor_label === "human" || p.actor_label === "likely_human")
+            .map((p) => p.session_id)
+        )
+      : null;
+
+    const filteredUserEvents = humanSessionIds
+      ? allUserEvents.filter((e) => humanSessionIds.has((e as any).session_id || "unknown"))
+      : allUserEvents;
+
+    // -----------------------------------------------------------------------
     // Overview
     // -----------------------------------------------------------------------
 
@@ -278,7 +392,7 @@ export async function GET(request: NextRequest) {
       "receipt_extract_failed", "receipt_result_viewed", "receipt_generate_clicked",
     ]);
     const uniqueReceiptSessions = new Set(
-      allUserEvents
+      filteredUserEvents
         .filter((e) => RECEIPT_SESSION_EVENTS.has(e.event_name) && e.session_id)
         .map((e) => e.session_id)
     );
@@ -331,7 +445,7 @@ export async function GET(request: NextRequest) {
 
     // DB rows are ground truth; client-side events may undercount (late addition, ad blockers)
     const receiptsGenFromDB = allReceipts.length;
-    const receiptsGenFromUserEvents = countEvents(allUserEvents, "receipt_generate");
+    const receiptsGenFromUserEvents = countEvents(filteredUserEvents, "receipt_generate");
     const receiptsGenFromReceiptEvents = countReceiptEvents(allReceiptEvents, "generate");
 
     const receipt_pipeline = {
@@ -345,29 +459,29 @@ export async function GET(request: NextRequest) {
       receipts_generated: Math.max(receiptsGenFromDB, receiptsGenFromUserEvents, receiptsGenFromReceiptEvents),
       lint_failures: Math.max(
         countReceiptEvents(allReceiptEvents, "lint_fail"),
-        countEvents(allUserEvents, "receipt_lint_failed")
+        countEvents(filteredUserEvents, "receipt_lint_failed")
       ),
       regens: Math.max(
         countReceiptEvents(allReceiptEvents, "regen"),
-        countEvents(allUserEvents, "receipt_regen")
+        countEvents(filteredUserEvents, "receipt_regen")
       ),
       copies: Math.max(
         countReceiptEvents(allReceiptEvents, "copy"),
-        countEvents(allUserEvents, "copy_checklist") +
-        countEvents(allUserEvents, "copy_reddit_draft") +
-        countEvents(allUserEvents, "copy_seller_message") +
-        countEvents(allUserEvents, "negotiator_copy_clicked")
+        countEvents(filteredUserEvents, "copy_checklist") +
+        countEvents(filteredUserEvents, "copy_reddit_draft") +
+        countEvents(filteredUserEvents, "copy_seller_message") +
+        countEvents(filteredUserEvents, "negotiator_copy_clicked")
       ),
       copies_legacy: countReceiptEvents(allReceiptEvents, "copy"),
-      copy_reddit_draft: countEvents(allUserEvents, "copy_reddit_draft"),
-      copy_seller_message: countEvents(allUserEvents, "copy_seller_message"),
-      copy_checklist: countEvents(allUserEvents, "copy_checklist"),
-      negotiator_copy: countEvents(allUserEvents, "negotiator_copy_clicked"),
-      lint_failed_fallback_served: countEvents(allUserEvents, "lint_failed_fallback_served"),
+      copy_reddit_draft: countEvents(filteredUserEvents, "copy_reddit_draft"),
+      copy_seller_message: countEvents(filteredUserEvents, "copy_seller_message"),
+      copy_checklist: countEvents(filteredUserEvents, "copy_checklist"),
+      negotiator_copy: countEvents(filteredUserEvents, "negotiator_copy_clicked"),
+      lint_failed_fallback_served: countEvents(filteredUserEvents, "lint_failed_fallback_served"),
       // Progressive receipt metrics
-      receipt_lite_shown: countEvents(allUserEvents, "receipt_lite_shown"),
-      receipt_full_ready: countEvents(allUserEvents, "receipt_full_ready"),
-      receipt_upgrade_failed: countEvents(allUserEvents, "receipt_upgrade_failed"),
+      receipt_lite_shown: countEvents(filteredUserEvents, "receipt_lite_shown"),
+      receipt_full_ready: countEvents(filteredUserEvents, "receipt_full_ready"),
+      receipt_upgrade_failed: countEvents(filteredUserEvents, "receipt_upgrade_failed"),
     };
 
     // -----------------------------------------------------------------------
@@ -375,37 +489,37 @@ export async function GET(request: NextRequest) {
     // Includes both legacy (report_generation_*) and V2 (v2_score_submit) events
     // -----------------------------------------------------------------------
 
-    const formSubmissions = countEvents(allUserEvents, "form_submit");
+    const formSubmissions = countEvents(filteredUserEvents, "form_submit");
     const reportGenStartedLegacy = countEvents(
-      allUserEvents,
+      filteredUserEvents,
       "report_generation_started"
     );
-    const v2ScoreSubmit = countEvents(allUserEvents, "v2_score_submit");
+    const v2ScoreSubmit = countEvents(filteredUserEvents, "v2_score_submit");
     const reportGenStarted = reportGenStartedLegacy + v2ScoreSubmit;
 
     const reportGenSucceededLegacy = countEvents(
-      allUserEvents,
+      filteredUserEvents,
       "report_generation_succeeded"
     );
     const reportGenSucceededServer = countEvents(
-      allUserEvents,
+      filteredUserEvents,
       "report_generated_success"
     );
     const reportGenSucceeded = reportGenSucceededLegacy + reportGenSucceededServer;
 
     const reportGenFailedLegacy = countEvents(
-      allUserEvents,
+      filteredUserEvents,
       "report_generation_failed"
     );
     const reportGenFailedServer = countEvents(
-      allUserEvents,
+      filteredUserEvents,
       "report_generated_failed"
     );
     const reportGenFailed = reportGenFailedLegacy + reportGenFailedServer;
 
     const report_funnel = {
       form_submissions: formSubmissions,
-      intake_submitted: countEvents(allUserEvents, "intake_submitted"),
+      intake_submitted: countEvents(filteredUserEvents, "intake_submitted"),
       v2_score_submit: v2ScoreSubmit,
       report_gen_started: reportGenStarted,
       report_gen_succeeded: reportGenSucceeded,
@@ -459,9 +573,9 @@ export async function GET(request: NextRequest) {
     // Why checkpoint (from user_events)
     // -----------------------------------------------------------------------
 
-    const whyShown = countEvents(allUserEvents, "why_checkpoint_shown");
-    const whySubmitted = countEvents(allUserEvents, "why_checkpoint_submitted");
-    const whySkipped = countEvents(allUserEvents, "why_checkpoint_skipped");
+    const whyShown = countEvents(filteredUserEvents, "why_checkpoint_shown");
+    const whySubmitted = countEvents(filteredUserEvents, "why_checkpoint_submitted");
+    const whySkipped = countEvents(filteredUserEvents, "why_checkpoint_skipped");
 
     const why_checkpoint = {
       shown: whyShown,
@@ -609,8 +723,8 @@ export async function GET(request: NextRequest) {
     // -----------------------------------------------------------------------
 
     const scenario_saves = {
-      clicked: countEvents(allUserEvents, "scenario_save_clicked"),
-      succeeded: countEvents(allUserEvents, "scenario_save_success"),
+      clicked: countEvents(filteredUserEvents, "scenario_save_clicked"),
+      succeeded: countEvents(filteredUserEvents, "scenario_save_success"),
     };
 
     // -----------------------------------------------------------------------
@@ -675,68 +789,68 @@ export async function GET(request: NextRequest) {
     // Count both event names: receipt page fires "email_checklist_submit",
     // EmailCaptureCard fires "email_capture_submitted" — both mean "user submitted email"
     const email_captures = {
-      submitted: countEvents(allUserEvents, "email_checklist_submit") +
-                 countEvents(allUserEvents, "email_capture_submitted"),
-      sent: countEvents(allUserEvents, "email_checklist_sent"),
-      failed: countEvents(allUserEvents, "email_checklist_failed"),
+      submitted: countEvents(filteredUserEvents, "email_checklist_submit") +
+                 countEvents(filteredUserEvents, "email_capture_submitted"),
+      sent: countEvents(filteredUserEvents, "email_checklist_sent"),
+      failed: countEvents(filteredUserEvents, "email_checklist_failed"),
       // Auth-flow email events (magic link login via LoginModal + auth callback)
-      auth_email_entered: countEvents(allUserEvents, "email_entry_submitted"),
-      auth_email_confirmed: countEvents(allUserEvents, "email_confirmed"),
+      auth_email_entered: countEvents(filteredUserEvents, "email_entry_submitted"),
+      auth_email_confirmed: countEvents(filteredUserEvents, "email_confirmed"),
     };
 
     // -----------------------------------------------------------------------
     // Post-receipt engagement funnel (from user_events)
     // -----------------------------------------------------------------------
 
-    const receiptViewed = countEvents(allUserEvents, "receipt_result_viewed");
+    const receiptViewed = countEvents(filteredUserEvents, "receipt_result_viewed");
 
     // Copy engagement (use max of legacy receipt_events + granular user_events)
-    const copyChecklist = countEvents(allUserEvents, "copy_checklist");
-    const copyRedditDraft = countEvents(allUserEvents, "copy_reddit_draft");
-    const copySellerMessage = countEvents(allUserEvents, "copy_seller_message");
-    const negotiatorShown = countEvents(allUserEvents, "negotiator_shown");
-    const negotiatorCopyClicked = countEvents(allUserEvents, "negotiator_copy_clicked");
+    const copyChecklist = countEvents(filteredUserEvents, "copy_checklist");
+    const copyRedditDraft = countEvents(filteredUserEvents, "copy_reddit_draft");
+    const copySellerMessage = countEvents(filteredUserEvents, "copy_seller_message");
+    const negotiatorShown = countEvents(filteredUserEvents, "negotiator_shown");
+    const negotiatorCopyClicked = countEvents(filteredUserEvents, "negotiator_copy_clicked");
     const granularCopyTotal = copyChecklist + copyRedditDraft + copySellerMessage + negotiatorCopyClicked;
     const legacyCopyTotal = countReceiptEvents(allReceiptEvents, "copy");
     const totalCopyActions = Math.max(granularCopyTotal, legacyCopyTotal);
 
     // Share engagement
-    const shareQrClicked = countEvents(allUserEvents, "share_qr_clicked");
-    const shareModalOpened = countEvents(allUserEvents, "share_modal_opened");
-    const shareLinkCopied = countEvents(allUserEvents, "share_link_copied");
-    const shareCardDownloaded = countEvents(allUserEvents, "share_card_downloaded");
+    const shareQrClicked = countEvents(filteredUserEvents, "share_qr_clicked");
+    const shareModalOpened = countEvents(filteredUserEvents, "share_modal_opened");
+    const shareLinkCopied = countEvents(filteredUserEvents, "share_link_copied");
+    const shareCardDownloaded = countEvents(filteredUserEvents, "share_card_downloaded");
 
     // Email capture (use both event names)
-    const emailCaptureShown = countEvents(allUserEvents, "email_capture_shown");
-    const emailCaptureSubmitted = countEvents(allUserEvents, "email_capture_submitted") +
-                                  countEvents(allUserEvents, "email_checklist_submit");
+    const emailCaptureShown = countEvents(filteredUserEvents, "email_capture_shown");
+    const emailCaptureSubmitted = countEvents(filteredUserEvents, "email_capture_submitted") +
+                                  countEvents(filteredUserEvents, "email_checklist_submit");
 
     // Save
-    const saveClicked = countEvents(allUserEvents, "scenario_save_clicked");
-    const saveSucceeded = countEvents(allUserEvents, "scenario_save_success");
+    const saveClicked = countEvents(filteredUserEvents, "scenario_save_clicked");
+    const saveSucceeded = countEvents(filteredUserEvents, "scenario_save_success");
 
     // PDF
-    const downloadPdfClicked = countEvents(allUserEvents, "download_pdf_clicked");
+    const downloadPdfClicked = countEvents(filteredUserEvents, "download_pdf_clicked");
 
     // VIN check
-    const vinEntered = countEvents(allUserEvents, "vin_entered");
-    const vinDecodeSucceeded = countEvents(allUserEvents, "vin_decode_succeeded");
-    const vinDecodeFailed = countEvents(allUserEvents, "vin_decode_failed");
-    const recallCheckClicked = countEvents(allUserEvents, "recall_check_clicked");
+    const vinEntered = countEvents(filteredUserEvents, "vin_entered");
+    const vinDecodeSucceeded = countEvents(filteredUserEvents, "vin_decode_succeeded");
+    const vinDecodeFailed = countEvents(filteredUserEvents, "vin_decode_failed");
+    const recallCheckClicked = countEvents(filteredUserEvents, "recall_check_clicked");
 
     // Paywall / monetization
-    const buyerPassTeaserShown = countEvents(allUserEvents, "buyer_pass_teaser_shown");
-    const paywallShown = countEvents(allUserEvents, "paywall_shown");
-    const paywallDismissed = countEvents(allUserEvents, "paywall_dismissed");
-    const checkoutStarted = countEvents(allUserEvents, "checkout_started");
+    const buyerPassTeaserShown = countEvents(filteredUserEvents, "buyer_pass_teaser_shown");
+    const paywallShown = countEvents(filteredUserEvents, "paywall_shown");
+    const paywallDismissed = countEvents(filteredUserEvents, "paywall_dismissed");
+    const checkoutStarted = countEvents(filteredUserEvents, "checkout_started");
 
     // Feedback
-    const feedbackShown = countEvents(allUserEvents, "feedback_shown");
-    const feedbackSubmitted = countEvents(allUserEvents, "feedback_submitted");
+    const feedbackShown = countEvents(filteredUserEvents, "feedback_shown");
+    const feedbackSubmitted = countEvents(filteredUserEvents, "feedback_submitted");
 
     // Other post-receipt
-    const contactClickPostReceipt = countEvents(allUserEvents, "contact_click_post_receipt");
-    const receiptHistoryViewed = countEvents(allUserEvents, "receipt_history_viewed");
+    const contactClickPostReceipt = countEvents(filteredUserEvents, "contact_click_post_receipt");
+    const receiptHistoryViewed = countEvents(filteredUserEvents, "receipt_history_viewed");
 
     // Helper: percentage of receipt viewers
     const pctOf = (n: number) =>
@@ -766,8 +880,8 @@ export async function GET(request: NextRequest) {
       email: {
         shown: emailCaptureShown,
         submitted: emailCaptureSubmitted,
-        auth_entered: countEvents(allUserEvents, "email_entry_submitted"),
-        auth_confirmed: countEvents(allUserEvents, "email_confirmed"),
+        auth_entered: countEvents(filteredUserEvents, "email_entry_submitted"),
+        auth_confirmed: countEvents(filteredUserEvents, "email_confirmed"),
         submit_rate: emailCaptureShown > 0
           ? Math.round((emailCaptureSubmitted / emailCaptureShown) * 1000) / 10
           : 0,
@@ -817,7 +931,7 @@ export async function GET(request: NextRequest) {
       other: {
         contact_clicked: contactClickPostReceipt,
         history_viewed: receiptHistoryViewed,
-        model_info_link_clicked: countEvents(allUserEvents, "model_info_link_clicked"),
+        model_info_link_clicked: countEvents(filteredUserEvents, "model_info_link_clicked"),
       },
     };
 
@@ -863,9 +977,9 @@ export async function GET(request: NextRequest) {
     // Server-side receipt events (from user_events)
     // -----------------------------------------------------------------------
 
-    const receiptExtractSuccess = countEvents(allUserEvents, "receipt_extract_succeeded");
-    const receiptExtractFailed = countEvents(allUserEvents, "receipt_extract_failed");
-    const receiptExtractFallback = countEvents(allUserEvents, "receipt_extract_fallback_used");
+    const receiptExtractSuccess = countEvents(filteredUserEvents, "receipt_extract_succeeded");
+    const receiptExtractFailed = countEvents(filteredUserEvents, "receipt_extract_failed");
+    const receiptExtractFallback = countEvents(filteredUserEvents, "receipt_extract_fallback_used");
     const receiptExtractTotal = receiptExtractSuccess + receiptExtractFailed;
 
     const ai_generation = {
@@ -883,8 +997,8 @@ export async function GET(request: NextRequest) {
     // Server-side report events (from user_events)
     // -----------------------------------------------------------------------
 
-    const serverReportSuccess = countEvents(allUserEvents, "report_generated_success");
-    const serverReportFailed = countEvents(allUserEvents, "report_generated_failed");
+    const serverReportSuccess = countEvents(filteredUserEvents, "report_generated_success");
+    const serverReportFailed = countEvents(filteredUserEvents, "report_generated_failed");
     const serverReportTotal = serverReportSuccess + serverReportFailed;
 
     const report_server_events = {
@@ -901,7 +1015,7 @@ export async function GET(request: NextRequest) {
     // Routine engagement (from user_events)
     // -----------------------------------------------------------------------
 
-    const routineFieldEvents = allUserEvents.filter(
+    const routineFieldEvents = filteredUserEvents.filter(
       (e) => e.event_name === "routine_field_completed"
     );
     const routineFieldMap = new Map<string, number>();
@@ -915,25 +1029,25 @@ export async function GET(request: NextRequest) {
       fields: Array.from(routineFieldMap.entries())
         .map(([field_id, count]) => ({ field_id, count }))
         .sort((a, b) => b.count - a.count),
-      check_started: countEvents(allUserEvents, "routine_check_started"),
-      check_completed: countEvents(allUserEvents, "routine_check_completed"),
-      score_viewed: countEvents(allUserEvents, "routine_score_viewed"),
-      result_viewed: countEvents(allUserEvents, "routine_result_viewed"),
+      check_started: countEvents(filteredUserEvents, "routine_check_started"),
+      check_completed: countEvents(filteredUserEvents, "routine_check_completed"),
+      score_viewed: countEvents(filteredUserEvents, "routine_score_viewed"),
+      result_viewed: countEvents(filteredUserEvents, "routine_result_viewed"),
       // NEW: Comprehensive analytics (March 2026)
-      form_completed: countEvents(allUserEvents, "routine_form_completed"),
-      form_partial_abandon: countEvents(allUserEvents, "routine_form_partial_abandon"),
-      vehicle_list_generated: countEvents(allUserEvents, "vehicle_list_generated"),
-      vehicle_full_report_clicked: countEvents(allUserEvents, "vehicle_full_report_clicked"),
-      external_link_clicked: countEvents(allUserEvents, "external_link_clicked"),
-      offo_dealer_viewed: countEvents(allUserEvents, "offo_dealer_viewed"),
-      offo_dealer_message_sent: countEvents(allUserEvents, "offo_dealer_message_sent"),
+      form_completed: countEvents(filteredUserEvents, "routine_form_completed"),
+      form_partial_abandon: countEvents(filteredUserEvents, "routine_form_partial_abandon"),
+      vehicle_list_generated: countEvents(filteredUserEvents, "vehicle_list_generated"),
+      vehicle_full_report_clicked: countEvents(filteredUserEvents, "vehicle_full_report_clicked"),
+      external_link_clicked: countEvents(filteredUserEvents, "external_link_clicked"),
+      offo_dealer_viewed: countEvents(filteredUserEvents, "offo_dealer_viewed"),
+      offo_dealer_message_sent: countEvents(filteredUserEvents, "offo_dealer_message_sent"),
     };
 
     // -----------------------------------------------------------------------
     // Entry mode selection (from user_events)
     // -----------------------------------------------------------------------
 
-    const entryModeEvents = allUserEvents.filter(
+    const entryModeEvents = filteredUserEvents.filter(
       (e) => e.event_name === "entry_mode_selected"
     );
     const entryModeMap = new Map<string, number>();
@@ -987,7 +1101,7 @@ export async function GET(request: NextRequest) {
       "email_capture_submitted", "scenario_save_success", "buyer_pass_teaser_shown",
     ]);
     const attributionMap = new Map<string, number>();
-    for (const e of allUserEvents) {
+    for (const e of filteredUserEvents) {
       if (!ATTRIBUTION_EVENTS.has(e.event_name)) continue;
       const source = (e.event_data as any)?.page_source || "unknown";
       attributionMap.set(source, (attributionMap.get(source) || 0) + 1);
@@ -995,105 +1109,6 @@ export async function GET(request: NextRequest) {
     const attribution = Array.from(attributionMap.entries())
       .map(([source, event_count]) => ({ source, event_count }))
       .sort((a, b) => b.event_count - a.event_count);
-
-    // -----------------------------------------------------------------------
-    // Session profiles + bot scoring (Part A+B)
-    // -----------------------------------------------------------------------
-
-    const HUMAN_SIGNAL_EVENTS = ["page_visible_10s", "scroll_depth_25", "first_interaction"];
-    const BOT_UA_PATTERNS = /bot|crawler|spider|headless|scraper|wget|curl|python-requests/i;
-
-    interface SessionProfile {
-      session_id: string;
-      visitor_id: string | null;
-      ip_address: string | null;
-      user_agent: string | null;
-      event_count: number;
-      event_names: Set<string>;
-      first_event: string;
-      last_event: string;
-      duration_ms: number;
-      human_signals: number;
-      bot_score: number;
-      actor_label: "human" | "likely_human" | "suspicious" | "likely_bot";
-    }
-
-    const sessionMap = new Map<string, {
-      visitor_id: string | null;
-      ip_address: string | null;
-      user_agent: string | null;
-      event_count: number;
-      event_names: Set<string>;
-      timestamps: number[];
-    }>();
-
-    for (const e of allUserEvents) {
-      const sid = (e as any).session_id || "unknown";
-      if (!sessionMap.has(sid)) {
-        sessionMap.set(sid, {
-          visitor_id: e.visitor_id,
-          ip_address: (e as any).ip_address || null,
-          user_agent: (e as any).user_agent || null,
-          event_count: 0,
-          event_names: new Set(),
-          timestamps: [],
-        });
-      }
-      const s = sessionMap.get(sid)!;
-      s.event_count++;
-      s.event_names.add(e.event_name);
-      s.timestamps.push(new Date(e.timestamp || "").getTime());
-    }
-
-    function computeBotScore(
-      eventNames: Set<string>,
-      durationMs: number,
-      eventCount: number,
-      userAgent: string | null
-    ): number {
-      let score = 50;
-      if (eventNames.has("page_visible_10s")) score -= 15;
-      if (eventNames.has("scroll_depth_25")) score -= 15;
-      if (eventNames.has("first_interaction")) score -= 15;
-      if (durationMs > 5000) score -= 10;
-      if (eventNames.size >= 2) score -= 5;
-      if (userAgent && BOT_UA_PATTERNS.test(userAgent)) score += 40;
-      if (!userAgent) score += 20;
-      if (eventCount === 1) score += 10;
-      if (durationMs === 0 && eventCount > 1) score += 15;
-      return Math.max(0, Math.min(100, score));
-    }
-
-    function getActorLabel(score: number): "human" | "likely_human" | "suspicious" | "likely_bot" {
-      if (score <= 25) return "human";
-      if (score <= 50) return "likely_human";
-      if (score <= 75) return "suspicious";
-      return "likely_bot";
-    }
-
-    const sessionProfiles: SessionProfile[] = [];
-    for (const [sid, s] of sessionMap) {
-      const sorted = s.timestamps.sort((a, b) => a - b);
-      const first = sorted[0] || 0;
-      const last = sorted[sorted.length - 1] || 0;
-      const durationMs = last - first;
-      const humanSignals = HUMAN_SIGNAL_EVENTS.filter((e) => s.event_names.has(e)).length;
-      const botScore = computeBotScore(s.event_names, durationMs, s.event_count, s.user_agent);
-      sessionProfiles.push({
-        session_id: sid,
-        visitor_id: s.visitor_id,
-        ip_address: s.ip_address,
-        user_agent: s.user_agent,
-        event_count: s.event_count,
-        event_names: s.event_names,
-        first_event: new Date(first).toISOString(),
-        last_event: new Date(last).toISOString(),
-        duration_ms: durationMs,
-        human_signals: humanSignals,
-        bot_score: botScore,
-        actor_label: getActorLabel(botScore),
-      });
-    }
 
     const sessionProfileLookup = new Map(sessionProfiles.map((p) => [p.session_id, p]));
 
@@ -1224,7 +1239,7 @@ export async function GET(request: NextRequest) {
 
     // 7. Top event
     const eventCounts = new Map<string, number>();
-    for (const e of allUserEvents) {
+    for (const e of filteredUserEvents) {
       if (!HUMAN_SIGNAL_EVENTS.includes(e.event_name)) {
         eventCounts.set(e.event_name, (eventCounts.get(e.event_name) || 0) + 1);
       }
@@ -1341,6 +1356,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      filter_mode: filterMode,
       window: {
         start: window.start,
         end: window.end,

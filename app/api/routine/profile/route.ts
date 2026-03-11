@@ -144,6 +144,23 @@ export async function POST(req: NextRequest) {
       anon_id: anon_session_id,
     });
 
+    // Server-side event: not blocked by ad blockers — mirrors client profile_created
+    supabase.from("user_events").insert({
+      event_name: "profile_created_server",
+      event_data: {
+        profile_id: data.id,
+        anon_session_id: anon_session_id || null,
+        has_zip: !!home_location_zip,
+        climate_band,
+        home_charging,
+        has_vehicle: !!(vehicle_profile_id || vehicle_make),
+        flow: "evfit",
+        step: "save",
+      },
+      page_path: "/api/routine/profile",
+      timestamp: new Date().toISOString(),
+    }).then(() => {}, () => {});
+
     return NextResponse.json({
       success: true,
       profile_id: data.id,

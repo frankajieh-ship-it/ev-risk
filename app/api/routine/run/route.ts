@@ -352,6 +352,27 @@ export async function POST(req: NextRequest) {
       charger_api: chargerApiSuccess,
     });
 
+    // Server-side event: not blocked by ad blockers — mirrors client evfit_completed
+    supabase.from("user_events").insert({
+      event_name: "evfit_completed_server",
+      event_data: {
+        run_id: runData.id,
+        anon_session_id: anon_session_id || null,
+        fit_label: fitScore.label,
+        fit_score: fitScore.score_0_100,
+        has_vehicle: !!vehicle,
+        has_zip: !!home_location_zip,
+        charging_access,
+        climate,
+        weather_live: weatherApiSuccess,
+        charger_live: chargerApiSuccess,
+        flow: "evfit",
+        step: "results",
+      },
+      page_path: "/api/routine/run",
+      timestamp: new Date().toISOString(),
+    }).then(() => {}, () => {});
+
     return NextResponse.json({
       success: true,
       run_id: runData.id,

@@ -66,6 +66,7 @@ interface RetentionData {
 
 interface SummaryData {
   success: boolean;
+  filter_mode?: "humans" | "all";
   window: SummaryWindow;
   overview: {
     total_receipts: number;
@@ -336,7 +337,7 @@ export default function AdminDashboard() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [showCustomDate, setShowCustomDate] = useState(false);
-  const [botFilter, setBotFilter] = useState<"all" | "humans" | "bots">("all");
+  const [botFilter, setBotFilter] = useState<"all" | "humans" | "bots">("humans");
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
 
   // -------------------------------------------------------------------------
@@ -344,12 +345,14 @@ export default function AdminDashboard() {
   // -------------------------------------------------------------------------
 
   const fetchSummary = useCallback(
-    async (key: string, selectedPeriod: Period = period, customStart?: string, customEnd?: string) => {
+    async (key: string, selectedPeriod: Period = period, customStart?: string, customEnd?: string, selectedFilter?: "all" | "humans" | "bots") => {
       setLoading(true);
       setError("");
 
       try {
-        let url = `/api/admin/summary?period=${selectedPeriod}`;
+        // "bots" is client-side only — send "all" to server, filter in UI
+        const serverFilter = (selectedFilter ?? botFilter) === "humans" ? "humans" : "all";
+        let url = `/api/admin/summary?period=${selectedPeriod}&filter=${serverFilter}`;
         if (customStart) url += `&start=${customStart}`;
         if (customEnd) url += `&end=${customEnd}`;
 
@@ -380,7 +383,7 @@ export default function AdminDashboard() {
         setLoading(false);
       }
     },
-    [period]
+    [period, botFilter]
   );
 
   const fetchRetention = async (key: string, selectedPeriod: Period = period) => {
@@ -702,6 +705,34 @@ export default function AdminDashboard() {
               <p className="text-gray-500 text-sm mt-1">
                 {new Date(s.window.start).toLocaleDateString()} — {new Date(s.window.end).toLocaleDateString()} ({s.window.timezone})
               </p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs text-gray-500">Metrics filter:</span>
+                <div className="flex gap-1 bg-gray-100 rounded-md p-0.5">
+                  {(["humans", "all"] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => {
+                        setBotFilter(f);
+                        setExpandedRow(null);
+                        const storedKey = sessionStorage.getItem("admin_api_key");
+                        if (storedKey) fetchSummary(storedKey, period, undefined, undefined, f);
+                      }}
+                      className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
+                        botFilter === f ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-800"
+                      }`}
+                    >
+                      {f === "humans" ? "Humans Only" : "All (incl. bots)"}
+                    </button>
+                  ))}
+                </div>
+                {s.filter_mode && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                    s.filter_mode === "humans" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                  }`}>
+                    {s.filter_mode === "humans" ? "Bot-filtered" : "Raw data"}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               {(Object.keys(PERIOD_LABELS) as Period[]).map((p) => (
@@ -1500,7 +1531,12 @@ export default function AdminDashboard() {
               {(["all", "humans", "bots"] as const).map((f) => (
                 <button
                   key={f}
-                  onClick={() => { setBotFilter(f); setExpandedRow(null); }}
+                  onClick={() => {
+                    setBotFilter(f);
+                    setExpandedRow(null);
+                    const storedKey = sessionStorage.getItem("admin_api_key");
+                    if (storedKey) fetchSummary(storedKey, period, undefined, undefined, f);
+                  }}
                   className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                     botFilter === f ? "bg-white shadow text-gray-900" : "text-gray-600 hover:text-gray-900"
                   }`}
