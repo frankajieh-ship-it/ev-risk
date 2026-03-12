@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Car, Receipt, Building, ArrowRight } from "lucide-react";
+import { Car, Building, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 const personas = [
@@ -17,19 +17,6 @@ const personas = [
     iconBg: "bg-blue-100 text-blue-600",
     ctaBg: "bg-blue-600 hover:bg-blue-700",
     features: ["Fit verdict", "What breaks first", "Plan B fallback"],
-  },
-  {
-    icon: Receipt,
-    title: "For Owners",
-    description:
-      "Already found a listing? Paste the URL and get an instant deal receipt with price comparison and risk flags.",
-    cta: "Check a Listing",
-    href: "/receipt",
-    isScroll: false,
-    accent: "green",
-    iconBg: "bg-green-100 text-green-600",
-    ctaBg: "bg-green-600 hover:bg-green-700",
-    features: ["Deal verdict", "Price comparison", "Must-ask questions"],
   },
   {
     icon: Building,
@@ -88,7 +75,7 @@ export default function PersonaCardsSection() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto"
+          className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto"
         >
           {personas.map((persona) => {
             const Icon = persona.icon;
