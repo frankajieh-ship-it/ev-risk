@@ -237,6 +237,35 @@ function RoutineResultsContent() {
   const [rerunning, setRerunning] = useState(false);
   const [previousResult, setPreviousResult] = useState<RunResult | null>(null);
 
+  // Share state
+  const [sharing, setSharing] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+
+  const handleShare = useCallback(async () => {
+    if (!result?.run_id) return;
+    setSharing(true);
+    try {
+      const anonSessionId = getOrCreatePersistentSessionId();
+      const res = await fetch("/api/share/routine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ run_id: result.run_id, anon_session_id: anonSessionId }),
+      });
+      const data = await res.json();
+      if (data.success && data.share_url) {
+        const fullUrl = `${window.location.origin}${data.share_url}`;
+        await navigator.clipboard.writeText(fullUrl);
+        setShareCopied(true);
+        trackEvent("share_card_shown", { run_id: result.run_id, fit_label: result.fit_score?.label });
+        setTimeout(() => setShareCopied(false), 3000);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setSharing(false);
+    }
+  }, [result, trackEvent]);
+
   // Re-run the analysis with vehicle data
   const rerunWithVehicle = useCallback(async (vehicle: ExtractedVehicle, currentResult: RunResult) => {
     setRerunning(true);
@@ -1029,6 +1058,19 @@ function RoutineResultsContent() {
         >
           Back to Scenarios
         </a>
+        <button
+          onClick={handleShare}
+          disabled={sharing}
+          className="flex-1 py-3 px-6 border border-blue-300 rounded-xl font-medium text-blue-700 text-center hover:bg-blue-50 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+        >
+          {sharing ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : shareCopied ? (
+            <><CheckCircle className="w-4 h-4" /> Copied!</>
+          ) : (
+            <><LinkIcon className="w-4 h-4" /> Share</>
+          )}
+        </button>
         <a
           href="/routine"
           className="flex-1 py-3 px-6 bg-blue-600 text-white rounded-xl font-semibold text-center hover:bg-blue-700 transition-all"

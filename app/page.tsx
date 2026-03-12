@@ -44,6 +44,11 @@ export default function Home() {
     if (hash && (hash.includes("error=") || hash.includes("access_token="))) {
       window.location.href = `/auth/callback${hash}`;
     }
+    // Store invite token for attribution through fit flow
+    const inviteToken = params.get("invite_token");
+    if (inviteToken) {
+      try { sessionStorage.setItem("offo_invite_token", inviteToken); } catch { /* ignore */ }
+    }
   }, []);
 
   // Auth state for saved scenarios

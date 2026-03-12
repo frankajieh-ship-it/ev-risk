@@ -83,6 +83,8 @@ export async function POST(req: NextRequest) {
       scenario_name,
       // Payment token (for server-side limit check)
       receipt_token,
+      // Co-shopper invite attribution
+      invite_token,
     } = body;
 
     // Validate required routine fields
@@ -368,10 +370,33 @@ export async function POST(req: NextRequest) {
         charger_live: chargerApiSuccess,
         flow: "evfit",
         step: "results",
+        invite_token: invite_token || null,
       },
       page_path: "/api/routine/run",
       timestamp: new Date().toISOString(),
     }).then(() => {}, () => {});
+
+    // Mark invite as converted (fire-and-forget)
+    if (invite_token && typeof invite_token === "string") {
+      const now = new Date().toISOString();
+      supabase
+        .from("invites")
+        .update({
+          status: "converted",
+          converted_at: now,
+          converted_anon_id: anon_session_id || null,
+        })
+        .eq("token", invite_token)
+        .in("status", ["sent", "opened"])
+        .then(() => {});
+
+      supabase.from("user_events").insert({
+        event_name: "invite_converted_fit_completed",
+        event_data: { invite_token, run_id: runData.id },
+        page_path: "/api/routine/run",
+        timestamp: now,
+      }).then(() => {}, () => {});
+    }
 
     return NextResponse.json({
       success: true,

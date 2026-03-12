@@ -73,10 +73,16 @@ function RoutinePageContent() {
   // Derived
   const isOverLimit = totalRuns >= FREE_LIMIT && !isUnlocked;
 
+  // Invite token from co-shopper flow (stored in sessionStorage by landing page)
+  const inviteTokenRef = useRef<string | null>(null);
+
   // Init tokens
   useEffect(() => {
     setPersistentId(getOrCreatePersistentSessionId() || "");
     setReceiptToken(getOrCreateReceiptToken());
+    try {
+      inviteTokenRef.current = sessionStorage.getItem("offo_invite_token");
+    } catch { /* ignore */ }
   }, []);
 
   // Fetch history
@@ -243,6 +249,7 @@ function RoutinePageContent() {
           vehicle_profile_id: profile.vehicle_profile_id,
           home_location_zip: profile.home_location_zip,
           receipt_token: receiptToken,
+          invite_token: inviteTokenRef.current || undefined,
         }),
       });
 
