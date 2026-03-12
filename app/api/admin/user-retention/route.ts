@@ -76,46 +76,54 @@ export async function GET(request: NextRequest) {
     // Run all queries in parallel
     const [
       visitorsData,
+      allVisitorsUnfilteredData,
       pageViewsData,
       userEventsData,
       dauData,
       wauData,
       mauData,
     ] = await Promise.all([
-      // 1. Get all visitors in window
+      // 1. Window-scoped visitors (for repeat/segment metrics)
       supabase
         .from("visitors")
         .select("visitor_id, visit_count, session_count, first_visit, last_visit, user_agent")
         .gte("last_visit", start)
         .lte("last_visit", end),
 
-      // 2. Get page views for active user calc (window-scoped)
+      // 2. ALL known visitors (no time filter) — used to build the full human ID set
+      //    so DAU/WAU/MAU filtering works correctly across all time windows
+      supabase
+        .from("visitors")
+        .select("visitor_id, user_agent")
+        .limit(10000),
+
+      // 3. Get page views for window-scoped visit count calc
       supabase
         .from("page_views")
         .select("visitor_id, timestamp")
         .gte("timestamp", start)
         .lte("timestamp", end),
 
-      // 3. Get user events (for bot detection via human signals)
+      // 4. Get user events (for human signal detection)
       supabase
         .from("user_events")
         .select("session_id, visitor_id, event_name, timestamp")
         .gte("timestamp", start)
         .lte("timestamp", end),
 
-      // 4. Daily Active Users
+      // 5. Daily Active Users (last 24h)
       supabase
         .from("page_views")
         .select("visitor_id")
         .gte("timestamp", new Date(Date.now() - 86400000).toISOString()),
 
-      // 5. Weekly Active Users
+      // 6. Weekly Active Users (last 7d)
       supabase
         .from("page_views")
         .select("visitor_id")
         .gte("timestamp", new Date(Date.now() - 7 * 86400000).toISOString()),
 
-      // 6. Monthly Active Users
+      // 7. Monthly Active Users (last 30d)
       supabase
         .from("page_views")
         .select("visitor_id")
@@ -123,40 +131,35 @@ export async function GET(request: NextRequest) {
     ]);
 
     const allVisitors = visitorsData.data || [];
+    const allKnownVisitors = allVisitorsUnfilteredData.data || [];
     const allPageViews = pageViewsData.data || [];
     const allEvents = userEventsData.data || [];
 
     // -----------------------------------------------------------------------
-    // Bot filtering: build set of visitor_ids that show human signals
+    // Build human visitor ID set from ALL known visitors (not window-scoped)
+    // This ensures DAU/WAU/MAU are filtered correctly regardless of time window
     // -----------------------------------------------------------------------
 
-    // visitors with known-human events
-    const humanSignalVisitorIds = new Set<string>();
+    const humanVisitorIds = new Set<string>();
+
+    // Add all visitors with a valid non-bot UA
+    for (const v of allKnownVisitors) {
+      if (!v.user_agent || v.user_agent.length <= 10) continue;
+      if (BOT_UA_PATTERNS.test(v.user_agent)) continue;
+      humanVisitorIds.add(v.visitor_id);
+    }
+
+    // Also add any visitor with human-signal events (in case their visitors row is missing)
     for (const ev of allEvents) {
       if (ev.visitor_id && HUMAN_SIGNAL_EVENTS.has(ev.event_name)) {
-        humanSignalVisitorIds.add(ev.visitor_id);
+        humanVisitorIds.add(ev.visitor_id);
       }
     }
 
-    // visitors with bot UA patterns
-    const botUaVisitorIds = new Set<string>();
-    for (const v of allVisitors) {
-      if (v.user_agent && BOT_UA_PATTERNS.test(v.user_agent)) {
-        botUaVisitorIds.add(v.visitor_id);
-      }
-    }
+    // -----------------------------------------------------------------------
+    // Filter window-scoped visitors to humans only
+    // -----------------------------------------------------------------------
 
-    // A visitor is "human" if: not a bot UA, AND (has human signal events OR has a valid UA)
-    const humanVisitorIds = new Set<string>();
-    for (const v of allVisitors) {
-      if (botUaVisitorIds.has(v.visitor_id)) continue;
-      // Accept if has human signals, or has any non-empty UA (gives benefit of doubt for real browsers)
-      if (humanSignalVisitorIds.has(v.visitor_id) || (v.user_agent && v.user_agent.length > 10)) {
-        humanVisitorIds.add(v.visitor_id);
-      }
-    }
-
-    // Filter to human visitors only
     const humanVisitors = allVisitors.filter(v => humanVisitorIds.has(v.visitor_id));
 
     // -----------------------------------------------------------------------
@@ -171,7 +174,7 @@ export async function GET(request: NextRequest) {
     }
 
     // -----------------------------------------------------------------------
-    // Calculate metrics (all on human visitors, window-scoped counts)
+    // Calculate metrics
     // -----------------------------------------------------------------------
 
     const totalUniqueVisitors = humanVisitors.length;
@@ -216,7 +219,7 @@ export async function GET(request: NextRequest) {
         };
       });
 
-    // Active users — bot-filtered
+    // Active users — filtered through full human set (DAU ≤ WAU ≤ MAU always holds)
     const dauSet = new Set(
       (dauData.data || [])
         .filter(pv => humanVisitorIds.has(pv.visitor_id))
@@ -264,7 +267,6 @@ export async function GET(request: NextRequest) {
       ? Math.round(totalEvents / sessionsWithEvents.size * 10) / 10
       : 0;
 
-    // Return response
     return NextResponse.json({
       window,
       start_date: start,
