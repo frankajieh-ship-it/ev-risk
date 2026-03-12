@@ -111,23 +111,23 @@ export async function GET(request: NextRequest) {
         .gte("timestamp", start)
         .lte("timestamp", end),
 
-      // 5. Daily Active Users (last 24h)
+      // 5. Daily Active Users — use visitors table (deduplicated, has UA for bot filter)
       supabase
-        .from("page_views")
-        .select("visitor_id")
-        .gte("timestamp", new Date(Date.now() - 86400000).toISOString()),
+        .from("visitors")
+        .select("visitor_id, user_agent")
+        .gte("last_visit", new Date(Date.now() - 86400000).toISOString()),
 
-      // 6. Weekly Active Users (last 7d)
+      // 6. Weekly Active Users
       supabase
-        .from("page_views")
-        .select("visitor_id")
-        .gte("timestamp", new Date(Date.now() - 7 * 86400000).toISOString()),
+        .from("visitors")
+        .select("visitor_id, user_agent")
+        .gte("last_visit", new Date(Date.now() - 7 * 86400000).toISOString()),
 
-      // 7. Monthly Active Users (last 30d)
+      // 7. Monthly Active Users
       supabase
-        .from("page_views")
-        .select("visitor_id")
-        .gte("timestamp", new Date(Date.now() - 30 * 86400000).toISOString()),
+        .from("visitors")
+        .select("visitor_id, user_agent")
+        .gte("last_visit", new Date(Date.now() - 30 * 86400000).toISOString()),
     ]);
 
     const allVisitors = visitorsData.data || [];
@@ -219,21 +219,22 @@ export async function GET(request: NextRequest) {
         };
       });
 
-    // Active users — filtered through full human set (DAU ≤ WAU ≤ MAU always holds)
+    // Active users — visitors table is already deduplicated (one row per visitor_id).
+    // Filter bots directly from UA on the returned rows. DAU ≤ WAU ≤ MAU always holds.
+    const isHumanVisitor = (v: { visitor_id: string; user_agent?: string | null }) => {
+      if (!v.user_agent || v.user_agent.length <= 10) return false;
+      if (BOT_UA_PATTERNS.test(v.user_agent)) return false;
+      return true;
+    };
+
     const dauSet = new Set(
-      (dauData.data || [])
-        .filter(pv => humanVisitorIds.has(pv.visitor_id))
-        .map(pv => pv.visitor_id)
+      (dauData.data || []).filter(isHumanVisitor).map(v => v.visitor_id)
     );
     const wauSet = new Set(
-      (wauData.data || [])
-        .filter(pv => humanVisitorIds.has(pv.visitor_id))
-        .map(pv => pv.visitor_id)
+      (wauData.data || []).filter(isHumanVisitor).map(v => v.visitor_id)
     );
     const mauSet = new Set(
-      (mauData.data || [])
-        .filter(pv => humanVisitorIds.has(pv.visitor_id))
-        .map(pv => pv.visitor_id)
+      (mauData.data || []).filter(isHumanVisitor).map(v => v.visitor_id)
     );
 
     const dau = dauSet.size;
