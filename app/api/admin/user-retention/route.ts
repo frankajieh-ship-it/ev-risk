@@ -14,17 +14,25 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 const ADMIN_KEY = process.env.ADMIN_API_KEY || "your-secret-admin-key";
 
+const BOT_UA_PATTERNS = /bot|crawler|spider|headless|scraper|wget|curl|python-requests/i;
+
+// Human signal events — presence of any means real user interaction
+const HUMAN_SIGNAL_EVENTS = new Set([
+  "page_visible_10s",
+  "first_interaction",
+  "scroll_depth_25",
+  "scroll_depth_50",
+]);
+
 // Time window helper
 function getWindowBoundaries(window: string): { start: string; end: string } {
   const now = new Date();
 
   switch (window) {
-    case "today":
+    case "today": {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      return {
-        start: today.toISOString(),
-        end: now.toISOString(),
-      };
+      return { start: today.toISOString(), end: now.toISOString() };
+    }
     case "week":
       return {
         start: new Date(now.getTime() - 7 * 86400000).toISOString(),
@@ -35,12 +43,10 @@ function getWindowBoundaries(window: string): { start: string; end: string } {
         start: new Date(now.getTime() - 30 * 86400000).toISOString(),
         end: now.toISOString(),
       };
-    case "month":
+    case "month": {
       const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      return {
-        start: firstOfMonth.toISOString(),
-        end: now.toISOString(),
-      };
+      return { start: firstOfMonth.toISOString(), end: now.toISOString() };
+    }
     default:
       return {
         start: new Date(now.getTime() - 30 * 86400000).toISOString(),
@@ -79,18 +85,18 @@ export async function GET(request: NextRequest) {
       // 1. Get all visitors in window
       supabase
         .from("visitors")
-        .select("visitor_id, visit_count, session_count, first_visit, last_visit")
+        .select("visitor_id, visit_count, session_count, first_visit, last_visit, user_agent")
         .gte("last_visit", start)
         .lte("last_visit", end),
 
-      // 2. Get page views for active user calc
+      // 2. Get page views for active user calc (window-scoped)
       supabase
         .from("page_views")
         .select("visitor_id, timestamp")
         .gte("timestamp", start)
         .lte("timestamp", end),
 
-      // 3. Get user events
+      // 3. Get user events (for bot detection via human signals)
       supabase
         .from("user_events")
         .select("session_id, visitor_id, event_name, timestamp")
@@ -120,36 +126,89 @@ export async function GET(request: NextRequest) {
     const allPageViews = pageViewsData.data || [];
     const allEvents = userEventsData.data || [];
 
-    // Calculate metrics
-    const totalUniqueVisitors = allVisitors.length;
-    const totalSessions = allVisitors.reduce((sum, v) => sum + (v.session_count || 0), 0);
-    const totalEvents = allEvents.length;
+    // -----------------------------------------------------------------------
+    // Bot filtering: build set of visitor_ids that show human signals
+    // -----------------------------------------------------------------------
 
-    // Repeat users (visit_count > 1)
-    const repeatVisitors = allVisitors.filter(v => v.visit_count > 1);
+    // visitors with known-human events
+    const humanSignalVisitorIds = new Set<string>();
+    for (const ev of allEvents) {
+      if (ev.visitor_id && HUMAN_SIGNAL_EVENTS.has(ev.event_name)) {
+        humanSignalVisitorIds.add(ev.visitor_id);
+      }
+    }
+
+    // visitors with bot UA patterns
+    const botUaVisitorIds = new Set<string>();
+    for (const v of allVisitors) {
+      if (v.user_agent && BOT_UA_PATTERNS.test(v.user_agent)) {
+        botUaVisitorIds.add(v.visitor_id);
+      }
+    }
+
+    // A visitor is "human" if: not a bot UA, AND (has human signal events OR has a valid UA)
+    const humanVisitorIds = new Set<string>();
+    for (const v of allVisitors) {
+      if (botUaVisitorIds.has(v.visitor_id)) continue;
+      // Accept if has human signals, or has any non-empty UA (gives benefit of doubt for real browsers)
+      if (humanSignalVisitorIds.has(v.visitor_id) || (v.user_agent && v.user_agent.length > 10)) {
+        humanVisitorIds.add(v.visitor_id);
+      }
+    }
+
+    // Filter to human visitors only
+    const humanVisitors = allVisitors.filter(v => humanVisitorIds.has(v.visitor_id));
+
+    // -----------------------------------------------------------------------
+    // Window-scoped visit counts (from page_views, not all-time visit_count)
+    // -----------------------------------------------------------------------
+
+    const pvCountByVisitor = new Map<string, number>();
+    for (const pv of allPageViews) {
+      if (humanVisitorIds.has(pv.visitor_id)) {
+        pvCountByVisitor.set(pv.visitor_id, (pvCountByVisitor.get(pv.visitor_id) || 0) + 1);
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Calculate metrics (all on human visitors, window-scoped counts)
+    // -----------------------------------------------------------------------
+
+    const totalUniqueVisitors = humanVisitors.length;
+    const totalSessions = humanVisitors.reduce((sum, v) => sum + (v.session_count || 0), 0);
+    const totalEvents = allEvents.filter(e => humanVisitorIds.has(e.visitor_id)).length;
+
+    // Repeat users: visited more than once in this window
+    const repeatVisitors = humanVisitors.filter(v => (pvCountByVisitor.get(v.visitor_id) || 1) > 1);
     const repeatUsersTotal = repeatVisitors.length;
     const repeatUsersPercentage = totalUniqueVisitors > 0
       ? Math.round((repeatUsersTotal / totalUniqueVisitors) * 100)
       : 0;
 
-    // Segment by visit count
-    const twoVisits = repeatVisitors.filter(v => v.visit_count === 2).length;
-    const threeToFive = repeatVisitors.filter(v => v.visit_count >= 3 && v.visit_count <= 5).length;
-    const sixToTen = repeatVisitors.filter(v => v.visit_count >= 6 && v.visit_count <= 10).length;
-    const elevenPlus = repeatVisitors.filter(v => v.visit_count > 10).length;
+    // Segment by window-scoped page view count
+    const twoVisits = humanVisitors.filter(v => pvCountByVisitor.get(v.visitor_id) === 2).length;
+    const threeToFive = humanVisitors.filter(v => {
+      const c = pvCountByVisitor.get(v.visitor_id) || 1;
+      return c >= 3 && c <= 5;
+    }).length;
+    const sixToTen = humanVisitors.filter(v => {
+      const c = pvCountByVisitor.get(v.visitor_id) || 1;
+      return c >= 6 && c <= 10;
+    }).length;
+    const elevenPlus = humanVisitors.filter(v => (pvCountByVisitor.get(v.visitor_id) || 1) > 10).length;
 
-    // Top power users
-    const topPowerUsers = repeatVisitors
-      .sort((a, b) => b.visit_count - a.visit_count)
+    // Top power users (by window-scoped page views)
+    const topPowerUsers = humanVisitors
+      .map(v => ({ ...v, window_pv_count: pvCountByVisitor.get(v.visitor_id) || 1 }))
+      .sort((a, b) => b.window_pv_count - a.window_pv_count)
       .slice(0, 20)
       .map(v => {
         const firstVisit = new Date(v.first_visit);
         const lastVisit = new Date(v.last_visit);
         const daysActive = Math.ceil((lastVisit.getTime() - firstVisit.getTime()) / (1000 * 60 * 60 * 24));
-
         return {
           visitor_id: v.visitor_id,
-          visit_count: v.visit_count,
+          visit_count: v.window_pv_count,
           session_count: v.session_count,
           first_visit: v.first_visit,
           last_visit: v.last_visit,
@@ -157,10 +216,22 @@ export async function GET(request: NextRequest) {
         };
       });
 
-    // Active users
-    const dauSet = new Set((dauData.data || []).map(pv => pv.visitor_id));
-    const wauSet = new Set((wauData.data || []).map(pv => pv.visitor_id));
-    const mauSet = new Set((mauData.data || []).map(pv => pv.visitor_id));
+    // Active users — bot-filtered
+    const dauSet = new Set(
+      (dauData.data || [])
+        .filter(pv => humanVisitorIds.has(pv.visitor_id))
+        .map(pv => pv.visitor_id)
+    );
+    const wauSet = new Set(
+      (wauData.data || [])
+        .filter(pv => humanVisitorIds.has(pv.visitor_id))
+        .map(pv => pv.visitor_id)
+    );
+    const mauSet = new Set(
+      (mauData.data || [])
+        .filter(pv => humanVisitorIds.has(pv.visitor_id))
+        .map(pv => pv.visitor_id)
+    );
 
     const dau = dauSet.size;
     const wau = wauSet.size;
@@ -169,18 +240,26 @@ export async function GET(request: NextRequest) {
     const dauWauRatio = wau > 0 ? dau / wau : 0;
     const dauMauRatio = mau > 0 ? dau / mau : 0;
 
-    // User segmentation
-    const oneTimeUsers = allVisitors.filter(v => v.visit_count === 1).length;
-    const occasionalUsers = allVisitors.filter(v => v.visit_count >= 2 && v.visit_count <= 5).length;
-    const frequentUsers = allVisitors.filter(v => v.visit_count >= 6 && v.visit_count <= 10).length;
-    const powerUsers = allVisitors.filter(v => v.visit_count > 10).length;
+    // User segmentation (window-scoped)
+    const oneTimeUsers = humanVisitors.filter(v => (pvCountByVisitor.get(v.visitor_id) || 1) === 1).length;
+    const occasionalUsers = humanVisitors.filter(v => {
+      const c = pvCountByVisitor.get(v.visitor_id) || 1;
+      return c >= 2 && c <= 5;
+    }).length;
+    const frequentUsers = humanVisitors.filter(v => {
+      const c = pvCountByVisitor.get(v.visitor_id) || 1;
+      return c >= 6 && c <= 10;
+    }).length;
+    const powerUsers = humanVisitors.filter(v => (pvCountByVisitor.get(v.visitor_id) || 1) > 10).length;
 
     // Session patterns
     const avgSessionsPerUser = totalUniqueVisitors > 0
       ? Math.round(totalSessions / totalUniqueVisitors * 10) / 10
       : 0;
 
-    const sessionsWithEvents = new Set(allEvents.map(e => e.session_id));
+    const sessionsWithEvents = new Set(
+      allEvents.filter(e => humanVisitorIds.has(e.visitor_id)).map(e => e.session_id)
+    );
     const avgEventsPerSession = sessionsWithEvents.size > 0
       ? Math.round(totalEvents / sessionsWithEvents.size * 10) / 10
       : 0;
@@ -190,6 +269,7 @@ export async function GET(request: NextRequest) {
       window,
       start_date: start,
       end_date: end,
+      bot_filtered: true,
 
       // Overview
       total_unique_visitors: totalUniqueVisitors,
