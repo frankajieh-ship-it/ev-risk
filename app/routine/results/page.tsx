@@ -1120,15 +1120,23 @@ function RoutineResultsContent() {
       <div className="mt-3">
         <button
           onClick={handleAddToShortlist}
+          title="Compare up to 4 cars with the tie-breaker coach"
           className="w-full py-2.5 px-4 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2"
         >
           <ListPlus className="w-4 h-4" />
           {shortlistAdded ? "Added to shortlist ✓" : shortlistFull ? "Shortlist full (max 4)" : "Add to Shortlist"}
         </button>
-        {shortlistAdded && (
-          <p className="text-center text-xs text-gray-500 mt-1.5">
-            <a href="/shortlist" className="text-blue-600 hover:underline">View shortlist →</a>
+        {!shortlistAdded && !shortlistFull && (
+          <p className="text-center text-xs text-gray-400 mt-1">
+            Save up to 4 cars — get a tie-breaker ranking at{" "}
+            <a href="/shortlist" className="underline hover:text-gray-600">your shortlist</a>
           </p>
+        )}
+        {shortlistAdded && (
+          <div className="mt-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-center">
+            <p className="text-xs font-semibold text-blue-800">Added ✓ — run EVFit for a second car to unlock the tie-breaker</p>
+            <a href="/shortlist" className="text-xs text-blue-600 hover:underline mt-0.5 block">View shortlist →</a>
+          </div>
         )}
       </div>
     </motion.div>
