@@ -119,6 +119,15 @@ export interface RoutineFitScore {
   stress_flags: StressFlag[];
   breakpoints_ranked: BreakPoint[];
   confidence: RoutineFitConfidence;
+  /** Individual dimension sub-scores (0–100 each). Optional for backwards compat. */
+  dimensions?: {
+    charging: number;
+    range: number;
+    recovery: number;
+    climate: number;
+    budget: number;
+    utility: number;
+  };
 }
 
 // ============================================

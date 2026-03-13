@@ -206,6 +206,14 @@ export function computeRoutineFit(
     stress_flags,
     breakpoints_ranked,
     confidence,
+    dimensions: {
+      charging: chargingScore,
+      range: rangeScore,
+      recovery: recoveryScore,
+      climate: climateScore,
+      budget: budgetScore,
+      utility: utilityScore,
+    },
   };
 }
 

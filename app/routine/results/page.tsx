@@ -11,7 +11,7 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { MapPin, Clock, Shield, Thermometer, ArrowLeft, LinkIcon, Loader2, TrendingUp, CheckCircle, AlertCircle, Zap, Radio, Car } from "lucide-react";
+import { MapPin, Clock, Shield, Thermometer, ArrowLeft, LinkIcon, Loader2, TrendingUp, CheckCircle, AlertCircle, Zap, Radio, Car, ListPlus } from "lucide-react";
 import { FitVerdictV2Block } from "@/components/blocks/FitVerdictV2Block";
 import { WhatBreaksFirstV2Block } from "@/components/blocks/WhatBreaksFirstV2Block";
 import { StressFlagsV2Block } from "@/components/blocks/StressFlagsV2Block";
@@ -19,6 +19,7 @@ import WhyTheseCarsBlock from "@/components/blocks/WhyTheseCarsBlock";
 import HowWeDecidedBlock from "@/components/blocks/HowWeDecidedBlock";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { getOrCreatePersistentSessionId, getOrCreateReceiptToken } from "@/lib/session-utils";
+import { addToShortlist } from "@/lib/shortlist-store";
 import { generateFitOneLiner } from "@/lib/fit-verdict-liner";
 import type { RoutineFitScore, MinimumViableRoutine } from "@/types/v2";
 import type { FitVerdict, StressFlagContract } from "@/types/v2-contract";
@@ -241,6 +242,10 @@ function RoutineResultsContent() {
   const [sharing, setSharing] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
 
+  // Shortlist state
+  const [shortlistAdded, setShortlistAdded] = useState(false);
+  const [shortlistFull, setShortlistFull] = useState(false);
+
   const handleShare = useCallback(async () => {
     if (!result?.run_id) return;
     setSharing(true);
@@ -263,6 +268,38 @@ function RoutineResultsContent() {
       // ignore
     } finally {
       setSharing(false);
+    }
+  }, [result, trackEvent]);
+
+  const handleAddToShortlist = useCallback(() => {
+    if (!result) return;
+    const vehicle = result.routine as { vehicle_year?: number; vehicle_make?: string; vehicle_model?: string } | undefined;
+    const label = [vehicle?.vehicle_year, vehicle?.vehicle_make, vehicle?.vehicle_model]
+      .filter(Boolean).join(" ") || result.fit_score.label;
+    const outcome = addToShortlist({
+      run_id: result.run_id,
+      vehicle_label: label,
+      fit_score: result.fit_score,
+      routine_inputs: result.routine
+        ? {
+            charging_access: result.routine.charging_access,
+            shared_charger: result.routine.shared_charger,
+            climate: result.routine.climate,
+          }
+        : undefined,
+      plan_b_summary: result.plan_b?.anchor_charger_name
+        ? `Anchor: ${result.plan_b.anchor_charger_name}`
+        : result.plan_b?.plan_summary
+        ? result.plan_b.plan_summary
+        : undefined,
+    });
+    if (outcome.success) {
+      setShortlistAdded(true);
+      trackEvent("shortlist_add", { run_id: result.run_id, fit_label: result.fit_score.label });
+      setTimeout(() => setShortlistAdded(false), 4000);
+    } else if (outcome.reason === "full") {
+      setShortlistFull(true);
+      setTimeout(() => setShortlistFull(false), 3000);
     }
   }, [result, trackEvent]);
 
@@ -1077,6 +1114,22 @@ function RoutineResultsContent() {
         >
           Run Another
         </a>
+      </div>
+
+      {/* Add to Shortlist */}
+      <div className="mt-3">
+        <button
+          onClick={handleAddToShortlist}
+          className="w-full py-2.5 px-4 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2"
+        >
+          <ListPlus className="w-4 h-4" />
+          {shortlistAdded ? "Added to shortlist ✓" : shortlistFull ? "Shortlist full (max 4)" : "Add to Shortlist"}
+        </button>
+        {shortlistAdded && (
+          <p className="text-center text-xs text-gray-500 mt-1.5">
+            <a href="/shortlist" className="text-blue-600 hover:underline">View shortlist →</a>
+          </p>
+        )}
       </div>
     </motion.div>
   );
