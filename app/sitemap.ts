@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getAllChecklistSlugs } from "@/content/checklists";
 import { getAllGuideSlugs } from "@/content/guides";
+import { getAllCitySlugs } from "@/content/cities";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
 
@@ -63,5 +64,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  return [...staticPages, ...checklistPages, ...guidePages, ...blogPages];
+  const localPages = getAllCitySlugs().map((slug) => ({
+    url: `${SITE_URL}/local/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
+  }));
+
+  const guidesIndex: MetadataRoute.Sitemap = [
+    {
+      url: `${SITE_URL}/guides`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    },
+  ];
+
+  return [...staticPages, ...guidesIndex, ...checklistPages, ...guidePages, ...blogPages, ...localPages];
 }

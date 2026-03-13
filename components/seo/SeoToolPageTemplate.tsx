@@ -48,6 +48,7 @@ import JsonLd from "./JsonLd";
 import FaqSection from "./FaqSection";
 import SamplePreview from "./SamplePreview";
 import PasteBox from "./PasteBox";
+import EvFitCta from "./EvFitCta";
 import FeedbackWidget from "@/components/FeedbackWidget";
 
 // Explicit icon map — only icons used in content registries
@@ -163,18 +164,29 @@ export default function SeoToolPageTemplate({
         </div>
 
         {/* CTA Section — ABOVE FOLD */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm mb-10">
-          <h2 className="text-lg font-bold text-gray-900 mb-1">
-            {content.ctaHeadline}
-          </h2>
-          <p className="text-sm text-gray-500 mb-4">
-            {content.ctaDescription}
-          </p>
-          <PasteBox
-            pageSource={content.pageSource}
-            ctaButtonText={content.ctaButtonText}
-            ctaPlaceholder={content.ctaPlaceholder}
-          />
+        <div className="mb-10">
+          {content.ctaType === "evfit" ? (
+            <EvFitCta
+              headline={content.ctaHeadline}
+              description={content.ctaDescription}
+              buttonText={content.ctaButtonText}
+              pageSlug={content.slug}
+            />
+          ) : (
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-gray-900 mb-1">
+                {content.ctaHeadline}
+              </h2>
+              <p className="text-sm text-gray-500 mb-4">
+                {content.ctaDescription}
+              </p>
+              <PasteBox
+                pageSource={content.pageSource}
+                ctaButtonText={content.ctaButtonText}
+                ctaPlaceholder={content.ctaPlaceholder}
+              />
+            </div>
+          )}
         </div>
 
         {/* "What to verify" bullets */}

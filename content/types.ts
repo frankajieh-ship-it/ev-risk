@@ -53,4 +53,10 @@ export interface SeoPageContent {
   // Dates (for Article JSON-LD)
   publishedDate?: string;
   modifiedDate?: string;
+
+  // CTA type: "paste" = PasteBox (default), "evfit" = EVFit link button
+  ctaType?: "evfit" | "paste";
+
+  // Pillar grouping for hub index
+  pillar?: "no-home-charging" | "winter-ev-routine" | "budget-evs" | "used-ev-proof-checklist";
 }
