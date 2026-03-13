@@ -8,13 +8,14 @@ interface FitVerdictV2BlockProps {
 }
 
 const VERDICT_CONFIG = {
+  "Great Fit": { color: "text-green-600", bg: "bg-green-50", border: "border-green-200" },
   "Good Fit": { color: "text-green-600", bg: "bg-green-50", border: "border-green-200" },
   "Mixed Fit": { color: "text-yellow-600", bg: "bg-yellow-50", border: "border-yellow-200" },
   "High Friction": { color: "text-red-600", bg: "bg-red-50", border: "border-red-200" },
 } as const;
 
 export function FitVerdictV2Block({ fitVerdict, vehicle }: FitVerdictV2BlockProps) {
-  const config = VERDICT_CONFIG[fitVerdict.label];
+  const config = VERDICT_CONFIG[fitVerdict.label as keyof typeof VERDICT_CONFIG] ?? VERDICT_CONFIG["Mixed Fit"];
 
   return (
     <div className={`p-6 rounded-2xl border-2 ${config.border} ${config.bg}`}>

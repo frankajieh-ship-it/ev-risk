@@ -43,7 +43,7 @@ export function ResultPageV2Split({
 
   // Background gradient based on verdict
   const bgClass =
-    default_view.fit_verdict.label === "Good Fit"
+    default_view.fit_verdict.label === "Great Fit" || default_view.fit_verdict.label === "Good Fit"
       ? "from-green-50 via-white to-green-50"
       : default_view.fit_verdict.label === "Mixed Fit"
         ? "from-yellow-50 via-white to-yellow-50"
