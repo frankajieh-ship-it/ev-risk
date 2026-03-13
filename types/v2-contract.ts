@@ -18,7 +18,7 @@ import type {
 // ============================================
 
 export interface FitVerdict {
-  label: "Good Fit" | "Mixed Fit" | "High Friction";
+  label: "Great Fit" | "Good Fit" | "Mixed Fit" | "High Friction";
   one_liner: string;
 }
 
