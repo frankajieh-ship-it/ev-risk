@@ -19,13 +19,11 @@ import {
   Search,
   XCircle,
   DollarSign,
-  ArrowUpCircle,
   Lock,
 } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { humanizeFlag } from "@/lib/receipt-rules";
 import { formatPrice, type Region } from "@/lib/region";
-import { getDisplayPriceForRegion } from "@/lib/price-assignment";
 import type { ListingReceipt } from "@/types/receipt";
 
 interface NegotiatorSectionProps {
@@ -42,9 +40,6 @@ type CopiedKey = "opener" | "talking" | "questions" | "inspect" | "walkaway" | "
 
 export default function NegotiatorSection({
   receipt,
-  isUnlocked,
-  onUpgradeClick,
-  freeMode = false,
   region = "US",
   sellerPackUnlocked,
   onSellerPackUpgrade,
@@ -337,33 +332,6 @@ export default function NegotiatorSection({
           </StrategyBlock>
         )}
 
-        {/* Upsell CTA for paid negotiation scripts (hidden in free mode) */}
-        {!isUnlocked && !freeMode && (
-          <div className="border-t border-gray-100 pt-4 mt-2">
-            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl border border-indigo-200 p-4 flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-gray-800">
-                  Want detailed negotiation scripts for 3 scenarios?
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Full scripts with opening lines, body text, and responses to common pushback.
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  trackEvent("negotiator_upsell_clicked", {
-                    receipt_id: receipt.receipt_id,
-                  });
-                  onUpgradeClick();
-                }}
-                className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
-              >
-                <ArrowUpCircle className="w-3.5 h-3.5" />
-                Get Buyer Pass — {getDisplayPriceForRegion("999", region)}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </motion.div>
   );

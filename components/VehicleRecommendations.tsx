@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Search, AlertCircle, MessageSquare } from "lucide-react";
+import { ArrowLeft, Search, AlertCircle, MessageSquare, Scale, Zap, Battery, Brain } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import RecommendationCard from "./RecommendationCard";
 import type { MinimumViableRoutine } from "@/types/v2";
@@ -151,6 +151,11 @@ export default function VehicleRecommendations({
   const recommended = filtered.filter(r => r.fit_score >= 65);
   const lowFit = filtered.filter(r => r.fit_score < 65);
 
+  // Detect ties: top 2+ cars within 2 score points of each other
+  const topScore = recommended[0]?.fit_score ?? 0;
+  const tiedCars = recommended.filter(r => topScore - r.fit_score <= 2);
+  const hasTie = tiedCars.length >= 2;
+
   // Available categories (only show filter pills for categories that exist)
   const availableCategories = CATEGORY_FILTERS.filter(
     f => f.value === "all" || recommendations.some(r => r.sub_category === f.value)
@@ -258,6 +263,66 @@ export default function VehicleRecommendations({
                   {cat.label}
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Tiebreaker panel — shown when 2+ top cars are within 2 score points */}
+          {hasTie && (
+            <div className="mb-5 bg-amber-50 border border-amber-200 rounded-2xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-amber-200 flex items-center gap-2">
+                <Scale className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <p className="text-sm font-semibold text-amber-900">
+                  {tiedCars.length} cars tied at {topScore} — here's what sets them apart
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-amber-100">
+                      <th className="text-left px-4 py-2 text-amber-700 font-medium w-32">Vehicle</th>
+                      <th className="px-3 py-2 text-amber-700 font-medium text-center">
+                        <span className="flex items-center justify-center gap-1"><Zap className="w-3 h-3" />Range</span>
+                      </th>
+                      <th className="px-3 py-2 text-amber-700 font-medium text-center">
+                        <span className="flex items-center justify-center gap-1"><Battery className="w-3 h-3" />Battery</span>
+                      </th>
+                      <th className="px-3 py-2 text-amber-700 font-medium text-center">
+                        <span className="flex items-center justify-center gap-1"><Brain className="w-3 h-3" />Mental Load</span>
+                      </th>
+                      <th className="px-3 py-2 text-amber-700 font-medium text-center">Top Risk</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tiedCars.map((car, i) => (
+                      <tr key={car.model} className={i < tiedCars.length - 1 ? "border-b border-amber-100" : ""}>
+                        <td className="px-4 py-2.5 font-medium text-gray-900 leading-tight">
+                          {car.year} {car.model_short}
+                          <span className="block text-gray-400 font-normal">{car.chemistry}</span>
+                        </td>
+                        <td className="px-3 py-2.5 text-center text-gray-700 font-semibold">{car.real_world_range_mi} mi</td>
+                        <td className="px-3 py-2.5 text-center text-gray-700">{car.battery_kwh} kWh</td>
+                        <td className="px-3 py-2.5 text-center">
+                          <span className={`px-2 py-0.5 rounded-full font-medium ${
+                            car.mental_load === "low" ? "bg-green-100 text-green-700" :
+                            car.mental_load === "medium" ? "bg-amber-100 text-amber-700" :
+                            "bg-red-100 text-red-700"
+                          }`}>
+                            {car.mental_load}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-center text-gray-500 max-w-[120px]">
+                          {car.top_stress_flag ?? "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-4 py-2.5 bg-amber-50 border-t border-amber-100">
+                <p className="text-xs text-amber-700">
+                  <span className="font-semibold">Tip:</span> If you charge at home, prioritize range. If you rely on public charging, lower mental load wins. Click any card below to run the full analysis.
+                </p>
+              </div>
             </div>
           )}
 
