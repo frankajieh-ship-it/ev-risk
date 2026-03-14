@@ -235,42 +235,6 @@ export function ResultPageV2Split({
           </div>
         )}
 
-        {/* Download PDF / Checkout */}
-        {reportId !== null && (
-          <div className="mt-8 text-center">
-            {paymentsEnabled && !isUnlocked ? (
-              <>
-                <button
-                  onClick={handleCheckout}
-                  disabled={checkoutLoading}
-                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  {checkoutLoading ? "Redirecting..." : `Unlock Full Report — ${effectiveReportId && anonId ? getDisplayPrice(assignPriceVariant(anonId, effectiveReportId)) : "$9.99"}`}
-                </button>
-                <p className="text-xs text-gray-500 mt-2">One-time payment — includes PDF + listing receipt unlock</p>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={handleDownloadPdf}
-                  disabled={pdfState === "loading"}
-                  className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  {pdfState === "loading" ? "Generating PDF..." : pdfState === "done" ? "Downloaded!" : "Download PDF Report"}
-                </button>
-                {pdfState === "error" && (
-                  <p className="text-sm text-red-600 mt-2">Failed to generate PDF. Please try again.</p>
-                )}
-              </>
-            )}
-          </div>
-        )}
 
         {/* Footer */}
         <div className="mt-12 pt-6 border-t border-gray-200 text-center">
