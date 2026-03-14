@@ -28,63 +28,164 @@ function getOpenAI(): OpenAI {
   return _openai;
 }
 
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+// Minimum model for Structured Outputs support: gpt-4o-mini-2024-07-18
+const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini-2024-07-18";
 
 // Time budget: skip retry if first call already consumed most of the allowed time.
-// Allow up to 30s for the first attempt; leaves ~20s for the retry within the 55s internal deadline.
+// In the background function this is generous — kept for the formatting-fixer path.
 const TIME_BUDGET_MS = 30_000;
 
 // ---------------------------------------------------------------------------
-// Streaming helper — collects streamed chunks into a single string.
-// Streaming avoids the full-response SDK timeout and keeps the Netlify
-// connection alive with incremental data.
+// OpenAI Structured Outputs JSON Schema
+//
+// Covers only the fields the model produces directly. Fields injected by
+// post-processing (fit_score, evidence_score, evidence_label, scoring_reasons,
+// why_not_green, verify_before_visit, receipt_reddit_text) are omitted.
+//
+// Strict mode rules:
+//   - All properties must be in `required`
+//   - No `additionalProperties: true`
+//   - Nullable fields use anyOf: [{ type }, { type: "null" }]
 // ---------------------------------------------------------------------------
 
-async function streamCompletion(
+const RECEIPT_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schema_version", "receipt_id", "mode", "verdict", "verdict_reason",
+    "price_sanity", "risk_flags", "must_answer_questions", "inspect_first",
+    "negotiation_opener", "one_followup_question",
+    "listing_summary", "compare",
+    "operator_notes", "listing_signals",
+  ],
+  properties: {
+    schema_version: { type: "string" },
+    receipt_id: { type: "string" },
+    mode: { type: "string", enum: ["single", "compare"] },
+    verdict: { type: "string", enum: ["GREEN", "YELLOW", "RED"] },
+    verdict_reason: { type: "string" },
+    price_sanity: {
+      type: "object",
+      additionalProperties: false,
+      required: ["label", "confidence", "basis", "rationale_short", "user_market_range"],
+      properties: {
+        label: { type: "string", enum: ["UNDERPRICED", "FAIR", "OVERPRICED", "UNKNOWN"] },
+        confidence: { type: "number" },
+        basis: { type: "string", enum: ["LISTING_ONLY", "USER_MARKET_RANGE", "UNKNOWN"] },
+        rationale_short: { type: "string" },
+        user_market_range: {
+          anyOf: [
+            {
+              type: "object",
+              additionalProperties: false,
+              required: ["low", "high", "currency"],
+              properties: {
+                low: { type: "number" },
+                high: { type: "number" },
+                currency: { type: "string" },
+              },
+            },
+            { type: "null" },
+          ],
+        },
+      },
+    },
+    risk_flags: { type: "array", items: { type: "string" } },
+    must_answer_questions: { type: "array", items: { type: "string" } },
+    inspect_first: { type: "array", items: { type: "string" } },
+    negotiation_opener: { type: "string" },
+    one_followup_question: { anyOf: [{ type: "string" }, { type: "null" }] },
+    listing_summary: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "listing_url", "url_domain", "country", "zip_or_postcode",
+        "price", "currency", "mileage", "mileage_unit",
+        "year", "make", "model", "trim", "seller_type", "title_status",
+        "accidents_reported", "service_history", "owners",
+        "carfax_available", "financing_vs_cash",
+      ],
+      properties: {
+        listing_url: { type: "string" },
+        url_domain: { type: "string" },
+        country: { type: "string", enum: ["US", "UK", "CA", "AU", "OTHER"] },
+        zip_or_postcode: { type: "string" },
+        price: { type: "number" },
+        currency: { type: "string" },
+        mileage: { type: "number" },
+        mileage_unit: { type: "string", enum: ["mi", "km", "unknown"] },
+        year: { type: "number" },
+        make: { type: "string" },
+        model: { type: "string" },
+        trim: { anyOf: [{ type: "string" }, { type: "null" }] },
+        seller_type: { type: "string", enum: ["dealer", "private", "unknown"] },
+        title_status: { type: "string", enum: ["clean", "salvage", "rebuilt", "unknown"] },
+        accidents_reported: { type: "string", enum: ["yes", "no", "unknown"] },
+        service_history: { type: "string", enum: ["yes", "no", "unknown"] },
+        owners: { anyOf: [{ type: "number" }, { type: "null" }] },
+        carfax_available: { type: "string", enum: ["yes", "no", "unknown"] },
+        financing_vs_cash: { type: "string", enum: ["financing", "cash", "unknown"] },
+      },
+    },
+    compare: { anyOf: [{ type: "object" }, { type: "null" }] },
+    operator_notes: {
+      type: "object",
+      additionalProperties: false,
+      required: ["rationale", "assumptions", "what_would_change_verdict"],
+      properties: {
+        rationale: { type: "string" },
+        assumptions: { type: "array", items: { type: "string" } },
+        what_would_change_verdict: { type: "array", items: { type: "string" } },
+      },
+    },
+    listing_signals: { type: "array", items: { type: "string" } },
+  },
+} as const;
+
+// ---------------------------------------------------------------------------
+// Non-streaming structured completion using json_schema response format.
+// Runs in the background function where there is no connection to keep alive.
+// ---------------------------------------------------------------------------
+
+async function callStructured(
   messages: OpenAI.ChatCompletionMessageParam[],
-  opts: { model?: string; temperature?: number; max_tokens?: number } = {},
+  opts: { temperature?: number; max_tokens?: number } = {},
 ): Promise<{ content: string; usage: { prompt_tokens: number; completion_tokens: number } | null }> {
-  const stream = await getOpenAI().chat.completions.create({
-    model: opts.model || MODEL,
+  const response = await getOpenAI().chat.completions.create({
+    model: MODEL,
     messages,
     temperature: opts.temperature ?? 0.3,
     max_tokens: opts.max_tokens ?? 2400,
-    response_format: { type: "json_object" },
-    stream: true,
-    stream_options: { include_usage: true },
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "receipt",
+        strict: true,
+        schema: RECEIPT_JSON_SCHEMA as Record<string, unknown>,
+      },
+    },
   });
 
-  const chunks: string[] = [];
-  let usage: { prompt_tokens: number; completion_tokens: number } | null = null;
-
-  for await (const chunk of stream) {
-    const delta = chunk.choices[0]?.delta?.content;
-    if (delta) chunks.push(delta);
-    if (chunk.usage) {
-      usage = {
-        prompt_tokens: chunk.usage.prompt_tokens,
-        completion_tokens: chunk.usage.completion_tokens,
-      };
-    }
-  }
-
-  return { content: chunks.join(""), usage };
+  return {
+    content: response.choices[0]?.message?.content ?? "{}",
+    usage: response.usage
+      ? { prompt_tokens: response.usage.prompt_tokens, completion_tokens: response.usage.completion_tokens }
+      : null,
+  };
 }
 
 // --- System Prompt ---
 
-const SYSTEM_PROMPT = `You are OFFO Receipt Bot. Analyze a car listing → return a JSON receipt with risks, questions, and a Reddit draft. Present facts neutrally; never tell the buyer what to do.
+const SYSTEM_PROMPT = `You are OFFO Receipt Bot. Analyze a car listing → return a JSON receipt with risks, questions, and a seller strategy. Present facts neutrally; never tell the buyer what to do.
 
 Return ONLY valid JSON. No markdown, no explanation.
 
 SCHEMA:
-{"schema_version":"v1","receipt_id":"<UUID v4>","mode":"single","verdict":"GREEN|YELLOW|RED","verdict_reason":"4-180ch","price_sanity":{"label":"UNDERPRICED|FAIR|OVERPRICED|UNKNOWN","confidence":0.0-1.0,"basis":"LISTING_ONLY|USER_MARKET_RANGE|UNKNOWN","rationale_short":"4-180ch","user_market_range":null},"risk_flags":["1-120ch","1-120ch","1-120ch"],"must_answer_questions":["1-140ch","1-140ch","1-140ch"],"inspect_first":["1-140ch",x5],"negotiation_opener":"8-420ch","one_followup_question":"max160ch or null","reddit_draft":{"title":"10-200ch, starts with year/make/model+price","body_facts":["5-200ch",1-5 items],"body_uncertainty":["5-200ch",0-3],"body_next_steps":["5-200ch",0-3],"questions":["10-200ch, EXACTLY 1"],"style":{"format":"short_paragraph","max_questions":1}},"receipt_details":{"fee_estimates":{"currency":"USD","notes":"max220ch","tax_estimate_range":{"low":N,"high":N}|null,"doc_fee_estimate_range":{"low":N,"high":N}|null},"common_listing_tricks":["1-140ch",3-10],"walk_away_triggers":["1-140ch",3-10]},"compare":null,"operator_notes":{"rationale":"10-500ch","assumptions":["1-120ch",0-6],"what_would_change_verdict":["1-140ch",0-4]},"listing_summary":{"listing_url":"str","url_domain":"str","country":"US|UK|CA|AU|OTHER","zip_or_postcode":"str","price":N,"currency":"str","mileage":N,"mileage_unit":"mi|km|unknown","year":N,"make":"str","model":"str","trim":"str|null","seller_type":"dealer|private|unknown","title_status":"clean|salvage|rebuilt|unknown","accidents_reported":"yes|no|unknown","service_history":"yes|no|unknown","owners":N|null,"carfax_available":"yes|no|unknown","financing_vs_cash":"financing|cash|unknown"},"listing_signals":["signal_id",...]}
+{"schema_version":"v1","receipt_id":"<UUID v4>","mode":"single","verdict":"GREEN|YELLOW|RED","verdict_reason":"4-180ch","price_sanity":{"label":"UNDERPRICED|FAIR|OVERPRICED|UNKNOWN","confidence":0.0-1.0,"basis":"LISTING_ONLY|USER_MARKET_RANGE|UNKNOWN","rationale_short":"4-180ch","user_market_range":null},"risk_flags":["1-120ch","1-120ch","1-120ch"],"must_answer_questions":["1-140ch","1-140ch","1-140ch"],"inspect_first":["1-140ch",x5],"negotiation_opener":"8-420ch","one_followup_question":"max160ch or null","compare":null,"operator_notes":{"rationale":"10-500ch","assumptions":["1-120ch",0-6],"what_would_change_verdict":["1-140ch",0-4]},"listing_summary":{"listing_url":"str","url_domain":"str","country":"US|UK|CA|AU|OTHER","zip_or_postcode":"str","price":N,"currency":"str","mileage":N,"mileage_unit":"mi|km|unknown","year":N,"make":"str","model":"str","trim":"str|null","seller_type":"dealer|private|unknown","title_status":"clean|salvage|rebuilt|unknown","accidents_reported":"yes|no|unknown","service_history":"yes|no|unknown","owners":N|null,"carfax_available":"yes|no|unknown","financing_vs_cash":"financing|cash|unknown"},"listing_signals":["signal_id",...]}
 
-ARRAY COUNTS (linter enforced): risk_flags=3, must_answer_questions=3, inspect_first=5, reddit_draft.questions=1. listing_signals=3-20.
+ARRAY COUNTS (linter enforced): risk_flags=3, must_answer_questions=3, inspect_first=5. listing_signals=3-20.
 
 RULES:
-- reddit_draft body: first-person buyer voice ("I plan to...", "I wasn't able to confirm..."). Never imperative ("Check the...", "Verify...").
-- Only 1 question mark total in the entire reddit_draft. Question must target the biggest risk_flag for this specific listing.
 - No verdict language (good deal, bad deal, buy it, skip it, hard pass, avoid, must buy, steer you, I'd lean).
 - No "annoying" (use stressful). No smart quotes. No markdown * or _. No URLs. Use "or" not "/".
 - Cautious language: "may", "worth verifying", "tends to" — not "will", "definitely", "always".
@@ -250,7 +351,7 @@ export async function generateReceipt(
     { role: "user", content: userPrompt },
   ];
 
-  const firstResponse = await streamCompletion(messages, {
+  const firstResponse = await callStructured(messages, {
     temperature: 0.3,
     max_tokens: 1800,
   });
@@ -317,7 +418,7 @@ Fix ONLY these issues and return the corrected complete JSON. Keep all other con
   messages.push({ role: "assistant", content: firstContent });
   messages.push({ role: "user", content: repairPrompt });
 
-  const retryResponse = await streamCompletion(messages, {
+  const retryResponse = await callStructured(messages, {
     temperature: 0.2,
     max_tokens: 1800,
   });

@@ -31,7 +31,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("receipts")
-    .select("id, generation_status, output_json")
+    .select("id, generation_status, output_json, sections")
     .eq("id", receiptId)
     .single();
 
@@ -46,6 +46,7 @@ export async function GET(
     success: true,
     receipt_id: data.id,
     generation_status: data.generation_status,
+    sections: data.sections ?? null,
     // Only send full receipt when upgrade is complete
     receipt: data.generation_status === "full" ? data.output_json : null,
   });

@@ -23,6 +23,25 @@ export interface DealerListingMatch {
   price_range_cents?: { min: number; max: number };
 }
 
+/** Per-dimension fit scores (0–100 each) from compute-routine-fit.ts */
+export interface FitDimensions {
+  charging: number;
+  range: number;
+  recovery: number;
+  climate: number;
+  budget: number;
+  utility: number;
+}
+
+/** Bucketed chip labels for the tie-break comparison UI */
+export interface TieChips {
+  buffer:   "strong" | "ok" | "tight";
+  charging: "low" | "medium" | "high";    // charging burden (inverted from score)
+  winter:   "safe" | "moderate" | "tight";
+  budget:   "likely" | "uncertain";
+  space:    "compact" | "midsize" | "large";
+}
+
 export interface VehicleRecommendation {
   /** Full model name from range_delta.csv, e.g. "Tesla Model 3 Long Range" */
   model: string;
@@ -37,6 +56,12 @@ export interface VehicleRecommendation {
   fit_label: RoutineFitScore["label"];
   mental_load: RoutineFitScore["mental_load"];
   top_stress_flag?: string;
+
+  /** Individual dimension scores — used for tie-breaking and chip display */
+  dimensions?: FitDimensions;
+
+  /** Bucketed chip labels derived from dimensions — shown in tie-break comparison */
+  tie_chips?: TieChips;
 
   /** Parsed from model string */
   make: string;

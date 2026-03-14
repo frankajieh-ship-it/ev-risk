@@ -26,15 +26,16 @@ export function getCarGurusUrl(
     year?: number;
     zip?: string;
     range_mi?: number;
-    battery_kwh?: number;
+    weekly_miles?: number;
   }
 ): string {
-  // Build Google search query that returns CarGurus results
   const searchTerms = [
     options?.year,
     make,
     modelShort,
-    "CarGurus",
+    options?.range_mi ? `${options.range_mi}mi range` : null,
+    "used EV",
+    "site:cargurus.com",
     options?.zip ? `near ${options.zip}` : null,
   ]
     .filter(Boolean)

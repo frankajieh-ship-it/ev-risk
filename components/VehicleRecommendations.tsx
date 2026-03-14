@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Search, AlertCircle, MessageSquare, Scale, Zap, Battery, Brain } from "lucide-react";
+import { ArrowLeft, Search, AlertCircle, MessageSquare, ChevronDown, ChevronUp, Lightbulb } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import RecommendationCard from "./RecommendationCard";
 import type { MinimumViableRoutine } from "@/types/v2";
@@ -29,6 +29,8 @@ const chargingLabels: Record<string, string> = {
   public: "Public",
 };
 
+type DecisionPriority = "friction" | "spend" | "space" | null;
+
 function SkeletonCard() {
   return (
     <div className="rounded-2xl border-2 border-gray-100 bg-white p-5 animate-pulse">
@@ -49,6 +51,96 @@ function SkeletonCard() {
   );
 }
 
+
+/** Compute a weighted tie-break score for re-sorting after priority choice */
+function computeTieScore(
+  rec: VehicleRecommendation,
+  routine: MinimumViableRoutine,
+  priority: DecisionPriority
+): number {
+  const d = rec.dimensions;
+  if (!d) return rec.fit_score;
+
+  const homePriority = routine.charging_access === "home";
+  const w = {
+    range:    homePriority ? 0.35 : 0.25,
+    charging: homePriority ? 0.20 : 0.40,
+    budget:   0.20,
+    recovery: homePriority ? 0.10 : 0.15,
+    utility:  0.15,
+  };
+
+  // Boost selected priority weight by 1.5×
+  if (priority === "friction") w.charging *= 1.5;
+  if (priority === "spend")    w.budget   *= 1.5;
+  if (priority === "space")    w.utility  *= 1.5;
+
+  return (
+    d.range    * w.range    +
+    d.charging * w.charging +
+    d.budget   * w.budget   +
+    d.recovery * w.recovery +
+    d.utility  * w.utility
+  );
+}
+
+/**
+ * Generate coach guidance sentence for the top pick.
+ * Uses the top vehicle's weakest dimension to explain the #1 recommendation.
+ */
+function getCoachGuidance(
+  top: VehicleRecommendation,
+  routine: MinimumViableRoutine,
+  weeklyMiles: number
+): string {
+  const name = `${top.year} ${top.model_short}`;
+  const charging = chargingLabels[routine.charging_access] ?? routine.charging_access;
+
+  // Lead with what makes it the top pick based on charging access
+  if (routine.charging_access === "home") {
+    return `${name} ranks #1 because its ${top.real_world_range_mi} mi real-world range gives you the most comfortable buffer for your ~${weeklyMiles} mi/week — and you can top it up every night at home without relying on public stops.`;
+  }
+  if (routine.charging_access === "work") {
+    return `${name} ranks #1 because its range and ${charging.toLowerCase()} charging setup align well with your ~${weeklyMiles} mi/week routine, minimizing the days you need a public fast-charge.`;
+  }
+  // public
+  return `${name} ranks #1 because it has the lowest charging friction for a ${charging.toLowerCase()}-charging lifestyle — its DC fast-charge speed means shorter stops on your ~${weeklyMiles} mi/week routine.`;
+}
+
+/** Generate comparison bullets across top 3 — only where vehicles actually differ */
+function getDiffBullets(top3: VehicleRecommendation[]): string[] {
+  if (top3.length < 2) return [];
+  const bullets: string[] = [];
+
+  const buffers = top3.map(r => r.tie_chips?.buffer);
+  if (buffers.some(b => b !== buffers[0])) {
+    const best = top3.find(r => r.tie_chips?.buffer === "strong") ?? top3[0];
+    bullets.push(`<strong>${best.model_short}</strong> has the strongest range buffer for your longest day`);
+  }
+
+  const charging = top3.map(r => r.tie_chips?.charging);
+  if (charging.some(c => c !== charging[0])) {
+    const best = top3.find(r => r.tie_chips?.charging === "low") ?? top3[0];
+    bullets.push(`<strong>${best.model_short}</strong> has the lowest weekly charging friction`);
+  }
+
+  const budgets = top3.map(r => r.tie_chips?.budget);
+  if (budgets.some(b => b !== budgets[0])) {
+    const likely = top3.filter(r => r.tie_chips?.budget === "likely");
+    if (likely.length === 1) {
+      bullets.push(`<strong>${likely[0].model_short}</strong> is most likely to fit your budget`);
+    }
+  }
+
+  const winters = top3.map(r => r.tie_chips?.winter);
+  if (winters.some(w => w !== winters[0])) {
+    const best = top3.find(r => r.tie_chips?.winter === "safe") ?? top3[0];
+    bullets.push(`<strong>${best.model_short}</strong> handles cold weather better — less range loss in winter`);
+  }
+
+  return bullets.slice(0, 3);
+}
+
 export default function VehicleRecommendations({
   routine,
   onSelectVehicle,
@@ -64,9 +156,12 @@ export default function VehicleRecommendations({
   const [error, setError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [showLowFit, setShowLowFit] = useState(false);
+  const [showAlsoFits, setShowAlsoFits] = useState(false);
+  const [decisionPriority, setDecisionPriority] = useState<DecisionPriority>(null);
 
-  // Track page load time for "See Full Report" click tracking (NEW: March 2026)
+  // Track page load time for "See Full Report" click tracking
   const pageLoadTimeRef = useRef(Date.now());
+  const clusterTrackedRef = useRef(false);
 
   const weeklyMiles = routine.weekly_miles
     ?? (routine.commute_miles_roundtrip ? routine.commute_miles_roundtrip * 5 : 100);
@@ -96,15 +191,13 @@ export default function VehicleRecommendations({
           setDealerQuestions(data.dealer_questions.top_3);
           setUserZipCode(data.user_zip_code ?? null);
 
-          // Legacy event tracking
           trackEvent("recommendations_viewed", {
             count: data.recommendations.length,
             great_fit_count: data.recommendations.filter(r => r.fit_label === "Great Fit").length,
             good_fit_count: data.recommendations.filter(r => r.fit_label === "Good Fit").length,
           });
 
-          // NEW: Comprehensive vehicle list generation tracking (March 2026)
-          const topVehicle = data.recommendations[0]; // Already sorted by fit score
+          const topVehicle = data.recommendations[0];
           if (topVehicle) {
             trackVehicleListGenerated({
               total_vehicles_shown: data.recommendations.length,
@@ -121,10 +214,10 @@ export default function VehicleRecommendations({
                 daily_miles: weeklyMiles / 7,
                 home_charging: routine.charging_access === "home",
                 zip: data.user_zip_code || "",
-                shared_charger: false, // Not tracked in this flow
+                shared_charger: false,
               },
-              generation_time_ms: 0, // Time tracked on backend, not available here
-              session_id: "", // Will be added by tracking hook
+              generation_time_ms: 0,
+              session_id: "",
             });
           }
         }
@@ -147,22 +240,61 @@ export default function VehicleRecommendations({
     ? recommendations
     : recommendations.filter(r => r.sub_category === categoryFilter);
 
-  // Split into recommended (Good Fit+) and other
   const recommended = filtered.filter(r => r.fit_score >= 65);
   const lowFit = filtered.filter(r => r.fit_score < 65);
 
-  // Detect ties: top 2+ cars within 2 score points of each other
+  // Tie detection (for analytics only)
   const topScore = recommended[0]?.fit_score ?? 0;
-  const tiedCars = recommended.filter(r => topScore - r.fit_score <= 2);
-  const hasTie = tiedCars.length >= 2;
+  const tiedCount = recommended.filter(r => topScore - r.fit_score <= 2).length;
 
-  // Available categories (only show filter pills for categories that exist)
+  // Top 3 / also fits split (re-sort top3 if priority is selected)
+  const sortedRecommended = decisionPriority
+    ? [...recommended].sort((a, b) => {
+        if (b.fit_score !== a.fit_score) return b.fit_score - a.fit_score;
+        return computeTieScore(b, routine, decisionPriority) - computeTieScore(a, routine, decisionPriority);
+      })
+    : recommended;
+
+  const top3 = sortedRecommended.slice(0, 3);
+  const alsoFits = sortedRecommended.slice(3);
+
+  // Tie-break question gate: show when top 1 vs top 2 tie_score delta < 5
+  const top1TieScore = top3[0]?.dimensions ? computeTieScore(top3[0], routine, null) : null;
+  const top2TieScore = top3[1]?.dimensions ? computeTieScore(top3[1], routine, null) : null;
+  const showTieBreakQuestion =
+    decisionPriority === null &&
+    top1TieScore !== null &&
+    top2TieScore !== null &&
+    Math.abs(top1TieScore - top2TieScore) < 5;
+
+  // Analytics: cluster detection (fire once when data loads)
+  useEffect(() => {
+    if (!loading && !clusterTrackedRef.current && tiedCount >= 2) {
+      clusterTrackedRef.current = true;
+      trackEvent("results_cluster_detected", { count: tiedCount });
+    }
+  }, [loading, tiedCount]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Analytics: top 3 rendered (fire once when data loads)
+  useEffect(() => {
+    if (!loading && top3.length > 0) {
+      trackEvent("top3_rendered", { top3_models: top3.map(r => r.model_short) });
+    }
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Analytics: tie-break question shown
+  useEffect(() => {
+    if (showTieBreakQuestion && top1TieScore !== null && top2TieScore !== null) {
+      trackEvent("tie_break_question_shown", { delta: Math.abs(top1TieScore - top2TieScore) });
+    }
+  }, [showTieBreakQuestion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Available category filters
   const availableCategories = CATEGORY_FILTERS.filter(
     f => f.value === "all" || recommendations.some(r => r.sub_category === f.value)
   );
 
-  const handleSelect = (rec: VehicleRecommendation) => {
-    // Legacy event tracking
+  const handleSelect = (rec: VehicleRecommendation, rank: number) => {
     trackEvent("recommendation_selected", {
       model: rec.model,
       year: rec.year,
@@ -170,7 +302,8 @@ export default function VehicleRecommendations({
       fit_label: rec.fit_label,
     });
 
-    // NEW: Comprehensive "See Full Report" click tracking (March 2026)
+    trackEvent("winner_selected", { model: rec.model_short, rank });
+
     const positionInList = recommendations.findIndex(r =>
       r.make === rec.make && r.model_short === rec.model_short && r.year === rec.year
     ) + 1;
@@ -187,11 +320,14 @@ export default function VehicleRecommendations({
       total_vehicles_in_list: recommendations.length,
       time_on_page_seconds: Math.floor((Date.now() - pageLoadTimeRef.current) / 1000),
       clicked_from: "vehicle_card",
-      session_id: "", // Will be added by tracking hook
+      session_id: "",
     });
 
     onSelectVehicle({ model: rec.model, year: rec.year });
   };
+
+  const diffBullets = getDiffBullets(top3);
+  const coachGuidance = top3[0] ? getCoachGuidance(top3[0], routine, weeklyMiles) : null;
 
   return (
     <motion.div
@@ -266,77 +402,113 @@ export default function VehicleRecommendations({
             </div>
           )}
 
-          {/* Tiebreaker panel — shown when 2+ top cars are within 2 score points */}
-          {hasTie && (
-            <div className="mb-5 bg-amber-50 border border-amber-200 rounded-2xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-amber-200 flex items-center gap-2">
-                <Scale className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                <p className="text-sm font-semibold text-amber-900">
-                  {tiedCars.length} cars tied at {topScore} — here's what sets them apart
-                </p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-amber-100">
-                      <th className="text-left px-4 py-2 text-amber-700 font-medium w-32">Vehicle</th>
-                      <th className="px-3 py-2 text-amber-700 font-medium text-center">
-                        <span className="flex items-center justify-center gap-1"><Zap className="w-3 h-3" />Range</span>
-                      </th>
-                      <th className="px-3 py-2 text-amber-700 font-medium text-center">
-                        <span className="flex items-center justify-center gap-1"><Battery className="w-3 h-3" />Battery</span>
-                      </th>
-                      <th className="px-3 py-2 text-amber-700 font-medium text-center">
-                        <span className="flex items-center justify-center gap-1"><Brain className="w-3 h-3" />Mental Load</span>
-                      </th>
-                      <th className="px-3 py-2 text-amber-700 font-medium text-center">Top Risk</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tiedCars.map((car, i) => (
-                      <tr key={car.model} className={i < tiedCars.length - 1 ? "border-b border-amber-100" : ""}>
-                        <td className="px-4 py-2.5 font-medium text-gray-900 leading-tight">
-                          {car.year} {car.model_short}
-                          <span className="block text-gray-400 font-normal">{car.chemistry}</span>
-                        </td>
-                        <td className="px-3 py-2.5 text-center text-gray-700 font-semibold">{car.real_world_range_mi} mi</td>
-                        <td className="px-3 py-2.5 text-center text-gray-700">{car.battery_kwh} kWh</td>
-                        <td className="px-3 py-2.5 text-center">
-                          <span className={`px-2 py-0.5 rounded-full font-medium ${
-                            car.mental_load === "low" ? "bg-green-100 text-green-700" :
-                            car.mental_load === "medium" ? "bg-amber-100 text-amber-700" :
-                            "bg-red-100 text-red-700"
-                          }`}>
-                            {car.mental_load}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5 text-center text-gray-500 max-w-[120px]">
-                          {car.top_stress_flag ?? "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="px-4 py-2.5 bg-amber-50 border-t border-amber-100">
-                <p className="text-xs text-amber-700">
-                  <span className="font-semibold">Tip:</span> If you charge at home, prioritize range. If you rely on public charging, lower mental load wins. Click any card below to run the full analysis.
-                </p>
+          {/* Coach guidance — why #1 was chosen */}
+          {coachGuidance && (
+            <div className="mb-4 flex gap-3 px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl">
+              <Lightbulb className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-blue-900 leading-snug">{coachGuidance}</p>
+            </div>
+          )}
+
+          {/* "What sets them apart" diff bullets */}
+          {top3.length >= 2 && diffBullets.length > 0 && (
+            <div className="mb-4 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">What sets the top picks apart</p>
+              <ul className="space-y-1">
+                {diffBullets.map((bullet, i) => (
+                  <li key={i} className="text-sm text-gray-600 flex gap-1.5">
+                    <span className="text-gray-400 shrink-0">•</span>
+                    <span dangerouslySetInnerHTML={{ __html: bullet }} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Recommended vehicles — Top 3 */}
+          {top3.length > 0 && (
+            <div className="space-y-4 mb-4">
+              {top3.map((rec, i) => (
+                <RecommendationCard
+                  key={rec.model}
+                  recommendation={rec}
+                  onSelect={() => handleSelect(rec, i + 1)}
+                  userZipCode={userZipCode}
+                  weeklyMiles={weeklyMiles}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* "What sets them apart" diff bullets */}
+          {top3.length >= 2 && diffBullets.length > 0 && (
+            <div className="mb-4 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">What sets them apart</p>
+              <ul className="space-y-1">
+                {diffBullets.map((bullet, i) => (
+                  <li key={i} className="text-sm text-gray-600 flex gap-1.5">
+                    <span className="text-gray-400 shrink-0">•</span>
+                    <span dangerouslySetInnerHTML={{ __html: bullet.replace(/^(\S+ \S+)/, "<strong>$1</strong>") }} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Tie-break question — shown when top 1 vs top 2 are very close */}
+          {showTieBreakQuestion && top3.length >= 2 && (
+            <div className="mb-5 bg-blue-50 border border-blue-200 rounded-2xl p-4">
+              <p className="text-sm font-semibold text-blue-900 mb-3">
+                {top3[0].model_short} and {top3[1].model_short} are nearly identical — what matters most to you?
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { key: "friction" as const, label: "Lowest charging friction" },
+                  { key: "spend"   as const, label: "Lowest spend" },
+                  { key: "space"   as const, label: "More space" },
+                ] as const).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setDecisionPriority(key);
+                      trackEvent("tie_break_choice_selected", { priority: key });
+                    }}
+                    className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-full hover:bg-blue-100 transition-colors"
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Recommended vehicles */}
-          {recommended.length > 0 && (
-            <div className="space-y-4 mb-6">
-              {recommended.map((rec) => (
-                <RecommendationCard
-                  key={rec.model}
-                  recommendation={rec}
-                  onSelect={() => handleSelect(rec)}
-                  userZipCode={userZipCode}
-                />
-              ))}
+          {/* "Also fits" collapsed section */}
+          {alsoFits.length > 0 && (
+            <div className="mb-6">
+              <button
+                onClick={() => {
+                  const next = !showAlsoFits;
+                  setShowAlsoFits(next);
+                  if (next) trackEvent("also_fits_expanded", { count: alsoFits.length });
+                }}
+                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <span>Show {alsoFits.length} more that also fit</span>
+                {showAlsoFits ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              {showAlsoFits && (
+                <div className="space-y-4 mt-4">
+                  {alsoFits.map((rec, i) => (
+                    <RecommendationCard
+                      key={rec.model}
+                      recommendation={rec}
+                      onSelect={() => handleSelect(rec, top3.length + i + 1)}
+                      userZipCode={userZipCode}
+                      weeklyMiles={weeklyMiles}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -361,9 +533,10 @@ export default function VehicleRecommendations({
                     <RecommendationCard
                       key={rec.model}
                       recommendation={rec}
-                      onSelect={() => handleSelect(rec)}
+                      onSelect={() => handleSelect(rec, -1)}
                       muted
                       userZipCode={userZipCode}
+                      weeklyMiles={weeklyMiles}
                     />
                   ))}
                 </div>

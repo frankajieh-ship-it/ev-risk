@@ -38,6 +38,8 @@ import VinCheckSection from "@/components/receipt/VinCheckSection";
 import ModelInfoSection from "@/components/receipt/ModelInfoSection";
 import DeepDiveSection from "@/components/receipt/DeepDiveSection";
 import NegotiatorSection from "@/components/receipt/NegotiatorSection";
+import RedditDraftSection from "@/components/receipt/RedditDraftSection";
+import NegotiationDeepSection from "@/components/receipt/NegotiationDeepSection";
 import PdfDownloadButton from "@/components/receipt/PdfDownloadButton";
 import CompareBadge from "@/components/receipt/CompareBadge";
 import CompareSelectModal from "@/components/receipt/CompareSelectModal";
@@ -105,6 +107,82 @@ async function fetchWithRetry(
   throw new Error("Max retries exceeded");
 }
 
+// --- On-demand Receipt Details wrapper ---
+// Renders a "Generate Details" trigger; when ready, hands off to ReceiptDetailsAccordion.
+
+function ReceiptDetailsOnDemand({
+  receiptId,
+  operatorNotes,
+  listingSummary,
+  region,
+  initialStatus,
+}: {
+  receiptId: string;
+  operatorNotes?: import("@/types/receipt").OperatorNotes;
+  listingSummary?: import("@/types/receipt").ListingSummary;
+  region?: import("@/lib/region").Region;
+  initialStatus?: string;
+}) {
+  const [detailStatus, setDetailStatus] = useState<string>(initialStatus ?? "not_requested");
+  const [details, setDetails] = useState<import("@/types/receipt").ReceiptDetails | null>(null);
+
+  const generate = useCallback(async () => {
+    setDetailStatus("running");
+    try {
+      const res = await fetch(`/api/receipt/${receiptId}/generate/receipt_details`, { method: "POST" });
+      const json = await res.json();
+      if (json.success && json.data) {
+        setDetails(json.data as import("@/types/receipt").ReceiptDetails);
+        setDetailStatus("ready");
+      } else {
+        setDetailStatus("failed");
+      }
+    } catch {
+      setDetailStatus("failed");
+    }
+  }, [receiptId]);
+
+  if (detailStatus === "ready" && details) {
+    return (
+      <ReceiptDetailsAccordion
+        details={details}
+        operatorNotes={operatorNotes}
+        listingSummary={listingSummary}
+        region={region}
+      />
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+      <div className="px-4 py-3">
+        {detailStatus === "not_requested" && (
+          <button
+            onClick={generate}
+            className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+          >
+            Show Fee Estimates &amp; Listing Details
+          </button>
+        )}
+        {detailStatus === "running" && (
+          <div className="flex items-center justify-center gap-2 py-3 text-sm text-gray-500">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Generating details...
+          </div>
+        )}
+        {detailStatus === "failed" && (
+          <button
+            onClick={generate}
+            className="w-full flex items-center justify-center gap-2 py-2.5 text-sm text-red-600 hover:text-red-800 bg-red-50 rounded-lg border border-red-200 transition-colors"
+          >
+            Retry — details generation failed
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ReceiptPage() {
   const { trackEvent } = useEventTracking();
   useVisitorTracking();
@@ -160,6 +238,9 @@ export default function ReceiptPage() {
     fields: StructuredListingFields;
     extraction_id?: string;
   } | null>(null);
+
+  // On-demand section statuses (populated after core upgrade completes)
+  const [sections, setSections] = useState<Record<string, { status: string }> | null>(null);
 
   // Decision Pack state
   const [deepDive, setDeepDive] = useState<DeepDiveContent | null>(null);
@@ -389,6 +470,7 @@ export default function ReceiptPage() {
           clearInterval(poll);
           upgradePollingRef.current = null;
           setReceipt(data.receipt);
+          if (data.sections) setSections(data.sections);
           setIsUpgrading(false);
           setIsFallback(false);
 
@@ -972,6 +1054,14 @@ export default function ReceiptPage() {
                 onSellerPackUpgrade={handleSellerPackAction}
               />
 
+              {/* On-demand: extended negotiation scripts */}
+              {!isUpgrading && receipt.receipt_id && (
+                <NegotiationDeepSection
+                  receiptId={receipt.receipt_id}
+                  initialStatus={sections?.negotiation_deep?.status}
+                />
+              )}
+
               {/* Routine Fit — moved up for prominence */}
               <RoutineFitMiniStep
                 receiptMileage={receipt.listing_summary?.mileage}
@@ -1025,6 +1115,15 @@ export default function ReceiptPage() {
                   compact
                 />
               </div>
+
+              {/* On-demand: Reddit draft */}
+              {!isUpgrading && receipt.receipt_id && (
+                <RedditDraftSection
+                  receiptId={receipt.receipt_id}
+                  initialDraft={receipt.reddit_draft ?? undefined}
+                  initialStatus={sections?.reddit_draft?.status}
+                />
+              )}
 
               {/* Email capture — moved up for visibility */}
               <div id="email-capture-card">
@@ -1081,15 +1180,23 @@ export default function ReceiptPage() {
                 />
               )}
 
-              {/* Details accordion */}
-              {receipt.receipt_details && (
+              {/* Details accordion — on-demand if not yet generated */}
+              {receipt.receipt_details ? (
                 <ReceiptDetailsAccordion
                   details={receipt.receipt_details}
                   operatorNotes={receipt.operator_notes}
                   listingSummary={receipt.listing_summary}
                   region={region}
                 />
-              )}
+              ) : !isUpgrading && receipt.receipt_id ? (
+                <ReceiptDetailsOnDemand
+                  receiptId={receipt.receipt_id}
+                  operatorNotes={receipt.operator_notes}
+                  listingSummary={receipt.listing_summary}
+                  region={region}
+                  initialStatus={sections?.receipt_details?.status}
+                />
+              ) : null}
 
               {/* Feedback */}
               <FeedbackWidget

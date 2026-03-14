@@ -14,5 +14,9 @@
 [functions.render-pdf]
   node_bundler = "esbuild"
 
+# Background function: AI receipt upgrade (no sync timeout — runs up to 15 minutes)
+[functions.upgrade-receipt-background]
+  timeout = 900
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"

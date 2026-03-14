@@ -28,13 +28,14 @@ interface RecommendationCardProps {
   onSelect: () => void;
   muted?: boolean;
   userZipCode?: string | null;
+  weeklyMiles?: number;
 }
 
 function formatPrice(cents: number): string {
   return "$" + Math.round(cents / 100).toLocaleString();
 }
 
-export default function RecommendationCard({ recommendation: rec, onSelect, muted, userZipCode }: RecommendationCardProps) {
+export default function RecommendationCard({ recommendation: rec, onSelect, muted, userZipCode, weeklyMiles }: RecommendationCardProps) {
   const { trackExternalLinkClicked } = useEventTracking();
   const [expanded, setExpanded] = useState(false);
   const colors = fitColors[rec.fit_label] ?? fitColors["Mixed Fit"];
@@ -47,7 +48,7 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
     year: rec.year,
     zip: userZipCode ?? undefined,
     range_mi: rec.real_world_range_mi,
-    battery_kwh: rec.battery_kwh,
+    weekly_miles: weeklyMiles,
   });
 
   // Handle external link clicks (NEW: March 2026)
