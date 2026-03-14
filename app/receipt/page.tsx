@@ -32,8 +32,6 @@ import ReceiptDetailsAccordion from "@/components/receipt/ReceiptDetailsAccordio
 import ReceiptHistoryDrawer from "@/components/receipt/ReceiptHistoryDrawer";
 import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
 // EmailGateModal removed — 100% skip rate, replaced by inline EmailCaptureCard
-import DecisionPackCard from "@/components/receipt/DecisionPackCard";
-import SellerPackCard from "@/components/receipt/SellerPackCard";
 import FeedbackWidget from "@/components/FeedbackWidget";
 import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
 import VinCheckSection from "@/components/receipt/VinCheckSection";
@@ -50,8 +48,7 @@ import { useReceiptHistory } from "@/hooks/useReceiptHistory";
 import { useRegion } from "@/hooks/useRegion";
 import RegionSelector from "@/components/RegionSelector";
 import { getOrCreateReceiptToken } from "@/lib/session-utils";
-import { getDisplayPriceForRegion, getVariantForTier } from "@/lib/price-assignment";
-import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent, GenerationStatus } from "@/types/receipt";
+import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent } from "@/types/receipt";
 
 // Persist/retrieve current receipt ID across auth redirects
 const ACTIVE_RECEIPT_KEY = "offo_active_receipt_id";
@@ -209,7 +206,6 @@ export default function ReceiptPage() {
     compareBoundTo,
     purchaseId,
     packTier,
-    isLoading: isPaymentLoading,
     paymentsEnabled,
     freeMode,
     sellerPackUnlocked,
@@ -886,6 +882,25 @@ export default function ReceiptPage() {
           hasResult={!!receipt}
         />
 
+        {/* Analysis loading indicator */}
+        {isGenerating && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4 flex items-start gap-3"
+          >
+            <Loader2 className="w-5 h-5 text-blue-500 animate-spin flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-blue-800">
+                Analysis in progress — this takes about 20–30 seconds
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                You can explore other tools while you wait — this page will update automatically when ready.
+              </p>
+            </div>
+          </motion.div>
+        )}
+
         {/* Return to Routine banner — shown when coming from routine and vehicle extracted */}
         {returnToRoutine && routineVehicleReady && (
           <motion.div
@@ -945,25 +960,6 @@ export default function ReceiptPage() {
                 upgradeFailed={upgradeFailed}
               />
 
-              {/* Buyer Pass teaser — proactive, not gated */}
-              {!isUnlocked && !freeMode && paymentsEnabled && (
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 p-4 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">
-                      Want the full picture on this {[receipt.listing_summary?.year, receipt.listing_summary?.make, receipt.listing_summary?.model].filter(Boolean).join(" ") || "listing"}?
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Deep market comparison, 3-year cost projection, and ready-to-send negotiation scripts. Plus 9 more receipt checks.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handlePremiumAction("inline_teaser")}
-                    className="flex-shrink-0 px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors whitespace-nowrap"
-                  >
-                    Get Buyer Pass — {getDisplayPriceForRegion("999", region)}
-                  </button>
-                </div>
-              )}
 
               {/* Negotiator — Seller Strategy */}
               <NegotiatorSection
@@ -1023,15 +1019,11 @@ export default function ReceiptPage() {
                   <QrCode className="w-4 h-4" />
                   Share
                 </button>
-                {paymentsEnabled && !freeMode && (
-                  <PdfDownloadButton
-                    receiptId={receipt.receipt_id}
-                    receiptToken={receiptToken}
-                    isUnlocked={isUnlocked}
-                    onCheckoutRedirect={() => handlePremiumAction("download_pdf")}
-                    compact
-                  />
-                )}
+                <PdfDownloadButton
+                  receiptId={receipt.receipt_id}
+                  receiptToken={receiptToken}
+                  compact
+                />
               </div>
 
               {/* Email capture — moved up for visibility */}
@@ -1047,31 +1039,6 @@ export default function ReceiptPage() {
                 />
               </div>
 
-              {/* Decision Pack paywall (shown on premium action click, hidden in free mode) */}
-              {showPaywall && !decisionPackDismissed && !isPaymentLoading && !freeMode && (
-                <div id="decision-pack-card">
-                  <DecisionPackCard
-                    receiptToken={receiptToken}
-                    receiptId={receipt.receipt_id}
-                    triggerReason={paywallTrigger}
-                    onDismiss={() => setDecisionPackDismissed(true)}
-                    region={region}
-                  />
-                </div>
-              )}
-
-              {/* Seller Pack paywall (shown on seller pack action click) */}
-              {showSellerPackPaywall && !sellerPackDismissed && !sellerPackUnlocked && !freeMode && paymentsEnabled && (
-                <div id="seller-pack-card">
-                  <SellerPackCard
-                    receiptToken={receiptToken}
-                    receiptId={receipt.receipt_id}
-                    displayPrice={getDisplayPriceForRegion(getVariantForTier("seller_questions", receiptToken), region)}
-                    questionCount={receipt.must_answer_questions?.length || 0}
-                    onDismiss={() => setSellerPackDismissed(true)}
-                  />
-                </div>
-              )}
 
               {/* Deep dive content (when unlocked, hidden in free mode) */}
               {isUnlocked && deepDive && !freeMode && (

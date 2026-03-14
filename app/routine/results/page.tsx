@@ -19,7 +19,7 @@ import WhyTheseCarsBlock from "@/components/blocks/WhyTheseCarsBlock";
 import HowWeDecidedBlock from "@/components/blocks/HowWeDecidedBlock";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { getOrCreatePersistentSessionId, getOrCreateReceiptToken } from "@/lib/session-utils";
-import { addToShortlist } from "@/lib/shortlist-store";
+import { addToShortlist, getShortlist } from "@/lib/shortlist-store";
 import { generateFitOneLiner } from "@/lib/fit-verdict-liner";
 import type { RoutineFitScore, MinimumViableRoutine } from "@/types/v2";
 import type { FitVerdict, StressFlagContract } from "@/types/v2-contract";
@@ -245,6 +245,7 @@ function RoutineResultsContent() {
   // Shortlist state
   const [shortlistAdded, setShortlistAdded] = useState(false);
   const [shortlistFull, setShortlistFull] = useState(false);
+  const [showCoachNudge, setShowCoachNudge] = useState(false);
 
   const handleShare = useCallback(async () => {
     if (!result?.run_id) return;
@@ -270,6 +271,16 @@ function RoutineResultsContent() {
       setSharing(false);
     }
   }, [result, trackEvent]);
+
+  // Check shortlist for ties when result loads
+  useEffect(() => {
+    if (!result) return;
+    const existing = getShortlist().filter((c) => c.run_id !== result.run_id);
+    if (existing.length === 0) return;
+    const currentScore = result.fit_score.score_0_100;
+    const hasTie = existing.some((c) => Math.abs((c.fit_score.score_0_100 ?? 0) - currentScore) <= 10);
+    if (hasTie) setShowCoachNudge(true);
+  }, [result]);
 
   const handleAddToShortlist = useCallback(() => {
     if (!result) return;
@@ -1139,6 +1150,28 @@ function RoutineResultsContent() {
           </div>
         )}
       </div>
+
+      {/* Proactive coach nudge — shown when shortlist has 2+ close-scoring cars */}
+      {showCoachNudge && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4"
+        >
+          <p className="text-sm font-semibold text-amber-900">
+            You have similar-scoring cars in your shortlist
+          </p>
+          <p className="text-xs text-amber-700 mt-1 mb-3">
+            Scores are close — the tie-breaker coach can help you decide based on your actual routine.
+          </p>
+          <a
+            href="/shortlist"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 text-white text-xs font-semibold rounded-lg hover:bg-amber-700 transition-colors"
+          >
+            Open tie-breaker coach →
+          </a>
+        </motion.div>
+      )}
     </motion.div>
   );
 }

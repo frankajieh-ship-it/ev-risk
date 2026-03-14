@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { checkPurchaseStatus } from "@/lib/payment-status";
+import { isPaymentsEnabledFor } from "@/lib/rollout-flags";
 import { renderPdf } from "@/lib/pdf/render-client";
 import { humanizeFlag } from "@/lib/receipt-rules";
 import type { ReceiptPdfData } from "@/lib/pdf/shared-types";
@@ -30,13 +31,16 @@ export async function GET(
     return NextResponse.json({ error: "Missing or invalid anon_id" }, { status: 400 });
   }
 
-  // 1. Check entitlement
-  const status = await checkPurchaseStatus("receipt", receiptId, anonId);
-  if (!status.unlocked_base || status.purchase_status !== "paid") {
-    return NextResponse.json({ error: "Purchase required to download PDF" }, { status: 402 });
+  // 1. Check entitlement (skip payment gate when payments are disabled)
+  const paymentsEnabled = isPaymentsEnabledFor(anonId);
+  let packTier = "buyer_pass";
+  if (paymentsEnabled) {
+    const status = await checkPurchaseStatus("receipt", receiptId, anonId);
+    if (!status.unlocked_base || status.purchase_status !== "paid") {
+      return NextResponse.json({ error: "Purchase required to download PDF" }, { status: 402 });
+    }
+    packTier = status.pack_tier || "buyer_pass";
   }
-
-  const packTier = status.pack_tier || "buyer_pass";
 
   try {
     // 2. Load receipt
