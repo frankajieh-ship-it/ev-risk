@@ -33,6 +33,19 @@ export function logApi(
   if (level === "error") console.error(line);
   else if (level === "warn") console.warn(line);
   else console.log(line);
+
+  // Drain to Logtail/BetterStack if configured (fire-and-forget)
+  const logtailToken = process.env.LOGTAIL_SOURCE_TOKEN;
+  if (logtailToken) {
+    fetch("https://in.logtail.com/", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${logtailToken}`,
+        "Content-Type": "application/json",
+      },
+      body: line,
+    }).catch(() => {}); // never throw — log drain must not affect request path
+  }
 }
 
 /**

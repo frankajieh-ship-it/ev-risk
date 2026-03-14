@@ -56,7 +56,7 @@ async function getInviteData(token: string): Promise<{
       .from("user_events")
       .insert({
         event_name: "invite_opened",
-        event_data: { invite_token: token, share_slug: invite.share_slug },
+        event_data: { share_slug: invite.share_slug },
         page_path: `/i/${token}`,
         timestamp: now,
       })

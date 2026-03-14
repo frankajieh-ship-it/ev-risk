@@ -261,15 +261,26 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Handle OPTIONS for CORS preflight (if needed later)
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
-  });
+// CORS — restrict to own domains only
+const ALLOWED_ORIGINS = [
+  process.env.NEXT_PUBLIC_SITE_URL || "https://offo.com",
+  "https://offo.netlify.app",
+];
+
+function corsHeaders(origin: string | null): Record<string, string> {
+  const allowed = !!origin && ALLOWED_ORIGINS.some(
+    (o) => origin === o || origin.endsWith(".netlify.app")
+  );
+  return {
+    "Access-Control-Allow-Origin": allowed && origin ? origin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Vary": "Origin",
+  };
+}
+
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  return new NextResponse(null, { status: 204, headers: corsHeaders(origin) });
 }
 

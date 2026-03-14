@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 
     // Try up to 3 slugs in case of collision
     for (let attempt = 0; attempt < 3; attempt++) {
-      const slug = crypto.randomUUID().slice(0, 8);
+      const slug = Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString("base64url");
 
       const { error: insertError } = await supabase
         .from("shared_receipts")

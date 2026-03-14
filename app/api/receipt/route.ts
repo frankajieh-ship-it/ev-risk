@@ -23,7 +23,7 @@ import { extractSignalsFromText } from "@/lib/receipt-signal-extractor";
 import { validateReceiptSchema } from "@/lib/receipt-schema-validator";
 import type { LintError } from "@/lib/receipt-schema-validator";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { hashIP } from "@/lib/session-utils";
+import { hashIP, isValidReceiptToken } from "@/lib/session-utils";
 import { checkIsPro } from "@/lib/receipt-pro";
 import { getFeatureFlags } from "@/lib/feature-flags";
 import { computeInputHash, checkIdempotency, claimRequest, completeRequest, failRequest } from "@/lib/receipt-idempotency";
@@ -64,9 +64,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 2. Validate receipt_token
+  // 2. Validate receipt_token (format + age check)
   const receiptToken = body.receipt_token;
-  if (!receiptToken || typeof receiptToken !== "string" || receiptToken.length < 5) {
+  const tokenIsInternal = isInternalTester(receiptToken as string);
+  if (!receiptToken || typeof receiptToken !== "string" ||
+      (!tokenIsInternal && !isValidReceiptToken(receiptToken))) {
     return NextResponse.json(
       { success: false, error: "Missing or invalid receipt_token" },
       { status: 400 }
@@ -74,7 +76,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 3. Burst rate limit (testers bypass)
-  if (!isInternalTester(receiptToken as string)) {
+  if (!tokenIsInternal) {
     const burst = receiptBurstLimiter.check(clientIP);
     if (!burst.allowed) {
       const retryAfterSec = Math.max(1, Math.ceil((burst.resetAt - Date.now()) / 1000));

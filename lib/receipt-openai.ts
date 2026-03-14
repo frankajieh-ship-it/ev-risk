@@ -21,7 +21,7 @@ function getOpenAI(): OpenAI {
   if (!_openai) {
     _openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
-      timeout: 30_000,
+      timeout: 25_000,  // 25s per call; first + retry = 50s, within the 55s internal deadline
       maxRetries: 0,
     });
   }
@@ -30,9 +30,9 @@ function getOpenAI(): OpenAI {
 
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-// Time budget: skip retry if first call already consumed most of the allowed time
-// 4s keeps ~21s for the retry + post-processing within Netlify's 26s function limit
-const TIME_BUDGET_MS = 4000;
+// Time budget: skip retry if first call already consumed most of the allowed time.
+// Allow up to 30s for the first attempt; leaves ~20s for the retry within the 55s internal deadline.
+const TIME_BUDGET_MS = 30_000;
 
 // ---------------------------------------------------------------------------
 // Streaming helper — collects streamed chunks into a single string.
@@ -104,6 +104,21 @@ SIGNAL RULES:
 - Hard blockers: only if strong evidence. Evidence bonuses: only if listing explicitly shows it. Evidence penalties: if listing does NOT address it.
 - "Not mentioned" = the corresponding "missing" or "unclear" penalty applies.`;
 
+// --- Prompt Sanitization ---
+
+/**
+ * Strip characters that could be used for prompt injection and cap length.
+ * Applied to all user-supplied free-text fields before prompt interpolation.
+ */
+function sanitizeForPrompt(value: string | undefined | null, maxLen = 200): string {
+  if (!value) return "";
+  return value
+    .replace(/[<>\[\]{}|`\\]/g, "") // strip injection-prone chars
+    .replace(/\n{3,}/g, "\n\n")      // collapse excessive newlines
+    .trim()
+    .slice(0, maxLen);
+}
+
 // --- User Prompt Builder ---
 
 function buildUserPrompt(input: ReceiptGenerateRequest): string {
@@ -115,18 +130,18 @@ function buildUserPrompt(input: ReceiptGenerateRequest): string {
   }
 
   if (input.listing_text) {
-    const trimmed = input.listing_text.substring(0, 2500);
+    const trimmed = sanitizeForPrompt(input.listing_text, 2500);
     parts.push("LISTING TEXT:");
     parts.push(trimmed);
     parts.push("");
   }
 
-  // Structured fields
+  // Structured fields — sanitize all free-text user input before interpolation
   const fields: string[] = [];
   if (input.year) fields.push(`Year: ${input.year}`);
-  if (input.make) fields.push(`Make: ${input.make}`);
-  if (input.model) fields.push(`Model: ${input.model}`);
-  if (input.trim) fields.push(`Trim: ${input.trim}`);
+  if (input.make) fields.push(`Make: ${sanitizeForPrompt(input.make)}`);
+  if (input.model) fields.push(`Model: ${sanitizeForPrompt(input.model)}`);
+  if (input.trim) fields.push(`Trim: ${sanitizeForPrompt(input.trim)}`);
   if (input.mileage) fields.push(`Mileage: ${input.mileage.toLocaleString()}`);
   if (input.price) {
     const priceStr = input.region === "UK"
@@ -134,8 +149,8 @@ function buildUserPrompt(input: ReceiptGenerateRequest): string {
       : `$${input.price.toLocaleString()}`;
     fields.push(`Asking Price: ${priceStr}`);
   }
-  if (input.vin) fields.push(`VIN: ${input.vin}`);
-  if (input.location) fields.push(`Location: ${input.location}`);
+  if (input.vin) fields.push(`VIN: ${sanitizeForPrompt(input.vin, 20)}`);
+  if (input.location) fields.push(`Location: ${sanitizeForPrompt(input.location)}`);
   if (input.seller_type && input.seller_type !== "unknown")
     fields.push(`Seller type: ${input.seller_type}`);
   if (input.title_status && input.title_status !== "unknown")

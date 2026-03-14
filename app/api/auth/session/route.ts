@@ -9,6 +9,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { audit } from "@/lib/audit-logger";
+import { getClientIP } from "@/lib/rate-limiter";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -47,12 +49,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ authenticated: false }, { status: 200 });
   }
 
+  const ip = getClientIP(req);
+
   try {
     const { data: { user }, error } = await supabase.auth.getUser(accessToken);
 
     if (error || !user) {
+      audit({ actor_type: "anon", action: "auth.session_invalid", result: "denied", ip });
       return NextResponse.json({ authenticated: false }, { status: 200 });
     }
+
+    audit({ actor_type: "user", actor_id: user.id, action: "auth.session_valid", result: "ok", ip });
 
     // Get user profile
     const { data: profile } = await supabase
@@ -87,6 +94,8 @@ export async function POST(req: NextRequest) {
       { status: 503 }
     );
   }
+
+  const ip = getClientIP(req);
 
   try {
     const body = await req.json();
@@ -123,11 +132,28 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error("Magic link error:", error);
+      audit({
+        actor_type: "anon",
+        action: "auth.otp_send_fail",
+        result: "error",
+        ip,
+        metadata: { error_code: error.status },
+      });
       return NextResponse.json(
         { success: false, error: error.message },
         { status: 400 }
       );
     }
+
+    // Log domain only — never the full email address
+    const emailDomain = email.split("@")[1] ?? "unknown";
+    audit({
+      actor_type: "anon",
+      action: "auth.otp_sent",
+      result: "ok",
+      ip,
+      metadata: { email_domain: emailDomain },
+    });
 
     // Optionally store session_id association for post-login scenario save
     if (session_id) {

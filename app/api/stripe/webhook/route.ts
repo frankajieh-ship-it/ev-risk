@@ -22,6 +22,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { audit } from "@/lib/audit-logger";
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -79,6 +80,12 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existingEvent) {
+      audit({
+        actor_type: "webhook",
+        action: "payment.duplicate_webhook",
+        result: "ok",
+        metadata: { event_id: event.id, event_type: event.type },
+      });
       return NextResponse.json({ received: true, deduplicated: true });
     }
   } catch {
@@ -202,6 +209,13 @@ async function fulfillOrder(session: Stripe.Checkout.Session) {
 
     if (error || !data) {
       console.error(`❌ Report ${reportId} not found or already paid`);
+      audit({
+        actor_type: "webhook",
+        action: "payment.fulfill_failed",
+        resource: `receipt:${reportId}`,
+        result: "error",
+        metadata: { stripe_session_id: session.id },
+      });
       return false;
     }
 
@@ -211,6 +225,13 @@ async function fulfillOrder(session: Stripe.Checkout.Session) {
       customerEmail,
       amountPaid: `$${amountPaid}`,
       timestamp: new Date().toISOString(),
+    });
+    audit({
+      actor_type: "webhook",
+      action: "payment.fulfilled",
+      resource: `receipt:${reportId}`,
+      result: "ok",
+      metadata: { stripe_session_id: session.id },
     });
 
     return true;
@@ -255,6 +276,13 @@ async function fulfillBuyerPass(session: Stripe.Checkout.Session) {
       console.error(
         `❌ Purchase for session ${session.id} not found or already fulfilled`
       );
+      audit({
+        actor_type: "webhook",
+        action: "payment.fulfill_failed",
+        resource: `purchase:${baseScenarioId}`,
+        result: "error",
+        metadata: { stripe_session_id: session.id, scenario_type: scenarioType },
+      });
       return false;
     }
 
@@ -266,6 +294,14 @@ async function fulfillBuyerPass(session: Stripe.Checkout.Session) {
       purchaseId: data.purchase_id,
       customerEmail: session.customer_details?.email,
       timestamp: new Date().toISOString(),
+    });
+
+    audit({
+      actor_type: "webhook",
+      action: "payment.fulfilled",
+      resource: `purchase:${data.purchase_id}`,
+      result: "ok",
+      metadata: { stripe_session_id: session.id, scenario_type: scenarioType, pack_tier: packTier },
     });
 
     // Log checkout_completed + buyer_pass_activated events

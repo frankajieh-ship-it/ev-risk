@@ -1,0 +1,37 @@
+name: DAST — ZAP Baseline
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # Nightly at 03:00 UTC
+  push:
+    branches:
+      - "release/**"
+      - main
+      - master
+
+jobs:
+  zap-baseline:
+    name: OWASP ZAP Baseline Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          # STAGING_URL must be set in GitHub repo Settings → Secrets → Actions
+          # e.g. https://deploy-preview-xxx--offo.netlify.app
+          target: ${{ secrets.STAGING_URL || 'https://offo.com' }}
+          rules_file_name: .zap/rules.tsv
+          # -I = informational mode: creates GitHub Issues for findings but does not fail CI.
+          # Remove -I once known false positives are suppressed in .zap/rules.tsv.
+          cmd_options: "-I"
+          artifact_name: zap-report
+          issue_title: "ZAP DAST Baseline Report"
+
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-baseline-report
+          path: report_html.html

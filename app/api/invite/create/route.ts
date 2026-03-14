@@ -9,6 +9,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
+
+const inviteCreateLimiter = new RateLimiter(60 * 60 * 1000, 10); // 10/hr per IP
 
 export async function POST(req: NextRequest) {
   if (!isSupabaseConfigured()) {
@@ -16,6 +19,12 @@ export async function POST(req: NextRequest) {
       { success: false, error: "Database not configured" },
       { status: 503 }
     );
+  }
+
+  const ip = getClientIP(req);
+  const rl = inviteCreateLimiter.check(ip);
+  if (!rl.allowed) {
+    return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }
 
   try {
@@ -49,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     // Try up to 3 tokens in case of collision
     for (let attempt = 0; attempt < 3; attempt++) {
-      const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+      const token = Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString("base64url");
 
       const { error: insertError } = await supabase
         .from("invites")
@@ -68,9 +77,9 @@ export async function POST(req: NextRequest) {
           .insert({
             event_name: "invite_created",
             event_data: {
-              invite_token: token,
               share_slug,
               has_email: !!invitee_email,
+              // invite_token intentionally omitted — tokens must not be logged
             },
             page_path: "/api/invite/create",
             timestamp: new Date().toISOString(),

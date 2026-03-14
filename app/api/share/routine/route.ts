@@ -43,6 +43,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!anon_session_id || typeof anon_session_id !== "string") {
+      return NextResponse.json(
+        { success: false, error: "anon_session_id required" },
+        { status: 400 }
+      );
+    }
+
     // Check for existing active share (idempotent)
     const { data: existing } = await supabase
       .from("shared_routines")
@@ -74,14 +81,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Ownership check: anon_session_id must match if provided
-    if (anon_session_id && run.profile_id) {
+    // Ownership check: anon_session_id must always match
+    if (run.profile_id) {
       const { data: profile } = await supabase
         .from("routine_profiles")
         .select("anon_session_id")
         .eq("id", run.profile_id)
         .single();
-      if (profile && profile.anon_session_id !== anon_session_id) {
+      if (!profile || profile.anon_session_id !== anon_session_id) {
         return NextResponse.json(
           { success: false, error: "Unauthorized" },
           { status: 403 }
@@ -94,7 +101,7 @@ export async function POST(req: NextRequest) {
 
     // Try up to 3 slugs in case of collision
     for (let attempt = 0; attempt < 3; attempt++) {
-      const slug = crypto.randomUUID().slice(0, 8);
+      const slug = Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString("base64url");
 
       const { error: insertError } = await supabase
         .from("shared_routines")

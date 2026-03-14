@@ -9,6 +9,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
+
+const shareViewLimiter = new RateLimiter(60 * 1000, 30); // 30 views/min per IP
 
 export async function GET(
   req: NextRequest,
@@ -19,6 +22,12 @@ export async function GET(
       { success: false, error: "Database not configured" },
       { status: 503 }
     );
+  }
+
+  const ip = getClientIP(req);
+  const rl = shareViewLimiter.check(ip);
+  if (!rl.allowed) {
+    return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }
 
   const { slug } = await params;

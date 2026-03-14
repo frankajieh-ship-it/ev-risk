@@ -57,6 +57,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Body size cap — routine inputs are small structured objects
+  const contentLength = parseInt(req.headers.get("content-length") || "0", 10);
+  if (contentLength > 20_000) {
+    return NextResponse.json({ success: false, error: "Request too large" }, { status: 413 });
+  }
+
   const timer = startTimer();
 
   try {

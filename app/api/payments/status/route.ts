@@ -11,12 +11,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { checkPurchaseStatus } from "@/lib/payment-status";
 import { isPaymentsEnabledFor, isFreeMode } from "@/lib/rollout-flags";
+import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 
 const VALID_SCENARIO_TYPES = ["receipt", "evroutine", "routine"];
+
+const statusRateLimiter = new RateLimiter(60 * 1000, 60); // 60/min per IP
 
 export async function GET(request: NextRequest) {
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  }
+
+  const ip = getClientIP(request);
+  if (!statusRateLimiter.check(ip).allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   const params = request.nextUrl.searchParams;

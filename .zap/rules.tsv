@@ -1,0 +1,6 @@
+# ZAP alert suppression rules
+# Format: alertId	action	reason
+# Actions: IGNORE, WARN, FAIL
+# Add rows here to suppress known false positives after reviewing the first scan report.
+10016	IGNORE	CSP present via Next.js middleware, not meta tag
+10020	IGNORE	X-Frame-Options set via middleware

@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { analyticsRateLimiter } from "@/lib/rate-limiter";
 import { logApi } from "@/lib/api-logger";
 
 // Valid event names for validation
@@ -285,6 +286,13 @@ export async function POST(req: NextRequest) {
       { success: false, error: "Database not configured" },
       { status: 503 }
     );
+  }
+
+  // Rate limit: 30 events/min per IP (uses shared analyticsRateLimiter singleton)
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || req.headers.get("x-real-ip") || "unknown";
+  const rlCheck = analyticsRateLimiter.check(ip);
+  if (!rlCheck.allowed) {
+    return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }
 
   try {

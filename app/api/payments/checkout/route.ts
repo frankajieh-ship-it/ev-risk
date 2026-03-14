@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import {
   getVariantForTier,
   getStripePriceId,
@@ -22,6 +23,8 @@ import {
 } from "@/lib/price-assignment";
 
 const VALID_PACK_TIERS: PackTier[] = ["buyer_pass", "seller_questions"];
+
+const checkoutRateLimiter = new RateLimiter(60 * 1000, 5); // 5 attempts per minute per IP
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -38,6 +41,15 @@ export async function POST(request: NextRequest) {
   }
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  }
+
+  const ip = getClientIP(request);
+  const rateCheck = checkoutRateLimiter.check(ip);
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait a moment and try again." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rateCheck.resetAt - Date.now()) / 1000)) } }
+    );
   }
 
   let body: Record<string, unknown>;

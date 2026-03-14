@@ -12,13 +12,34 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { checkPurchaseStatus } from "@/lib/payment-status";
 import { generateDeepDive } from "@/lib/receipt-openai";
+import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import type { ListingReceipt } from "@/types/receipt";
 
 const VALID_SCENARIO_TYPES = ["receipt", "evroutine"];
 
+// Rate limiters — in-memory, apply before any DB or AI calls
+const deepDiveIPLimiter   = new RateLimiter(60 * 60 * 1000, 3); // 3/hr per IP
+const deepDiveAnonLimiter = new RateLimiter(60 * 60 * 1000, 3); // 3/hr per anon_id
+
 export async function POST(request: NextRequest) {
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  }
+
+  // 0a. Body size cap (fail cheap before parsing)
+  const contentLength = parseInt(request.headers.get("content-length") || "0", 10);
+  if (contentLength > 50_000) {
+    return NextResponse.json({ error: "Request too large" }, { status: 413 });
+  }
+
+  // 0b. IP rate limit (cheap, in-memory)
+  const ip = getClientIP(request);
+  const ipCheck = deepDiveIPLimiter.check(ip);
+  if (!ipCheck.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((ipCheck.resetAt - Date.now()) / 1000)) } }
+    );
   }
 
   let body: Record<string, unknown>;
@@ -40,6 +61,15 @@ export async function POST(request: NextRequest) {
   }
   if (!anonId || anonId.length < 5) {
     return NextResponse.json({ error: "Missing or invalid anon_id" }, { status: 400 });
+  }
+
+  // 0c. Per-anon rate limit (after body parse, before DB)
+  const anonCheck = deepDiveAnonLimiter.check(anonId);
+  if (!anonCheck.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((anonCheck.resetAt - Date.now()) / 1000)) } }
+    );
   }
 
   // 1. Check entitlement

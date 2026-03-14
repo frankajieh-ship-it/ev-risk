@@ -63,6 +63,39 @@ export function getReceiptToken(): string | null {
 }
 
 /**
+ * Validate a receipt token (anon_id) server-side.
+ *
+ * Tokens are generated as `rt_${Date.now()}_${random}` (client-side).
+ * Rejects tokens that don't match the expected format, are in the future,
+ * or are older than maxAgeDays (default 30).
+ */
+export function isValidReceiptToken(token: string | null, maxAgeDays = 30): boolean {
+  if (!token || token.length < 10) return false;
+  const match = token.match(/^rt_(\d{13})_[a-z0-9]+$/);
+  if (!match) return false;
+  const ts = parseInt(match[1], 10);
+  const now = Date.now();
+  if (ts > now + 60_000) return false; // reject future tokens (1 min clock skew allowed)
+  if (now - ts > maxAgeDays * 24 * 60 * 60 * 1000) return false;
+  return true;
+}
+
+/**
+ * Validate a persistent session ID server-side.
+ * Format: psess_{13-digit-timestamp}_{alphanumeric}
+ */
+export function isValidPersistentSessionId(id: string | null, maxAgeDays = 365): boolean {
+  if (!id || id.length < 10) return false;
+  const match = id.match(/^psess_(\d{13})_[a-z0-9]+$/);
+  if (!match) return false;
+  const ts = parseInt(match[1], 10);
+  const now = Date.now();
+  if (ts > now + 60_000) return false;
+  if (now - ts > maxAgeDays * 24 * 60 * 60 * 1000) return false;
+  return true;
+}
+
+/**
  * Hash an IP address for privacy-preserving storage
  */
 export function hashIP(ip: string | null): string | null {

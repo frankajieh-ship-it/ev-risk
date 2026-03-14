@@ -73,6 +73,12 @@ function randomizeWithinScoreTiers(vehicles: VehicleRecommendation[]): VehicleRe
 export async function POST(request: NextRequest) {
   const clientIP = getClientIP(request);
 
+  // Body size cap — routine profile fields only, no large payloads expected
+  const contentLength = parseInt(request.headers.get("content-length") || "0", 10);
+  if (contentLength > 20_000) {
+    return NextResponse.json({ error: "Request too large" }, { status: 413 });
+  }
+
   try {
     const body = await request.json();
 

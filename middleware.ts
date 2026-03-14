@@ -14,15 +14,18 @@ export function middleware(request: NextRequest) {
   );
 
   // Content Security Policy
+  // 'unsafe-eval' is needed for React Fast Refresh in dev; omit in production.
+  const isDev = process.env.NODE_ENV !== "production";
   response.headers.set(
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://challenges.cloudflare.com https://www.googletagmanager.com https://googleads.g.doubleclick.net https://www.googleadservices.com",
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://js.stripe.com https://challenges.cloudflare.com https://www.googletagmanager.com https://googleads.g.doubleclick.net https://www.googleadservices.com`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
       "frame-src https://js.stripe.com https://challenges.cloudflare.com https://www.googletagmanager.com https://td.doubleclick.net",
+      "frame-ancestors 'none'",
       "connect-src 'self' https://api.stripe.com https://*.supabase.co https://*.nsvcs.net https://vpic.nhtsa.dot.gov https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://googleads.g.doubleclick.net https://www.googleadservices.com https://www.google.com https://api.openweathermap.org https://developer.nrel.gov",
     ].join("; ")
   );

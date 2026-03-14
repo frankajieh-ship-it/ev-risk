@@ -1,0 +1,10 @@
+title = "ev-risk gitleaks config"
+
+[allowlist]
+  description = "Known false positives"
+  regexes = []
+  paths = [
+    ".gitleaks.toml",
+    "SECURITY_SCOPE.md",
+  ]
+  commits = []
