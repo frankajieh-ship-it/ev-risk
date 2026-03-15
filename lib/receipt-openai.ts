@@ -662,13 +662,13 @@ export function buildEnhancedFallbackReceipt(
     schema_version: "v1",
     mode: "single",
     verdict: scoring.verdict,
-    verdict_reason: `Initial analysis from listing signals. Full AI analysis is running in the background — refresh in 15–30 seconds for a complete verdict.`,
+    verdict_reason: `Quick signal-based analysis. Deep analysis is processing in the background — refresh in 15–30 seconds for a complete verdict.`,
     price_sanity: {
       label: "UNKNOWN",
       confidence: 0,
       basis: "UNKNOWN",
       rationale_short: price > 0
-        ? `Listed at $${price.toLocaleString()}. Full market comparison is running — refresh shortly for pricing verdict.`
+        ? `Listed at $${price.toLocaleString()}. Deep market comparison processing — refresh shortly.`
         : "No price found in listing. Add the price and regenerate for a full market comparison.",
       user_market_range: null,
     },
