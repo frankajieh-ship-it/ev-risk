@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Search, AlertCircle, MessageSquare, ChevronDown, ChevronUp, Lightbulb } from "lucide-react";
+import { ArrowLeft, Search, AlertCircle, MessageSquare, ChevronDown, ChevronUp, Lightbulb, SlidersHorizontal, Bookmark, Check } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import RecommendationCard from "./RecommendationCard";
+import RefineStep, { type RefinePrefs } from "./RefineStep";
+import { addToAnonGarage } from "@/lib/anon-garage";
 import type { MinimumViableRoutine } from "@/types/v2";
 import type { VehicleRecommendation, RecommendationsResponse } from "@/types/recommendations";
 
@@ -158,6 +160,9 @@ export default function VehicleRecommendations({
   const [showLowFit, setShowLowFit] = useState(false);
   const [showAlsoFits, setShowAlsoFits] = useState(false);
   const [decisionPriority, setDecisionPriority] = useState<DecisionPriority>(null);
+  const [refinePhase, setRefinePhase] = useState<"browse" | "refine" | "refined">("browse");
+  const [refinedList, setRefinedList] = useState<VehicleRecommendation[]>([]);
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   // Track page load time for "See Full Report" click tracking
   const pageLoadTimeRef = useRef(Date.now());
@@ -329,6 +334,60 @@ export default function VehicleRecommendations({
   const diffBullets = getDiffBullets(top3);
   const coachGuidance = top3[0] ? getCoachGuidance(top3[0], routine, weeklyMiles) : null;
 
+  function applyRefinePrefs(prefs: RefinePrefs) {
+    const US_BRANDS = ["chevrolet", "ford", "rivian", "gmc", "cadillac", "chrysler", "jeep", "ram"];
+    let result = [...recommendations];
+
+    if (prefs.budgetCeiling && prefs.budgetCeiling < 50000) {
+      // Use fit_score as a proxy when price isn't directly available — filter loosely
+      // Real price filtering would need price data on VehicleRecommendation
+      // For now, prefer cheaper models by lower battery_kwh as rough proxy
+      result = result.filter(r => r.battery_kwh <= prefs.budgetCeiling! / 800);
+    }
+    if (prefs.seatCount === 7) {
+      result = result.filter(r => r.sub_category === "suv" || r.sub_category === "truck");
+    }
+    if (prefs.needsTow === true) {
+      result = result.filter(r => r.sub_category === "truck" || r.sub_category === "suv");
+    }
+    if (prefs.brandPref === "us_only") {
+      result = result.filter(r => US_BRANDS.includes(r.make.toLowerCase()));
+    }
+    if (prefs.brandPref === "no_tesla") {
+      result = result.filter(r => r.make.toLowerCase() !== "tesla");
+    }
+    // Re-sort by priority
+    if (prefs.priority === "friction") {
+      result.sort((a, b) => (b.dimensions?.charging ?? b.fit_score) - (a.dimensions?.charging ?? a.fit_score));
+    } else if (prefs.priority === "cargo") {
+      result.sort((a, b) => (b.dimensions?.utility ?? b.fit_score) - (a.dimensions?.utility ?? a.fit_score));
+    } else {
+      result.sort((a, b) => b.fit_score - a.fit_score);
+    }
+
+    // Fallback: if filtering leaves < 3, relax to full sorted list
+    if (result.length < 3) result = [...recommendations].sort((a, b) => b.fit_score - a.fit_score);
+
+    setRefinedList(result.slice(0, 3));
+    setRefinePhase("refined");
+    trackEvent("refine_submitted", { priority: prefs.priority, brand: prefs.brandPref });
+  }
+
+  function handleAddToGarage(rec: VehicleRecommendation) {
+    const key = `${rec.year}-${rec.model}`;
+    addToAnonGarage({
+      type: "shortlist",
+      label: `${rec.year} ${rec.make} ${rec.model_short}`,
+      data: {
+        run_id: key,
+        vehicle_label: `${rec.year} ${rec.make} ${rec.model_short}`,
+        fit_score: { label: rec.fit_label, score: rec.fit_score } as unknown as import("@/types/v2").RoutineFitScore,
+      },
+    });
+    setSavedIds(prev => new Set([...prev, key]));
+    trackEvent("top3_add_to_garage", { model: rec.model_short });
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -380,8 +439,80 @@ export default function VehicleRecommendations({
       {/* Results */}
       {!loading && !error && (
         <>
-          {/* Category filter pills */}
-          {availableCategories.length > 2 && (
+          {/* RefineStep panel */}
+          {refinePhase === "refine" && (
+            <div className="mb-6">
+              <RefineStep
+                onSubmit={applyRefinePrefs}
+                onBack={() => setRefinePhase("browse")}
+              />
+            </div>
+          )}
+
+          {/* Refined Top 3 view */}
+          {refinePhase === "refined" && refinedList.length > 0 && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-900">Your Top 3</h3>
+                <button
+                  onClick={() => setRefinePhase("browse")}
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  ← Show all
+                </button>
+              </div>
+              <div className="space-y-3">
+                {refinedList.map((rec, i) => {
+                  const key = `${rec.year}-${rec.model}`;
+                  const isSaved = savedIds.has(key);
+                  return (
+                    <div key={rec.model} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-bold text-gray-400">#{i + 1}</span>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              rec.fit_label === "Great Fit" ? "bg-green-100 text-green-700" :
+                              rec.fit_label === "Good Fit"  ? "bg-blue-100 text-blue-700" :
+                              "bg-yellow-100 text-yellow-700"
+                            }`}>{rec.fit_label}</span>
+                          </div>
+                          <p className="text-sm font-semibold text-gray-900 truncate">{rec.year} {rec.make} {rec.model_short}</p>
+                          {diffBullets[i] && (
+                            <p className="text-xs text-gray-500 mt-1 leading-snug"
+                              dangerouslySetInnerHTML={{ __html: diffBullets[i] }} />
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-2 shrink-0">
+                          <button
+                            onClick={() => handleAddToGarage(rec)}
+                            disabled={isSaved}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                              isSaved
+                                ? "bg-green-50 text-green-600 border border-green-200"
+                                : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
+                            }`}
+                          >
+                            {isSaved ? <Check className="w-3 h-3" /> : <Bookmark className="w-3 h-3" />}
+                            {isSaved ? "Saved" : "Save"}
+                          </button>
+                          <button
+                            onClick={() => handleSelect(rec, i + 1)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+                          >
+                            Full report →
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Category filter pills — only in browse phase */}
+          {refinePhase === "browse" && availableCategories.length > 2 && (
             <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
               {availableCategories.map((cat) => (
                 <button
@@ -399,11 +530,22 @@ export default function VehicleRecommendations({
                   {cat.label}
                 </button>
               ))}
+              <button
+                onClick={() => {
+                  setRefinePhase("refine");
+                  trackEvent("refine_step_opened");
+                }}
+                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors border border-blue-200"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                Narrow to Top 3
+              </button>
             </div>
           )}
 
+          {/* Browse-phase content — hidden during refine/refined */}
           {/* Coach guidance — why #1 was chosen */}
-          {coachGuidance && (
+          {refinePhase === "browse" && coachGuidance && (
             <div className="mb-4 flex gap-3 px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl">
               <Lightbulb className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
               <p className="text-sm text-blue-900 leading-snug">{coachGuidance}</p>
@@ -411,7 +553,7 @@ export default function VehicleRecommendations({
           )}
 
           {/* "What sets them apart" diff bullets */}
-          {top3.length >= 2 && diffBullets.length > 0 && (
+          {refinePhase === "browse" && top3.length >= 2 && diffBullets.length > 0 && (
             <div className="mb-4 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">What sets the top picks apart</p>
               <ul className="space-y-1">
@@ -426,7 +568,7 @@ export default function VehicleRecommendations({
           )}
 
           {/* Recommended vehicles — Top 3 */}
-          {top3.length > 0 && (
+          {refinePhase === "browse" && top3.length > 0 && (
             <div className="space-y-4 mb-4">
               {top3.map((rec, i) => (
                 <RecommendationCard
@@ -440,8 +582,8 @@ export default function VehicleRecommendations({
             </div>
           )}
 
-          {/* "What sets them apart" diff bullets */}
-          {top3.length >= 2 && diffBullets.length > 0 && (
+          {/* "What sets them apart" diff bullets (second instance) */}
+          {refinePhase === "browse" && top3.length >= 2 && diffBullets.length > 0 && (
             <div className="mb-4 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">What sets them apart</p>
               <ul className="space-y-1">
@@ -456,7 +598,7 @@ export default function VehicleRecommendations({
           )}
 
           {/* Tie-break question — shown when top 1 vs top 2 are very close */}
-          {showTieBreakQuestion && top3.length >= 2 && (
+          {refinePhase === "browse" && showTieBreakQuestion && top3.length >= 2 && (
             <div className="mb-5 bg-blue-50 border border-blue-200 rounded-2xl p-4">
               <p className="text-sm font-semibold text-blue-900 mb-3">
                 {top3[0].model_short} and {top3[1].model_short} are nearly identical — what matters most to you?
@@ -483,7 +625,7 @@ export default function VehicleRecommendations({
           )}
 
           {/* "Also fits" collapsed section */}
-          {alsoFits.length > 0 && (
+          {refinePhase === "browse" && alsoFits.length > 0 && (
             <div className="mb-6">
               <button
                 onClick={() => {
@@ -512,14 +654,14 @@ export default function VehicleRecommendations({
             </div>
           )}
 
-          {recommended.length === 0 && lowFit.length > 0 && (
+          {refinePhase === "browse" && recommended.length === 0 && lowFit.length > 0 && (
             <p className="text-center text-gray-500 text-sm mb-4">
               No vehicles scored Good Fit or above for this routine. Consider adjusting your charging access.
             </p>
           )}
 
           {/* Low fit vehicles (collapsed by default) */}
-          {lowFit.length > 0 && (
+          {refinePhase === "browse" && lowFit.length > 0 && (
             <div className="mb-6">
               <button
                 onClick={() => setShowLowFit(!showLowFit)}

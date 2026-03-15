@@ -11,7 +11,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bookmark, FileText, Zap, Loader2 } from "lucide-react";
+import { ArrowLeft, Bookmark, FileText, Zap, Loader2, GitCompare } from "lucide-react";
+import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useRegion } from "@/hooks/useRegion";
@@ -297,6 +298,19 @@ export default function SavedPage() {
             >
               {activeTab === "evroutine" ? "Check EV Routine Fit" : "Generate a Receipt"}
             </button>
+          </div>
+        )}
+
+        {/* Compare button */}
+        {!loading && !error && scenarios.length >= 2 && (
+          <div className="flex justify-end mb-2">
+            <Link
+              href="/compare?from=shortlist"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+            >
+              <GitCompare className="w-4 h-4" />
+              Compare top 2 →
+            </Link>
           </div>
         )}
 

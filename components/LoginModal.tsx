@@ -16,6 +16,8 @@ interface LoginModalProps {
   onClose: () => void;
   onSuccess?: () => void;
   redirectPath?: string; // Path to redirect after login
+  /** "sync" shows garage sync copy; "default" shows generic sign-in copy */
+  context?: "sync" | "default";
 }
 
 type ModalState = "input" | "sending" | "sent" | "error";
@@ -25,6 +27,7 @@ export default function LoginModal({
   onClose,
   onSuccess,
   redirectPath,
+  context = "default",
 }: LoginModalProps) {
   const { login, isConfigured } = useAuth();
   const { trackEmailEntrySubmitted } = useEventTracking();
@@ -120,9 +123,13 @@ export default function LoginModal({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Sign in to save scenarios</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                {context === "sync" ? "Sync your garage across devices" : "Sign in to your account"}
+              </h2>
               <p className="text-gray-600">
-                We&apos;ll send you a magic link to sign in. No password needed!
+                {context === "sync"
+                  ? "Sign in to access your saved vehicles and analyses on any device."
+                  : "We'll send you a magic link to sign in. No password needed!"}
               </p>
             </div>
 

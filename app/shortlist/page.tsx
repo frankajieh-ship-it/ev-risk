@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ListPlus, ChevronLeft } from "lucide-react";
+import { ListPlus, ChevronLeft, GitCompare } from "lucide-react";
 import ShortlistCoach from "@/components/shortlist/ShortlistCoach";
 import { getShortlist } from "@/lib/shortlist-store";
 import type { ShortlistCandidate } from "@/lib/shortlist-coach";
@@ -35,10 +35,23 @@ export default function ShortlistPage() {
           >
             <ChevronLeft className="w-4 h-4" /> Back to EVFit
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Shortlist</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Compare up to 4 cars and get a tie-breaker ranking.
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Shortlist</h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Compare up to 4 cars and get a tie-breaker ranking.
+              </p>
+            </div>
+            {candidates.length >= 2 && (
+              <Link
+                href="/compare?from=shortlist"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+              >
+                <GitCompare className="w-4 h-4" />
+                Compare these →
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Empty state */}

@@ -12,6 +12,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseAuthClient } from "@/lib/supabase-auth";
 import { Suspense } from "react";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { getAnonGarage, clearAnonGarage } from "@/lib/anon-garage";
 import type { Session } from "@supabase/supabase-js";
 
 /** Determine where to send user after auth based on role metadata. */
@@ -25,6 +26,25 @@ function getPostAuthRedirect(session: Session | null): string {
   if (!role) return "/onboarding";
   if (role === "dealer_admin" || role === "dealer_user") return "/dealer";
   return "/workspace";
+}
+
+/** Fire-and-forget: push anonymous garage items to server after login. */
+async function syncAnonGarageToServer(token: string) {
+  try {
+    const items = getAnonGarage();
+    if (items.length === 0) return;
+    await fetch("/api/workspace/garage/sync-anon", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ items }),
+    });
+    clearAnonGarage();
+  } catch {
+    // Non-critical — items remain in localStorage for next login
+  }
 }
 
 function AuthCallbackContent() {
@@ -80,6 +100,8 @@ function AuthCallbackContent() {
                 persistent_session_id: localStorage.getItem("offo_persistent_session") || undefined,
               });
             } catch {}
+            // Sync anonymous garage items to server (fire-and-forget)
+            syncAnonGarageToServer(session.access_token);
           }
 
           trackAuthSuccess(session.user?.id);
@@ -114,6 +136,8 @@ function AuthCallbackContent() {
                 persistent_session_id: localStorage.getItem("offo_persistent_session") || undefined,
               });
             } catch {}
+            // Sync anonymous garage items to server (fire-and-forget)
+            syncAnonGarageToServer(newSession.access_token);
             trackAuthSuccess(newSession.user.id);
           }
 
@@ -152,6 +176,8 @@ function AuthCallbackContent() {
                   persistent_session_id: localStorage.getItem("offo_persistent_session") || undefined,
                 });
               } catch {}
+              // Sync anonymous garage items to server (fire-and-forget)
+              syncAnonGarageToServer(session.access_token);
             }
             trackAuthSuccess(session.user?.id);
             setStatus("success");

@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Bookmark, CheckCircle, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { addToAnonGarage } from "@/lib/anon-garage";
 import type { ListingReceipt } from "@/types/receipt";
 
 interface SaveReceiptCTAProps {
@@ -147,6 +148,21 @@ export default function SaveReceiptCTA({
       setSaveState("error");
       setError("Could not save — browser storage unavailable");
       return;
+    }
+
+    // Mirror into anon garage so the nav Garage badge count stays in sync
+    if (!isAuthenticated) {
+      addToAnonGarage({
+        type: "receipt",
+        label: vehicle || "Unknown Vehicle",
+        data: {
+          receipt_id: receipt.receipt_id,
+          verdict: receipt.verdict,
+          verdict_reason: receipt.verdict_reason || null,
+          price: summary?.price || null,
+          mileage: summary?.mileage || null,
+        },
+      });
     }
 
     // Also save to server if authenticated (fire-and-forget)

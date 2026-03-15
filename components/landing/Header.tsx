@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { History, Menu, X, User, Building } from "lucide-react";
+import { History, Menu, X, User, Building, Bookmark } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { totalGarageCount } from "@/lib/anon-garage";
 import LoginModal from "@/components/LoginModal";
 
 interface HeaderProps {
@@ -14,16 +15,22 @@ interface HeaderProps {
   regionSelector?: ReactNode;
 }
 
-const personaLinks = [
-  { label: "Shoppers", href: "#fit-check", isScroll: true },
-  { label: "Owners", href: "/receipt", isScroll: false },
-  { label: "Dealers", href: "/dealer", isScroll: false },
+const navLinks = [
+  { label: "EV Fit", href: "#fit-check", isScroll: true },
+  { label: "Receipt", href: "/receipt", isScroll: false },
+  { label: "For Dealers", href: "/dealers", isScroll: false },
 ];
 
 export default function Header({ variant = "receipt", historyCount, onHistoryClick, regionSelector }: HeaderProps) {
   const { isAuthenticated, isDealer, logout } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [garageCount, setGarageCount] = useState(0);
+
+  // Read garage count from localStorage on mount (client-only)
+  useEffect(() => {
+    setGarageCount(totalGarageCount());
+  }, []);
 
   const handleScrollClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
@@ -31,6 +38,21 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
     if (el) el.scrollIntoView({ behavior: "smooth" });
     setMobileOpen(false);
   };
+
+  const GarageBadge = () => (
+    <Link
+      href="/shortlist"
+      className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+    >
+      <Bookmark className="w-4 h-4" />
+      Garage
+      {garageCount > 0 && (
+        <span className="bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded-full font-medium">
+          {garageCount}
+        </span>
+      )}
+    </Link>
+  );
 
   return (
     <>
@@ -45,7 +67,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
               <>
                 {/* Desktop nav */}
                 <div className="hidden md:flex items-center gap-6">
-                  {personaLinks.map((link) =>
+                  {navLinks.map((link) =>
                     link.isScroll ? (
                       <a
                         key={link.label}
@@ -65,6 +87,8 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                       </Link>
                     )
                   )}
+
+                  <GarageBadge />
 
                   {isAuthenticated && (
                     <>
@@ -123,6 +147,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                 >
                   Deal Watch
                 </span>
+                <GarageBadge />
                 {onHistoryClick && (
                   <button
                     onClick={onHistoryClick}
@@ -161,7 +186,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
         {variant === "homepage" && mobileOpen && (
           <div className="md:hidden border-t border-gray-100 bg-white/95 backdrop-blur-md">
             <div className="px-4 py-4 space-y-3">
-              {personaLinks.map((link) =>
+              {navLinks.map((link) =>
                 link.isScroll ? (
                   <a
                     key={link.label}
@@ -182,6 +207,20 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                   </Link>
                 )
               )}
+
+              <Link
+                href="/shortlist"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-gray-900 py-2"
+              >
+                <Bookmark className="w-4 h-4" />
+                Garage
+                {garageCount > 0 && (
+                  <span className="bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded-full">
+                    {garageCount}
+                  </span>
+                )}
+              </Link>
 
               <div className="border-t border-gray-100 pt-3">
                 {isAuthenticated && (
@@ -227,7 +266,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
           </div>
         )}
       </nav>
-      <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} />
+      <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} context="sync" />
     </>
   );
 }

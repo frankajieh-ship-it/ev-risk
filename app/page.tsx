@@ -359,30 +359,14 @@ export default function Home() {
                   Start EV fit check
                 </button>
 
-                {/* Secondary CTAs */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto">
-                  <Link
-                    href="/demo"
-                    onClick={() => trackCTAClick("try_demo")}
-                    className="px-6 py-2.5 text-gray-600 font-medium rounded-xl border border-gray-300 hover:bg-gray-50 transition-colors text-sm w-full sm:w-auto text-center"
-                  >
-                    Try a Demo First →
-                  </Link>
-                  <a
-                    href="/receipt"
-                    onClick={() => trackCTAClick("listing_receipt")}
-                    className="px-6 py-2.5 text-blue-600 font-medium rounded-xl border border-blue-200 hover:bg-blue-50 transition-colors text-sm w-full sm:w-auto text-center"
-                  >
-                    Check a listing deal →
-                  </a>
-                  <Link
-                    href="/dealer"
-                    onClick={() => trackCTAClick("dealer_cta")}
-                    className="px-6 py-2.5 text-green-600 font-medium rounded-xl border border-green-200 hover:bg-green-50 transition-colors text-sm w-full sm:w-auto text-center"
-                  >
-                    Are you a dealer?
-                  </Link>
-                </div>
+                {/* Secondary CTA */}
+                <a
+                  href="/receipt"
+                  onClick={() => trackCTAClick("listing_receipt")}
+                  className="px-6 py-2.5 text-blue-600 font-medium rounded-xl border border-blue-200 hover:bg-blue-50 transition-colors text-sm text-center"
+                >
+                  Check a listing deal →
+                </a>
               </motion.div>
             )}
           </div>
@@ -442,6 +426,29 @@ export default function Home() {
       )}
 
       {/* 8. EV Fit Check Wizard */}
+      {/* Sample output preview card — shows what users get before they start */}
+      {currentStep === "routine" && (
+        <div className="max-w-sm mx-auto px-4 pb-2 -mt-4">
+          <Link href="/demo/chevy-bolt-ev-green" className="block group">
+            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+              <div className="flex items-center justify-between mb-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                  Good Fit
+                </span>
+                <span className="text-xs text-gray-400 group-hover:text-blue-500 transition-colors">See full example →</span>
+              </div>
+              <p className="text-sm font-semibold text-gray-900 mb-1">2023 Chevy Bolt EV</p>
+              <p className="text-xs text-gray-500 mb-2">Home charging · Mild climate · ~200 mi/wk</p>
+              <div className="space-y-1">
+                <p className="text-xs text-gray-600"><span className="font-medium text-gray-700">What breaks first:</span> Public dependency on long days</p>
+                <p className="text-xs text-gray-600"><span className="font-medium text-gray-700">Plan B:</span> Chevy Equinox EV (more range buffer)</p>
+              </div>
+            </div>
+          </Link>
+        </div>
+      )}
+
       <section id="fit-check" className="py-12 md:py-20">
         <div className="max-w-3xl mx-auto px-4">
           {/* Wizard heading — only on routine step */}

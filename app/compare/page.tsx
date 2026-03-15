@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ArrowRight, HelpCircle, Copy, CheckCircle } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { resolveRegion, type RegionSelection } from "@/lib/resolveRegion";
 import { getCopy } from "@/lib/getCopy";
 import { compareOptions } from "@/lib/comparison-engine";
+import { getShortlist } from "@/lib/shortlist-store";
 import type {
   BaseRoutineInput,
   OptionInput,
@@ -37,10 +40,12 @@ const defaultOption: OptionInput = {
   charging_curve_bucket: "UNKNOWN",
 };
 
-export default function ComparePage() {
+function ComparePageContent() {
   const { trackEvent } = useEventTracking();
+  const searchParams = useSearchParams();
+  const fromShortlist = searchParams.get("from") === "shortlist";
 
-  // Phase state
+  // Phase state — jump to results if coming from shortlist
   const [phase, setPhase] = useState<Phase>("routine");
 
   // Region state
@@ -68,8 +73,52 @@ export default function ComparePage() {
 
   // Track page view
   useEffect(() => {
-    trackEvent("compare_started", { region: regionResolved });
+    trackEvent("compare_started", { region: regionResolved, from_shortlist: fromShortlist });
   }, []);
+
+  // If coming from shortlist, load the top 2 candidates and jump to results
+  useEffect(() => {
+    if (!fromShortlist) return;
+    const candidates = getShortlist();
+    if (candidates.length < 2) return;
+
+    const [a, b] = candidates;
+
+    // Build minimal OptionInputs from shortlist candidate labels
+    const toOption = (label: string): OptionInput => ({
+      label,
+      body_type_bucket: "UNKNOWN",
+      battery_bucket: "UNKNOWN",
+      efficiency_bucket: "UNKNOWN",
+      charging_curve_bucket: "UNKNOWN",
+    });
+
+    setOptionA(toOption(a.vehicle_label));
+    setOptionB(toOption(b.vehicle_label));
+
+    // Build a minimal BaseRoutineInput from candidate routine_inputs if available
+    const ri = a.routine_inputs;
+    const baseRoutine: BaseRoutineInput = {
+      region: regionResolved,
+      has_home_charging: ri?.charging_access === "home",
+      home_charging_type: "UNKNOWN",
+      can_charge_at_work: ri?.charging_access === "work",
+      public_charging_dependency: "SOMETIMES",
+      routine_pattern: "LOCAL",
+      long_day_frequency: "MONTHLY",
+      planning_tolerance: "MED",
+      shared_infrastructure: ri?.shared_charger ? "SOME" : "NONE",
+    };
+
+    const compResult = compareOptions(
+      baseRoutine,
+      toOption(a.vehicle_label),
+      toOption(b.vehicle_label)
+    );
+    setResult(compResult);
+    setPhase("results");
+    trackEvent("compare_from_shortlist", { candidates: [a.vehicle_label, b.vehicle_label] });
+  }, [fromShortlist]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track results viewed when result is set
   useEffect(() => {
@@ -758,5 +807,14 @@ export default function ComparePage() {
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+
+export default function ComparePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>}>
+      <ComparePageContent />
+    </Suspense>
   );
 }
