@@ -38,6 +38,7 @@ function formatPrice(cents: number): string {
 export default function RecommendationCard({ recommendation: rec, onSelect, muted, userZipCode, weeklyMiles }: RecommendationCardProps) {
   const { trackExternalLinkClicked } = useEventTracking();
   const [expanded, setExpanded] = useState(false);
+  const [showReceiptNudge, setShowReceiptNudge] = useState(false);
   const colors = fitColors[rec.fit_label] ?? fitColors["Mixed Fit"];
   const badgeBg = scoreBadgeColors[rec.fit_label] ?? "bg-gray-500";
   const hasDealers = rec.dealer_listings.length > 0;
@@ -68,6 +69,7 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
     });
     // Open link in new tab
     window.open(carGurusUrl, "_blank", "noopener,noreferrer");
+    setShowReceiptNudge(true);
   };
 
   return (
@@ -144,6 +146,23 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
             Browse on CarGurus
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
+          {showReceiptNudge && (
+            <div className="flex items-start gap-2 px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <ArrowRight className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-500" />
+              <p className="text-xs text-emerald-800 leading-snug">
+                Found one you like?{" "}
+                <a
+                  href="/receipt"
+                  className="font-semibold underline hover:text-emerald-900"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Paste the listing URL into the Receipt Analyzer
+                </a>
+                {" "}to get exact price, mileage, and negotiation feedback on that specific car.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
