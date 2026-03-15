@@ -169,12 +169,24 @@ export default function ReceiptOutputCard({
         </div>
       )}
 
-      {/* Full analysis in progress indicator */}
+      {/* Full analysis in progress — prominent banner with animated bar */}
       {isUpgrading && (
-        <div className="bg-blue-50 border-b border-blue-200 px-5 py-2.5 flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
-          <p className="text-sm text-blue-700">
-            Detailed analysis in progress — your receipt will auto-update with deeper insights.
+        <div className="bg-gray-900 border-b border-gray-800 px-5 py-3.5">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
+            <p className="text-sm font-semibold text-white">
+              Full analysis running — verdict loading
+            </p>
+          </div>
+          <div className="h-1 w-full bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-500 rounded-full animate-pulse w-2/3" />
+          </div>
+          <p className="text-xs text-gray-400 mt-1.5">
+            Initial signals shown below. Full verdict replaces this in ~15–30 seconds.
           </p>
         </div>
       )}
@@ -189,19 +201,28 @@ export default function ReceiptOutputCard({
         </div>
       )}
 
-      {/* Verdict banner */}
-      <div className={`${verdict.bg} ${verdict.border} border-b px-5 py-4`}>
+      {/* Verdict banner — neutral/pending style while upgrading */}
+      <div className={`${isUpgrading ? "bg-gray-50 border-gray-200" : `${verdict.bg} ${verdict.border}`} border-b px-5 py-4`}>
         <div className="flex items-center gap-3">
-          <VerdictIcon className={`w-6 h-6 ${verdict.text}`} />
+          {isUpgrading
+            ? <HelpCircle className="w-6 h-6 text-gray-400" />
+            : <VerdictIcon className={`w-6 h-6 ${verdict.text}`} />
+          }
           <div>
             <div className="flex items-center gap-2">
-              <span className={`text-lg font-bold ${verdict.text}`}>
-                {receipt.verdict}
-              </span>
-              <span className={`text-sm font-medium ${verdict.text} opacity-80`}>
-                — {verdict.label}
-              </span>
-              {receipt.evidence_label && (
+              {isUpgrading ? (
+                <span className="text-lg font-bold text-gray-400">Analyzing…</span>
+              ) : (
+                <>
+                  <span className={`text-lg font-bold ${verdict.text}`}>
+                    {receipt.verdict}
+                  </span>
+                  <span className={`text-sm font-medium ${verdict.text} opacity-80`}>
+                    — {verdict.label}
+                  </span>
+                </>
+              )}
+              {!isUpgrading && receipt.evidence_label && (
                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${EVIDENCE_STYLES[receipt.evidence_label]?.bg || "bg-gray-100"} ${EVIDENCE_STYLES[receipt.evidence_label]?.text || "text-gray-600"}`}>
                   {receipt.evidence_label} Evidence
                 </span>
@@ -215,7 +236,9 @@ export default function ReceiptOutputCard({
             )}
           </div>
         </div>
-        <p className="text-sm text-gray-700 mt-2">{receipt.verdict_reason}</p>
+        <p className={`text-sm mt-2 ${isUpgrading ? "text-gray-400 italic" : "text-gray-700"}`}>
+          {isUpgrading ? "Verdict and full reasoning will appear when analysis completes." : receipt.verdict_reason}
+        </p>
         {region === "UK" && (
           <p className="text-xs text-gray-500 mt-1.5">UK Mode (beta) — prices in pounds, UK wording</p>
         )}
