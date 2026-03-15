@@ -33,28 +33,28 @@ export function renderVerdictReason(receipt: ListingReceipt): string {
   }
 
   const hardBlockers = signals.filter((id) => {
-    const rule = RULES_BY_ID[id];
+    const rule = RULES_BY_ID.get(id);
     return rule?.type === "hard_blocker";
   });
 
   const fitPenalties = signals.filter((id) => {
-    const rule = RULES_BY_ID[id];
+    const rule = RULES_BY_ID.get(id);
     return rule?.type === "fit_penalty";
   });
 
   const evidenceBonuses = signals.filter((id) => {
-    const rule = RULES_BY_ID[id];
+    const rule = RULES_BY_ID.get(id);
     return rule?.type === "evidence_bonus";
   });
 
   const evidencePenalties = signals.filter((id) => {
-    const rule = RULES_BY_ID[id];
+    const rule = RULES_BY_ID.get(id);
     return rule?.type === "evidence_penalty";
   });
 
   // Build signal-derived reason
   if (verdict === "RED" && hardBlockers.length > 0) {
-    const topBlocker = RULES_BY_ID[hardBlockers[0]];
+    const topBlocker = RULES_BY_ID.get(hardBlockers[0]);
     const label = topBlocker?.label ?? "a critical issue";
     return `This listing shows ${label.toLowerCase()} — worth investigating carefully before proceeding.`;
   }
@@ -78,11 +78,11 @@ export function renderVerdictReason(receipt: ListingReceipt): string {
   if (verdict === "YELLOW") {
     const concerns: string[] = [];
     for (const id of evidencePenalties.slice(0, 2)) {
-      const rule = RULES_BY_ID[id];
+      const rule = RULES_BY_ID.get(id);
       if (rule) concerns.push(rule.label.toLowerCase());
     }
     for (const id of fitPenalties.slice(0, 1)) {
-      const rule = RULES_BY_ID[id];
+      const rule = RULES_BY_ID.get(id);
       if (rule) concerns.push(rule.label.toLowerCase());
     }
 
