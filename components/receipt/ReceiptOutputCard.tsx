@@ -74,7 +74,7 @@ const PRICE_STYLES = {
   UNDERPRICED: { bg: "bg-green-50", text: "text-green-700", label: "Underpriced" },
   FAIR: { bg: "bg-blue-50", text: "text-blue-700", label: "Fair Price" },
   OVERPRICED: { bg: "bg-red-50", text: "text-red-700", label: "Overpriced" },
-  UNKNOWN: { bg: "bg-gray-50", text: "text-gray-600", label: "Price Unknown" },
+  UNKNOWN: { bg: "bg-gray-50", text: "text-gray-600", label: "Price Pending" },
 };
 
 const EVIDENCE_STYLES: Record<string, { bg: string; text: string }> = {
