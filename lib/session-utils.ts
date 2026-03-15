@@ -46,11 +46,10 @@ export function getPersistentSessionId(): string | null {
  */
 export function getOrCreateReceiptToken(): string {
   if (typeof window === "undefined") return "";
-  let token = localStorage.getItem(RECEIPT_TOKEN_KEY);
-  if (!token) {
-    token = `rt_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-    localStorage.setItem(RECEIPT_TOKEN_KEY, token);
-  }
+  const existing = localStorage.getItem(RECEIPT_TOKEN_KEY);
+  if (existing && isValidReceiptToken(existing)) return existing;
+  const token = `rt_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+  localStorage.setItem(RECEIPT_TOKEN_KEY, token);
   return token;
 }
 

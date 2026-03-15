@@ -56,7 +56,7 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
   const handleCarGurusClick = (e: React.MouseEvent) => {
     e.preventDefault();
     trackExternalLinkClicked({
-      link_type: "cargurus",
+      link_type: "other",
       destination_url: carGurusUrl,
       vehicle_context: {
         make: rec.make,
@@ -64,7 +64,7 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
         year: rec.year,
       },
       clicked_from_page: window.location.pathname,
-      link_text: "Browse on CarGurus",
+      link_text: "Search listings",
       session_id: "", // Will be added by tracking hook
     });
     // Open link in new tab
@@ -143,7 +143,7 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
             onClick={handleCarGurusClick}
             className="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-gray-500 hover:text-blue-600 transition-colors"
           >
-            Browse on CarGurus
+            Search listings
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
           {showReceiptNudge && (

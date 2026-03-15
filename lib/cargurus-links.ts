@@ -34,8 +34,7 @@ export function getCarGurusUrl(
     make,
     modelShort,
     options?.range_mi ? `${options.range_mi}mi range` : null,
-    "used EV",
-    "site:cargurus.com",
+    "used EV for sale",
     options?.zip ? `near ${options.zip}` : null,
   ]
     .filter(Boolean)
