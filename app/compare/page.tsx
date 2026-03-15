@@ -110,11 +110,11 @@ function ComparePageContent() {
       shared_infrastructure: ri?.shared_charger ? "SOME" : "NONE",
     };
 
-    const compResult = compareOptions(
-      baseRoutine,
-      toOption(a.vehicle_label),
-      toOption(b.vehicle_label)
-    );
+    const compResult = compareOptions({
+      ...baseRoutine,
+      optionA: toOption(a.vehicle_label),
+      optionB: toOption(b.vehicle_label),
+    });
     setResult(compResult);
     setPhase("results");
     trackEvent("compare_from_shortlist", { candidates: [a.vehicle_label, b.vehicle_label] });
