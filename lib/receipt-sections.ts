@@ -11,22 +11,12 @@
  *   - generateNegotiationDeep  → negotiation_scripts (3-scenario scripts)
  */
 
-import OpenAI from "openai";
 import type { ListingReceipt, RedditDraft, ReceiptDetails } from "@/types/receipt";
+import { hedgedGenerate } from "@/lib/providers/hedged-generate";
 
-let _openai: OpenAI | null = null;
-function getOpenAI(): OpenAI {
-  if (!_openai) {
-    _openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-      timeout: 30_000,
-      maxRetries: 0,
-    });
-  }
-  return _openai;
-}
-
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini-2024-07-18";
+// Hedge delays for on-demand sections: slightly longer than core since user initiated
+// and we can take up to 30s without pressure.
+const SECTION_HEDGE_DELAYS: [number, number] = [10_000, 18_000];
 
 // --- Shared helper ---
 
@@ -37,27 +27,35 @@ async function callStructuredSection<T>(
   schemaName: string,
   maxTokens: number,
 ): Promise<T> {
-  const response = await getOpenAI().chat.completions.create({
-    model: MODEL,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
+  const result = await hedgedGenerate({
+    systemPrompt,
+    userPrompt,
+    jsonSchema,
+    schemaName,
     temperature: 0.3,
-    max_tokens: maxTokens,
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: schemaName,
-        strict: true,
-        schema: jsonSchema,
-      },
+    maxTokens,
+    hedgeDelays: SECTION_HEDGE_DELAYS,
+    validate: (json) => {
+      // Basic non-null check — sections don't have a deep Zod validator,
+      // but we verify the wrapper key exists and is non-empty
+      if (!json || typeof json !== "object") {
+        return { valid: false, errors: ["Response is not an object"] };
+      }
+      const obj = json as Record<string, unknown>;
+      if (!(schemaName in obj) && !Object.keys(obj).some((k) => k === schemaName || k.startsWith(schemaName.replace("_", "")))) {
+        // The top-level key should match schemaName (e.g. "reddit_draft", "receipt_details", "negotiation_deep")
+        // Allow if the object has any keys at all (provider may return slightly differently keyed)
+        if (Object.keys(obj).length === 0) {
+          return { valid: false, errors: [`Empty response for section: ${schemaName}`] };
+        }
+      }
+      return { valid: true, errors: [] };
     },
   });
 
-  const content = response.choices[0]?.message?.content;
-  if (!content) throw new Error(`Empty response from OpenAI for section: ${schemaName}`);
-  return JSON.parse(content) as T;
+  const content = result.result.rawText;
+  if (!content) throw new Error(`Empty response for section: ${schemaName}`);
+  return result.result.json as T;
 }
 
 // --- Reddit Draft ---

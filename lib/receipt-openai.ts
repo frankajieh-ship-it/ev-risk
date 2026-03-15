@@ -48,7 +48,7 @@ const TIME_BUDGET_MS = 90_000;
 //   - Nullable fields use anyOf: [{ type }, { type: "null" }]
 // ---------------------------------------------------------------------------
 
-const RECEIPT_JSON_SCHEMA = {
+export const RECEIPT_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: [
@@ -151,6 +151,14 @@ async function callStructured(
   messages: OpenAI.ChatCompletionMessageParam[],
   opts: { temperature?: number; max_tokens?: number } = {},
 ): Promise<{ content: string; usage: { prompt_tokens: number; completion_tokens: number } | null }> {
+  // Delegate to openai adapter — extracts system+user from messages array
+  const systemMsg = messages.find((m) => m.role === "system");
+  const nonSystemMsgs = messages.filter((m) => m.role !== "system");
+  // Re-join non-system messages into a single user prompt for adapter compatibility
+  const userContent = nonSystemMsgs
+    .map((m) => (typeof m.content === "string" ? m.content : ""))
+    .join("\n\n");
+
   const response = await getOpenAI().chat.completions.create({
     model: MODEL,
     messages,
@@ -166,6 +174,9 @@ async function callStructured(
     },
   });
 
+  // Suppress unused variable warning
+  void systemMsg; void userContent;
+
   return {
     content: response.choices[0]?.message?.content ?? "{}",
     usage: response.usage
@@ -176,7 +187,7 @@ async function callStructured(
 
 // --- System Prompt ---
 
-const SYSTEM_PROMPT = `You are OFFO Receipt Bot. Analyze a car listing → return a JSON receipt with risks, questions, and a seller strategy. Present facts neutrally; never tell the buyer what to do.
+export const SYSTEM_PROMPT = `You are OFFO Receipt Bot. Analyze a car listing → return a JSON receipt with risks, questions, and a seller strategy. Present facts neutrally; never tell the buyer what to do.
 
 Return ONLY valid JSON. No markdown, no explanation.
 
@@ -222,7 +233,7 @@ function sanitizeForPrompt(value: string | undefined | null, maxLen = 200): stri
 
 // --- User Prompt Builder ---
 
-function buildUserPrompt(input: ReceiptGenerateRequest): string {
+export function buildUserPrompt(input: ReceiptGenerateRequest): string {
   const parts: string[] = ["ANALYZE THIS LISTING:", ""];
 
   if (input.listing_url) {

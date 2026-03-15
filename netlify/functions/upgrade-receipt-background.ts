@@ -15,7 +15,7 @@
 
 import type { Handler, HandlerEvent, HandlerResponse } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
-import { generateReceipt, fixReceiptFormatting } from "../../lib/receipt-openai.js";
+import { fixReceiptFormatting, RECEIPT_JSON_SCHEMA, SYSTEM_PROMPT, buildUserPrompt } from "../../lib/receipt-openai.js";
 import { validateReceiptSchema } from "../../lib/receipt-schema-validator.js";
 import { renderRedditDraft } from "../../lib/reddit-draft-renderer.js";
 import { scoreReceipt } from "../../lib/receipt-scoring.js";
@@ -23,6 +23,8 @@ import { scoreReceiptV2 } from "../../lib/receipt-scoring-v2.js";
 import { findSimilarReceipt } from "../../lib/receipt-similarity.js";
 import { detectListingSource } from "../../lib/listing-scraper.js";
 import { logApi } from "../../lib/api-logger.js";
+import { hedgedGenerate, AllProvidersFailedError, logReceiptCost } from "../../lib/providers/index.js";
+import { applyRenderer } from "../../lib/receipt-renderer.js";
 import type { ReceiptGenerateRequest } from "../../types/receipt.js";
 
 // --- Supabase client (service role) ---
@@ -72,7 +74,7 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON body" }) };
   }
 
-  const { receipt_id, receipt_token, input, rule_signals, rule_scoring, rule_classification, features, client_ip, ip_hash, t0 } = payload;
+  const { receipt_id, receipt_token, input, rule_signals, rule_scoring, features, client_ip, ip_hash, t0 } = payload;
 
   if (!receipt_id || !receipt_token || !input) {
     return { statusCode: 400, body: JSON.stringify({ error: "Missing required fields" }) };
@@ -85,15 +87,57 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     .update({ generation_status: "generating" })
     .eq("id", receipt_id);
 
+  // Track all provider results for cost logging
+  const allProviderResults: import("../../lib/providers/types.js").GenerateResult[] = [];
+
   try {
-    // No deadline needed — background functions have 15 minutes
-    const { receipt, retried } = await generateReceipt(input);
+    // Hedged generation: OpenAI starts immediately, Gemini hedges at T+8s, Grok at T+14s
+    const hedgeResult = await hedgedGenerate({
+      systemPrompt: SYSTEM_PROMPT,
+      userPrompt: buildUserPrompt(input),
+      jsonSchema: RECEIPT_JSON_SCHEMA as Record<string, unknown>,
+      schemaName: "receipt",
+      temperature: 0.3,
+      maxTokens: 1800,
+      validate: (json) => {
+        const v = validateReceiptSchema(json);
+        return { valid: v.valid, errors: v.errors };
+      },
+      onEvent: (event) => {
+        if (event.type === "hedge_triggered") {
+          supabase.from("receipt_events").insert({
+            receipt_id,
+            session_id: receipt_token,
+            event_type: "hedge_triggered",
+            provider_used: event.provider,
+            hedge_level: event.hedgeLevel,
+          }).then(() => {}, () => {});
+        }
+      },
+    });
+
+    allProviderResults.push(hedgeResult.result);
+    const usedProvider = hedgeResult.result.provider;
+    const coreLatencyMs = hedgeResult.result.latencyMs;
+
+    // Log which provider was used
+    supabase.from("receipt_events").insert({
+      receipt_id,
+      session_id: receipt_token,
+      event_type: "section_generate_succeeded",
+      provider_used: usedProvider,
+      hedge_level: hedgeResult.hedgeLevel,
+      latency_ms: coreLatencyMs,
+      attempts: hedgeResult.allAttempts,
+    }).then(() => {}, () => {});
+
+    console.log(`[Upgrade BG] Core generated via ${usedProvider} (hedge=${hedgeResult.hedgeLevel}, ${coreLatencyMs}ms)`);
 
     // Validate receipt (Zod parse + lint)
-    let validation = validateReceiptSchema(receipt);
+    let validation = validateReceiptSchema(hedgeResult.result.json);
     let lintPassed = validation.valid;
     let lintErrors = validation.lintErrors;
-    let finalReceipt = validation.sanitized || receipt;
+    let finalReceipt = validation.sanitized || hedgeResult.result.json;
 
     // If Zod parse failed, mark as failed
     if (!validation.sanitized && validation.errors.length > 0 && validation.lintErrors.length === 0) {
@@ -102,7 +146,7 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
         anon_id: receipt_token,
         error_code: "schema_fail",
         elapsed_ms: Date.now() - t0,
-        retried,
+        retried: hedgeResult.allAttempts > 1,
         errors: validation.errors,
       });
 
@@ -122,7 +166,7 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     // If lint failed, try formatting fixer
     if (!lintPassed && lintErrors.length > 0) {
       console.log(
-        `[Upgrade BG] Lint errors after ${retried ? "retry" : "first attempt"}:`,
+        `[Upgrade BG] Lint errors after ${usedProvider} generation:`,
         lintErrors.map((e) => e.code)
       );
 
@@ -229,12 +273,15 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     // Keep receipt_id consistent with the lite receipt
     finalReceipt = { ...finalReceipt, receipt_id } as typeof finalReceipt;
 
+    // Apply deterministic renderer to enforce OFFO voice consistency across providers
+    finalReceipt = applyRenderer(finalReceipt as import("../../types/receipt.js").ListingReceipt) as typeof finalReceipt;
+
     // Save full receipt to DB + initialize on-demand section statuses
     const { error: updateError } = await supabase.from("receipts").update({
       output_json: finalReceipt,
       generation_status: "full",
       sections: {
-        core:             { status: "ready",         updated_at: new Date().toISOString() },
+        core:             { status: "ready", updated_at: new Date().toISOString(), provider_used: usedProvider, latency_ms: coreLatencyMs },
         reddit_draft:     { status: "not_requested" },
         receipt_details:  { status: "not_requested" },
         negotiation_deep: { status: "not_requested" },
@@ -256,8 +303,8 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
       event_type: "ai_upgrade_complete",
       url_domain: urlDomain,
       listing_source: urlDomain ? detectListingSource(urlDomain) : "text_paste",
-      verdict: finalReceipt.verdict,
-      price_label: finalReceipt.price_sanity?.label || null,
+      verdict: (finalReceipt as Record<string, unknown>).verdict as string | null,
+      price_label: ((finalReceipt as Record<string, unknown>).price_sanity as Record<string, unknown> | null | undefined)?.label as string | null ?? null,
       ip_hash: ip_hash || null,
     }).then(() => {}, () => {});
 
@@ -289,23 +336,29 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
       }).then(() => {}, () => {});
     }
 
+    // Log estimated provider cost (fire-and-forget)
+    logReceiptCost(supabase, receipt_id, receipt_token, allProviderResults);
+
     console.log(`[Upgrade BG] Successfully upgraded ${receipt_id} in ${Date.now() - t0}ms`);
     return { statusCode: 200, body: JSON.stringify({ ok: true }) };
 
   } catch (error) {
+    // AllProvidersFailedError = all hedged providers were exhausted — treat as upgrade_fail
+    const isAllProvidersFailed = error instanceof AllProvidersFailedError;
     const isTimeoutOrAIError =
-      error instanceof Error &&
-      (error.message.includes("timeout") ||
-        error.message.includes("timed out") ||
-        error.message.includes("Connection error") ||
-        error.message.includes("503") ||
-        error.message.includes("429") ||
-        error.message.includes("APIConnectionError") ||
-        error.message.includes("aborted") ||
-        error.name === "AbortError" ||
-        error.name === "APIConnectionError" ||
-        error.name === "APIConnectionTimeoutError" ||
-        error.name === "APIError");
+      isAllProvidersFailed ||
+      (error instanceof Error &&
+        (error.message.includes("timeout") ||
+          error.message.includes("timed out") ||
+          error.message.includes("Connection error") ||
+          error.message.includes("503") ||
+          error.message.includes("429") ||
+          error.message.includes("APIConnectionError") ||
+          error.message.includes("aborted") ||
+          error.name === "AbortError" ||
+          error.name === "APIConnectionError" ||
+          error.name === "APIConnectionTimeoutError" ||
+          error.name === "APIError"));
 
     logApi("error", "Background receipt upgrade failed", {
       endpoint: "/upgrade-receipt-background",
