@@ -137,9 +137,13 @@ export async function GET(request: NextRequest) {
       },
       {
         name: "Receipt upgrade rate (last 24h)",
-        status: receiptGenerated === 0 ? "no_data" : receiptUpgradeRatePct >= 60 ? "pass" : "warn",
+        status: receiptGenerated === 0 ? "no_data"
+          : receiptUpgradeRatePct >= 60 ? "pass"
+          : (receiptFailed / Math.max(receiptGenerated, 1) > 0.3 && receiptFailed >= 3) ? "fail"
+          : "warn",
         threshold_pct: 60,
         actual_pct: receiptUpgradeRatePct,
+        failure_rate_pct: receiptGenerated > 0 ? Math.round((receiptFailed / receiptGenerated) * 100) : 0,
       },
     ];
 
@@ -173,6 +177,7 @@ export async function GET(request: NextRequest) {
         receipt_upgraded: receiptUpgraded,
         receipt_failed: receiptFailed,
         receipt_upgrade_rate_pct: receiptUpgradeRatePct,
+        receipt_failure_rate_pct: receiptGenerated > 0 ? Math.round((receiptFailed / receiptGenerated) * 100) : 0,
       },
 
       // Health check results

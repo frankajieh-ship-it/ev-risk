@@ -4,10 +4,14 @@
   "version": "1.0.0",
   "description": "One-click deal check on CarGurus EV listings. Get risk flags, fair price, and must-ask questions.",
   "permissions": ["activeTab", "storage"],
+  "host_permissions": ["https://offolab.com/*"],
+  "externally_connectable": {
+    "matches": ["https://offolab.com/*"]
+  },
   "content_scripts": [
     {
       "matches": ["*://*.cargurus.com/*"],
-      "js": ["content/detector.js", "content/badge.js"],
+      "js": ["content/detector.js", "content/badge.js", "content/panel.js"],
       "css": ["content/styles.css"],
       "run_at": "document_idle"
     }

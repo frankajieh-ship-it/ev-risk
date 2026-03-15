@@ -18,18 +18,18 @@ export const MATCHMAKER_COPY = {
    * "Why These Cars Fit You" Block - Input recap to reinforce personalization
    */
   whyTheseCars: {
-    title: "Why these cars fit you",
-    subtitle: "This recommendation is based on:",
+    title: "Based on your routine",
+    subtitle: "Here's what we factored in:",
   },
 
   /**
    * "How We Decided" Explainability - Build trust through transparency
    */
   howWeDecided: {
-    title: "How we decided",
-    subtitle: "Our analysis considers:",
-    assumptionsLabel: "Assumptions we made:",
-    unknownsLabel: "Not shown yet:",
+    title: "How we scored this",
+    subtitle: "The things that shaped your result:",
+    assumptionsLabel: "What we assumed about your situation:",
+    unknownsLabel: "What we couldn't factor in:",
   },
 
   /**

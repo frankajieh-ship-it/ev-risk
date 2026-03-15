@@ -21,7 +21,7 @@ function getOpenAI(): OpenAI {
   if (!_openai) {
     _openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
-      timeout: 25_000,  // 25s per call; first + retry = 50s, within the 55s internal deadline
+      timeout: 55_000,  // 55s per call; runs in a Netlify Background Function (15 min limit)
       maxRetries: 0,
     });
   }
@@ -32,8 +32,8 @@ function getOpenAI(): OpenAI {
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini-2024-07-18";
 
 // Time budget: skip retry if first call already consumed most of the allowed time.
-// In the background function this is generous — kept for the formatting-fixer path.
-const TIME_BUDGET_MS = 30_000;
+// Background function has 15 min; generous budget allows full retry on slow first calls.
+const TIME_BUDGET_MS = 90_000;
 
 // ---------------------------------------------------------------------------
 // OpenAI Structured Outputs JSON Schema

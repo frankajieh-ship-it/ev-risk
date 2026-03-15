@@ -20,9 +20,11 @@ import HowWeDecidedBlock from "@/components/blocks/HowWeDecidedBlock";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { getOrCreatePersistentSessionId, getOrCreateReceiptToken } from "@/lib/session-utils";
 import { addToShortlist, getShortlist } from "@/lib/shortlist-store";
+import { loadSpecsPrefs, applySpecsFilter } from "@/lib/specs-scorer";
 import { generateFitOneLiner } from "@/lib/fit-verdict-liner";
-import type { RoutineFitScore, MinimumViableRoutine } from "@/types/v2";
+import type { RoutineFitScore, MinimumViableRoutine, VehicleSpecsPrefs } from "@/types/v2";
 import type { FitVerdict, StressFlagContract } from "@/types/v2-contract";
+import type { SpecsMatchResult } from "@/lib/specs-scorer";
 import type {
   WeatherData,
   ChargerSearchResult,
@@ -246,6 +248,10 @@ function RoutineResultsContent() {
   const [shortlistAdded, setShortlistAdded] = useState(false);
   const [shortlistFull, setShortlistFull] = useState(false);
   const [showCoachNudge, setShowCoachNudge] = useState(false);
+
+  // Specs & accessories state
+  const [specsPrefs, setSpecsPrefs] = useState<VehicleSpecsPrefs | null>(null);
+  const [specsResults, setSpecsResults] = useState<SpecsMatchResult[]>([]);
 
   const handleShare = useCallback(async () => {
     if (!result?.run_id) return;
@@ -548,6 +554,33 @@ function RoutineResultsContent() {
       .finally(() => setLoading(false));
   }, [runId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Load specs prefs from localStorage and compute match results
+  useEffect(() => {
+    if (!runId) return;
+    const prefs = loadSpecsPrefs(runId);
+    if (!prefs) return;
+    setSpecsPrefs(prefs);
+    const shortlist = getShortlist();
+    if (shortlist.length > 0) {
+      setSpecsResults(applySpecsFilter(shortlist, prefs));
+    }
+  }, [runId]);
+
+  // Push routine to OFFO Chrome extension (best-effort)
+  useEffect(() => {
+    if (!result?.routine) return;
+    try {
+      const extId = process.env.NEXT_PUBLIC_EXTENSION_ID;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cr = (window as any).chrome;
+      if (extId && cr?.runtime?.sendMessage) {
+        cr.runtime.sendMessage(extId, { type: "save_routine", routine: result.routine });
+      }
+    } catch {
+      // Extension not installed or not reachable — ignore
+    }
+  }, [result]);
+
   // Handle apply_vehicle=true (returning from receipt page)
   useEffect(() => {
     if (!applyVehicle || !result || rerunning) return;
@@ -685,10 +718,10 @@ function RoutineResultsContent() {
         <div className="p-5 bg-gradient-to-br from-indigo-50 via-white to-blue-50 rounded-2xl border border-indigo-200">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="w-5 h-5 text-indigo-600" />
-            <h3 className="text-sm font-bold text-gray-900">Improve Your Result</h3>
+            <h3 className="text-sm font-bold text-gray-900">Make this more accurate</h3>
           </div>
           <p className="text-sm text-gray-600 mb-4">
-            This analysis used an estimated range (200 mi). Add your vehicle details for a more accurate score.
+            Right now we&apos;re using a generic 200 mi range estimate. Paste in the listing for the actual car you&apos;re looking at and we&apos;ll re-score it with real numbers.
           </p>
 
           {/* Mode tabs */}
@@ -885,9 +918,9 @@ function RoutineResultsContent() {
       <div className={`p-6 rounded-2xl border-2 ${stressColor.border} ${stressColor.bg}`}>
         <div className="flex items-center gap-2 mb-4">
           <Shield className="w-5 h-5 text-blue-600" />
-          <h2 className="text-lg font-bold text-gray-900">Your Plan B</h2>
+          <h2 className="text-lg font-bold text-gray-900">When things don&apos;t go to plan</h2>
           <span className={`ml-auto text-xs font-semibold px-2.5 py-1 rounded-full ${stressColor.bg} ${stressColor.text} border ${stressColor.border}`}>
-            {plan_b.stress_label} stress
+            {plan_b.stress_label === "minimal" ? "low friction" : plan_b.stress_label === "moderate" ? "some planning" : "needs attention"}
           </span>
         </div>
 
@@ -915,7 +948,7 @@ function RoutineResultsContent() {
         {plan_b.time_penalty_minutes > 0 && (
           <div className="flex items-center gap-2 text-xs text-gray-600 mb-4">
             <Clock className="w-3.5 h-3.5" />
-            <span>~{plan_b.time_penalty_minutes} min/week for backup charging</span>
+            <span>~{plan_b.time_penalty_minutes} min/week if you need to top up away from home</span>
           </div>
         )}
 
@@ -923,7 +956,7 @@ function RoutineResultsContent() {
         {plan_b.mitigation_steps.length > 0 && (
           <div>
             <p className="text-xs font-semibold text-gray-900 uppercase tracking-wide mb-2">
-              Action Steps
+              What to do
             </p>
             <ol className="space-y-2">
               {plan_b.mitigation_steps.map((step, i) => (
@@ -941,7 +974,7 @@ function RoutineResultsContent() {
         {/* Buffer rule */}
         {plan_b.buffer_rule && (
           <div className="mt-4 p-3 bg-white rounded-lg border border-gray-200">
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Buffer Rule</p>
+            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Rule of thumb</p>
             <p className="text-sm text-gray-700">{plan_b.buffer_rule}</p>
           </div>
         )}
@@ -1066,33 +1099,33 @@ function RoutineResultsContent() {
 
       {/* 7. Data Sources — subtle indicator of what powered this analysis */}
       <div className="pt-2 pb-1">
-        <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">This analysis uses</p>
+        <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">What powered this result</p>
         <div className="flex flex-wrap gap-2">
           <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-100">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-            Your routine data
+            Your routine
           </span>
           {weather_data && (
             <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-100">
               <span className={`w-1.5 h-1.5 rounded-full ${weather_data.weather_confidence_band === "low" ? "bg-gray-300" : "bg-green-400"}`} />
-              {weather_data.weather_confidence_band === "low" ? "Estimated weather" : `Live weather — ${weather_data.location_used}`}
+              {weather_data.weather_confidence_band === "low" ? "Estimated weather" : `Live weather · ${weather_data.location_used}`}
             </span>
           )}
           {nearby_chargers.length > 0 && (
             <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-100">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-              Live charger data
+              Real charger locations
             </span>
           )}
           {fit_score.confidence?.has_vehicle_data ? (
             <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-100">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-              Vehicle specs
+              This vehicle&apos;s real-world range
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-100">
               <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-              Estimated range (200 mi)
+              Generic 200 mi estimate — add your car to sharpen this
             </span>
           )}
         </div>
@@ -1150,6 +1183,61 @@ function RoutineResultsContent() {
           </div>
         )}
       </div>
+
+      {/* Specs & Accessories CTA — shown when shortlist has at least 1 candidate and no specs yet */}
+      {getShortlist().length > 0 && !specsPrefs && (
+        <div className="mt-3 p-4 bg-white rounded-xl border border-gray-200">
+          <div className="flex items-center gap-2 mb-2">
+            <Car className="w-4 h-4 text-blue-600" />
+            <p className="text-sm font-semibold text-gray-900">Refine your shortlist with specs & accessories</p>
+          </div>
+          <p className="text-xs text-gray-500 mb-3">
+            Filter by drivetrain, fast-charging speed, heat pump, and more. Takes 2 minutes.
+          </p>
+          <a
+            href={`/routine/specs?run_id=${runId}`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Refine with specs &rarr;
+          </a>
+        </div>
+      )}
+
+      {/* Specs match results — shown after completing the questionnaire */}
+      {specsPrefs && specsResults.length > 0 && (
+        <div className="mt-3 p-4 bg-white rounded-xl border border-gray-200">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-gray-900">Specs match results</p>
+            <a
+              href={`/routine/specs?run_id=${runId}`}
+              className="text-xs text-blue-600 hover:underline"
+            >
+              Update specs
+            </a>
+          </div>
+          <div className="space-y-2">
+            {specsResults.map((r, i) => (
+              <div key={i} className="flex items-center justify-between text-sm">
+                <span className="text-gray-700 truncate mr-2">{r.candidate.vehicle_label}</span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {!r.passed_hard_filters && (
+                    <span className="text-xs text-red-600 font-medium">
+                      {r.hard_filter_reason}
+                    </span>
+                  )}
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                    r.passed_hard_filters
+                      ? "bg-green-50 text-green-700 border border-green-200"
+                      : "bg-red-50 text-red-600 border border-red-200"
+                  }`}>
+                    {r.match_label}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Proactive coach nudge — shown when shortlist has 2+ close-scoring cars */}
       {showCoachNudge && (

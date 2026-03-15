@@ -34,7 +34,7 @@ export function FitVerdictV2Block({ fitVerdict, vehicle }: FitVerdictV2BlockProp
       </p>
 
       <p className="text-xs text-gray-400 mt-4">
-        This is a routine fit signal, not a purchase recommendation.
+        This is a routine fit — not a verdict on whether to buy. It tells you how this car would slot into your actual life.
       </p>
     </div>
   );

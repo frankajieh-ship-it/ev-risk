@@ -186,12 +186,6 @@ export default function Home() {
         ).catch(() => {});
       }
     }).catch(() => {});
-
-    trackEvent("routine_check_completed", {
-      charging_access: routine.charging_access,
-      climate: routine.climate,
-      source: "homepage",
-    });
   };
 
 

@@ -14,20 +14,20 @@ export function generateFitOneLiner(
 
   if (label === "Great Fit" || label === "Good Fit") {
     if (mvr.charging_access === "home") {
-      return "Your routine and home charging align well. Main thing to watch: your longest driving day during extreme weather.";
+      return "Plugging in at home most nights is the real unlock here — this car fits around your life, not the other way around. Just keep an eye on that longest driving day when the weather turns cold.";
     }
     if (mvr.charging_access === "work") {
-      return "Fits your routine if work charging stays available. Have a weekend backup plan.";
+      return "Workplace charging carries the weight of your week. As long as that stays reliable, this fits your routine well. Have a weekend backup in mind and you're in good shape.";
     }
-    return "Manageable if you anchor on 1-2 reliable public stations. Predictability is key.";
+    return "This works, but your charging routine is the variable. Anchor on 1–2 spots you actually trust and stick to them — predictability is what makes public-only ownership feel effortless.";
   }
 
   if (label === "Mixed Fit") {
     const friction = topBreakpoint?.title || "charging predictability";
-    return `Can work, but ${friction.toLowerCase()} will need ongoing attention. Plan B matters here.`;
+    return `This can work for you, but ${friction.toLowerCase()} will need real attention on a regular basis — not a dealbreaker, just something you'd be actively managing rather than ignoring.`;
   }
 
   // High Friction
-  const friction = topBreakpoint?.title || "multiple friction points";
-  return `${friction} creates consistent friction with your routine. This setup demands frequent planning.`;
+  const friction = topBreakpoint?.title || "a few friction points";
+  return `${friction} is going to create real friction with how you actually live. That's not a judgment call — it just means this specific setup would need frequent adjustments to fit your routine.`;
 }

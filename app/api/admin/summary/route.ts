@@ -482,6 +482,11 @@ export async function GET(request: NextRequest) {
       receipt_lite_shown: countEvents(filteredUserEvents, "receipt_lite_shown"),
       receipt_full_ready: countEvents(filteredUserEvents, "receipt_full_ready"),
       receipt_upgrade_failed: countEvents(filteredUserEvents, "receipt_upgrade_failed"),
+      // Failure mode breakdown (from receipt_events)
+      upgrade_timeout: countReceiptEvents(allReceiptEvents, "upgrade_timeout"),
+      upgrade_fail: countReceiptEvents(allReceiptEvents, "upgrade_fail"),
+      upgrade_exception: countReceiptEvents(allReceiptEvents, "upgrade_exception"),
+      upgrade_schema_fail: countReceiptEvents(allReceiptEvents, "schema_fail"),
     };
 
     // -----------------------------------------------------------------------

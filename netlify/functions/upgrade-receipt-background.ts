@@ -336,6 +336,34 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
       timestamp: new Date().toISOString(),
     }).then(() => {}, () => {});
 
+    // Detailed alert event for backend monitoring
+    const errorCode = isTimeoutOrAIError ? "upgrade_timeout" : "upgrade_fail";
+    const errorMessage = error instanceof Error ? error.message.slice(0, 300) : "Unknown";
+    const elapsedMs = Date.now() - t0;
+
+    supabase.from("receipt_events").insert({
+      receipt_id,
+      session_id: receipt_token,
+      event_type: "upgrade_failure_alert",
+      metadata: {
+        error_code: errorCode,
+        error_message: errorMessage,
+        elapsed_ms: elapsedMs,
+      },
+    }).then(() => {}, () => {});
+
+    // Fire webhook alert (e.g. Slack) if configured — real-time notification
+    const alertWebhookUrl = process.env.UPGRADE_FAILURE_ALERT_WEBHOOK;
+    if (alertWebhookUrl) {
+      fetch(alertWebhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: `🚨 *Receipt upgrade failed*\n*Receipt:* ${receipt_id}\n*Error:* ${errorCode}\n*Message:* ${errorMessage}\n*Elapsed:* ${elapsedMs}ms`,
+        }),
+      }).catch(() => {}); // fire-and-forget
+    }
+
     // Try similarity match on timeout
     if (isTimeoutOrAIError) {
       try {

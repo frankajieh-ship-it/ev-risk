@@ -48,6 +48,7 @@ async function main() {
   const entryPoints = [
     { in: "content/detector.ts", out: "content/detector" },
     { in: "content/badge.ts", out: "content/badge" },
+    { in: "content/panel.ts", out: "content/panel" },
     { in: "background/service-worker.ts", out: "background/service-worker" },
     { in: "popup/popup.ts", out: "popup/popup" },
   ];

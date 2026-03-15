@@ -12,7 +12,7 @@ export function StressFlagsV2Block({ flags }: StressFlagsV2BlockProps) {
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
-        Stress Flags
+        Things to keep in mind
       </h3>
       {flags.map((flag, i) => (
         <div
@@ -27,7 +27,7 @@ export function StressFlagsV2Block({ flags }: StressFlagsV2BlockProps) {
             {flag.because}
           </p>
           <p className="text-xs text-gray-600 pl-4">
-            Impact: {flag.impact}
+            When it hits: {flag.impact}
           </p>
         </div>
       ))}

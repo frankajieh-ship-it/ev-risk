@@ -33,17 +33,17 @@ function PlanB({ planB }: { planB: BreakPoint["fallback_plan_b"] }) {
   return (
     <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
       <p className="text-xs font-semibold text-blue-800 uppercase tracking-wide mb-1.5">
-        Plan B
+        Your fallback
       </p>
       <div className="space-y-1">
         <p className="text-xs text-gray-700">
-          <span className="font-medium text-gray-900">Anchor:</span> {planB.anchor}
+          <span className="font-medium text-gray-900">Everyday plan:</span> {planB.anchor}
         </p>
         <p className="text-xs text-gray-700">
-          <span className="font-medium text-gray-900">Backup:</span> {planB.backup}
+          <span className="font-medium text-gray-900">If that falls through:</span> {planB.backup}
         </p>
         <p className="text-xs text-gray-700">
-          <span className="font-medium text-gray-900">Buffer rule:</span> {planB.buffer_rule}
+          <span className="font-medium text-gray-900">Rule of thumb:</span> {planB.buffer_rule}
         </p>
       </div>
     </div>
@@ -70,7 +70,7 @@ export function WhatBreaksFirstV2Block({ breakpoints }: WhatBreaksFirstV2BlockPr
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
-        What breaks first
+        Where it gets tricky
       </h3>
 
       {/* Top breakpoint — always expanded */}
@@ -98,7 +98,7 @@ export function WhatBreaksFirstV2Block({ breakpoints }: WhatBreaksFirstV2BlockPr
             className="flex items-center justify-between w-full text-left px-4 py-3 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
           >
             <span className="text-sm font-medium text-gray-700">
-              Other likely breakpoints ({others.length})
+              Also worth knowing ({others.length})
             </span>
             <svg
               className={`w-4 h-4 text-gray-400 transition-transform ${showOthers ? "rotate-180" : ""}`}

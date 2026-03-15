@@ -24,25 +24,25 @@ export default function HowWeDecidedBlock({ routine, hasVehicleData }: HowWeDeci
   const assumptions: string[] = [];
 
   if (routine.charging_access === "home") {
-    assumptions.push("Assumes you can charge at home on most nights");
+    assumptions.push("You're able to plug in at home most nights — that's your foundation");
   } else if (routine.charging_access === "work") {
-    assumptions.push("Assumes you have reliable access to workplace charging");
+    assumptions.push("Workplace charging is consistently available and not constantly taken");
   } else {
-    assumptions.push("Assumes you're comfortable using public charging networks");
+    assumptions.push("You're comfortable building a public charging routine and sticking to it");
   }
 
   if (routine.climate) {
     const climateLabel =
       routine.climate === "winter"
-        ? "cold winters"
+        ? "cold winters (which shrink real-world range)"
         : routine.climate === "hot"
-        ? "hot summers"
-        : "mild weather";
-    assumptions.push(`Assumes ${climateLabel} climate year-round`);
+        ? "hot summers (which stress the battery and cabin cooling)"
+        : "mild weather without major range swings";
+    assumptions.push(`You deal with ${climateLabel}`);
   }
 
   if (routine.longest_day_pattern) {
-    assumptions.push("Assumes your longest day happens occasionally (not daily)");
+    assumptions.push("Your longest driving day is an occasional thing, not your daily commute");
   }
 
   // Build unknowns (things we DON'T know yet)
@@ -50,16 +50,16 @@ export default function HowWeDecidedBlock({ routine, hasVehicleData }: HowWeDeci
 
   if (!hasVehicleData) {
     unknowns.push(
-      "Battery degradation — we don't have this vehicle's specific health data"
+      "This specific car's battery health — a used EV with degraded cells will have less range than the estimates here"
     );
   }
 
-  unknowns.push("Your specific commute route elevation and terrain");
-  unknowns.push("Your driving style (highway speed vs city, aggressive vs gentle)");
-  unknowns.push("Whether you pre-condition the cabin (can impact range)");
+  unknowns.push("Your actual route — hills, highways, and stop-and-go all move the needle");
+  unknowns.push("How you drive — consistent highway speeds use more range than mixed city driving");
+  unknowns.push("Whether you pre-condition the cabin before long cold drives (it makes a real difference)");
 
   if (routine.charging_access === "public") {
-    unknowns.push("Charger availability and wait times in your area");
+    unknowns.push("How busy your go-to chargers actually get — wait times can add up");
   }
 
   return (
@@ -93,31 +93,31 @@ export default function HowWeDecidedBlock({ routine, hasVehicleData }: HowWeDeci
               <li className="flex items-start gap-2">
                 <span className="text-blue-600 font-bold mt-0.5">•</span>
                 <span>
-                  <strong>Daily range need:</strong> Weekly miles ÷ 7, with buffer for variations
+                  <strong>Daily range need:</strong> Your weekly miles ÷ 7, plus a buffer so you're never scrambling
                 </span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-blue-600 font-bold mt-0.5">•</span>
                 <span>
-                  <strong>Longest day requirement:</strong> Peak usage days need extra buffer
+                  <strong>Your longest day:</strong> That one big driving day every week or two is usually the stress test
                 </span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-blue-600 font-bold mt-0.5">•</span>
                 <span>
-                  <strong>Charging access type:</strong> Home/work/public affects stress level
+                  <strong>How you charge:</strong> Home charging is the low-stress baseline — public-only takes more planning
                 </span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-blue-600 font-bold mt-0.5">•</span>
                 <span>
-                  <strong>Climate impact:</strong> Cold weather reduces range by 20-40%, hot by 10-20%
+                  <strong>Weather:</strong> Cold cuts real-world range 20–40%. We score against your actual climate, not ideal conditions
                 </span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-blue-600 font-bold mt-0.5">•</span>
                 <span>
-                  <strong>Real-world vs EPA:</strong> We use real-world range (typically 5-15% lower)
+                  <strong>Real-world range, not EPA:</strong> We use the numbers people actually see on the road — typically 5–15% lower than the sticker
                 </span>
               </li>
             </ul>
@@ -152,8 +152,7 @@ export default function HowWeDecidedBlock({ routine, hasVehicleData }: HowWeDeci
               ))}
             </ul>
             <p className="text-xs text-gray-400 mt-3 italic">
-              We never imply defects without evidence. These are simply factors
-              we can't measure from your routine alone.
+              None of these are red flags — just things we can't know from your routine alone. Add more detail and the score gets sharper.
             </p>
           </div>
         </div>

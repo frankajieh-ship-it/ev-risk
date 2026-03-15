@@ -29,25 +29,45 @@
       justify-content: center;
       color: #4f46e5;
     }
-    .title {
-      font-size: 15px;
-      font-weight: 700;
-      color: #111827;
-    }
-    .subtitle {
-      font-size: 11px;
-      color: #6b7280;
-    }
-    .info {
-      font-size: 12px;
-      color: #6b7280;
-      line-height: 1.5;
-      margin-bottom: 14px;
-      padding: 10px;
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
+    .title { font-size: 15px; font-weight: 700; color: #111827; }
+    .subtitle { font-size: 11px; color: #6b7280; }
+
+    /* Routine status card */
+    .routine-card {
+      padding: 10px 12px;
       border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      margin-bottom: 12px;
+      font-size: 12px;
+      line-height: 1.5;
     }
+    .routine-card.synced {
+      background: #f0fdf4;
+      border-color: #86efac;
+    }
+    .routine-card.missing {
+      background: #fff7ed;
+      border-color: #fed7aa;
+    }
+    .routine-card-label {
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .routine-card.synced .routine-card-label { color: #15803d; }
+    .routine-card.missing .routine-card-label { color: #c2410c; }
+    .routine-card-detail { color: #374151; }
+    .routine-card-link {
+      display: inline-block;
+      margin-top: 6px;
+      color: #4f46e5;
+      font-weight: 500;
+      text-decoration: none;
+    }
+    .routine-card-link:hover { text-decoration: underline; }
+
     .toggle-row {
       display: flex;
       align-items: center;
@@ -56,67 +76,34 @@
       border-top: 1px solid #e5e7eb;
       margin-bottom: 12px;
     }
-    .toggle-label {
-      font-size: 12px;
-      font-weight: 500;
-      color: #374151;
-    }
-    .toggle {
-      position: relative;
-      width: 36px;
-      height: 20px;
-    }
-    .toggle input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
+    .toggle-label { font-size: 12px; font-weight: 500; color: #374151; }
+    .toggle { position: relative; width: 36px; height: 20px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
     .toggle-slider {
-      position: absolute;
-      inset: 0;
-      background: #d1d5db;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: background 0.2s;
+      position: absolute; inset: 0;
+      background: #d1d5db; border-radius: 10px; cursor: pointer; transition: background 0.2s;
     }
     .toggle-slider::after {
-      content: "";
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 16px;
-      height: 16px;
-      background: white;
-      border-radius: 50%;
-      transition: transform 0.2s;
+      content: ""; position: absolute;
+      top: 2px; left: 2px; width: 16px; height: 16px;
+      background: white; border-radius: 50%; transition: transform 0.2s;
     }
-    .toggle input:checked + .toggle-slider {
-      background: #4f46e5;
-    }
-    .toggle input:checked + .toggle-slider::after {
-      transform: translateX(16px);
-    }
+    .toggle input:checked + .toggle-slider { background: #4f46e5; }
+    .toggle input:checked + .toggle-slider::after { transform: translateX(16px); }
+
     .link {
-      display: block;
-      text-align: center;
-      font-size: 12px;
-      color: #4f46e5;
-      text-decoration: none;
-      padding: 8px;
-      border-radius: 8px;
-      transition: background 0.15s;
+      display: block; text-align: center; font-size: 12px;
+      color: #4f46e5; text-decoration: none; padding: 8px;
+      border-radius: 8px; transition: background 0.15s;
     }
-    .link:hover {
-      background: #eef2ff;
-    }
+    .link:hover { background: #eef2ff; }
   </style>
 </head>
 <body>
   <div class="header">
     <div class="logo">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 12l2 2 4-4"/>
-        <circle cx="12" cy="12" r="10"/>
+        <path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>
       </svg>
     </div>
     <div>
@@ -125,8 +112,9 @@
     </div>
   </div>
 
-  <div class="info">
-    Browse a <strong>CarGurus EV listing</strong> to see the deal check badge. Click it for a full receipt with risk flags, fair price, and must-ask questions.
+  <div id="routineCard" class="routine-card missing">
+    <div class="routine-card-label">Routine</div>
+    <div class="routine-card-detail" id="routineDetail">Loading…</div>
   </div>
 
   <div class="toggle-row">

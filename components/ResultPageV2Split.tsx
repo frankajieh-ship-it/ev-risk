@@ -147,7 +147,7 @@ export function ResultPageV2Split({
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            New Analysis
+            Back to routine
           </button>
         )}
 
@@ -166,7 +166,7 @@ export function ResultPageV2Split({
           {/* Routine confidence note */}
           {default_view.confidence && (
             <p className="text-xs text-gray-400 -mt-4 ml-1">
-              Routine confidence: {default_view.confidence.routine_confidence_pct}% — {default_view.confidence.routine_confidence_label.split(" — ")[1]}
+              {default_view.confidence.routine_confidence_pct}% confidence — {default_view.confidence.routine_confidence_label.split(" — ")[1]}
             </p>
           )}
 

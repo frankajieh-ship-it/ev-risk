@@ -1,3 +1,4 @@
+/// <reference path="../node_modules/chrome-types/index.d.ts" />
 /**
  * OFFO Extension Service Worker
  *
@@ -13,6 +14,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, _sendResponse) => {
     chrome.tabs.create({
       url: `${OFFO_BASE}/receipt?url=${url}&ext=true`,
     });
+  }
+});
+
+// Handle messages from offolab.com (externally_connectable)
+chrome.runtime.onMessageExternal.addListener((msg, _sender, _sendResponse): undefined => {
+  if (msg.type === "save_routine" && msg.routine) {
+    chrome.storage.local.set({ offo_routine: msg.routine });
   }
 });
 

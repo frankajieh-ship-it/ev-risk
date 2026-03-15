@@ -33,6 +33,25 @@ export interface MinimumViableRoutine {
   wants_carplay?: boolean;
 }
 
+// ============================================
+// VEHICLE SPECS & ACCESSORY PREFERENCES
+// ============================================
+
+export interface VehicleSpecsPrefs {
+  // Section 1 — Hard filters
+  drivetrain: "awd_required" | "rwd_preferred" | "fwd_ok" | "any";
+  min_winter_range_mi: number; // slider: 150 | 200 | 250 | 300
+  fast_charge_kw: "150plus" | "100_150" | "l2_primary";
+  towing: "regularly" | "occasionally" | "rarely";
+
+  // Section 2 — Preference scoring
+  heat_pump: "must_have" | "nice_to_have" | "not_important";
+  adas: ("full_adas" | "basic_cruise_lane" | "none")[]; // multi-select
+  interior: "premium_touchscreen" | "simple_interface" | "any";
+  wheel_size: "smaller_efficiency" | "18_19_fine" | "style_matters";
+  winter_readiness: "awd_dedicated_tires" | "all_season_ok" | "mild_climate";
+}
+
 export function validateMVR(
   r: Partial<MinimumViableRoutine>
 ): { ok: boolean; errors: string[] } {
