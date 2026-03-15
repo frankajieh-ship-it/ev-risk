@@ -377,7 +377,12 @@ export async function POST(request: NextRequest) {
     t0,
   };
 
-  const upgradeUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:8888"}/.netlify/functions/upgrade-receipt-background`;
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.URL ||          // Netlify production URL (auto-set)
+    process.env.DEPLOY_URL ||   // Netlify preview deploy URL (auto-set)
+    "http://localhost:8888";
+  const upgradeUrl = `${siteUrl}/.netlify/functions/upgrade-receipt-background`;
 
   fetch(upgradeUrl, {
     method: "POST",
