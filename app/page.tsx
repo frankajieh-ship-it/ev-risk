@@ -9,7 +9,7 @@ import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-import { Megaphone } from "lucide-react";
+import { Receipt, Megaphone } from "lucide-react";
 import TrustMicrocopy from "@/components/TrustMicrocopy";
 import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
 import VehicleInputTabs from "@/components/VehicleInputTabs";
@@ -368,6 +368,13 @@ export default function Home() {
                   >
                     Try a Demo First →
                   </Link>
+                  <a
+                    href="/receipt"
+                    onClick={() => trackCTAClick("listing_receipt")}
+                    className="px-6 py-2.5 text-blue-600 font-medium rounded-xl border border-blue-200 hover:bg-blue-50 transition-colors text-sm w-full sm:w-auto text-center"
+                  >
+                    Check a listing deal →
+                  </a>
                   <Link
                     href="/dealer"
                     onClick={() => trackCTAClick("dealer_cta")}
@@ -412,6 +419,25 @@ export default function Home() {
             </p>
           </motion.div>
 
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mt-6 text-center"
+          >
+            <a
+              href="/receipt"
+              onClick={() => trackEvent("clicked_listing_receipt")}
+              className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
+            >
+              <Receipt className="w-4 h-4" />
+              Have a listing? Check if the deal is legit
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </a>
+          </motion.div>
         </section>
       )}
 
