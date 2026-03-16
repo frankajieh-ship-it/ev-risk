@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { analyticsRateLimiter } from "@/lib/rate-limiter";
 import { logApi } from "@/lib/api-logger";
+import { getEventTags } from "@/lib/event-tags";
 
 // Valid event names for validation
 const VALID_EVENT_NAMES = [
@@ -203,6 +204,28 @@ const VALID_EVENT_NAMES = [
   "external_link_clicked",
   "offo_dealer_viewed",
   "offo_dealer_message_sent",
+  // Backend event tracking spec (funnel business outcomes)
+  "evfit_session_created",
+  "evfit_completed",
+  "evfit_completed_server",
+  "refine_started",
+  "refine_completed",
+  "garage_created",
+  "profile_saved",
+  "shortlist_saved",
+  "listing_saved",
+  "compare_started",
+  "compare_completed",
+  "auth_login_succeeded",
+  "anon_attached_to_user",
+  "ai_job_queued",
+  "ai_job_started",
+  "ai_job_succeeded",
+  "ai_job_failed",
+  "share_card_created",
+  "share_page_viewed",
+  "share_to_fit_started",
+  "share_to_fit_completed",
 ] as const;
 
 // Events that should be deduplicated by report_id (to prevent double-counting)
@@ -211,35 +234,7 @@ const DEDUPE_BY_REPORT_ID_EVENTS = [
   "why_checkpoint_submitted",
 ];
 
-// Events that are IP-relevant (defensible insights)
-const IP_RELEVANT_EVENTS = [
-  "constraint_detected",
-  "scenario_save_success",
-  "report_generated",
-  // New analytics events (March 2026)
-  "routine_form_completed",
-  "routine_form_partial_abandon",
-  "vehicle_list_generated",
-  "vehicle_full_report_clicked",
-  "external_link_clicked",
-  "offo_dealer_viewed",
-  "offo_dealer_message_sent",
-];
-
-// Events that are enterprise-ready
-const ENTERPRISE_READY_EVENTS = [
-  "scenario_save_success",
-  "email_confirmed",
-  "report_generated",
-  "report_generated_success",
-  "email_checklist_submit",
-  // New analytics events (March 2026)
-  "routine_form_completed",
-  "vehicle_list_generated",
-  "vehicle_full_report_clicked",
-  "offo_dealer_viewed",
-  "offo_dealer_message_sent",
-];
+// IP_RELEVANT_EVENTS and ENTERPRISE_READY_EVENTS are in lib/event-tags.ts
 
 // Validate event payload
 function validateEventPayload(eventName: string, eventData: any, sessionId: string | null): { valid: boolean; error?: string } {
@@ -269,16 +264,7 @@ function validateEventPayload(eventName: string, eventData: any, sessionId: stri
   return { valid: true };
 }
 
-// Determine IP relevance and enterprise readiness
-function getEventTags(eventName: string, eventData: any, userId?: string): { ip_relevance: boolean; enterprise_ready: boolean } {
-  const ipRelevance = IP_RELEVANT_EVENTS.includes(eventName) || eventData?.is_novel_scenario === true;
-  const enterpriseReady = ENTERPRISE_READY_EVENTS.includes(eventName) || !!userId;
-
-  return {
-    ip_relevance: ipRelevance,
-    enterprise_ready: enterpriseReady,
-  };
-}
+// getEventTags is imported from lib/event-tags
 
 export async function POST(req: NextRequest) {
   if (!isSupabaseConfigured()) {

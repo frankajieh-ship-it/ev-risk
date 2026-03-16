@@ -149,7 +149,7 @@ export default function VehicleRecommendations({
   onSwitchToManual,
   onBack,
 }: VehicleRecommendationsProps) {
-  const { trackEvent, trackVehicleListGenerated, trackVehicleFullReportClicked } = useEventTracking();
+  const { trackEvent, trackVehicleListGenerated, trackVehicleFullReportClicked, getPersistentSessionId } = useEventTracking();
 
   const [recommendations, setRecommendations] = useState<VehicleRecommendation[]>([]);
   const [dealerQuestions, setDealerQuestions] = useState<string[]>([]);
@@ -368,9 +368,28 @@ export default function VehicleRecommendations({
     // Fallback: if filtering leaves < 3, relax to full sorted list
     if (result.length < 3) result = [...recommendations].sort((a, b) => b.fit_score - a.fit_score);
 
+    const top3Models = result.slice(0, 3).map(r => r.model_short);
     setRefinedList(result.slice(0, 3));
     setRefinePhase("refined");
     trackEvent("refine_submitted", { priority: prefs.priority, brand: prefs.brandPref });
+    const anonId = getPersistentSessionId();
+    fetch("/api/routine/refine", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "completed",
+        anon_id: anonId,
+        tie_break_mode: "filters",
+        winner_declared: false,
+        top3_models: top3Models,
+        tie_break_factors_used: [
+          prefs.priority, prefs.brandPref, prefs.mustHave,
+          prefs.seatCount !== null ? "seats" : null,
+          prefs.needsTow !== null ? "tow" : null,
+          prefs.budgetCeiling !== null ? "budget" : null,
+        ].filter(Boolean),
+      }),
+    }).catch(() => {});
   }
 
   function handleAddToGarage(rec: VehicleRecommendation) {
@@ -534,6 +553,16 @@ export default function VehicleRecommendations({
                 onClick={() => {
                   setRefinePhase("refine");
                   trackEvent("refine_step_opened");
+                  const anonId = getPersistentSessionId();
+                  fetch("/api/routine/refine", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      event: "started",
+                      anon_id: anonId,
+                      tie_cluster_count: tiedCount,
+                    }),
+                  }).catch(() => {});
                 }}
                 className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors border border-blue-200"
               >

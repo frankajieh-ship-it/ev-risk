@@ -56,12 +56,18 @@ export async function GET(request: NextRequest) {
         .in("event_name", [
           "page_viewed",
           "evfit_started",
+          "evfit_session_created",
           "routine_form_completed",
+          "evfit_completed",
           "evfit_completed_server",
+          "refine_completed",
+          "shortlist_saved",
+          "compare_completed",
           "profile_created_server",
           "receipt_extract_succeeded",
           "receipt_full_ready",
           "receipt_upgrade_failed",
+          "listing_saved",
         ])
         .gte("timestamp", oneDayAgo.toISOString()),
 
@@ -98,8 +104,12 @@ export async function GET(request: NextRequest) {
       funnelCounts[event.event_name] = (funnelCounts[event.event_name] || 0) + 1;
     }
 
-    const evfitStarted = funnelCounts["evfit_started"] || 0;
-    const evfitCompleted = funnelCounts["evfit_completed_server"] || 0;
+    const evfitStarted = funnelCounts["evfit_session_created"] || funnelCounts["evfit_started"] || 0;
+    const evfitCompleted = funnelCounts["evfit_completed_server"] || funnelCounts["evfit_completed"] || 0;
+    const refineCompleted = funnelCounts["refine_completed"] || 0;
+    const shortlistSaved = funnelCounts["shortlist_saved"] || 0;
+    const compareCompleted = funnelCounts["compare_completed"] || 0;
+    const listingSaved = funnelCounts["listing_saved"] || 0;
     const profileCreated = funnelCounts["profile_created_server"] || 0;
     const receiptGenerated = funnelCounts["receipt_extract_succeeded"] || 0;
     const receiptUpgraded = funnelCounts["receipt_full_ready"] || 0;
@@ -114,6 +124,12 @@ export async function GET(request: NextRequest) {
       : 0;
     const receiptUpgradeRatePct = receiptGenerated > 0
       ? Math.round((receiptUpgraded / receiptGenerated) * 100)
+      : 0;
+    const withShortlistPct = evfitCompleted > 0
+      ? Math.round((shortlistSaved / evfitCompleted) * 100)
+      : 0;
+    const withComparePct = evfitCompleted > 0
+      ? Math.round((compareCompleted / evfitCompleted) * 100)
       : 0;
 
     // Determine overall health status
@@ -166,11 +182,17 @@ export async function GET(request: NextRequest) {
         events_by_type: eventCounts,
       },
 
-      // 24-hour funnel metrics
+      // 24-hour funnel metrics (backend source of truth)
       last_24h_funnel: {
         evfit_started: evfitStarted,
         evfit_completed: evfitCompleted,
         evfit_completion_rate_pct: evfitCompletionRatePct,
+        refine_completed: refineCompleted,
+        shortlist_saved: shortlistSaved,
+        with_shortlist_pct: withShortlistPct,
+        compare_completed: compareCompleted,
+        with_compare_pct: withComparePct,
+        listing_saved: listingSaved,
         profile_created: profileCreated,
         profile_save_rate_pct: profileSaveRatePct,
         receipt_generated: receiptGenerated,
@@ -178,6 +200,12 @@ export async function GET(request: NextRequest) {
         receipt_failed: receiptFailed,
         receipt_upgrade_rate_pct: receiptUpgradeRatePct,
         receipt_failure_rate_pct: receiptGenerated > 0 ? Math.round((receiptFailed / receiptGenerated) * 100) : 0,
+      },
+
+      // Alert flags for uptime monitors / cron checks
+      alerts: {
+        evfit_drop: evfitStarted > 5 && evfitCompletionRatePct < 50 ? "alert_evfit_drop" : null,
+        volume_drop: null, // requires prior 24h baseline — extend if needed
       },
 
       // Health check results

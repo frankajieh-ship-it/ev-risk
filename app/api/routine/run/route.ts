@@ -25,6 +25,7 @@ import {
 } from "@/lib/weather-client";
 import { getChargerClient } from "@/lib/charger-client";
 import { checkPurchaseStatus } from "@/lib/payment-status";
+import { trackServerEvent } from "@/lib/track-server-event";
 import type { MinimumViableRoutine } from "@/types/v2";
 import type {
   VehicleProfile,
@@ -91,6 +92,9 @@ export async function POST(req: NextRequest) {
       receipt_token,
       // Co-shopper invite attribution
       invite_token,
+      // Tracking context (passed through from client)
+      session_id: clientSessionId,
+      entry_point,
     } = body;
 
     // Validate required routine fields
@@ -153,6 +157,24 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+
+    // Emit evfit_session_created before heavy computation (fire-and-forget)
+    trackServerEvent({
+      event_name: "evfit_session_created",
+      source: "evfit",
+      anon_id: anon_session_id ?? null,
+      session_id: clientSessionId ?? null,
+      entity_type: "fit_session_id",
+      entity_id: profile_id || anon_session_id || "unknown",
+      page_path: "/api/routine/run",
+      payload: {
+        entry_point: entry_point ?? "home",
+        questionnaire_version: "v2",
+        has_zip: !!home_location_zip,
+        charging_access,
+        climate,
+      },
+    });
 
     // Build MVR
     const routine: MinimumViableRoutine = {
@@ -360,12 +382,17 @@ export async function POST(req: NextRequest) {
       charger_api: chargerApiSuccess,
     });
 
-    // Server-side event: not blocked by ad blockers — mirrors client evfit_completed
-    supabase.from("user_events").insert({
+    // Server-side event: not blocked by ad blockers — funnel source of truth
+    trackServerEvent({
       event_name: "evfit_completed_server",
-      event_data: {
+      source: "evfit",
+      anon_id: anon_session_id ?? null,
+      session_id: clientSessionId ?? null,
+      entity_type: "fit_session_id",
+      entity_id: runData.id,
+      page_path: "/api/routine/run",
+      payload: {
         run_id: runData.id,
-        anon_session_id: anon_session_id || null,
         fit_label: fitScore.label,
         fit_score: fitScore.score_0_100,
         has_vehicle: !!vehicle,
@@ -374,13 +401,11 @@ export async function POST(req: NextRequest) {
         climate,
         weather_live: weatherApiSuccess,
         charger_live: chargerApiSuccess,
+        latency_ms: timer(),
         flow: "evfit",
-        step: "results",
         invite_token: invite_token || null,
       },
-      page_path: "/api/routine/run",
-      timestamp: new Date().toISOString(),
-    }).then(() => {}, () => {});
+    });
 
     // Mark invite as converted (fire-and-forget)
     if (invite_token && typeof invite_token === "string") {

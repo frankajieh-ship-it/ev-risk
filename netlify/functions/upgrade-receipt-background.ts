@@ -90,6 +90,17 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
   // Track all provider results for cost logging
   const allProviderResults: import("../../lib/providers/types.js").GenerateResult[] = [];
 
+  // Emit ai_job_queued before generation starts
+  supabase.from("user_events").insert({
+    event_name: "ai_job_queued",
+    source: "ai",
+    event_data: { job_type: "receipt_upgrade", receipt_id, provider: "hedged", anon_id: receipt_token },
+    page_path: "/.netlify/functions/upgrade-receipt-background",
+    timestamp: new Date().toISOString(),
+  }).then(() => {}, () => {});
+
+  const aiJobStartMs = Date.now();
+
   try {
     // Hedged generation: OpenAI starts immediately, Gemini hedges at T+8s, Grok at T+14s
     const hedgeResult = await hedgedGenerate({
@@ -339,6 +350,21 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     // Log estimated provider cost (fire-and-forget)
     logReceiptCost(supabase, receipt_id, receipt_token, allProviderResults);
 
+    // Emit ai_job_succeeded
+    supabase.from("user_events").insert({
+      event_name: "ai_job_succeeded",
+      source: "ai",
+      event_data: {
+        job_type: "receipt_upgrade",
+        receipt_id,
+        provider: hedgeResult.result.provider,
+        latency_ms: Date.now() - aiJobStartMs,
+        anon_id: receipt_token,
+      },
+      page_path: "/.netlify/functions/upgrade-receipt-background",
+      timestamp: new Date().toISOString(),
+    }).then(() => {}, () => {});
+
     console.log(`[Upgrade BG] Successfully upgraded ${receipt_id} in ${Date.now() - t0}ms`);
     return { statusCode: 200, body: JSON.stringify({ ok: true }) };
 
@@ -372,6 +398,20 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
       receipt_id,
       session_id: receipt_token,
       event_type: isTimeoutOrAIError ? "upgrade_timeout" : "upgrade_fail",
+    }).then(() => {}, () => {});
+
+    supabase.from("user_events").insert({
+      event_name: "ai_job_failed",
+      source: "ai",
+      event_data: {
+        job_type: "receipt_upgrade",
+        receipt_id,
+        error_code: isTimeoutOrAIError ? "upgrade_timeout" : "upgrade_fail",
+        latency_ms: Date.now() - aiJobStartMs,
+        anon_id: receipt_token,
+      },
+      page_path: "/.netlify/functions/upgrade-receipt-background",
+      timestamp: new Date().toISOString(),
     }).then(() => {}, () => {});
 
     supabase.from("user_events").insert({

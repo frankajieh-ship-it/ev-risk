@@ -13,6 +13,7 @@ import {
   computeComparison,
   type StoredRoutineSession,
 } from "@/lib/compare-computation";
+import { trackServerEvent } from "@/lib/track-server-event";
 import type { ListingReceipt } from "@/types/receipt";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -191,7 +192,20 @@ export async function POST(req: NextRequest) {
       compareData = compareRes.data as StoredRoutineSession;
     }
 
+    // Emit compare_started
+    const compare_trace_id = crypto.randomUUID();
+    trackServerEvent({
+      event_name: "compare_started",
+      source: "compare",
+      user_id: user.id,
+      entity_type: "compare_id",
+      entity_id: compare_trace_id,
+      page_path: "/api/compare/create",
+      payload: { items_count: 2, scenario_type, item_types: `${scenario_type} vs ${scenario_type}` },
+    });
+
     // Compute comparison
+    const startMs = Date.now();
     const comparison_result = computeComparison(
       scenario_type,
       baseData,
@@ -221,6 +235,22 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    trackServerEvent({
+      event_name: "compare_completed",
+      source: "compare",
+      user_id: user.id,
+      entity_type: "compare_id",
+      entity_id: inserted.id,
+      page_path: "/api/compare/create",
+      payload: {
+        compare_id: inserted.id,
+        winner_declared: false,
+        confidence_band: "med",
+        latency_ms: Date.now() - startMs,
+        scenario_type,
+      },
+    });
 
     return NextResponse.json({
       success: true,

@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, getSupabaseAdmin } from "@/lib/api-auth";
 import { classifyVehicle } from "@/lib/vehicle-classifier";
+import { trackServerEvent } from "@/lib/track-server-event";
 import type { AnonGarageItem } from "@/lib/anon-garage";
 
 export async function POST(req: NextRequest) {
@@ -143,6 +144,17 @@ export async function POST(req: NextRequest) {
     } catch {
       skipped++;
     }
+  }
+
+  // Emit post-sync events
+  if (synced > 0) {
+    trackServerEvent({
+      event_name: "anon_attached_to_user",
+      source: "auth",
+      user_id: user.id,
+      page_path: "/api/workspace/garage/sync-anon",
+      payload: { user_id: user.id, items_attached_count: synced, skipped },
+    });
   }
 
   return NextResponse.json({ success: true, synced, skipped });

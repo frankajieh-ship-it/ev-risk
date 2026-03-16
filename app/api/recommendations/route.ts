@@ -16,6 +16,7 @@ import { guardTurnstile } from "@/lib/turnstile";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { getWeatherClient, inferWeatherFallback } from "@/lib/weather-client";
+import { trackServerEvent } from "@/lib/track-server-event";
 import { getChargerClient } from "@/lib/charger-client";
 import type { VehicleRecommendation, DealerListingMatch, DataSources } from "@/types/recommendations";
 import type { WeatherData } from "@/types/routine-v2";
@@ -183,6 +184,26 @@ export async function POST(request: NextRequest) {
 
     // 6. Randomize within score tiers to avoid brand bias
     const recommendations = randomizeWithinScoreTiers(withDealers);
+
+    // Emit evfit_completed — list-level completion event (server source of truth)
+    const topScore = recommendations[0]?.fit_score ?? null;
+    const tieClusterCount = topScore !== null
+      ? recommendations.filter((r) => r.fit_score === topScore).length
+      : 0;
+    trackServerEvent({
+      event_name: "evfit_completed",
+      source: "evfit",
+      anon_id: (body.anon_id as string | undefined) ?? null,
+      session_id: (body.session_id as string | undefined) ?? null,
+      page_path: "/api/recommendations",
+      payload: {
+        recommendations_count: recommendations.length,
+        top_score: topScore,
+        tie_cluster_count: tieClusterCount,
+        weather_live: weatherLive,
+        chargers_live: chargersLive,
+      },
+    });
 
     // 7. Build dealer questions (use no-vehicle ownership risk for generic questions)
     const ownershipRisk = computeOwnershipRisk();

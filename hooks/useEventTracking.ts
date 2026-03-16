@@ -28,6 +28,7 @@ export function useEventTracking() {
   const sessionIdRef = useRef<string | null>(null);
   const persistentSessionIdRef = useRef<string | null>(null);
   const attributionInitRef = useRef(false);
+  const sessionInitFiredRef = useRef(false);
 
   // Initialize attribution on first render (client-side only)
   if (typeof window !== "undefined" && !attributionInitRef.current) {
@@ -102,10 +103,34 @@ export function useEventTracking() {
     "lint_failed_fallback_served",
   ]);
 
+  // Persist session + UTM context to server once per tab lifetime
+  const initSession = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (sessionInitFiredRef.current) return;
+    sessionInitFiredRef.current = true;
+
+    const sessionId = getSessionId();
+    const anonId = getPersistentSessionId();
+    const attribution = getAttributionForEvent();
+
+    fetch("/api/session/init", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: sessionId,
+        anon_id: anonId,
+        ...attribution,
+      }),
+    }).catch(() => {}); // Non-critical — never throw
+  }, [getSessionId, getPersistentSessionId]);
+
   // Track event
   const trackEvent = useCallback(
     async (eventName: string, eventData?: EventData) => {
       if (typeof window === "undefined") return;
+
+      // Init session on first event (lazy, avoids SSR issues)
+      initSession();
 
       const receiptId = eventData?.receipt_id || "";
       const viewId = getViewId(receiptId || undefined);

@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { trackServerEvent } from "@/lib/track-server-event";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -207,6 +208,19 @@ export async function POST(req: NextRequest) {
     if (insertError) {
       console.error("Save scenario error:", insertError);
       throw insertError;
+    }
+
+    // Emit listing_saved for receipt scenarios
+    if (scenario_type === "receipt") {
+      trackServerEvent({
+        event_name: "listing_saved",
+        source: "listing",
+        user_id: user.id,
+        entity_type: "listing_id",
+        entity_id: savedScenario.id,
+        page_path: "/api/user/scenario/save",
+        payload: { input_mode: "save", status: "saved", vehicle_model, vehicle_year },
+      });
     }
 
     return NextResponse.json({

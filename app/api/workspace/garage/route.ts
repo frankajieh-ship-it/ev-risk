@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, getSupabaseAdmin } from "@/lib/api-auth";
 import { validateVin, decodeVin } from "@/lib/vin-service";
 import { classifyVehicle } from "@/lib/vehicle-classifier";
+import { trackServerEvent } from "@/lib/track-server-event";
 
 export async function GET(req: NextRequest) {
   const user = await requireAuth(req);
@@ -107,6 +108,34 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+
+  // Emit garage_created on first vehicle, shortlist_saved on every add
+  const { count: vehicleCount } = await supabase
+    .from("garage_vehicles")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  if ((vehicleCount ?? 0) === 1) {
+    trackServerEvent({
+      event_name: "garage_created",
+      source: "garage",
+      user_id: user.id,
+      entity_type: "garage_item_id",
+      entity_id: data.id,
+      page_path: "/api/workspace/garage",
+      payload: { identity_type: "user", make, model, year: year || null },
+    });
+  }
+
+  trackServerEvent({
+    event_name: "shortlist_saved",
+    source: "garage",
+    user_id: user.id,
+    entity_type: "garage_item_id",
+    entity_id: data.id,
+    page_path: "/api/workspace/garage",
+    payload: { make, model, year: year || null, via: "garage_add" },
+  });
 
   return NextResponse.json({ success: true, vehicle: data }, { status: 201 });
 }
