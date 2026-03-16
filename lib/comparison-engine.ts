@@ -44,6 +44,7 @@ export function evaluateOption(
   const friction_bullets: string[] = [];
   const why_not_100: string[] = [];
   const risk_tags: string[] = [];
+  const strengths: string[] = [];
 
   // Start with baseline assessment from routine
   let frictionScore = 0;
@@ -179,13 +180,39 @@ export function evaluateOption(
     }
   }
 
+  // === Strengths (positive attributes specific to this option + routine) ===
+  if (base.has_home_charging) {
+    strengths.push("You start every day with a full charge — the lowest-friction setup.");
+  }
+  if (option.battery_bucket === 'LARGE' && base.long_day_frequency !== 'RARE') {
+    strengths.push("Large battery means fewer mid-day charging decisions on longer days.");
+  }
+  if (option.charging_curve_bucket === 'FAST_CONSISTENT' && base.planning_tolerance === 'LOW') {
+    strengths.push("Fast, consistent DC charging keeps road-trip stops short and predictable.");
+  }
+  if (option.efficiency_bucket === 'MORE_EFFICIENT' && base.routine_pattern === 'MOTORWAY_HEAVY') {
+    const rt = base.region === 'UK' ? 'motorway' : 'highway';
+    strengths.push(`Higher efficiency makes a meaningful difference on ${rt}-heavy routes.`);
+  }
+  if (option.battery_bucket !== 'SMALL' && option.battery_bucket !== 'UNKNOWN' && base.shared_infrastructure === 'HIGH') {
+    strengths.push("Mid-to-large battery means you need charger access less often — reduces shared-charger friction.");
+  }
+  if (option.charging_curve_bucket === 'FAST_CONSISTENT' && base.long_day_frequency === 'WEEKLY') {
+    strengths.push("Frequent long days are easier when charging stops are consistently fast.");
+  }
+  if (option.efficiency_bucket === 'MORE_EFFICIENT' && base.public_charging_dependency !== 'RARE') {
+    strengths.push("Better efficiency means you get more miles per public charging session.");
+  }
+
   // Limit bullets
   const limitedFriction = friction_bullets.slice(0, 5);
   const limitedWhy = why_not_100.slice(0, 3);
+  const limitedStrengths = strengths.slice(0, 3);
 
   return {
     fit_signal,
     fade_label: getFadeLabel(fit_signal),
+    strengths: limitedStrengths,
     friction_bullets: limitedFriction,
     why_not_100: limitedWhy,
     risk_tags,
@@ -339,6 +366,37 @@ export function computeDelta(
       deltas.push(
         `In shared charging setups, ${labelB} may increase competition pressure (you'll need slots more often).`
       );
+    }
+  }
+
+  // === Same-signal differentiation: surface relative strengths even when both are GOOD ===
+  if (resultA.fit_signal === resultB.fit_signal && deltas.length === 0) {
+    // Battery difference
+    const batteryOrder = { SMALL: 1, MID: 2, LARGE: 3, UNKNOWN: 0 };
+    const aSize = batteryOrder[optionA.battery_bucket];
+    const bSize = batteryOrder[optionB.battery_bucket];
+    if (aSize > 0 && bSize > 0 && aSize !== bSize) {
+      const moreHeadroom = aSize > bSize ? labelA : labelB;
+      const lessHeadroom = aSize > bSize ? labelB : labelA;
+      deltas.push(`${moreHeadroom} gives you more range headroom — ${lessHeadroom} may occasionally require more attention on longer days.`);
+    }
+    // Charging speed difference
+    const curveOrder = { SLOW: 1, AVERAGE: 2, FAST_CONSISTENT: 3, UNKNOWN: 0 };
+    const aCurve = curveOrder[optionA.charging_curve_bucket];
+    const bCurve = curveOrder[optionB.charging_curve_bucket];
+    if (aCurve > 0 && bCurve > 0 && aCurve !== bCurve) {
+      const fasterLabel = aCurve > bCurve ? labelA : labelB;
+      const slowerLabel = aCurve > bCurve ? labelB : labelA;
+      deltas.push(`${fasterLabel}'s faster charging makes the occasional top-up feel less like an interruption than ${slowerLabel}.`);
+    }
+    // Efficiency difference with public charging context
+    const effOrder = { LESS_EFFICIENT: 1, NEUTRAL: 2, MORE_EFFICIENT: 3, UNKNOWN: 0 };
+    const aEff = effOrder[optionA.efficiency_bucket];
+    const bEff = effOrder[optionB.efficiency_bucket];
+    if (aEff > 0 && bEff > 0 && aEff !== bEff) {
+      const moreEff = aEff > bEff ? labelA : labelB;
+      const lessEff = aEff > bEff ? labelB : labelA;
+      deltas.push(`${moreEff} stretches further on the same charge — ${lessEff} will visit charging spots more frequently.`);
     }
   }
 

@@ -47,32 +47,48 @@ function mapClimateSeasonality(cs: string): ClimateBand | null {
 function getMissingFieldHint(errors: string[]): string | null {
   if (!errors.length) return null;
   const first = errors[0];
-  if (first.includes("charging_access")) return "Select where you charge to continue";
+  if (first.includes("charging_access")) return "Answer the charging questions to continue";
   if (first.includes("weekly_miles") || first.includes("commute_miles"))
     return "Add weekly miles or commute distance to continue";
   if (first.includes("climate")) return "Select your climate to continue";
   if (first.includes("longest_day")) return "Add long day pattern to continue";
-  return "Complete all fields to continue";
+  return "Complete all required fields to continue";
 }
 
 export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
   const { trackEvent, trackRoutineFormPartialAbandon } = useEventTracking();
 
-  // Core routine fields (same as RoutineStep)
-  const [chargingAccess, setChargingAccess] = useState<MinimumViableRoutine["charging_access"] | null>(null);
+  // Charging block (replaces single chargingAccess 3-way)
+  const [hasHomeCharging, setHasHomeCharging] = useState<boolean | null>(null);
+  const [homeChargingType, setHomeChargingType] = useState<"L1" | "L2" | "UNKNOWN">("UNKNOWN");
+  const [canChargeAtWork, setCanChargeAtWork] = useState<boolean | null>(null);
+  const [publicDependency, setPublicDependency] = useState<"RARE" | "SOMETIMES" | "OFTEN" | null>(null);
+
+  // Core routine fields
   const [milesMode, setMilesMode] = useState<MilesMode>("weekly");
   const [weeklyMiles, setWeeklyMiles] = useState<string>("");
   const [commuteMiles, setCommuteMiles] = useState<string>("");
   const [climate, setClimate] = useState<ClimateBand | null>(null);
   const [longestDay, setLongestDay] = useState<MinimumViableRoutine["longest_day_pattern"] | null>(null);
 
+  // New routine questions
+  const [routinePattern, setRoutinePattern] = useState<"LOCAL" | "MIXED" | "MOTORWAY_HEAVY" | null>(null);
+  const [planningTolerance, setPlanningTolerance] = useState<"LOW" | "MED" | "HIGH" | null>(null);
+  const [sharedInfrastructure, setSharedInfrastructure] = useState<"NONE" | "SOME" | "HIGH" | null>(null);
+
   // V2 additions
   const [zipCode, setZipCode] = useState<string>("");
   const [climateAutoDetected, setClimateAutoDetected] = useState(false);
-  const [sharedCharger, setSharedCharger] = useState(false);
   const [vehicleProfiles, setVehicleProfiles] = useState<VehicleProfile[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const [vehiclesLoading, setVehiclesLoading] = useState(true);
+
+  // Derive charging_access for MVR backward compat
+  const chargingAccess: MinimumViableRoutine["charging_access"] | null =
+    hasHomeCharging === true ? "home"
+    : hasHomeCharging === false && canChargeAtWork === true ? "work"
+    : hasHomeCharging === false && canChargeAtWork === false ? "public"
+    : null;
 
   // Refs for scroll-to-field
   const chargingRef = useRef<HTMLFieldSetElement>(null);
@@ -116,20 +132,24 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
   }, [selectedVehicleId]);
 
   useEffect(() => {
-    if (sharedCharger) lastFieldTouchedRef.current = "shared_charger";
-  }, [sharedCharger]);
+    if (sharedInfrastructure !== null) lastFieldTouchedRef.current = "shared_infrastructure";
+  }, [sharedInfrastructure]);
 
   // Track partial abandon on page unload (NEW: March 2026)
   useEffect(() => {
     const getFilledFields = (): string[] => {
       const fields: string[] = [];
-      if (chargingAccess !== null) fields.push("charging_access");
+      if (hasHomeCharging !== null) fields.push("has_home_charging");
+      if (canChargeAtWork !== null) fields.push("can_charge_at_work");
+      if (publicDependency !== null) fields.push("public_dependency");
       if (weeklyMiles || commuteMiles) fields.push("miles");
       if (zipCode) fields.push("zip_code");
       if (climate !== null) fields.push("climate");
       if (longestDay !== null) fields.push("longest_day");
+      if (routinePattern !== null) fields.push("routine_pattern");
+      if (planningTolerance !== null) fields.push("planning_tolerance");
       if (selectedVehicleId) fields.push("vehicle");
-      if (sharedCharger) fields.push("shared_charger");
+      if (sharedInfrastructure !== null) fields.push("shared_infrastructure");
       return fields;
     };
 
@@ -168,7 +188,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [chargingAccess, weeklyMiles, commuteMiles, zipCode, climate, longestDay, selectedVehicleId, sharedCharger, trackRoutineFormPartialAbandon]);
+  }, [hasHomeCharging, canChargeAtWork, publicDependency, weeklyMiles, commuteMiles, zipCode, climate, longestDay, routinePattern, planningTolerance, selectedVehicleId, sharedInfrastructure, trackRoutineFormPartialAbandon]);
 
   // Load vehicle profiles
   useEffect(() => {
@@ -225,20 +245,28 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
   const hasMiles = milesMode === "weekly" ? !!weeklyMiles : !!commuteMiles;
   const hasVehicle = !!selectedVehicleId;
   const hasZip = zipCode.length === 5;
-  const confidencePct =
-    30 +
-    (chargingAccess ? 15 : 0) +
+  const confidencePct = Math.min(100,
+    20 +
+    (hasHomeCharging !== null ? 10 : 0) +
+    (canChargeAtWork !== null ? 5 : 0) +
+    (publicDependency !== null ? 5 : 0) +
     (hasMiles ? 15 : 0) +
     (climate ? 10 : 0) +
     (longestDay ? 10 : 0) +
-    (hasZip ? 10 : 0) +
-    (hasVehicle ? 10 : 0);
+    (routinePattern !== null ? 5 : 0) +
+    (planningTolerance !== null ? 5 : 0) +
+    (hasZip ? 5 : 0) +
+    (hasVehicle ? 10 : 0)
+  );
 
   const getNextHint = (): string => {
-    if (!chargingAccess) return "Add charging access to improve accuracy";
+    if (hasHomeCharging === null) return "Answer the charging questions to start";
+    if (canChargeAtWork === null) return "Can you charge at work?";
+    if (publicDependency === null) return "How often would you use public charging?";
     if (!hasMiles) return "Add driving miles to improve accuracy";
     if (!climate) return "Add climate to improve accuracy";
     if (!longestDay) return "Add long day pattern";
+    if (!routinePattern) return "Add your typical driving pattern";
     if (!hasZip) return "Add ZIP for weather + charger data";
     if (!hasVehicle) return "Select vehicle for full analysis";
     return "Ready for analysis";
@@ -294,7 +322,14 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
       weekly_miles: milesMode === "weekly" && weeklyMiles ? Number(weeklyMiles) : undefined,
       commute_miles_roundtrip: milesMode === "commute" && commuteMiles ? Number(commuteMiles) : undefined,
       longest_day_pattern: longestDay!,
-      shared_charger: sharedCharger,
+      // Rich charging + routine fields
+      has_home_charging: hasHomeCharging ?? undefined,
+      home_charging_type: hasHomeCharging ? homeChargingType : undefined,
+      can_charge_at_work: canChargeAtWork ?? undefined,
+      public_charging_dependency: publicDependency ?? undefined,
+      routine_pattern: routinePattern ?? undefined,
+      planning_tolerance: planningTolerance ?? undefined,
+      shared_infrastructure: sharedInfrastructure ?? undefined,
     });
   };
 
@@ -360,30 +395,88 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
       </div>
 
       <div className="space-y-8">
-        {/* Q1: Charging Access */}
-        <fieldset ref={chargingRef}>
-          <legend className="sr-only">Where will you charge most often?</legend>
-          <label className="block text-sm font-semibold text-gray-700 mb-3">
-            Where do you charge most often?
-          </label>
-          <div className="grid grid-cols-3 gap-3">
-            {([
-              { value: "home" as const, label: "Home", desc: "Garage / driveway" },
-              { value: "work" as const, label: "Work", desc: "Workplace charger" },
-              { value: "public" as const, label: "Public", desc: "Public networks" },
-            ]).map((opt) => (
-              <SelectionCard
-                key={opt.value}
-                selected={chargingAccess === opt.value}
-                onClick={() => {
-                  setChargingAccess(opt.value);
-                  if (chargingAccess !== opt.value) trackField("charging_access");
-                }}
-                label={opt.label}
-                desc={opt.desc}
-                ariaLabel={`Select ${opt.label.toLowerCase()} charging — ${opt.desc.toLowerCase()}`}
-              />
-            ))}
+        {/* Q1: Charging block */}
+        <fieldset ref={chargingRef} className="space-y-5">
+          <legend className="sr-only">Charging setup</legend>
+
+          {/* Q1a: Home charging */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Do you have dedicated home charging?
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              {([{ value: true, label: "Yes", desc: "Garage / driveway outlet" }, { value: false, label: "No", desc: "No home outlet available" }] as const).map((opt) => (
+                <SelectionCard
+                  key={String(opt.value)}
+                  selected={hasHomeCharging === opt.value}
+                  onClick={() => { setHasHomeCharging(opt.value); trackField("has_home_charging"); }}
+                  label={opt.label}
+                  desc={opt.desc}
+                  ariaLabel={opt.label}
+                />
+              ))}
+            </div>
+            {/* Q1b: Charger type — shown if home charging = yes */}
+            {hasHomeCharging === true && (
+              <div className="mt-3 pl-4 border-l-2 border-blue-200">
+                <label className="block text-xs font-medium text-gray-700 mb-2">What type?</label>
+                <div className="flex gap-2">
+                  {(["L1", "L2", "UNKNOWN"] as const).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => { setHomeChargingType(type); trackField("home_charging_type"); }}
+                      className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                        homeChargingType === type ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {type === "UNKNOWN" ? "Not sure" : type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Q1c: Work charging */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Can you charge at work?
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              {([{ value: true, label: "Yes", desc: "Workplace charger available" }, { value: false, label: "No", desc: "No charger at my workplace" }] as const).map((opt) => (
+                <SelectionCard
+                  key={String(opt.value)}
+                  selected={canChargeAtWork === opt.value}
+                  onClick={() => { setCanChargeAtWork(opt.value); trackField("can_charge_at_work"); }}
+                  label={opt.label}
+                  desc={opt.desc}
+                  ariaLabel={opt.label}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Q1d: Public charging dependency */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              How often would you rely on public charging?
+            </label>
+            <div className="space-y-2">
+              {([
+                { value: "RARE" as const, label: "Rarely", desc: "Road trips only" },
+                { value: "SOMETIMES" as const, label: "Sometimes", desc: "Weekly or so" },
+                { value: "OFTEN" as const, label: "Often", desc: "Multiple times per week" },
+              ]).map((opt) => (
+                <SelectionCard
+                  key={opt.value}
+                  selected={publicDependency === opt.value}
+                  onClick={() => { setPublicDependency(opt.value); trackField("public_dependency"); }}
+                  label={opt.label}
+                  desc={opt.desc}
+                  ariaLabel={`${opt.label} — ${opt.desc}`}
+                />
+              ))}
+            </div>
           </div>
         </fieldset>
 
@@ -532,7 +625,53 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
           </div>
         </fieldset>
 
-        {/* Q6: Vehicle Selector (optional) */}
+        {/* Q6: Driving pattern */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            What&apos;s your typical driving pattern?
+          </label>
+          <div className="space-y-2">
+            {([
+              { value: "LOCAL" as const, label: "Mostly local / city", desc: "Short trips, slow speeds" },
+              { value: "MIXED" as const, label: "Mix of local and highway", desc: "Variety of trip types" },
+              { value: "MOTORWAY_HEAVY" as const, label: "Highway-heavy", desc: "Lots of higher-speed driving" },
+            ]).map((opt) => (
+              <SelectionCard
+                key={opt.value}
+                selected={routinePattern === opt.value}
+                onClick={() => { setRoutinePattern(opt.value); trackField("routine_pattern"); }}
+                label={opt.label}
+                desc={opt.desc}
+                ariaLabel={`${opt.label} — ${opt.desc}`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Q7: Planning tolerance */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            How do you feel about planning charging stops?
+          </label>
+          <div className="space-y-2">
+            {([
+              { value: "LOW" as const, label: "I prefer not to think about it", desc: "Charging should be invisible" },
+              { value: "MED" as const, label: "I don't mind some planning", desc: "OK with occasional reminders" },
+              { value: "HIGH" as const, label: "I'm comfortable planning ahead", desc: "Happy to route around chargers" },
+            ]).map((opt) => (
+              <SelectionCard
+                key={opt.value}
+                selected={planningTolerance === opt.value}
+                onClick={() => { setPlanningTolerance(opt.value); trackField("planning_tolerance"); }}
+                label={opt.label}
+                desc={opt.desc}
+                ariaLabel={opt.label}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Q8: Vehicle Selector (optional) */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-3">
             <Car className="w-4 h-4 inline mr-1.5 -mt-0.5" />
@@ -566,32 +705,28 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
           </p>
         </div>
 
-        {/* Q7: Shared Charger */}
+        {/* Q9: Shared infrastructure */}
         <div>
-          <label className="flex items-center gap-3 cursor-pointer">
-            <Users className="w-4 h-4 text-gray-500" />
-            <span className="text-sm font-semibold text-gray-700">Share a charger with a partner?</span>
-            <button
-              role="switch"
-              aria-checked={sharedCharger}
-              onClick={() => {
-                setSharedCharger(!sharedCharger);
-                trackField("shared_charger");
-              }}
-              className={`relative ml-auto inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors ${
-                sharedCharger ? "bg-blue-600" : "bg-gray-200"
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${
-                  sharedCharger ? "translate-x-5" : "translate-x-0"
-                }`}
-              />
-            </button>
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            <Users className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+            Would you share charging access with others?
           </label>
-          <p className="text-xs text-gray-500 mt-1 ml-7">
-            Shared chargers reduce available charging windows.
-          </p>
+          <div className="space-y-2">
+            {([
+              { value: "NONE" as const, label: "No — dedicated for me", desc: "Private outlet, no sharing" },
+              { value: "SOME" as const, label: "Sometimes (shared with household)", desc: "Partner or family shares the charger" },
+              { value: "HIGH" as const, label: "Yes (apartment / shared parking)", desc: "Competing for shared charger spots" },
+            ]).map((opt) => (
+              <SelectionCard
+                key={opt.value}
+                selected={sharedInfrastructure === opt.value}
+                onClick={() => { setSharedInfrastructure(opt.value); trackField("shared_infrastructure"); }}
+                label={opt.label}
+                desc={opt.desc}
+                ariaLabel={opt.label}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Actions */}

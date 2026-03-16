@@ -17,6 +17,15 @@ export interface MinimumViableRoutine {
   longest_day_pattern: "once_a_week" | "monthly_trip" | "rare_road_trip";
   region?: "US" | "UK";
 
+  // Rich charging + routine fields (from compare BaseRoutineInput)
+  has_home_charging?: boolean;
+  home_charging_type?: "L1" | "L2" | "UNKNOWN";
+  can_charge_at_work?: boolean;
+  public_charging_dependency?: "RARE" | "SOMETIMES" | "OFTEN";
+  routine_pattern?: "LOCAL" | "MIXED" | "MOTORWAY_HEAVY";
+  planning_tolerance?: "LOW" | "MED" | "HIGH";
+  shared_infrastructure?: "NONE" | "SOME" | "HIGH";
+
   // Quick Fit additions
   budget_max?: number;
   body_style?: "sedan" | "suv" | "truck" | "hatchback" | "any";

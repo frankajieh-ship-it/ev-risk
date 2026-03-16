@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, HelpCircle, Copy, CheckCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, HelpCircle, Copy, CheckCircle, ChevronDown, ChevronUp } from "lucide-react";
+import ListingExtractMini from "@/components/compare/ListingExtractMini";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { resolveRegion, type RegionSelection } from "@/lib/resolveRegion";
 import { getCopy } from "@/lib/getCopy";
@@ -72,6 +73,10 @@ function ComparePageContent() {
   // Results
   const [result, setResult] = useState<ComparisonResult | null>(null);
   const [showCopySuccess, setShowCopySuccess] = useState(false);
+
+  // Per-option extract toggle
+  const [extractOpenA, setExtractOpenA] = useState(false);
+  const [extractOpenB, setExtractOpenB] = useState(false);
 
   // Track page view
   useEffect(() => {
@@ -473,10 +478,36 @@ function ComparePageContent() {
   const renderOptionCard = (
     option: OptionInput,
     setOption: (opt: OptionInput) => void,
-    title: string
+    title: string,
+    extractOpen: boolean,
+    setExtractOpen: (v: boolean) => void
   ) => (
     <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
       <h3 className="font-semibold text-gray-900">{title}</h3>
+
+      {/* Listing extraction */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setExtractOpen(!extractOpen)}
+          className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium mb-2"
+        >
+          {extractOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          {extractOpen ? "Hide" : "Paste a listing URL to auto-fill"}
+        </button>
+        {extractOpen && (
+          <ListingExtractMini
+            onExtracted={(label, bodyType) => {
+              setOption({
+                ...option,
+                label,
+                ...(bodyType ? { body_type_bucket: bodyType } : {}),
+              });
+              setExtractOpen(false);
+            }}
+          />
+        )}
+      </div>
 
       {/* Label */}
       <div>
@@ -579,8 +610,8 @@ function ComparePageContent() {
 
       {/* Two option cards side by side on larger screens */}
       <div className="grid md:grid-cols-2 gap-4">
-        {renderOptionCard(optionA, setOptionA, "Option A")}
-        {renderOptionCard(optionB, setOptionB, "Option B")}
+        {renderOptionCard(optionA, setOptionA, "Option A", extractOpenA, setExtractOpenA)}
+        {renderOptionCard(optionB, setOptionB, "Option B", extractOpenB, setExtractOpenB)}
       </div>
 
       {/* Help text */}
@@ -635,6 +666,21 @@ function ComparePageContent() {
         <p className="text-sm text-gray-600 italic">
           {FADE_LABEL_DISPLAY[fitResult.fade_label]}
         </p>
+
+        {/* Strengths */}
+        {fitResult.strengths.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-green-700 uppercase mb-2">Works well for your routine</p>
+            <ul className="space-y-2">
+              {fitResult.strengths.map((s, idx) => (
+                <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                  <span className="text-green-500 mt-0.5 font-bold">✓</span>
+                  <span>{s}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Friction Bullets */}
         {fitResult.friction_bullets.length > 0 && (

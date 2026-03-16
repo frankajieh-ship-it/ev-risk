@@ -135,6 +135,15 @@ export interface RoutineProfile {
   // Charging
   home_charging: "home" | "work" | "public";
 
+  // Rich charging + routine fields (mirrors BaseRoutineInput from comparison-types)
+  has_home_charging?: boolean;
+  home_charging_type?: "L1" | "L2" | "UNKNOWN";
+  can_charge_at_work?: boolean;
+  public_charging_dependency?: "RARE" | "SOMETIMES" | "OFTEN";
+  routine_pattern?: "LOCAL" | "MIXED" | "MOTORWAY_HEAVY";
+  planning_tolerance?: "LOW" | "MED" | "HIGH";
+  shared_infrastructure?: "NONE" | "SOME" | "HIGH";
+
   // Vehicle
   vehicle_profile_id?: string;
   vehicle_year?: number;

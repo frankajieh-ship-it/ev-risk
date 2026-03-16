@@ -44,6 +44,7 @@ export interface ComparisonInput extends BaseRoutineInput {
 export interface FitResult {
   fit_signal: FitSignal;
   fade_label: FadeLabel;
+  strengths: string[];     // What works well for this routine (green bullets)
   friction_bullets: string[];
   why_not_100: string[];
   risk_tags: string[]; // Internal: ['WINTER_MOTORWAY', 'PUBLIC_DEPENDENCY', ...]
