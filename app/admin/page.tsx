@@ -252,6 +252,24 @@ interface SummaryData {
     offo_dealer_viewed: number;
     offo_dealer_message_sent: number;
   };
+  evfit_funnel?: {
+    evfit_started: number;
+    evfit_completed: number;
+    completion_rate_pct: number;
+    refine_completed: number;
+    with_refine_pct: number;
+    shortlist_saved: number;
+    with_shortlist_pct: number;
+    compare_completed: number;
+    with_compare_pct: number;
+    listing_saved: number;
+    garage_created: number;
+    anon_attached: number;
+    ai_job_queued: number;
+    ai_job_succeeded: number;
+    ai_job_failed: number;
+    ai_success_rate_pct: number;
+  };
   entry_mode: {
     total_selections: number;
     modes: Array<{ mode: string; count: number }>;
@@ -1320,6 +1338,34 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+
+        {/* EVFit Backend Funnel */}
+        {s.evfit_funnel && (s.evfit_funnel.evfit_started > 0 || s.evfit_funnel.ai_job_queued > 0) && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">⚡ EVFit Backend Funnel</h2>
+            <p className="text-sm text-gray-500 mb-4">Server-side events — not ad-blockable, deduplicated</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <FunnelCard label="EVFit Started" value={s.evfit_funnel.evfit_started} color="blue" />
+              <FunnelCard label="EVFit Completed" value={s.evfit_funnel.evfit_completed} color="green" subtitle={`${s.evfit_funnel.completion_rate_pct}% completion`} />
+              <FunnelCard label="Refine Completed" value={s.evfit_funnel.refine_completed} color="indigo" subtitle={`${s.evfit_funnel.with_refine_pct}% of completions`} />
+              <FunnelCard label="Shortlist Saved" value={s.evfit_funnel.shortlist_saved} color="purple" subtitle={`${s.evfit_funnel.with_shortlist_pct}% of completions`} />
+              <FunnelCard label="Compare Completed" value={s.evfit_funnel.compare_completed} color="cyan" subtitle={`${s.evfit_funnel.with_compare_pct}% of completions`} />
+              <FunnelCard label="Listing Saved" value={s.evfit_funnel.listing_saved} color="emerald" />
+              <FunnelCard label="Garage Created" value={s.evfit_funnel.garage_created} color="teal" />
+              <FunnelCard label="Anon Attached" value={s.evfit_funnel.anon_attached} color="amber" />
+            </div>
+            {s.evfit_funnel.ai_job_queued > 0 && (
+              <>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2 mt-2">AI Job Lifecycle</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <FunnelCard label="AI Jobs Queued" value={s.evfit_funnel.ai_job_queued} color="blue" />
+                  <FunnelCard label="AI Succeeded" value={s.evfit_funnel.ai_job_succeeded} color="green" subtitle={`${s.evfit_funnel.ai_success_rate_pct}% success`} />
+                  <FunnelCard label="AI Failed" value={s.evfit_funnel.ai_job_failed} color="red" />
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Routine Engagement + Entry Mode */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

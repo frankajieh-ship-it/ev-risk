@@ -1049,6 +1049,42 @@ export async function GET(request: NextRequest) {
     };
 
     // -----------------------------------------------------------------------
+    // EVFit funnel (backend server events)
+    // -----------------------------------------------------------------------
+
+    const evfitStarted = countEvents(filteredUserEvents, "evfit_session_created");
+    const evfitCompleted = countEvents(filteredUserEvents, "evfit_completed_server") ||
+                           countEvents(filteredUserEvents, "evfit_completed");
+    const refineCompleted = countEvents(filteredUserEvents, "refine_completed");
+    const shortlistSaved = countEvents(filteredUserEvents, "shortlist_saved");
+    const compareCompleted = countEvents(filteredUserEvents, "compare_completed");
+    const listingSaved = countEvents(filteredUserEvents, "listing_saved");
+    const garageCreated = countEvents(filteredUserEvents, "garage_created");
+    const anonAttached = countEvents(filteredUserEvents, "anon_attached_to_user");
+    const aiJobQueued = countEvents(filteredUserEvents, "ai_job_queued");
+    const aiJobSucceeded = countEvents(filteredUserEvents, "ai_job_succeeded");
+    const aiJobFailed = countEvents(filteredUserEvents, "ai_job_failed");
+
+    const evfit_funnel = {
+      evfit_started: evfitStarted,
+      evfit_completed: evfitCompleted,
+      completion_rate_pct: evfitStarted > 0 ? Math.round((evfitCompleted / evfitStarted) * 100) : 0,
+      refine_completed: refineCompleted,
+      with_refine_pct: evfitCompleted > 0 ? Math.round((refineCompleted / evfitCompleted) * 100) : 0,
+      shortlist_saved: shortlistSaved,
+      with_shortlist_pct: evfitCompleted > 0 ? Math.round((shortlistSaved / evfitCompleted) * 100) : 0,
+      compare_completed: compareCompleted,
+      with_compare_pct: evfitCompleted > 0 ? Math.round((compareCompleted / evfitCompleted) * 100) : 0,
+      listing_saved: listingSaved,
+      garage_created: garageCreated,
+      anon_attached: anonAttached,
+      ai_job_queued: aiJobQueued,
+      ai_job_succeeded: aiJobSucceeded,
+      ai_job_failed: aiJobFailed,
+      ai_success_rate_pct: aiJobQueued > 0 ? Math.round((aiJobSucceeded / aiJobQueued) * 100) : 0,
+    };
+
+    // -----------------------------------------------------------------------
     // Entry mode selection (from user_events)
     // -----------------------------------------------------------------------
 
@@ -1385,6 +1421,7 @@ export async function GET(request: NextRequest) {
       ai_generation,
       report_server_events,
       routine_engagement,
+      evfit_funnel,
       entry_mode,
       extraction_domains,
       attribution,
