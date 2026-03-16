@@ -42,6 +42,7 @@ import RedditDraftSection from "@/components/receipt/RedditDraftSection";
 import NegotiationDeepSection from "@/components/receipt/NegotiationDeepSection";
 import PdfDownloadButton from "@/components/receipt/PdfDownloadButton";
 import CompareBadge from "@/components/receipt/CompareBadge";
+import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import CompareSelectModal from "@/components/receipt/CompareSelectModal";
 import CompareView from "@/components/receipt/CompareView";
 import RoutineFitMiniStep from "@/components/receipt/RoutineFitMiniStep";
@@ -1022,6 +1023,11 @@ export default function ReceiptPage() {
               transition={{ duration: 0.3 }}
               className="mt-6 space-y-4"
             >
+              {/* Social proof */}
+              <p className="text-xs text-gray-400 text-center -mb-1">
+                Used by 1,200+ EV shoppers &middot; ⭐ 4.5/5 from real users
+              </p>
+
               <ReceiptOutputCard
                 receipt={receipt}
                 lintPassed={lintPassed}
@@ -1203,6 +1209,8 @@ export default function ReceiptPage() {
                 contextType="receipt"
                 contextId={receipt.receipt_id}
               />
+
+              <SourcesFooter />
 
               {/* Contact/feedback link */}
               <p className="text-center text-sm text-gray-500 pt-2">

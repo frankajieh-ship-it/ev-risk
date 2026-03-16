@@ -6,7 +6,9 @@ import { ArrowLeft, Search, AlertCircle, MessageSquare, ChevronDown, ChevronUp, 
 import { useEventTracking } from "@/hooks/useEventTracking";
 import RecommendationCard from "./RecommendationCard";
 import RefineStep, { type RefinePrefs } from "./RefineStep";
+import Link from "next/link";
 import { addToAnonGarage } from "@/lib/anon-garage";
+import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import type { MinimumViableRoutine } from "@/types/v2";
 import type { VehicleRecommendation, RecommendationsResponse } from "@/types/recommendations";
 
@@ -195,6 +197,22 @@ export default function VehicleRecommendations({
           setRecommendations(data.recommendations);
           setDealerQuestions(data.dealer_questions.top_3);
           setUserZipCode(data.user_zip_code ?? null);
+
+          // Auto-save this EVFit result to anon-garage (syncs to server on login)
+          addToAnonGarage({
+            type: "fit_profile",
+            label: `EVFit — ${chargingLabels[routine.charging_access] ?? routine.charging_access} charging, ${routine.climate}`,
+            data: {
+              routine,
+              top_results: data.recommendations.slice(0, 5).map(r => ({
+                make: r.make,
+                model: r.model_short,
+                year: r.year,
+                fit_score: r.fit_score,
+                fit_label: r.fit_label,
+              })),
+            },
+          });
 
           trackEvent("recommendations_viewed", {
             count: data.recommendations.length,
@@ -458,6 +476,26 @@ export default function VehicleRecommendations({
       {/* Results */}
       {!loading && !error && (
         <>
+          {/* Save & Compare CTA — above the fold */}
+          {recommendations.length >= 2 && refinePhase === "browse" && (
+            <div className="flex gap-3 mb-5">
+              <Link
+                href="/saved"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                <Bookmark className="w-4 h-4" />
+                View Saved Results
+              </Link>
+              <Link
+                href="/compare?from=shortlist"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 border border-blue-300 text-blue-600 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-colors"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                Compare →
+              </Link>
+            </div>
+          )}
+
           {/* RefineStep panel */}
           {refinePhase === "refine" && (
             <div className="mb-6">
@@ -746,6 +784,8 @@ export default function VehicleRecommendations({
               Have a specific vehicle in mind? Enter details manually
             </button>
           </div>
+
+          <SourcesFooter />
         </>
       )}
     </motion.div>

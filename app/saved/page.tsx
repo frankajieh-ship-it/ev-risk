@@ -11,7 +11,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bookmark, FileText, Zap, Loader2, GitCompare } from "lucide-react";
+import { ArrowLeft, Bookmark, FileText, Zap, Loader2, GitCompare, X } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventTracking } from "@/hooks/useEventTracking";
@@ -118,6 +118,7 @@ export default function SavedPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+  const [compareSelection, setCompareSelection] = useState<SavedScenarioPreview | null>(null);
 
   useEffect(() => {
     trackEvent("saved_dashboard_viewed");
@@ -301,16 +302,29 @@ export default function SavedPage() {
           </div>
         )}
 
-        {/* Compare button */}
+        {/* Compare controls */}
         {!loading && !error && scenarios.length >= 2 && (
-          <div className="flex justify-end mb-2">
-            <Link
-              href="/compare?from=shortlist"
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors"
-            >
-              <GitCompare className="w-4 h-4" />
-              Compare top 2 →
-            </Link>
+          <div className="flex items-center justify-between mb-2 gap-3">
+            {compareSelection ? (
+              <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700">
+                <GitCompare className="w-4 h-4 flex-shrink-0" />
+                <span>Comparing <strong>{compareSelection.vehicle_model || compareSelection.title}</strong> — pick another</span>
+                <button
+                  onClick={() => setCompareSelection(null)}
+                  className="ml-auto text-blue-400 hover:text-blue-600 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/compare?from=shortlist"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors ml-auto"
+              >
+                <GitCompare className="w-4 h-4" />
+                Compare top 2 →
+              </Link>
+            )}
           </div>
         )}
 
@@ -323,14 +337,21 @@ export default function SavedPage() {
                 scenario.fit_signal
               );
 
+              const isSelected = compareSelection?.id === scenario.id;
               return (
-                <button
+                <div
                   key={scenario.id}
-                  onClick={() => handleScenarioClick(scenario)}
-                  className="w-full text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-indigo-300 hover:shadow-sm transition-all"
+                  className={`w-full text-left p-4 bg-white border rounded-xl transition-all ${
+                    isSelected
+                      ? "border-blue-400 ring-2 ring-blue-100"
+                      : "border-gray-200 hover:border-indigo-300 hover:shadow-sm"
+                  }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <button
+                      onClick={() => handleScenarioClick(scenario)}
+                      className="flex-1 min-w-0 text-left"
+                    >
                       <div className="flex items-center gap-2 mb-1">
                         {scenario.scenario_type === "receipt" ? (
                           <FileText className="w-4 h-4 text-indigo-500 flex-shrink-0" />
@@ -362,17 +383,50 @@ export default function SavedPage() {
                           </span>
                         )}
                       </div>
-                    </div>
+                    </button>
 
-                    <div className="ml-3 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <span
                         className={`px-2.5 py-1 text-xs font-medium rounded-full ${verdictStyles.bg} ${verdictStyles.text}`}
                       >
                         {verdictStyles.label}
                       </span>
+                      {/* Per-card compare button */}
+                      {scenarios.length >= 2 && (
+                        <button
+                          onClick={() => {
+                            if (!compareSelection) {
+                              setCompareSelection(scenario);
+                            } else if (compareSelection.id === scenario.id) {
+                              setCompareSelection(null);
+                            } else {
+                              const a = encodeURIComponent(compareSelection.vehicle_model || compareSelection.title || "Vehicle A");
+                              const b = encodeURIComponent(scenario.vehicle_model || scenario.title || "Vehicle B");
+                              router.push(`/compare?a=${a}&b=${b}`);
+                              setCompareSelection(null);
+                            }
+                          }}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            isSelected
+                              ? "text-blue-600 bg-blue-100"
+                              : compareSelection
+                              ? "text-green-600 bg-green-50 hover:bg-green-100"
+                              : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                          }`}
+                          title={
+                            isSelected
+                              ? "Cancel selection"
+                              : compareSelection
+                              ? `Compare with ${compareSelection.vehicle_model || compareSelection.title}`
+                              : "Select for comparison"
+                          }
+                        >
+                          <GitCompare className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>

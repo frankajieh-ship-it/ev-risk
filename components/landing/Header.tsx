@@ -41,11 +41,11 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
 
   const GarageBadge = () => (
     <Link
-      href="/shortlist"
+      href={isAuthenticated ? "/workspace/garage" : "/shortlist"}
       className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
     >
       <Bookmark className="w-4 h-4" />
-      Garage
+      {isAuthenticated ? "My Garage" : "Garage"}
       {garageCount > 0 && (
         <span className="bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded-full font-medium">
           {garageCount}
@@ -209,12 +209,12 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
               )}
 
               <Link
-                href="/shortlist"
+                href={isAuthenticated ? "/workspace/garage" : "/shortlist"}
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-gray-900 py-2"
               >
                 <Bookmark className="w-4 h-4" />
-                Garage
+                {isAuthenticated ? "My Garage" : "Garage"}
                 {garageCount > 0 && (
                   <span className="bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded-full">
                     {garageCount}

@@ -44,6 +44,8 @@ function ComparePageContent() {
   const { trackEvent } = useEventTracking();
   const searchParams = useSearchParams();
   const fromShortlist = searchParams.get("from") === "shortlist";
+  const paramA = searchParams.get("a");
+  const paramB = searchParams.get("b");
 
   // Phase state — jump to results if coming from shortlist
   const [phase, setPhase] = useState<Phase>("routine");
@@ -119,6 +121,23 @@ function ComparePageContent() {
     setPhase("results");
     trackEvent("compare_from_shortlist", { candidates: [a.vehicle_label, b.vehicle_label] });
   }, [fromShortlist]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // If ?a= and ?b= params provided (e.g. from garage compare), pre-fill option labels
+  useEffect(() => {
+    if (!paramA || !paramB || fromShortlist) return;
+    const toOption = (label: string): OptionInput => ({
+      label,
+      body_type_bucket: "UNKNOWN",
+      battery_bucket: "UNKNOWN",
+      efficiency_bucket: "UNKNOWN",
+      charging_curve_bucket: "UNKNOWN",
+    });
+    setOptionA(toOption(paramA));
+    setOptionB(toOption(paramB));
+    // Stay on routine phase — garage vehicles don't carry routine context
+    setPhase("routine");
+    trackEvent("compare_from_garage", { a: paramA, b: paramB });
+  }, [paramA, paramB]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track results viewed when result is set
   useEffect(() => {

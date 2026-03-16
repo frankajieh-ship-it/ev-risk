@@ -2,12 +2,14 @@
  * Garage Page
  *
  * List of user's saved vehicles with add vehicle form.
+ * Supports per-vehicle "New Check" and two-step "Compare" selection.
  */
 
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Car, Plus, X, Loader2, Trash2, Search } from "lucide-react";
+import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
 interface GarageVehicle {
@@ -23,8 +25,13 @@ interface GarageVehicle {
   created_at: string;
 }
 
+function vehicleLabel(v: GarageVehicle): string {
+  return `${v.year || ""} ${v.make} ${v.model}`.trim();
+}
+
 export default function GaragePage() {
   const { session } = useAuth();
+  const router = useRouter();
   const [vehicles, setVehicles] = useState<GarageVehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -32,6 +39,7 @@ export default function GaragePage() {
   const [formData, setFormData] = useState({ vin: "", make: "", model: "", year: "", nickname: "" });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [compareBase, setCompareBase] = useState<GarageVehicle | null>(null);
 
   const headers = useCallback(() => {
     return session?.access_token
@@ -108,13 +116,29 @@ export default function GaragePage() {
     if (!h) return;
     await fetch(`/api/workspace/garage/${id}`, { method: "DELETE", headers: h });
     setVehicles((prev) => prev.filter((v) => v.id !== id));
+    if (compareBase?.id === id) setCompareBase(null);
+  };
+
+  const handleCompareClick = (v: GarageVehicle) => {
+    if (!compareBase) {
+      setCompareBase(v);
+      return;
+    }
+    if (compareBase.id === v.id) {
+      setCompareBase(null);
+      return;
+    }
+    // Navigate to compare with both vehicles pre-filled
+    const a = encodeURIComponent(vehicleLabel(compareBase));
+    const b = encodeURIComponent(vehicleLabel(v));
+    router.push(`/compare?a=${a}&b=${b}`);
   };
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Garage</h1>
+          <h1 className="text-xl font-bold text-gray-900">My Garage</h1>
           <p className="text-sm text-gray-500">Your saved vehicles</p>
         </div>
         <button
@@ -125,6 +149,22 @@ export default function GaragePage() {
           {showAdd ? "Cancel" : "Add Vehicle"}
         </button>
       </div>
+
+      {/* Compare selection banner */}
+      {compareBase && (
+        <div className="flex items-center justify-between px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-sm">
+          <div className="flex items-center gap-2 text-blue-700">
+            <GitCompare className="w-4 h-4" />
+            <span>Comparing <strong>{vehicleLabel(compareBase)}</strong> — now pick another vehicle</span>
+          </div>
+          <button
+            onClick={() => setCompareBase(null)}
+            className="text-blue-500 hover:text-blue-700 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Add Vehicle Form */}
       {showAdd && (
@@ -215,39 +255,91 @@ export default function GaragePage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {vehicles.map((v) => (
-            <div
-              key={v.id}
-              className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4 group"
-            >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold ${
-                v.classification?.category === "EV"
-                  ? "bg-green-50 text-green-700"
-                  : v.classification?.category === "PHEV"
-                  ? "bg-yellow-50 text-yellow-700"
-                  : "bg-gray-100 text-gray-500"
-              }`}>
-                {v.classification?.category || "?"}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900">
-                  {v.nickname || `${v.year || ""} ${v.make} ${v.model}`.trim()}
-                </p>
-                <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                  {v.nickname && <span>{v.year || ""} {v.make} {v.model}</span>}
-                  {v.trim && <span>&middot; {v.trim}</span>}
-                  {v.vin && <span className="font-mono">&middot; {v.vin}</span>}
+          {vehicles.length >= 2 && !compareBase && (
+            <p className="text-xs text-gray-400 text-center pb-1">
+              Select any vehicle to start a side-by-side comparison
+            </p>
+          )}
+          {vehicles.map((v) => {
+            const isCompareBase = compareBase?.id === v.id;
+            const isCompareTarget = compareBase && compareBase.id !== v.id;
+            return (
+              <div
+                key={v.id}
+                className={`bg-white rounded-xl border p-4 flex items-center gap-4 group transition-all ${
+                  isCompareBase
+                    ? "border-blue-400 ring-2 ring-blue-100"
+                    : "border-gray-200"
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold ${
+                  v.classification?.category === "EV"
+                    ? "bg-green-50 text-green-700"
+                    : v.classification?.category === "PHEV"
+                    ? "bg-yellow-50 text-yellow-700"
+                    : "bg-gray-100 text-gray-500"
+                }`}>
+                  {v.classification?.category || "?"}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-gray-900">
+                    {v.nickname || vehicleLabel(v)}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                    {v.nickname && <span>{vehicleLabel(v)}</span>}
+                    {v.trim && <span>&middot; {v.trim}</span>}
+                    {v.vin && <span className="font-mono">&middot; {v.vin}</span>}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                  {/* New Check button */}
+                  <button
+                    onClick={() => router.push(`/receipt?vehicle=${encodeURIComponent(vehicleLabel(v))}`)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors"
+                    title="Generate a receipt check for this vehicle"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    New Check
+                  </button>
+
+                  {/* Compare button */}
+                  {vehicles.length >= 2 && (
+                    <button
+                      onClick={() => handleCompareClick(v)}
+                      className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                        isCompareBase
+                          ? "bg-blue-600 text-white"
+                          : isCompareTarget
+                          ? "bg-green-600 text-white hover:bg-green-700"
+                          : "text-gray-600 bg-gray-100 hover:bg-purple-50 hover:text-purple-700"
+                      }`}
+                      title={
+                        isCompareBase
+                          ? "Cancel selection"
+                          : isCompareTarget
+                          ? `Compare with ${vehicleLabel(compareBase!)}`
+                          : "Select for comparison"
+                      }
+                    >
+                      <GitCompare className="w-3.5 h-3.5" />
+                      {isCompareBase ? "Selected" : isCompareTarget ? "Compare →" : "Compare"}
+                    </button>
+                  )}
+
+                  {/* Delete */}
+                  <button
+                    onClick={() => handleDelete(v.id)}
+                    className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                    title="Remove from garage"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
-              <button
-                onClick={() => handleDelete(v.id)}
-                className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-                title="Remove from garage"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
