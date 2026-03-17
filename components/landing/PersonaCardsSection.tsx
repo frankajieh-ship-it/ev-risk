@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Car, Receipt, Building, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 const personas = [
   {
@@ -59,8 +60,11 @@ const itemVariants = {
 };
 
 export default function PersonaCardsSection() {
+  const { trackCTAClick } = useEventTracking();
+
   const handleScrollClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
+    trackCTAClick("persona_shoppers");
     const el = document.querySelector(href);
     if (el) el.scrollIntoView({ behavior: "smooth" });
   };
@@ -133,6 +137,7 @@ export default function PersonaCardsSection() {
                 ) : (
                   <Link
                     href={persona.href}
+                    onClick={() => trackCTAClick(`persona_${persona.title.toLowerCase().replace(/\s+/g, "_")}`)}
                     className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 ${persona.ctaBg} text-white text-sm font-semibold rounded-xl transition-colors`}
                   >
                     {persona.cta}

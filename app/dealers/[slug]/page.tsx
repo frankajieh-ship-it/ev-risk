@@ -15,6 +15,7 @@ import {
   Car, Loader2, MessageSquare, ExternalLink,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface DealerProfile {
   id: string;
@@ -59,6 +60,7 @@ export default function DealerProfilePage() {
   const [inquirySubmitting, setInquirySubmitting] = useState(false);
   const [inquirySent, setInquirySent] = useState(false);
   const { session } = useAuth();
+  const { trackOffoDealerViewed, trackOffoDealerMessageSent, getPersistentSessionId } = useEventTracking();
 
   useEffect(() => {
     if (!params.slug) return;
@@ -68,11 +70,20 @@ export default function DealerProfilePage() {
       fetch(`/api/dealers/${params.slug}/inventory?limit=6`).then((r) => r.json()),
     ])
       .then(([dealerRes, invRes]) => {
-        if (dealerRes.success) setDealer(dealerRes.dealer);
+        if (dealerRes.success) {
+          setDealer(dealerRes.dealer);
+          trackOffoDealerViewed({
+            dealer_id: dealerRes.dealer.id,
+            dealer_name: dealerRes.dealer.name,
+            viewed_from: "dealer_directory",
+            session_id: getPersistentSessionId(),
+          });
+        }
         if (invRes.success) setInventory(invRes.inventory);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.slug]);
 
   const handleSendInquiry = async () => {
@@ -96,6 +107,14 @@ export default function DealerProfilePage() {
       const data = await res.json();
       if (data.success) {
         setInquirySent(true);
+        trackOffoDealerMessageSent({
+          dealer_id: dealer.id,
+          dealer_name: dealer.name,
+          message_length_chars: inquiryForm.message.length,
+          included_vehicle_context: false,
+          message_sent_from: "dealer_page",
+          session_id: getPersistentSessionId(),
+        });
       }
     } catch {} finally {
       setInquirySubmitting(false);

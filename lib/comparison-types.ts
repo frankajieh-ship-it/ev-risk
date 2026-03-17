@@ -57,6 +57,49 @@ export interface ComparisonResult {
   neutral_closer: string;
 }
 
+// ============================================
+// SPEC TYPES + BUCKET DERIVATION HELPERS
+// ============================================
+
+/** Raw numeric specs for a vehicle option (page-level only, not passed to engine) */
+export interface OptionSpec {
+  range_mi?: number;
+  battery_kwh?: number;
+  dc_fast_kw?: number;
+  efficiency_mi_per_kwh?: number;
+  drivetrain?: 'FWD' | 'RWD' | 'AWD' | 'UNKNOWN';
+  price?: number;
+}
+
+export function deriveBodyBucket(make: string, model: string): BodyTypeBucket {
+  const s = `${make} ${model}`.toLowerCase();
+  if (/van|pickup|f-150|silverado|r1t|ram|canyon|colorado|transit|promaster/.test(s)) return 'VAN_PICKUP';
+  if (/suv|crossover|model y|model x|ioniq 5|ioniq 7|ioniq 9|ev6|ev9|mach-e|ariya|bz4x|blazer|equinox|forester|outback|qx60|tiguan|id\.4|id\.6|enyaq/.test(s)) return 'SUV_CUV';
+  return 'HATCH_SEDAN_WAGON';
+}
+
+export function deriveBatteryBucket(range_mi?: number, battery_kwh?: number): BatteryBucket {
+  if (!range_mi && !battery_kwh) return 'UNKNOWN';
+  const kwh = battery_kwh ?? (range_mi ? range_mi / 3.5 : 0);
+  if (kwh >= 75) return 'LARGE';
+  if (kwh >= 55) return 'MID';
+  return 'SMALL';
+}
+
+export function deriveEfficiencyBucket(efficiency_mi_per_kwh?: number): EfficiencyBucket {
+  if (!efficiency_mi_per_kwh) return 'UNKNOWN';
+  if (efficiency_mi_per_kwh >= 3.8) return 'MORE_EFFICIENT';
+  if (efficiency_mi_per_kwh <= 3.0) return 'LESS_EFFICIENT';
+  return 'NEUTRAL';
+}
+
+export function deriveChargingBucket(dc_fast_kw?: number): ChargingCurveBucket {
+  if (!dc_fast_kw) return 'UNKNOWN';
+  if (dc_fast_kw >= 150) return 'FAST_CONSISTENT';
+  if (dc_fast_kw >= 80) return 'AVERAGE';
+  return 'SLOW';
+}
+
 // UI display helpers
 export const FIT_SIGNAL_LABELS: Record<FitSignal, string> = {
   GOOD: "Good Fit",

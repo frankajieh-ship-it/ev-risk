@@ -301,51 +301,32 @@ export default function Home() {
       <section className="relative overflow-hidden">
         <div className="relative max-w-7xl mx-auto px-4 pt-8 pb-6 md:pt-16 md:pb-12">
           <div className="text-center max-w-4xl mx-auto">
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="text-2xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 md:mb-5"
-            >
+            {/* H1 renders immediately (no opacity:0) so browser can measure LCP */}
+            <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 md:mb-5">
               Find out if an EV{" "}
               <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
                 fits your routine
               </span>
-            </motion.h1>
+            </h1>
 
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-base md:text-lg text-gray-600 mb-2 md:mb-3 max-w-2xl mx-auto"
-            >
+            <p className="text-base md:text-lg text-gray-600 mb-2 md:mb-3 max-w-2xl mx-auto">
               Get a fit verdict, what breaks first, and a fallback plan — based on how you actually drive and charge.
-            </motion.p>
+            </p>
 
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.15 }}
-              className="text-sm text-gray-500 mb-5 md:mb-6"
-            >
+            <p className="text-sm text-gray-500 mb-5 md:mb-6">
               Join thousands of EV shoppers making informed decisions
-            </motion.p>
+            </p>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="mb-6 md:mb-8"
-            >
+            <div className="mb-6 md:mb-8">
               <TrustMicrocopy />
-            </motion.div>
+            </div>
 
             {/* CTAs */}
             {currentStep === "routine" && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
                 className="flex flex-col items-center justify-center gap-4"
               >
                 {/* Primary CTA */}

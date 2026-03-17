@@ -541,6 +541,185 @@ export const DEMO_REPORTS: Record<string, EvRiskReportV2Contract> = {
     }
   },
 
+  "chevy-bolt-ev-green": {
+    report_id: "demo-chevy-bolt-ev-green",
+    scenario_id: "demo-scenario-bolt-green",
+    scenario_slug: "chevy-bolt-ev-green",
+    region: "US",
+
+    default_view: {
+      fit_verdict: {
+        label: "Good Fit",
+        one_liner: "Home charging + mild climate + moderate miles — this Bolt EV fits your routine with low daily friction"
+      },
+      fallback_plan: {
+        primary: "Daily overnight Level 2 home charging (6-8 hours, wake up to full battery)",
+        backup: "Workplace Level 2 charger or nearby public charger as backup on high-mileage days",
+        trigger: "If you forget to plug in overnight, top up at work or nearby Level 2 during the day"
+      },
+      stress_flags: [
+        {
+          title: "Home Charging Handles Your Routine Comfortably",
+          because: "200 mi/wk with home charging and mild climate = ~29 mi/day average. Bolt's 259 mi EPA range is nearly 9x your daily average.",
+          impact: "You'll rarely drop below 50% SOC. Charging is a plug-in-at-night routine, not a logistics problem."
+        },
+        {
+          title: "Public Charging Dependency Risk on Long Days",
+          because: "If any day exceeds ~130 mi (rare with 200 mi/wk average), a mid-day charge may be needed",
+          impact: "Low probability — but map a backup Level 2 near your longest route just in case."
+        }
+      ],
+      one_followup_question: "Does your home have a 240V outlet or are you planning to install a Level 2 charger?",
+      confidence: {
+        routine_confidence_pct: 88,
+        routine_confidence_label: "High",
+        ownership_confidence_pct: 82,
+        ownership_confidence_label: "High"
+      }
+    },
+
+    appendix: {
+      buyer_diligence: {
+        battery: {
+          summary: "2023 Bolt EV uses updated LG Chemistry cells (not the recalled modules). Battery replacement recall resolved for 2022+ models.",
+          asks: [
+            "Confirm 2023 model year (not affected by 2017-2022 LG recall)",
+            "Request GOM screenshot showing estimated range at 100% charge (should be 240-259 mi)",
+            "Ask seller how often they use DC fast charging (frequent DCFC degrades cells faster)",
+            "Verify battery has no visible damage via pre-purchase inspection"
+          ]
+        },
+        warranty_recalls: {
+          summary: "GM 8yr/100k mi battery warranty active on 2023 model (under 30k miles). No active safety recalls.",
+          checks: [
+            "Confirm VIN not affected by any open recalls via NHTSA VIN lookup",
+            "Verify GM Battery Assurance warranty documentation is transferable",
+            "Check for Shift-to-Park software updates (resolved in 2022+)",
+            "Confirm 12V battery health (common replacement at 3-4 years)"
+          ]
+        },
+        walk_away_triggers: [
+          "Estimated range < 220 mi at 100% charge (indicates early degradation)",
+          "Any accident history involving underbody or battery compartment",
+          "Seller cannot confirm 2023 model year (2017-2022 recall risk)",
+          "More than 3x/week DC fast charge history (accelerates degradation)",
+          "Missing service records"
+        ]
+      },
+      cost_estimates: {
+        notes: "5-year ownership cost estimate: $27k (purchase) + $3.5k (charging at home) + $4k (insurance) + $1.5k (maintenance) = $36k total — strong value for the category"
+      },
+      dealer_questions: [
+        "Can you confirm this is a 2023 model year and show the build sheet?",
+        "What's the current estimated range at 100% charge shown on the dash?",
+        "How often was DC fast charging used? (prefer < 3x/week average)",
+        "Is the original battery warranty documentation available to transfer?",
+        "Any issues with the Shift-to-Park feature? (resolved in 2022+ but worth confirming)"
+      ]
+    },
+
+    missing_data_loop: {
+      current_confidence: 85,
+      target_confidence: 93,
+      next_best_step: {
+        label: "Confirm range and charging history to reach 93% confidence",
+        steps: [
+          { action: "Request GOM screenshot at 100% charge", unlocks: ["Verify battery capacity is healthy", "Confirm 240+ mi range"] },
+          { action: "Ask for DC fast charge frequency from seller", unlocks: ["Degradation risk assessment", "Long-term battery projection"] }
+        ],
+        cta: { type: "SAVE_SCENARIO", enabled: true }
+      }
+    },
+
+    computed: {
+      range_adequacy: {
+        status: "computed",
+        result: "adequate",
+        inputs_used: ["real_world_range_mi: 240", "daily_miles: 29", "charging_access: home", "climate: mild"]
+      }
+    },
+
+    _internal: {
+      routine_fit: {
+        score_0_100: 86,
+        label: "Good Fit",
+        mental_load: "low",
+        stress_flags: [
+          { id: "home-charging-fits", label: "Home Charging Handles Your Routine Comfortably", severity: "low", routine_citation: "Home charging + 200 mi/wk + mild climate" },
+          { id: "long-day-buffer", label: "Public Charging Dependency Risk on Long Days", severity: "low", routine_citation: "Occasional long days beyond daily average" }
+        ],
+        breakpoints_ranked: [
+          {
+            id: "bp-long-day",
+            title: "Long Day Range Buffer",
+            break_point: "Days exceeding ~130 mi may need a mid-day top-up",
+            trigger: "Rare — requires 4.5x your average daily distance",
+            evidence: [
+              { label: "Daily average", value: "~29 mi" },
+              { label: "Real-world range", value: "~240 mi" },
+              { label: "Buffer to empty", value: "~211 mi margin" }
+            ],
+            impact: "Low",
+            fallback_plan_b: {
+              anchor: "Overnight home Level 2 charging",
+              backup: "Public Level 2 near longest route",
+              buffer_rule: "Keep above 20% SOC as daily habit"
+            }
+          }
+        ],
+        confidence: {
+          level: "high",
+          note: "High confidence — home charging + mild climate + moderate miles is the ideal Bolt EV use case",
+          has_vehicle_data: true,
+          has_battery_data: false
+        }
+      },
+      ownership_risk: {
+        overall_risk_label: "Low ownership friction",
+        modules: [
+          {
+            module_id: "battery",
+            status: "green",
+            label: "Battery Health",
+            summary: "2023 model uses updated cells — not affected by LG recall",
+            detail: "GM resolved the Bolt battery recall for 2022+ models. 2023 Bolt EV has updated LG chemistry with no known safety issues.",
+            data_available: true
+          },
+          {
+            module_id: "recall",
+            status: "green",
+            label: "Recall Status",
+            summary: "No active recalls on 2023 Bolt EV",
+            detail: "The 2017-2022 LG battery recall does not apply to 2023 model year. Verify via NHTSA VIN lookup to confirm.",
+            data_available: true
+          },
+          {
+            module_id: "warranty",
+            status: "green",
+            label: "Warranty Coverage",
+            summary: "GM 8yr/100k mi battery warranty active",
+            detail: "Under 30k miles — well within GM's battery warranty coverage window.",
+            data_available: true
+          }
+        ]
+      },
+      vehicle: {
+        make: "Chevrolet",
+        model: "Bolt EV",
+        year: 2023,
+        mileage: 28000
+      },
+      routine: {
+        charging_access: "home",
+        weekly_miles: 200,
+        commute_miles_roundtrip: 29,
+        climate: "mild",
+        longest_day_pattern: "once_a_week",
+        region: "US"
+      }
+    }
+  },
+
   "ford-mach-e-winter": {
     report_id: "demo-ford-mach-e-winter",
     scenario_id: "demo-scenario-4",

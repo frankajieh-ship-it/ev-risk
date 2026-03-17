@@ -446,8 +446,8 @@ body {
   background-color: rgba(59, 130, 246, 0.3);
 }
 
-/* Smooth transitions for theme changes */
-* {
+/* Smooth transitions for theme changes — scoped to interactive elements only */
+button, a, input, select, textarea, [role="button"] {
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 

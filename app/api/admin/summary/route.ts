@@ -234,6 +234,16 @@ export async function GET(request: NextRequest) {
       .gte("created_at", window.start)
       .lt("created_at", window.end);
 
+    // 10. Garage vehicles — all-time count per user (authenticated users only)
+    const garageUsersPromise = supabase
+      .from("garage_vehicles")
+      .select("user_id");
+
+    // 11. Saved scenarios — all-time count per user (authenticated users only)
+    const savedScenariosUsersPromise = supabase
+      .from("saved_scenarios")
+      .select("user_id");
+
     const [
       { data: receipts },
       { data: receiptEvents },
@@ -244,6 +254,8 @@ export async function GET(request: NextRequest) {
       { data: recentEvents },
       { data: recentReceiptEvents },
       { data: purchases },
+      { data: garageUsers },
+      { data: savedScenariosUsers },
     ] = await Promise.all([
       receiptsPromise,
       receiptEventsPromise,
@@ -254,6 +266,8 @@ export async function GET(request: NextRequest) {
       recentEventsPromise,
       recentReceiptEventsPromise,
       purchasesPromise,
+      garageUsersPromise,
+      savedScenariosUsersPromise,
     ]);
 
     const allReceipts = receipts || [];
@@ -1057,6 +1071,7 @@ export async function GET(request: NextRequest) {
                            countEvents(filteredUserEvents, "evfit_completed");
     const refineCompleted = countEvents(filteredUserEvents, "refine_completed");
     const shortlistSaved = countEvents(filteredUserEvents, "shortlist_saved");
+    const compareStarted = countEvents(filteredUserEvents, "compare_started");
     const compareCompleted = countEvents(filteredUserEvents, "compare_completed");
     const listingSaved = countEvents(filteredUserEvents, "listing_saved");
     const garageCreated = countEvents(filteredUserEvents, "garage_created");
@@ -1073,7 +1088,9 @@ export async function GET(request: NextRequest) {
       with_refine_pct: evfitCompleted > 0 ? Math.round((refineCompleted / evfitCompleted) * 100) : 0,
       shortlist_saved: shortlistSaved,
       with_shortlist_pct: evfitCompleted > 0 ? Math.round((shortlistSaved / evfitCompleted) * 100) : 0,
+      compare_started: compareStarted,
       compare_completed: compareCompleted,
+      compare_start_to_finish_pct: compareStarted > 0 ? Math.round((compareCompleted / compareStarted) * 100) : 0,
       with_compare_pct: evfitCompleted > 0 ? Math.round((compareCompleted / evfitCompleted) * 100) : 0,
       listing_saved: listingSaved,
       garage_created: garageCreated,
@@ -1082,6 +1099,47 @@ export async function GET(request: NextRequest) {
       ai_job_succeeded: aiJobSucceeded,
       ai_job_failed: aiJobFailed,
       ai_success_rate_pct: aiJobQueued > 0 ? Math.round((aiJobSucceeded / aiJobQueued) * 100) : 0,
+    };
+
+    // -----------------------------------------------------------------------
+    // User segments (cross-table, all-time for garage/scenarios)
+    // -----------------------------------------------------------------------
+
+    const usersWithGarage = new Set((garageUsers || []).map((r: any) => r.user_id).filter(Boolean));
+    const usersWithSavedListing = new Set((savedScenariosUsers || []).map((r: any) => r.user_id).filter(Boolean));
+
+    // Visitor-level session counts (within the window) for "returned ≥2 sessions" check
+    const visitorSessionCounts = new Map<string, number>();
+    for (const p of sessionProfiles) {
+      if (!p.visitor_id) continue;
+      visitorSessionCounts.set(p.visitor_id, (visitorSessionCounts.get(p.visitor_id) || 0) + 1);
+    }
+
+    // High intent: completed EVFit + saved ≥1 garage vehicle + returned ≥2 sessions in window
+    // We match on user_id from user_events (when authenticated)
+    const evfitCompletedUserIds = new Set(
+      filteredUserEvents
+        .filter(e => e.event_name === "evfit_completed_server" || e.event_name === "evfit_completed")
+        .map(e => (e as any).user_id)
+        .filter(Boolean)
+    );
+    let highIntentCount = 0;
+    for (const uid of evfitCompletedUserIds) {
+      if (usersWithGarage.has(uid)) {
+        // Count sessions for this user's visitor_id(s) in the window
+        const userVisitorSessions = filteredUserEvents
+          .filter(e => (e as any).user_id === uid)
+          .map(e => (e as any).session_id)
+          .filter(Boolean);
+        const distinctSessions = new Set(userVisitorSessions).size;
+        if (distinctSessions >= 2) highIntentCount++;
+      }
+    }
+
+    const user_segments = {
+      users_with_garage_vehicle: usersWithGarage.size,
+      users_with_saved_listing: usersWithSavedListing.size,
+      high_intent_users: highIntentCount,
     };
 
     // -----------------------------------------------------------------------
@@ -1422,6 +1480,7 @@ export async function GET(request: NextRequest) {
       report_server_events,
       routine_engagement,
       evfit_funnel,
+      user_segments,
       entry_mode,
       extraction_domains,
       attribution,

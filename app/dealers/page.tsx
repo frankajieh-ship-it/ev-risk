@@ -9,6 +9,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Search, MapPin, Shield, Loader2, Building, ArrowLeft } from "lucide-react";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface DealerListing {
   id: string;
@@ -29,6 +30,13 @@ export default function DealerDirectoryPage() {
   const [search, setSearch] = useState("");
   const [state, setState] = useState("");
   const [total, setTotal] = useState(0);
+  const { trackEvent } = useEventTracking();
+
+  // Track directory page view
+  useEffect(() => {
+    trackEvent("dealer_directory_viewed");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -103,6 +111,7 @@ export default function DealerDirectoryPage() {
                 <Link
                   key={d.id}
                   href={`/dealers/${d.slug}`}
+                  onClick={() => trackEvent("dealer_directory_card_clicked", { dealer_id: d.id, dealer_name: d.name, dealer_slug: d.slug })}
                   className="block bg-white rounded-xl border border-gray-200 p-4 hover:border-blue-200 hover:shadow-sm transition-all"
                 >
                   <div className="flex items-start gap-4">

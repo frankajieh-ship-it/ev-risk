@@ -223,3 +223,73 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+/**
+ * POST /api/health/tracking
+ * Write-probe: attempts a test event insert to verify the pipeline is healthy.
+ * Cleans up the test row immediately after.
+ * Protected by ADMIN_API_KEY.
+ */
+export async function POST(request: NextRequest) {
+  const authHeader = request.headers.get("authorization");
+  const adminKey = process.env.ADMIN_API_KEY;
+
+  if (adminKey && authHeader !== `Bearer ${adminKey}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  }
+
+  const testDedupeKey = `health_probe:_:_:probe-${Date.now()}:0`;
+
+  try {
+    // Attempt insert
+    const { data: inserted, error: insertError } = await supabase
+      .from("user_events")
+      .insert({
+        event_name: "health_probe",
+        event_data: { _test: true },
+        visitor_id: null,
+        session_id: "probe",
+        page_path: "/api/health/tracking",
+        dedupe_key: testDedupeKey,
+        timestamp: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (insertError) {
+      return NextResponse.json({
+        ok: false,
+        phase: "insert",
+        error: insertError.message,
+        code: insertError.code,
+        hint: insertError.hint || null,
+        suggestion: insertError.code === "23502"
+          ? "NOT NULL violation — run database/migrations/fix-user-events-schema.sql"
+          : insertError.code === "42703"
+          ? "Unknown column — run database/migrations/fix-user-events-schema.sql"
+          : "Check Supabase logs for details",
+      }, { status: 500 });
+    }
+
+    // Clean up test row
+    if (inserted?.id) {
+      await supabase.from("user_events").delete().eq("id", inserted.id);
+    }
+
+    return NextResponse.json({
+      ok: true,
+      message: "Tracking pipeline is healthy — insert + delete succeeded",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    return NextResponse.json({
+      ok: false,
+      phase: "unexpected",
+      error: err instanceof Error ? err.message : String(err),
+    }, { status: 500 });
+  }
+}

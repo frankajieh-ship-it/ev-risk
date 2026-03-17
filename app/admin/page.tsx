@@ -260,7 +260,9 @@ interface SummaryData {
     with_refine_pct: number;
     shortlist_saved: number;
     with_shortlist_pct: number;
+    compare_started: number;
     compare_completed: number;
+    compare_start_to_finish_pct: number;
     with_compare_pct: number;
     listing_saved: number;
     garage_created: number;
@@ -269,6 +271,11 @@ interface SummaryData {
     ai_job_succeeded: number;
     ai_job_failed: number;
     ai_success_rate_pct: number;
+  };
+  user_segments?: {
+    users_with_garage_vehicle: number;
+    users_with_saved_listing: number;
+    high_intent_users: number;
   };
   entry_mode: {
     total_selections: number;
@@ -1349,7 +1356,8 @@ export default function AdminDashboard() {
               <FunnelCard label="EVFit Completed" value={s.evfit_funnel.evfit_completed} color="green" subtitle={`${s.evfit_funnel.completion_rate_pct}% completion`} />
               <FunnelCard label="Refine Completed" value={s.evfit_funnel.refine_completed} color="indigo" subtitle={`${s.evfit_funnel.with_refine_pct}% of completions`} />
               <FunnelCard label="Shortlist Saved" value={s.evfit_funnel.shortlist_saved} color="purple" subtitle={`${s.evfit_funnel.with_shortlist_pct}% of completions`} />
-              <FunnelCard label="Compare Completed" value={s.evfit_funnel.compare_completed} color="cyan" subtitle={`${s.evfit_funnel.with_compare_pct}% of completions`} />
+              <FunnelCard label="Compare Started" value={s.evfit_funnel.compare_started ?? 0} color="sky" />
+              <FunnelCard label="Compare Completed" value={s.evfit_funnel.compare_completed} color="cyan" subtitle={`${s.evfit_funnel.compare_start_to_finish_pct ?? 0}% finish rate`} />
               <FunnelCard label="Listing Saved" value={s.evfit_funnel.listing_saved} color="emerald" />
               <FunnelCard label="Garage Created" value={s.evfit_funnel.garage_created} color="teal" />
               <FunnelCard label="Anon Attached" value={s.evfit_funnel.anon_attached} color="amber" />
@@ -1364,6 +1372,19 @@ export default function AdminDashboard() {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* User Segments */}
+        {s.user_segments && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">🎯 User Segments</h2>
+            <p className="text-sm text-gray-500 mb-4">All-time counts (authenticated users). High intent = completed EVFit + saved ≥1 vehicle + ≥2 sessions.</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <FunnelCard label="Saved a Vehicle" value={s.user_segments.users_with_garage_vehicle} color="emerald" />
+              <FunnelCard label="Saved a Listing" value={s.user_segments.users_with_saved_listing} color="teal" />
+              <FunnelCard label="High Intent Users" value={s.user_segments.high_intent_users} color="violet" subtitle="EVFit + vehicle + 2+ sessions" />
+            </div>
           </div>
         )}
 
