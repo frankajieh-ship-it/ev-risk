@@ -42,6 +42,34 @@ export default function BlogPage() {
         </div>
 
         <div className="space-y-8">
+          {/* Data Report Post */}
+          <article className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 hover:shadow-xl transition-shadow">
+            <div className="mb-4">
+              <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1 rounded-full">
+                Data Report
+              </span>
+            </div>
+            <Link href="/blog/offo-ev-fit-check-insights">
+              <h2 className="text-3xl font-bold text-gray-900 mb-3 hover:text-blue-600 transition-colors">
+                Three Months of OFFO: What 286 Real EV Fit Checks Revealed
+              </h2>
+            </Link>
+            <p className="text-gray-600 mb-4 leading-relaxed">
+              Data from 286 real EV fit checks: which vehicles buyers compare most, what questionnaire
+              fields predict readiness, and the one signal that surprised us &mdash; only 2 listings saved
+              to My Garage out of 286 completed checks.
+            </p>
+            <div className="flex items-center justify-between text-sm text-gray-500">
+              <span>7 min read &middot; March 2026</span>
+              <Link
+                href="/blog/offo-ev-fit-check-insights"
+                className="text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Read article &rarr;
+              </Link>
+            </div>
+          </article>
+
           {/* Featured Post */}
           <article className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 hover:shadow-xl transition-shadow">
             <div className="mb-4">

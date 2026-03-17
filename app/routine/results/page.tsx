@@ -1284,9 +1284,8 @@ function RoutineResultsContent() {
               if (!nudgeEmail || nudgeEnrolling) return;
               setNudgeEnrolling(true);
               try {
-                const topVehicle = result.fit_score?.top_recommendations?.[0];
-                const vehicleLabel = topVehicle
-                  ? `${topVehicle.year ?? ""} ${topVehicle.make ?? ""} ${topVehicle.model ?? ""}`.trim()
+                const vehicleLabel = extractedVehicle
+                  ? `${extractedVehicle.year ?? ""} ${extractedVehicle.make ?? ""} ${extractedVehicle.model ?? ""}`.trim()
                   : undefined;
                 await fetch("/api/email/nudge/enroll", {
                   method: "POST",
@@ -1297,7 +1296,7 @@ function RoutineResultsContent() {
                     trigger_event: "evfit_completed",
                     trigger_id: result.run_id,
                     metadata: {
-                      fit_verdict: result.fit_score?.verdict_label,
+                      fit_verdict: result.fit_score?.label,
                       top_vehicle: vehicleLabel,
                     },
                   }),
