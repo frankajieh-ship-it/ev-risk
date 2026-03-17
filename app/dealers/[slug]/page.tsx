@@ -72,11 +72,12 @@ export default function DealerProfilePage() {
       .then(([dealerRes, invRes]) => {
         if (dealerRes.success) {
           setDealer(dealerRes.dealer);
+          const sid = getPersistentSessionId() ?? "";
           trackOffoDealerViewed({
             dealer_id: dealerRes.dealer.id,
             dealer_name: dealerRes.dealer.name,
             viewed_from: "dealer_directory",
-            session_id: getPersistentSessionId(),
+            session_id: sid,
           });
         }
         if (invRes.success) setInventory(invRes.inventory);
@@ -113,7 +114,7 @@ export default function DealerProfilePage() {
           message_length_chars: inquiryForm.message.length,
           included_vehicle_context: false,
           message_sent_from: "dealer_page",
-          session_id: getPersistentSessionId(),
+          session_id: getPersistentSessionId() ?? "",
         });
       }
     } catch {} finally {
