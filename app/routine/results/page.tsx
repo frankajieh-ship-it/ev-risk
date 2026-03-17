@@ -249,6 +249,13 @@ function RoutineResultsContent() {
   const [shortlistFull, setShortlistFull] = useState(false);
   const [showCoachNudge, setShowCoachNudge] = useState(false);
 
+  // Email nudge enrollment
+  const [nudgeEmail, setNudgeEmail] = useState("");
+  const [nudgeEnrolling, setNudgeEnrolling] = useState(false);
+  const [nudgeEnrolled, setNudgeEnrolled] = useState(() => {
+    try { return typeof window !== "undefined" && !!localStorage.getItem("offo_nudge_enrolled"); } catch { return false; }
+  });
+
   // Specs & accessories state
   const [specsPrefs, setSpecsPrefs] = useState<VehicleSpecsPrefs | null>(null);
   const [specsResults, setSpecsResults] = useState<SpecsMatchResult[]>([]);
@@ -1258,6 +1265,81 @@ function RoutineResultsContent() {
           >
             Open tie-breaker coach →
           </a>
+        </motion.div>
+      )}
+
+      {/* Email nudge opt-in — shown once, hidden after enrollment */}
+      {!nudgeEnrolled && result && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mt-6 bg-white border border-gray-200 rounded-2xl px-5 py-4"
+        >
+          <p className="text-sm font-semibold text-gray-800 mb-0.5">Get a tip + reminder in your inbox</p>
+          <p className="text-xs text-gray-500 mb-3">We&apos;ll send your result summary + one insight tomorrow. No spam — unsubscribe anytime.</p>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!nudgeEmail || nudgeEnrolling) return;
+              setNudgeEnrolling(true);
+              try {
+                const topVehicle = result.fit_score?.top_recommendations?.[0];
+                const vehicleLabel = topVehicle
+                  ? `${topVehicle.year ?? ""} ${topVehicle.make ?? ""} ${topVehicle.model ?? ""}`.trim()
+                  : undefined;
+                await fetch("/api/email/nudge/enroll", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    email: nudgeEmail.trim(),
+                    anon_id: getOrCreateReceiptToken(),
+                    trigger_event: "evfit_completed",
+                    trigger_id: result.run_id,
+                    metadata: {
+                      fit_verdict: result.fit_score?.verdict_label,
+                      top_vehicle: vehicleLabel,
+                    },
+                  }),
+                });
+                localStorage.setItem("offo_nudge_enrolled", "1");
+                setNudgeEnrolled(true);
+              } catch {
+                // Silent — non-critical
+                setNudgeEnrolled(true);
+              } finally {
+                setNudgeEnrolling(false);
+              }
+            }}
+            className="flex gap-2"
+          >
+            <input
+              type="email"
+              value={nudgeEmail}
+              onChange={(e) => setNudgeEmail(e.target.value)}
+              placeholder="your@email.com"
+              required
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <button
+              type="submit"
+              disabled={nudgeEnrolling}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-60 shrink-0"
+            >
+              {nudgeEnrolling ? "..." : "Send results"}
+            </button>
+          </form>
+        </motion.div>
+      )}
+
+      {nudgeEnrolled && result && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mt-4 flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5"
+        >
+          <CheckCircle className="w-4 h-4 shrink-0" />
+          Check your inbox tomorrow for your results summary + tip.
         </motion.div>
       )}
     </motion.div>

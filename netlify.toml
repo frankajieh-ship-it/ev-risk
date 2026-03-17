@@ -18,5 +18,9 @@
 [functions.upgrade-receipt-background]
   timeout = 900
 
+# Scheduled function: daily email nudge sender (runs at 10:00 UTC)
+[functions.send-nudge-emails]
+  timeout = 30
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
