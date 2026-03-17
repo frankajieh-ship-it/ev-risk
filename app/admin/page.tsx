@@ -323,6 +323,15 @@ interface SummaryData {
     likely_bot: number;
     human_rate: number;
   };
+  engagement_bins?: {
+    total_human_sessions: number;
+    no_activity: number;
+    scroll_only: number;
+    engaged: number;
+    pct_no_activity: number;
+    pct_scroll_only: number;
+    pct_engaged: number;
+  };
   coverage: {
     sessions_with_landing_view: number;
     sessions_with_receipt_event: number;
@@ -842,6 +851,44 @@ export default function AdminDashboard() {
               <FunnelCard label="Likely Bot" value={s.session_classification.likely_bot} color="red" />
               <FunnelCard label="Human Rate" value={`${s.session_classification.human_rate}%`} color="purple" />
             </div>
+          </div>
+        )}
+
+        {/* Engagement Bins */}
+        {s.engagement_bins && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Engagement Bins</h2>
+            <p className="text-sm text-gray-500 mb-4">Human sessions only — how far users got before leaving</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+                <div className="text-2xl font-bold text-red-600 mb-0.5">{s.engagement_bins.no_activity}</div>
+                <div className="text-sm font-semibold text-red-800 mb-1">No Activity</div>
+                <div className="text-xs text-red-600 mb-2">Landed · no scroll · no click</div>
+                <div className="text-lg font-bold text-red-700">{s.engagement_bins.pct_no_activity}%</div>
+                <div className="w-full bg-red-100 rounded-full h-1.5 mt-2">
+                  <div className="bg-red-400 h-1.5 rounded-full" style={{ width: `${s.engagement_bins.pct_no_activity}%` }} />
+                </div>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+                <div className="text-2xl font-bold text-amber-600 mb-0.5">{s.engagement_bins.scroll_only}</div>
+                <div className="text-sm font-semibold text-amber-800 mb-1">Scroll Only</div>
+                <div className="text-xs text-amber-600 mb-2">Scrolled past 25% · no interaction</div>
+                <div className="text-lg font-bold text-amber-700">{s.engagement_bins.pct_scroll_only}%</div>
+                <div className="w-full bg-amber-100 rounded-full h-1.5 mt-2">
+                  <div className="bg-amber-400 h-1.5 rounded-full" style={{ width: `${s.engagement_bins.pct_scroll_only}%` }} />
+                </div>
+              </div>
+              <div className="bg-green-50 border border-green-100 rounded-xl p-4">
+                <div className="text-2xl font-bold text-green-600 mb-0.5">{s.engagement_bins.engaged}</div>
+                <div className="text-sm font-semibold text-green-800 mb-1">Engaged</div>
+                <div className="text-xs text-green-600 mb-2">Clicked or typed · active interaction</div>
+                <div className="text-lg font-bold text-green-700">{s.engagement_bins.pct_engaged}%</div>
+                <div className="w-full bg-green-100 rounded-full h-1.5 mt-2">
+                  <div className="bg-green-400 h-1.5 rounded-full" style={{ width: `${s.engagement_bins.pct_engaged}%` }} />
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-3">Based on {s.engagement_bins.total_human_sessions} human sessions · signals: scroll_depth_25, first_interaction</p>
           </div>
         )}
 

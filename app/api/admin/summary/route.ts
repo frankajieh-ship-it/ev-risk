@@ -1229,6 +1229,44 @@ export async function GET(request: NextRequest) {
     };
 
     // -----------------------------------------------------------------------
+    // Engagement bins (human sessions only)
+    // Bin 1 — No activity:   landed, no scroll, no interaction
+    // Bin 2 — Scroll only:   scrolled past 25% but never clicked/typed
+    // Bin 3 — Engaged:       fired first_interaction (click or keydown)
+    // -----------------------------------------------------------------------
+
+    const humanProfiles = sessionProfiles.filter(
+      (p) => p.actor_label === "human" || p.actor_label === "likely_human"
+    );
+
+    let binNoActivity = 0;
+    let binScrollOnly = 0;
+    let binEngaged = 0;
+
+    for (const p of humanProfiles) {
+      const hasScroll = p.event_names.has("scroll_depth_25");
+      const hasInteraction = p.event_names.has("first_interaction");
+      if (hasInteraction) {
+        binEngaged++;
+      } else if (hasScroll) {
+        binScrollOnly++;
+      } else {
+        binNoActivity++;
+      }
+    }
+
+    const humanTotal = humanProfiles.length;
+    const engagement_bins = {
+      total_human_sessions: humanTotal,
+      no_activity: binNoActivity,
+      scroll_only: binScrollOnly,
+      engaged: binEngaged,
+      pct_no_activity: humanTotal > 0 ? Math.round((binNoActivity / humanTotal) * 1000) / 10 : 0,
+      pct_scroll_only: humanTotal > 0 ? Math.round((binScrollOnly / humanTotal) * 1000) / 10 : 0,
+      pct_engaged: humanTotal > 0 ? Math.round((binEngaged / humanTotal) * 1000) / 10 : 0,
+    };
+
+    // -----------------------------------------------------------------------
     // Event coverage (Part E)
     // -----------------------------------------------------------------------
 
@@ -1489,6 +1527,7 @@ export async function GET(request: NextRequest) {
       recent_feedback,
       recent_events: mergedRecent,
       session_classification,
+      engagement_bins,
       coverage,
       insights,
     });
