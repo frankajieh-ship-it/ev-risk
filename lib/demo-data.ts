@@ -1126,6 +1126,15 @@ export const DEMO_METADATA: Record<string, DemoMetadata> = {
     expected_verdict: "Mixed Fit",
     use_case: "Daily usage pattern deep-dive",
     key_insight: "Longest days require planning — 100% charge needed weekly"
+  },
+
+  "chevy-bolt-ev-green": {
+    title: "Good Fit - Home Charging, Mild Climate",
+    vehicle: "2023 Chevy Bolt EV",
+    routine: "~29 mi/day, home charging, mild climate",
+    expected_verdict: "Good Fit",
+    use_case: "See how a well-matched Bolt EV setup looks",
+    key_insight: "Home charging + moderate miles = low mental load, rarely drops below 50% SOC"
   }
 };
 
