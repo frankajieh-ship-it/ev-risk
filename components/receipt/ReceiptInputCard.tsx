@@ -11,6 +11,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Link,
   FileText,
@@ -88,6 +89,33 @@ function getInputClass(confidence?: string, isDirty?: boolean): string {
 const EXTRACT_STEPS = ["Fetching listing page...", "Scanning for vehicle data...", "Verifying fields..."];
 const GENERATE_STEPS = ["Checking risks...", "Analyzing pricing...", "Building your checklist..."];
 
+/**
+ * Attempts to extract a CarGurus listing ID from any CarGurus URL.
+ * Checks: /details/<id>, /listing/<id>, ?listingId=, ?id=, and --d<id> path segment.
+ */
+function extractCarGurusListingId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (!u.hostname.includes("cargurus.com")) return null;
+    const pathMatch = u.pathname.match(/\/(details|listing)\/(\d{6,12})/i);
+    if (pathMatch) return pathMatch[2];
+    const qId = u.searchParams.get("listingId") || u.searchParams.get("id");
+    if (qId && /^\d{6,12}$/.test(qId)) return qId;
+    const embeddedMatch = u.pathname.match(/--d(\d{6,12})/i);
+    if (embeddedMatch) return embeddedMatch[1];
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function isCarGurusSearchUrl(url: string): boolean {
+  const lower = url.toLowerCase();
+  return lower.includes("cargurus.com") && (
+    lower.includes("/cars/") || lower.includes("/shopping/results")
+  );
+}
+
 export default function ReceiptInputCard({
   onGenerate,
   onExtractionSuccess,
@@ -134,6 +162,14 @@ export default function ReceiptInputCard({
   useEffect(() => {
     if (hasResult) setDirtyAfterResult(false);
   }, [hasResult]);
+
+  // CarGurus search URL banner
+  const [carGurusCleanId, setCarGurusCleanId] = useState<string | null>(null);
+  const [showCarGurusBanner, setShowCarGurusBanner] = useState(false);
+
+  // Clean-and-extract success toast
+  const [cleanToast, setCleanToast] = useState<{ durationSec: string } | null>(null);
+  const cleanStartRef = useRef<number>(0);
 
   // Auto-extract on URL paste
   const [lastAutoExtractedUrl, setLastAutoExtractedUrl] = useState<string | null>(null);
@@ -192,14 +228,16 @@ export default function ReceiptInputCard({
     setLastAutoExtractedUrl(pasted);
     setExtractError(null);
 
-    // Check if URL is from CarGurus
-    const isCarGurusUrl = pasted.toLowerCase().includes('cargurus.com');
-    if (!isCarGurusUrl && pasted.length > 10) {
-      setExtractError({
-        message: "This URL is from a different site. CarGurus URLs work best with auto-extraction. For other sites, consider using the 'Paste Text' tab for better results.",
-        isWarning: true
-      });
+    // Intercept CarGurus search URLs — show banner instead of auto-extracting
+    if (isCarGurusSearchUrl(pasted)) {
+      const id = extractCarGurusListingId(pasted);
+      setCarGurusCleanId(id);
+      setShowCarGurusBanner(true);
+      return;
     }
+
+    setShowCarGurusBanner(false);
+    setCarGurusCleanId(null);
 
     if (autoExtractTimerRef.current) clearTimeout(autoExtractTimerRef.current);
     autoExtractTimerRef.current = setTimeout(() => handleExtract(pasted), 300);
@@ -280,9 +318,17 @@ export default function ReceiptInputCard({
           setInputMode("text");
           setTimeout(() => textareaRef.current?.focus(), 100);
         } else if (data.diagnostics?.failureReason === "search_page") {
-          setExtractError({
-            message: "That looks like a search page. Paste a link to a single listing instead."
-          });
+          const urlValue = urlOverride ?? listingUrl.trim();
+          const id = extractCarGurusListingId(urlValue);
+          if (id) {
+            setCarGurusCleanId(id);
+            setShowCarGurusBanner(true);
+            setExtractError(null);
+          } else {
+            setExtractError({
+              message: "That looks like a search page. Open a specific listing and copy its URL, or paste the full page text."
+            });
+          }
         } else {
           setExtractError({
             message: "Couldn't detect enough listing fields. Fill in the required fields below or try pasting the listing text."
@@ -319,6 +365,14 @@ export default function ReceiptInputCard({
       // Store extraction metadata
       setHasExtracted(true);
       setExtractionId(data.extraction_id || null);
+
+      // Show "Cleaned & extracted" toast if this was a clean-and-extract flow
+      if (cleanStartRef.current > 0) {
+        const sec = ((Date.now() - cleanStartRef.current) / 1000).toFixed(1);
+        setCleanToast({ durationSec: sec });
+        cleanStartRef.current = 0;
+        setTimeout(() => setCleanToast(null), 4000);
+      }
       setFieldConfidence(data.field_confidence || {});
       setExtractedFieldNames(data.extractedFields || []);
       setMissingFieldNames(data.missingFields || []);
@@ -406,6 +460,23 @@ export default function ReceiptInputCard({
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Clean-and-extract success toast */}
+      <AnimatePresence>
+        {cleanToast && (
+          <motion.div
+            key="clean-toast"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center gap-2 bg-teal-50 border-b border-teal-200 px-4 py-2 text-sm text-teal-700"
+          >
+            <Check className="h-4 w-4 text-teal-500 shrink-0" />
+            <span>Cleaned &amp; extracted in {cleanToast.durationSec}s</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Tab toggle */}
       <div className="flex border-b border-gray-200">
         <button
@@ -473,23 +544,76 @@ export default function ReceiptInputCard({
               </button>
             </div>
 
-            {/* Helper text for URL input */}
-            <p className="text-xs text-gray-500 flex items-start gap-1">
-              <span className="text-blue-500">💡</span>
-              <span>
-                <strong>Tip:</strong> CarGurus URLs work best here. For other sites, use the{" "}
+            {/* CarGurus search URL banner */}
+            {showCarGurusBanner && !isExtracting && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <div className="flex-1">
+                  {carGurusCleanId ? (
+                    <>
+                      <span className="text-amber-800">
+                        Detected a search page URL. Clean it to the exact listing?
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cleanUrl = `https://www.cargurus.com/details/${carGurusCleanId}`;
+                          setListingUrl(cleanUrl);
+                          setShowCarGurusBanner(false);
+                          trackEvent?.("messy_url_cleaned", { listing_id: carGurusCleanId, source: "cargurus" });
+                          cleanStartRef.current = Date.now();
+                          handleExtract(cleanUrl);
+                        }}
+                        className="ml-2 font-semibold text-amber-700 underline hover:text-amber-900"
+                      >
+                        Clean &amp; Extract
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-amber-800">
+                      Couldn&apos;t find a listing ID in that URL.{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInputMode("text");
+                          setShowCarGurusBanner(false);
+                          setTimeout(() => textareaRef.current?.focus(), 100);
+                        }}
+                        className="font-semibold underline hover:text-amber-900"
+                      >
+                        Paste the full page text instead
+                      </button>{" "}
+                      (Ctrl+A → Ctrl+C on the listing page).
+                    </span>
+                  )}
+                </div>
                 <button
+                  type="button"
+                  onClick={() => setShowCarGurusBanner(false)}
+                  className="text-amber-400 hover:text-amber-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Always-visible fallback hint */}
+            {!showCarGurusBanner && (
+              <p className="text-xs text-gray-400">
+                Site blocking extraction?{" "}
+                <button
+                  type="button"
                   onClick={() => {
                     setInputMode("text");
-                    trackEvent?.("helper_text_switch_to_text", { from: "url_helper" });
+                    setTimeout(() => textareaRef.current?.focus(), 100);
+                    trackEvent?.("helper_text_switch_to_text", { from: "url_fallback_hint" });
                   }}
-                  className="text-blue-600 hover:text-blue-700 font-medium underline"
+                  className="text-blue-500 underline hover:text-blue-700"
                 >
-                  Paste Text
-                </button>{" "}
-                tab.
-              </span>
-            </p>
+                  Paste the full page text instead
+                </button>
+              </p>
+            )}
 
             {/* Extraction loading with step progress */}
             {isExtracting && (

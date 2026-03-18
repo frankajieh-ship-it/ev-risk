@@ -457,8 +457,8 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
   const warnings: string[] = [];
   const startTime = Date.now();
 
-  // Hard budget: 10s total across all fetch attempts
-  const EXTRACTION_BUDGET_MS = 10000;
+  // Hard budget: 25s total across all fetch attempts (Netlify maxDuration=30s, function timeout=60s)
+  const EXTRACTION_BUDGET_MS = 25000;
   const remainingBudget = () => Math.max(0, EXTRACTION_BUDGET_MS - (Date.now() - startTime));
 
   // Initialize diagnostics
@@ -514,7 +514,7 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
 
     if (remainingBudget() > 1000) {
       const proxyStart = Date.now();
-      const proxyTimeout = Math.min(8000, remainingBudget() - 500);
+      const proxyTimeout = Math.min(20000, remainingBudget() - 500);
       const proxyController = new AbortController();
       const proxyTimeoutId = setTimeout(() => proxyController.abort(), proxyTimeout);
 
@@ -535,7 +535,7 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
         const proxyResponse = await fetch(proxyUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, timeout: Math.min(8000, proxyTimeout - 500) }),
+          body: JSON.stringify({ url, timeout: Math.min(20000, proxyTimeout - 500) }),
           signal: proxyController.signal,
         });
         clearTimeout(proxyTimeoutId);

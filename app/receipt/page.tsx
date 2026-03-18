@@ -965,6 +965,28 @@ export default function ReceiptPage() {
           hasResult={!!receipt}
         />
 
+        {/* CarGurus pro tip + bookmarklet */}
+        <div className="mt-2 space-y-1 text-center px-2">
+          <p className="text-xs text-gray-400">
+            <span className="font-medium text-gray-500">Pro tip:</span>{" "}
+            On CarGurus, click the car photo first — the clean listing URL appears in your address bar.
+          </p>
+          <p className="text-xs text-gray-400">
+            Save time:{" "}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a
+              href="javascript:(function(){var u=encodeURIComponent(window.location.href);window.open('https://offolab.com/receipt?url='+u+'&ext=true','_blank');})();"
+              onClick={(e) => e.preventDefault()}
+              draggable
+              className="text-blue-500 underline cursor-grab active:cursor-grabbing font-medium"
+              title="Drag this to your bookmarks bar"
+            >
+              ⬆ OFFO Extract
+            </a>
+            {" "}— drag to your bookmarks bar, then click on any CarGurus listing
+          </p>
+        </div>
+
         {/* Analysis loading indicator */}
         {isGenerating && (
           <motion.div
