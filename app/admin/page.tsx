@@ -892,19 +892,6 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Event Coverage */}
-        {s.coverage && (
-          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-1">Event Coverage</h2>
-            <p className="text-sm text-gray-500 mb-4">% of sessions that fired each funnel stage</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <FunnelCard label="Landing View" value={`${s.coverage.pct_landing}%`} color="blue" subtitle={`${s.coverage.sessions_with_landing_view} sessions`} />
-              <FunnelCard label="Receipt Event" value={`${s.coverage.pct_receipt}%`} color="purple" subtitle={`${s.coverage.sessions_with_receipt_event} sessions`} />
-              <FunnelCard label="Routine Event" value={`${s.coverage.pct_routine}%`} color="indigo" subtitle={`${s.coverage.sessions_with_routine_event} sessions`} />
-              <FunnelCard label="Copy Event" value={`${s.coverage.pct_copy}%`} color="green" subtitle={`${s.coverage.sessions_with_copy_event} sessions`} />
-            </div>
-          </div>
-        )}
 
         {/* User Retention & Engagement */}
         {retentionData && (
