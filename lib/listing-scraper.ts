@@ -512,9 +512,16 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     // --- Proxy fetch phase ---
     let html: string | null = null;
 
+    // Per-source proxy timeout cap: CarGurus hangs connections silently,
+    // so give it 8s max then fail fast to direct/text fallback.
+    const SOURCE_PROXY_TIMEOUT: Partial<Record<string, number>> = {
+      cargurus: 8000,
+    };
+    const sourceProxyCap = SOURCE_PROXY_TIMEOUT[dataSource] ?? 20000;
+
     if (remainingBudget() > 1000) {
       const proxyStart = Date.now();
-      const proxyTimeout = Math.min(20000, remainingBudget() - 500);
+      const proxyTimeout = Math.min(sourceProxyCap, remainingBudget() - 500);
       const proxyController = new AbortController();
       const proxyTimeoutId = setTimeout(() => proxyController.abort(), proxyTimeout);
 
@@ -535,7 +542,7 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
         const proxyResponse = await fetch(proxyUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, timeout: Math.min(20000, proxyTimeout - 500) }),
+          body: JSON.stringify({ url, timeout: Math.min(sourceProxyCap, proxyTimeout - 500) }),
           signal: proxyController.signal,
         });
         clearTimeout(proxyTimeoutId);
@@ -665,11 +672,20 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
       if (!diagnostics.failureReason) {
         diagnostics.failureReason = remainingBudget() <= 1000 ? "timeout" : "network_error";
       }
+      // CarGurus blocks server-side fetches — treat timeout as bot protection
+      // so the frontend auto-switches to text mode instead of showing a generic error
+      if (diagnostics.failureReason === "timeout" && dataSource === "cargurus") {
+        diagnostics.failureReason = "blocked_by_bot_protection";
+        diagnostics.botProtectionDetected = true;
+        diagnostics.botProtectionType = "silent_hang";
+      }
       finalize();
       return {
         success: false,
         data: null,
-        error: diagnostics.failureReason === "timeout"
+        error: diagnostics.botProtectionDetected
+          ? 'This site blocked auto-extraction. Paste the listing text instead.'
+          : diagnostics.failureReason === "timeout"
           ? 'Extraction timed out. Paste the listing text instead.'
           : 'Unable to fetch listing. Paste the listing text instead.',
         warnings: ['Both proxy and direct fetch methods failed'],
