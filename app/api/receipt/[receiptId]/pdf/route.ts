@@ -20,9 +20,7 @@ export async function GET(
   { params }: { params: Promise<{ receiptId: string }> }
 ) {
   // PDF download is temporarily disabled
-  if (process.env.FLAG_PDF_DOWNLOAD_ENABLED !== "true") {
-    return NextResponse.json({ error: "PDF download is temporarily unavailable" }, { status: 503 });
-  }
+  return NextResponse.json({ error: "PDF download is temporarily unavailable" }, { status: 503 });
 
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ error: "Database not configured" }, { status: 503 });
