@@ -1137,11 +1137,13 @@ export default function ReceiptPage() {
                   <QrCode className="w-4 h-4" />
                   Share
                 </button>
-                <PdfDownloadButton
-                  receiptId={receipt.receipt_id}
-                  receiptToken={receiptToken}
-                  compact
-                />
+                {process.env.NEXT_PUBLIC_PDF_DOWNLOAD_ENABLED === "true" && (
+                  <PdfDownloadButton
+                    receiptId={receipt.receipt_id}
+                    receiptToken={receiptToken}
+                    compact
+                  />
+                )}
               </div>
 
               {/* On-demand: Reddit draft */}
