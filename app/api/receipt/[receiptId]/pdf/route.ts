@@ -15,6 +15,8 @@ import { renderPdf } from "@/lib/pdf/render-client";
 import { humanizeFlag } from "@/lib/receipt-rules";
 import type { ReceiptPdfData } from "@/lib/pdf/shared-types";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ receiptId: string }> }
