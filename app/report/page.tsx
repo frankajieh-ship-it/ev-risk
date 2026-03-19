@@ -26,6 +26,7 @@ import DecisionResolution from "@/components/DecisionResolution";
 import { ResultPageLite } from "@/components/ResultPageLite";
 import { ResultPageV2 } from "@/components/ResultPageV2";
 import { ResultPageV2Split } from "@/components/ResultPageV2Split";
+import RoutineResultsPaywallCard from "@/components/routine/RoutineResultsPaywallCard";
 import { generateConfidenceData, type ConfidenceInputs } from "@/lib/confidence-calculator";
 import { transformToPresentation } from "@/lib/presentation-transformer";
 import { generateDebugData } from "@/lib/debug-helpers";
@@ -491,6 +492,16 @@ function ReportContent() {
 
   // V2 Contract Rendering Path (new Default View + Appendix)
   if (reportV2ContractData) {
+    // Gate full result behind payment
+    if (paymentsEnabled && !isUnlocked) {
+      return (
+        <RoutineResultsPaywallCard
+          runId={reportId || ""}
+          receiptToken={anonId}
+          scenarioType="evroutine"
+        />
+      );
+    }
     return (
       <ResultPageV2Split
         contract={reportV2ContractData}

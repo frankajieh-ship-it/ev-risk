@@ -14,6 +14,7 @@ import { useEventTracking } from "@/hooks/useEventTracking";
 interface RoutineResultsPaywallCardProps {
   runId: string;
   receiptToken: string;
+  scenarioType?: "routine" | "evroutine";
 }
 
 // Static demo values — NOT the user's real data
@@ -22,7 +23,7 @@ const DEMO_BREAKPOINT = "Home charging dependency — 3 nights/week overnight ch
 const DEMO_STRESS_FLAG = "Moderate · Range anxiety on 65+ mi days";
 const DEMO_CHARGING = "B · 8 chargers within 5 mi";
 
-export default function RoutineResultsPaywallCard({ runId, receiptToken }: RoutineResultsPaywallCardProps) {
+export default function RoutineResultsPaywallCard({ runId, receiptToken, scenarioType = "routine" }: RoutineResultsPaywallCardProps) {
   const { trackEvent } = useEventTracking();
   const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export default function RoutineResultsPaywallCard({ runId, receiptToken }: Routi
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          scenario_type: "routine",
+          scenario_type: scenarioType,
           scenario_id: runId,
           anon_id: receiptToken,
           page_source: "routine_results_paywall",
