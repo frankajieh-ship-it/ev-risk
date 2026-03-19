@@ -152,9 +152,29 @@ export const VALID_EVENT_NAMES = [
   "compare_completed",
   "my_garage_viewed",
   "my_garage_vehicle_added",
+  "my_garage_save_clicked",
+  "my_garage_save_succeeded",
+  "my_garage_active_user",
+  "user_returned",
 
   // CarGurus URL cleaning (URL Intelligence Layer)
   "messy_url_cleaned",
+  "clean_url_success",
+
+  // Extraction Health Events
+  "extraction_attempted",
+  "extraction_success",
+  "extraction_failed",
+  "lint_fallback_used",
+
+  // Questionnaire & Fit Quality Events
+  "module_completion",
+  "high_intent_user_detected",
+
+  // VINaudit & Dealer Prep Events (post-integration)
+  "vin_history_call",
+  "photo_generation_call",
+  "deal_rating_generated",
 ] as const;
 
 export type ValidEventName = (typeof VALID_EVENT_NAMES)[number];
