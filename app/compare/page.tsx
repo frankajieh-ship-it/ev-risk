@@ -205,9 +205,10 @@ function ComparePageContent() {
     trackEvent("compare_from_garage", { a: paramA, b: paramB });
   }, [paramA, paramB]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Track results viewed
+  // Track results viewed + compare completed
   useEffect(() => {
     if (result && phase === "results") {
+      trackEvent("compare_completed", { region: regionResolved });
       trackEvent("compare_results_viewed", {
         region: regionResolved,
         fit_signal_a: result.optionA.fit_signal,

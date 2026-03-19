@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface GarageVehicle {
   id: string;
@@ -32,6 +33,7 @@ function vehicleLabel(v: GarageVehicle): string {
 export default function GaragePage() {
   const { session } = useAuth();
   const router = useRouter();
+  const { trackEvent } = useEventTracking();
   const [vehicles, setVehicles] = useState<GarageVehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -59,6 +61,11 @@ export default function GaragePage() {
       setLoading(false);
     }
   }, [headers]);
+
+  useEffect(() => {
+    loadVehicles();
+    trackEvent("my_garage_viewed", {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     loadVehicles();
@@ -100,6 +107,7 @@ export default function GaragePage() {
       if (!data.success) {
         setError(data.error || "Failed to add vehicle");
       } else {
+        trackEvent("my_garage_vehicle_added", { mode: addMode });
         setShowAdd(false);
         setFormData({ vin: "", make: "", model: "", year: "", nickname: "" });
         loadVehicles();

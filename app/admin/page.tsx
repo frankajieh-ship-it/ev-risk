@@ -76,7 +76,7 @@ interface SummaryData {
     unique_sessions: number;
     unique_customers_by_email: number;
   };
-  revenue: {
+  revenue?: {
     total_revenue: number;
     buyer_pass: {
       paid: number;
@@ -182,12 +182,6 @@ interface SummaryData {
       unique_visitors: number;
     }>;
   };
-  why_checkpoint: {
-    shown: number;
-    submitted: number;
-    skipped: number;
-    submit_rate: number;
-  };
   feedback: {
     total_feedback: number;
     avg_rating: number;
@@ -214,8 +208,8 @@ interface SummaryData {
     by_type: { receipt: number; evroutine: number };
     top_savers: Array<{ user_id: string; count: number; latest_vehicle: string }>;
   };
-  email_captures: { submitted: number; sent: number; failed: number; auth_email_entered: number; auth_email_confirmed: number };
-  email_deliveries: {
+  email_captures?: { submitted: number; sent: number; failed: number; auth_email_entered: number; auth_email_confirmed: number };
+  email_deliveries?: {
     total: number;
     sent: number;
     failed: number;
@@ -230,12 +224,50 @@ interface SummaryData {
     total: number;
     success_rate: number;
   };
-  report_server_events: {
+  report_server_events?: {
     generated_success: number;
     generated_failed: number;
     generated_total: number;
     success_rate: number;
   };
+  extraction_health?: {
+    total_attempts: number;
+    url_attempts: number;
+    url_successes: number;
+    url_success_rate: number;
+    text_attempts: number;
+    text_successes: number;
+    text_success_rate: number;
+    clean_url_cleans: number;
+    failures_by_reason: {
+      timeout: number;
+      blocked_by_bot_protection: number;
+      search_page: number;
+      parse_failure: number;
+      network_error: number;
+      other: number;
+    };
+  };
+  retention?: {
+    garage_total_vehicles: number;
+    garage_unique_users: number;
+    my_garage_viewed: number;
+    my_garage_vehicle_added: number;
+    saved_scenarios_total: number;
+    saved_scenarios_unique_users: number;
+    save_receipt_clicked: number;
+    save_receipt_succeeded: number;
+    save_rate_pct: number;
+    compare_started: number;
+    compare_completed: number;
+    high_intent_users: number;
+  };
+  repeat_usage?: {
+    returned_in_7d: number;
+    returned_in_30d: number;
+    single_visit: number;
+  };
+  why_checkpoint?: { shown: number; submitted: number; skipped: number; submit_rate: number };
   routine_engagement: {
     total_field_completions: number;
     fields: Array<{ field_id: string; count: number }>;
@@ -477,14 +509,14 @@ export default function AdminDashboard() {
       ["Unique Customers (by email)", s.overview.unique_customers_by_email],
       [""],
       ["=== REVENUE ==="],
-      ["Total Revenue", `$${s.revenue.total_revenue.toFixed(2)}`],
-      ["Buyer Pass Paid", s.revenue.buyer_pass.paid],
-      ["Buyer Pass Revenue", `$${s.revenue.buyer_pass.revenue.toFixed(2)}`],
-      ["Buyer Pass Pending", s.revenue.buyer_pass.pending],
-      ["Buyer Pass Failed", s.revenue.buyer_pass.failed],
-      ["Buyer Pass Refunded", s.revenue.buyer_pass.refunded],
-      ["Legacy Reports Paid", s.revenue.legacy_reports.paid_count],
-      ["Legacy Report Revenue", `$${s.revenue.legacy_reports.revenue}`],
+      ["Total Revenue", s.revenue ? `$${s.revenue.total_revenue.toFixed(2)}` : "n/a"],
+      ["Buyer Pass Paid", s.revenue?.buyer_pass.paid ?? 0],
+      ["Buyer Pass Revenue", s.revenue ? `$${s.revenue.buyer_pass.revenue.toFixed(2)}` : "n/a"],
+      ["Buyer Pass Pending", s.revenue?.buyer_pass.pending ?? 0],
+      ["Buyer Pass Failed", s.revenue?.buyer_pass.failed ?? 0],
+      ["Buyer Pass Refunded", s.revenue?.buyer_pass.refunded ?? 0],
+      ["Legacy Reports Paid", s.revenue?.legacy_reports.paid_count ?? 0],
+      ["Legacy Report Revenue", s.revenue ? `$${s.revenue.legacy_reports.revenue}` : "n/a"],
       [""],
       ["=== RECEIPT PIPELINE ==="],
       ["URL Scrape Attempts", s.receipt_pipeline.url_scrape_attempts],
@@ -540,10 +572,10 @@ export default function AdminDashboard() {
       ["Unique Visitors", s.visitors.unique_visitors],
       [""],
       ["=== WHY CHECKPOINT ==="],
-      ["Shown", s.why_checkpoint.shown],
-      ["Submitted", s.why_checkpoint.submitted],
-      ["Skipped", s.why_checkpoint.skipped],
-      ["Submit Rate", `${s.why_checkpoint.submit_rate}%`],
+      ["Shown", s.why_checkpoint?.shown ?? 0],
+      ["Submitted", s.why_checkpoint?.submitted ?? 0],
+      ["Skipped", s.why_checkpoint?.skipped ?? 0],
+      ["Submit Rate", `${s.why_checkpoint?.submit_rate ?? 0}%`],
       [""],
       ["=== FEEDBACK ==="],
       ["Average Rating", s.feedback.avg_rating.toFixed(1)],
@@ -559,20 +591,20 @@ export default function AdminDashboard() {
       ["Save Succeeded (events)", s.scenario_saves.succeeded],
       [""],
       ["=== EMAIL DELIVERIES ==="],
-      ["Total Emails", s.email_deliveries.total],
-      ["Sent", s.email_deliveries.sent],
-      ["Failed", s.email_deliveries.failed],
-      ["Success Rate", `${s.email_deliveries.success_rate}%`],
-      ["Unique Recipients", s.email_deliveries.unique_recipients],
-      ["Receipt Emails", s.email_deliveries.by_type.receipt],
-      ["EVRoutine Emails", s.email_deliveries.by_type.evroutine],
+      ["Total Emails", s.email_deliveries?.total ?? 0],
+      ["Sent", s.email_deliveries?.sent ?? 0],
+      ["Failed", s.email_deliveries?.failed ?? 0],
+      ["Success Rate", `${s.email_deliveries?.success_rate ?? 0}%`],
+      ["Unique Recipients", s.email_deliveries?.unique_recipients ?? 0],
+      ["Receipt Emails", s.email_deliveries?.by_type.receipt ?? 0],
+      ["EVRoutine Emails", s.email_deliveries?.by_type.evroutine ?? 0],
       [""],
       ["=== EMAIL EVENTS ==="],
-      ["Submitted (client)", s.email_captures.submitted],
-      ["Sent (client)", s.email_captures.sent],
-      ["Failed (client)", s.email_captures.failed],
-      ["Auth Email Entered", s.email_captures.auth_email_entered ?? 0],
-      ["Auth Email Confirmed", s.email_captures.auth_email_confirmed ?? 0],
+      ["Submitted (client)", s.email_captures?.submitted ?? 0],
+      ["Sent (client)", s.email_captures?.sent ?? 0],
+      ["Failed (client)", s.email_captures?.failed ?? 0],
+      ["Auth Email Entered", s.email_captures?.auth_email_entered ?? 0],
+      ["Auth Email Confirmed", s.email_captures?.auth_email_confirmed ?? 0],
       [""],
       ["=== AI GENERATION ==="],
       ["Generation Total", s.ai_generation?.total ?? 0],
@@ -818,10 +850,10 @@ export default function AdminDashboard() {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <MetricCard title="Receipts Generated" value={s.receipt_pipeline.receipts_generated} subtitle={`${s.overview.unique_sessions} unique sessions · ${s.overview.total_reports} EV-Risk reports`} icon="🧾" />
-          <MetricCard title="Unique Sessions" value={s.overview.unique_sessions} subtitle={`${s.overview.unique_customers_by_email} with email (paid)`} icon="👥" />
-          <MetricCard title="EV-Risk Reports" value={s.report_funnel.report_gen_started} subtitle={`${s.overview.total_reports} stored · ${s.report_funnel.report_gen_succeeded} persisted`} icon="📊" />
-          <MetricCard title="Total Revenue" value={`$${s.revenue.total_revenue.toFixed(2)}`} subtitle={`${s.revenue.buyer_pass.paid} Buyer Pass · ${s.revenue.legacy_reports.paid_count} reports${s.revenue.buyer_pass.pending > 0 ? ` · ${s.revenue.buyer_pass.pending} pending` : ""}`} icon="💵" />
+          <MetricCard title="Receipts Generated" value={s.receipt_pipeline.receipts_generated} subtitle={`${s.overview.unique_sessions} unique sessions`} icon="🧾" />
+          <MetricCard title="Unique Visitors" value={s.visitors.unique_visitors} subtitle={`${s.visitors.total_visits} total visits`} icon="👥" />
+          <MetricCard title="Human Rate" value={`${s.session_classification?.human_rate ?? 0}%`} subtitle={`${s.session_classification?.human ?? 0} confirmed human · ${s.session_classification?.likely_human ?? 0} likely`} icon="🧠" />
+          <MetricCard title="AI Success Rate" value={`${s.ai_generation?.success_rate ?? 0}%`} subtitle={`${s.ai_generation?.succeeded ?? 0} ok · ${s.ai_generation?.failed ?? 0} failed`} icon="⚡" />
         </div>
 
         {/* Quick Summary / Insights */}
@@ -839,20 +871,10 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Session Classification */}
-        {s.session_classification && (
-          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Session Classification</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <FunnelCard label="Total Sessions" value={s.session_classification.total_sessions} color="blue" />
-              <FunnelCard label="Human" value={s.session_classification.human} color="green" />
-              <FunnelCard label="Likely Human" value={s.session_classification.likely_human} color="emerald" />
-              <FunnelCard label="Suspicious" value={s.session_classification.suspicious} color="amber" />
-              <FunnelCard label="Likely Bot" value={s.session_classification.likely_bot} color="red" />
-              <FunnelCard label="Human Rate" value={`${s.session_classification.human_rate}%`} color="purple" />
-            </div>
-          </div>
-        )}
+        {/* ── SECTION 1: Acquisition Overview ── */}
+        <div className="mb-2 mt-2">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Section 1 · Acquisition Overview</h2>
+        </div>
 
         {/* Engagement Bins */}
         {s.engagement_bins && (
@@ -1071,6 +1093,11 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* ── SECTION 2: Extraction Health ── */}
+        <div className="mb-2 mt-6">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Section 2 · Extraction Health</h2>
+        </div>
+
         {/* Receipt Pipeline */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Receipt Pipeline</h2>
@@ -1093,6 +1120,38 @@ export default function AdminDashboard() {
               subtitle="Check / Nego / Reddit / Seller"
             />
           </div>
+        </div>
+
+        {/* Extraction Health */}
+        {s.extraction_health && s.extraction_health.total_attempts > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border-l-4 border-cyan-400">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Extraction Health</h2>
+            <p className="text-sm text-gray-500 mb-4">URL vs. text mode success rates + failure breakdown</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <FunnelCard label="URL Success Rate" value={`${s.extraction_health.url_success_rate}%`} color={s.extraction_health.url_success_rate >= 70 ? "green" : s.extraction_health.url_success_rate >= 40 ? "amber" : "red"} subtitle={`${s.extraction_health.url_successes}/${s.extraction_health.url_attempts} attempts`} />
+              <FunnelCard label="Text Success Rate" value={`${s.extraction_health.text_success_rate}%`} color="green" subtitle={`${s.extraction_health.text_successes}/${s.extraction_health.text_attempts} attempts`} />
+              <FunnelCard label="Clean URL Conversions" value={s.extraction_health.clean_url_cleans} color="teal" subtitle="messy_url_cleaned events" />
+              <FunnelCard label="Total Attempts" value={s.extraction_health.total_attempts} color="blue" />
+            </div>
+            {Object.values(s.extraction_health.failures_by_reason).some(v => v > 0) && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Failure Reasons</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <FunnelCard label="Timeout" value={s.extraction_health.failures_by_reason.timeout} color="red" />
+                  <FunnelCard label="Bot Protected" value={s.extraction_health.failures_by_reason.blocked_by_bot_protection} color="amber" />
+                  <FunnelCard label="Search Page" value={s.extraction_health.failures_by_reason.search_page} color="amber" />
+                  <FunnelCard label="Parse Failure" value={s.extraction_health.failures_by_reason.parse_failure} color="red" />
+                  <FunnelCard label="Network Error" value={s.extraction_health.failures_by_reason.network_error} color="gray" />
+                  <FunnelCard label="Other" value={s.extraction_health.failures_by_reason.other} color="gray" />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── SECTION 3: Routine & Fit Engagement ── */}
+        <div className="mb-2 mt-6">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Section 3 · Routine &amp; Fit Engagement</h2>
         </div>
 
         {/* Post-Receipt Engagement Funnel */}
@@ -1158,8 +1217,8 @@ export default function AdminDashboard() {
                 <FunnelCard label="Paywall Dismissed" value={s.post_receipt_engagement.monetization.paywall_dismissed} color="red" />
                 <FunnelCard label="Checkout Started" value={s.post_receipt_engagement.monetization.checkout_started} color="green"
                   subtitle={`${s.post_receipt_engagement.monetization.paywall_to_checkout_rate}% of paywall`} />
-                <FunnelCard label="Paid" value={s.revenue.buyer_pass.paid} color="green"
-                  subtitle={`$${s.revenue.buyer_pass.revenue.toFixed(2)} confirmed`} />
+                <FunnelCard label="Paid" value={s.revenue?.buyer_pass.paid ?? 0} color="green"
+                  subtitle={s.revenue ? `$${s.revenue.buyer_pass.revenue.toFixed(2)} confirmed` : undefined} />
               </div>
             </div>
 
@@ -1192,19 +1251,6 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Server-Side Report Events */}
-        {s.report_server_events?.generated_total > 0 && (
-          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-1">Server-Side Report Events</h2>
-            <p className="text-sm text-gray-500 mb-4">Tracked server-side in /api/report</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <FunnelCard label="Total Generated" value={s.report_server_events.generated_total} color="blue" />
-              <FunnelCard label="Success" value={s.report_server_events.generated_success} color="green" />
-              <FunnelCard label="Failed" value={s.report_server_events.generated_failed} color="red" />
-              <FunnelCard label="Success Rate" value={`${s.report_server_events.success_rate}%`} color="emerald" />
-            </div>
-          </div>
-        )}
 
         {/* Extraction Domains */}
         {s.extraction_domains.length > 0 && (
@@ -1240,6 +1286,11 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* ── SECTION 5: Outcome Metrics ── */}
+        <div className="mb-2 mt-6">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Section 5 · Outcome Metrics</h2>
+        </div>
 
         {/* Verdict Distribution */}
         {s.verdict_distribution.length > 0 && (
@@ -1313,72 +1364,18 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* Why Checkpoint */}
-        {s.why_checkpoint.shown > 0 && (
+        {/* Saved Listings */}
+        {s.saved_listings.total > 0 && (
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">❓ Why Checkpoint</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <FunnelCard label="Shown" value={s.why_checkpoint.shown} color="blue" />
-              <FunnelCard label="Submitted" value={s.why_checkpoint.submitted} color="green" />
-              <FunnelCard label="Skipped" value={s.why_checkpoint.skipped} color="gray" />
-              <FunnelCard label="Submit Rate" value={`${s.why_checkpoint.submit_rate}%`} color="purple" />
-            </div>
-          </div>
-        )}
-
-        {/* Saved Listings & Email Deliveries */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white rounded-2xl shadow-lg p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">💾 Saved Listings</h2>
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
               <FunnelCard label="Total Saved" value={s.saved_listings.total} color="indigo" />
               <FunnelCard label="Unique Users" value={s.saved_listings.unique_users} color="green" />
               <FunnelCard label="Receipt Saves" value={s.saved_listings.by_type.receipt} color="blue" />
               <FunnelCard label="EVRoutine Saves" value={s.saved_listings.by_type.evroutine} color="purple" />
             </div>
-            <div className="grid grid-cols-2 gap-3 mb-4 pt-3 border-t border-gray-100">
-              <FunnelCard label="Save Clicked" value={s.scenario_saves.clicked} color="gray" />
-              <FunnelCard label="Save Succeeded" value={s.scenario_saves.succeeded} color="gray" />
-            </div>
-            {s.saved_listings.top_savers.length > 0 && (
-              <div className="pt-3 border-t border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">Top Savers</h3>
-                <div className="space-y-1.5">
-                  {s.saved_listings.top_savers.map((saver, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
-                      <span className="font-mono text-gray-600">{saver.user_id}...</span>
-                      <span className="text-gray-500 text-xs truncate mx-2">{saver.latest_vehicle}</span>
-                      <span className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-medium text-xs">{saver.count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">📧 Email Deliveries</h2>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <FunnelCard label="Total Sent" value={s.email_deliveries.sent} color="green" />
-              <FunnelCard label="Failed" value={s.email_deliveries.failed} color="red" />
-              <FunnelCard label="Unique Recipients" value={s.email_deliveries.unique_recipients} color="blue" />
-              <FunnelCard label="Success Rate" value={`${s.email_deliveries.success_rate}%`} color="indigo" />
-            </div>
-            <div className="grid grid-cols-2 gap-3 mb-4 pt-3 border-t border-gray-100">
-              <FunnelCard label="Receipt Emails" value={s.email_deliveries.by_type.receipt} color="gray" />
-              <FunnelCard label="EVRoutine Emails" value={s.email_deliveries.by_type.evroutine} color="gray" />
-            </div>
-            <div className="pt-3 border-t border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Client Events</h3>
-              <div className="grid grid-cols-3 gap-3">
-                <FunnelCard label="Submitted" value={s.email_captures.submitted} color="gray" />
-                <FunnelCard label="Sent" value={s.email_captures.sent} color="gray" />
-                <FunnelCard label="Failed" value={s.email_captures.failed} color="gray" />
-                <FunnelCard label="Auth Entered" value={s.email_captures.auth_email_entered} color="gray" />
-                <FunnelCard label="Auth Confirmed" value={s.email_captures.auth_email_confirmed} color="gray" />
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* EVFit Backend Funnel */}
         {s.evfit_funnel && (s.evfit_funnel.evfit_started > 0 || s.evfit_funnel.ai_job_queued > 0) && (
@@ -1419,6 +1416,41 @@ export default function AdminDashboard() {
               <FunnelCard label="Saved a Listing" value={s.user_segments.users_with_saved_listing} color="teal" />
               <FunnelCard label="High Intent Users" value={s.user_segments.high_intent_users} color="violet" subtitle="EVFit + vehicle + 2+ sessions" />
             </div>
+          </div>
+        )}
+
+        {/* ── SECTION 4: Retention & My Garage ── */}
+        <div className="mb-2 mt-6">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Section 4 · Retention &amp; My Garage</h2>
+        </div>
+
+        {/* Retention & My Garage */}
+        {s.retention && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border-l-4 border-violet-400">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Retention &amp; My Garage</h2>
+            <p className="text-sm text-gray-500 mb-4">Save rate, garage activity, compare funnel, repeat usage</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <FunnelCard label="Save Rate" value={`${s.retention.save_rate_pct}%`} color={s.retention.save_rate_pct >= 20 ? "green" : "amber"} subtitle={`${s.retention.save_receipt_succeeded}/${s.retention.save_receipt_clicked} clicked`} />
+              <FunnelCard label="Garage Vehicles" value={s.retention.garage_total_vehicles} color="emerald" subtitle={`${s.retention.garage_unique_users} unique users`} />
+              <FunnelCard label="Saved Scenarios" value={s.retention.saved_scenarios_total} color="indigo" subtitle={`${s.retention.saved_scenarios_unique_users} unique users`} />
+              <FunnelCard label="High Intent Users" value={s.retention.high_intent_users} color="violet" subtitle="saved + compare + 2+ sessions" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <FunnelCard label="Compare Started" value={s.retention.compare_started} color="blue" />
+              <FunnelCard label="Compare Completed" value={s.retention.compare_completed} color="green" subtitle={s.retention.compare_started > 0 ? `${Math.round((s.retention.compare_completed / s.retention.compare_started) * 100)}% finish rate` : undefined} />
+              <FunnelCard label="Garage Views" value={s.retention.my_garage_viewed} color="teal" />
+              <FunnelCard label="Vehicles Added" value={s.retention.my_garage_vehicle_added} color="cyan" />
+            </div>
+            {s.repeat_usage && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Repeat Usage (from visitors table)</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <FunnelCard label="Returned in 7 days" value={s.repeat_usage.returned_in_7d} color="green" />
+                  <FunnelCard label="Returned in 30 days" value={s.repeat_usage.returned_in_30d} color="blue" />
+                  <FunnelCard label="Single Visit" value={s.repeat_usage.single_visit} color="gray" />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1623,6 +1655,15 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* ── SECTION 6: VINaudit Readiness ── */}
+        <div className="mb-2 mt-6">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Section 6 · VINaudit Readiness</h2>
+        </div>
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-dashed border-gray-300">
+          <h2 className="text-xl font-bold text-gray-900 mb-1">VINaudit Readiness</h2>
+          <p className="text-sm text-gray-400">Coming soon — VIN history calls, deal ratings generated, and dealer integration metrics will appear here once integrated.</p>
+        </div>
 
         {/* Recent Events (Enhanced) */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">

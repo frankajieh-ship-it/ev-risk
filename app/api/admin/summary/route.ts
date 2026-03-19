@@ -244,6 +244,13 @@ export async function GET(request: NextRequest) {
       .from("saved_scenarios")
       .select("user_id");
 
+    // 12. Extraction attempts — URL vs text success/failure breakdown
+    const extractionAttemptsPromise = supabase
+      .from("extraction_attempts")
+      .select("input_mode, success, failure_reason, domain, created_at")
+      .gte("created_at", window.start)
+      .lt("created_at", window.end);
+
     const [
       { data: receipts },
       { data: receiptEvents },
@@ -256,6 +263,7 @@ export async function GET(request: NextRequest) {
       { data: purchases },
       { data: garageUsers },
       { data: savedScenariosUsers },
+      { data: extractionAttempts },
     ] = await Promise.all([
       receiptsPromise,
       receiptEventsPromise,
@@ -268,6 +276,7 @@ export async function GET(request: NextRequest) {
       purchasesPromise,
       garageUsersPromise,
       savedScenariosUsersPromise,
+      extractionAttemptsPromise,
     ]);
 
     const allReceipts = receipts || [];
@@ -1488,6 +1497,74 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.count - a.count);
 
     // -----------------------------------------------------------------------
+    // Extraction Health (from extraction_attempts table + user_events)
+    // -----------------------------------------------------------------------
+
+    const allExtractionAttempts = extractionAttempts || [];
+    const urlAttempts = allExtractionAttempts.filter((a) => a.input_mode === "url");
+    const textAttempts = allExtractionAttempts.filter((a) => a.input_mode === "text");
+    const urlSuccesses = urlAttempts.filter((a) => a.success);
+    const textSuccesses = textAttempts.filter((a) => a.success);
+
+    const failureReasonCounts = (reasons: string[]) =>
+      allExtractionAttempts.filter((a) => !a.success && reasons.includes(a.failure_reason || "")).length;
+
+    const extraction_health = {
+      total_attempts: allExtractionAttempts.length,
+      url_attempts: urlAttempts.length,
+      url_successes: urlSuccesses.length,
+      url_success_rate: urlAttempts.length > 0
+        ? Math.round((urlSuccesses.length / urlAttempts.length) * 1000) / 10 : 0,
+      text_attempts: textAttempts.length,
+      text_successes: textSuccesses.length,
+      text_success_rate: textAttempts.length > 0
+        ? Math.round((textSuccesses.length / textAttempts.length) * 1000) / 10 : 0,
+      clean_url_cleans: countEvents(filteredUserEvents, "messy_url_cleaned"),
+      failures_by_reason: {
+        timeout: failureReasonCounts(["timeout"]),
+        blocked_by_bot_protection: failureReasonCounts(["blocked_by_bot_protection"]),
+        search_page: failureReasonCounts(["search_page"]),
+        parse_failure: failureReasonCounts(["parse_failure", "empty_response"]),
+        network_error: failureReasonCounts(["network_error"]),
+        other: failureReasonCounts(["invalid_url", "unsupported_domain", "unknown"]),
+      },
+    };
+
+    // -----------------------------------------------------------------------
+    // Retention & My Garage
+    // -----------------------------------------------------------------------
+
+    const saveReceiptClicked = countEvents(filteredUserEvents, "save_receipt_clicked");
+    const saveReceiptSucceeded = countEvents(filteredUserEvents, "save_receipt_succeeded");
+
+    const retention = {
+      garage_total_vehicles: (garageUsers || []).length,
+      garage_unique_users: new Set((garageUsers || []).map((r: any) => r.user_id).filter(Boolean)).size,
+      my_garage_viewed: countEvents(filteredUserEvents, "my_garage_viewed"),
+      my_garage_vehicle_added: countEvents(filteredUserEvents, "my_garage_vehicle_added"),
+      saved_scenarios_total: (savedScenariosUsers || []).length,
+      saved_scenarios_unique_users: new Set((savedScenariosUsers || []).map((r: any) => r.user_id).filter(Boolean)).size,
+      save_receipt_clicked: saveReceiptClicked,
+      save_receipt_succeeded: saveReceiptSucceeded,
+      save_rate_pct: saveReceiptClicked > 0
+        ? Math.round((saveReceiptSucceeded / saveReceiptClicked) * 1000) / 10 : 0,
+      compare_started: countEvents(filteredUserEvents, "compare_started"),
+      compare_completed: countEvents(filteredUserEvents, "compare_completed"),
+      high_intent_users: user_segments.high_intent_users,
+    };
+
+    // -----------------------------------------------------------------------
+    // Repeat Usage (from visitors table)
+    // -----------------------------------------------------------------------
+
+    const now7dAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+    const repeat_usage = {
+      returned_in_7d: allVisitors.filter((v) => (v.visit_count || 1) >= 2 && v.last_visit >= now7dAgo).length,
+      returned_in_30d: allVisitors.filter((v) => (v.visit_count || 1) >= 2).length,
+      single_visit: allVisitors.filter((v) => (v.visit_count || 1) === 1).length,
+    };
+
+    // -----------------------------------------------------------------------
     // Response
     // -----------------------------------------------------------------------
 
@@ -1501,21 +1578,16 @@ export async function GET(request: NextRequest) {
         timezone: TIMEZONE,
       },
       overview,
-      revenue,
       receipt_pipeline,
       post_receipt_engagement,
       report_funnel,
       visitors: visitorsSection,
-      why_checkpoint,
       feedback: feedbackSection,
       daily_trend,
       top_vehicles,
       scenario_saves,
       saved_listings,
-      email_captures,
-      email_deliveries,
       ai_generation,
-      report_server_events,
       routine_engagement,
       evfit_funnel,
       user_segments,
@@ -1530,6 +1602,9 @@ export async function GET(request: NextRequest) {
       engagement_bins,
       coverage,
       insights,
+      extraction_health,
+      retention,
+      repeat_usage,
     });
   } catch (err) {
     console.error("Admin summary error:", err);

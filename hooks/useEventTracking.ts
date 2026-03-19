@@ -729,3 +729,6 @@ export function useEventTracking() {
     getPersistentSessionId,
   };
 }
+
+// Standalone helpers for pages that don't use the hook (garage, compare)
+// These are thin wrappers — just call trackEvent from the hook instead where possible.

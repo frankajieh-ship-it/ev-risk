@@ -147,6 +147,14 @@ export const VALID_EVENT_NAMES = [
   "demo_report_viewed",
   "demo_cta_clicked",
   "demo_convert_clicked",
+
+  // Retention & My Garage Events
+  "compare_completed",
+  "my_garage_viewed",
+  "my_garage_vehicle_added",
+
+  // CarGurus URL cleaning (URL Intelligence Layer)
+  "messy_url_cleaned",
 ] as const;
 
 export type ValidEventName = (typeof VALID_EVENT_NAMES)[number];
