@@ -19,6 +19,7 @@ import WhyTheseCarsBlock from "@/components/blocks/WhyTheseCarsBlock";
 import HowWeDecidedBlock from "@/components/blocks/HowWeDecidedBlock";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { getOrCreatePersistentSessionId, getOrCreateReceiptToken } from "@/lib/session-utils";
+import RoutineResultsPaywallCard from "@/components/routine/RoutineResultsPaywallCard";
 import { addToShortlist, getShortlist } from "@/lib/shortlist-store";
 import { loadSpecsPrefs, applySpecsFilter } from "@/lib/specs-scorer";
 import { generateFitOneLiner } from "@/lib/fit-verdict-liner";
@@ -259,6 +260,10 @@ function RoutineResultsContent() {
   // Specs & accessories state
   const [specsPrefs, setSpecsPrefs] = useState<VehicleSpecsPrefs | null>(null);
   const [specsResults, setSpecsResults] = useState<SpecsMatchResult[]>([]);
+
+  // Payment gate state
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [paymentChecked, setPaymentChecked] = useState(false);
 
   const handleShare = useCallback(async () => {
     if (!result?.run_id) return;
@@ -573,6 +578,49 @@ function RoutineResultsContent() {
     }
   }, [runId]);
 
+  // Check payment status after result loads
+  useEffect(() => {
+    if (!result?.run_id) return;
+    const anonId = getOrCreateReceiptToken();
+    fetch(`/api/payments/status?scenario_type=routine&scenario_id=${result.run_id}&anon_id=${encodeURIComponent(anonId)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setIsUnlocked(data.isUnlocked ?? false);
+        setPaymentChecked(true);
+      })
+      .catch(() => setPaymentChecked(true)); // fail open — don't block on network error
+  }, [result?.run_id]);
+
+  // Poll for payment unlock after Stripe return (checkout=success)
+  useEffect(() => {
+    if (!result?.run_id || isUnlocked) return;
+    const checkout = searchParams.get("checkout");
+    if (checkout !== "success") return;
+
+    let attempts = 0;
+    const MAX = 10;
+    const poll = async () => {
+      if (attempts >= MAX) return;
+      attempts++;
+      try {
+        const anonId = getOrCreateReceiptToken();
+        const res = await fetch(
+          `/api/payments/status?scenario_type=routine&scenario_id=${result.run_id}&anon_id=${encodeURIComponent(anonId)}`
+        );
+        const data = await res.json();
+        if (data.isUnlocked) {
+          setIsUnlocked(true);
+          setPaymentChecked(true);
+          return;
+        }
+      } catch {
+        // ignore
+      }
+      setTimeout(poll, 1500);
+    };
+    setTimeout(poll, 1500);
+  }, [result?.run_id, isUnlocked, searchParams]);
+
   // Push routine to OFFO Chrome extension (best-effort)
   useEffect(() => {
     if (!result?.routine) return;
@@ -630,6 +678,24 @@ function RoutineResultsContent() {
           Start Analysis
         </a>
       </div>
+    );
+  }
+
+  // Payment gate — show spinner while checking, then paywall or full result
+  if (!paymentChecked) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isUnlocked) {
+    return (
+      <RoutineResultsPaywallCard
+        runId={result.run_id}
+        receiptToken={getOrCreateReceiptToken()}
+      />
     );
   }
 
