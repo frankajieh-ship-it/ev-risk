@@ -31,20 +31,22 @@ export default function FullRiskReportCard({ receiptId, vehicleLabel }: FullRisk
 
   const stripeLink = process.env.NEXT_PUBLIC_FULL_RISK_REPORT_STRIPE_LINK;
 
-  // Don't render if no Stripe link configured
-  if (!stripeLink) return null;
-
   const handleClick = () => {
     trackEvent("deep_dive_offer_clicked", {
       receipt_id: receiptId,
       offer_type: "full_risk_report_39",
       vehicle: vehicleLabel,
     });
-    window.open(
-      `${stripeLink}?client_reference_id=${receiptId}`,
-      "_blank",
-      "noopener"
-    );
+    if (stripeLink) {
+      window.open(
+        `${stripeLink}?client_reference_id=${receiptId}`,
+        "_blank",
+        "noopener"
+      );
+    } else {
+      // Fallback: open email pre-filled with receipt ID
+      window.location.href = `mailto:hello@offolab.com?subject=Full%20Risk%20Report%20Request&body=Receipt%20ID%3A%20${receiptId}%0A%0APlease%20send%20payment%20instructions%20for%20the%20%2439%20Full%20Risk%20Report.`;
+    }
   };
 
   return (
