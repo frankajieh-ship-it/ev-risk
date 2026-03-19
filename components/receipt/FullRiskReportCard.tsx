@@ -10,7 +10,7 @@
 
 "use client";
 
-import { Shield, FileText, Star, Clock, Zap } from "lucide-react";
+import { Shield } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface FullRiskReportCardProps {
@@ -18,18 +18,16 @@ interface FullRiskReportCardProps {
   vehicleLabel?: string;
 }
 
-const BENEFITS = [
-  { icon: Shield, text: "Full battery degradation + accident + recall history" },
-  { icon: Star, text: "Personalized Fair / Good / Great Deal rating" },
-  { icon: FileText, text: "Professional PDF report delivered to your email" },
-  { icon: Clock, text: "Delivered within 48 hours" },
-  { icon: Zap, text: "48-hour email support from our team" },
-];
-
 export default function FullRiskReportCard({ receiptId, vehicleLabel }: FullRiskReportCardProps) {
   const { trackEvent } = useEventTracking();
 
   const stripeLink = process.env.NEXT_PUBLIC_FULL_RISK_REPORT_STRIPE_LINK;
+  const formLink = process.env.NEXT_PUBLIC_FULL_RISK_REPORT_FORM_LINK;
+
+  const vehicleStr = vehicleLabel ? encodeURIComponent(vehicleLabel) : "My%20Vehicle";
+  const intakeHref = formLink
+    ? `${formLink}?receipt_id=${receiptId}`
+    : `mailto:support@offolabs.com?subject=Full%20Risk%20Report%20%E2%80%94%20${vehicleStr}&body=Receipt%20ID%3A%20${receiptId}%0Alisting%20URL%20or%20VIN%3A%20`;
 
   const handleClick = () => {
     trackEvent("deep_dive_offer_clicked", {
@@ -38,22 +36,25 @@ export default function FullRiskReportCard({ receiptId, vehicleLabel }: FullRisk
       vehicle: vehicleLabel,
     });
     if (stripeLink) {
-      window.open(
-        `${stripeLink}?client_reference_id=${receiptId}`,
-        "_blank",
-        "noopener"
-      );
+      window.open(`${stripeLink}?client_reference_id=${receiptId}`, "_blank", "noopener");
     } else {
-      // Fallback: open email pre-filled with receipt ID
-      window.location.href = `mailto:support@offolabs.com?subject=Full%20Risk%20Report%20Request&body=Receipt%20ID%3A%20${receiptId}%0A%0APlease%20send%20payment%20instructions%20for%20the%20%2439%20Full%20Risk%20Report.`;
+      window.location.href = intakeHref;
     }
+  };
+
+  const handleIntakeClick = () => {
+    trackEvent("deep_dive_offer_clicked", {
+      receipt_id: receiptId,
+      offer_type: "full_risk_report_intake",
+      vehicle: vehicleLabel,
+    });
   };
 
   return (
     <div className="rounded-2xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-orange-50 shadow-sm overflow-hidden">
       <div className="p-5">
         {/* Urgency banner */}
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-3">
           <span className="text-xs font-semibold bg-amber-500 text-white px-2.5 py-1 rounded-full">
             This week only · Limited to first 15 reports
           </span>
@@ -61,24 +62,20 @@ export default function FullRiskReportCard({ receiptId, vehicleLabel }: FullRisk
 
         {/* Headline */}
         <h3 className="text-base font-bold text-gray-900 mb-1">
-          Want the full risk report?
+          Your quick analysis is ready.
         </h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Your quick analysis is ready. Avoid a costly mistake — get a full battery, accident, recall + personalized deal rating from our team.
+        <p className="text-sm text-gray-600 mb-3">
+          Want the full risk report + personalized deal rating to avoid a costly mistake?{" "}
+          <span className="font-semibold text-gray-800">$39 one-time.</span>
           {vehicleLabel && (
-            <span className="font-medium text-gray-800"> For your {vehicleLabel}.</span>
+            <span className="text-gray-700"> For your {vehicleLabel}.</span>
           )}
         </p>
 
-        {/* Benefits */}
-        <ul className="space-y-2 mb-5">
-          {BENEFITS.map(({ icon: Icon, text }, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-              <Icon className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-              <span>{text}</span>
-            </li>
-          ))}
-        </ul>
+        {/* Single tight benefit line */}
+        <p className="text-xs text-gray-500 mb-4">
+          Full battery · accident · recall history + Fair / Good / Great deal rating. PDF delivered to your inbox in 48h.
+        </p>
 
         {/* CTA */}
         <button
@@ -89,9 +86,25 @@ export default function FullRiskReportCard({ receiptId, vehicleLabel }: FullRisk
           Get Full Risk Report — $39 one-time
         </button>
 
-        <p className="text-center text-xs text-gray-400 mt-2">
-          One-time payment · No subscription · Manual delivery within 48h
-        </p>
+        {/* Post-payment intake link — shown when Stripe link is configured */}
+        {stripeLink && (
+          <p className="text-center text-xs text-gray-400 mt-2">
+            After payment,{" "}
+            <a
+              href={intakeHref}
+              onClick={handleIntakeClick}
+              className="underline hover:text-gray-600 transition-colors"
+            >
+              submit your listing here →
+            </a>
+          </p>
+        )}
+
+        {!stripeLink && (
+          <p className="text-center text-xs text-gray-400 mt-2">
+            One-time payment · No subscription · Manual delivery within 48h
+          </p>
+        )}
       </div>
     </div>
   );
