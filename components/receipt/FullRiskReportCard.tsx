@@ -45,7 +45,7 @@ export default function FullRiskReportCard({ receiptId, vehicleLabel }: FullRisk
       );
     } else {
       // Fallback: open email pre-filled with receipt ID
-      window.location.href = `mailto:hello@offolab.com?subject=Full%20Risk%20Report%20Request&body=Receipt%20ID%3A%20${receiptId}%0A%0APlease%20send%20payment%20instructions%20for%20the%20%2439%20Full%20Risk%20Report.`;
+      window.location.href = `mailto:support@offolabs.com?subject=Full%20Risk%20Report%20Request&body=Receipt%20ID%3A%20${receiptId}%0A%0APlease%20send%20payment%20instructions%20for%20the%20%2439%20Full%20Risk%20Report.`;
     }
   };
 
