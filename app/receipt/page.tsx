@@ -382,6 +382,13 @@ export default function ReceiptPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") !== "success") return;
 
+    // Track $9.99 Buyer Pass purchase completion
+    trackEvent("deep_dive_purchase_succeeded", {
+      receipt_id: receipt?.receipt_id,
+      offer_type: "buyer_pass_999",
+      session_id: params.get("session_id"),
+    });
+
     // Clean URL
     const url = new URL(window.location.href);
     url.searchParams.delete("checkout");
