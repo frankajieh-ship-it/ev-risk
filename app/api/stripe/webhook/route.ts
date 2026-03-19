@@ -23,6 +23,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { audit } from "@/lib/audit-logger";
+import { sendChecklistEmail, isResendConfigured } from "@/lib/resend";
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -102,6 +103,8 @@ export async function POST(request: NextRequest) {
           // Route by product type
           if (session.metadata?.scenario_type) {
             await fulfillBuyerPass(session);
+          } else if (session.amount_total === 3900) {
+            await fulfillFullRiskReport(session);
           } else {
             await fulfillOrder(session);
           }
@@ -117,6 +120,8 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         if (session.metadata?.scenario_type) {
           await fulfillBuyerPass(session);
+        } else if (session.amount_total === 3900) {
+          await fulfillFullRiskReport(session);
         } else {
           await fulfillOrder(session);
         }
@@ -176,6 +181,77 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Fulfill $39 Full Risk Report purchase from Stripe Payment Link.
+ * Logs the event + sends confirmation email to the buyer.
+ */
+async function fulfillFullRiskReport(session: Stripe.Checkout.Session) {
+  const receiptId = session.client_reference_id;
+  const customerEmail = session.customer_details?.email;
+
+  // Persist to user_events
+  try {
+    await supabase.from("user_events").insert({
+      event_name: "checkout_completed",
+      timestamp: new Date().toISOString(),
+      event_data: {
+        offer_type: "full_risk_report_39",
+        receipt_id: receiptId,
+        stripe_session_id: session.id,
+        amount: 39,
+        customer_email: customerEmail || null,
+      },
+    });
+  } catch {
+    // Non-critical
+  }
+
+  audit({
+    actor_type: "webhook",
+    action: "payment.fulfilled",
+    resource: `receipt:${receiptId || "unknown"}`,
+    result: "ok",
+    metadata: { stripe_session_id: session.id, offer_type: "full_risk_report_39" },
+  });
+
+  console.log("✅ Full Risk Report payment received:", {
+    sessionId: session.id,
+    receiptId,
+    customerEmail,
+    amount: "$39",
+  });
+
+  // Send confirmation email to buyer
+  if (customerEmail && isResendConfigured()) {
+    const html = `
+      <h2>We received your Full Risk Report order!</h2>
+      <p>Hi there,</p>
+      <p>
+        Thank you for your purchase. Our team will review your vehicle details and
+        deliver your <strong>Full Risk Report</strong> (battery · accident · recall history
+        + Fair/Good/Great deal rating) to this email address within <strong>48 hours</strong>.
+      </p>
+      ${receiptId ? `<p style="font-size:13px;color:#888;">Reference: ${receiptId}</p>` : ""}
+      <p>
+        If you have any questions, reply to this email or contact us at
+        <a href="mailto:support@offolabs.com">support@offolabs.com</a>.
+      </p>
+      <p>— The OFFO Team</p>
+    `;
+    try {
+      await sendChecklistEmail(
+        customerEmail,
+        "Your OFFO Full Risk Report — we'll deliver within 48h",
+        html
+      );
+    } catch {
+      // Non-critical
+    }
+  }
+
+  return true;
 }
 
 /**
