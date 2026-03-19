@@ -46,6 +46,8 @@ import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import CompareSelectModal from "@/components/receipt/CompareSelectModal";
 import CompareView from "@/components/receipt/CompareView";
 import RoutineFitMiniStep from "@/components/receipt/RoutineFitMiniStep";
+import DecisionPackCard from "@/components/receipt/DecisionPackCard";
+import FullRiskReportCard from "@/components/receipt/FullRiskReportCard";
 import ShareModal from "@/components/receipt/ShareModal";
 import { useReceiptHistory } from "@/hooks/useReceiptHistory";
 import { useRegion } from "@/hooks/useRegion";
@@ -1070,6 +1072,36 @@ export default function ReceiptPage() {
                 upgradeFailed={upgradeFailed}
               />
 
+
+              {/* ── Upsell cards — shown to non-unlocked users ── */}
+              {!isUnlocked && !freeMode && paymentsEnabled && (
+                <>
+                  {/* $39 Full Risk Report — manual fulfillment, highest margin */}
+                  <FullRiskReportCard
+                    receiptId={receipt.receipt_id}
+                    vehicleLabel={
+                      receipt.listing_summary?.year && receipt.listing_summary?.make && receipt.listing_summary?.model
+                        ? `${receipt.listing_summary.year} ${receipt.listing_summary.make} ${receipt.listing_summary.model}`
+                        : receipt.listing_summary?.make
+                          ? `${receipt.listing_summary.make} ${receipt.listing_summary.model ?? ""}`.trim()
+                          : undefined
+                    }
+                  />
+
+                  {/* $9.99 Buyer Pass — automated, 10 credits */}
+                  {(showPaywall || !decisionPackDismissed) && (
+                    <div id="decision-pack-card">
+                      <DecisionPackCard
+                        receiptToken={receiptToken}
+                        receiptId={receipt.receipt_id}
+                        triggerReason={paywallTrigger}
+                        onDismiss={() => setDecisionPackDismissed(true)}
+                        region={region}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
 
               {/* Negotiator — Seller Strategy */}
               <NegotiatorSection
