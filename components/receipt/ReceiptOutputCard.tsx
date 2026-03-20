@@ -515,22 +515,48 @@ export default function ReceiptOutputCard({
           );
         })()}
 
-        {/* Verify Before Visit */}
-        {receipt.verify_before_visit && receipt.verify_before_visit.length > 0 && (
-          <Section
-            icon={<FileSearch className="w-4 h-4 text-purple-500" />}
-            title="Verify Before Visit"
-          >
-            <ul className="space-y-2">
-              {receipt.verify_before_visit.map((item: string, i: number) => (
-                <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
-                  <span className="text-purple-400 font-bold mt-0.5">{i + 1}.</span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </Section>
-        )}
+        {/* Verify Before Visit — first 2 free, rest locked */}
+        {(() => {
+          const vbvItems = receipt.verify_before_visit || [];
+          if (vbvItems.length === 0) return null;
+          const showAllVbv = sellerPackUnlocked !== false || vbvItems.length <= 2;
+          const visibleVbv = showAllVbv ? vbvItems : vbvItems.slice(0, 2);
+          const lockedVbvCount = showAllVbv ? 0 : vbvItems.length - 2;
+          return (
+            <Section
+              icon={<FileSearch className="w-4 h-4 text-purple-500" />}
+              title="Verify Before Visit"
+            >
+              <ul className="space-y-2">
+                {visibleVbv.map((item: string, i: number) => (
+                  <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                    <span className="text-purple-400 font-bold mt-0.5">{i + 1}.</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+                {lockedVbvCount > 0 && (
+                  <>
+                    {vbvItems.slice(2).map((_, i) => (
+                      <li key={`locked-vbv-${i}`} className="text-sm flex items-start gap-2 select-none">
+                        <span className="text-gray-300 font-bold mt-0.5">{i + 3}.</span>
+                        <span className="text-gray-300 blur-[5px]">This item is locked — unlock to see</span>
+                      </li>
+                    ))}
+                    <li>
+                      <button
+                        onClick={onSellerPackUpgrade}
+                        className="flex items-center gap-1.5 text-xs font-medium text-purple-600 hover:text-purple-700 transition-colors mt-1"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        Unlock all {vbvItems.length} items — $4.99
+                      </button>
+                    </li>
+                  </>
+                )}
+              </ul>
+            </Section>
+          );
+        })()}
 
 
         {/* Lint errors — itemized list + auto-fix */}

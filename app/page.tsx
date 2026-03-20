@@ -303,14 +303,14 @@ export default function Home() {
           <div className="text-center max-w-4xl mx-auto">
             {/* H1 renders immediately (no opacity:0) so browser can measure LCP */}
             <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 md:mb-5">
-              Find out if an EV{" "}
+              Analyze any EV deal{" "}
               <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-                fits your routine
+                before you buy
               </span>
             </h1>
 
             <p className="text-base md:text-lg text-gray-600 mb-2 md:mb-3 max-w-2xl mx-auto">
-              Get a fit verdict, what breaks first, and a fallback plan — based on how you actually drive and charge.
+              Paste a listing URL or VIN. Get a deal verdict, risk flags, and what to ask the seller — in seconds.
             </p>
 
             <p className="text-sm text-gray-500 mb-5 md:mb-6">
@@ -329,25 +329,25 @@ export default function Home() {
                 transition={{ duration: 0.4, delay: 0.1 }}
                 className="flex flex-col items-center justify-center gap-4"
               >
-                {/* Primary CTA */}
+                {/* Primary CTA — Deal Checker */}
+                <a
+                  href="/receipt"
+                  onClick={() => trackCTAClick("listing_receipt")}
+                  className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/25 text-base w-full sm:w-auto text-center"
+                >
+                  Analyze a Deal →
+                </a>
+
+                {/* Secondary CTA — Routine fit check */}
                 <button
                   onClick={() => {
                     trackCTAClick("start_fit_check");
                     document.getElementById("fit-check")?.scrollIntoView({ behavior: "smooth" });
                   }}
-                  className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/25 text-base w-full sm:w-auto"
+                  className="text-sm text-blue-600 hover:text-blue-800 transition-colors font-medium"
                 >
-                  Start EV fit check
+                  Or check if an EV fits your routine →
                 </button>
-
-                {/* Secondary CTA */}
-                <a
-                  href="/receipt"
-                  onClick={() => trackCTAClick("listing_receipt")}
-                  className="px-6 py-2.5 text-blue-600 font-medium rounded-xl border border-blue-200 hover:bg-blue-50 transition-colors text-sm text-center"
-                >
-                  Check a listing deal →
-                </a>
               </motion.div>
             )}
           </div>

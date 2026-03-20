@@ -254,82 +254,118 @@ export default function NegotiatorSection({
           );
         })()}
 
-        {/* Inspect First */}
+        {/* Inspect First — locked behind seller pack */}
         {receipt.inspect_first && receipt.inspect_first.length > 0 && (
-          <StrategyBlock
-            icon={<Search className="w-4 h-4 text-orange-500" />}
-            title="Inspect First"
-            subtitle="Check these before discussing price"
-            onCopy={() =>
-              copyText(
-                receipt.inspect_first.map((item, i) => `${i + 1}. ${item}`).join("\n"),
-                "inspect"
-              )
-            }
-            copied={copied === "inspect"}
-          >
-            <ol className="space-y-1.5">
-              {receipt.inspect_first.map((item, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                  <span className="text-orange-400 font-bold flex-shrink-0 w-5 text-right">
-                    {i + 1}.
-                  </span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ol>
-          </StrategyBlock>
-        )}
-
-        {/* Walk-Away Triggers */}
-        {walkAwayTriggers.length > 0 && (
-          <StrategyBlock
-            icon={<XCircle className="w-4 h-4 text-orange-500" />}
-            title="Walk-Away Triggers"
-            subtitle="Leave if any of these come up"
-            onCopy={() =>
-              copyText(
-                walkAwayTriggers.map((t, i) => `${i + 1}. ${t}`).join("\n"),
-                "walkaway"
-              )
-            }
-            copied={copied === "walkaway"}
-          >
-            <ol className="space-y-1.5">
-              {walkAwayTriggers.map((trigger, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                  <span className="text-orange-500 font-bold flex-shrink-0 w-5 text-right">
-                    {i + 1}.
-                  </span>
-                  <span>{trigger}</span>
-                </li>
-              ))}
-            </ol>
-          </StrategyBlock>
-        )}
-
-        {/* Suggested Offer Range */}
-        {offerRange && (
-          <StrategyBlock
-            icon={<DollarSign className="w-4 h-4 text-green-600" />}
-            title="Suggested Offer"
-            onCopy={() =>
-              copyText(
-                `Offer range: ${offerRange!.low} – ${offerRange!.high}\n${offerRange!.rationale}`,
-                "offer"
-              )
-            }
-            copied={copied === "offer"}
-          >
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="flex items-baseline gap-2 mb-1">
-                <span className="text-lg font-bold text-gray-900">
-                  {offerRange.low} – {offerRange.high}
-                </span>
+          sellerPackUnlocked !== false ? (
+            <StrategyBlock
+              icon={<Search className="w-4 h-4 text-orange-500" />}
+              title="Inspect First"
+              subtitle="Check these before discussing price"
+              onCopy={() =>
+                copyText(
+                  receipt.inspect_first.map((item, i) => `${i + 1}. ${item}`).join("\n"),
+                  "inspect"
+                )
+              }
+              copied={copied === "inspect"}
+            >
+              <ol className="space-y-1.5">
+                {receipt.inspect_first.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                    <span className="text-orange-400 font-bold flex-shrink-0 w-5 text-right">
+                      {i + 1}.
+                    </span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ol>
+            </StrategyBlock>
+          ) : (
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <Search className="w-4 h-4" />
+                <span className="blur-[4px] select-none">Inspect First checklist</span>
               </div>
-              <p className="text-xs text-gray-600">{offerRange.rationale}</p>
+              <button onClick={onSellerPackUpgrade} className="flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors">
+                <Lock className="w-3 h-3" /> Unlock — $4.99
+              </button>
             </div>
-          </StrategyBlock>
+          )
+        )}
+
+        {/* Walk-Away Triggers — locked behind seller pack */}
+        {walkAwayTriggers.length > 0 && (
+          sellerPackUnlocked !== false ? (
+            <StrategyBlock
+              icon={<XCircle className="w-4 h-4 text-orange-500" />}
+              title="Walk-Away Triggers"
+              subtitle="Leave if any of these come up"
+              onCopy={() =>
+                copyText(
+                  walkAwayTriggers.map((t, i) => `${i + 1}. ${t}`).join("\n"),
+                  "walkaway"
+                )
+              }
+              copied={copied === "walkaway"}
+            >
+              <ol className="space-y-1.5">
+                {walkAwayTriggers.map((trigger, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                    <span className="text-orange-500 font-bold flex-shrink-0 w-5 text-right">
+                      {i + 1}.
+                    </span>
+                    <span>{trigger}</span>
+                  </li>
+                ))}
+              </ol>
+            </StrategyBlock>
+          ) : (
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <XCircle className="w-4 h-4" />
+                <span className="blur-[4px] select-none">Walk-Away Triggers</span>
+              </div>
+              <button onClick={onSellerPackUpgrade} className="flex items-center gap-1 text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors">
+                <Lock className="w-3 h-3" /> Unlock — $4.99
+              </button>
+            </div>
+          )
+        )}
+
+        {/* Suggested Offer Range — locked behind seller pack */}
+        {offerRange && (
+          sellerPackUnlocked !== false ? (
+            <StrategyBlock
+              icon={<DollarSign className="w-4 h-4 text-green-600" />}
+              title="Suggested Offer"
+              onCopy={() =>
+                copyText(
+                  `Offer range: ${offerRange!.low} – ${offerRange!.high}\n${offerRange!.rationale}`,
+                  "offer"
+                )
+              }
+              copied={copied === "offer"}
+            >
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="text-lg font-bold text-gray-900">
+                    {offerRange.low} – {offerRange.high}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-600">{offerRange.rationale}</p>
+              </div>
+            </StrategyBlock>
+          ) : (
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <DollarSign className="w-4 h-4" />
+                <span className="blur-[4px] select-none">Suggested Offer Range</span>
+              </div>
+              <button onClick={onSellerPackUpgrade} className="flex items-center gap-1 text-xs font-medium text-green-600 hover:text-green-700 transition-colors">
+                <Lock className="w-3 h-3" /> Unlock — $4.99
+              </button>
+            </div>
+          )
         )}
 
       </div>

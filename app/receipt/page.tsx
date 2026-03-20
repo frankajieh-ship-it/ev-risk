@@ -33,6 +33,7 @@ import ReceiptHistoryDrawer from "@/components/receipt/ReceiptHistoryDrawer";
 import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
 // EmailGateModal removed — 100% skip rate, replaced by inline EmailCaptureCard
 import FeedbackWidget from "@/components/FeedbackWidget";
+import ExitFeedbackModal from "@/components/receipt/ExitFeedbackModal";
 import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
 import VinCheckSection from "@/components/receipt/VinCheckSection";
 import ModelInfoSection from "@/components/receipt/ModelInfoSection";
@@ -1306,6 +1307,9 @@ export default function ReceiptPage() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Exit-intent feedback modal — triggers when user leaves with a receipt but no feedback */}
+      <ExitFeedbackModal hasReceipt={!!receipt} receiptId={receipt?.receipt_id} />
 
       {/* Marketing sections — visible before first receipt */}
       {!receipt && (

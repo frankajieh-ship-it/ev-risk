@@ -365,6 +365,10 @@ export default function ReceiptInputCard({
       // Store extraction metadata
       setHasExtracted(true);
       setExtractionId(data.extraction_id || null);
+      // Auto-open details panel when VIN is extracted so user can verify
+      if (data.fields?.vin) {
+        setDetailsOpen(true);
+      }
 
       // Show "Cleaned & extracted" toast if this was a clean-and-extract flow
       if (cleanStartRef.current > 0) {
@@ -891,6 +895,25 @@ export default function ReceiptInputCard({
                   disabled={isGenerating}
                 />
               </div>
+            </div>
+
+            {/* VIN — shown prominently after price/mileage */}
+            <div>
+              <label className={LABEL_CLASS}>
+                VIN{" "}
+                <span className="text-gray-400 font-normal">(17 characters — improves accuracy)</span>
+              </label>
+              <input
+                type="text"
+                value={fields.vin ?? ""}
+                onChange={(e) =>
+                  updateField("vin", e.target.value.toUpperCase() || undefined)
+                }
+                placeholder="e.g. 1HGBH41JXMN109186"
+                maxLength={17}
+                className={getInputClass(fieldConfidence.vin, dirtyFields.has("vin"))}
+                disabled={isGenerating}
+              />
             </div>
 
             {/* Row 2: Year, Make, Model */}
