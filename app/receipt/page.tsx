@@ -78,7 +78,7 @@ async function fetchWithRetry(
 ): Promise<Response> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 65000);
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
     try {
       const res = await fetch(url, { ...options, signal: controller.signal });
       clearTimeout(timeoutId);
@@ -233,6 +233,9 @@ export default function ReceiptPage() {
 
   // Single-flight guard
   const inFlightRef = useRef(false);
+
+  // Scroll target for result visibility
+  const resultRef = useRef<HTMLDivElement>(null);
 
   // Store last generation input for regenerate
   const lastGenerateInputRef = useRef<{
@@ -523,14 +526,18 @@ export default function ReceiptPage() {
     upgradePollingRef.current = poll;
   }, [trackEvent, addReceipt]);
 
-  // Track receipt result viewed
+  // Track receipt result viewed + scroll into view
   useEffect(() => {
     if (!receipt?.receipt_id) return;
     trackEvent("receipt_result_viewed", {
       receipt_id: receipt.receipt_id,
       verdict: receipt.verdict,
     });
-  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Scroll the result into view so users don't miss it
+    setTimeout(() => {
+      resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track Buyer Pass teaser impression
   useEffect(() => {
@@ -780,7 +787,10 @@ export default function ReceiptPage() {
   // Regenerate: re-submit the last input to get a fresh analysis
   const handleRegenerate = useCallback(() => {
     const lastInput = lastGenerateInputRef.current;
-    if (!lastInput) return;
+    if (!lastInput) {
+      setError("Unable to regenerate — please re-submit your listing URL or text.");
+      return;
+    }
     trackEvent("receipt_regenerate", {
       receipt_id: receipt?.receipt_id,
       was_fallback: isFallback,
@@ -1048,6 +1058,7 @@ export default function ReceiptPage() {
         <AnimatePresence>
           {receipt && (
             <motion.div
+              ref={resultRef}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}

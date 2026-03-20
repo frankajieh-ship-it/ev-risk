@@ -35,7 +35,7 @@ import type { ReceiptGenerateRequest } from "@/types/receipt";
 import { logApi } from "@/lib/api-logger";
 import { detectListingSource } from "@/lib/listing-scraper";
 
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 export async function POST(request: NextRequest) {
   const t0 = Date.now();
