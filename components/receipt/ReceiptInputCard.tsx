@@ -151,6 +151,7 @@ export default function ReceiptInputCard({
   const [extractedFieldNames, setExtractedFieldNames] = useState<string[]>([]);
   const [missingFieldNames, setMissingFieldNames] = useState<string[]>([]);
   const [listingSource, setListingSource] = useState<string | null>(null);
+  const [extractedRawText, setExtractedRawText] = useState<string | null>(null);
 
   // Dirty tracking
   const [dirtyFields, setDirtyFields] = useState<Set<keyof StructuredListingFields>>(new Set());
@@ -365,6 +366,7 @@ export default function ReceiptInputCard({
       // Store extraction metadata
       setHasExtracted(true);
       setExtractionId(data.extraction_id || null);
+      setExtractedRawText(data.raw_text || null);
       // Auto-open details panel when VIN is extracted so user can verify
       if (data.fields?.vin) {
         setDetailsOpen(true);
@@ -451,7 +453,8 @@ export default function ReceiptInputCard({
 
     onGenerate({
       listing_url: inputMode === "url" ? listingUrl.trim() : undefined,
-      listing_text: inputMode === "text" ? listingText.trim() : undefined,
+      // In URL mode, pass the scraped raw text so the AI has full listing context
+      listing_text: inputMode === "text" ? listingText.trim() : (extractedRawText || undefined),
       fields,
       extraction_id: extractionId || undefined,
     });

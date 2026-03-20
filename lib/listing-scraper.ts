@@ -50,6 +50,9 @@ export interface VehicleData {
   vin?: string;
   location?: string;
 
+  // Raw text from the page (first 5000 chars, stripped of HTML tags)
+  raw_text?: string;
+
   // Data quality tracking
   dataSource: 'autotrader' | 'cargurus' | 'cars.com' | 'carvana' | 'facebook' | 'carfax' | 'truecar' | 'edmunds' | 'kbb' | 'vroom' | 'carmax' | 'autotempest' | 'hemmings' | 'unknown';
   confidence: 'high' | 'medium' | 'low';
@@ -766,8 +769,18 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     if (extractedFields.length >= 4) confidence = 'high';
     else if (extractedFields.length >= 2) confidence = 'medium';
 
+    // Strip HTML tags and collapse whitespace to get plain text for AI
+    const rawText = html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim()
+      .substring(0, 5000);
+
     const vehicleData: VehicleData = {
       ...extractedData,
+      raw_text: rawText || undefined,
       dataSource,
       confidence,
       extractedFields,

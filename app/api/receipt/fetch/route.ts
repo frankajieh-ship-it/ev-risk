@@ -353,6 +353,7 @@ export async function POST(request: NextRequest) {
       parse_confidence: result.data.confidence,
       extractedFields: result.data.extractedFields,
       missingFields: result.data.missingFields,
+      raw_text: result.data.raw_text || null,
       warnings: result.warnings,
       diagnostics: result.diagnostics || null,
     });
