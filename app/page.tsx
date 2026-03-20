@@ -72,18 +72,14 @@ export default function Home() {
     trackLandingView();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Homepage inline paste box
-  const [listingText, setListingText] = useState("");
+  // Homepage inline URL input
+  const [listingUrl, setListingUrl] = useState("");
 
   const handleHomePasteSubmit = () => {
-    const trimmed = listingText.trim();
-    if (trimmed.length < 5) return;
+    const trimmed = listingUrl.trim();
+    if (!trimmed) return;
     trackEvent("listing_paste_submitted", { page_source: "homepage", text_length: trimmed.length });
-    try {
-      sessionStorage.setItem("offo_listing_text", trimmed);
-      sessionStorage.setItem("offo_page_source", "homepage");
-    } catch { /* ignore */ }
-    router.push("/receipt");
+    router.push(`/receipt?url=${encodeURIComponent(trimmed)}&src=homepage`);
   };
 
   // V2 Wizard state
@@ -307,34 +303,36 @@ export default function Home() {
               </span>
             </h1>
             <p className="text-base md:text-lg text-gray-600 mb-6 md:mb-8 max-w-xl mx-auto">
-              Paste a listing URL, VIN, or any car ad text. Get a deal verdict, risk flags, and what to ask the seller — in seconds. Free, no sign-up.
+              Paste any listing link. Get a deal verdict, risk flags, and what to ask the seller — in seconds. Free, no sign-up.
             </p>
           </div>
 
-          {/* Inline paste box */}
+          {/* Inline URL input */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-5">
-            <textarea
-              value={listingText}
-              onChange={(e) => setListingText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleHomePasteSubmit(); }}
-              placeholder="Paste a CarGurus, AutoTrader, or Facebook Marketplace link — or any listing text, VIN, or car description"
-              rows={4}
-              maxLength={8000}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 mb-3 text-gray-900 placeholder-gray-400"
-            />
-            <button
-              onClick={handleHomePasteSubmit}
-              disabled={listingText.trim().length < 5}
-              className={`w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
-                listingText.trim().length >= 5
-                  ? "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
-                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
-              }`}
-            >
-              Get Quick Opinion
-              <ArrowRight className="w-4 h-4" />
-            </button>
-            <p className="text-xs text-gray-400 text-center mt-2">Free · No sign-up · Works on CarGurus, AutoTrader, FB Marketplace &amp; more</p>
+            <div className="flex gap-2 mb-3">
+              <input
+                type="url"
+                value={listingUrl}
+                onChange={(e) => setListingUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleHomePasteSubmit(); }}
+                placeholder="Paste a CarGurus, AutoTrader, or Facebook Marketplace link"
+                className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
+                autoFocus
+              />
+              <button
+                onClick={handleHomePasteSubmit}
+                disabled={!listingUrl.trim()}
+                className={`px-5 py-3 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
+                  listingUrl.trim()
+                    ? "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
+                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                }`}
+              >
+                Analyze
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 text-center">Free · No sign-up · Works on CarGurus, AutoTrader, FB Marketplace &amp; more</p>
           </div>
 
           {/* Soft secondary link to routine check */}
