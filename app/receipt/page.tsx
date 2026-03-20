@@ -1111,19 +1111,17 @@ export default function ReceiptPage() {
                 upgradeFailed={upgradeFailed}
               />
 
-              {/* Action row — Save / Share / PDF — immediately after verdict */}
-              <div id="save-receipt-cta" className="flex items-center gap-2">
-                <div className="flex-1">
-                  <SaveReceiptCTA
-                    receipt={receipt}
-                    onSaveSuccess={() => setHasSaved(true)}
-                    compact
-                  />
-                </div>
+              {/* Action row — Save (full width) + Share / PDF */}
+              <div id="save-receipt-cta" className="space-y-2">
+                <SaveReceiptCTA
+                  receipt={receipt}
+                  onSaveSuccess={() => setHasSaved(true)}
+                />
+                <div className="flex gap-2">
                 <button
                   onClick={handleShareClick}
                   disabled={isSharing}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
                 >
                   <QrCode className="w-4 h-4" />
                   Share
@@ -1135,25 +1133,13 @@ export default function ReceiptPage() {
                     compact
                   />
                 )}
+                </div>
               </div>
 
               {/* ── Upsell cards — shown to non-unlocked users ── */}
               {!isUnlocked && !freeMode && paymentsEnabled && (
                 <>
-                  {/* $9.99 Buyer Pass — VIN deep analysis + full report */}
-                  {(showPaywall || !decisionPackDismissed) && (
-                    <div id="decision-pack-card">
-                      <DecisionPackCard
-                        receiptToken={receiptToken}
-                        receiptId={receipt.receipt_id}
-                        triggerReason={paywallTrigger}
-                        onDismiss={() => setDecisionPackDismissed(true)}
-                        region={region}
-                      />
-                    </div>
-                  )}
-
-                  {/* $39 Full Risk Report — manual fulfillment, highest margin */}
+                  {/* $39 Full Risk Report — always shown, highest margin */}
                   <FullRiskReportCard
                     receiptId={receipt.receipt_id}
                     vehicleLabel={
@@ -1164,6 +1150,19 @@ export default function ReceiptPage() {
                           : undefined
                     }
                   />
+
+                  {/* $9.99 Buyer Pass — dismissible */}
+                  {!decisionPackDismissed && (
+                    <div id="decision-pack-card">
+                      <DecisionPackCard
+                        receiptToken={receiptToken}
+                        receiptId={receipt.receipt_id}
+                        triggerReason={paywallTrigger}
+                        onDismiss={() => setDecisionPackDismissed(true)}
+                        region={region}
+                      />
+                    </div>
+                  )}
                 </>
               )}
 

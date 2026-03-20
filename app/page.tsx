@@ -303,7 +303,7 @@ export default function Home() {
               </span>
             </h1>
             <p className="text-base md:text-lg text-gray-600 mb-6 md:mb-8 max-w-xl mx-auto">
-              Paste any listing link. Get a deal verdict, risk flags, and what to ask the seller — in seconds. Free, no sign-up.
+              Paste any listing link. Get an instant deal verdict, risk flags, and negotiation angles — before you waste a trip.
             </p>
           </div>
 
@@ -332,7 +332,7 @@ export default function Home() {
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-xs text-gray-400 text-center">Free · No sign-up · Works on CarGurus, AutoTrader, FB Marketplace &amp; more</p>
+            <p className="text-xs text-gray-400 text-center">Instant free report · Full risk analysis from $9.99 · Works on CarGurus, AutoTrader, FB Marketplace &amp; more</p>
           </div>
 
           {/* Soft secondary link to routine check */}
