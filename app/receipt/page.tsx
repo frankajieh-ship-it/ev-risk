@@ -282,6 +282,10 @@ export default function ReceiptPage() {
   const [hasSaved, setHasSaved] = useState(false);
   const [hasEmailed, setHasEmailed] = useState(false);
 
+  // Post-receipt popup (save + compare) — shown 5s after result
+  const [showPostReceiptPopup, setShowPostReceiptPopup] = useState(false);
+  const postReceiptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Prefill from SEO page or extension
   const [prefillText, setPrefillText] = useState<string | null>(null);
   const [prefillUrl, setPrefillUrl] = useState<string | null>(null);
@@ -547,6 +551,19 @@ export default function ReceiptPage() {
       resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Post-receipt popup: show 5s after a new receipt arrives
+  useEffect(() => {
+    if (!receipt?.receipt_id) return;
+    if (postReceiptTimerRef.current) clearTimeout(postReceiptTimerRef.current);
+    setShowPostReceiptPopup(false);
+    postReceiptTimerRef.current = setTimeout(() => {
+      setShowPostReceiptPopup(true);
+    }, 5000);
+    return () => {
+      if (postReceiptTimerRef.current) clearTimeout(postReceiptTimerRef.current);
+    };
+  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track Buyer Pass teaser impression
   useEffect(() => {
@@ -1074,11 +1091,6 @@ export default function ReceiptPage() {
               transition={{ duration: 0.3 }}
               className="mt-6 space-y-4"
             >
-              {/* Social proof */}
-              <p className="text-xs text-gray-400 text-center -mb-1">
-                Used by 1,200+ EV shoppers &middot; ⭐ 4.5/5 from real users
-              </p>
-
               <ReceiptOutputCard
                 receipt={receipt}
                 lintPassed={lintPassed}
@@ -1128,19 +1140,7 @@ export default function ReceiptPage() {
               {/* ── Upsell cards — shown to non-unlocked users ── */}
               {!isUnlocked && !freeMode && paymentsEnabled && (
                 <>
-                  {/* $39 Full Risk Report — manual fulfillment, highest margin */}
-                  <FullRiskReportCard
-                    receiptId={receipt.receipt_id}
-                    vehicleLabel={
-                      receipt.listing_summary?.year && receipt.listing_summary?.make && receipt.listing_summary?.model
-                        ? `${receipt.listing_summary.year} ${receipt.listing_summary.make} ${receipt.listing_summary.model}`
-                        : receipt.listing_summary?.make
-                          ? `${receipt.listing_summary.make} ${receipt.listing_summary.model ?? ""}`.trim()
-                          : undefined
-                    }
-                  />
-
-                  {/* $9.99 Buyer Pass — automated, 10 credits */}
+                  {/* $9.99 Buyer Pass — VIN deep analysis + full report */}
                   {(showPaywall || !decisionPackDismissed) && (
                     <div id="decision-pack-card">
                       <DecisionPackCard
@@ -1152,6 +1152,18 @@ export default function ReceiptPage() {
                       />
                     </div>
                   )}
+
+                  {/* $39 Full Risk Report — manual fulfillment, highest margin */}
+                  <FullRiskReportCard
+                    receiptId={receipt.receipt_id}
+                    vehicleLabel={
+                      receipt.listing_summary?.year && receipt.listing_summary?.make && receipt.listing_summary?.model
+                        ? `${receipt.listing_summary.year} ${receipt.listing_summary.make} ${receipt.listing_summary.model}`
+                        : receipt.listing_summary?.make
+                          ? `${receipt.listing_summary.make} ${receipt.listing_summary.model ?? ""}`.trim()
+                          : undefined
+                    }
+                  />
                 </>
               )}
 
@@ -1174,25 +1186,6 @@ export default function ReceiptPage() {
                 />
               )}
 
-              {/* Routine Fit — moved up for prominence */}
-              <RoutineFitMiniStep
-                receiptMileage={receipt.listing_summary?.mileage}
-                receiptPrice={receipt.listing_summary?.price}
-                receiptSellerType={receipt.listing_summary?.seller_type}
-                trackEvent={trackEvent}
-              />
-
-              {/* VIN Check */}
-              <VinCheckSection
-                receiptId={receipt.receipt_id}
-                receiptToken={receiptToken}
-                listingYear={receipt.listing_summary?.year}
-                listingMake={receipt.listing_summary?.make}
-                listingModel={receipt.listing_summary?.model}
-                existingVin={currentVin}
-                trackEvent={trackEvent}
-              />
-
               {/* Model Info — research links */}
               {receipt.listing_summary?.make && receipt.listing_summary?.model && (
                 <ModelInfoSection
@@ -1204,15 +1197,6 @@ export default function ReceiptPage() {
                 />
               )}
 
-
-              {/* On-demand: Reddit draft */}
-              {!isUpgrading && receipt.receipt_id && (
-                <RedditDraftSection
-                  receiptId={receipt.receipt_id}
-                  initialDraft={receipt.reddit_draft ?? undefined}
-                  initialStatus={sections?.reddit_draft?.status}
-                />
-              )}
 
               {/* Email capture — moved up for visibility */}
               <div id="email-capture-card">
@@ -1374,6 +1358,71 @@ export default function ReceiptPage() {
       />
 
       {/* Email gate modal removed — 100% skip rate, inline capture card is better */}
+
+      {/* Post-receipt popup — save + compare, shown 5s after result */}
+      <AnimatePresence>
+        {showPostReceiptPopup && receipt && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="popup-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 z-50"
+              onClick={() => setShowPostReceiptPopup(false)}
+            />
+            {/* Sheet */}
+            <motion.div
+              key="popup-sheet"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl px-5 pt-5 pb-8 max-w-lg mx-auto"
+            >
+              {/* Drag handle */}
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+
+              <h3 className="text-base font-bold text-gray-900 mb-1">
+                Keep track of this listing
+              </h3>
+              <p className="text-sm text-gray-500 mb-5">
+                Save it to your garage or compare it against another car.
+              </p>
+
+              {/* Save */}
+              <div className="mb-3">
+                <SaveReceiptCTA
+                  receipt={receipt}
+                  onSaveSuccess={() => {
+                    setHasSaved(true);
+                    setTimeout(() => setShowPostReceiptPopup(false), 1200);
+                  }}
+                />
+              </div>
+
+              {/* Compare */}
+              <button
+                onClick={() => {
+                  setShowPostReceiptPopup(false);
+                  setShowCompareModal(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700 hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50 transition-all"
+              >
+                Compare with another listing
+              </button>
+
+              <button
+                onClick={() => setShowPostReceiptPopup(false)}
+                className="w-full mt-3 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Not now
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Share receipt modal */}
       {receipt && (

@@ -14,10 +14,10 @@ import {
   MessageSquare,
   FileDown,
   Search,
-  Sparkles,
   X,
   Loader2,
-  ShoppingBag,
+  ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { getDisplayPriceForRegion } from "@/lib/price-assignment";
 import { useEventTracking } from "@/hooks/useEventTracking";
@@ -31,12 +31,11 @@ interface DecisionPackCardProps {
   region?: Region;
 }
 
-const BUYER_PASS_BENEFITS = [
-  { icon: ShoppingBag, text: "10 receipt credits" },
-  { icon: Search, text: "Full analysis with deep-dive" },
+const ADDITIONAL_BENEFITS = [
+  { icon: Search, text: "Full deep-dive analysis" },
   { icon: MessageSquare, text: "3 ready-to-use negotiation scripts" },
   { icon: BarChart2, text: "Market comparison with similar listings" },
-  { icon: FileDown, text: "PDF export of every receipt" },
+  { icon: FileDown, text: "PDF export — share or print" },
 ];
 
 export default function DecisionPackCard({
@@ -112,7 +111,7 @@ export default function DecisionPackCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.2 }}
-      className="relative bg-gradient-to-br from-blue-50 via-white to-indigo-50 rounded-2xl border border-blue-200 shadow-sm overflow-hidden"
+      className="relative bg-gradient-to-br from-slate-50 via-white to-indigo-50 rounded-2xl border border-indigo-200 shadow-sm overflow-hidden"
     >
       {/* Dismiss button */}
       {onDismiss && (
@@ -126,59 +125,74 @@ export default function DecisionPackCard({
       )}
 
       <div className="p-5">
-        {/* Header */}
-        <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="w-5 h-5 text-blue-600" />
-          <h3 className="text-base font-bold text-gray-900">
-            Unlock the Full Picture
-          </h3>
+        {/* Price badge */}
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2.5 py-1 rounded-full">
+            OFFO Buyer Pass
+          </span>
+          <span className="text-base font-bold text-gray-900">
+            {getDisplayPriceForRegion("999", region)}
+          </span>
         </div>
 
-        {/* Single Buyer Pass card */}
-        <div className="border-2 border-indigo-300 rounded-xl p-4 bg-white mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-semibold text-gray-800">OFFO Buyer Pass</h4>
-            <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">
-              {getDisplayPriceForRegion("999", region)}
-            </span>
+        {/* VIN Deep Analysis — hero feature */}
+        <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl p-4 mb-4 text-white">
+          <div className="flex items-start gap-3">
+            <div className="bg-white/20 rounded-lg p-2 flex-shrink-0">
+              <ShieldCheck className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold mb-1">VIN Deep Analysis</h3>
+              <p className="text-xs text-indigo-100 leading-relaxed">
+                Verify the car's identity, check open recalls, and detect listing mismatches — before you hand over a deposit.
+              </p>
+            </div>
           </div>
-          <ul className="space-y-2 mb-4">
-            {BUYER_PASS_BENEFITS.map(({ icon: Icon, text }, i) => (
-              <li key={i} className="flex items-start gap-2 text-xs text-gray-700">
-                <Icon className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0 mt-0.5" />
-                <span>{text}</span>
-              </li>
-            ))}
-          </ul>
-          <button
-            onClick={handleUnlock}
-            disabled={checkingOut}
-            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg font-medium text-xs text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-60 shadow-sm"
-          >
-            {checkingOut ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Redirecting...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-3.5 h-3.5" />
-                Get Buyer Pass — {getDisplayPriceForRegion("999", region)}
-              </>
-            )}
-          </button>
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-indigo-200">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>1 in 5 listings has a detail that doesn't match the VIN record</span>
+          </div>
         </div>
+
+        {/* Additional benefits */}
+        <ul className="space-y-2 mb-4">
+          {ADDITIONAL_BENEFITS.map(({ icon: Icon, text }, i) => (
+            <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
+              <Icon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+              <span>{text}</span>
+            </li>
+          ))}
+        </ul>
+
+        {/* CTA */}
+        <button
+          onClick={handleUnlock}
+          disabled={checkingOut}
+          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 transition-all disabled:opacity-60 shadow-sm"
+        >
+          {checkingOut ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Redirecting...
+            </>
+          ) : (
+            <>
+              <ShieldCheck className="w-4 h-4" />
+              Run VIN Check — {getDisplayPriceForRegion("999", region)}
+            </>
+          )}
+        </button>
 
         {/* Error */}
         {error && (
-          <p className="text-sm text-red-600 mb-2">{error}</p>
+          <p className="text-xs text-red-600 mt-2">{error}</p>
         )}
 
         {/* Dismiss link */}
         {onDismiss && (
           <button
             onClick={handleDismiss}
-            className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors mt-3"
           >
             Not now
           </button>
