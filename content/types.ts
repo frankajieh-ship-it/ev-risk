@@ -18,7 +18,7 @@ export interface FaqItem {
 
 export interface SeoPageContent {
   slug: string;
-  routeType: "checklists" | "guides";
+  routeType: "checklists" | "guides" | "vehicles";
 
   // Metadata
   title: string;

@@ -341,6 +341,14 @@ export default function ReceiptPage() {
       window.history.replaceState({}, "", "/receipt");
     }
 
+    // Check for make/model prefill from vehicle landing pages (?make=Tesla&model=Model+3)
+    const prefillMake = params.get("make");
+    const prefillModel = params.get("model");
+    if (prefillMake && prefillModel && !extUrl) {
+      setPrefillText(`${prefillMake} ${prefillModel}`);
+      setPageSource("vehicle_landing");
+    }
+
     // Resume saved receipt from /saved dashboard
     const resumeId = params.get("resume");
 
@@ -1091,6 +1099,31 @@ export default function ReceiptPage() {
                 upgradeFailed={upgradeFailed}
               />
 
+              {/* Action row — Save / Share / PDF — immediately after verdict */}
+              <div id="save-receipt-cta" className="flex items-center gap-2">
+                <div className="flex-1">
+                  <SaveReceiptCTA
+                    receipt={receipt}
+                    onSaveSuccess={() => setHasSaved(true)}
+                    compact
+                  />
+                </div>
+                <button
+                  onClick={handleShareClick}
+                  disabled={isSharing}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  <QrCode className="w-4 h-4" />
+                  Share
+                </button>
+                {process.env.NEXT_PUBLIC_PDF_DOWNLOAD_ENABLED === "true" && (
+                  <PdfDownloadButton
+                    receiptId={receipt.receipt_id}
+                    receiptToken={receiptToken}
+                    compact
+                  />
+                )}
+              </div>
 
               {/* ── Upsell cards — shown to non-unlocked users ── */}
               {!isUnlocked && !freeMode && paymentsEnabled && (
@@ -1171,31 +1204,6 @@ export default function ReceiptPage() {
                 />
               )}
 
-              {/* Action row — Save / Share / PDF */}
-              <div id="save-receipt-cta" className="flex items-center gap-2">
-                <div className="flex-1">
-                  <SaveReceiptCTA
-                    receipt={receipt}
-                    onSaveSuccess={() => setHasSaved(true)}
-                    compact
-                  />
-                </div>
-                <button
-                  onClick={handleShareClick}
-                  disabled={isSharing}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-                >
-                  <QrCode className="w-4 h-4" />
-                  Share
-                </button>
-                {process.env.NEXT_PUBLIC_PDF_DOWNLOAD_ENABLED === "true" && (
-                  <PdfDownloadButton
-                    receiptId={receipt.receipt_id}
-                    receiptToken={receiptToken}
-                    compact
-                  />
-                )}
-              </div>
 
               {/* On-demand: Reddit draft */}
               {!isUpgrading && receipt.receipt_id && (
