@@ -2,15 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-import { Receipt, Megaphone } from "lucide-react";
-import TrustMicrocopy from "@/components/TrustMicrocopy";
+import { ArrowRight } from "lucide-react";
 import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
 import VehicleInputTabs from "@/components/VehicleInputTabs";
 import VehicleRecommendations from "@/components/VehicleRecommendations";
@@ -19,9 +18,7 @@ import LoginModal from "@/components/LoginModal";
 import RoutineStep from "@/components/RoutineStep";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
-import PersonaCardsSection from "@/components/landing/PersonaCardsSection";
-import HowItWorksSection from "@/components/landing/HowItWorksSection";
-import UniqueAdvantageSection from "@/components/landing/UniqueAdvantageSection";
+
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 import type { MinimumViableRoutine } from "@/types/v2";
 
@@ -74,6 +71,20 @@ export default function Home() {
   useEffect(() => {
     trackLandingView();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Homepage inline paste box
+  const [listingText, setListingText] = useState("");
+
+  const handleHomePasteSubmit = () => {
+    const trimmed = listingText.trim();
+    if (trimmed.length < 5) return;
+    trackEvent("listing_paste_submitted", { page_source: "homepage", text_length: trimmed.length });
+    try {
+      sessionStorage.setItem("offo_listing_text", trimmed);
+      sessionStorage.setItem("offo_page_source", "homepage");
+    } catch { /* ignore */ }
+    router.push("/receipt");
+  };
 
   // V2 Wizard state
   const [currentStep, setCurrentStep] = useState<WizardStep>("routine");
@@ -285,152 +296,78 @@ export default function Home() {
       {/* 1. Header with persona nav */}
       <Header variant="homepage" />
 
-      {/* 2. Announcement Banner */}
-      <div className="bg-gradient-to-r from-blue-600 to-green-600">
-        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-center gap-2 text-white text-sm">
-          <Megaphone className="w-4 h-4 shrink-0" />
-          <span className="font-medium">New: Dealer workspaces are live!</span>
-          <span className="hidden sm:inline text-white/80">List your EV inventory and connect with buyers.</span>
-          <Link href={isAuthenticated ? "/hub" : "/auth/login"} className="underline font-semibold hover:text-white/90 ml-1">
-            Get started &rarr;
-          </Link>
-        </div>
-      </div>
-
-      {/* 3. Hero Section */}
+      {/* 3. Hero — inline paste box */}
       <section className="relative overflow-hidden">
-        <div className="relative max-w-7xl mx-auto px-4 pt-8 pb-6 md:pt-16 md:pb-12">
-          <div className="text-center max-w-4xl mx-auto">
-            {/* H1 renders immediately (no opacity:0) so browser can measure LCP */}
-            <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 md:mb-5">
-              Analyze any EV deal{" "}
+        <div className="relative max-w-2xl mx-auto px-4 pt-10 pb-6 md:pt-20 md:pb-10">
+          <div className="text-center">
+            <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 md:mb-4">
+              Get a quick second opinion{" "}
               <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-                before you buy
+                on any car deal
               </span>
             </h1>
-
-            <p className="text-base md:text-lg text-gray-600 mb-2 md:mb-3 max-w-2xl mx-auto">
-              Paste a listing URL or VIN. Get a deal verdict, risk flags, and what to ask the seller — in seconds.
+            <p className="text-base md:text-lg text-gray-600 mb-6 md:mb-8 max-w-xl mx-auto">
+              Paste a listing URL, VIN, or any car ad text. Get a deal verdict, risk flags, and what to ask the seller — in seconds. Free, no sign-up.
             </p>
-
-            <p className="text-sm text-gray-500 mb-5 md:mb-6">
-              Join thousands of EV shoppers making informed decisions
-            </p>
-
-            <div className="mb-6 md:mb-8">
-              <TrustMicrocopy />
-            </div>
-
-            {/* CTAs */}
-            {currentStep === "routine" && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.1 }}
-                className="flex flex-col items-center justify-center gap-4"
-              >
-                {/* Primary CTA — Deal Checker */}
-                <a
-                  href="/receipt"
-                  onClick={() => trackCTAClick("listing_receipt")}
-                  className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/25 text-base w-full sm:w-auto text-center"
-                >
-                  Analyze a Deal →
-                </a>
-
-                {/* Secondary CTA — Routine fit check */}
-                <button
-                  onClick={() => {
-                    trackCTAClick("start_fit_check");
-                    document.getElementById("fit-check")?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="text-sm text-blue-600 hover:text-blue-800 transition-colors font-medium"
-                >
-                  Or check if an EV fits your routine →
-                </button>
-              </motion.div>
-            )}
           </div>
+
+          {/* Inline paste box */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-5">
+            <textarea
+              value={listingText}
+              onChange={(e) => setListingText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleHomePasteSubmit(); }}
+              placeholder="Paste a CarGurus, AutoTrader, or Facebook Marketplace link — or any listing text, VIN, or car description"
+              rows={4}
+              maxLength={8000}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm resize-none focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 mb-3 text-gray-900 placeholder-gray-400"
+            />
+            <button
+              onClick={handleHomePasteSubmit}
+              disabled={listingText.trim().length < 5}
+              className={`w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
+                listingText.trim().length >= 5
+                  ? "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              Get Quick Opinion
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <p className="text-xs text-gray-400 text-center mt-2">Free · No sign-up · Works on CarGurus, AutoTrader, FB Marketplace &amp; more</p>
+          </div>
+
+          {/* Soft secondary link to routine check */}
+          <p className="text-center text-sm text-gray-500 mt-5">
+            Buying an EV?{" "}
+            <button
+              onClick={() => {
+                trackCTAClick("start_fit_check");
+                document.getElementById("fit-check")?.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+            >
+              Also check if it fits your driving routine →
+            </button>
+          </p>
         </div>
       </section>
 
-      {/* 4. Persona Value Prop Cards — Shoppers / Owners / Dealers */}
-      {currentStep === "routine" && <PersonaCardsSection />}
-
-      {/* 5. How OFFO Works */}
-      {currentStep === "routine" && <HowItWorksSection variant="fit-check" />}
-
-      {/* 6. Unique Advantage */}
-      {currentStep === "routine" && <UniqueAdvantageSection />}
-
-      {/* 7. Key Insight Quote */}
+      {/* Divider before EV routine wizard */}
       {currentStep === "routine" && (
-        <section className="max-w-4xl mx-auto px-4 py-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="bg-gradient-to-br from-blue-50 to-green-50 border border-blue-100 rounded-2xl p-8 text-center"
-          >
-            <p className="text-xl font-semibold text-gray-900 mb-3">
-              Most EV regret isn&apos;t about range.
-            </p>
-            <p className="text-lg text-gray-700 mb-2">
-              It&apos;s about charging predictability and routine fit.
-            </p>
-            <p className="text-sm text-gray-600">
-              (Based on real owner experiences)
-            </p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="mt-6 text-center"
-          >
-            <a
-              href="/receipt"
-              onClick={() => trackEvent("clicked_listing_receipt")}
-              className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
-            >
-              <Receipt className="w-4 h-4" />
-              Have a listing? Check if the deal is legit
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </a>
-          </motion.div>
-        </section>
-      )}
-
-      {/* 8. EV Fit Check Wizard */}
-      {/* Sample output preview card — shows what users get before they start */}
-      {currentStep === "routine" && (
-        <div className="max-w-sm mx-auto px-4 pb-2 -mt-4">
-          <Link href="/demo/chevy-bolt-ev-green" className="block group">
-            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center justify-between mb-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                  Good Fit
-                </span>
-                <span className="text-xs text-gray-400 group-hover:text-blue-500 transition-colors">See full example →</span>
-              </div>
-              <p className="text-sm font-semibold text-gray-900 mb-1">2023 Chevy Bolt EV</p>
-              <p className="text-xs text-gray-500 mb-2">Home charging · Mild climate · ~200 mi/wk</p>
-              <div className="space-y-1">
-                <p className="text-xs text-gray-600"><span className="font-medium text-gray-700">What breaks first:</span> Public dependency on long days</p>
-                <p className="text-xs text-gray-600"><span className="font-medium text-gray-700">Plan B:</span> Chevy Equinox EV (more range buffer)</p>
-              </div>
-            </div>
-          </Link>
+        <div className="max-w-2xl mx-auto px-4 py-6">
+          <div className="flex items-center gap-4">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">EV Routine Check — Advanced</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+          <p className="text-center text-sm text-gray-500 mt-3">
+            Already know the car? Check if an EV actually fits your charging routine before you commit.
+          </p>
         </div>
       )}
 
-      <section id="fit-check" className="py-12 md:py-20">
+      <section id="fit-check" className="pb-12 md:pb-20">
         <div className="max-w-3xl mx-auto px-4">
           {/* Wizard heading — only on routine step */}
           {currentStep === "routine" && (
@@ -441,11 +378,11 @@ export default function Home() {
               transition={{ duration: 0.5 }}
               className="text-center mb-8"
             >
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-                Ready to check your EV fit?
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
+                Will this EV fit your real routine?
               </h2>
-              <p className="text-gray-500">
-                Answer 4 quick questions. No signup needed.
+              <p className="text-gray-500 text-sm">
+                3 quick questions. No sign-up needed.
               </p>
             </motion.div>
           )}
