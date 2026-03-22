@@ -251,6 +251,20 @@ export async function GET(request: NextRequest) {
       .gte("created_at", window.start)
       .lt("created_at", window.end);
 
+    // 13. Chat analytics — per-message pipeline metrics
+    const chatAnalyticsPromise = supabase
+      .from("chat_analytics")
+      .select("session_id, scenario_type, query_type, model_used, latency_ms, user_engaged_with_tool, created_at")
+      .gte("created_at", window.start)
+      .lt("created_at", window.end);
+
+    // 14. Chat messages — conversation counts (assistant only to avoid double-counting)
+    const chatMessagesPromise = supabase
+      .from("chat_messages")
+      .select("session_id, scenario_type, role, latency_ms, sources_used, created_at")
+      .gte("created_at", window.start)
+      .lt("created_at", window.end);
+
     const [
       { data: receipts },
       { data: receiptEvents },
@@ -264,6 +278,8 @@ export async function GET(request: NextRequest) {
       { data: garageUsers },
       { data: savedScenariosUsers },
       { data: extractionAttempts },
+      { data: chatAnalyticsRaw },
+      { data: chatMessagesRaw },
     ] = await Promise.all([
       receiptsPromise,
       receiptEventsPromise,
@@ -277,6 +293,8 @@ export async function GET(request: NextRequest) {
       garageUsersPromise,
       savedScenariosUsersPromise,
       extractionAttemptsPromise,
+      chatAnalyticsPromise,
+      chatMessagesPromise,
     ]);
 
     const allReceipts = receipts || [];
@@ -1565,6 +1583,94 @@ export async function GET(request: NextRequest) {
     };
 
     // -----------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // Chat metrics
+    // -----------------------------------------------------------------------
+
+    const allChatAnalytics = chatAnalyticsRaw || [];
+    const allChatMessages = chatMessagesRaw || [];
+
+    // Unique chat sessions
+    const chatSessionIds = new Set(allChatAnalytics.map((r: Record<string, unknown>) => r.session_id as string));
+    const totalChatSessions = chatSessionIds.size;
+
+    // Total user messages (role = "user")
+    const userMessages = allChatMessages.filter((m: Record<string, unknown>) => m.role === "user");
+    const totalUserMessages = userMessages.length;
+
+    // Avg messages per session
+    const msgPerSession = totalChatSessions > 0
+      ? Math.round((totalUserMessages / totalChatSessions) * 10) / 10
+      : 0;
+
+    // Scenario split
+    const chatByScenario = allChatAnalytics.reduce((acc: Record<string, number>, r: Record<string, unknown>) => {
+      const t = (r.scenario_type as string) || "unknown";
+      acc[t] = (acc[t] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Query intent distribution
+    const intentCounts = allChatAnalytics.reduce((acc: Record<string, number>, r: Record<string, unknown>) => {
+      const q = (r.query_type as string) || "general";
+      acc[q] = (acc[q] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Model usage distribution
+    const modelCounts = allChatAnalytics.reduce((acc: Record<string, number>, r: Record<string, unknown>) => {
+      const m = (r.model_used as string) || "unknown";
+      acc[m] = (acc[m] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Fallback rate
+    const fallbackCount = allChatAnalytics.filter((r: Record<string, unknown>) => r.model_used === "fallback").length;
+    const fallbackRatePct = allChatAnalytics.length > 0
+      ? Math.round((fallbackCount / allChatAnalytics.length) * 1000) / 10
+      : 0;
+
+    // Latency stats (ms)
+    const latencies = allChatAnalytics
+      .map((r: Record<string, unknown>) => r.latency_ms as number)
+      .filter((n: number) => typeof n === "number" && n > 0)
+      .sort((a: number, b: number) => a - b);
+    const avgLatencyMs = latencies.length > 0
+      ? Math.round(latencies.reduce((s: number, v: number) => s + v, 0) / latencies.length)
+      : 0;
+    const p95LatencyMs = latencies.length > 0
+      ? latencies[Math.floor(latencies.length * 0.95)] ?? latencies[latencies.length - 1]
+      : 0;
+
+    // Chat unlock purchases in window
+    const chatPassPurchases = (purchases || []).filter(
+      (p: Record<string, unknown>) => p.scenario_type === "chat" && p.status === "paid"
+    );
+    const chatPassRevenue = chatPassPurchases.reduce(
+      (s: number, p: Record<string, unknown>) => s + ((p.amount as number) || 0), 0
+    );
+
+    // Conversion: sessions that purchased / total sessions
+    const chatConversionPct = totalChatSessions > 0
+      ? Math.round((chatPassPurchases.length / totalChatSessions) * 1000) / 10
+      : 0;
+
+    const chat_metrics = {
+      total_sessions: totalChatSessions,
+      total_user_messages: totalUserMessages,
+      avg_messages_per_session: msgPerSession,
+      by_scenario: chatByScenario,
+      intent_distribution: intentCounts,
+      model_distribution: modelCounts,
+      fallback_count: fallbackCount,
+      fallback_rate_pct: fallbackRatePct,
+      avg_latency_ms: avgLatencyMs,
+      p95_latency_ms: p95LatencyMs,
+      chat_pass_purchases: chatPassPurchases.length,
+      chat_pass_revenue_cents: chatPassRevenue,
+      chat_conversion_pct: chatConversionPct,
+    };
+
     // Response
     // -----------------------------------------------------------------------
 
@@ -1605,6 +1711,7 @@ export async function GET(request: NextRequest) {
       extraction_health,
       retention,
       repeat_usage,
+      chat_metrics,
     });
   } catch (err) {
     console.error("Admin summary error:", err);

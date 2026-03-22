@@ -376,6 +376,21 @@ interface SummaryData {
     pct_copy: number;
   };
   insights: string[];
+  chat_metrics?: {
+    total_sessions: number;
+    total_user_messages: number;
+    avg_messages_per_session: number;
+    by_scenario: Record<string, number>;
+    intent_distribution: Record<string, number>;
+    model_distribution: Record<string, number>;
+    fallback_count: number;
+    fallback_rate_pct: number;
+    avg_latency_ms: number;
+    p95_latency_ms: number;
+    chat_pass_purchases: number;
+    chat_pass_revenue_cents: number;
+    chat_conversion_pct: number;
+  };
 }
 
 type Period = "day" | "week" | "last_30_days" | "month_to_date" | "custom";
@@ -1403,6 +1418,66 @@ export default function AdminDashboard() {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* OFFO AI Chat Metrics */}
+        {s.chat_metrics && s.chat_metrics.total_sessions > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">💬 OFFO AI Chat</h2>
+            <p className="text-sm text-gray-500 mb-4">Chat sessions, pipeline performance, and monetization.</p>
+
+            {/* Core stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <FunnelCard label="Chat Sessions" value={s.chat_metrics.total_sessions} color="blue" />
+              <FunnelCard label="User Messages" value={s.chat_metrics.total_user_messages} color="indigo" subtitle={`${s.chat_metrics.avg_messages_per_session} avg/session`} />
+              <FunnelCard label="AI Unlimited Purchases" value={s.chat_metrics.chat_pass_purchases} color="green" subtitle={`$${(s.chat_metrics.chat_pass_revenue_cents / 100).toFixed(2)} revenue`} />
+              <FunnelCard label="Conversion Rate" value={`${s.chat_metrics.chat_conversion_pct}%`} color="emerald" subtitle="sessions → purchase" />
+            </div>
+
+            {/* Pipeline performance */}
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Pipeline Performance</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <FunnelCard label="Avg Latency" value={`${s.chat_metrics.avg_latency_ms}ms`} color="sky" />
+              <FunnelCard label="P95 Latency" value={`${s.chat_metrics.p95_latency_ms}ms`} color="cyan" />
+              <FunnelCard label="Fallbacks" value={s.chat_metrics.fallback_count} color="red" subtitle={`${s.chat_metrics.fallback_rate_pct}% fallback rate`} />
+              <FunnelCard
+                label="Scenario Split"
+                value={`${s.chat_metrics.by_scenario["receipt"] ?? 0}R / ${s.chat_metrics.by_scenario["compare"] ?? 0}C`}
+                color="violet"
+                subtitle="receipt / compare"
+              />
+            </div>
+
+            {/* Intent + Model distribution */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Query Intent</h3>
+                <div className="space-y-1">
+                  {Object.entries(s.chat_metrics.intent_distribution)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([intent, count]) => (
+                      <div key={intent} className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 capitalize">{intent.replace(/_/g, " ")}</span>
+                        <span className="font-medium text-gray-900">{count}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Model Used (primary)</h3>
+                <div className="space-y-1">
+                  {Object.entries(s.chat_metrics.model_distribution)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([model, count]) => (
+                      <div key={model} className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 capitalize">{model}</span>
+                        <span className="font-medium text-gray-900">{count}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
