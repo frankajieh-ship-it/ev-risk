@@ -135,6 +135,20 @@ export interface FetchedListingFields {
   vin?: string;
   location?: string;
   url_domain?: string;
+  /** Photo URLs from Auto.dev market listings */
+  photo_urls?: string[];
+  /** Market price range from Auto.dev listings */
+  market_price_range?: { low: number; high: number; count: number };
+  /** VIN-decoded specs from Auto.dev */
+  auto_dev_specs?: {
+    engine?: string;
+    mpg_city?: string;
+    mpg_highway?: string;
+    drive?: string;
+    body_style?: string;
+    msrp?: number;
+    used_tmv?: number;
+  };
 }
 
 // --- Extraction Confidence ---

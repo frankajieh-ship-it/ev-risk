@@ -40,6 +40,7 @@ interface ReceiptInputCardProps {
   }) => void;
   onExtractionSuccess?: (vehicleSummary: string) => void;
   onExtractionFields?: (fields: { year?: number; make?: string; model?: string; trim?: string; mileage?: number }) => void;
+  onPhotosExtracted?: (photos: string[]) => void;
   isGenerating: boolean;
   generatingStep?: number;
   remainingFree: number | null;
@@ -120,6 +121,7 @@ export default function ReceiptInputCard({
   onGenerate,
   onExtractionSuccess,
   onExtractionFields,
+  onPhotosExtracted,
   isGenerating,
   generatingStep = 0,
   remainingFree,
@@ -403,6 +405,7 @@ export default function ReceiptInputCard({
       const summary = [f.year, f.make, f.model].filter(Boolean).join(" ");
       onExtractionSuccess?.(summary || "your vehicle");
       onExtractionFields?.({ year: f.year, make: f.make, model: f.model, trim: f.trim, mileage: f.mileage });
+      if (data.photo_urls?.length) onPhotosExtracted?.(data.photo_urls);
     } catch (err) {
       trackEvent?.("receipt_extract_failed", {
         input_mode: inputMode,

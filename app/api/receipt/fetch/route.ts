@@ -17,6 +17,7 @@ import { getClientIP } from "@/lib/rate-limiter";
 import { receiptBurstLimiter } from "@/lib/receipt-rate-limiter";
 import { extractVehicleData } from "@/lib/listing-scraper";
 import { extractFieldsFromText } from "@/lib/text-extractor";
+import { enrichFromAutodev } from "@/lib/auto-dev-client";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { FetchedListingFields } from "@/types/receipt";
 import type { FieldConfidence } from "@/types/receipt";
@@ -291,6 +292,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Enrich with Auto.dev in parallel with DB logging (max 6s budget)
+    const autoDevPromise = enrichFromAutodev({
+      vin: result.data.vin,
+      make: result.data.make,
+      model: result.data.model,
+      year: result.data.year,
+    });
+
     // Map to FetchedListingFields (including VIN)
     const fields: FetchedListingFields = {
       year: result.data.year,
@@ -303,6 +312,36 @@ export async function POST(request: NextRequest) {
       location: result.data.location,
       url_domain: urlDomain,
     };
+
+    // Await Auto.dev enrichment (already running in parallel above)
+    const autoDevData = await autoDevPromise;
+
+    // Merge Auto.dev enrichment into fields
+    if (autoDevData.photo_urls.length > 0) {
+      fields.photo_urls = autoDevData.photo_urls;
+    }
+    if (autoDevData.market_price_range) {
+      fields.market_price_range = autoDevData.market_price_range;
+    }
+    if (autoDevData.vin_data) {
+      const vd = autoDevData.vin_data;
+      const engineParts = [
+        vd.engine?.cylinder ? `${vd.engine.cylinder}-cyl` : null,
+        vd.engine?.size ? `${vd.engine.size}L` : null,
+        vd.engine?.fuelType ?? null,
+      ].filter(Boolean);
+      fields.auto_dev_specs = {
+        engine: engineParts.length ? engineParts.join(" ") : undefined,
+        mpg_city: vd.mpg?.city,
+        mpg_highway: vd.mpg?.highway,
+        drive: vd.drivenWheels,
+        body_style: vd.categories?.vehicleStyle,
+        msrp: vd.price?.baseMsrp,
+        used_tmv: vd.price?.usedTmvRetail,
+      };
+      // Fill missing trim from VIN decode if not extracted
+      if (!fields.trim && vd.trim) fields.trim = vd.trim;
+    }
 
     // Log fetch_success event
     if (isSupabaseConfigured() && sessionId) {
@@ -354,6 +393,10 @@ export async function POST(request: NextRequest) {
       extractedFields: result.data.extractedFields,
       missingFields: result.data.missingFields,
       raw_text: result.data.raw_text || null,
+      photo_urls: fields.photo_urls || [],
+      market_price_range: fields.market_price_range || null,
+      auto_dev_specs: fields.auto_dev_specs || null,
+      auto_dev_source: autoDevData.source,
       warnings: result.warnings,
       diagnostics: result.diagnostics || null,
     });

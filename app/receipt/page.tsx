@@ -9,10 +9,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Receipt, Loader2, QrCode, ArrowLeft } from "lucide-react";
+import { Receipt, Loader2, QrCode, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { initAttribution } from "@/lib/attribution";
@@ -24,7 +23,6 @@ import Header from "@/components/landing/Header";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import ExampleAnalysisSection from "@/components/landing/ExampleAnalysisSection";
 import UniqueAdvantageSection from "@/components/landing/UniqueAdvantageSection";
-import PricingSection from "@/components/landing/PricingSection";
 import Footer from "@/components/landing/Footer";
 import ReceiptInputCard from "@/components/receipt/ReceiptInputCard";
 import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
@@ -35,18 +33,15 @@ import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
 import FeedbackWidget from "@/components/FeedbackWidget";
 import ExitFeedbackModal from "@/components/receipt/ExitFeedbackModal";
 import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
-import VinCheckSection from "@/components/receipt/VinCheckSection";
 import ModelInfoSection from "@/components/receipt/ModelInfoSection";
 import DeepDiveSection from "@/components/receipt/DeepDiveSection";
 import NegotiatorSection from "@/components/receipt/NegotiatorSection";
-import RedditDraftSection from "@/components/receipt/RedditDraftSection";
 import NegotiationDeepSection from "@/components/receipt/NegotiationDeepSection";
 import PdfDownloadButton from "@/components/receipt/PdfDownloadButton";
 import CompareBadge from "@/components/receipt/CompareBadge";
 import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import CompareSelectModal from "@/components/receipt/CompareSelectModal";
 import CompareView from "@/components/receipt/CompareView";
-import RoutineFitMiniStep from "@/components/receipt/RoutineFitMiniStep";
 import DecisionPackCard from "@/components/receipt/DecisionPackCard";
 import FullRiskReportCard from "@/components/receipt/FullRiskReportCard";
 import ShareModal from "@/components/receipt/ShareModal";
@@ -273,7 +268,7 @@ export default function ReceiptPage() {
   const [shareSlug, setShareSlug] = useState("");
   const [isSharing, setIsSharing] = useState(false);
 
-  // VIN from extraction (passed to VinCheckSection)
+  // VIN from extraction
   const [currentVin, setCurrentVin] = useState<string | undefined>(undefined);
 
   // Email gate removed (100% skip rate) — inline EmailCaptureCard handles email now
@@ -285,6 +280,10 @@ export default function ReceiptPage() {
   // Post-receipt popup (save + compare) — shown 5s after result
   const [showPostReceiptPopup, setShowPostReceiptPopup] = useState(false);
   const postReceiptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Listing photos from Auto.dev enrichment
+  const [listingPhotos, setListingPhotos] = useState<string[]>([]);
+  const [photoIndex, setPhotoIndex] = useState(0);
 
   // Prefill from SEO page or extension
   const [prefillText, setPrefillText] = useState<string | null>(null);
@@ -995,9 +994,17 @@ export default function ReceiptPage() {
 
         {/* Input Card */}
         <ReceiptInputCard
-          onGenerate={handleGenerate}
+          onGenerate={(data) => {
+            setListingPhotos([]);
+            setPhotoIndex(0);
+            handleGenerate(data);
+          }}
           onExtractionSuccess={() => {}}
           onExtractionFields={handleExtractionFields}
+          onPhotosExtracted={(photos) => {
+            setListingPhotos(photos);
+            setPhotoIndex(0);
+          }}
           isGenerating={isGenerating}
           generatingStep={generatingStep}
           remainingFree={freeMode ? null : remainingFree}
@@ -1091,6 +1098,47 @@ export default function ReceiptPage() {
               transition={{ duration: 0.3 }}
               className="mt-6 space-y-4"
             >
+              {/* Listing photo carousel from Auto.dev */}
+              {listingPhotos.length > 0 && (
+                <div className="relative rounded-2xl overflow-hidden bg-gray-100 aspect-[16/9]">
+                  <img
+                    src={listingPhotos[photoIndex]}
+                    alt="Listing photo"
+                    className="w-full h-full object-cover"
+                  />
+                  {listingPhotos.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setPhotoIndex((i) => (i - 1 + listingPhotos.length) % listingPhotos.length)}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
+                        aria-label="Previous photo"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setPhotoIndex((i) => (i + 1) % listingPhotos.length)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
+                        aria-label="Next photo"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                        {listingPhotos.map((_, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setPhotoIndex(i)}
+                            className={`w-1.5 h-1.5 rounded-full transition-colors ${i === photoIndex ? "bg-white" : "bg-white/50"}`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
+                    {photoIndex + 1} / {listingPhotos.length}
+                  </div>
+                </div>
+              )}
+
               <ReceiptOutputCard
                 receipt={receipt}
                 lintPassed={lintPassed}
