@@ -105,6 +105,42 @@ RULES:
 
 Return ONLY the JSON object.`;
 
+// --- FastAPI /assist helper ---
+
+async function callFastAPIAssist(payload: Record<string, unknown>): Promise<RedditDraft | null> {
+  const baseUrl = process.env.REDDIT_OPERATOR_URL;
+  if (!baseUrl) return null;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8_000);
+
+    const res = await fetch(`${baseUrl}/assist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const draft = data?.reddit_draft;
+    if (!draft) return null;
+
+    // Validate against the existing schema before trusting the response
+    const { RedditDraftSchema } = await import("@/lib/receipt-schema-validator");
+    const parsed = RedditDraftSchema.safeParse(draft);
+    if (!parsed.success) return null;
+
+    return parsed.data as RedditDraft;
+  } catch {
+    return null;
+  }
+}
+
 export async function generateRedditDraft(
   receipt: ListingReceipt,
 ): Promise<RedditDraft> {
@@ -112,6 +148,20 @@ export async function generateRedditDraft(
   const label = `${ls.year} ${ls.make} ${ls.model}${ls.trim ? " " + ls.trim : ""}`;
   const priceStr = ls.price > 0 ? `$${ls.price.toLocaleString()}` : "price unknown";
 
+  // Try unified FastAPI backend first (v2)
+  const fastApiResult = await callFastAPIAssist({
+    mode: "receipt",
+    vehicle_label: label,
+    price_str: priceStr,
+    verdict: receipt.verdict,
+    verdict_reason: receipt.verdict_reason,
+    risk_flags: receipt.risk_flags || [],
+    must_answer_questions: receipt.must_answer_questions || [],
+  });
+
+  if (fastApiResult) return fastApiResult;
+
+  // Fallback: direct OpenAI call (v1 path)
   const userPrompt = `Generate a reddit_draft for this listing:
 
 Vehicle: ${label}

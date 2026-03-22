@@ -1,220 +1,354 @@
 """
-SQLite persistence for analysis logging.
-Stores all analyses for learning and consistency tracking.
+Supabase persistence for the OFFO Reddit Operator Tool v2.
+
+Replaces the SQLite-based db.py. Function signatures are unchanged
+so callers (main.py, pipeline.py) require no modifications.
+
+Tables (see supabase_migrations.sql):
+  - reddit_operator_sessions   — all /analyze and /assist calls
+  - reddit_operator_funnel_events — EVRoutine funnel event log
 """
 from __future__ import annotations
 
-import sqlite3
-from datetime import datetime
+import json
+import os
 from pathlib import Path
+from typing import Any, Optional
 
-from models import AnalyzeRequest, AnalyzeResponse
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).parent / ".env")
 
 
-# Database file location (in the same directory as the tool)
-DB_PATH = Path(__file__).parent / "offo_operator.db"
+# -------------------------
+# Supabase client (lazy)
+# -------------------------
 
+_sb = None
+
+
+def _client():
+    """Return a lazy-initialized Supabase client."""
+    global _sb
+    if _sb is not None:
+        return _sb
+
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+    if not url or not key:
+        raise RuntimeError(
+            "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in "
+            "tools/reddit-operator/.env"
+        )
+
+    from supabase import create_client
+    _sb = create_client(url, key)
+    return _sb
+
+
+# -------------------------
+# Backward-compat stub (init_db no longer needed)
+# -------------------------
 
 def init_db() -> None:
-    """Initialize the database and create tables if they don't exist."""
-    con = sqlite3.connect(DB_PATH)
-    cur = con.cursor()
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS analyses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        created_at TEXT NOT NULL,
-        source TEXT,
-        subreddit TEXT,
-        thread_type TEXT,
-        region_hint TEXT,
-        tone TEXT,
-        post_title TEXT,
-        post_body TEXT NOT NULL,
-        top_comment_context TEXT,
-        intent TEXT,
-        user_state TEXT,
-        ownership_phase TEXT,
-        friction_tags TEXT,
-        tool_intro TEXT,
-        draft_reply_short TEXT,
-        draft_reply_long TEXT,
-        safety_flags TEXT,
-        operator_edit TEXT,
-        posted_outcome TEXT,
-        upvotes INTEGER,
-        reply_count INTEGER
-    )
-    """)
-
-    con.commit()
-    con.close()
+    """No-op — tables are created via supabase_migrations.sql, not at runtime."""
+    pass
 
 
-def save_analysis(req: AnalyzeRequest, resp: AnalyzeResponse) -> int:
+# -------------------------
+# /analyze backward-compat (mode = 'analyze_v1')
+# -------------------------
+
+def save_analysis(req: Any, resp: Any) -> str:
     """
-    Save an analysis to the database.
+    Save a v1 /analyze call.
 
-    Returns the ID of the inserted row.
+    Maps AnalyzeRequest + AnalyzeResponse to reddit_operator_sessions
+    with mode='analyze_v1'. Returns the UUID of the inserted row.
     """
-    con = sqlite3.connect(DB_PATH)
-    cur = con.cursor()
+    row = {
+        "mode": "analyze_v1",
+        "source": getattr(req, "source", "reddit"),
+        "subreddit": getattr(req, "subreddit", None),
+        "thread_type": getattr(req, "thread_type", None),
+        "region_hint": getattr(req, "region_hint", "AUTO"),
+        "tone": getattr(req, "tone", "standard"),
+        "post_title": getattr(req, "post_title", None),
+        "post_body": getattr(req, "post_body", ""),
+        "top_comment_context": list(getattr(req, "top_comment_context", None) or []),
+        "intent": resp.intent,
+        "user_state": resp.user_state,
+        "ownership_phase": resp.ownership_phase,
+        "friction_tags": list(resp.friction_tags),
+        "tool_intro": resp.reply_plan.tool_intro if resp.reply_plan else None,
+        "draft_reply_short": resp.draft_reply_short,
+        "draft_reply_long": resp.draft_reply_long,
+        "safety_flags": list(resp.safety_flags),
+    }
 
-    cur.execute("""
-    INSERT INTO analyses (
-        created_at,
-        source,
-        subreddit,
-        thread_type,
-        region_hint,
-        tone,
-        post_title,
-        post_body,
-        top_comment_context,
-        intent,
-        user_state,
-        ownership_phase,
-        friction_tags,
-        tool_intro,
-        draft_reply_short,
-        draft_reply_long,
-        safety_flags
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        datetime.utcnow().isoformat(),
-        req.source,
-        req.subreddit,
-        req.thread_type,
-        req.region_hint,
-        req.tone,
-        req.post_title,
-        req.post_body,
-        ",".join(req.top_comment_context or []),
-        resp.intent,
-        resp.user_state,
-        resp.ownership_phase,
-        ",".join(resp.friction_tags),
-        resp.reply_plan.tool_intro,
-        resp.draft_reply_short,
-        resp.draft_reply_long,
-        ",".join(resp.safety_flags),
-    ))
-
-    row_id = cur.lastrowid
-    con.commit()
-    con.close()
-
-    return row_id
+    result = _client().table("reddit_operator_sessions").insert(row).execute()
+    rows = result.data
+    return rows[0]["id"] if rows else ""
 
 
-def save_operator_edit(analysis_id: int, edited_reply: str) -> None:
+# -------------------------
+# /assist sessions
+# -------------------------
+
+def save_assist_session(req: Any, resp: Any) -> str:
     """
-    Save an operator's edited reply for learning.
+    Save a v2 /assist call.
 
-    Future feature: use this to learn operator style.
+    Maps AssistRequest + AssistResponse to reddit_operator_sessions.
+    Returns the UUID of the inserted row.
     """
-    con = sqlite3.connect(DB_PATH)
-    cur = con.cursor()
+    row: dict = {
+        "mode": req.mode,
+        "source": getattr(req, "source", "reddit"),
+        "subreddit": getattr(req, "subreddit", None),
+        "thread_type": getattr(req, "thread_type", None),
+        "region_hint": getattr(req, "region_hint", "AUTO"),
+        "tone": getattr(req, "tone", "standard"),
+        "post_title": getattr(req, "post_title", None),
+        "post_body": getattr(req, "post_body", None),
+        "top_comment_context": list(getattr(req, "top_comment_context", None) or []),
+        "receipt_id": getattr(req, "receipt_id", None),
+        "intent": resp.intent,
+        "user_state": resp.user_state,
+        "ownership_phase": resp.ownership_phase,
+        "friction_tags": list(resp.friction_tags or []),
+        "pipeline_stages": list(resp.pipeline_stages_used or []),
+        "draft_reply_short": resp.draft_reply_short,
+        "draft_reply_long": resp.draft_reply_long,
+        "reddit_draft_json": (
+            resp.reddit_draft.model_dump() if resp.reddit_draft else None
+        ),
+        "safety_flags": list(resp.safety_flags or []),
+        "evroutine_invited": (
+            resp.evroutine_invite.should_invite if resp.evroutine_invite else False
+        ),
+        "invite_trigger": (
+            resp.evroutine_invite.trigger_reason if resp.evroutine_invite else None
+        ),
+        "total_latency_ms": resp.latency_ms,
+    }
 
-    cur.execute("""
-    UPDATE analyses
-    SET operator_edit = ?
-    WHERE id = ?
-    """, (edited_reply, analysis_id))
+    # Add per-stage latencies if present in debug
+    debug = getattr(resp, "debug", {}) or {}
+    for stage_key in ("grok_classify_ms", "claude_empathy_ms", "gpt4o_technical_ms", "grok_polish_ms"):
+        if stage_key in debug:
+            row[stage_key] = debug[stage_key]
 
-    con.commit()
-    con.close()
+    result = _client().table("reddit_operator_sessions").insert(row).execute()
+    rows = result.data
+    session_id = rows[0]["id"] if rows else ""
+
+    # If EVRoutine invite was shown, log the funnel event
+    if resp.evroutine_invite and resp.evroutine_invite.should_invite and session_id:
+        log_funnel_event(session_id, "invite_shown", {
+            "trigger": resp.evroutine_invite.trigger_reason,
+        })
+
+    return session_id
+
+
+# -------------------------
+# Operator feedback
+# -------------------------
+
+def save_operator_edit(analysis_id: str, edited_reply: str) -> None:
+    """Save an operator's edited reply for learning."""
+    _client().table("reddit_operator_sessions").update(
+        {"operator_edit": edited_reply}
+    ).eq("id", analysis_id).execute()
 
 
 def save_posted_outcome(
-    analysis_id: int,
+    analysis_id: str,
     outcome: str,
-    upvotes: int | None = None,
-    reply_count: int | None = None
+    upvotes: Optional[int] = None,
+    reply_count: Optional[int] = None,
 ) -> None:
-    """
-    Save the outcome of a posted reply.
+    """Save the outcome of a posted reply."""
+    update = {"posted_outcome": outcome}
+    if upvotes is not None:
+        update["upvotes"] = upvotes
+    if reply_count is not None:
+        update["reply_count"] = reply_count
 
-    Future feature: track what actually resonates.
-    """
-    con = sqlite3.connect(DB_PATH)
-    cur = con.cursor()
+    _client().table("reddit_operator_sessions").update(update).eq(
+        "id", analysis_id
+    ).execute()
 
-    cur.execute("""
-    UPDATE analyses
-    SET posted_outcome = ?, upvotes = ?, reply_count = ?
-    WHERE id = ?
-    """, (outcome, upvotes, reply_count, analysis_id))
 
-    con.commit()
-    con.close()
+def save_invite_outcome(session_id: str, accepted: bool) -> None:
+    """Record whether the EVRoutine invite was accepted."""
+    _client().table("reddit_operator_sessions").update(
+        {"invite_accepted": accepted}
+    ).eq("id", session_id).execute()
 
+    log_funnel_event(session_id, "invite_accepted" if accepted else "invite_skipped", {})
+
+
+# -------------------------
+# Funnel event log
+# -------------------------
+
+def log_funnel_event(session_id: str, event_name: str, event_data: dict) -> None:
+    """Log a funnel event (fire-and-forget — errors are swallowed)."""
+    try:
+        _client().table("reddit_operator_funnel_events").insert({
+            "session_id": session_id,
+            "event_name": event_name,
+            "event_data": event_data,
+        }).execute()
+    except Exception:
+        pass  # Never block the main response for analytics
+
+
+# -------------------------
+# Query helpers
+# -------------------------
 
 def get_recent_analyses(limit: int = 50) -> list:
-    """
-    Get recent analyses for review.
-
-    Returns a list of dictionaries with analysis data.
-    """
-    con = sqlite3.connect(DB_PATH)
-    con.row_factory = sqlite3.Row
-    cur = con.cursor()
-
-    cur.execute("""
-    SELECT * FROM analyses
-    ORDER BY created_at DESC
-    LIMIT ?
-    """, (limit,))
-
-    rows = cur.fetchall()
-    con.close()
-
-    return [dict(row) for row in rows]
+    """Get recent sessions for review (newest first)."""
+    result = (
+        _client()
+        .table("reddit_operator_sessions")
+        .select("*")
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data or []
 
 
 def get_analyses_by_subreddit(subreddit: str, limit: int = 50) -> list:
-    """
-    Get analyses for a specific subreddit.
-
-    Useful for understanding patterns in specific communities.
-    """
-    con = sqlite3.connect(DB_PATH)
-    con.row_factory = sqlite3.Row
-    cur = con.cursor()
-
-    cur.execute("""
-    SELECT * FROM analyses
-    WHERE subreddit = ?
-    ORDER BY created_at DESC
-    LIMIT ?
-    """, (subreddit, limit))
-
-    rows = cur.fetchall()
-    con.close()
-
-    return [dict(row) for row in rows]
+    """Get sessions for a specific subreddit."""
+    result = (
+        _client()
+        .table("reddit_operator_sessions")
+        .select("*")
+        .eq("subreddit", subreddit)
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data or []
 
 
 def get_tag_frequency() -> dict:
-    """
-    Get frequency of friction tags across all analyses.
-
-    Useful for understanding common friction patterns.
-    """
-    con = sqlite3.connect(DB_PATH)
-    cur = con.cursor()
-
-    cur.execute("SELECT friction_tags FROM analyses WHERE friction_tags IS NOT NULL")
+    """Get friction tag frequency across all sessions (sorted by count)."""
+    result = (
+        _client()
+        .table("reddit_operator_sessions")
+        .select("friction_tags")
+        .not_.is_("friction_tags", "null")
+        .execute()
+    )
 
     tag_counts: dict = {}
-    for row in cur.fetchall():
-        tags = row[0].split(",")
+    for row in result.data or []:
+        tags = row.get("friction_tags") or []
         for tag in tags:
             tag = tag.strip()
             if tag:
                 tag_counts[tag] = tag_counts.get(tag, 0) + 1
 
-    con.close()
-
-    # Sort by frequency
     return dict(sorted(tag_counts.items(), key=lambda x: x[1], reverse=True))
+
+
+def get_few_shot_examples(intent_tag: str, limit: int = 3) -> list[dict]:
+    """
+    Fetch high-signal example replies from reddit_comment_examples.
+
+    Used by Stage 2 (Gemini) and Stage 3 (GPT-4o) prompts as few-shot context.
+    Returns up to `limit` rows with post_title + successful_reply.
+    Falls back to a broader set if the specific intent_tag has no examples.
+    """
+    try:
+        result = (
+            _client()
+            .table("reddit_comment_examples")
+            .select("post_title, post_body, successful_reply, upvote_rate")
+            .eq("intent_tag", intent_tag)
+            .order("upvote_rate", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        rows = result.data or []
+
+        # If insufficient for this intent, fill from generic pool
+        if len(rows) < limit:
+            generic = (
+                _client()
+                .table("reddit_comment_examples")
+                .select("post_title, post_body, successful_reply, upvote_rate")
+                .neq("intent_tag", intent_tag)
+                .order("upvote_rate", desc=True)
+                .limit(limit - len(rows))
+                .execute()
+            )
+            rows.extend(generic.data or [])
+
+        return rows[:limit]
+    except Exception:
+        return []
+
+
+def get_funnel_stats() -> dict:
+    """
+    Aggregate funnel metrics for the Streamlit analytics tab.
+
+    Returns:
+      - total_sessions: int
+      - invites_shown: int
+      - invites_accepted: int
+      - acceptance_rate: float (0-1)
+      - posted_count: int
+      - tag_frequency: dict
+    """
+    total_result = (
+        _client()
+        .table("reddit_operator_sessions")
+        .select("id", count="exact")
+        .execute()
+    )
+    total = total_result.count or 0
+
+    invited_result = (
+        _client()
+        .table("reddit_operator_sessions")
+        .select("id", count="exact")
+        .eq("evroutine_invited", True)
+        .execute()
+    )
+    invited = invited_result.count or 0
+
+    accepted_result = (
+        _client()
+        .table("reddit_operator_sessions")
+        .select("id", count="exact")
+        .eq("invite_accepted", True)
+        .execute()
+    )
+    accepted = accepted_result.count or 0
+
+    posted_result = (
+        _client()
+        .table("reddit_operator_sessions")
+        .select("id", count="exact")
+        .eq("posted_outcome", "posted")
+        .execute()
+    )
+    posted = posted_result.count or 0
+
+    return {
+        "total_sessions": total,
+        "invites_shown": invited,
+        "invites_accepted": accepted,
+        "acceptance_rate": round(accepted / invited, 3) if invited > 0 else 0.0,
+        "posted_count": posted,
+        "tag_frequency": get_tag_frequency(),
+    }

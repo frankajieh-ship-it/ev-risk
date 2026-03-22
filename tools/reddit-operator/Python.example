@@ -1,0 +1,18 @@
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+
+# OpenAI (for Listing Receipt)
+OPENAI_API_KEY=sk-your-openai-api-key
+OPENAI_MODEL=gpt-4o-mini
+
+# AI Provider Fallbacks (hedged generation)
+# Get from: https://aistudio.google.com/app/apikey
+GEMINI_API_KEY=your-gemini-api-key
+
+# Get from: https://console.x.ai/
+GROK_API_KEY=xai-your-grok-api-key
+
+# Reddit Operator Tool v2 — FastAPI backend URL
+REDDIT_OPERATOR_URL=http://localhost:8088
+
+AutoDeve_API=your-autodev-api-key

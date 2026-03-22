@@ -2,6 +2,10 @@
 Reply generator with OFFO-style templates.
 Constructs calm, validating replies with reflective questions.
 Supports multiple tones: ultra_short, standard, empathetic, technical.
+
+v2 note: TONE_TEMPLATES and HIDDEN_TRADEOFF_TEMPLATES are now used as fallback
+context fed into the pipeline stages (see pipeline.py). The build_reply_plan()
+and build_drafts() functions remain for the /analyze backward-compat endpoint.
 """
 from __future__ import annotations
 

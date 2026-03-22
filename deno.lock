@@ -11,6 +11,7 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@google/generative-ai@~0.24.1",
         "npm:@netlify/functions@^5.1.2",
         "npm:@react-pdf/renderer@^4.3.2",
         "npm:@supabase/supabase-js@^2.91.0",
