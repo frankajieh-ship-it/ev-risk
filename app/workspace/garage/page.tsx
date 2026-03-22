@@ -12,6 +12,7 @@ import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap } from "lucide-r
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import VehicleImage from "@/components/VehicleImage";
 
 interface GarageVehicle {
   id: string;
@@ -280,14 +281,15 @@ export default function GaragePage() {
                     : "border-gray-200"
                 }`}
               >
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold ${
-                  v.classification?.category === "EV"
-                    ? "bg-green-50 text-green-700"
-                    : v.classification?.category === "PHEV"
-                    ? "bg-yellow-50 text-yellow-700"
-                    : "bg-gray-100 text-gray-500"
-                }`}>
-                  {v.classification?.category || "?"}
+                <div className="w-16 h-12 rounded-xl overflow-hidden shrink-0">
+                  <VehicleImage
+                    make={v.make}
+                    model={v.model}
+                    year={v.year ?? undefined}
+                    vin={v.vin ?? undefined}
+                    className="w-full h-full rounded-xl"
+                    imgClassName="w-full h-full object-cover"
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-900">

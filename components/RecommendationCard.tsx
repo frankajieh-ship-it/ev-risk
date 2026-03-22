@@ -8,6 +8,7 @@ import type { VehicleRecommendation } from "@/types/recommendations";
 import { getCarGurusUrl } from "@/lib/cargurus-links";
 import { ScoreImprovementSuggestions } from "./blocks/ScoreImprovementSuggestions";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import VehicleImage from "./VehicleImage";
 
 const fitColors: Record<string, { bg: string; text: string; border: string }> = {
   "Great Fit": { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
@@ -74,21 +75,32 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
 
   return (
     <div className={`rounded-2xl border-2 ${colors.border} ${muted ? "opacity-70" : ""} bg-white overflow-hidden transition-shadow hover:shadow-md`}>
+      {/* Vehicle photo strip */}
+      <div className="relative h-36 w-full">
+        <VehicleImage
+          make={rec.make}
+          model={rec.model_short}
+          year={rec.year}
+          className="w-full h-full"
+          imgClassName="w-full h-full object-cover"
+        />
+        {/* Score badge overlaid on photo */}
+        <div className={`absolute top-3 left-3 ${badgeBg} text-white w-12 h-12 rounded-xl flex flex-col items-center justify-center shadow-md`}>
+          <span className="text-lg font-bold leading-none">{rec.fit_score}</span>
+        </div>
+        {/* Fit label overlaid on photo */}
+        <div className="absolute bottom-3 left-3">
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm ${colors.bg} ${colors.text}`}>
+            {rec.fit_label}
+          </span>
+        </div>
+      </div>
+
       <div className="p-5">
-        {/* Top row: Score badge + vehicle name */}
-        <div className="flex items-start gap-4">
-          <div className={`${badgeBg} text-white w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0`}>
-            <span className="text-lg font-bold leading-none">{rec.fit_score}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-bold text-gray-900 leading-tight">{rec.model}</h3>
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colors.bg} ${colors.text}`}>
-                {rec.fit_label}
-              </span>
-              <span className="text-xs text-gray-500">{rec.year}</span>
-            </div>
-          </div>
+        {/* Vehicle name + year */}
+        <div className="mb-3">
+          <h3 className="text-lg font-bold text-gray-900 leading-tight">{rec.model}</h3>
+          <span className="text-xs text-gray-500">{rec.year}</span>
         </div>
 
         {/* Specs row */}
