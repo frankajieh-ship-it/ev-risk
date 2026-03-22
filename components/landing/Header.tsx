@@ -18,6 +18,7 @@ interface HeaderProps {
 const navLinks = [
   { label: "EV Fit", href: "#fit-check", isScroll: true },
   { label: "Receipt", href: "/receipt", isScroll: false },
+  { label: "Compare", href: "/compare", isScroll: false },
   { label: "For Dealers", href: "/dealers", isScroll: false },
 ];
 

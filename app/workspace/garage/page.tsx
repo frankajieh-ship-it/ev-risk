@@ -8,11 +8,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap } from "lucide-react";
+import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import VehicleImage from "@/components/VehicleImage";
+import { getAnonGarage, removeFromAnonGarage, type AnonGarageItem } from "@/lib/anon-garage";
 
 interface GarageVehicle {
   id: string;
@@ -32,10 +33,11 @@ function vehicleLabel(v: GarageVehicle): string {
 }
 
 export default function GaragePage() {
-  const { session } = useAuth();
+  const { session, isAuthenticated } = useAuth();
   const router = useRouter();
   const { trackEvent } = useEventTracking();
   const [vehicles, setVehicles] = useState<GarageVehicle[]>([]);
+  const [anonItems, setAnonItems] = useState<AnonGarageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [addMode, setAddMode] = useState<"vin" | "manual">("vin");
@@ -52,7 +54,12 @@ export default function GaragePage() {
 
   const loadVehicles = useCallback(async () => {
     const h = headers();
-    if (!h) return;
+    if (!h) {
+      // Not authenticated — show anon garage items from localStorage
+      setAnonItems(getAnonGarage());
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/workspace/garage", { headers: h });
@@ -255,6 +262,38 @@ export default function GaragePage() {
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+        </div>
+      ) : !isAuthenticated && anonItems.length > 0 ? (
+        /* Unauthenticated with saved items — show them with sign-in prompt */
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+            <LogIn className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium text-amber-900">Sign in to sync your saved items</p>
+              <p className="text-xs text-amber-700 mt-0.5">These are stored locally. Sign in to keep them across devices.</p>
+            </div>
+          </div>
+          {anonItems.map((item) => (
+            <div key={item.id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4 group">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-gray-900">{item.label}</p>
+                <p className="text-xs text-gray-400 mt-0.5 capitalize">{item.type.replace("_", " ")}</p>
+              </div>
+              <button
+                onClick={() => { removeFromAnonGarage(item.id); setAnonItems(getAnonGarage()); }}
+                className="p-1.5 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                title="Remove"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : !isAuthenticated ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <Car className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+          <p className="text-gray-500 font-medium">No vehicles saved yet</p>
+          <p className="text-sm text-gray-400 mt-1">Save vehicles while browsing receipts or EVFit results</p>
         </div>
       ) : vehicles.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
