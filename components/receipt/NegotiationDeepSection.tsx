@@ -9,7 +9,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { ChevronDown, ChevronUp, Loader2, RefreshCw, Zap } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, RefreshCw, Zap, Lock } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import type { NegotiationScript } from "@/lib/receipt-sections";
 
@@ -17,12 +17,18 @@ interface NegotiationDeepSectionProps {
   receiptId: string;
   initialScripts?: NegotiationScript[] | null;
   initialStatus?: string;
+  isUnlocked?: boolean;
+  paymentsEnabled?: boolean;
+  onPaywallClick?: () => void;
 }
 
 export default function NegotiationDeepSection({
   receiptId,
   initialScripts,
   initialStatus,
+  isUnlocked = false,
+  paymentsEnabled = false,
+  onPaywallClick,
 }: NegotiationDeepSectionProps) {
   const { trackEvent } = useEventTracking();
   const [status, setStatus] = useState<string>(
@@ -103,10 +109,14 @@ export default function NegotiationDeepSection({
   }
 
   if (status === "ready" && scripts) {
+    const showAll = isUnlocked || !paymentsEnabled;
+    const visibleScripts = showAll ? scripts : scripts.slice(0, 1);
+    const lockedScripts = showAll ? [] : scripts.slice(1);
+
     return (
       <div className="mt-3 space-y-2">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Full Negotiation Scripts</p>
-        {scripts.map((script, i) => (
+        {visibleScripts.map((script, i) => (
           <div key={i} className="rounded-lg border border-gray-200 overflow-hidden">
             <button
               onClick={() => setExpanded(expanded === i ? null : i)}
@@ -138,6 +148,23 @@ export default function NegotiationDeepSection({
             )}
           </div>
         ))}
+        {lockedScripts.map((script, i) => (
+          <div key={`locked-${i}`} className="rounded-lg border border-gray-200 overflow-hidden select-none">
+            <div className="w-full flex items-center justify-between px-4 py-3 bg-gray-50">
+              <span className="text-sm font-semibold text-gray-300 blur-[4px]">{script.scenario}</span>
+              <Lock className="w-4 h-4 text-gray-300" />
+            </div>
+          </div>
+        ))}
+        {lockedScripts.length > 0 && (
+          <button
+            onClick={onPaywallClick}
+            className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors mt-1"
+          >
+            <Lock className="w-3.5 h-3.5" />
+            Unlock {lockedScripts.length} more negotiation script{lockedScripts.length !== 1 ? "s" : ""}
+          </button>
+        )}
       </div>
     );
   }

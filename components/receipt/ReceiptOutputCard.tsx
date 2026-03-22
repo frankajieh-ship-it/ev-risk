@@ -44,6 +44,9 @@ interface ReceiptOutputCardProps {
   onSellerPackUpgrade?: () => void;
   isUpgrading?: boolean;
   upgradeFailed?: boolean;
+  isUnlocked?: boolean;
+  paymentsEnabled?: boolean;
+  onPaywallClick?: () => void;
 }
 
 const VERDICT_STYLES = {
@@ -107,6 +110,9 @@ export default function ReceiptOutputCard({
   onSellerPackUpgrade,
   isUpgrading,
   upgradeFailed,
+  isUnlocked = false,
+  paymentsEnabled = false,
+  onPaywallClick,
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const fallbackFiredRef = useRef(false);
@@ -203,6 +209,7 @@ export default function ReceiptOutputCard({
 
       {/* Verdict banner — neutral/pending style while upgrading */}
       <div className={`${isUpgrading ? "bg-gray-50 border-gray-200" : `${verdict.bg} ${verdict.border}`} border-b px-5 py-4`}>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Overall Verdict</p>
         <div className="flex items-center gap-3">
           {isUpgrading
             ? <HelpCircle className="w-6 h-6 text-gray-400" />
@@ -270,46 +277,67 @@ export default function ReceiptOutputCard({
         )}
       </div>
 
-      {/* Why not GREEN? */}
+      {/* Why not GREEN? — gated for yellow/red; unlocked users see full list */}
       {receipt.why_not_green && receipt.why_not_green.length > 0 && receipt.verdict !== "GREEN" && (
         <div className="px-5 py-3 bg-gray-50 border-b border-gray-200">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
             Why not GREEN?
           </p>
-          <ul className="space-y-1">
-            {receipt.why_not_green.map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
-              const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
-              return (
-                <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium mt-0.5 ${catStyle.bg} ${catStyle.text}`}>
-                    {catStyle.label}
-                  </span>
-                  <span className="flex-1">{reason.label}</span>
-                  {reason.points !== 0 && (
-                    <span className="text-xs text-gray-400 whitespace-nowrap">{reason.points}</span>
-                  )}
+          {isUnlocked || !paymentsEnabled ? (
+            <ul className="space-y-1">
+              {receipt.why_not_green.map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
+                const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
+                return (
+                  <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium mt-0.5 ${catStyle.bg} ${catStyle.text}`}>
+                      {catStyle.label}
+                    </span>
+                    <span className="flex-1">{reason.label}</span>
+                    {reason.points !== 0 && (
+                      <span className="text-xs text-gray-400 whitespace-nowrap">{reason.points}</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div>
+              {/* Show first item blurred as teaser */}
+              <ul className="space-y-1 mb-2">
+                <li className="text-sm text-gray-700 flex items-start gap-2 select-none">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium mt-0.5 bg-red-50 text-red-600">Risk</span>
+                  <span className="flex-1 blur-[5px]">This factor is holding back a green verdict</span>
                 </li>
-              );
-            })}
-          </ul>
+                {receipt.why_not_green.length > 1 && (
+                  <li className="text-sm text-gray-700 flex items-start gap-2 select-none">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-medium mt-0.5 bg-orange-50 text-orange-600">Proof</span>
+                    <span className="flex-1 blur-[5px]">Another reason this listing isn&apos;t scoring green</span>
+                  </li>
+                )}
+              </ul>
+              <button
+                onClick={onPaywallClick}
+                className="flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-800 transition-colors"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                Unlock to see why this verdict is {receipt.verdict} ({receipt.why_not_green.length} factor{receipt.why_not_green.length !== 1 ? "s" : ""})
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Prominent Copy Checklist — above the fold */}
+      {/* Prominent Copy Checklist — above the fold, always free */}
       <div className="px-5 pt-4">
         <button
-          onClick={() => {
-            if (sellerPackUnlocked === false && receipt.must_answer_questions.length > 2) {
-              onSellerPackUpgrade?.();
-              return;
-            }
+          onClick={() =>
             copySection(
               receipt.must_answer_questions
                 .map((q, i) => `${i + 1}. ${q}`)
                 .join("\n"),
               "must-ask"
-            );
-          }}
+            )
+          }
           className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-sm transition-all ${
             copiedSection === "must-ask"
               ? "bg-blue-100 text-blue-700 border border-blue-200"
@@ -441,18 +469,27 @@ export default function ReceiptOutputCard({
           </div>
         )}
 
-        {/* Risk Flags (reframed for GREEN verdicts) */}
-        {(() => {
+        {/* Deal Watch (formerly Risk Flags) — first 1 free, rest locked */}
+        {receipt.risk_flags.length > 0 && (() => {
           const isGreen = receipt.verdict === "GREEN";
+          const showAll = isGreen || isUnlocked || !paymentsEnabled;
+          const visibleFlags = showAll ? receipt.risk_flags : receipt.risk_flags.slice(0, 1);
+          const lockedCount = showAll ? 0 : receipt.risk_flags.length - 1;
+
           return (
             <Section
               icon={isGreen
                 ? <Search className="w-4 h-4 text-amber-500" />
                 : <AlertTriangle className="w-4 h-4 text-red-500" />}
-              title={isGreen ? "What to Verify" : "Risk Flags"}
+              title="Deal Watch"
             >
+              {!isGreen && (
+                <p className="text-xs text-gray-500 mb-2">
+                  Pricing can be fair but other factors can still affect your overall verdict — watch these:
+                </p>
+              )}
               <ul className="space-y-2">
-                {receipt.risk_flags.map((flag, i) => (
+                {visibleFlags.map((flag, i) => (
                   <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
                     {isGreen
                       ? <span className="text-amber-400 font-bold mt-0.5">{i + 1}.</span>
@@ -460,6 +497,25 @@ export default function ReceiptOutputCard({
                     <span>{humanizeFlag(flag)}</span>
                   </li>
                 ))}
+                {lockedCount > 0 && (
+                  <>
+                    {receipt.risk_flags.slice(1).map((_, i) => (
+                      <li key={`locked-flag-${i}`} className="text-sm flex items-start gap-2 select-none">
+                        <span className="text-red-300 mt-0.5">!</span>
+                        <span className="text-gray-300 blur-[5px]">This risk factor is locked — unlock to see</span>
+                      </li>
+                    ))}
+                    <li>
+                      <button
+                        onClick={onPaywallClick}
+                        className="flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 transition-colors mt-1"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        Unlock all {receipt.risk_flags.length} deal watch items
+                      </button>
+                    </li>
+                  </>
+                )}
               </ul>
             </Section>
           );

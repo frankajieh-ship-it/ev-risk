@@ -35,7 +35,6 @@ import ExitFeedbackModal from "@/components/receipt/ExitFeedbackModal";
 import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
 import ModelInfoSection from "@/components/receipt/ModelInfoSection";
 import DeepDiveSection from "@/components/receipt/DeepDiveSection";
-import NegotiatorSection from "@/components/receipt/NegotiatorSection";
 import NegotiationDeepSection from "@/components/receipt/NegotiationDeepSection";
 import PdfDownloadButton from "@/components/receipt/PdfDownloadButton";
 import CompareBadge from "@/components/receipt/CompareBadge";
@@ -43,7 +42,7 @@ import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import CompareSelectModal from "@/components/receipt/CompareSelectModal";
 import CompareView from "@/components/receipt/CompareView";
 import DecisionPackCard from "@/components/receipt/DecisionPackCard";
-import FullRiskReportCard from "@/components/receipt/FullRiskReportCard";
+import PersonalConsultationCard from "@/components/receipt/PersonalConsultationCard";
 import ShareModal from "@/components/receipt/ShareModal";
 import { useReceiptHistory } from "@/hooks/useReceiptHistory";
 import { useRegion } from "@/hooks/useRegion";
@@ -1180,6 +1179,9 @@ export default function ReceiptPage() {
                 onSellerPackUpgrade={handleSellerPackAction}
                 isUpgrading={isUpgrading}
                 upgradeFailed={upgradeFailed}
+                isUnlocked={isUnlocked}
+                paymentsEnabled={paymentsEnabled}
+                onPaywallClick={() => handlePremiumAction("receipt_output_paywall")}
               />
 
               {/* Action row — Save (full width) + Share / PDF */}
@@ -1210,10 +1212,9 @@ export default function ReceiptPage() {
               {/* ── Upsell cards — shown to non-unlocked users ── */}
               {!isUnlocked && !freeMode && paymentsEnabled && (
                 <>
-                  {/* $39 Full Risk Report — always shown, highest margin */}
-                  <FullRiskReportCard
+                  {/* Personal Consultation — always shown */}
+                  <PersonalConsultationCard
                     receiptId={receipt.receipt_id}
-                    vin={currentVin}
                     vehicleLabel={
                       receipt.listing_summary?.year && receipt.listing_summary?.make && receipt.listing_summary?.model
                         ? `${receipt.listing_summary.year} ${receipt.listing_summary.make} ${receipt.listing_summary.model}`
@@ -1238,22 +1239,14 @@ export default function ReceiptPage() {
                 </>
               )}
 
-              {/* Negotiator — Seller Strategy */}
-              <NegotiatorSection
-                receipt={receipt}
-                isUnlocked={isUnlocked}
-                onUpgradeClick={() => handlePremiumAction("negotiator_upsell")}
-                freeMode={freeMode}
-                region={region}
-                sellerPackUnlocked={sellerPackUnlocked}
-                onSellerPackUpgrade={handleSellerPackAction}
-              />
-
               {/* On-demand: extended negotiation scripts */}
               {!isUpgrading && receipt.receipt_id && (
                 <NegotiationDeepSection
                   receiptId={receipt.receipt_id}
                   initialStatus={sections?.negotiation_deep?.status}
+                  isUnlocked={isUnlocked}
+                  paymentsEnabled={paymentsEnabled}
+                  onPaywallClick={() => handlePremiumAction("negotiation_scripts_paywall")}
                 />
               )}
 
