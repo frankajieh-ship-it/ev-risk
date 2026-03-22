@@ -172,7 +172,9 @@ export default function ReceiptInputCard({
   const [vinFallbackValue, setVinFallbackValue] = useState("");
   const [vinLookupStatus, setVinLookupStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [vinLookupError, setVinLookupError] = useState<string | null>(null);
+  const [vinFilledNeedsPriceMileage, setVinFilledNeedsPriceMileage] = useState(false);
   const vinInputRef = useRef<HTMLInputElement | null>(null);
+  const priceInputRef = useRef<HTMLInputElement | null>(null);
 
   // CarGurus search URL banner
   const [carGurusCleanId, setCarGurusCleanId] = useState<string | null>(null);
@@ -467,10 +469,12 @@ export default function ReceiptInputCard({
       setShowVinFallback(false);
       setExtractError(null);
       setDetailsOpen(true);
+      setVinFilledNeedsPriceMileage(true);
       trackEvent?.("vin_fallback_lookup_success", { vin, anon_id: receiptToken });
       setTimeout(() => {
         document.getElementById("vehicle-details-section")?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+        priceInputRef.current?.focus();
+      }, 150);
     } catch {
       setVinLookupStatus("error");
       setVinLookupError("Network error — check your connection and try again.");
@@ -948,6 +952,15 @@ export default function ReceiptInputCard({
 
         {detailsOpen && (
           <div className="space-y-3">
+            {/* VIN-fill prompt — shown after VIN autofill when price/mileage still missing */}
+            {vinFilledNeedsPriceMileage && !fields.price && !fields.mileage && (
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <span className="text-amber-500 text-base">✏️</span>
+                <p className="text-xs text-amber-800 font-medium">
+                  Almost there — add the asking price and mileage from the listing to generate your receipt.
+                </p>
+              </div>
+            )}
             {/* Row 1: Price, Mileage */}
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -955,20 +968,19 @@ export default function ReceiptInputCard({
                   Price ($) <span className="text-red-400">*</span>
                 </label>
                 <input
+                  ref={priceInputRef}
                   type="number"
                   value={fields.price ?? ""}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     updateField(
                       "price",
                       e.target.value ? Math.max(0, Number(e.target.value)) : undefined
-                    )
-                  }
+                    );
+                    if (vinFilledNeedsPriceMileage) setVinFilledNeedsPriceMileage(false);
+                  }}
                   placeholder="32500"
                   min="0"
-                  className={getInputClass(
-                    fieldConfidence.price,
-                    dirtyFields.has("price")
-                  )}
+                  className={`${getInputClass(fieldConfidence.price, dirtyFields.has("price"))} ${vinFilledNeedsPriceMileage && !fields.price ? "ring-2 ring-amber-400 border-amber-400" : ""}`}
                   disabled={isGenerating}
                 />
               </div>
@@ -979,18 +991,16 @@ export default function ReceiptInputCard({
                 <input
                   type="number"
                   value={fields.mileage ?? ""}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     updateField(
                       "mileage",
                       e.target.value ? Math.max(0, Number(e.target.value)) : undefined
-                    )
-                  }
+                    );
+                    if (vinFilledNeedsPriceMileage) setVinFilledNeedsPriceMileage(false);
+                  }}
                   placeholder="45000"
                   min="0"
-                  className={getInputClass(
-                    fieldConfidence.mileage,
-                    dirtyFields.has("mileage")
-                  )}
+                  className={`${getInputClass(fieldConfidence.mileage, dirtyFields.has("mileage"))} ${vinFilledNeedsPriceMileage && !fields.mileage ? "ring-2 ring-amber-400 border-amber-400" : ""}`}
                   disabled={isGenerating}
                 />
               </div>
