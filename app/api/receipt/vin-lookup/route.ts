@@ -43,9 +43,9 @@ export async function POST(request: NextRequest) {
   // Build structured fields from VIN decode
   const fields: Record<string, unknown> = {
     vin,
-    year: vinData.modelYear ? Number(vinData.modelYear) : undefined,
-    make: vinData.make?.name ?? undefined,
-    model: vinData.model?.name ?? undefined,
+    year: vinData.year ?? undefined,
+    make: vinData.make ?? undefined,
+    model: vinData.model ?? undefined,
     trim: vinData.trim ?? undefined,
   };
 
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
   let market_price_range: { low: number; high: number; count: number } | undefined;
   if (listingsData?.records && listingsData.records.length >= 2) {
     const prices = listingsData.records
-      .map((r) => r.price)
+      .map((r) => r.priceUnformatted)
       .filter((p): p is number => typeof p === "number" && p > 0);
     if (prices.length >= 2) {
       market_price_range = {
