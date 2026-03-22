@@ -995,8 +995,19 @@ export default function ReceiptPage() {
         {/* Input Card */}
         <ReceiptInputCard
           onGenerate={(data) => {
-            setListingPhotos([]);
             setPhotoIndex(0);
+            // Fetch photos from Auto.dev if extraction didn't return any
+            if (listingPhotos.length === 0 && (data.fields.make || data.fields.year)) {
+              fetch("/api/photos?" + new URLSearchParams({
+                ...(data.fields.make ? { make: data.fields.make } : {}),
+                ...(data.fields.model ? { model: data.fields.model } : {}),
+                ...(data.fields.year ? { year: String(data.fields.year) } : {}),
+                ...(data.fields.vin ? { vin: data.fields.vin } : {}),
+              }))
+                .then((r) => r.json())
+                .then((d) => { if (d.photo_urls?.length) setListingPhotos(d.photo_urls); })
+                .catch(() => {});
+            }
             handleGenerate(data);
           }}
           onExtractionSuccess={() => {}}
@@ -1087,6 +1098,59 @@ export default function ReceiptPage() {
           </div>
         )}
 
+        {/* Listing photo carousel — shown as soon as photos arrive (before or after receipt) */}
+        <AnimatePresence>
+          {listingPhotos.length > 0 && (
+            <motion.div
+              key="photo-carousel"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mt-4 relative rounded-2xl overflow-hidden bg-gray-100 aspect-[16/9]"
+            >
+              <img
+                src={listingPhotos[photoIndex]}
+                alt="Listing photo"
+                className="w-full h-full object-cover"
+              />
+              {listingPhotos.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setPhotoIndex((i) => (i - 1 + listingPhotos.length) % listingPhotos.length)}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
+                    aria-label="Previous photo"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setPhotoIndex((i) => (i + 1) % listingPhotos.length)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
+                    aria-label="Next photo"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                    {listingPhotos.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setPhotoIndex(i)}
+                        className={`w-1.5 h-1.5 rounded-full transition-colors ${i === photoIndex ? "bg-white" : "bg-white/50"}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+              <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
+                {photoIndex + 1} / {listingPhotos.length}
+              </div>
+              <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
+                Similar listings via Auto.dev
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Output */}
         <AnimatePresence>
           {receipt && (
@@ -1098,47 +1162,6 @@ export default function ReceiptPage() {
               transition={{ duration: 0.3 }}
               className="mt-6 space-y-4"
             >
-              {/* Listing photo carousel from Auto.dev */}
-              {listingPhotos.length > 0 && (
-                <div className="relative rounded-2xl overflow-hidden bg-gray-100 aspect-[16/9]">
-                  <img
-                    src={listingPhotos[photoIndex]}
-                    alt="Listing photo"
-                    className="w-full h-full object-cover"
-                  />
-                  {listingPhotos.length > 1 && (
-                    <>
-                      <button
-                        onClick={() => setPhotoIndex((i) => (i - 1 + listingPhotos.length) % listingPhotos.length)}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
-                        aria-label="Previous photo"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setPhotoIndex((i) => (i + 1) % listingPhotos.length)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
-                        aria-label="Next photo"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                        {listingPhotos.map((_, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setPhotoIndex(i)}
-                            className={`w-1.5 h-1.5 rounded-full transition-colors ${i === photoIndex ? "bg-white" : "bg-white/50"}`}
-                          />
-                        ))}
-                      </div>
-                    </>
-                  )}
-                  <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
-                    {photoIndex + 1} / {listingPhotos.length}
-                  </div>
-                </div>
-              )}
-
               <ReceiptOutputCard
                 receipt={receipt}
                 lintPassed={lintPassed}
@@ -1190,6 +1213,7 @@ export default function ReceiptPage() {
                   {/* $39 Full Risk Report — always shown, highest margin */}
                   <FullRiskReportCard
                     receiptId={receipt.receipt_id}
+                    vin={currentVin}
                     vehicleLabel={
                       receipt.listing_summary?.year && receipt.listing_summary?.make && receipt.listing_summary?.model
                         ? `${receipt.listing_summary.year} ${receipt.listing_summary.make} ${receipt.listing_summary.model}`

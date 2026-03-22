@@ -16,13 +16,14 @@ import { useEventTracking } from "@/hooks/useEventTracking";
 interface FullRiskReportCardProps {
   receiptId: string;
   vehicleLabel?: string;
+  vin?: string;
 }
 
-export default function FullRiskReportCard({ receiptId, vehicleLabel }: FullRiskReportCardProps) {
+export default function FullRiskReportCard({ receiptId, vehicleLabel, vin }: FullRiskReportCardProps) {
   const { trackEvent } = useEventTracking();
   const [showForm, setShowForm] = useState(false);
   const [email, setEmail] = useState("");
-  const [listingInput, setListingInput] = useState("");
+  const [listingInput, setListingInput] = useState(vin || "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -59,6 +60,7 @@ export default function FullRiskReportCard({ receiptId, vehicleLabel }: FullRisk
           email: email.trim(),
           listing_input: listingInput.trim(),
           vehicle_label: vehicleLabel,
+          vin: vin || undefined,
         }),
       });
     } catch {
@@ -107,10 +109,13 @@ export default function FullRiskReportCard({ receiptId, vehicleLabel }: FullRisk
           )}
         </p>
 
-        {/* Single tight benefit line */}
-        <p className="text-xs text-gray-500 mb-4">
-          Full battery · accident · recall history + Fair / Good / Great deal rating. PDF delivered to your inbox in 48h.
-        </p>
+        {/* Benefit list with VIN analysis prominent */}
+        <ul className="text-xs text-gray-500 space-y-1 mb-4">
+          <li>✓ <span className="font-medium text-gray-700">VIN deep analysis</span> — battery, accident history, open recalls</li>
+          <li>✓ <span className="font-medium text-gray-700">Deal rating</span> — Fair / Good / Great vs market</li>
+          <li>✓ <span className="font-medium text-gray-700">PDF report</span> delivered to your inbox in 48h</li>
+          <li>✓ Personalized negotiation script</li>
+        </ul>
 
         {/* CTA or intake form */}
         {!showForm ? (
@@ -143,6 +148,9 @@ export default function FullRiskReportCard({ receiptId, vehicleLabel }: FullRisk
               onChange={(e) => setListingInput(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none font-mono"
             />
+            {vin && listingInput === vin && (
+              <p className="text-xs text-green-600">✓ VIN pre-filled from your listing</p>
+            )}
             {error && <p className="text-xs text-red-600">{error}</p>}
             <button
               type="submit"
