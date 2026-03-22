@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Search, AlertCircle, MessageSquare, ChevronDown, ChevronUp, Lightbulb, SlidersHorizontal, Bookmark, Check } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import RecommendationCard from "./RecommendationCard";
+import ExtensionNudge from "./ExtensionNudge";
 import RefineStep, { type RefinePrefs } from "./RefineStep";
 import Link from "next/link";
 import { addToAnonGarage } from "@/lib/anon-garage";
@@ -646,6 +647,8 @@ export default function VehicleRecommendations({
                   weeklyMiles={weeklyMiles}
                 />
               ))}
+              {/* Extension nudge — shown after list loads */}
+              <ExtensionNudge context="fits" />
             </div>
           )}
 

@@ -43,6 +43,7 @@ import CompareSelectModal from "@/components/receipt/CompareSelectModal";
 import CompareView from "@/components/receipt/CompareView";
 import DecisionPackCard from "@/components/receipt/DecisionPackCard";
 import PersonalConsultationCard from "@/components/receipt/PersonalConsultationCard";
+import ExtensionNudge from "@/components/ExtensionNudge";
 import ShareModal from "@/components/receipt/ShareModal";
 import { useReceiptHistory } from "@/hooks/useReceiptHistory";
 import { useRegion } from "@/hooks/useRegion";
@@ -1208,6 +1209,9 @@ export default function ReceiptPage() {
                 )}
                 </div>
               </div>
+
+              {/* Extension nudge — shown after receipt loads */}
+              <ExtensionNudge context="receipt" />
 
               {/* ── Upsell cards — shown to non-unlocked users ── */}
               {!isUnlocked && !freeMode && paymentsEnabled && (
