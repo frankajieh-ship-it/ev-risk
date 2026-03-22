@@ -21,6 +21,7 @@ import {
   ChevronDown,
   Check,
   X,
+  ShieldCheck,
 } from "lucide-react";
 import type { FetchedListingFields, StructuredListingFields } from "@/types/receipt";
 
@@ -166,6 +167,13 @@ export default function ReceiptInputCard({
     if (hasResult) setDirtyAfterResult(false);
   }, [hasResult]);
 
+  // VIN fallback state — shown after extraction failure
+  const [showVinFallback, setShowVinFallback] = useState(false);
+  const [vinFallbackValue, setVinFallbackValue] = useState("");
+  const [vinLookupStatus, setVinLookupStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [vinLookupError, setVinLookupError] = useState<string | null>(null);
+  const vinInputRef = useRef<HTMLInputElement | null>(null);
+
   // CarGurus search URL banner
   const [carGurusCleanId, setCarGurusCleanId] = useState<string | null>(null);
   const [showCarGurusBanner, setShowCarGurusBanner] = useState(false);
@@ -309,17 +317,16 @@ export default function ReceiptInputCard({
         // Show specific error based on diagnostics
         if (data.diagnostics?.botProtectionDetected) {
           setExtractError({
-            message: "This site blocked auto-extraction. Paste the listing text instead."
+            message: "This site blocked auto-extraction."
           });
-          // Auto-switch to text mode and focus
-          setInputMode("text");
-          setTimeout(() => textareaRef.current?.focus(), 100);
+          setShowVinFallback(true);
+          setTimeout(() => vinInputRef.current?.focus(), 150);
         } else if (data.diagnostics?.failureReason === "timeout") {
           setExtractError({
-            message: "Extraction timed out. Paste the listing text instead."
+            message: "Extraction timed out."
           });
-          setInputMode("text");
-          setTimeout(() => textareaRef.current?.focus(), 100);
+          setShowVinFallback(true);
+          setTimeout(() => vinInputRef.current?.focus(), 150);
         } else if (data.diagnostics?.failureReason === "search_page") {
           const urlValue = urlOverride ?? listingUrl.trim();
           const id = extractCarGurusListingId(urlValue);
@@ -329,15 +336,17 @@ export default function ReceiptInputCard({
             setExtractError(null);
           } else {
             setExtractError({
-              message: "That looks like a search page. Open a specific listing and copy its URL, or paste the full page text."
+              message: "That looks like a search page. Open a specific listing and copy its URL."
             });
+            setShowVinFallback(true);
+            setTimeout(() => vinInputRef.current?.focus(), 150);
           }
         } else {
           setExtractError({
-            message: "Couldn't detect enough listing fields. Fill in the required fields below or try pasting the listing text."
+            message: "Couldn't extract listing details."
           });
-          // Open details so user can fill manually
-          setDetailsOpen(true);
+          setShowVinFallback(true);
+          setTimeout(() => vinInputRef.current?.focus(), 150);
         }
         return;
       }
@@ -419,6 +428,52 @@ export default function ReceiptInputCard({
       });
     } finally {
       setIsExtracting(false);
+    }
+  };
+
+  // VIN lookup handler — called when user submits VIN in fallback mode
+  const handleVinLookup = async () => {
+    const vin = vinFallbackValue.trim().toUpperCase();
+    if (vin.length !== 17) {
+      setVinLookupError("Please enter the full 17-character VIN.");
+      return;
+    }
+    setVinLookupStatus("loading");
+    setVinLookupError(null);
+    try {
+      const res = await fetch("/api/receipt/vin-lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vin }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setVinLookupStatus("error");
+        setVinLookupError(data.error || "VIN not recognised — try entering details manually.");
+        return;
+      }
+      // Merge decoded fields
+      setFields((prev) => ({
+        ...prev,
+        vin,
+        year: data.fields.year ?? prev.year,
+        make: data.fields.make ?? prev.make,
+        model: data.fields.model ?? prev.model,
+        trim: data.fields.trim ?? prev.trim,
+      }));
+      if (data.photo_urls?.length) onPhotosExtracted?.(data.photo_urls);
+      setHasExtracted(true);
+      setVinLookupStatus("success");
+      setShowVinFallback(false);
+      setExtractError(null);
+      setDetailsOpen(true);
+      trackEvent?.("vin_fallback_lookup_success", { vin, anon_id: receiptToken });
+      setTimeout(() => {
+        document.getElementById("vehicle-details-section")?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    } catch {
+      setVinLookupStatus("error");
+      setVinLookupError("Network error — check your connection and try again.");
     }
   };
 
@@ -528,6 +583,10 @@ export default function ReceiptInputCard({
                 onChange={(e) => {
                   setListingUrl(e.target.value);
                   setExtractError(null);
+                  setShowVinFallback(false);
+                  setVinFallbackValue("");
+                  setVinLookupStatus("idle");
+                  setVinLookupError(null);
                   if (hasResult) setDirtyAfterResult(true);
                 }}
                 onPaste={handleUrlPaste}
@@ -633,47 +692,81 @@ export default function ReceiptInputCard({
               </div>
             )}
 
-            {/* Extract error with fallback options */}
+            {/* Extract error + VIN fallback */}
             {extractError && !isExtracting && (
-              <div className={`flex items-start gap-2 text-sm p-3 rounded-lg ${
-                extractError.isWarning
-                  ? 'bg-amber-50 border border-amber-200 text-amber-800'
-                  : 'bg-red-50 text-red-600'
-              }`}>
-                {extractError.isWarning ? (
-                  <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                ) : (
+              <div className="space-y-2">
+                <div className="flex items-start gap-2 text-sm p-3 rounded-lg bg-red-50 text-red-600">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1">
                   <span>{extractError.message}</span>
-                  <div className="flex gap-3 mt-1.5">
-                    <button
-                      onClick={() => {
-                        setInputMode("text");
-                        setTimeout(() => textareaRef.current?.focus(), 100);
-                        trackEvent?.("receipt_extract_fallback_used", { input_mode: "url", trigger: "switch_to_text", anon_id: receiptToken });
-                      }}
-                      className="text-blue-600 hover:text-blue-800 underline text-xs font-medium"
-                    >
-                      Paste listing text instead
-                    </button>
-                    <button
-                      onClick={() => {
-                        setDetailsOpen(true);
-                        setTimeout(() => {
-                          document.getElementById("vehicle-details-section")?.scrollIntoView({ behavior: "smooth" });
-                        }, 100);
-                        trackEvent?.("receipt_extract_fallback_used", { input_mode: "url", trigger: "fill_manually", anon_id: receiptToken });
-                      }}
-                      className="text-blue-600 hover:text-blue-800 underline text-xs font-medium"
-                    >
-                      Fill in fields manually
-                    </button>
-                  </div>
                 </div>
+
+                {showVinFallback && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+                      <p className="text-sm font-semibold text-blue-900">Enter the VIN to autofill</p>
+                    </div>
+                    <p className="text-xs text-blue-700">
+                      Found on the dashboard, door jamb, or listing page. We&apos;ll decode it and fill in the details automatically.
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        ref={vinInputRef}
+                        type="text"
+                        maxLength={17}
+                        placeholder="17-character VIN"
+                        value={vinFallbackValue}
+                        onChange={(e) => {
+                          setVinFallbackValue(e.target.value.toUpperCase());
+                          setVinLookupError(null);
+                        }}
+                        onKeyDown={(e) => { if (e.key === "Enter") handleVinLookup(); }}
+                        className="flex-1 px-3 py-2 text-sm font-mono border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none uppercase tracking-wider"
+                        disabled={vinLookupStatus === "loading"}
+                      />
+                      <button
+                        onClick={handleVinLookup}
+                        disabled={vinFallbackValue.length !== 17 || vinLookupStatus === "loading"}
+                        className="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                      >
+                        {vinLookupStatus === "loading" ? (
+                          <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Looking up…</>
+                        ) : (
+                          "Autofill"
+                        )}
+                      </button>
+                    </div>
+                    {vinLookupError && (
+                      <p className="text-xs text-red-600">{vinLookupError}</p>
+                    )}
+                    <div className="flex gap-3 pt-1">
+                      <button
+                        onClick={() => {
+                          setShowVinFallback(false);
+                          setInputMode("text");
+                          setTimeout(() => textareaRef.current?.focus(), 100);
+                          trackEvent?.("receipt_extract_fallback_used", { input_mode: "url", trigger: "switch_to_text", anon_id: receiptToken });
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-800 underline"
+                      >
+                        Paste listing text instead
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowVinFallback(false);
+                          setDetailsOpen(true);
+                          setTimeout(() => {
+                            document.getElementById("vehicle-details-section")?.scrollIntoView({ behavior: "smooth" });
+                          }, 100);
+                          trackEvent?.("receipt_extract_fallback_used", { input_mode: "url", trigger: "fill_manually", anon_id: receiptToken });
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-800 underline"
+                      >
+                        Fill in manually
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
