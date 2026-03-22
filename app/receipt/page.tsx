@@ -1384,6 +1384,8 @@ export default function ReceiptPage() {
             price: receipt.listing_summary.price ?? undefined,
             mileage: receipt.listing_summary.mileage ?? undefined,
           }}
+          paymentsEnabled={paymentsEnabled}
+          freeMode={freeMode}
         />
       )}
 

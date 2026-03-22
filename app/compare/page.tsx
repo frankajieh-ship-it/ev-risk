@@ -1118,6 +1118,8 @@ function ComparePageContent() {
               ? `${optionA.label || "A"}: ${result.optionA.fit_signal} | ${optionB.label || "B"}: ${result.optionB.fit_signal}`
               : undefined,
           }}
+          paymentsEnabled={paymentsEnabled}
+          freeMode={freeMode}
         />
       )}
 

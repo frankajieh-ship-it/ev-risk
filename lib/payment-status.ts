@@ -9,7 +9,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export type PurchaseStatus = "pending" | "paid" | "failed" | "refunded" | "none";
 
-export type PackTier = "buyer_pass" | "seller_questions";
+export type PackTier = "buyer_pass" | "seller_questions" | "chat_pass";
 
 export type EntitlementLevel = "free" | "seller_pack" | "buyer_pass";
 
@@ -25,6 +25,7 @@ export interface PaymentStatusResult {
   receipt_credits_total: number;
   entitlement_level: EntitlementLevel;
   seller_pack_unlocked: boolean;
+  chat_unlocked: boolean;
 }
 
 /**
@@ -46,13 +47,15 @@ export async function checkPurchaseStatus(
     receipt_credits_total: 0,
     entitlement_level: "free",
     seller_pack_unlocked: false,
+    chat_unlocked: false,
   };
 
   // Derive entitlement level from pack_tier (buyer_pass ⊃ seller_pack)
-  function deriveEntitlement(tier: string | null): { entitlement_level: EntitlementLevel; seller_pack_unlocked: boolean } {
-    if (tier === "buyer_pass") return { entitlement_level: "buyer_pass", seller_pack_unlocked: true };
-    if (tier === "seller_questions") return { entitlement_level: "seller_pack", seller_pack_unlocked: true };
-    return { entitlement_level: "free", seller_pack_unlocked: false };
+  function deriveEntitlement(tier: string | null): { entitlement_level: EntitlementLevel; seller_pack_unlocked: boolean; chat_unlocked: boolean } {
+    if (tier === "buyer_pass") return { entitlement_level: "buyer_pass", seller_pack_unlocked: true, chat_unlocked: false };
+    if (tier === "seller_questions") return { entitlement_level: "seller_pack", seller_pack_unlocked: true, chat_unlocked: false };
+    if (tier === "chat_pass") return { entitlement_level: "free", seller_pack_unlocked: false, chat_unlocked: true };
+    return { entitlement_level: "free", seller_pack_unlocked: false, chat_unlocked: false };
   }
 
   if (!isSupabaseConfigured()) return none;

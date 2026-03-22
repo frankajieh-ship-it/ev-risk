@@ -15,14 +15,18 @@ import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import { grokAdapter } from "@/lib/providers/grok-adapter";
 import { openaiAdapter } from "@/lib/providers/openai-adapter";
 import { geminiAdapter } from "@/lib/providers/gemini-adapter";
+import { checkPurchaseStatus } from "@/lib/payment-status";
+import { isFreeMode } from "@/lib/rollout-flags";
 import type { GenerateOpts } from "@/lib/providers/types";
 
 // ---------------------------------------------------------------------------
 // Rate limiters
 // ---------------------------------------------------------------------------
 
-const chatRateLimiter = new RateLimiter(5 * 60 * 1000, 15);        // 15/5min desktop
-const chatMobileRateLimiter = new RateLimiter(24 * 60 * 60 * 1000, 8); // 8/day mobile
+// Free tier: 5 messages per day
+const freeChatLimiter = new RateLimiter(24 * 60 * 60 * 1000, 5);
+// Paid tier: 200 per day (effectively unlimited)
+const paidChatLimiter = new RateLimiter(24 * 60 * 60 * 1000, 200);
 
 // ---------------------------------------------------------------------------
 // VIN data cache (24h in-memory per serverless instance)
@@ -172,7 +176,6 @@ export async function POST(request: NextRequest) {
   const scenarioType = (body.scenario_type as string) || "";
   const scenarioId = (body.scenario_id as string) || "";
   const message = (body.message as string) || "";
-  const isMobile = Boolean(body.is_mobile);
   const ctx = (body.context as ChatContext) || {};
 
   // Validate required fields
@@ -192,12 +195,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Message too long" }, { status: 400 });
   }
 
-  // Rate limiting
-  const limiter = isMobile ? chatMobileRateLimiter : chatRateLimiter;
+  // Check chat unlock status
   const limitKey = sessionId || getClientIP(request);
+  let chatUnlocked = isFreeMode();
+  if (!chatUnlocked && isSupabaseConfigured()) {
+    try {
+      const payStatus = await checkPurchaseStatus("chat", sessionId, sessionId);
+      chatUnlocked = payStatus.chat_unlocked;
+    } catch {
+      // Default to free tier on error
+    }
+  }
+
+  // Rate limiting: free = 5/day, paid = 200/day
+  const limiter = chatUnlocked ? paidChatLimiter : freeChatLimiter;
   const rateCheck = limiter.check(limitKey);
   if (!rateCheck.allowed) {
     const retryAfter = Math.ceil((rateCheck.resetAt - Date.now()) / 1000);
+    if (!chatUnlocked) {
+      // Free tier exhausted — prompt upgrade
+      return NextResponse.json(
+        { error: "daily_limit_reached", messages_used: 5, retry_after: retryAfter },
+        { status: 402 }
+      );
+    }
     return NextResponse.json(
       { error: "Too many messages. Please wait before sending more.", retry_after: retryAfter },
       { status: 429, headers: { "Retry-After": String(retryAfter) } }

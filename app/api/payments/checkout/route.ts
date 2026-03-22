@@ -22,7 +22,7 @@ import {
   type PackTier,
 } from "@/lib/price-assignment";
 
-const VALID_PACK_TIERS: PackTier[] = ["buyer_pass", "seller_questions"];
+const VALID_PACK_TIERS: PackTier[] = ["buyer_pass", "seller_questions", "chat_pass"];
 
 const checkoutRateLimiter = new RateLimiter(60 * 1000, 5); // 5 attempts per minute per IP
 
@@ -32,7 +32,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
     })
   : null;
 
-const VALID_SCENARIO_TYPES = ["receipt", "evroutine", "routine", "compare"] as const;
+const VALID_SCENARIO_TYPES = ["receipt", "evroutine", "routine", "compare", "chat"] as const;
 type ScenarioType = (typeof VALID_SCENARIO_TYPES)[number];
 
 export async function POST(request: NextRequest) {
@@ -81,32 +81,35 @@ export async function POST(request: NextRequest) {
   }
 
   // 1. Validate scenario exists and verify ownership
-  const tableMap: Record<string, { table: string; select: string; ownerColumn: string | null }> = {
-    receipt: { table: "receipts", select: "id, session_id", ownerColumn: "session_id" },
-    evroutine: { table: "reports", select: "id", ownerColumn: null },
-    routine: { table: "routine_runs", select: "id", ownerColumn: null },
-    compare: { table: "compare_sessions", select: "id", ownerColumn: null },
-  };
-  const { table: tableName, select: selectColumns, ownerColumn } = tableMap[scenarioType] || tableMap.evroutine;
+  // chat_pass uses sessionId as scenarioId — no DB row to look up
+  if (scenarioType !== "chat") {
+    const tableMap: Record<string, { table: string; select: string; ownerColumn: string | null }> = {
+      receipt: { table: "receipts", select: "id, session_id", ownerColumn: "session_id" },
+      evroutine: { table: "reports", select: "id", ownerColumn: null },
+      routine: { table: "routine_runs", select: "id", ownerColumn: null },
+      compare: { table: "compare_sessions", select: "id", ownerColumn: null },
+    };
+    const { table: tableName, select: selectColumns, ownerColumn } = tableMap[scenarioType] || tableMap.evroutine;
 
-  const { data: scenario, error: scenarioError } = await supabase
-    .from(tableName)
-    .select(selectColumns)
-    .eq("id", scenarioId)
-    .maybeSingle();
+    const { data: scenario, error: scenarioError } = await supabase
+      .from(tableName)
+      .select(selectColumns)
+      .eq("id", scenarioId)
+      .maybeSingle();
 
-  if (scenarioError || !scenario) {
-    console.error("[Checkout] Scenario not found:", { table: tableName, scenarioId, error: scenarioError?.message });
-    return NextResponse.json(
-      { error: "Scenario not found", scenario_type: scenarioType, scenario_id: scenarioId },
-      { status: 404 }
-    );
-  }
+    if (scenarioError || !scenario) {
+      console.error("[Checkout] Scenario not found:", { table: tableName, scenarioId, error: scenarioError?.message });
+      return NextResponse.json(
+        { error: "Scenario not found", scenario_type: scenarioType, scenario_id: scenarioId },
+        { status: 404 }
+      );
+    }
 
-  // Verify ownership for receipts (session_id = receipt_token = anon_id)
-  const scenarioRecord = scenario as unknown as Record<string, unknown>;
-  if (ownerColumn && scenarioRecord[ownerColumn] && scenarioRecord[ownerColumn] !== anonId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    // Verify ownership for receipts (session_id = receipt_token = anon_id)
+    const scenarioRecord = scenario as unknown as Record<string, unknown>;
+    if (ownerColumn && scenarioRecord[ownerColumn] && scenarioRecord[ownerColumn] !== anonId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
   }
 
   // 2. Check for existing paid purchase
@@ -159,8 +162,8 @@ export async function POST(request: NextRequest) {
         pack_tier: packTier,
         ...utmFields,
       },
-      success_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : scenarioType === "compare" ? "/compare" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : scenarioType === "compare" ? "/compare" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=cancel`,
+      success_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : scenarioType === "compare" ? "/compare" : scenarioType === "chat" ? "/receipt" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=success&chat_pass=1&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : scenarioType === "compare" ? "/compare" : scenarioType === "chat" ? "/receipt" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=cancel`,
     };
 
     // Use pre-created Price if available, otherwise inline price_data
@@ -168,9 +171,12 @@ export async function POST(request: NextRequest) {
       sessionParams.line_items = [{ price: stripePriceId, quantity: 1 }];
     } else {
       const isSeller = packTier === "seller_questions";
-      const productName = isSeller ? "OFFO Seller Questions Pack" : "OFFO Buyer Pass";
+      const isChat = packTier === "chat_pass";
+      const productName = isSeller ? "OFFO Seller Questions Pack" : isChat ? "OFFO AI Unlimited" : "OFFO Buyer Pass";
       const productDescription = isSeller
         ? "Full seller questions pack + inspect-first checklist for this listing."
+        : isChat
+        ? "Unlimited AI chat questions forever — full multi-model reasoning, saved history."
         : "10 receipts with full AI analysis, deep-dive, and PDF export.";
 
       sessionParams.line_items = [
@@ -194,7 +200,7 @@ export async function POST(request: NextRequest) {
     });
 
     // 6. Insert pending purchase row
-    const receiptCredits = packTier === "seller_questions" ? 1 : 10;
+    const receiptCredits = packTier === "seller_questions" ? 1 : packTier === "chat_pass" ? 0 : 10;
     const { error: insertError } = await supabase.from("purchases").insert({
       stripe_session_id: session.id,
       status: "pending",
