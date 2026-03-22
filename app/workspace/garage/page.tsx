@@ -14,6 +14,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import VehicleImage from "@/components/VehicleImage";
 import { getAnonGarage, removeFromAnonGarage, type AnonGarageItem } from "@/lib/anon-garage";
+import { getShortlist, removeFromShortlist } from "@/lib/shortlist-store";
+import type { ShortlistCandidate } from "@/lib/shortlist-coach";
 
 interface GarageVehicle {
   id: string;
@@ -38,6 +40,7 @@ export default function GaragePage() {
   const { trackEvent } = useEventTracking();
   const [vehicles, setVehicles] = useState<GarageVehicle[]>([]);
   const [anonItems, setAnonItems] = useState<AnonGarageItem[]>([]);
+  const [shortlistItems, setShortlistItems] = useState<ShortlistCandidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [addMode, setAddMode] = useState<"vin" | "manual">("vin");
@@ -53,10 +56,12 @@ export default function GaragePage() {
   }, [session?.access_token]);
 
   const loadVehicles = useCallback(async () => {
+    // Always load shortlist + anon garage from localStorage (available for all users)
+    setShortlistItems(getShortlist());
+    setAnonItems(getAnonGarage());
+
     const h = headers();
     if (!h) {
-      // Not authenticated — show anon garage items from localStorage
-      setAnonItems(getAnonGarage());
       setLoading(false);
       return;
     }
@@ -295,7 +300,7 @@ export default function GaragePage() {
           <p className="text-gray-500 font-medium">No vehicles saved yet</p>
           <p className="text-sm text-gray-400 mt-1">Save vehicles while browsing receipts or EVFit results</p>
         </div>
-      ) : vehicles.length === 0 ? (
+      ) : vehicles.length === 0 && shortlistItems.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <Car className="w-12 h-12 mx-auto text-gray-300 mb-3" />
           <p className="text-gray-500 font-medium">No vehicles in your garage</p>
@@ -308,6 +313,53 @@ export default function GaragePage() {
               Select any vehicle to start a side-by-side comparison
             </p>
           )}
+          {vehicles.length > 0 && shortlistItems.length > 0 && (
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1 pb-0.5">Added Vehicles</p>
+          )}
+          {/* EVFit Shortlist — localStorage, visible for all users */}
+          {shortlistItems.length > 0 && (
+            <div className="space-y-2">
+              {vehicles.length > 0 && (
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-2 pb-1">EV Fit Shortlist</p>
+              )}
+              {vehicles.length === 0 && (
+                <p className="text-xs text-gray-400 pb-1">
+                  Vehicles saved from your EV Fit results. <span className="font-medium">Add a vehicle above</span> to save it permanently.
+                </p>
+              )}
+              {shortlistItems.map((s) => (
+                <div key={s.run_id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4 group">
+                  <div className="w-16 h-12 rounded-xl overflow-hidden shrink-0">
+                    <VehicleImage make={s.vehicle_label.split(" ").slice(1, 2).join("")} model={s.vehicle_label.split(" ").slice(2).join(" ")} className="w-full h-full rounded-xl" imgClassName="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900">{s.vehicle_label}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {s.fit_score.label} · {s.fit_score.score_0_100}/100
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <button
+                      onClick={() => router.push(`/receipt?vehicle=${encodeURIComponent(s.vehicle_label)}`)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-blue-50 hover:text-blue-700 rounded-lg transition-colors"
+                      title="Generate a receipt check for this vehicle"
+                    >
+                      <Zap className="w-3.5 h-3.5" />
+                      New Check
+                    </button>
+                    <button
+                      onClick={() => { removeFromShortlist(s.run_id); setShortlistItems(getShortlist()); }}
+                      className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
+                      title="Remove from shortlist"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {vehicles.map((v) => {
             const isCompareBase = compareBase?.id === v.id;
             const isCompareTarget = compareBase && compareBase.id !== v.id;
