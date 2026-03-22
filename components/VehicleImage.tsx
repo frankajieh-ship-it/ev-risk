@@ -96,7 +96,7 @@ export default function VehicleImage({
     return () => { cancelled = true; };
   }, [make, model, year, vin]);
 
-  const altText = alt ?? [year, make, model].filter(Boolean).join(" ") || "Vehicle";
+  const altText = alt ?? ([year, make, model].filter(Boolean).join(" ") || "Vehicle");
 
   return (
     <div className={`relative overflow-hidden bg-gray-100 ${className}`}>
