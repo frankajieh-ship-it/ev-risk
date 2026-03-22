@@ -13,7 +13,7 @@ import { checkPurchaseStatus } from "@/lib/payment-status";
 import { isPaymentsEnabledFor, isFreeMode } from "@/lib/rollout-flags";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 
-const VALID_SCENARIO_TYPES = ["receipt", "evroutine", "routine"];
+const VALID_SCENARIO_TYPES = ["receipt", "evroutine", "routine", "compare"];
 
 const statusRateLimiter = new RateLimiter(60 * 1000, 60); // 60/min per IP
 

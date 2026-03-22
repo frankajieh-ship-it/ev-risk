@@ -32,7 +32,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
     })
   : null;
 
-const VALID_SCENARIO_TYPES = ["receipt", "evroutine", "routine"] as const;
+const VALID_SCENARIO_TYPES = ["receipt", "evroutine", "routine", "compare"] as const;
 type ScenarioType = (typeof VALID_SCENARIO_TYPES)[number];
 
 export async function POST(request: NextRequest) {
@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
     receipt: { table: "receipts", select: "id, session_id", ownerColumn: "session_id" },
     evroutine: { table: "reports", select: "id", ownerColumn: null },
     routine: { table: "routine_runs", select: "id", ownerColumn: null },
+    compare: { table: "compare_sessions", select: "id", ownerColumn: null },
   };
   const { table: tableName, select: selectColumns, ownerColumn } = tableMap[scenarioType] || tableMap.evroutine;
 
@@ -158,8 +159,8 @@ export async function POST(request: NextRequest) {
         pack_tier: packTier,
         ...utmFields,
       },
-      success_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=cancel`,
+      success_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : scenarioType === "compare" ? "/compare" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : scenarioType === "compare" ? "/compare" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=cancel`,
     };
 
     // Use pre-created Price if available, otherwise inline price_data

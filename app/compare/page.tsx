@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, HelpCircle, Copy, CheckCircle, GitCompareArrows, History, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, HelpCircle, Copy, CheckCircle, GitCompareArrows, History, ChevronDown, ChevronUp, Lock, Loader2, ShieldCheck, BarChart2, MessageSquare } from "lucide-react";
 import VehicleImage from "@/components/VehicleImage";
 import ListingExtractMini from "@/components/compare/ListingExtractMini";
 import ReceiptHistoryDrawer from "@/components/receipt/ReceiptHistoryDrawer";
@@ -13,6 +13,8 @@ import Footer from "@/components/landing/Footer";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useReceiptHistory } from "@/hooks/useReceiptHistory";
 import { getOrCreateReceiptToken } from "@/lib/session-utils";
+import { usePaymentStatus } from "@/hooks/usePaymentStatus";
+import { getDisplayPriceForRegion } from "@/lib/price-assignment";
 import type { ReceiptHistoryEntry } from "@/types/receipt";
 import { resolveRegion, type RegionSelection } from "@/lib/resolveRegion";
 import { compareOptions } from "@/lib/comparison-engine";
@@ -143,13 +145,47 @@ function ComparePageContent() {
   const [result, setResult] = useState<ComparisonResult | null>(null);
   const [showCopySuccess, setShowCopySuccess] = useState(false);
 
-  // Receipt history
+  // Receipt history + payment token
   const [receiptToken] = useState<string>(() =>
     typeof window !== "undefined" ? getOrCreateReceiptToken() : ""
   );
   const { history, isLoading: historyLoading } = useReceiptHistory(receiptToken);
   const [historyOpenA, setHistoryOpenA] = useState(false);
   const [historyOpenB, setHistoryOpenB] = useState(false);
+
+  // Compare session — created when user submits options; used for Stripe checkout
+  const [compareSessionId, setCompareSessionId] = useState<string | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  // Payment status — polls once compareSessionId is set
+  const { isUnlocked, paymentsEnabled, freeMode, refetch: refetchPayment } = usePaymentStatus(
+    "compare",
+    compareSessionId,
+    receiptToken
+  );
+
+  // Handle ?checkout=success return from Stripe
+  const checkoutParam = searchParams.get("checkout");
+  const checkoutScenarioId = searchParams.get("scenario_id");
+  useEffect(() => {
+    if (checkoutParam !== "success" || !checkoutScenarioId) return;
+    setCompareSessionId(checkoutScenarioId);
+    setPhase("results");
+    // Strip params from URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete("checkout");
+    url.searchParams.delete("scenario_id");
+    url.searchParams.delete("scenario_type");
+    url.searchParams.delete("session_id");
+    window.history.replaceState({}, "", url.toString());
+    // Poll until paid status confirmed
+    const poll = setInterval(async () => {
+      await refetchPayment();
+    }, 2000);
+    setTimeout(() => clearInterval(poll), 20000);
+    return () => clearInterval(poll);
+  }, [checkoutParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-derive buckets from specs
   useEffect(() => {
@@ -233,7 +269,7 @@ function ComparePageContent() {
     sharedInfrastructure !== null;
 
   // Run comparison with default routine immediately from options step
-  const handleOptionsSubmit = () => {
+  const handleOptionsSubmit = async () => {
     const baseRoutine: BaseRoutineInput = {
       region: regionResolved,
       ...DEFAULT_BASE_ROUTINE,
@@ -248,6 +284,23 @@ function ComparePageContent() {
       option_b_buckets: { body: optionB.body_type_bucket, battery: optionB.battery_bucket, efficiency: optionB.efficiency_bucket, curve: optionB.charging_curve_bucket },
     });
     setPhase("results");
+
+    // Create a compare session in DB (needed for Stripe checkout)
+    if (!compareSessionId) {
+      try {
+        const res = await fetch("/api/compare/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            anon_id: receiptToken,
+            label_a: optionA.label || "Option A",
+            label_b: optionB.label || "Option B",
+          }),
+        });
+        const data = await res.json();
+        if (data.session_id) setCompareSessionId(data.session_id);
+      } catch { /* non-critical — paywall just won't have a session_id */ }
+    }
   };
 
   // Re-run comparison with the user's actual routine
@@ -274,6 +327,34 @@ function ComparePageContent() {
       planning_tolerance: planningTolerance,
     });
     setPhase("results");
+  };
+
+  // Stripe checkout for compare unlock
+  const handleCompareCheckout = async () => {
+    if (!compareSessionId) return;
+    setCheckoutLoading(true);
+    setCheckoutError(null);
+    trackEvent("compare_checkout_started", { compare_session_id: compareSessionId });
+    try {
+      const res = await fetch("/api/payments/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scenario_type: "compare",
+          scenario_id: compareSessionId,
+          anon_id: receiptToken,
+          page_source: "compare_page",
+        }),
+      });
+      const data = await res.json();
+      if (data.url) { window.location.href = data.url; return; }
+      if (data.status === "paid") { await refetchPayment(); return; }
+      setCheckoutError(data.error || "Checkout failed. Please try again.");
+    } catch {
+      setCheckoutError("Connection error. Please try again.");
+    } finally {
+      setCheckoutLoading(false);
+    }
   };
 
   // ─── History selection ────────────────────────────────────────────────────
@@ -582,6 +663,14 @@ function ComparePageContent() {
     const hasAnySpec = Object.values(specA).some(v => v != null) || Object.values(specB).some(v => v != null);
     const labelA = result.optionA.label || "Option A";
     const labelB = result.optionB.label || "Option B";
+    const unlocked = isUnlocked || freeMode || !paymentsEnabled;
+    const displayPrice = getDisplayPriceForRegion("999", regionResolved === "UK" ? "UK" : "US");
+
+    const signalBadge = (signal: string) => {
+      if (signal === "GOOD") return "bg-green-100 text-green-800 border-green-200";
+      if (signal === "CONDITIONAL") return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      return "bg-red-100 text-red-800 border-red-200";
+    };
 
     return (
       <div className="space-y-5">
@@ -590,11 +679,41 @@ function ComparePageContent() {
           <p className="text-gray-500">
             {routineRefined
               ? "Personalised to your driving routine."
-              : "Based on typical usage — refine below with your own routine for a personalised result."}
+              : "Based on typical usage."}
           </p>
         </div>
 
-        {/* Spec table */}
+        {/* FREE: vehicle photo cards with fit signal badge — always visible */}
+        <div className="grid md:grid-cols-2 gap-4">
+          {([
+            { fitResult: result.optionA, fallback: "Option A" },
+            { fitResult: result.optionB, fallback: "Option B" },
+          ] as const).map(({ fitResult, fallback }) => {
+            const label = (fitResult as typeof result.optionA).label || fallback;
+            const signal = (fitResult as typeof result.optionA).fit_signal;
+            const { year, make, model } = parseLabelForImage(label);
+            return (
+              <div key={label} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="relative h-28 bg-gray-100">
+                  <VehicleImage make={make} model={model} year={year} className="w-full h-full" imgClassName="w-full h-full object-cover" />
+                  <div className="absolute bottom-2 right-2">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${signalBadge(signal)}`}>
+                      {FIT_SIGNAL_LABELS[signal]}
+                    </span>
+                  </div>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="font-bold text-gray-900 text-sm">{label}</p>
+                  {unlocked && (
+                    <p className="text-xs text-gray-500 mt-0.5 italic">{FADE_LABEL_DISPLAY[(fitResult as typeof result.optionA).fade_label]}</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Spec table — always visible if user added specs */}
         {includeSpecs && hasAnySpec && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h3 className="font-bold text-gray-900 mb-4">Spec Comparison</h3>
@@ -625,83 +744,154 @@ function ComparePageContent() {
           </div>
         )}
 
-        {/* Side-by-side result cards */}
-        <div className="grid md:grid-cols-2 gap-4">
-          {renderResultCard(result.optionA, "Option A")}
-          {renderResultCard(result.optionB, "Option B")}
-        </div>
-
-        {/* Delta Section */}
-        <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-5">
-          <h3 className="font-bold text-gray-900 mb-4">What would actually change?</h3>
-          <ul className="space-y-3">
-            {result.routine_delta_bullets.map((bullet, idx) => (
-              <li key={idx} className="text-sm text-gray-700 flex items-start gap-2.5">
-                <span className="text-blue-500 mt-0.5 font-bold flex-shrink-0">→</span>
-                <span>{bullet}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Neutral Closer */}
-        <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-2xl border border-blue-100 p-5 text-center">
-          <p className="text-sm text-gray-600 italic">{result.neutral_closer}</p>
-        </div>
-
-        {/* Personalise by routine CTA — only show if not yet refined */}
-        {!routineRefined && (
-          <button
-            onClick={() => setPhase("routine")}
-            className="w-full flex items-center justify-between px-5 py-4 bg-white rounded-2xl border-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-400 transition-all"
-          >
-            <div className="text-left">
-              <p className="font-semibold text-sm">Personalise to your routine</p>
-              <p className="text-xs text-blue-500 mt-0.5">Tell us how you drive — we&apos;ll re-score both options for your actual situation</p>
+        {/* ── PAYWALL GATE ─────────────────────────────────────── */}
+        {!unlocked && (
+          <div className="bg-gradient-to-br from-slate-50 via-white to-indigo-50 rounded-2xl border-2 border-indigo-200 shadow-sm overflow-hidden">
+            {/* Blurred preview of deep analysis */}
+            <div className="relative">
+              <div className="pointer-events-none select-none blur-sm opacity-60 px-5 pt-5 space-y-3">
+                <div className="bg-white rounded-xl border border-blue-100 p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Deep Analysis — {labelA}</p>
+                  <p className="text-sm text-gray-700">✓ Efficient for city driving — lower battery drain in stop-start</p>
+                  <p className="text-sm text-gray-700 mt-1">✓ DC fast charging adequate for occasional road trips</p>
+                  <p className="text-sm text-gray-500 mt-1">• Consider range anxiety on 150+ mile days without planning</p>
+                </div>
+                <div className="bg-white rounded-xl border border-blue-100 p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Deep Analysis — {labelB}</p>
+                  <p className="text-sm text-gray-700">✓ Higher peak DC charging — faster top-ups on longer trips</p>
+                  <p className="text-sm text-gray-700 mt-1">• Larger battery means more to charge overnight with L1</p>
+                </div>
+                <div className="bg-white rounded-xl border border-blue-100 p-4">
+                  <p className="text-xs font-semibold text-gray-700 mb-2">Verdict: What would actually change?</p>
+                  <p className="text-sm text-gray-700">→ Daily charging time increases by ~2 hours with L1</p>
+                  <p className="text-sm text-gray-700 mt-1">→ Road trip planning effort differs significantly</p>
+                </div>
+              </div>
+              {/* Lock overlay */}
+              <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-[1px]">
+                <Lock className="w-8 h-8 text-indigo-400 opacity-80" />
+              </div>
             </div>
-            <ChevronDown className="w-5 h-5 shrink-0" />
-          </button>
+
+            {/* Unlock CTA */}
+            <div className="px-5 pb-5 pt-4 border-t border-indigo-100">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2.5 py-1 rounded-full">OFFO Buyer Pass</span>
+                <span className="text-base font-bold text-gray-900">{displayPrice}</span>
+              </div>
+              <p className="text-sm font-semibold text-gray-900 mb-1">Unlock the full comparison</p>
+              <ul className="space-y-1.5 mb-4">
+                {[
+                  { icon: BarChart2, text: "Deep-dive analysis for both vehicles" },
+                  { icon: MessageSquare, text: "Verdict: what actually changes for your routine" },
+                  { icon: ShieldCheck, text: "Personalise to your driving habits" },
+                  { icon: Copy, text: "Copy & share full takeaway" },
+                ].map(({ icon: Icon, text }, i) => (
+                  <li key={i} className="flex items-center gap-2 text-xs text-gray-600">
+                    <Icon className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                    {text}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={handleCompareCheckout}
+                disabled={checkoutLoading || !compareSessionId}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 transition-all disabled:opacity-60 shadow-sm"
+              >
+                {checkoutLoading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" />Redirecting...</>
+                ) : (
+                  <><ShieldCheck className="w-4 h-4" />Unlock Full Analysis — {displayPrice}</>
+                )}
+              </button>
+              {checkoutError && <p className="text-xs text-red-600 mt-2">{checkoutError}</p>}
+              {!compareSessionId && <p className="text-xs text-gray-400 mt-2 text-center">Preparing checkout…</p>}
+            </div>
+          </div>
         )}
 
-        {/* Copy takeaway */}
-        <button
-          onClick={async () => {
-            const specLines: string[] = [];
-            if (includeSpecs && hasAnySpec) {
-              specLines.push("", "Specs:");
-              if (specA.range_mi || specB.range_mi) specLines.push(`  Range: ${specA.range_mi ? `~${specA.range_mi} mi` : "—"} vs ${specB.range_mi ? `~${specB.range_mi} mi` : "—"}`);
-              if (specA.battery_kwh || specB.battery_kwh) specLines.push(`  Battery: ${specA.battery_kwh ?? "—"} kWh vs ${specB.battery_kwh ?? "—"} kWh`);
-              if (specA.dc_fast_kw || specB.dc_fast_kw) specLines.push(`  DC Fast: ${specA.dc_fast_kw ?? "—"} kW vs ${specB.dc_fast_kw ?? "—"} kW`);
-            }
-            const takeaway = [
-              `Comparing ${labelA} vs ${labelB}:`,
-              ...specLines,
-              "",
-              `${labelA}: ${FIT_SIGNAL_LABELS[result.optionA.fit_signal]} — ${FADE_LABEL_DISPLAY[result.optionA.fade_label]}`,
-              `${labelB}: ${FIT_SIGNAL_LABELS[result.optionB.fit_signal]} — ${FADE_LABEL_DISPLAY[result.optionB.fade_label]}`,
-              "",
-              "Key differences:",
-              ...result.routine_delta_bullets.map(b => `• ${b}`),
-              "",
-              result.neutral_closer,
-            ].join("\n");
-            try {
-              await navigator.clipboard.writeText(takeaway);
-              setShowCopySuccess(true);
-              setTimeout(() => setShowCopySuccess(false), 2000);
-              trackEvent("compare_copy_takeaway_clicked", { region: regionResolved, fit_signal_a: result.optionA.fit_signal, fit_signal_b: result.optionB.fit_signal });
-            } catch (err) {
-              console.error("Copy failed:", err);
-            }
-          }}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-medium border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-400 transition-all"
-        >
-          {showCopySuccess ? (
-            <><CheckCircle className="w-4 h-4 text-green-600" /><span className="text-green-600">Copied!</span></>
-          ) : (
-            <><Copy className="w-4 h-4" /><span>Copy key takeaway</span></>
-          )}
-        </button>
+        {/* ── UNLOCKED CONTENT ─────────────────────────────────── */}
+        {unlocked && (
+          <>
+            {/* Full result cards */}
+            <div className="grid md:grid-cols-2 gap-4">
+              {renderResultCard(result.optionA, "Option A")}
+              {renderResultCard(result.optionB, "Option B")}
+            </div>
+
+            {/* Delta */}
+            <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-5">
+              <h3 className="font-bold text-gray-900 mb-4">What would actually change?</h3>
+              <ul className="space-y-3">
+                {result.routine_delta_bullets.map((bullet, idx) => (
+                  <li key={idx} className="text-sm text-gray-700 flex items-start gap-2.5">
+                    <span className="text-blue-500 mt-0.5 font-bold flex-shrink-0">→</span>
+                    <span>{bullet}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Neutral Closer */}
+            <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-2xl border border-blue-100 p-5 text-center">
+              <p className="text-sm text-gray-600 italic">{result.neutral_closer}</p>
+            </div>
+
+            {/* Personalise by routine */}
+            {!routineRefined && (
+              <button
+                onClick={() => setPhase("routine")}
+                className="w-full flex items-center justify-between px-5 py-4 bg-white rounded-2xl border-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-400 transition-all"
+              >
+                <div className="text-left">
+                  <p className="font-semibold text-sm">Personalise to your routine</p>
+                  <p className="text-xs text-blue-500 mt-0.5">Tell us how you drive — we&apos;ll re-score both options for your actual situation</p>
+                </div>
+                <ChevronDown className="w-5 h-5 shrink-0" />
+              </button>
+            )}
+
+            {/* Copy takeaway */}
+            <button
+              onClick={async () => {
+                const specLines: string[] = [];
+                if (includeSpecs && hasAnySpec) {
+                  specLines.push("", "Specs:");
+                  if (specA.range_mi || specB.range_mi) specLines.push(`  Range: ${specA.range_mi ? `~${specA.range_mi} mi` : "—"} vs ${specB.range_mi ? `~${specB.range_mi} mi` : "—"}`);
+                  if (specA.battery_kwh || specB.battery_kwh) specLines.push(`  Battery: ${specA.battery_kwh ?? "—"} kWh vs ${specB.battery_kwh ?? "—"} kWh`);
+                  if (specA.dc_fast_kw || specB.dc_fast_kw) specLines.push(`  DC Fast: ${specA.dc_fast_kw ?? "—"} kW vs ${specB.dc_fast_kw ?? "—"} kW`);
+                }
+                const takeaway = [
+                  `Comparing ${labelA} vs ${labelB}:`,
+                  ...specLines,
+                  "",
+                  `${labelA}: ${FIT_SIGNAL_LABELS[result.optionA.fit_signal]} — ${FADE_LABEL_DISPLAY[result.optionA.fade_label]}`,
+                  `${labelB}: ${FIT_SIGNAL_LABELS[result.optionB.fit_signal]} — ${FADE_LABEL_DISPLAY[result.optionB.fade_label]}`,
+                  "",
+                  "Key differences:",
+                  ...result.routine_delta_bullets.map(b => `• ${b}`),
+                  "",
+                  result.neutral_closer,
+                ].join("\n");
+                try {
+                  await navigator.clipboard.writeText(takeaway);
+                  setShowCopySuccess(true);
+                  setTimeout(() => setShowCopySuccess(false), 2000);
+                  trackEvent("compare_copy_takeaway_clicked", { region: regionResolved, fit_signal_a: result.optionA.fit_signal, fit_signal_b: result.optionB.fit_signal });
+                } catch (err) {
+                  console.error("Copy failed:", err);
+                }
+              }}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-medium border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-400 transition-all"
+            >
+              {showCopySuccess ? (
+                <><CheckCircle className="w-4 h-4 text-green-600" /><span className="text-green-600">Copied!</span></>
+              ) : (
+                <><Copy className="w-4 h-4" /><span>Copy key takeaway</span></>
+              )}
+            </button>
+          </>
+        )}
 
         <div className="flex gap-3">
           <button
@@ -711,7 +901,7 @@ function ComparePageContent() {
             <ArrowLeft className="w-4 h-4" /> Edit options
           </button>
           <button
-            onClick={() => { setPhase("options"); setResult(null); setRoutineRefined(false); trackEvent("compare_restart_clicked", { region: regionResolved }); }}
+            onClick={() => { setPhase("options"); setResult(null); setRoutineRefined(false); setCompareSessionId(null); trackEvent("compare_restart_clicked", { region: regionResolved }); }}
             className="flex-1 py-3.5 rounded-xl font-medium border-2 border-gray-200 text-gray-700 hover:bg-gray-50 transition-all"
           >
             New comparison
