@@ -40,12 +40,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Auto.dev returns make/model as either a string or { name: string }
+  const resolveName = (v: string | { name?: string } | undefined): string | undefined => {
+    if (!v) return undefined;
+    if (typeof v === "string") return v || undefined;
+    return v.name || undefined;
+  };
+
   // Build structured fields from VIN decode
   const fields: Record<string, unknown> = {
     vin,
-    year: vinData.year ?? undefined,
-    make: vinData.make ?? undefined,
-    model: vinData.model ?? undefined,
+    year: vinData.modelYear ? Number(vinData.modelYear) : (vinData.year ?? undefined),
+    make: resolveName(vinData.make),
+    model: resolveName(vinData.model),
     trim: vinData.trim ?? undefined,
   };
 

@@ -18,10 +18,11 @@ const API_KEY = process.env.AUTODEV_API;
 // --- Response types ---
 
 export interface AutoDevVinResult {
-  make?: string;
-  model?: string;
+  make?: string | { name?: string };
+  model?: string | { name?: string };
   trim?: string;
   year?: number;
+  modelYear?: string | number;
   engine?: {
     type?: string;
     fuelType?: string;
