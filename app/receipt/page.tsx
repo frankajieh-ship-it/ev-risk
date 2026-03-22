@@ -50,6 +50,7 @@ import { useRegion } from "@/hooks/useRegion";
 import RegionSelector from "@/components/RegionSelector";
 import { getOrCreateReceiptToken } from "@/lib/session-utils";
 import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent } from "@/types/receipt";
+import OFfoChat from "@/components/chat/OFfoChat";
 
 // Persist/retrieve current receipt ID across auth redirects
 const ACTIVE_RECEIPT_KEY = "offo_active_receipt_id";
@@ -1370,6 +1371,21 @@ export default function ReceiptPage() {
 
       {/* Exit-intent feedback modal — triggers when user leaves with a receipt but no feedback */}
       <ExitFeedbackModal hasReceipt={!!receipt} receiptId={receipt?.receipt_id} />
+
+      {/* OFFO Chat — collapsible AI assistant, appears 8s after result */}
+      {receipt && receiptToken && (
+        <OFfoChat
+          scenarioType="receipt"
+          scenarioId={receipt.receipt_id}
+          sessionId={receiptToken}
+          context={{
+            vehicle: [receipt.listing_summary.year, receipt.listing_summary.make, receipt.listing_summary.model]
+              .filter(Boolean).join(" ") || undefined,
+            price: receipt.listing_summary.price ?? undefined,
+            mileage: receipt.listing_summary.mileage ?? undefined,
+          }}
+        />
+      )}
 
       {/* Marketing sections — visible before first receipt */}
       {!receipt && (

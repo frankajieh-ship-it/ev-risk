@@ -41,6 +41,7 @@ import {
   deriveChargingBucket,
   deriveBodyBucket,
 } from "@/lib/comparison-types";
+import OFfoChat from "@/components/chat/OFfoChat";
 
 // New flow: options → results → (optional) refine by routine
 type Phase = "options" | "results" | "routine";
@@ -1103,6 +1104,22 @@ function ComparePageContent() {
       </div>
 
       <Footer />
+
+      {/* OFFO Chat — collapsible AI assistant, appears 8s after results load */}
+      {result && compareSessionId && receiptToken && (
+        <OFfoChat
+          scenarioType="compare"
+          scenarioId={compareSessionId}
+          sessionId={receiptToken}
+          context={{
+            comparison_label_a: optionA.label || "Option A",
+            comparison_label_b: optionB.label || "Option B",
+            winner_signal: result.optionA.fit_signal && result.optionB.fit_signal
+              ? `${optionA.label || "A"}: ${result.optionA.fit_signal} | ${optionB.label || "B"}: ${result.optionB.fit_signal}`
+              : undefined,
+          }}
+        />
+      )}
 
       <ReceiptHistoryDrawer
         isOpen={historyOpenA}
