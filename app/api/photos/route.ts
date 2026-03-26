@@ -27,7 +27,7 @@ const MODEL_EXACT_MAP: Record<string, string> = {
 // Trim suffixes Auto.dev doesn't use — strip these from model names.
 // Order matters: longer strings first.
 const TRIM_SUFFIXES = [
-  " long range", " standard range", " standard range plus",
+  " long range", " standard range plus", " standard range", " extended range", " extended", " standard",
   " performance", " plaid", " plaid+",
   " gt", " gt-line", " gt line", " wind", " earth", " light",
   " xdrive50", " xdrive40", " edrive40", " edrive35", " m50",
