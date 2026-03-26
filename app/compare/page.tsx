@@ -138,6 +138,11 @@ function ComparePageContent() {
   const [optionA, setOptionA] = useState<OptionInput>({ ...defaultOption });
   const [optionB, setOptionB] = useState<OptionInput>({ ...defaultOption });
 
+  // Vehicle metadata for photo loading (make/model/year separate from label)
+  type VehicleMeta = { make?: string; model?: string; year?: number };
+  const [metaA, setMetaA] = useState<VehicleMeta>({});
+  const [metaB, setMetaB] = useState<VehicleMeta>({});
+
   // Spec state
   const [specA, setSpecA] = useState<OptionSpec>({ ...defaultSpec });
   const [specB, setSpecB] = useState<OptionSpec>({ ...defaultSpec });
@@ -395,6 +400,8 @@ function ComparePageContent() {
           onExtracted={(extracted) => {
             setOption({ ...option, label: extracted.label, body_type_bucket: extracted.bodyType });
             if (extracted.price) setSpec({ ...spec, price: extracted.price });
+            const metaSetter = isA ? setMetaA : setMetaB;
+            metaSetter({ make: extracted.make, model: extracted.model, year: extracted.year });
           }}
           placeholder="e.g. cargurus.com/… or paste listing text"
         />
@@ -684,35 +691,99 @@ function ComparePageContent() {
           </p>
         </div>
 
-        {/* FREE: vehicle photo cards with fit signal badge — always visible */}
-        <div className="grid md:grid-cols-2 gap-4">
-          {([
-            { fitResult: result.optionA, fallback: "Option A" },
-            { fitResult: result.optionB, fallback: "Option B" },
-          ] as const).map(({ fitResult, fallback }) => {
-            const label = (fitResult as typeof result.optionA).label || fallback;
-            const signal = (fitResult as typeof result.optionA).fit_signal;
-            const { year, make, model } = parseLabelForImage(label);
-            return (
-              <div key={label} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="relative h-28 bg-gray-100">
-                  <VehicleImage make={make} model={model} year={year} className="w-full h-full" imgClassName="w-full h-full object-cover" />
-                  <div className="absolute bottom-2 right-2">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${signalBadge(signal)}`}>
-                      {FIT_SIGNAL_LABELS[signal]}
+        {/* Side-by-side comparison panel — photos + labels + detail columns */}
+        {(() => {
+          const parsedA = parseLabelForImage(labelA);
+          const parsedB = parseLabelForImage(labelB);
+          const imgA = { make: metaA.make ?? parsedA.make, model: metaA.model ?? parsedA.model, year: metaA.year ?? parsedA.year };
+          const imgB = { make: metaB.make ?? parsedB.make, model: metaB.model ?? parsedB.model, year: metaB.year ?? parsedB.year };
+
+          const renderDetails = (fitResult: ComparisonResult["optionA"]) => (
+            <div className="px-4 py-4 space-y-4">
+              {fitResult.strengths.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-green-700 uppercase mb-2">Works well</p>
+                  <ul className="space-y-2">
+                    {fitResult.strengths.map((s, idx) => (
+                      <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                        <span className="text-green-500 mt-0.5 font-bold flex-shrink-0">✓</span>
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {fitResult.friction_bullets.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase mb-2">Considerations</p>
+                  <ul className="space-y-2">
+                    {fitResult.friction_bullets.map((b, idx) => (
+                      <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                        <span className="text-blue-500 mt-0.5 flex-shrink-0">•</span>
+                        <span>{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {fitResult.why_not_100.length > 0 && (
+                <div className="pt-3 border-t border-gray-100">
+                  <p className="text-xs font-medium text-gray-400 uppercase mb-2">Why not perfect?</p>
+                  <ul className="space-y-1">
+                    {fitResult.why_not_100.map((r, idx) => (
+                      <li key={idx} className="text-xs text-gray-500">• {r}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          );
+
+          return (
+            <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm bg-white">
+              {/* Photos row */}
+              <div className="grid sm:grid-cols-2 grid-cols-1">
+                <div className="relative h-48 bg-gray-100 sm:border-r border-b sm:border-b-0 border-gray-200">
+                  <VehicleImage {...imgA} className="w-full h-full" imgClassName="w-full h-full object-cover" />
+                  <div className="absolute bottom-2 left-2">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border shadow-sm ${signalBadge(result.optionA.fit_signal)}`}>
+                      {FIT_SIGNAL_LABELS[result.optionA.fit_signal]}
                     </span>
                   </div>
                 </div>
-                <div className="px-4 py-3">
-                  <p className="font-bold text-gray-900 text-sm">{label}</p>
-                  {unlocked && (
-                    <p className="text-xs text-gray-500 mt-0.5 italic">{FADE_LABEL_DISPLAY[(fitResult as typeof result.optionA).fade_label]}</p>
-                  )}
+                <div className="relative h-48 bg-gray-100">
+                  <VehicleImage {...imgB} className="w-full h-full" imgClassName="w-full h-full object-cover" />
+                  <div className="absolute bottom-2 left-2">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border shadow-sm ${signalBadge(result.optionB.fit_signal)}`}>
+                      {FIT_SIGNAL_LABELS[result.optionB.fit_signal]}
+                    </span>
+                  </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
+
+              {/* Labels row */}
+              <div className="grid sm:grid-cols-2 grid-cols-1 border-t border-gray-200">
+                <div className="px-4 py-3 sm:border-r border-b sm:border-b-0 border-gray-200">
+                  <p className="font-bold text-gray-900 text-sm">{labelA}</p>
+                  {unlocked && <p className="text-xs text-gray-500 mt-0.5 italic">{FADE_LABEL_DISPLAY[result.optionA.fade_label]}</p>}
+                </div>
+                <div className="px-4 py-3">
+                  <p className="font-bold text-gray-900 text-sm">{labelB}</p>
+                  {unlocked && <p className="text-xs text-gray-500 mt-0.5 italic">{FADE_LABEL_DISPLAY[result.optionB.fade_label]}</p>}
+                </div>
+              </div>
+
+              {/* Detail columns — unlocked only */}
+              {unlocked && (
+                <div className="grid sm:grid-cols-2 grid-cols-1 border-t border-gray-200 sm:divide-x divide-gray-200">
+                  {renderDetails(result.optionA)}
+                  <div className="sm:hidden border-t border-gray-200" />
+                  {renderDetails(result.optionB)}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Spec table — always visible if user added specs */}
         {includeSpecs && hasAnySpec && (
@@ -814,12 +885,6 @@ function ComparePageContent() {
         {/* ── UNLOCKED CONTENT ─────────────────────────────────── */}
         {unlocked && (
           <>
-            {/* Full result cards */}
-            <div className="grid md:grid-cols-2 gap-4">
-              {renderResultCard(result.optionA, "Option A")}
-              {renderResultCard(result.optionB, "Option B")}
-            </div>
-
             {/* Delta */}
             <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-5">
               <h3 className="font-bold text-gray-900 mb-4">What would actually change?</h3>
