@@ -36,12 +36,20 @@ function formatPrice(cents: number): string {
   return "$" + Math.round(cents / 100).toLocaleString();
 }
 
+function scoreToLabel(score: number): string {
+  if (score >= 80) return "Great Fit";
+  if (score >= 65) return "Good Fit";
+  if (score >= 45) return "Mixed Fit";
+  return "High Friction";
+}
+
 export default function RecommendationCard({ recommendation: rec, onSelect, muted, userZipCode, weeklyMiles }: RecommendationCardProps) {
   const { trackExternalLinkClicked } = useEventTracking();
   const [expanded, setExpanded] = useState(false);
   const [showReceiptNudge, setShowReceiptNudge] = useState(false);
-  const colors = fitColors[rec.fit_label] ?? fitColors["Mixed Fit"];
-  const badgeBg = scoreBadgeColors[rec.fit_label] ?? "bg-gray-500";
+  const fitLabel = scoreToLabel(rec.fit_score);
+  const colors = fitColors[fitLabel] ?? fitColors["Mixed Fit"];
+  const badgeBg = scoreBadgeColors[fitLabel] ?? "bg-gray-500";
   const hasDealers = rec.dealer_listings.length > 0;
   const totalListings = rec.dealer_listings.reduce((sum, d) => sum + d.listing_count, 0);
 
@@ -91,7 +99,7 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
         {/* Fit label overlaid on photo */}
         <div className="absolute bottom-3 left-3">
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm ${colors.bg} ${colors.text}`}>
-            {rec.fit_label}
+            {fitLabel}
           </span>
         </div>
       </div>
