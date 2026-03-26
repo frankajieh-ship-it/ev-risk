@@ -365,6 +365,13 @@ export async function GET(request: NextRequest) {
       if (eventNames.has("first_interaction")) score -= 15;
       if (durationMs > 5000) score -= 10;
       if (eventNames.size >= 2) score -= 5;
+      // Interaction-based human signals — bots don't submit forms or click save
+      if (eventNames.has("email_capture_submitted")) score -= 20;
+      if (eventNames.has("email_checklist_submit")) score -= 20;
+      if (eventNames.has("scenario_save_clicked")) score -= 15;
+      if (eventNames.has("receipt_generate_clicked")) score -= 10;
+      if (eventNames.has("receipt_result_viewed")) score -= 5;
+      if (eventNames.has("email_capture_shown")) score -= 5;
       if (userAgent && BOT_UA_PATTERNS.test(userAgent)) score += 40;
       if (!userAgent) score += 20;
       if (eventCount === 1) score += 10;
