@@ -342,6 +342,11 @@ export async function POST(request: NextRequest) {
       // Fill missing trim from VIN decode if not extracted
       if (!fields.trim && vd.trim) fields.trim = vd.trim;
     }
+    // Backfill VIN from listings search when scraper couldn't extract it
+    // (CarGurus and some other sites no longer expose VIN in page HTML)
+    if (!fields.vin && autoDevData.listing_vin) {
+      fields.vin = autoDevData.listing_vin;
+    }
 
     // Log fetch_success event
     if (isSupabaseConfigured() && sessionId) {
