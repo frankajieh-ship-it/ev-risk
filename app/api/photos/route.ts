@@ -16,8 +16,8 @@ const MODEL_EXACT_MAP: Record<string, string> = {
   // Nissan
   "leaf": "LEAF", "leaf s": "LEAF", "leaf sv": "LEAF", "leaf sl": "LEAF",
   "leaf plus s": "LEAF", "leaf plus sv": "LEAF", "leaf plus sl": "LEAF",
-  // Hyundai
-  "ioniq 5": "IONIQ 5", "ioniq 6": "IONIQ 6",
+  // Hyundai — Auto.dev uses title case, NOT all-caps
+  "ioniq 5": "Ioniq 5", "ioniq 6": "Ioniq 6",
   // Mercedes (make comes in as "Mercedes" or "Mercedes-Benz")
   "eqs 450+": "EQS", "eqs 580 4matic": "EQS", "eqs": "EQS",
   "eqb 300 4matic": "EQB", "eqb": "EQB",
@@ -36,6 +36,7 @@ const TRIM_SUFFIXES = [
   " awd", " rwd", " fwd",
   " 450+", " 580", " 350+",
   " e-4wd",
+  " select", " premium", " pro",
 ];
 
 // Make aliases — Auto.dev uses specific make strings
