@@ -77,6 +77,7 @@ export default function CopartPage() {
   const [hasSaved, setHasSaved] = useState(false);
   const [showUnlock, setShowUnlock] = useState(true);
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [fetchBlocked, setFetchBlocked] = useState(false);
 
   // Store the listing text for the arbitrage card (ref = no re-render)
   const listingTextRef = useRef("");
@@ -137,6 +138,7 @@ export default function CopartPage() {
     setHasSaved(false);
     setShowUnlock(true);
     setIsUnlocked(false);
+    setFetchBlocked(false);
 
     trackEvent("copart_analyze_started", { input_type: isCopartUrl(trimmed) ? "url" : "vin_or_text" });
 
@@ -163,8 +165,18 @@ export default function CopartPage() {
           vin = parsed.vin ?? undefined;
           if (vin) setDetectedVin(vin);
           listingUrl = trimmed;
+        } else if (data.cookie_wall) {
+          // Copart shows a cookie consent page — we can't scrape through it
+          setPageState("error");
+          setFetchBlocked(true);
+          setErrorMsg("cookie_wall");
+          return;
         } else {
-          console.warn("[Copart] Proxy fetch failed:", data.error);
+          // Generic block / other scrape failure — still surface it
+          setPageState("error");
+          setFetchBlocked(true);
+          setErrorMsg("fetch_failed");
+          return;
         }
       } catch (e) {
         console.warn("[Copart] Proxy fetch error:", e);
@@ -288,9 +300,27 @@ export default function CopartPage() {
 
         {/* Error */}
         {pageState === "error" && errorMsg && (
-          <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-200 rounded-xl">
-            <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-red-700">{errorMsg}</p>
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+              <p className="text-sm font-semibold text-amber-800">
+                {errorMsg === "cookie_wall"
+                  ? "Copart blocked automatic extraction (cookie consent wall)"
+                  : errorMsg === "fetch_failed"
+                  ? "Couldn't fetch the auction lot page"
+                  : errorMsg}
+              </p>
+            </div>
+            {fetchBlocked && (
+              <div className="pl-6 space-y-1.5 text-sm text-amber-700">
+                <p>To get an accurate analysis, paste the lot details manually:</p>
+                <ul className="list-disc list-inside text-xs space-y-0.5 text-amber-600">
+                  <li>Open the Copart lot in your browser and accept cookies</li>
+                  <li>Copy the damage description, title type, VIN, year/make/model, and mileage</li>
+                  <li>Paste everything into the box above and click Analyse</li>
+                </ul>
+              </div>
+            )}
           </div>
         )}
 

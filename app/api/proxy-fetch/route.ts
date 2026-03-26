@@ -74,6 +74,8 @@ export async function POST(request: NextRequest) {
       'autotempest.com',
       'hemmings.com',
       'facebook.com',
+      'copart.com',
+      'iaai.com',
     ];
 
     const isAllowed = allowedDomains.some(domain =>
@@ -140,7 +142,14 @@ export async function POST(request: NextRequest) {
 
       console.log('[Proxy Fetch] HTML received, length:', html.length);
 
-      // Check if we got blocked
+      // Check if we got a cookie consent / bot wall instead of real content
+      const lowerHtml = html.toLowerCase();
+      const isCookieWall =
+        (lowerHtml.includes('cookie') && lowerHtml.includes('consent') && html.length < 15000) ||
+        lowerHtml.includes('cookiebanner') ||
+        lowerHtml.includes('cookie-banner') ||
+        lowerHtml.includes('cookie_consent') ||
+        (lowerHtml.includes('accept') && lowerHtml.includes('cookie') && !lowerHtml.includes('lot-') && html.length < 10000);
       const isBlocked =
         html.includes('captcha') ||
         html.includes('bot detection') ||
@@ -149,13 +158,22 @@ export async function POST(request: NextRequest) {
         html.includes('access denied') ||
         html.length < 2000;
 
+      if (isCookieWall) {
+        console.warn('[Proxy Fetch] Cookie consent wall detected');
+        return NextResponse.json({
+          success: false,
+          error: 'cookie_wall',
+          blocked: true,
+          cookie_wall: true,
+        }, { status: 422 });
+      }
+
       if (isBlocked) {
         console.warn('[Proxy Fetch] Possible blocking detected');
         return NextResponse.json({
           success: false,
-          error: 'Site appears to be blocking automated requests',
+          error: 'blocked',
           blocked: true,
-          html: html.substring(0, 1000), // Return first 1000 chars for debugging
         }, { status: 403 });
       }
 
