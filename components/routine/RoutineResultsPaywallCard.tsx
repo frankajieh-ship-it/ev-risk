@@ -73,8 +73,20 @@ export default function RoutineResultsPaywallCard({ runId, receiptToken, scenari
       }
 
       setError(data.error || "Checkout failed. Please try again.");
-    } catch {
+      trackEvent("checkout_failed", {
+        run_id: runId,
+        pack_tier: "seller_questions",
+        error: data.error || "unknown",
+        page_source: "routine_results_paywall",
+      });
+    } catch (err) {
       setError("Connection error. Please try again.");
+      trackEvent("checkout_failed", {
+        run_id: runId,
+        pack_tier: "seller_questions",
+        error: err instanceof Error ? err.message : "connection_error",
+        page_source: "routine_results_paywall",
+      });
     } finally {
       setCheckingOut(false);
     }

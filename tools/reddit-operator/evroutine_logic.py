@@ -34,9 +34,11 @@ from models import EVRoutineInviteDecision, TechSupportFlag
 # -------------------------
 
 TOOL_URLS = {
-    "routine": "https://offolab.com/routine",
-    "receipt": "https://offolab.com/receipt",
-    "compare": "https://offolab.com/compare",
+    "routine":   "https://offolab.com/routine",
+    "receipt":   "https://offolab.com/receipt",
+    "compare":   "https://offolab.com/compare",
+    "dealer_qa": "https://offolab.com/receipt",  # dealer Q&A is part of the receipt flow
+    "dealer":    "https://offolab.com/workspace",
 }
 
 # -------------------------
@@ -59,6 +61,18 @@ INVITE_TEXT = {
         "comparison side by side — it shows which one will fade into the background vs "
         "keep resurfacing based on how you actually drive."
     ),
+    "dealer_qa": (
+        "I can help generate personalized seller follow-up questions — if you share the listing "
+        "at offolab.com/receipt it'll pull the VIN and surface exactly what to ask the dealer."
+    ),
+    "dealer": (
+        "If you're the seller, offolab.com/workspace lets you upload the listing directly and "
+        "get matched with serious buyers who've already done their EV research."
+    ),
+    "vin": (
+        "I can run a VIN decode + risk check — paste the 17-character VIN and I'll pull the "
+        "history flags. Or drop the listing at offolab.com/receipt for the full analysis."
+    ),
 }
 
 TOOL_BLURBS = {
@@ -75,6 +89,14 @@ TOOL_BLURBS = {
     "compare": (
         "offolab.com/compare runs a side-by-side routine-fit analysis on two EVs — not specs, "
         "but which one fits your charging anchor, planning tolerance, and weekly variability."
+    ),
+    "dealer_qa": (
+        "offolab.com/receipt generates a personalized set of dealer follow-up questions based on "
+        "the specific listing — VIN flags, mileage context, and the questions buyers usually forget to ask."
+    ),
+    "dealer": (
+        "offolab.com/workspace is built for dealers and private sellers — upload your listing, "
+        "get matched with OFFO buyers who have already completed their EV fit check."
     ),
 }
 
@@ -136,6 +158,19 @@ NO_INVITE_STATES = {"confident", "excited"}
 NO_INVITE_INTENTS = {"debate", "news"}
 NO_INVITE_TAGS = {"BRAND_WAR_RISK"}
 
+# Intents that route to specific tools regardless of text patterns
+INTENT_TOOL_MAP = {
+    "vin_analysis":     ("receipt",   "vin",       "intent:vin_analysis"),
+    "compare_listings": ("compare",   "compare",   "intent:compare_listings"),
+    "listing_rating":   ("receipt",   "receipt",   "intent:listing_rating"),
+    "pricing_deal":     ("receipt",   "receipt",   "intent:pricing_deal"),
+    "dealer_questions": ("dealer_qa", "dealer_qa", "intent:dealer_questions"),
+    "dealer_upload":    ("dealer",    "dealer",    "intent:dealer_upload"),
+    "routine_fit":      ("routine",   "routine",   "intent:routine_fit"),
+    "charging_question":("routine",   "routine",   "intent:charging_question"),
+    "purchase_advice":  ("routine",   "routine",   "intent:purchase_advice"),
+}
+
 
 def _has_any(text: str, patterns: List[str]) -> bool:
     t = text.lower()
@@ -155,12 +190,18 @@ def decide_tool_invite(
     """
     Decide which OFFO tool (if any) to invite the user to.
 
-    Priority order:
+    Priority order (first match wins):
     1. Hard blocks — brand war, confident, news → no invite
-    2. Comparing two specific options → /compare
-    3. Specific listing / VIN / dealer / price → /receipt
-    4. Friction tag triggered OR user uncertain → /routine
-    5. Default → no invite
+    2. VIN_MENTIONED tag OR vin_analysis intent → /receipt (VIN invite)
+    3. TWO_LISTINGS_MENTIONED OR compare_listings intent → /compare
+    4. SPECIFIC_LISTING_PRESENT OR listing_rating / pricing_deal intent → /receipt
+    5. dealer_questions intent → dealer_qa
+    6. dealer_upload intent → dealer
+    7. Intent-to-tool map (routine_fit, charging_question, purchase_advice) → /routine
+    8. Listing URL patterns (regex) → /receipt
+    9. Compare patterns (regex) → /compare
+    10. Friction tag OR uncertain → /routine
+    11. Default → no invite
     """
     # Hard blocks
     if user_state in NO_INVITE_STATES:
@@ -172,11 +213,20 @@ def decide_tool_invite(
 
     text = combined_text.lower()
 
-    # Rule 1: Comparing two options → /compare
+    # Rule 1: VIN → /receipt (highest specificity)
+    if "VIN_MENTIONED" in friction_tags or intent == "vin_analysis":
+        return EVRoutineInviteDecision(
+            should_invite=True,
+            tool="receipt",
+            invite_text=INVITE_TEXT["vin"],
+            trigger_reason="vin_mentioned",
+        )
+
+    # Rule 2: Two listings → /compare
     if (
-        "COMPARING_TWO_OPTIONS" in friction_tags
-        or intent == "comparison"
-        or _has_any(text, COMPARE_PATTERNS)
+        "TWO_LISTINGS_MENTIONED" in friction_tags
+        or intent == "compare_listings"
+        or "COMPARING_TWO_OPTIONS" in friction_tags
     ):
         return EVRoutineInviteDecision(
             should_invite=True,
@@ -185,8 +235,12 @@ def decide_tool_invite(
             trigger_reason="comparing_two_options",
         )
 
-    # Rule 2: Specific listing → /receipt
-    if _has_any(text, LISTING_PATTERNS):
+    # Rule 3: Specific listing / pricing deal → /receipt
+    if (
+        "SPECIFIC_LISTING_PRESENT" in friction_tags
+        or intent in ("listing_rating", "pricing_deal")
+        or _has_any(text, LISTING_PATTERNS)
+    ):
         return EVRoutineInviteDecision(
             should_invite=True,
             tool="receipt",
@@ -194,7 +248,34 @@ def decide_tool_invite(
             trigger_reason="specific_listing",
         )
 
-    # Rule 3: Friction tag or uncertainty → /routine
+    # Rule 4: Dealer questions
+    if intent == "dealer_questions":
+        return EVRoutineInviteDecision(
+            should_invite=True,
+            tool="dealer_qa",
+            invite_text=INVITE_TEXT["dealer_qa"],
+            trigger_reason="intent:dealer_questions",
+        )
+
+    # Rule 5: Dealer upload
+    if intent == "dealer_upload":
+        return EVRoutineInviteDecision(
+            should_invite=True,
+            tool="dealer",
+            invite_text=INVITE_TEXT["dealer"],
+            trigger_reason="intent:dealer_upload",
+        )
+
+    # Rule 6: Compare via text patterns
+    if _has_any(text, COMPARE_PATTERNS):
+        return EVRoutineInviteDecision(
+            should_invite=True,
+            tool="compare",
+            invite_text=INVITE_TEXT["compare"],
+            trigger_reason="compare_pattern",
+        )
+
+    # Rule 7: Friction tag or intent → /routine
     triggering_tags = [t for t in friction_tags if t in ROUTINE_FRICTION_TRIGGERS]
     if triggering_tags:
         return EVRoutineInviteDecision(
@@ -204,12 +285,12 @@ def decide_tool_invite(
             trigger_reason=f"friction_tag:{triggering_tags[0]}",
         )
 
-    if user_state == "uncertain":
+    if intent in ("routine_fit", "charging_question", "purchase_advice") or user_state == "uncertain":
         return EVRoutineInviteDecision(
             should_invite=True,
             tool="routine",
             invite_text=INVITE_TEXT["routine"],
-            trigger_reason="user_uncertain",
+            trigger_reason="user_uncertain" if user_state == "uncertain" else f"intent:{intent}",
         )
 
     return EVRoutineInviteDecision(should_invite=False)
@@ -228,6 +309,11 @@ def decide_evroutine_invite(
 def get_tool_blurb(tool: str) -> str:
     """Return the full tool blurb for a given tool key."""
     return TOOL_BLURBS.get(tool, TOOL_BLURBS["routine"])
+
+
+def get_tool_url(tool: str) -> str:
+    """Return the URL for a given tool key."""
+    return TOOL_URLS.get(tool, TOOL_URLS["routine"])
 
 
 # -------------------------

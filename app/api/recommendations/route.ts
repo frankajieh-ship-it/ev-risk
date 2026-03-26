@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     if (blocked) return blocked;
 
     // Rate limit
-    const burst = recLimiter.check(clientIP);
+    const burst = await recLimiter.checkAsync(clientIP);
     if (!burst.allowed) {
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },

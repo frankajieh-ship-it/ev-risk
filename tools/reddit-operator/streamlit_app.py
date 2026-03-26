@@ -25,7 +25,7 @@ st.set_page_config(
 )
 
 st.title("OFFO — Reddit Operator Tool v2")
-st.caption("Multi-AI pipeline · Grok + Claude + GPT-4o · EVRoutine funnel")
+st.caption("Multi-AI pipeline · Grok + Gemini + GPT-4o · EVRoutine funnel · Auto.dev market analytics")
 
 # -------------------------
 # Sidebar settings (shared)
@@ -34,6 +34,19 @@ st.caption("Multi-AI pipeline · Grok + Claude + GPT-4o · EVRoutine funnel")
 with st.sidebar:
     st.subheader("Settings")
     api_base = st.text_input("FastAPI base URL", value=API_BASE_DEFAULT)
+
+    # Live health check
+    try:
+        _h = requests.get(f"{api_base}/health", timeout=3).json()
+        clients = _h.get("ai_clients", {})
+        market_ok = _h.get("market_analytics", False)
+        _status_parts = []
+        for name, ok in clients.items():
+            _status_parts.append(f"{'✅' if ok else '❌'} {name}")
+        _status_parts.append(f"{'✅' if market_ok else '⚠️'} auto.dev")
+        st.caption("  \n".join(_status_parts))
+    except Exception:
+        st.caption("⚠️ API offline")
 
     subreddit = st.text_input("Subreddit (optional)", value="", placeholder="e.g., ElectricVehicles")
 
@@ -94,9 +107,11 @@ def _render_friction_badges(tags: list):
 
 
 TOOL_LABELS = {
-    "routine":  ("🧭", "offolab.com/routine",  "#2e86de"),
-    "receipt":  ("🧾", "offolab.com/receipt",  "#10ac84"),
-    "compare":  ("⚖️", "offolab.com/compare",  "#ee5a24"),
+    "routine":   ("🧭", "offolab.com/routine",    "#2e86de"),
+    "receipt":   ("🧾", "offolab.com/receipt",    "#10ac84"),
+    "compare":   ("⚖️",  "offolab.com/compare",   "#ee5a24"),
+    "dealer_qa": ("💬", "offolab.com/receipt",    "#8854d0"),
+    "dealer":    ("🏢", "offolab.com/workspace",  "#fd9644"),
 }
 
 def _render_tool_invite(invite: dict):
@@ -114,11 +129,93 @@ def _render_tool_invite(invite: dict):
         st.info("Tool invite: not triggered")
 
 
+def _render_vehicle_card(dv: dict | None):
+    """Render detected vehicle details as a compact info card."""
+    if not dv:
+        return
+    parts = []
+    year = dv.get("year")
+    make = dv.get("make")
+    model = dv.get("model")
+    trim = dv.get("trim")
+    price = dv.get("price_mentioned")
+    mileage = dv.get("mileage_mentioned")
+    if year or make or model:
+        label = " ".join(filter(None, [str(year) if year else None, make, model, trim]))
+        parts.append(f"🚗 **{label}**")
+    if price:
+        parts.append(f"💰 ${price:,}")
+    if mileage:
+        parts.append(f"📍 {mileage:,} mi")
+    if parts:
+        st.info("  ·  ".join(parts))
+
+
+def _render_intent_badges(intent: str | None, secondary_intent: str | None, suggested_tool: str | None):
+    """Render primary/secondary intent and suggested tool as inline badges."""
+    badge_html = ""
+    if intent:
+        badge_html += f'<span style="background:#2e86de;color:#fff;padding:2px 10px;border-radius:4px;margin-right:6px;font-size:0.85em;">{intent}</span>'
+    if secondary_intent:
+        badge_html += f'<span style="background:#8854d0;color:#fff;padding:2px 10px;border-radius:4px;margin-right:6px;font-size:0.85em;">+{secondary_intent}</span>'
+    if suggested_tool and suggested_tool != "none":
+        icon = TOOL_LABELS.get(suggested_tool, ("🔧",))[0]
+        badge_html += f'<span style="background:#f0f2f6;color:#333;padding:2px 10px;border-radius:4px;margin-right:6px;font-size:0.85em;">{icon} {suggested_tool}</span>'
+    if badge_html:
+        st.markdown(badge_html, unsafe_allow_html=True)
+
+
 def _render_safety_flags(flags: list):
     if flags:
         st.markdown("### Safety / tone flags")
         for f in flags:
             st.warning(f"⚠️ {f}")
+
+
+def _vehicle_label(dv: dict | None) -> str:
+    """Return a compact string for a detected_vehicle dict."""
+    if not dv:
+        return ""
+    parts = [str(dv["year"]) if dv.get("year") else None, dv.get("make"), dv.get("model")]
+    label = " ".join(p for p in parts if p)
+    if dv.get("price_mentioned"):
+        label += f" ${dv['price_mentioned']:,}"
+    return label
+
+
+def _render_market_card(md: dict | None):
+    """Render Auto.dev market analytics as a compact metrics card."""
+    if not md:
+        return
+    avg = md.get("average_price")
+    spread = md.get("price_spread")
+    n = md.get("sample_size", 0)
+    percentile = md.get("price_percentile")
+    if not avg or not n:
+        return
+
+    st.markdown("#### 📊 Market Context (Auto.dev)")
+    mc1, mc2, mc3 = st.columns(3)
+    mc1.metric("Local avg price", f"${avg:,}", help=f"{n} comparable listings")
+    if percentile is not None:
+        delta_label = "below avg" if percentile <= 45 else ("at avg" if percentile <= 60 else "above avg")
+        mc2.metric("Price percentile", f"{percentile}th", delta=delta_label,
+                   delta_color="normal" if percentile <= 45 else "inverse")
+    if spread:
+        mc3.metric("Local range", spread)
+
+    comps = md.get("local_comps") or []
+    if comps:
+        with st.expander(f"Comparable listings ({n} found)"):
+            import pandas as pd
+            df_comps = pd.DataFrame([{
+                "year":    c.get("year", ""),
+                "trim":    c.get("trim", ""),
+                "price":   f"${c['price']:,}" if c.get("price") else "",
+                "mileage": f"{c['mileage']:,}" if c.get("mileage") else "",
+                "seller":  c.get("dealer_type", ""),
+            } for c in comps])
+            st.dataframe(df_comps, use_container_width=True)
 
 
 # -------------------------
@@ -297,6 +394,19 @@ with tab2:
                     cB.metric("User state", data.get("user_state", "—"))
                     cC.metric("Phase", data.get("ownership_phase", "—"))
 
+                    # v2: Intent badges + suggested tool
+                    _render_intent_badges(
+                        data.get("intent"),
+                        data.get("secondary_intent"),
+                        data.get("suggested_tool"),
+                    )
+
+                    # v2: Detected vehicle card
+                    _render_vehicle_card(data.get("detected_vehicle") or data.get("debug", {}).get("detected_vehicle"))
+
+                    # v2: Market analytics card (Stage 3.5 — only present for listing/pricing/compare)
+                    _render_market_card(data.get("market_data"))
+
                     # Key concern
                     key_concern = data.get("debug", {}).get("key_concern") or ""
                     if key_concern:
@@ -354,6 +464,38 @@ with tab2:
 
                     _render_safety_flags(data.get("safety_flags", []))
 
+                    # ── Approve & Post flow ────────────────────────────────
+                    session_id = data.get("session_id", "")
+                    if session_id:
+                        st.markdown("---")
+                        st.markdown("### Approve & Post")
+                        with st.form(key=f"approve_form_{session_id}"):
+                            edited = st.text_area(
+                                "Edit before posting (or leave as-is):",
+                                value=data.get("draft_reply_short", ""),
+                                height=140,
+                                key="approve_edit",
+                            )
+                            col_post, col_edit, col_skip = st.columns(3)
+                            with col_post:
+                                posted = st.form_submit_button("✅ Mark as Posted", use_container_width=True)
+                            with col_edit:
+                                edited_posted = st.form_submit_button("✏️ Edit then Post", use_container_width=True)
+                            with col_skip:
+                                skipped = st.form_submit_button("⏭️ Skip", use_container_width=True)
+
+                        if posted or edited_posted or skipped:
+                            outcome = "posted" if posted else ("edited" if edited_posted else "skipped")
+                            try:
+                                payload_outcome = {
+                                    "session_id": session_id,
+                                    "outcome": outcome,
+                                }
+                                _post(f"/sessions/{session_id}/outcome", payload_outcome)
+                                st.success(f"Saved outcome: **{outcome}**")
+                            except Exception:
+                                st.success(f"Outcome recorded locally: **{outcome}** (API save optional)")
+
                     with st.expander("Raw JSON"):
                         st.code(json.dumps(data, indent=2), language="json")
 
@@ -376,6 +518,7 @@ with tab3:
     refresh = st.button("Refresh metrics", key="refresh_analytics")
 
     try:
+        import pandas as pd
         with st.spinner("Loading metrics..."):
             stats = _get("/stats/funnel")
 
@@ -388,37 +531,70 @@ with tab3:
 
         st.metric("Replies posted", stats.get("posted_count", 0))
 
-        # Friction tag frequency bar chart
-        tag_freq = stats.get("tag_frequency", {})
-        if tag_freq:
-            st.markdown("### Friction tag frequency")
-            import pandas as pd
-            df = pd.DataFrame(
-                list(tag_freq.items()), columns=["Friction Tag", "Count"]
-            ).sort_values("Count", ascending=False)
-            st.bar_chart(df.set_index("Friction Tag"))
-        else:
-            st.info("No friction tag data yet.")
-
-        # Recent sessions table
+        # Recent sessions table (with v2 columns)
         st.markdown("### Recent sessions")
-        recent_data = _get("/stats/recent", {"limit": 20})
+        recent_data = _get("/stats/recent", {"limit": 50})
         sessions = recent_data.get("analyses", [])
         if sessions:
-            import pandas as pd
-            df2 = pd.DataFrame([{
-                "created_at": s.get("created_at", ""),
+            df_sessions = pd.DataFrame([{
+                "created_at": s.get("created_at", "")[:19],
                 "mode": s.get("mode", ""),
                 "subreddit": s.get("subreddit", ""),
                 "intent": s.get("intent", ""),
+                "secondary_intent": s.get("secondary_intent", ""),
+                "suggested_tool": s.get("suggested_tool", ""),
+                "vehicle": _vehicle_label(s.get("detected_vehicle")),
                 "user_state": s.get("user_state", ""),
                 "invited": s.get("evroutine_invited", False),
                 "outcome": s.get("posted_outcome", ""),
                 "latency_ms": s.get("total_latency_ms", ""),
             } for s in sessions])
-            st.dataframe(df2, use_container_width=True)
+            st.dataframe(df_sessions, use_container_width=True)
+
+            # ── Intent distribution chart ───────────────────────────────
+            st.markdown("### Intent distribution")
+            intent_counts = df_sessions["intent"].value_counts().reset_index()
+            intent_counts.columns = ["Intent", "Count"]
+            if not intent_counts.empty:
+                st.bar_chart(intent_counts.set_index("Intent"))
+
+            # ── Suggested tool distribution chart ─────────────────────
+            st.markdown("### Suggested tool routing")
+            tool_counts = df_sessions[df_sessions["suggested_tool"] != ""]["suggested_tool"].value_counts().reset_index()
+            tool_counts.columns = ["Tool", "Count"]
+            if not tool_counts.empty:
+                tool_counts["Icon"] = tool_counts["Tool"].apply(
+                    lambda t: f"{TOOL_LABELS.get(t, ('🔧',))[0]} {t}"
+                )
+                st.bar_chart(tool_counts.set_index("Icon")["Count"])
+            else:
+                st.info("No tool routing data yet (requires v2 sessions).")
+
+            # ── Detected vehicles table ────────────────────────────────
+            vehicle_rows = [s.get("detected_vehicle") for s in sessions if s.get("detected_vehicle")]
+            if vehicle_rows:
+                st.markdown("### Detected vehicles (recent)")
+                df_vehicles = pd.DataFrame([{
+                    "year":  v.get("year", ""),
+                    "make":  v.get("make", ""),
+                    "model": v.get("model", ""),
+                    "price": f"${v['price_mentioned']:,}" if v.get("price_mentioned") else "",
+                    "mileage": f"{v['mileage_mentioned']:,}" if v.get("mileage_mentioned") else "",
+                } for v in vehicle_rows])
+                st.dataframe(df_vehicles, use_container_width=True)
         else:
             st.info("No sessions recorded yet.")
+
+        # Friction tag frequency bar chart
+        tag_freq = stats.get("tag_frequency", {})
+        if tag_freq:
+            st.markdown("### Friction tag frequency")
+            df_tags = pd.DataFrame(
+                list(tag_freq.items()), columns=["Friction Tag", "Count"]
+            ).sort_values("Count", ascending=False)
+            st.bar_chart(df_tags.set_index("Friction Tag"))
+        else:
+            st.info("No friction tag data yet.")
 
     except requests.exceptions.ConnectionError:
         st.warning("⚠️ Cannot connect to API — analytics unavailable.")

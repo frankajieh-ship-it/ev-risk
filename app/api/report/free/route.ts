@@ -6,7 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/api-auth";
 import { v4 as uuidv4 } from "uuid";
 
 export async function GET(request: NextRequest) {
@@ -23,6 +24,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+    }
     const { data, error } = await supabase
       .from("reports")
       .select("payload_json, status")
@@ -52,6 +57,11 @@ export async function POST(request: NextRequest) {
       { success: false, error: "Database not configured" },
       { status: 503 }
     );
+  }
+
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   }
 
   try {
@@ -162,7 +172,7 @@ export async function POST(request: NextRequest) {
       console.error("Failed to track report creation:", trackingError);
     }
 
-    console.log(`✅ Free report created: ${reportId} (${vehicleYear} ${vehicleModel})`);
+    console.log(`Free report created: ${reportId} (${vehicleYear} ${vehicleModel})`);
 
     return NextResponse.json({
       reportId,

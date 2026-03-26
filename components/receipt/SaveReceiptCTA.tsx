@@ -180,7 +180,7 @@ export default function SaveReceiptCTA({
     onSaveSuccess?.();
   };
 
-  const fullClass = "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-all";
+  const fullClass = "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-teal-600 text-white hover:bg-teal-700 active:bg-teal-800 transition-all shadow-sm";
   const compactClass = "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition-colors";
 
   return (
@@ -191,7 +191,7 @@ export default function SaveReceiptCTA({
           className={compact ? compactClass : fullClass}
         >
           <Bookmark className="w-4 h-4" />
-          {compact ? "Save" : "Save This Receipt"}
+          {compact ? "Save" : "Save to My Garage"}
         </button>
       )}
 
@@ -208,7 +208,7 @@ export default function SaveReceiptCTA({
       {saveState === "saved" && (
         <div className={compact
           ? "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-green-200 text-green-700 bg-green-50"
-          : "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border-2 border-green-200 text-green-700 bg-green-50"
+          : "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 border-green-200 text-green-700 bg-green-50"
         }>
           <CheckCircle className="w-4 h-4" />
           {compact ? "Saved" : "Receipt Saved!"}

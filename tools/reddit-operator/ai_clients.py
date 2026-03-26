@@ -12,13 +12,18 @@ allowing the pipeline to fall back to template-based generation.
 from __future__ import annotations
 
 import os
+import sys
+import traceback
 from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
 
 # Load .env from this directory (separate from Next.js .env.local)
-load_dotenv(Path(__file__).parent / ".env")
+_env_path = Path(__file__).parent / ".env"
+load_dotenv(_env_path)
+print(f"[ai_clients] Loaded .env from {_env_path}", file=sys.stderr)
+print(f"[ai_clients] Keys present: GROK={'yes' if os.getenv('GROK_API_KEY') else 'MISSING'} | OPENAI={'yes' if os.getenv('OPENAI_API_KEY') else 'MISSING'} | GEMINI={'yes' if os.getenv('GEMINI_API_KEY') else 'MISSING'} | ANTHROPIC={'yes' if os.getenv('ANTHROPIC_API_KEY') else 'MISSING'}", file=sys.stderr)
 
 
 # -------------------------
@@ -71,7 +76,9 @@ def call_grok(
             max_tokens=max_tokens,
         )
         return response.choices[0].message.content
-    except Exception:
+    except Exception as e:
+        print(f"[ai_clients] call_grok ERROR ({model}): {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return None
 
 
@@ -124,7 +131,9 @@ def call_claude(
             messages=[{"role": "user", "content": user}],
         )
         return message.content[0].text
-    except Exception:
+    except Exception as e:
+        print(f"[ai_clients] call_claude ERROR: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return None
 
 
@@ -181,7 +190,9 @@ def call_gpt4o(
 
         response = client.chat.completions.create(**kwargs)
         return response.choices[0].message.content
-    except Exception:
+    except Exception as e:
+        print(f"[ai_clients] call_gpt4o ERROR ({model}): {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return None
 
 
@@ -237,7 +248,9 @@ def call_gemini(
         )
         response = genai_model.generate_content(user)
         return response.text
-    except Exception:
+    except Exception as e:
+        print(f"[ai_clients] call_gemini ERROR ({model}): {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return None
 
 

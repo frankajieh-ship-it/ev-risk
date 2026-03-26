@@ -115,6 +115,9 @@ def save_assist_session(req: Any, resp: Any) -> str:
         "top_comment_context": list(getattr(req, "top_comment_context", None) or []),
         "receipt_id": getattr(req, "receipt_id", None),
         "intent": resp.intent,
+        "secondary_intent": resp.secondary_intent,
+        "detected_vehicle": resp.detected_vehicle,  # JSONB — stored as dict
+        "suggested_tool": resp.suggested_tool,
         "user_state": resp.user_state,
         "ownership_phase": resp.ownership_phase,
         "friction_tags": list(resp.friction_tags or []),
@@ -131,6 +134,10 @@ def save_assist_session(req: Any, resp: Any) -> str:
         "invite_trigger": (
             resp.evroutine_invite.trigger_reason if resp.evroutine_invite else None
         ),
+        "offer_by_permission": bool(
+            resp.evroutine_invite.should_invite if resp.evroutine_invite else False
+        ),
+        "market_data": resp.market_data,  # JSONB — None if Stage 3.5 skipped/failed
         "total_latency_ms": resp.latency_ms,
     }
 

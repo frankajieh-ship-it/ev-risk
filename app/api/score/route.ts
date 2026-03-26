@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     if (blocked) return blocked;
 
     // Rate limit (5/hr per IP)
-    const burst = scoreBurstLimiter.check(clientIP);
+    const burst = await scoreBurstLimiter.checkAsync(clientIP);
     if (!burst.allowed) {
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },

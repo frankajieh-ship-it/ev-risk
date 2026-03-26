@@ -99,8 +99,18 @@ export default function DecisionPackCard({
       } else {
         setError(data.error || "Checkout failed. Please try again.");
       }
-    } catch {
+      trackEvent("checkout_failed", {
+        receipt_id: receiptId,
+        pack_tier: "buyer_pass",
+        error: data.error || "unknown",
+      });
+    } catch (err) {
       setError("Connection error. Please try again.");
+      trackEvent("checkout_failed", {
+        receipt_id: receiptId,
+        pack_tier: "buyer_pass",
+        error: err instanceof Error ? err.message : "connection_error",
+      });
     } finally {
       setCheckingOut(false);
     }

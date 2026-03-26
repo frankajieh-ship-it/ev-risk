@@ -162,6 +162,91 @@ FRICTION_PATTERNS = {
         r"\boverpriced\b",
         r"\boverhyped\b",
     ],
+
+    # ── v2: Pricing & value ──────────────────────────────────────────────
+    "PRICE_UNCERTAINTY": [
+        r"\$\d{1,3}[,k]",            # $28k, $18,000
+        r"\b(good|fair|bad) deal\b",
+        r"\btoo (much|expensive|cheap)\b",
+        r"\bworth (it|\$\d)",
+        r"\bprice.*right\b",
+        r"\bover.*asking\b",
+        r"\bunder.*market\b",
+    ],
+    "HIGH_MILEAGE_CONCERN": [
+        r"\b(1[0-9]\d|2\d{2})[,\s]*k?\s*(miles?|mi\b)",  # 100k+ miles
+        r"\bhigh mileage\b",
+        r"\blow(er)? range\b",
+        r"\b\d{3},\d{3}\s*miles?\b",    # 123,456 miles
+    ],
+    "WARRANTABLE_MILES": [
+        r"\bwarranty\b.*\bmiles?\b",
+        r"\bunder warranty\b",
+        r"\bstill (under|in) warranty\b",
+        r"\bbattery warranty\b",
+        r"\b8 year\b.*\bbattery\b",
+    ],
+
+    # ── v2: Listing specifics ─────────────────────────────────────────────
+    "SPECIFIC_LISTING_PRESENT": [
+        r"\b(autotrader|carvana|cargurus|cars\.com|carmax|carfax|vroom|craigslist)\b",
+        r"\blisting\b",
+        r"\bfor sale\b",
+        r"\bcpo\b",
+        r"\bcertified pre.?owned\b",
+        r"\bpaste.*url\b",
+        r"\blink to\b.*\bcar\b",
+    ],
+    "VIN_MENTIONED": [
+        r"\bvin\b",
+        r"\b[A-HJ-NPR-Z0-9]{17}\b",   # actual VIN pattern
+    ],
+    "TWO_LISTINGS_MENTIONED": [
+        r"\bvs\.?\b",
+        r"\bversus\b",
+        r"\bor the\b",
+        r"\btwo (options|choices|evs|cars|listings)\b",
+        r"\bbetween\b.*\band\b",
+        r"\bcan.?t decide\b",
+        r"\bwhich (one|is better)\b",
+    ],
+
+    # ── v2: Dealer & trust ───────────────────────────────────────────────
+    "DEALER_REPUTATION_UNKNOWN": [
+        r"\bdealer\b",
+        r"\bsalesperson\b",
+        r"\bsales rep\b",
+        r"\bdealership\b",
+        r"\bcan i trust\b",
+        r"\blegit\b",
+    ],
+    "PRIVATE_SELLER": [
+        r"\bprivate (sale|seller|party)\b",
+        r"\bcraigslist\b",
+        r"\bfacebook marketplace\b",
+        r"\bselling (my|their)\b",
+        r"\bowner.*selling\b",
+    ],
+
+    # ── v2: Decision stage ───────────────────────────────────────────────
+    "READY_TO_BUY": [
+        r"\bready to buy\b",
+        r"\bpull the trigger\b",
+        r"\bgoing (to buy|to get|with it)\b",
+        r"\balmost (decided|ready)\b",
+        r"\bshould i (just|go ahead)\b",
+        r"\btoday.*deal\b",
+        r"\bdo it\b.*\btoday\b",
+    ],
+    "EARLY_RESEARCH": [
+        r"\bjust (started|beginning)\b",
+        r"\bnew to (ev|electric)\b",
+        r"\bfirst ev\b",
+        r"\bconsidering (an|my first)\b",
+        r"\blearning about\b",
+        r"\bwhere (do i|to) start\b",
+        r"\bhaven.?t decided\b",
+    ],
 }
 
 
@@ -220,8 +305,13 @@ def get_primary_friction(tags: List[str]) -> str | None:
     5. BRAND_WAR_RISK (conversation risk)
     """
     priority = [
+        "VIN_MENTIONED",
+        "TWO_LISTINGS_MENTIONED",
+        "SPECIFIC_LISTING_PRESENT",
         "NO_HOME_CHARGING",
         "PREDICTABILITY_LOW",
+        "HIGH_MILEAGE_CONCERN",
+        "PRICE_UNCERTAINTY",
         "SEASONAL_SENSITIVITY",
         "BATTERY_HEALTH_ANXIETY",
         "BRAND_WAR_RISK",

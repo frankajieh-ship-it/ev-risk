@@ -5,7 +5,8 @@ Pipeline (operator mode) — Generic EV Assistant:
 
   Stage 1: Grok (temp=0.0)
     → Classification + OFFO relevance gate
-    → Returns: intent, friction_tags, user_state, is_offo_relevant, confidence (0-100)
+    → Returns: intent, friction_tags, user_state, is_offo_relevant, confidence (0-100),
+               needs_market_data, market_focus, detected_vehicle
     → If confidence < 60 or not relevant: short-circuit → neutral reply, no tool mention
 
   Stage 2: Gemini 1.5 Pro (temp=0.7)
@@ -15,12 +16,18 @@ Pipeline (operator mode) — Generic EV Assistant:
 
   Stage 3: GPT-4o (temp=0.3)
     → Full reply polish: takes Stage 2 draft + adds precise EV technical knowledge
+    → Intent-aware: listing/VIN/compare → LISTING_FOCUSED_SYSTEM_PROMPT
     → Battery, range, charging, used-EV risks, deal evaluation accuracy
-    → Ensures facts correct. Appends tool invite only if genuinely relevant.
     → Max 900 chars total. Returns final draft_reply_short + draft_reply_long.
+
+  Stage 3.5: Market Analytics (conditional — only when needs_market_data = true)
+    → Auto.dev Listings API: local comps, avg price, price percentile
+    → 24h Supabase cache per VIN/YMM to avoid redundant API calls
+    → Falls back gracefully if Auto.dev key missing or API errors
 
   Stage 4: Grok (temp=0.3)
     → Final tone check: sounds like helpful experienced EV owner
+    → If market data present: instructs Grok to weave in comps/percentile naturally
     → Calm, analytical, never evangelical. Adjust tone only if needed.
 
 Receipt mode:
@@ -45,6 +52,7 @@ from reply_generator import TONE_TEMPLATES, HIDDEN_TRADEOFF_TEMPLATES, build_rep
 from evroutine_logic import decide_tool_invite, detect_tech_support, get_tool_blurb as get_tool_blurb_for
 from ai_clients import call_grok, call_gemini, call_gpt4o
 from db import get_few_shot_examples
+from services.market_analytics import get_market_analytics, format_market_context
 
 
 # -------------------------
@@ -225,6 +233,51 @@ Output JSON:
   "facts_added": ["..."]       // brief list of any specific technical facts you added
 }"""
 
+LISTING_FOCUSED_SYSTEM_PROMPT = """You are the technical editor for an OFFO EV community Reddit reply, specializing in listing evaluation, VIN analysis, pricing, and dealer interactions.
+OFFO helps people understand real-world EV friction at offolab.com.
+
+The user is asking about a SPECIFIC vehicle listing, VIN, price, or dealer situation.
+Tools (mention ONLY if tool_invite_permitted = true):
+- offolab.com/receipt  → paste listing URL → VIN check + friction receipt + dealer questions
+- offolab.com/compare  → if two listings mentioned, compare side-by-side
+
+Your task: take the empathy draft and produce the final reply for THIS specific listing concern.
+1. Address the detected vehicle details (year/make/model/price/mileage) explicitly in your reply
+2. Add specific used-EV risk knowledge: battery degradation benchmarks for this model, common recalls, typical mileage thresholds, CPO vs private sale considerations
+3. Mention specific price-value signals: is this price above/below market for this year/mileage? (use your training knowledge)
+4. For VIN questions: explain what CARFAX/AutoCheck would surface and what the OFFO receipt adds (auction history, lemon title, odometer flags)
+5. For dealer questions: frame what the user should specifically ask given this vehicle
+6. Sound like a knowledgeable friend who has researched this exact car — specific, calm, not salesy
+7. If tool_invite_permitted = true: end with the correct tool invite text
+
+Output JSON:
+{
+  "draft_reply_short": "...",  // ≤900 chars, 1-2 flowing paragraphs
+  "draft_reply_long": "...",   // ≤2500 chars, same content with more technical detail
+  "facts_added": ["..."]       // list of specific price/risk facts you added
+}"""
+
+DEALER_SYSTEM_PROMPT = """You are the technical editor for an OFFO EV community Reddit reply, responding to a seller or dealer post.
+OFFO helps people understand real-world EV friction at offolab.com.
+
+The post is from someone SELLING an EV, not buying.
+Tools (mention ONLY if tool_invite_permitted = true):
+- offolab.com/workspace → dealer workspace to upload listing and get matched with serious buyers
+
+Your task: write a helpful reply that:
+1. Acknowledges their listing with specifics (year/make/model/price/mileage) if present
+2. Offers useful seller-side perspective: typical buyer concerns for this model, what documentation to have ready, how to stand out vs dealer listings
+3. Keeps tone neutral and helpful — this is a seller community post, not a buyer negotiation
+4. If tool_invite_permitted = true: mention OFFO workspace for dealer listings
+5. Do NOT challenge the price or suggest the car is overpriced
+
+Output JSON:
+{
+  "draft_reply_short": "...",  // ≤900 chars
+  "draft_reply_long": "...",   // ≤2500 chars
+  "facts_added": ["..."]
+}"""
+
 
 def _stage3_gpt4o_polish(
     empathy_draft: dict,
@@ -235,16 +288,46 @@ def _stage3_gpt4o_polish(
     post_text: str,
     key_concern: str = "",
     few_shot_examples: Optional[List[dict]] = None,
+    detected_vehicle: Optional[dict] = None,
 ) -> dict:
     """
     Stage 3: GPT-4o (temp=0.3) — technical accuracy + full reply assembly.
+    Intent-aware: listing/VIN/compare posts use LISTING_FOCUSED_SYSTEM_PROMPT,
+    dealer posts use DEALER_SYSTEM_PROMPT, all others use GPT4O_POLISH_SYSTEM.
     Falls back to string concat on failure.
     """
+    # Select system prompt based on intent
+    if intent in ("listing_rating", "vin_analysis", "dealer_questions", "compare_listings", "pricing_deal"):
+        system_prompt = LISTING_FOCUSED_SYSTEM_PROMPT
+    elif intent == "dealer_upload":
+        system_prompt = DEALER_SYSTEM_PROMPT
+    else:
+        system_prompt = GPT4O_POLISH_SYSTEM
+
     few_shot_block = _build_few_shot_block(few_shot_examples or [])
+
+    # Build vehicle context block if available
+    vehicle_block = ""
+    if detected_vehicle:
+        parts = []
+        if detected_vehicle.get("year"):
+            parts.append(f"Year: {detected_vehicle['year']}")
+        if detected_vehicle.get("make"):
+            parts.append(f"Make: {detected_vehicle['make']}")
+        if detected_vehicle.get("model"):
+            parts.append(f"Model: {detected_vehicle['model']}")
+        if detected_vehicle.get("trim"):
+            parts.append(f"Trim: {detected_vehicle['trim']}")
+        if detected_vehicle.get("price_mentioned"):
+            parts.append(f"Price: ${detected_vehicle['price_mentioned']:,}")
+        if detected_vehicle.get("mileage_mentioned"):
+            parts.append(f"Mileage: {detected_vehicle['mileage_mentioned']:,} miles")
+        if parts:
+            vehicle_block = "\nDetected vehicle: " + " | ".join(parts)
 
     user_msg = f"""Post context (first 600 chars): {post_text[:600]}
 
-Key concern (what the user is REALLY asking): {key_concern or 'not specified'}
+Key concern (what the user is REALLY asking): {key_concern or 'not specified'}{vehicle_block}
 
 Empathy draft:
 validate_line: {empathy_draft.get('validate_line', '')}
@@ -259,11 +342,11 @@ tool_invite_text (use verbatim if permitted): {tool_invite_text if tool_invite_p
 {few_shot_block}"""
 
     messages = [
-        {"role": "system", "content": GPT4O_POLISH_SYSTEM},
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_msg},
     ]
 
-    raw = call_gpt4o(messages, temperature=0.3, max_tokens=800, response_format={"type": "json_object"})
+    raw = call_gpt4o(messages, temperature=0.3, max_tokens=1600, response_format={"type": "json_object"})
 
     if raw:
         try:
@@ -292,6 +375,39 @@ tool_invite_text (use verbatim if permitted): {tool_invite_text if tool_invite_p
 
 
 # -------------------------
+# Stage 3.5: Market Analytics (conditional)
+# -------------------------
+
+def _stage35_market_analytics(
+    needs_market_data: bool,
+    detected_vehicle: Optional[dict],
+    listing_price: Optional[int],
+    zip_code: Optional[str] = None,
+) -> Optional[dict]:
+    """
+    Stage 3.5: Fetch local market comps from Auto.dev (only when needed).
+
+    Skips entirely if:
+    - needs_market_data is False
+    - detected_vehicle is None (no make/model to search)
+    - AUTO_DEV_API_KEY is not set
+
+    Returns market analytics dict or None.
+    """
+    if not needs_market_data or not detected_vehicle:
+        return None
+
+    return get_market_analytics(
+        vin=None,                              # VIN not stored on detected_vehicle; use YMM
+        zip_code=zip_code,
+        listing_price=listing_price,
+        make=detected_vehicle.get("make"),
+        model=detected_vehicle.get("model"),
+        year=detected_vehicle.get("year"),
+    )
+
+
+# -------------------------
 # Stage 4: Grok — Final Tone Check
 # -------------------------
 
@@ -307,22 +423,50 @@ Rules:
 - Short version max 900 chars, long version max 2500 chars
 - Return ONLY JSON: {"draft_reply_short": "...", "draft_reply_long": "..."}"""
 
+GROK_TONE_CHECK_WITH_MARKET_SYSTEM = """You are the final tone editor for an OFFO EV community Reddit reply.
+You have access to real-time local market pricing data. Your job is to:
+1. Check that the reply sounds like a helpful, experienced EV owner — calm, analytical, never evangelical
+2. Naturally weave in the market context where it adds value (1 sentence, specific numbers)
+   - Example: "Locally, similar 2023 Mach-Es are averaging $26.8k — this one at $25k is in the 18th percentile."
+   - Example: "For context, 14 local comps put the market range at $22k–$29k, with this listing near the low end."
+3. Only mention price numbers if they are accurate and add value — don't force it
+4. Do NOT add market context if it's already in the reply
 
-def _stage4_grok_tone_check(draft_short: str, draft_long: str) -> dict:
+Rules:
+- Remove salesy language, hype, brand disparagement
+- Remove double tool mentions
+- Short version max 900 chars, long version max 2500 chars
+- Return ONLY JSON: {"draft_reply_short": "...", "draft_reply_long": "..."}"""
+
+
+def _stage4_grok_tone_check(
+    draft_short: str,
+    draft_long: str,
+    market_context: str = "",
+) -> dict:
     """
-    Stage 4: Grok (temp=0.3) — final tone check.
+    Stage 4: Grok (temp=0.3) — final tone check + optional market context injection.
     Returns input unchanged if Grok fails.
     """
-    user_msg = f"""draft_reply_short: {draft_short}
+    if market_context:
+        system = GROK_TONE_CHECK_WITH_MARKET_SYSTEM
+        user_msg = f"""Market context (verified real-time data): {market_context}
+
+draft_reply_short: {draft_short}
+
+draft_reply_long: {draft_long}"""
+    else:
+        system = GROK_TONE_CHECK_SYSTEM
+        user_msg = f"""draft_reply_short: {draft_short}
 
 draft_reply_long: {draft_long}"""
 
     messages = [
-        {"role": "system", "content": GROK_TONE_CHECK_SYSTEM},
+        {"role": "system", "content": system},
         {"role": "user", "content": user_msg},
     ]
 
-    raw = call_grok(messages, temperature=0.3, max_tokens=700)
+    raw = call_grok(messages, temperature=0.3, max_tokens=800)
 
     if raw:
         raw = raw.strip()
@@ -397,7 +541,12 @@ def run_operator_pipeline(req: AssistRequest) -> AssistResponse:
     debug["grok_classify_ms"] = int(time.time() * 1000) - t0
     stages_used.append("grok_classify" if cls.get("reasoning") != "regex fallback" else "regex_classify")
 
-    intent: str       = cls.get("intent", "unknown")
+    intent: str       = cls.get("intent", "other")
+    secondary_intent: Optional[str] = cls.get("secondary_intent")
+    detected_vehicle: Optional[dict] = cls.get("detected_vehicle")
+    suggested_tool: Optional[str] = cls.get("suggested_tool")
+    needs_market_data: bool = cls.get("needs_market_data", False)
+    market_focus: Optional[str] = cls.get("market_focus")
     user_state: str   = cls.get("user_state", "unknown")
     phase: str        = cls.get("ownership_phase", "unknown")
     friction_tags: List[str] = cls.get("friction_tags") or tag_frictions(combined)
@@ -409,6 +558,11 @@ def run_operator_pipeline(req: AssistRequest) -> AssistResponse:
     debug["is_offo_relevant"] = is_relevant
     debug["confidence"] = confidence
     debug["key_concern"] = key_concern
+    debug["needs_market_data"] = needs_market_data
+    if detected_vehicle:
+        debug["detected_vehicle"] = detected_vehicle
+    if secondary_intent:
+        debug["secondary_intent"] = secondary_intent
 
     # ── Relevance gate: short-circuit if not a good fit ───────────────────
     if not is_relevant or confidence < 60:
@@ -423,6 +577,9 @@ def run_operator_pipeline(req: AssistRequest) -> AssistResponse:
             is_offo_relevant=False,
             confidence_score=confidence,
             intent=intent,
+            secondary_intent=secondary_intent,
+            detected_vehicle=detected_vehicle,
+            suggested_tool=None,
             user_state=user_state,
             ownership_phase=phase,
             friction_tags=friction_tags,
@@ -458,15 +615,32 @@ def run_operator_pipeline(req: AssistRequest) -> AssistResponse:
         tool_invite_permitted, tool_invite_text, combined,
         key_concern=key_concern,
         few_shot_examples=few_shot_examples,
+        detected_vehicle=detected_vehicle,
     )
     debug["gpt4o_polish_ms"] = int(time.time() * 1000) - t0
     stages_used.append("gpt4o_polish")
 
-    # ── Stage 4: Grok tone check ──────────────────────────────────────────
+    # ── Stage 3.5: Market Analytics (conditional) ────────────────────────
+    market_data: Optional[dict] = None
+    market_context: str = ""
+    if needs_market_data:
+        t0 = int(time.time() * 1000)
+        listing_price = detected_vehicle.get("price_mentioned") if detected_vehicle else None
+        market_data = _stage35_market_analytics(
+            needs_market_data, detected_vehicle, listing_price
+        )
+        market_context = format_market_context(market_data, intent) if market_data else ""
+        debug["market_analytics_ms"] = int(time.time() * 1000) - t0
+        debug["market_data_found"] = market_data is not None
+        if market_data:
+            stages_used.append("market_analytics")
+
+    # ── Stage 4: Grok tone check + optional market injection ─────────────
     t0 = int(time.time() * 1000)
     final = _stage4_grok_tone_check(
         polished["draft_reply_short"],
         polished["draft_reply_long"],
+        market_context=market_context,
     )
     debug["grok_tone_ms"] = int(time.time() * 1000) - t0
     stages_used.append("grok_tone_check")
@@ -502,6 +676,10 @@ def run_operator_pipeline(req: AssistRequest) -> AssistResponse:
         is_offo_relevant=True,
         confidence_score=confidence,
         intent=intent,
+        secondary_intent=secondary_intent,
+        detected_vehicle=detected_vehicle,
+        suggested_tool=suggested_tool or (tool_invite.tool if tool_invite_permitted else None),
+        market_data=market_data,
         user_state=user_state,
         ownership_phase=phase,
         friction_tags=friction_tags,

@@ -14,13 +14,19 @@ from pydantic import BaseModel, Field
 # -------------------------
 
 Intent = Literal[
-    "purchase_advice",
-    "ownership_support",
-    "charging_question",
-    "debate",
-    "news",
-    "comparison",
-    "unknown",
+    "listing_rating",        # User has a specific listing link/details → /receipt
+    "dealer_questions",      # Wants to know what to ask the seller → dealer Q&A
+    "pricing_deal",          # "Is this a good deal?" price evaluation
+    "vin_analysis",          # VIN mentioned, wants decode + risk check
+    "compare_listings",      # Two EVs mentioned → /compare
+    "dealer_upload",         # Seller/dealer post → dealer workspace
+    "routine_fit",           # Charging fit / does this EV work for me → /routine
+    "purchase_advice",       # General pre-purchase uncertainty
+    "ownership_support",     # Existing owner needs help
+    "charging_question",     # Charging infrastructure only
+    "debate",                # Brand war / ideology → don't engage
+    "news",                  # Article/announcement → skip
+    "other",                 # Catch-all
 ]
 
 UserState = Literal[
@@ -67,6 +73,20 @@ FrictionTag = Literal[
     "BATTERY_HEALTH_ANXIETY",
     "SOFTWARE_TOLERANCE_UNKNOWN",
     "BRAND_WAR_RISK",
+    # Pricing & value
+    "PRICE_UNCERTAINTY",
+    "HIGH_MILEAGE_CONCERN",
+    "WARRANTABLE_MILES",
+    # Listing specifics
+    "SPECIFIC_LISTING_PRESENT",
+    "VIN_MENTIONED",
+    "TWO_LISTINGS_MENTIONED",
+    # Dealer & trust
+    "DEALER_REPUTATION_UNKNOWN",
+    "PRIVATE_SELLER",
+    # Decision stage
+    "READY_TO_BUY",
+    "EARLY_RESEARCH",
 ]
 
 
@@ -154,9 +174,46 @@ class EVRoutineInviteDecision(BaseModel):
     Routes to the right offolab.com tool based on context.
     """
     should_invite: bool
-    tool: Optional[str] = None           # 'routine' | 'receipt' | 'compare'
+    tool: Optional[str] = None           # 'routine' | 'receipt' | 'compare' | 'dealer_qa' | 'dealer'
     invite_text: Optional[str] = None    # Ready-to-append reply text with URL
     trigger_reason: Optional[str] = None # e.g. 'friction_tag:NO_HOME_CHARGING' | 'user_uncertain' | 'comparing_two_options' | 'specific_listing'
+
+
+class DetectedVehicle(BaseModel):
+    """Vehicle details extracted from post text by Grok classifier."""
+    year: Optional[int] = None
+    make: Optional[str] = None
+    model: Optional[str] = None
+    trim: Optional[str] = None
+    price_mentioned: Optional[int] = None   # USD, None if not mentioned
+    mileage_mentioned: Optional[int] = None # miles, None if not mentioned
+
+
+class MarketAnalytics(BaseModel):
+    """
+    Real-time local market data from Auto.dev Listings API.
+    Populated by Stage 3.5 — only present when needs_market_data = true
+    and Auto.dev returns ≥2 comparable listings.
+    """
+    local_comps: List[Dict[str, Any]] = Field(default_factory=list)
+    average_price: Optional[int] = None
+    median_price: Optional[int] = None
+    price_spread: Optional[str] = None      # e.g. "$22k–$31k"
+    price_percentile: Optional[int] = None  # 0-100, where listing_price sits vs comps
+    sample_size: int = 0
+    depreciation_trend: Optional[str] = None
+    regional_demand: Optional[int] = None   # 1-10 if available
+    source: str = "auto_dev"
+
+
+class RedditPostInput(BaseModel):
+    """Input model for POST /reddit/scan — matches PRAW post fields."""
+    title: str
+    selftext: str = ""
+    subreddit: str = ""
+    post_id: Optional[str] = None
+    author: Optional[str] = None
+    url: Optional[str] = None
 
 
 class TechSupportFlag(BaseModel):
@@ -198,6 +255,10 @@ class AssistResponse(BaseModel):
 
     # Classification (always present for operator mode; also present in receipt mode)
     intent: Optional[Intent] = None
+    secondary_intent: Optional[str] = None       # v2: optional second intent
+    detected_vehicle: Optional[Dict[str, Any]] = None  # v2: {year,make,model,trim,price,mileage}
+    suggested_tool: Optional[str] = None         # v2: suggested tool from classifier
+    market_data: Optional[Dict[str, Any]] = None # v2: Auto.dev market analytics (Stage 3.5)
     user_state: Optional[UserState] = None
     ownership_phase: Optional[OwnershipPhase] = None
     friction_tags: List[str] = Field(default_factory=list)

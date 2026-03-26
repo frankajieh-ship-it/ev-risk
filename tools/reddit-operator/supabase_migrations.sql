@@ -119,3 +119,37 @@ CREATE INDEX IF NOT EXISTS idx_reddit_comment_examples_intent
 
 CREATE INDEX IF NOT EXISTS idx_reddit_comment_examples_date
     ON reddit_comment_examples(comment_date DESC);
+
+
+-- -------------------------
+-- Reddit Operator v2 → Full-OFFO upgrade
+-- Run this block if the base tables already exist (safe — IF NOT EXISTS / IF NOT EXISTS guard on columns)
+-- -------------------------
+
+ALTER TABLE reddit_operator_sessions
+    ADD COLUMN IF NOT EXISTS secondary_intent    TEXT,
+    ADD COLUMN IF NOT EXISTS detected_vehicle    JSONB,
+    ADD COLUMN IF NOT EXISTS suggested_tool      TEXT,
+    ADD COLUMN IF NOT EXISTS offer_by_permission BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS market_data         JSONB;
+
+CREATE INDEX IF NOT EXISTS idx_reddit_operator_sessions_intent
+    ON reddit_operator_sessions(intent);
+
+CREATE INDEX IF NOT EXISTS idx_reddit_operator_sessions_suggested_tool
+    ON reddit_operator_sessions(suggested_tool);
+
+
+-- -------------------------
+-- Market Analytics cache
+-- Stores Auto.dev Listings API responses per VIN or YMM key for 24h.
+-- -------------------------
+
+CREATE TABLE IF NOT EXISTS market_cache (
+    cache_key   TEXT PRIMARY KEY,      -- 'vin:5YJSA...' or 'ymm:2022:tesla:model3'
+    data        JSONB NOT NULL,        -- processed market analytics dict
+    fetched_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_market_cache_fetched_at
+    ON market_cache(fetched_at DESC);
