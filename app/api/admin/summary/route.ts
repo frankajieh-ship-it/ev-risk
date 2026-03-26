@@ -365,13 +365,41 @@ export async function GET(request: NextRequest) {
       if (eventNames.has("first_interaction")) score -= 15;
       if (durationMs > 5000) score -= 10;
       if (eventNames.size >= 2) score -= 5;
-      // Interaction-based human signals — bots don't submit forms or click save
+      // Interaction-based human signals — bots don't submit forms, click, or complete funnels
+      // High-confidence (form submits, checkout, completions): -20
       if (eventNames.has("email_capture_submitted")) score -= 20;
       if (eventNames.has("email_checklist_submit")) score -= 20;
+      if (eventNames.has("checkout_started")) score -= 20;
+      if (eventNames.has("feedback_submitted")) score -= 20;
+      if (eventNames.has("evfit_completed")) score -= 20;
+      if (eventNames.has("evfit_completed_server")) score -= 20;
+      if (eventNames.has("routine_form_completed")) score -= 20;
+      if (eventNames.has("compare_completed")) score -= 20;
+      if (eventNames.has("why_checkpoint_submitted")) score -= 20;
+      // Medium-confidence (intentional clicks, starts): -15
       if (eventNames.has("scenario_save_clicked")) score -= 15;
-      if (eventNames.has("receipt_generate_clicked")) score -= 10;
+      if (eventNames.has("receipt_generate_clicked")) score -= 15;
+      if (eventNames.has("receipt_extract_clicked")) score -= 15;
+      if (eventNames.has("compare_started")) score -= 15;
+      if (eventNames.has("routine_check_started")) score -= 15;
+      if (eventNames.has("evfit_session_created")) score -= 15;
+      if (eventNames.has("copy_checklist")) score -= 15;
+      if (eventNames.has("copy_reddit_draft")) score -= 15;
+      if (eventNames.has("copy_seller_message")) score -= 15;
+      if (eventNames.has("negotiator_copy_clicked")) score -= 15;
+      if (eventNames.has("shortlist_saved")) score -= 15;
+      if (eventNames.has("download_pdf_clicked")) score -= 15;
+      if (eventNames.has("share_qr_clicked")) score -= 15;
+      if (eventNames.has("share_link_copied")) score -= 15;
+      if (eventNames.has("recall_check_clicked")) score -= 15;
+      if (eventNames.has("vin_entered")) score -= 15;
+      // Mild-confidence (views, renders): -5
       if (eventNames.has("receipt_result_viewed")) score -= 5;
       if (eventNames.has("email_capture_shown")) score -= 5;
+      if (eventNames.has("buyer_pass_teaser_shown")) score -= 5;
+      if (eventNames.has("paywall_shown")) score -= 5;
+      if (eventNames.has("routine_result_viewed")) score -= 5;
+      if (eventNames.has("receipt_lite_shown")) score -= 5;
       if (userAgent && BOT_UA_PATTERNS.test(userAgent)) score += 40;
       if (!userAgent) score += 20;
       if (eventCount === 1) score += 10;
