@@ -115,13 +115,19 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Parse repair cost output ──────────────────────────────────────────────
+  const isRepairCostOutput = (v: unknown): v is RepairCostOutput => {
+    if (!v || typeof v !== "object") return false;
+    const d = v as Record<string, unknown>;
+    return (
+      typeof d.repair_cost_total_low === "number" &&
+      typeof d.repair_cost_total_high === "number" &&
+      Array.isArray(d.breakdown)
+    );
+  };
   let repairOutput: RepairCostOutput | null = null;
   if (repairResult.status === "fulfilled") {
-    try {
-      repairOutput = repairResult.value.json as RepairCostOutput;
-    } catch {
-      repairOutput = null;
-    }
+    const parsed = repairResult.value.json;
+    repairOutput = isRepairCostOutput(parsed) ? parsed : null;
   }
 
   // Graceful fallback if AI failed
