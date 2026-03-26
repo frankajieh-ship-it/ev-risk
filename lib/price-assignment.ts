@@ -10,12 +10,13 @@
 
 import type { Region } from "@/lib/region";
 
-export type PriceVariant = "299" | "499" | "999";
-export type PackTier = "buyer_pass" | "seller_questions" | "chat_pass";
+export type PriceVariant = "299" | "499" | "999" | "1999";
+export type PackTier = "buyer_pass" | "seller_questions" | "chat_pass" | "copart_report";
 
 export const BUYER_PASS_PRICE = "$9.99";
 export const BUYER_PASS_CREDITS = 10;
 export const CHAT_PASS_PRICE = "$9.99";
+export const COPART_REPORT_PRICE = "$19.99";
 
 export const SELLER_PACK_PRICE_A = "$2.99";
 export const SELLER_PACK_PRICE_B = "$4.99";
@@ -24,12 +25,14 @@ const USD_DISPLAY: Record<PriceVariant, string> = {
   "299": "$2.99",
   "499": "$4.99",
   "999": "$9.99",
+  "1999": "$19.99",
 };
 
 const GBP_DISPLAY: Record<PriceVariant, string> = {
   "299": "\u00A32.49",
   "499": "\u00A33.99",
   "999": "\u00A37.99",
+  "1999": "\u00A315.99",
 };
 
 /**
@@ -62,6 +65,7 @@ export function getVariantForTier(tier: PackTier, anonId?: string): PriceVariant
   if (tier === "seller_questions" && anonId) {
     return assignSellerPackVariant(anonId);
   }
+  if (tier === "copart_report") return "1999";
   // chat_pass and buyer_pass both price at $9.99
   return "999";
 }
@@ -75,6 +79,7 @@ export function getStripePriceId(variant: PriceVariant): string | null {
     case "299": return process.env.STRIPE_PRICE_USD_299 || null;
     case "499": return process.env.STRIPE_PRICE_USD_499 || null;
     case "999": return process.env.STRIPE_PRICE_USD_999 || null;
+    case "1999": return process.env.STRIPE_PRICE_USD_1999 || null;
   }
 }
 
@@ -106,6 +111,7 @@ export function getAmountCents(variant: PriceVariant): number {
     case "299": return 299;
     case "499": return 499;
     case "999": return 999;
+    case "1999": return 1999;
   }
 }
 
@@ -113,5 +119,5 @@ export function getAmountCents(variant: PriceVariant): number {
  * Validate that a string is a valid price variant.
  */
 export function isValidVariant(v: string): v is PriceVariant {
-  return v === "299" || v === "499" || v === "999";
+  return v === "299" || v === "499" || v === "999" || v === "1999";
 }

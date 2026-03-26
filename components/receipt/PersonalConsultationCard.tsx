@@ -103,11 +103,14 @@ export default function PersonalConsultationCard({
           <span className="text-xs font-semibold bg-emerald-600 text-white px-2.5 py-1 rounded-full">
             1-on-1 · Expert Session
           </span>
+          <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded-full">
+            Free — no payment required
+          </span>
         </div>
 
         {/* Headline */}
         <h3 className="text-base font-bold text-gray-900 mb-1">
-          Talk to an EV buying advisor
+          Not sure? Talk to an EV buying advisor
         </h3>
         <p className="text-sm text-gray-600 mb-3">
           Get personalised guidance on this listing — pricing, negotiation strategy, what to inspect, and whether to walk away.
@@ -131,7 +134,7 @@ export default function PersonalConsultationCard({
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 transition-all shadow-sm"
           >
             <Phone className="w-4 h-4" />
-            Book a Free Consultation
+            Book a Free Session (30 min)
           </button>
         ) : (
           <form id="consultation-form" onSubmit={handleSubmit} className="space-y-3">

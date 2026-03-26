@@ -139,8 +139,20 @@ export async function POST(request: NextRequest) {
             .update({ status: "failed", updated_at: new Date().toISOString() })
             .eq("stripe_session_id", sessionId)
             .eq("status", "pending");
+          // Track payment failure event for analytics
+          try {
+            await supabase.from("user_events").insert({
+              event_name: "payment_failed",
+              event_data: {
+                stripe_session_id: sessionId,
+                event_type: event.type,
+              },
+              page_path: "/api/stripe/webhook",
+              timestamp: new Date().toISOString(),
+            });
+          } catch { /* swallow */ }
         }
-        console.log(`❌ Payment failed for ${sessionId || "unknown session"}`);
+        console.log(`Payment failed for ${sessionId || "unknown session"}`);
         break;
       }
 

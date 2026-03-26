@@ -180,6 +180,36 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- reports / evroutine_events / report_feedback (added 2026-03-25)
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'reports') THEN
+    EXECUTE 'ALTER TABLE reports ENABLE ROW LEVEL SECURITY';
+  END IF;
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'evroutine_events') THEN
+    EXECUTE 'ALTER TABLE evroutine_events ENABLE ROW LEVEL SECURITY';
+  END IF;
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'report_feedback') THEN
+    EXECUTE 'ALTER TABLE report_feedback ENABLE ROW LEVEL SECURITY';
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'reports' AND policyname = 'service_role_all') THEN
+    EXECUTE $p$ CREATE POLICY "service_role_all" ON reports TO service_role USING (true) WITH CHECK (true) $p$;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'evroutine_events' AND policyname = 'service_role_all') THEN
+    EXECUTE $p$ CREATE POLICY "service_role_all" ON evroutine_events TO service_role USING (true) WITH CHECK (true) $p$;
+  END IF;
+END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'report_feedback' AND policyname = 'service_role_all') THEN
+    EXECUTE $p$ CREATE POLICY "service_role_all" ON report_feedback TO service_role USING (true) WITH CHECK (true) $p$;
+  END IF;
+END $$;
+
 -- ---------------------------------------------------------------------------
 -- Verification query (run after migration to confirm RLS is active)
 -- ---------------------------------------------------------------------------

@@ -380,10 +380,8 @@ export default function ReceiptInputCard({
       setHasExtracted(true);
       setExtractionId(data.extraction_id || null);
       setExtractedRawText(data.raw_text || null);
-      // Auto-open details panel when VIN is extracted so user can verify
-      if (data.fields?.vin) {
-        setDetailsOpen(true);
-      }
+      // Auto-open details panel always after extraction so user can verify/fill gaps
+      setDetailsOpen(true);
 
       // Show "Cleaned & extracted" toast if this was a clean-and-extract flow
       if (cleanStartRef.current > 0) {
@@ -775,9 +773,26 @@ export default function ReceiptInputCard({
             )}
 
             {!isExtracting && !extractError && (
-              <p className="text-xs text-gray-400">
-                Supports AutoTrader, CarGurus, Cars.com, Facebook Marketplace, and more
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-400">
+                  Supports AutoTrader, CarGurus, Cars.com, Facebook Marketplace, and more
+                </p>
+                {!hasExtracted && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDetailsOpen(true);
+                      setTimeout(() => {
+                        document.getElementById("vehicle-details-section")?.scrollIntoView({ behavior: "smooth" });
+                      }, 100);
+                      trackEvent?.("manual_entry_shortcut_clicked", { anon_id: receiptToken });
+                    }}
+                    className="text-xs text-blue-500 hover:text-blue-700 underline whitespace-nowrap ml-2"
+                  >
+                    Enter manually ↓
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}

@@ -20,11 +20,15 @@ import {
   HelpCircle,
   FileSearch,
   Lock,
+  Info,
+  Store,
+  User,
 } from "lucide-react";
 import type { ListingReceipt, LintError } from "@/types/receipt";
 import type { Region } from "@/lib/region";
 import { formatPrice } from "@/lib/region";
 import { humanizeFlag } from "@/lib/receipt-rules";
+import VehicleFactsBar from "@/components/receipt/VehicleFactsBar";
 
 interface ReceiptOutputCardProps {
   receipt: ListingReceipt;
@@ -115,6 +119,7 @@ export default function ReceiptOutputCard({
   onPaywallClick,
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
+  const [scoringTooltipOpen, setScoringTooltipOpen] = useState(false);
   const fallbackFiredRef = useRef(false);
 
   useEffect(() => {
@@ -277,12 +282,36 @@ export default function ReceiptOutputCard({
         )}
       </div>
 
+      {/* Vehicle Facts Bar — title status, accidents, live NHTSA recalls, battery estimate */}
+      <VehicleFactsBar receipt={receipt} />
+
       {/* Why not GREEN? — gated for yellow/red; unlocked users see full list */}
       {receipt.why_not_green && receipt.why_not_green.length > 0 && receipt.verdict !== "GREEN" && (
         <div className="px-5 py-3 bg-gray-50 border-b border-gray-200">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-            Why not GREEN?
-          </p>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Why not GREEN?
+            </p>
+            <div className="relative">
+              <button
+                onClick={() => setScoringTooltipOpen((o) => !o)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="How scoring works"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
+              {scoringTooltipOpen && (
+                <div className="absolute left-0 top-5 z-20 w-64 bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs text-gray-700 space-y-1.5">
+                  <p className="font-semibold text-gray-900">How verdicts are scored</p>
+                  <p><span className="font-medium text-green-700">GREEN</span> — low risk, strong evidence (price fair, history clean, no flags)</p>
+                  <p><span className="font-medium text-yellow-700">YELLOW</span> — moderate risk or missing proof (high mileage, no service records, price unclear)</p>
+                  <p><span className="font-medium text-red-700">RED</span> — hard flag present (salvage title, accident history, severely overpriced)</p>
+                  <p className="text-gray-500 pt-1 border-t border-gray-100">Categories: <span className="text-red-600">Risk</span> = confirmed concern · <span className="text-orange-600">Proof</span> = missing evidence · <span className="text-blue-600">Routine</span> = standard friction</p>
+                  <button onClick={() => setScoringTooltipOpen(false)} className="text-gray-400 hover:text-gray-600 mt-1">Close</button>
+                </div>
+              )}
+            </div>
+          </div>
           {isUnlocked || !paymentsEnabled ? (
             <ul className="space-y-1">
               {receipt.why_not_green.map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
@@ -302,26 +331,42 @@ export default function ReceiptOutputCard({
             </ul>
           ) : (
             <div>
-              {/* Show first item blurred as teaser */}
               <ul className="space-y-1 mb-2">
-                <li className="text-sm text-gray-700 flex items-start gap-2 select-none">
-                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium mt-0.5 bg-red-50 text-red-600">Risk</span>
-                  <span className="flex-1 blur-[5px]">This factor is holding back a green verdict</span>
-                </li>
-                {receipt.why_not_green.length > 1 && (
-                  <li className="text-sm text-gray-700 flex items-start gap-2 select-none">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded font-medium mt-0.5 bg-orange-50 text-orange-600">Proof</span>
-                    <span className="flex-1 blur-[5px]">Another reason this listing isn&apos;t scoring green</span>
-                  </li>
-                )}
+                {/* First reason shown unblurred — gives real value, earns trust */}
+                {receipt.why_not_green.slice(0, 1).map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
+                  const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
+                  return (
+                    <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium mt-0.5 ${catStyle.bg} ${catStyle.text}`}>
+                        {catStyle.label}
+                      </span>
+                      <span className="flex-1">{reason.label}</span>
+                    </li>
+                  );
+                })}
+                {/* Remaining reasons blurred */}
+                {receipt.why_not_green.slice(1).map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
+                  const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
+                  const preview = reason.label.length > 45 ? reason.label.slice(0, 45) + "…" : reason.label;
+                  return (
+                    <li key={`locked-${i}`} className="text-sm flex items-start gap-2 select-none">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium mt-0.5 ${catStyle.bg} ${catStyle.text}`}>
+                        {catStyle.label}
+                      </span>
+                      <span className="flex-1 blur-[3px] text-gray-500">{preview}</span>
+                    </li>
+                  );
+                })}
               </ul>
-              <button
-                onClick={onPaywallClick}
-                className="flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-800 transition-colors"
-              >
-                <Lock className="w-3.5 h-3.5" />
-                Unlock to see why this verdict is {receipt.verdict} ({receipt.why_not_green.length} factor{receipt.why_not_green.length !== 1 ? "s" : ""})
-              </button>
+              {receipt.why_not_green.length > 1 && (
+                <button
+                  onClick={onPaywallClick}
+                  className="flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-800 transition-colors"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  +{receipt.why_not_green.length - 1} more reason{receipt.why_not_green.length - 1 !== 1 ? "s" : ""} — unlock full analysis ($9.99)
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -466,8 +511,45 @@ export default function ReceiptOutputCard({
             <p className="text-sm text-gray-700">
               {receipt.price_sanity.rationale_short}
             </p>
+            {/* Market price range — from Auto.dev enrichment via listing_summary passthrough */}
+            {(() => {
+              const mpr = (receipt.listing_summary as Record<string, unknown>)?.market_price_range as { low: number; high: number; count: number } | undefined;
+              if (!mpr || mpr.count === 0) return null;
+              return (
+                <p className="text-xs text-gray-500 mt-1.5">
+                  Market range: <span className="font-semibold text-gray-700">{formatPrice(mpr.low, region)} – {formatPrice(mpr.high, region)}</span>
+                  <span className="ml-1">({mpr.count} comparable listing{mpr.count !== 1 ? "s" : ""})</span>
+                </p>
+              );
+            })()}
           </div>
         )}
+
+        {/* Seller & location context */}
+        {(() => {
+          const ls = receipt.listing_summary;
+          const sellerType = ls?.seller_type;
+          const zip = ls?.zip_or_postcode;
+          if (!sellerType && !zip) return null;
+          const sellerLabel = sellerType === "dealer" ? "Dealer" : sellerType === "private" ? "Private seller" : null;
+          const negotiationNote = sellerType === "private"
+            ? "Private sellers are often more flexible — come prepared with comparable listings."
+            : sellerType === "dealer"
+            ? "Dealers have more room on add-ons and fees than the sticker price."
+            : null;
+          return (
+            <div className="flex items-start gap-2 text-xs text-gray-600 -mt-1">
+              {sellerType === "dealer"
+                ? <Store className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
+                : <User className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />}
+              <span>
+                {sellerLabel && <span className="font-medium text-gray-700">{sellerLabel}</span>}
+                {zip && <span className="text-gray-400 ml-1">· {zip}</span>}
+                {negotiationNote && <span className="text-gray-500 ml-1">— {negotiationNote}</span>}
+              </span>
+            </div>
+          );
+        })()}
 
         {/* Deal Watch (formerly Risk Flags) — first 1 free, rest locked */}
         {receipt.risk_flags.length > 0 && (() => {
@@ -499,19 +581,23 @@ export default function ReceiptOutputCard({
                 ))}
                 {lockedCount > 0 && (
                   <>
-                    {receipt.risk_flags.slice(1).map((_, i) => (
-                      <li key={`locked-flag-${i}`} className="text-sm flex items-start gap-2 select-none">
-                        <span className="text-red-300 mt-0.5">!</span>
-                        <span className="text-gray-300 blur-[5px]">This risk factor is locked — unlock to see</span>
-                      </li>
-                    ))}
+                    {receipt.risk_flags.slice(1).map((flag, i) => {
+                      const preview = humanizeFlag(flag);
+                      const truncated = preview.length > 40 ? preview.slice(0, 40) + "…" : preview;
+                      return (
+                        <li key={`locked-flag-${i}`} className="text-sm flex items-start gap-2 select-none">
+                          <span className="text-red-300 mt-0.5">!</span>
+                          <span className="text-gray-400 blur-[3px]">{truncated}</span>
+                        </li>
+                      );
+                    })}
                     <li>
                       <button
                         onClick={onPaywallClick}
                         className="flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 transition-colors mt-1"
                       >
                         <Lock className="w-3.5 h-3.5" />
-                        Unlock all {receipt.risk_flags.length} deal watch items
+                        Unlock all {receipt.risk_flags.length} deal watch items — $9.99
                       </button>
                     </li>
                   </>
@@ -549,19 +635,22 @@ export default function ReceiptOutputCard({
                 ))}
                 {lockedCount > 0 && (
                   <>
-                    {questions.slice(2).map((_, i) => (
-                      <li key={`locked-${i}`} className="text-sm flex items-start gap-2 select-none">
-                        <span className="text-gray-300 font-bold mt-0.5">{i + 3}.</span>
-                        <span className="text-gray-300 blur-[5px]">This question is locked — unlock to see</span>
-                      </li>
-                    ))}
+                    {questions.slice(2).map((q, i) => {
+                      const preview = q.length > 50 ? q.slice(0, 50) + "…" : q;
+                      return (
+                        <li key={`locked-${i}`} className="text-sm flex items-start gap-2 select-none">
+                          <span className="text-gray-300 font-bold mt-0.5">{i + 3}.</span>
+                          <span className="text-gray-400 blur-[3px]">{preview}</span>
+                        </li>
+                      );
+                    })}
                     <li>
                       <button
                         onClick={onSellerPackUpgrade}
                         className="flex items-center gap-1.5 text-xs font-medium text-green-600 hover:text-green-700 transition-colors mt-1"
                       >
                         <Lock className="w-3.5 h-3.5" />
-                        Unlock all {questions.length} questions
+                        Unlock all {questions.length} questions — $9.99
                       </button>
                     </li>
                   </>
@@ -592,19 +681,22 @@ export default function ReceiptOutputCard({
                 ))}
                 {lockedVbvCount > 0 && (
                   <>
-                    {vbvItems.slice(2).map((_, i) => (
-                      <li key={`locked-vbv-${i}`} className="text-sm flex items-start gap-2 select-none">
-                        <span className="text-gray-300 font-bold mt-0.5">{i + 3}.</span>
-                        <span className="text-gray-300 blur-[5px]">This item is locked — unlock to see</span>
-                      </li>
-                    ))}
+                    {vbvItems.slice(2).map((item: string, i: number) => {
+                      const preview = item.length > 50 ? item.slice(0, 50) + "…" : item;
+                      return (
+                        <li key={`locked-vbv-${i}`} className="text-sm flex items-start gap-2 select-none">
+                          <span className="text-gray-300 font-bold mt-0.5">{i + 3}.</span>
+                          <span className="text-gray-400 blur-[3px]">{preview}</span>
+                        </li>
+                      );
+                    })}
                     <li>
                       <button
                         onClick={onSellerPackUpgrade}
                         className="flex items-center gap-1.5 text-xs font-medium text-purple-600 hover:text-purple-700 transition-colors mt-1"
                       >
                         <Lock className="w-3.5 h-3.5" />
-                        Unlock all {vbvItems.length} items — $4.99
+                        Unlock all {vbvItems.length} items — $9.99
                       </button>
                     </li>
                   </>

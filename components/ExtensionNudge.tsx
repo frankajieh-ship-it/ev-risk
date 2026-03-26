@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, CheckCircle, AlertTriangle, ExternalLink } from "lucide-react";
 
 const DISMISSED_KEY = "offo_extension_nudge_dismissed";
 
@@ -40,48 +40,96 @@ export default function ExtensionNudge({ context = "receipt" }: ExtensionNudgePr
   const headline =
     context === "fits"
       ? "Get instant verdicts while browsing CarGurus"
-      : "Next time, get your verdict without leaving CarGurus";
+      : "Skip the copy-paste — analyse listings directly on CarGurus";
 
   const body =
     context === "fits"
-      ? "The free OFFO extension overlays a deal score on every EV listing — no copy-pasting needed."
-      : "The free OFFO extension auto-analyses any EV listing on CarGurus the moment you open it.";
+      ? "The free OFFO extension overlays a deal score on every EV listing as you browse."
+      : "The free OFFO extension analyses any EV listing the moment you open it — no URL copying needed.";
 
   return (
-    <div className="relative rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 px-4 py-3.5 flex items-start gap-3">
-      {/* Extension icon */}
-      <div className="shrink-0 w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center mt-0.5">
-        <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M14 10l-2 1m0 0l-2-1m2 1V7m0 4v4m-4 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4a2 2 0 00-2 2v9a2 2 0 002 2z" />
-        </svg>
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-indigo-900 leading-snug">{headline}</p>
-        <p className="text-xs text-indigo-700 mt-0.5 leading-snug">{body}</p>
-        <a
-          href={extensionUrl}
-          target={extensionUrl.startsWith("http") ? "_blank" : undefined}
-          rel={extensionUrl.startsWith("http") ? "noopener noreferrer" : undefined}
-          className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors"
-          onClick={() => {
-            // Don't dismiss on click — user may want to return
-          }}
-        >
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
+    <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 overflow-hidden">
+      <div className="px-4 pt-4 pb-3 flex items-start gap-3">
+        {/* Extension icon */}
+        <div className="shrink-0 w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center mt-0.5">
+          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14 10l-2 1m0 0l-2-1m2 1V7m0 4v4m-4 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4a2 2 0 00-2 2v9a2 2 0 002 2z" />
           </svg>
-          Add to Chrome — it&apos;s free
-        </a>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-indigo-900 leading-snug">{headline}</p>
+          <p className="text-xs text-indigo-700 mt-0.5 leading-snug">{body}</p>
+          <a
+            href={extensionUrl}
+            target={extensionUrl.startsWith("http") ? "_blank" : undefined}
+            rel={extensionUrl.startsWith("http") ? "noopener noreferrer" : undefined}
+            className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <ExternalLink className="w-3 h-3" />
+            Add to Chrome — it&apos;s free
+          </a>
+        </div>
+
+        <button
+          onClick={dismiss}
+          className="shrink-0 p-1 text-indigo-400 hover:text-indigo-600 transition-colors"
+          aria-label="Dismiss"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
-      <button
-        onClick={dismiss}
-        className="shrink-0 p-1 text-indigo-400 hover:text-indigo-600 transition-colors"
-        aria-label="Dismiss"
-      >
-        <X className="w-4 h-4" />
-      </button>
+      {/* Visual mock — what the extension overlay looks like on a listing */}
+      <div className="mx-4 mb-4 rounded-xl border border-indigo-100 bg-white overflow-hidden shadow-sm">
+        <div className="bg-gray-100 px-3 py-1.5 flex items-center gap-2 border-b border-gray-200">
+          <div className="flex gap-1">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+            <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
+            <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+          </div>
+          <div className="flex-1 bg-white rounded text-xs text-gray-400 px-2 py-0.5 text-center">
+            cargurus.com/Cars/new/nl/…
+          </div>
+          <div className="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center">
+            <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Mock listing card with OFFO overlay badge */}
+        <div className="p-3 flex gap-3">
+          <div className="w-20 h-14 rounded-lg bg-gray-200 flex-shrink-0 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-100" />
+            {/* Simulated car silhouette */}
+            <div className="absolute bottom-1 left-1 right-1 h-5 bg-gray-400 rounded-sm opacity-40" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold text-gray-800">2021 Tesla Model 3</p>
+                <p className="text-xs text-gray-500">42,500 mi · Long Range · $28,900</p>
+              </div>
+              {/* OFFO overlay badge */}
+              <div className="flex-shrink-0 flex items-center gap-1 bg-green-100 border border-green-300 rounded-full px-2 py-0.5">
+                <CheckCircle className="w-3 h-3 text-green-600" />
+                <span className="text-xs font-bold text-green-700">GREEN</span>
+              </div>
+            </div>
+            <div className="mt-1.5 flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-blue-50 rounded px-1.5 py-0.5">
+                <span className="text-xs text-blue-700 font-medium">Fair price</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 text-amber-500" />
+                <span className="text-xs text-gray-600">1 watch item</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p className="text-center text-xs text-indigo-500 pb-2">OFFO verdict overlaid automatically ↑</p>
+      </div>
     </div>
   );
 }

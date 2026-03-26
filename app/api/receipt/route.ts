@@ -34,6 +34,7 @@ import { guardTurnstile } from "@/lib/turnstile";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
 import { logApi } from "@/lib/api-logger";
 import { detectListingSource } from "@/lib/listing-scraper";
+import { getSupabaseAdmin } from "@/lib/api-auth";
 
 export const maxDuration = 90;
 
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
 
   // 3. Burst rate limit (testers bypass)
   if (!tokenIsInternal) {
-    const burst = receiptBurstLimiter.check(clientIP);
+    const burst = await receiptBurstLimiter.checkAsync(clientIP);
     if (!burst.allowed) {
       const retryAfterSec = Math.max(1, Math.ceil((burst.resetAt - Date.now()) / 1000));
       return NextResponse.json(
@@ -362,6 +363,43 @@ export async function POST(request: NextRequest) {
     await completeRequest(requestRowId, liteReceipt.receipt_id, litePayload);
   }
 
+  // Recall lookup — surface active recalls for this VIN if user is authenticated
+  let recalls: Array<{
+    recall_id: string;
+    title: string;
+    component: string;
+    routine_impact_score: number;
+    is_safety_critical: boolean;
+    ai_summary: string;
+  }> = [];
+  if (input.vin && userId && isSupabaseConfigured()) {
+    try {
+      const adminSb = getSupabaseAdmin();
+      if (adminSb) {
+        // Find the garage vehicle matching this user + VIN
+        const { data: vehicleRows } = await adminSb
+          .from("garage_vehicles")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("vin", input.vin)
+          .limit(1);
+        const vehicleId = vehicleRows?.[0]?.id;
+        if (vehicleId) {
+          const { data: recallRows } = await adminSb
+            .from("vehicle_recalls")
+            .select("recall_id, title, component, routine_impact_score, is_safety_critical, ai_summary")
+            .eq("vehicle_id", vehicleId)
+            .eq("status", "active")
+            .order("routine_impact_score", { ascending: false })
+            .limit(5);
+          recalls = recallRows ?? [];
+        }
+      }
+    } catch {
+      // Non-critical — don't fail the receipt if recall lookup errors
+    }
+  }
+
   // Enqueue async AI upgrade as a Netlify Background Function (15-min timeout, no sync window pressure)
   const upgradePayload = {
     receipt_id: liteReceipt.receipt_id,
@@ -416,7 +454,11 @@ export async function POST(request: NextRequest) {
     }
   });
 
-  return NextResponse.json(litePayload);
+  return NextResponse.json({
+    ...litePayload,
+    recalls,
+    has_active_recalls: recalls.length > 0,
+  });
 }
 
 // --- Fix-only handler ---

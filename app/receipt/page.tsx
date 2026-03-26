@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Receipt, Loader2, QrCode, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { Receipt, Loader2, QrCode, ArrowLeft, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { initAttribution } from "@/lib/attribution";
@@ -33,6 +33,7 @@ import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
 import FeedbackWidget from "@/components/FeedbackWidget";
 import ExitFeedbackModal from "@/components/receipt/ExitFeedbackModal";
 import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
+import CopartBanner from "@/components/copart/CopartBanner";
 import ModelInfoSection from "@/components/receipt/ModelInfoSection";
 import DeepDiveSection from "@/components/receipt/DeepDiveSection";
 import NegotiationDeepSection from "@/components/receipt/NegotiationDeepSection";
@@ -194,6 +195,16 @@ export default function ReceiptPage() {
   const [returnToRoutine, setReturnToRoutine] = useState(false);
   const [routineRunId, setRoutineRunId] = useState<string | null>(null);
   const [routineVehicleReady, setRoutineVehicleReady] = useState(false);
+
+  // Recall state
+  const [activeRecalls, setActiveRecalls] = useState<Array<{
+    recall_id: string;
+    title: string;
+    component: string;
+    routine_impact_score: number;
+    is_safety_critical: boolean;
+    ai_summary: string;
+  }>>([]);
 
   // Core state
   const [receipt, setReceipt] = useState<ListingReceipt | null>(null);
@@ -772,6 +783,9 @@ export default function ReceiptPage() {
         if (typeof result.is_pro === "boolean") {
           setIsPro(result.is_pro);
         }
+        if (Array.isArray(result.recalls)) {
+          setActiveRecalls(result.recalls);
+        }
 
         // Add to history
         addReceipt(result.receipt);
@@ -1186,13 +1200,60 @@ export default function ReceiptPage() {
                 onPaywallClick={() => handlePremiumAction("receipt_output_paywall")}
               />
 
-              {/* Action row — Save (full width) + Share / PDF */}
-              <div id="save-receipt-cta" className="space-y-2">
-                <SaveReceiptCTA
-                  receipt={receipt}
-                  onSaveSuccess={() => setHasSaved(true)}
-                />
-                <div className="flex gap-2">
+              {/* ── Save + Compare — immediately after verdict, max visibility ── */}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <SaveReceiptCTA
+                    receipt={receipt}
+                    onSaveSuccess={() => setHasSaved(true)}
+                  />
+                </div>
+                {authConfigured && (
+                  <CompareBadge
+                    compareRemaining={compareRemaining}
+                    compareBoundTo={compareBoundTo}
+                    isAuthenticated={isAuthenticated}
+                    onInitiateCompare={() => setShowCompareModal(true)}
+                    onViewCompare={() => setShowCompareView(true)}
+                    onSignIn={() => {
+                      if (receipt) storeActiveReceipt(receipt.receipt_id);
+                      setShowCompareLoginModal(true);
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* Active recall banner */}
+              {activeRecalls.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                    <span className="font-semibold text-red-700 text-sm">
+                      Active Recall{activeRecalls.length > 1 ? "s" : ""} on this vehicle
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {activeRecalls.map((r) => (
+                      <div key={r.recall_id} className="text-sm text-red-700">
+                        <span className="font-medium">{r.component}</span>
+                        {r.ai_summary ? `: ${r.ai_summary}` : ""}
+                      </div>
+                    ))}
+                  </div>
+                  <a
+                    href="/workspace/garage"
+                    className="text-xs text-red-500 hover:underline mt-2 inline-block"
+                  >
+                    View full recall details in My Garage →
+                  </a>
+                </div>
+              )}
+
+              {/* Copart cross-promo banner */}
+              <CopartBanner />
+
+              {/* Share / PDF row */}
+              <div id="save-receipt-cta" className="flex gap-2">
                 <button
                   onClick={handleShareClick}
                   disabled={isSharing}
@@ -1208,28 +1269,28 @@ export default function ReceiptPage() {
                     compact
                   />
                 )}
-                </div>
               </div>
 
               {/* Extension nudge — shown after receipt loads */}
               <ExtensionNudge context="receipt" />
 
+              {/* Email capture — high visibility, before paywall cards */}
+              <div id="email-capture-card">
+                <EmailCaptureCard
+                  receiptId={receipt.receipt_id}
+                  onSubmit={() => {
+                    setHasEmailed(true);
+                    trackEvent("email_checklist_submit", {
+                      receipt_id: receipt.receipt_id,
+                    });
+                  }}
+                />
+              </div>
+
               {/* ── Upsell cards — shown to non-unlocked users ── */}
               {!isUnlocked && !freeMode && paymentsEnabled && (
                 <>
-                  {/* Personal Consultation — always shown */}
-                  <PersonalConsultationCard
-                    receiptId={receipt.receipt_id}
-                    vehicleLabel={
-                      receipt.listing_summary?.year && receipt.listing_summary?.make && receipt.listing_summary?.model
-                        ? `${receipt.listing_summary.year} ${receipt.listing_summary.make} ${receipt.listing_summary.model}`
-                        : receipt.listing_summary?.make
-                          ? `${receipt.listing_summary.make} ${receipt.listing_summary.model ?? ""}`.trim()
-                          : undefined
-                    }
-                  />
-
-                  {/* $9.99 Buyer Pass — dismissible */}
+                  {/* $9.99 Buyer Pass — paid card first while attention is highest */}
                   {!decisionPackDismissed && (
                     <div id="decision-pack-card">
                       <DecisionPackCard
@@ -1241,6 +1302,18 @@ export default function ReceiptPage() {
                       />
                     </div>
                   )}
+
+                  {/* Free consultation — fallback for users not ready to pay */}
+                  <PersonalConsultationCard
+                    receiptId={receipt.receipt_id}
+                    vehicleLabel={
+                      receipt.listing_summary?.year && receipt.listing_summary?.make && receipt.listing_summary?.model
+                        ? `${receipt.listing_summary.year} ${receipt.listing_summary.make} ${receipt.listing_summary.model}`
+                        : receipt.listing_summary?.make
+                          ? `${receipt.listing_summary.make} ${receipt.listing_summary.model ?? ""}`.trim()
+                          : undefined
+                    }
+                  />
                 </>
               )}
 
@@ -1265,20 +1338,6 @@ export default function ReceiptPage() {
                   trackEvent={trackEvent}
                 />
               )}
-
-
-              {/* Email capture — moved up for visibility */}
-              <div id="email-capture-card">
-                <EmailCaptureCard
-                  receiptId={receipt.receipt_id}
-                  onSubmit={() => {
-                    setHasEmailed(true);
-                    trackEvent("email_checklist_submit", {
-                      receipt_id: receipt.receipt_id,
-                    });
-                  }}
-                />
-              </div>
 
 
               {/* Deep dive content (when unlocked, hidden in free mode) */}
@@ -1307,20 +1366,6 @@ export default function ReceiptPage() {
                 />
               )}
 
-              {/* Compare badge — free with login, or paid legacy */}
-              {authConfigured && (
-                <CompareBadge
-                  compareRemaining={compareRemaining}
-                  compareBoundTo={compareBoundTo}
-                  isAuthenticated={isAuthenticated}
-                  onInitiateCompare={() => setShowCompareModal(true)}
-                  onViewCompare={() => setShowCompareView(true)}
-                  onSignIn={() => {
-                    if (receipt) storeActiveReceipt(receipt.receipt_id);
-                    setShowCompareLoginModal(true);
-                  }}
-                />
-              )}
 
               {/* Details accordion — on-demand if not yet generated */}
               {receipt.receipt_details ? (
@@ -1471,10 +1516,10 @@ export default function ReceiptPage() {
               <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
 
               <h3 className="text-base font-bold text-gray-900 mb-1">
-                Keep track of this listing
+                Save to My Garage
               </h3>
               <p className="text-sm text-gray-500 mb-5">
-                Save it to your garage or compare it against another car.
+                Get recall alerts, AI insights, and easy comparisons — all in one place.
               </p>
 
               {/* Save */}
@@ -1483,7 +1528,10 @@ export default function ReceiptPage() {
                   receipt={receipt}
                   onSaveSuccess={() => {
                     setHasSaved(true);
-                    setTimeout(() => setShowPostReceiptPopup(false), 1200);
+                    setTimeout(() => {
+                      setShowPostReceiptPopup(false);
+                      router.push("/workspace/garage");
+                    }, 1000);
                   }}
                 />
               </div>
