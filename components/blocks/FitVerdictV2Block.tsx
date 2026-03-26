@@ -1,10 +1,11 @@
 "use client";
 
 import type { FitVerdict } from "@/types/v2-contract";
+import VehicleImage from "@/components/VehicleImage";
 
 interface FitVerdictV2BlockProps {
   fitVerdict: FitVerdict;
-  vehicle?: { model: string; year: number };
+  vehicle?: { make?: string; model: string; year: number };
 }
 
 const VERDICT_CONFIG = {
@@ -18,7 +19,17 @@ export function FitVerdictV2Block({ fitVerdict, vehicle }: FitVerdictV2BlockProp
   const config = VERDICT_CONFIG[fitVerdict.label as keyof typeof VERDICT_CONFIG] ?? VERDICT_CONFIG["Mixed Fit"];
 
   return (
-    <div className={`p-6 rounded-2xl border-2 ${config.border} ${config.bg}`}>
+    <div className={`rounded-2xl border-2 ${config.border} ${config.bg} overflow-hidden`}>
+      {vehicle && (
+        <VehicleImage
+          make={vehicle.make}
+          model={vehicle.model}
+          year={vehicle.year}
+          className="w-full h-40"
+          imgClassName="w-full h-full object-cover"
+        />
+      )}
+      <div className="p-6">
       {vehicle && (
         <p className="text-sm text-gray-500 mb-2">
           {vehicle.year} {vehicle.model}
@@ -36,6 +47,7 @@ export function FitVerdictV2Block({ fitVerdict, vehicle }: FitVerdictV2BlockProp
       <p className="text-xs text-gray-400 mt-4">
         This is a routine fit — not a verdict on whether to buy. It tells you how this car would slot into your actual life.
       </p>
+      </div>
     </div>
   );
 }

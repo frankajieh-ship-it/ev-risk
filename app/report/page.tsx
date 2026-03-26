@@ -492,16 +492,6 @@ function ReportContent() {
 
   // V2 Contract Rendering Path (new Default View + Appendix)
   if (reportV2ContractData) {
-    // Gate full result behind payment
-    if (paymentsEnabled && !isUnlocked) {
-      return (
-        <RoutineResultsPaywallCard
-          runId={reportId || ""}
-          receiptToken={anonId}
-          scenarioType="evroutine"
-        />
-      );
-    }
     return (
       <ResultPageV2Split
         contract={reportV2ContractData}

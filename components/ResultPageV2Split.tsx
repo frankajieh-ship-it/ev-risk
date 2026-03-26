@@ -160,7 +160,7 @@ export function ResultPageV2Split({
           {/* Fit Verdict */}
           <FitVerdictV2Block
             fitVerdict={default_view.fit_verdict}
-            vehicle={vehicle ? { model: vehicle.model, year: vehicle.year } : undefined}
+            vehicle={vehicle ? { make: vehicle.make || undefined, model: vehicle.model, year: vehicle.year } : undefined}
           />
 
           {/* Routine confidence note */}
