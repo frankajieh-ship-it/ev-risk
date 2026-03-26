@@ -34,6 +34,7 @@ import FeedbackWidget from "@/components/FeedbackWidget";
 import ExitFeedbackModal from "@/components/receipt/ExitFeedbackModal";
 import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
 import ModelInfoSection from "@/components/receipt/ModelInfoSection";
+import NewsCarousel from "@/components/NewsCarousel";
 import DeepDiveSection from "@/components/receipt/DeepDiveSection";
 import NegotiationDeepSection from "@/components/receipt/NegotiationDeepSection";
 import PdfDownloadButton from "@/components/receipt/PdfDownloadButton";
@@ -1282,6 +1283,12 @@ export default function ReceiptPage() {
                 />
               )}
 
+
+              {/* EV routine news carousel */}
+              <NewsCarousel
+                make={receipt.listing_summary?.make}
+                model={receipt.listing_summary?.model}
+              />
 
               {/* Deep dive content (when unlocked, hidden in free mode) */}
               {isUnlocked && deepDive && !freeMode && (

@@ -9,7 +9,7 @@ import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronRight } from "lucide-react";
 import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
 import VehicleInputTabs from "@/components/VehicleInputTabs";
 import VehicleRecommendations from "@/components/VehicleRecommendations";
@@ -513,6 +513,23 @@ export default function Home() {
           />
         </section>
       )}
+
+      {/* News digest soft banner */}
+      <div className="max-w-3xl mx-auto px-4 pb-4">
+        <a
+          href="/news"
+          className="flex items-center justify-between gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-lg">⚡</span>
+            <div>
+              <p className="text-sm font-semibold text-blue-800">EV Routine Impact Digest</p>
+              <p className="text-xs text-blue-600">What actually affects your daily EV life — updated every morning</p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-blue-400 flex-shrink-0" />
+        </a>
+      </div>
 
       {/* 10. Footer */}
       <Footer />

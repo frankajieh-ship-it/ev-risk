@@ -8,7 +8,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap, LogIn } from "lucide-react";
+import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap, LogIn, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import NewsCard, { type NewsArticle } from "@/components/NewsCard";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventTracking } from "@/hooks/useEventTracking";
@@ -16,6 +18,8 @@ import VehicleImage from "@/components/VehicleImage";
 import { getAnonGarage, removeFromAnonGarage, type AnonGarageItem } from "@/lib/anon-garage";
 import { getShortlist, removeFromShortlist } from "@/lib/shortlist-store";
 import type { ShortlistCandidate } from "@/lib/shortlist-coach";
+import RecallBadge, { type Recall } from "@/components/garage/RecallBadge";
+import RecallPanel from "@/components/garage/RecallPanel";
 
 interface GarageVehicle {
   id: string;
@@ -48,6 +52,8 @@ export default function GaragePage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [compareBase, setCompareBase] = useState<GarageVehicle | null>(null);
+  const [recallPanel, setRecallPanel] = useState<{ vehicle: GarageVehicle; recalls: Recall[] } | null>(null);
+  const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
 
   const headers = useCallback(() => {
     return session?.access_token
@@ -83,6 +89,14 @@ export default function GaragePage() {
   useEffect(() => {
     loadVehicles();
   }, [loadVehicles]);
+
+  // Fetch news digest once on mount
+  useEffect(() => {
+    fetch("/api/news?hours=168&limit=4")
+      .then((r) => r.json())
+      .then((data: { articles?: NewsArticle[] }) => setNewsArticles(data.articles ?? []))
+      .catch(() => {/* silent — news is non-critical */});
+  }, []);
 
   const handleAdd = async () => {
     setError("");
@@ -157,6 +171,19 @@ export default function GaragePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
+      {recallPanel && session?.access_token && (
+        <RecallPanel
+          vehicleLabel={recallPanel.vehicle.nickname || vehicleLabel(recallPanel.vehicle)}
+          recalls={recallPanel.recalls}
+          authToken={session.access_token}
+          onClose={() => setRecallPanel(null)}
+          onDismissed={(recallId) => {
+            setRecallPanel((prev) =>
+              prev ? { ...prev, recalls: prev.recalls.filter((r) => r.id !== recallId) } : null
+            );
+          }}
+        />
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">My Garage</h1>
@@ -383,9 +410,18 @@ export default function GaragePage() {
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900">
-                    {v.nickname || vehicleLabel(v)}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-medium text-gray-900">
+                      {v.nickname || vehicleLabel(v)}
+                    </p>
+                    {session?.access_token && (
+                      <RecallBadge
+                        vehicleId={v.id}
+                        authToken={session.access_token}
+                        onViewRecalls={(recalls) => setRecallPanel({ vehicle: v, recalls })}
+                      />
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
                     {v.nickname && <span>{vehicleLabel(v)}</span>}
                     {v.trim && <span>&middot; {v.trim}</span>}
@@ -441,6 +477,30 @@ export default function GaragePage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* EV news digest — shown to all users */}
+      {newsArticles.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-yellow-500" />
+              <h2 className="text-sm font-semibold text-gray-900">This week&apos;s EV news</h2>
+            </div>
+            <Link
+              href="/news"
+              className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+            >
+              View all <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <p className="text-xs text-gray-400 mb-3">Top routine-impact stories · updated daily</p>
+          <div className="space-y-2">
+            {newsArticles.map((article) => (
+              <NewsCard key={article.id} article={article} variant="compact" />
+            ))}
+          </div>
         </div>
       )}
     </div>
