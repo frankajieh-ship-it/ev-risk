@@ -113,6 +113,10 @@ export default function Home() {
       charging_access: routine.charging_access,
       climate: routine.climate,
     });
+    trackEvent("report_generation_started", {
+      has_vehicle: !!vehicleData,
+      schema_version: "v2",
+    });
 
     try {
       // Turnstile bot protection
@@ -155,8 +159,8 @@ export default function Home() {
           const { reportId } = await persistRes.json();
           result._persisted_report_id = reportId;
         }
-      } catch {
-        // Non-blocking — report still renders even if DB insert fails
+      } catch (persistErr) {
+        console.warn("[Report] DB persist failed:", persistErr);
       }
 
       // Navigate to report page with v2 data
@@ -166,6 +170,10 @@ export default function Home() {
       router.push(`/report?${params.toString()}`);
     } catch (err) {
       console.warn("[Frontend] V2 score error:", err);
+      trackEvent("report_generation_failed", {
+        error: err instanceof Error ? err.message : "unknown",
+        schema_version: "v2",
+      });
       setGenerateError(err instanceof Error ? err.message : "An error occurred");
       // Go back to recommendations so user can retry
       setCurrentStep("recommendations");

@@ -33,7 +33,6 @@ import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
 import FeedbackWidget from "@/components/FeedbackWidget";
 import ExitFeedbackModal from "@/components/receipt/ExitFeedbackModal";
 import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
-import CopartBanner from "@/components/copart/CopartBanner";
 import ModelInfoSection from "@/components/receipt/ModelInfoSection";
 import DeepDiveSection from "@/components/receipt/DeepDiveSection";
 import NegotiationDeepSection from "@/components/receipt/NegotiationDeepSection";
@@ -1248,9 +1247,6 @@ export default function ReceiptPage() {
                   </a>
                 </div>
               )}
-
-              {/* Copart cross-promo banner */}
-              <CopartBanner />
 
               {/* Share / PDF row */}
               <div id="save-receipt-cta" className="flex gap-2">
