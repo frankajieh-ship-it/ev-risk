@@ -1172,6 +1172,12 @@ export default function ReceiptPage() {
                 )}
               </div>
 
+              {/* Feedback — placed immediately after verdict actions for max visibility */}
+              <FeedbackWidget
+                contextType="receipt"
+                contextId={receipt.receipt_id}
+              />
+
               {/* Active recall banner */}
               {activeRecalls.length > 0 && (
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4">
@@ -1336,12 +1342,6 @@ export default function ReceiptPage() {
                   initialStatus={sections?.receipt_details?.status}
                 />
               ) : null}
-
-              {/* Feedback */}
-              <FeedbackWidget
-                contextType="receipt"
-                contextId={receipt.receipt_id}
-              />
 
               <SourcesFooter />
 

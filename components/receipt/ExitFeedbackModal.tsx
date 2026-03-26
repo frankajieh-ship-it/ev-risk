@@ -31,12 +31,21 @@ export default function ExitFeedbackModal({ hasReceipt, receiptId }: ExitFeedbac
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
         setVisible(true);
+        // Track shown so it counts in analytics alongside FeedbackWidget
+        fetch("/api/track-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventName: "feedback_shown",
+            eventData: { source: "exit_intent", receipt_id: receiptId },
+          }),
+        }).catch(() => {});
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [hasReceipt]);
+  }, [hasReceipt, receiptId]);
 
   const handleSelect = async (rating: "helpful" | "okay" | "not_useful") => {
     setSubmitted(true);

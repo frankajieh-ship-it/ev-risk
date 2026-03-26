@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Star } from "lucide-react";
 
 interface FeedbackWidgetProps {
   contextType: "receipt" | "seo_page";
@@ -9,214 +8,147 @@ interface FeedbackWidgetProps {
   className?: string;
 }
 
+const OPTIONS = [
+  { value: "helpful" as const, emoji: "👍", label: "Helpful" },
+  { value: "okay" as const, emoji: "😐", label: "Okay" },
+  { value: "not_useful" as const, emoji: "👎", label: "Not useful" },
+];
+
 export default function FeedbackWidget({
   contextType,
   contextId,
   className = "",
 }: FeedbackWidgetProps) {
-  const [rating, setRating] = useState(0);
-  const [hoveredStar, setHoveredStar] = useState(0);
-  const [feedbackText, setFeedbackText] = useState("");
-  const [wouldRecommend, setWouldRecommend] = useState<boolean | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [selected, setSelected] = useState<"helpful" | "okay" | "not_useful" | null>(null);
+  const [followUpText, setFollowUpText] = useState("");
+  const [followUpSent, setFollowUpSent] = useState(false);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
   const storageKey = contextId
     ? `offo_feedback_${contextId}`
     : `offo_feedback_${contextType}`;
 
-  // Check if already submitted
   useEffect(() => {
     try {
-      if (localStorage.getItem(storageKey)) {
-        setAlreadySubmitted(true);
-      }
-    } catch {
-      // localStorage unavailable
-    }
+      if (localStorage.getItem(storageKey)) setAlreadySubmitted(true);
+    } catch { /* ignore */ }
   }, [storageKey]);
 
-  // Track feedback_shown
+  // Track shown
   useEffect(() => {
     if (alreadySubmitted) return;
-    try {
-      fetch("/api/track-event", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventName: "feedback_shown",
-          eventData: { context_type: contextType, context_id: contextId },
-          timestamp: new Date().toISOString(),
-        }),
-      }).catch(() => {});
-    } catch {
-      // non-critical
-    }
+    fetch("/api/track-event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventName: "feedback_shown",
+        eventData: { context_type: contextType, context_id: contextId },
+      }),
+    }).catch(() => {});
   }, [alreadySubmitted, contextType, contextId]);
 
-  const handleSubmit = async () => {
-    if (rating === 0 || submitting) return;
-    setSubmitting(true);
+  const handleSelect = async (value: "helpful" | "okay" | "not_useful") => {
+    if (selected) return; // already picked
+    setSelected(value);
+    try { localStorage.setItem(storageKey, "1"); } catch { /* ignore */ }
 
-    try {
-      const res = await fetch("/api/report-feedback", {
+    // Submit immediately on tap
+    await Promise.all([
+      fetch("/api/report-feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           reportId: contextId || null,
-          rating,
-          feedbackText: feedbackText.trim() || null,
-          wouldRecommend,
+          rating: value === "helpful" ? 5 : value === "okay" ? 3 : 1,
+          feedbackText: null,
+          wouldRecommend: value === "helpful" ? true : value === "not_useful" ? false : null,
         }),
-      });
+      }).catch(() => {}),
+      fetch("/api/track-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventName: "feedback_submitted",
+          eventData: { context_type: contextType, context_id: contextId, rating: value },
+        }),
+      }).catch(() => {}),
+    ]);
+  };
 
-      if (res.ok) {
-        setSubmitted(true);
-        try {
-          localStorage.setItem(storageKey, "1");
-        } catch {
-          // localStorage unavailable
-        }
-
-        // Track submission
-        fetch("/api/track-event", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            eventName: "feedback_submitted",
-            eventData: {
-              context_type: contextType,
-              context_id: contextId,
-              rating,
-            },
-            timestamp: new Date().toISOString(),
-          }),
-        }).catch(() => {});
-      }
-    } catch {
-      // silently fail
-    } finally {
-      setSubmitting(false);
-    }
+  const handleFollowUp = async () => {
+    if (!followUpText.trim() || followUpSent) return;
+    setFollowUpSent(true);
+    await fetch("/api/report-feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reportId: contextId || null,
+        rating: selected === "helpful" ? 5 : selected === "okay" ? 3 : 1,
+        feedbackText: followUpText.trim(),
+        wouldRecommend: selected === "helpful" ? true : selected === "not_useful" ? false : null,
+      }),
+    }).catch(() => {});
   };
 
   if (alreadySubmitted) return null;
 
-  if (submitted) {
-    return (
-      <div
-        className={`bg-white border border-gray-200 rounded-xl p-5 text-center ${className}`}
-      >
-        <p className="text-sm font-medium text-gray-900">
-          Thank you for your feedback!
-        </p>
-        <p className="text-xs text-gray-500 mt-1">
-          Your input helps us improve OFFO.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div
-      className={`bg-white border border-gray-200 rounded-xl p-5 ${className}`}
-    >
-      {/* Star rating */}
-      <p className="text-sm font-medium text-gray-900 mb-3">
-        How helpful was this?
-      </p>
-      <div className="flex items-center gap-1 mb-2">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            type="button"
-            onClick={() => setRating(star)}
-            onMouseEnter={() => setHoveredStar(star)}
-            onMouseLeave={() => setHoveredStar(0)}
-            className="p-0.5 transition-colors"
-            aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
-          >
-            <Star
-              className={`w-6 h-6 transition-colors ${
-                star <= (hoveredStar || rating)
-                  ? "fill-yellow-400 text-yellow-400"
-                  : "text-gray-300"
-              }`}
-            />
-          </button>
-        ))}
-        {rating > 0 && (
-          <span className="text-xs text-gray-500 ml-2">
-            {rating === 1
-              ? "Poor"
-              : rating === 2
-              ? "Fair"
-              : rating === 3
-              ? "Good"
-              : rating === 4
-              ? "Very good"
-              : "Excellent"}
-          </span>
-        )}
-      </div>
-
-      {/* Expanded section after star selection */}
-      {rating > 0 && (
-        <div className="mt-4 space-y-3">
-          <textarea
-            value={feedbackText}
-            onChange={(e) => setFeedbackText(e.target.value)}
-            placeholder="Tell us more (optional)..."
-            className="w-full text-sm border border-gray-200 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            rows={2}
-            maxLength={2000}
-          />
-
-          {/* Would recommend */}
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-600">
-              Would you recommend OFFO?
-            </span>
-            <div className="flex gap-1.5">
+    <div className={`bg-white border border-gray-200 rounded-xl p-4 ${className}`}>
+      {!selected ? (
+        <>
+          <p className="text-sm font-medium text-gray-800 mb-3 text-center">
+            How helpful was this analysis?
+          </p>
+          <div className="flex gap-3">
+            {OPTIONS.map(({ value, emoji, label }) => (
               <button
-                type="button"
-                onClick={() =>
-                  setWouldRecommend(wouldRecommend === true ? null : true)
-                }
-                className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-                  wouldRecommend === true
-                    ? "bg-green-50 border-green-300 text-green-700"
-                    : "border-gray-200 text-gray-500 hover:border-gray-300"
-                }`}
+                key={value}
+                onClick={() => handleSelect(value)}
+                className="flex-1 flex flex-col items-center gap-1 py-3 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 active:scale-95 transition-all"
               >
-                Yes
+                <span className="text-xl">{emoji}</span>
+                <span className="text-xs font-medium text-gray-700">{label}</span>
               </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setWouldRecommend(wouldRecommend === false ? null : false)
-                }
-                className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-                  wouldRecommend === false
-                    ? "bg-red-50 border-red-300 text-red-700"
-                    : "border-gray-200 text-gray-500 hover:border-gray-300"
-                }`}
-              >
-                No
-              </button>
-            </div>
+            ))}
           </div>
-
-          {/* Submit */}
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="w-full text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg py-2 transition-colors"
-          >
-            {submitting ? "Submitting..." : "Submit Feedback"}
-          </button>
+        </>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{OPTIONS.find(o => o.value === selected)?.emoji}</span>
+            <p className="text-sm font-medium text-gray-800">
+              {selected === "helpful" ? "Glad it helped!" : selected === "okay" ? "Thanks for letting us know." : "Sorry to hear that."}
+            </p>
+          </div>
+          {!followUpSent ? (
+            <>
+              <textarea
+                value={followUpText}
+                onChange={(e) => setFollowUpText(e.target.value)}
+                placeholder={selected === "not_useful" ? "What could be better? (optional)" : "Anything else to share? (optional)"}
+                className="w-full text-sm border border-gray-200 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={2}
+                maxLength={500}
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={handleFollowUp}
+                  disabled={!followUpText.trim()}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium disabled:opacity-40 hover:bg-blue-700 transition-colors"
+                >
+                  Send
+                </button>
+                <button
+                  onClick={() => setFollowUpSent(true)}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+                >
+                  Skip
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-gray-400">Thanks — your feedback helps us improve.</p>
+          )}
         </div>
       )}
     </div>
