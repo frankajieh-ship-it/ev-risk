@@ -1706,6 +1706,20 @@ export async function GET(request: NextRequest) {
       chat_conversion_pct: chatConversionPct,
     };
 
+    // Dealer counts (for adminv2)
+    const [dealersTotalResult, dealersNewResult] = await Promise.allSettled([
+      supabase.from("dealerships").select("id", { count: "exact", head: true }),
+      supabase
+        .from("dealerships")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", window.start)
+        .lt("created_at", window.end),
+    ]);
+    const dealers = {
+      total: dealersTotalResult.status === "fulfilled" ? (dealersTotalResult.value.count ?? 0) : 0,
+      new_this_period: dealersNewResult.status === "fulfilled" ? (dealersNewResult.value.count ?? 0) : 0,
+    };
+
     // Response
     // -----------------------------------------------------------------------
 
@@ -1747,6 +1761,7 @@ export async function GET(request: NextRequest) {
       retention,
       repeat_usage,
       chat_metrics,
+      dealers,
     });
   } catch (err) {
     console.error("Admin summary error:", err);

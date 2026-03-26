@@ -13,6 +13,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { analyticsRateLimiter } from "@/lib/rate-limiter";
 import { logApi } from "@/lib/api-logger";
 import { getEventTags } from "@/lib/event-tags";
+import { enrichGeo } from "@/lib/geo-enrichment";
 
 // Valid event names for validation
 const VALID_EVENT_NAMES = [
@@ -313,6 +314,9 @@ export async function POST(req: NextRequest) {
                req.headers.get("x-real-ip") || null;
     const userAgent = req.headers.get("user-agent") || null;
 
+    // Geo enrichment (fire-and-forget; never blocks event insert)
+    const geo = await enrichGeo(ip).catch(() => null);
+
     // Validate and normalize timestamp
     let eventTimestamp: string;
     if (timestamp) {
@@ -374,6 +378,10 @@ export async function POST(req: NextRequest) {
       ip_address: ip,
       user_agent: userAgent,
       timestamp: eventTimestamp,
+      geo_metro: geo?.metro || null,
+      geo_state: geo?.state || null,
+      geo_lat: geo?.lat ?? null,
+      geo_lon: geo?.lon ?? null,
     };
 
     // Include dedupe_key if provided (unique partial index enforces dedup)

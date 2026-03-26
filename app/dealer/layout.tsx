@@ -10,11 +10,12 @@
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Package, MessageSquare, Building, ArrowLeft, Loader2 } from "lucide-react";
+import { LayoutDashboard, Package, MessageSquare, Building, ArrowLeft, Loader2, BarChart2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const NAV_ITEMS = [
   { href: "/dealer", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/dealer/dashboard", label: "Demand Analytics", icon: BarChart2 },
   { href: "/dealer/inventory", label: "Inventory", icon: Package },
   { href: "/dealer/inquiries", label: "Inquiries", icon: MessageSquare },
   { href: "/dealer/profile", label: "Dealership Profile", icon: Building },

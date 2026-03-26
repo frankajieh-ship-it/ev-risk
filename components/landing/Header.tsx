@@ -19,7 +19,8 @@ const navLinks = [
   { label: "EV Fit", href: "#fit-check", isScroll: true },
   { label: "Receipt", href: "/receipt", isScroll: false },
   { label: "Compare", href: "/compare", isScroll: false },
-  { label: "For Dealers", href: "/dealers", isScroll: false },
+  { label: "Find a Dealer", href: "/dealers", isScroll: false },
+  { label: "List My Dealership", href: "/dealers/join", isScroll: false },
 ];
 
 export default function Header({ variant = "receipt", historyCount, onHistoryClick, regionSelector }: HeaderProps) {

@@ -45,10 +45,20 @@ interface InventoryItem {
   classification: { category?: string } | null;
 }
 
+// Static sub-paths that should never be treated as dealer slugs
+const RESERVED_SLUGS = new Set(["join", "confirm"]);
+
 export default function DealerProfilePage() {
   const params = useParams<{ slug: string }>();
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+
+  // Guard: redirect reserved paths to their actual pages
+  useEffect(() => {
+    if (params.slug && RESERVED_SLUGS.has(params.slug)) {
+      router.replace(`/dealers/${params.slug}`);
+    }
+  }, [params.slug, router]);
 
   const [dealer, setDealer] = useState<DealerProfile | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);

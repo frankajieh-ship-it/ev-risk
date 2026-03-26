@@ -514,6 +514,25 @@ export default function Home() {
         </section>
       )}
 
+      {/* Dealer CTA section */}
+      <section className="max-w-3xl mx-auto px-4 pb-8">
+        <div className="rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 p-6 md:p-8 text-white flex flex-col md:flex-row md:items-center gap-5">
+          <div className="flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wider text-green-200 mb-1">For Dealerships</p>
+            <h2 className="text-lg md:text-xl font-bold mb-1">Reach high-intent EV buyers</h2>
+            <p className="text-sm text-green-100">
+              OFFO buyers run real routine-fit checks before they shop. List your inventory and get matched to buyers already researching your vehicles.
+            </p>
+          </div>
+          <a
+            href="/dealers"
+            className="shrink-0 px-6 py-3 bg-white text-green-700 rounded-xl text-sm font-semibold hover:bg-green-50 transition-colors text-center"
+          >
+            Find a dealer
+          </a>
+        </div>
+      </section>
+
       {/* News digest soft banner */}
       <div className="max-w-3xl mx-auto px-4 pb-4">
         <a
