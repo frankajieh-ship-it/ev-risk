@@ -10,33 +10,84 @@ import { searchListings } from "@/lib/auto-dev-client";
 
 export const maxDuration = 10;
 
-// Auto.dev uses specific model name formats that differ from our internal names.
-// Map known problem cases: key = lowercase model (after stripping make prefix), value = Auto.dev model string.
-const MODEL_NAME_MAP: Record<string, string> = {
-  "leaf": "LEAF",
-  "leaf s": "LEAF",
-  "leaf sv": "LEAF",
-  "leaf sl": "LEAF",
-  "leaf plus s": "LEAF",
-  "leaf plus sv": "LEAF",
-  "leaf plus sl": "LEAF",
+// Auto.dev exact model name overrides (after stripping make prefix).
+// Key = lowercase, value = exact string Auto.dev expects.
+const MODEL_EXACT_MAP: Record<string, string> = {
+  // Nissan
+  "leaf": "LEAF", "leaf s": "LEAF", "leaf sv": "LEAF", "leaf sl": "LEAF",
+  "leaf plus s": "LEAF", "leaf plus sv": "LEAF", "leaf plus sl": "LEAF",
+  // Hyundai
+  "ioniq 5": "IONIQ 5", "ioniq 6": "IONIQ 6",
+  // Mercedes (make comes in as "Mercedes" or "Mercedes-Benz")
+  "eqs 450+": "EQS", "eqs 580 4matic": "EQS", "eqs": "EQS",
+  "eqb 300 4matic": "EQB", "eqb": "EQB",
+  "eqe 350+": "EQE", "eqe": "EQE",
+};
+
+// Trim suffixes Auto.dev doesn't use — strip these from model names.
+// Order matters: longer strings first.
+const TRIM_SUFFIXES = [
+  " long range", " standard range", " standard range plus",
+  " performance", " plaid", " plaid+",
+  " gt", " gt-line", " gt line", " wind", " earth", " light",
+  " xdrive50", " xdrive40", " edrive40", " edrive35", " m50",
+  " 4s", " turbo", " turbo s", " cross turismo", " sport turismo",
+  " pure", " grand touring", " grand touring+",
+  " awd", " rwd", " fwd",
+  " 450+", " 580", " 350+",
+  " e-4wd",
+];
+
+// Make aliases — Auto.dev uses specific make strings
+const MAKE_ALIASES: Record<string, string> = {
+  "mercedes": "Mercedes-Benz",
 };
 
 /**
- * Normalize a model name for Auto.dev search.
- * 1. Strip the make prefix if present (e.g. "Chevrolet Bolt EUV" → "Bolt EUV")
- * 2. Apply known model name overrides
+ * Normalize make + model for Auto.dev search:
+ * 1. Apply make aliases
+ * 2. Strip make prefix from model string if present
+ * 3. Apply exact model overrides
+ * 4. Strip known trim suffixes to get base model name
  */
-function normalizeModel(make: string | undefined, model: string | undefined): string | undefined {
-  if (!model) return model;
+function normalizeForAutodev(
+  make: string | undefined,
+  model: string | undefined
+): { make: string | undefined; model: string | undefined } {
+  const normalizedMake = make ? (MAKE_ALIASES[make.toLowerCase()] ?? make) : make;
+
+  if (!model) return { make: normalizedMake, model };
+
   let m = model.trim();
-  // Strip make prefix (e.g. "Chevrolet Bolt EUV" when make="Chevrolet")
-  if (make && m.toLowerCase().startsWith(make.toLowerCase() + " ")) {
+
+  // Strip make prefix (e.g. "Chevrolet Bolt EUV" → "Bolt EUV")
+  if (normalizedMake && m.toLowerCase().startsWith(normalizedMake.toLowerCase() + " ")) {
+    m = m.slice(normalizedMake.length + 1).trim();
+  } else if (make && m.toLowerCase().startsWith(make.toLowerCase() + " ")) {
     m = m.slice(make.length + 1).trim();
   }
-  // Apply known overrides
-  const key = m.toLowerCase();
-  return MODEL_NAME_MAP[key] ?? m;
+
+  // Apply exact overrides first
+  const exactKey = m.toLowerCase();
+  if (MODEL_EXACT_MAP[exactKey]) {
+    return { make: normalizedMake, model: MODEL_EXACT_MAP[exactKey] };
+  }
+
+  // Strip known trim suffixes (case-insensitive)
+  const mLower = m.toLowerCase();
+  for (const suffix of TRIM_SUFFIXES) {
+    if (mLower.endsWith(suffix)) {
+      m = m.slice(0, m.length - suffix.length).trim();
+      // Re-check exact map after stripping
+      const newKey = m.toLowerCase();
+      if (MODEL_EXACT_MAP[newKey]) {
+        return { make: normalizedMake, model: MODEL_EXACT_MAP[newKey] };
+      }
+      break;
+    }
+  }
+
+  return { make: normalizedMake, model: m };
 }
 
 export async function GET(request: NextRequest) {
@@ -50,8 +101,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ photo_urls: [] });
   }
 
-  const model = normalizeModel(make, rawModel);
-  const result = await searchListings({ vin, make, model, year, limit: 8 });
+  const { make: normalizedMake, model } = normalizeForAutodev(make, rawModel);
+  const result = await searchListings({ vin, make: normalizedMake, model, year, limit: 8 });
 
   const photoUrls: string[] = [];
   if (result?.records) {
