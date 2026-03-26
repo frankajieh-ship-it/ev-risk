@@ -4,8 +4,11 @@ import { useState } from "react";
 import { ShieldCheck, ShieldAlert, AlertTriangle, Zap, Wrench, Tag, Bell, DollarSign, Gauge, TrendingUp, Lock, ChevronDown, ChevronUp } from "lucide-react";
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
 
+type DataSource = "api" | "scrape" | "manual";
+
 interface SalvageRiskCardProps {
   result: SalvageRiskResult;
+  dataSource?: DataSource;
 }
 
 const GRADE_CONFIG = {
@@ -61,7 +64,13 @@ function fmt(n: number) {
   return "$" + Math.round(n).toLocaleString();
 }
 
-export default function SalvageRiskCard({ result }: SalvageRiskCardProps) {
+const DATA_SOURCE_BADGE: Record<DataSource, { label: string; className: string }> = {
+  api:    { label: "Live lot data",      className: "bg-green-100 text-green-700 border-green-200" },
+  scrape: { label: "Extracted from page", className: "bg-amber-100 text-amber-700 border-amber-200" },
+  manual: { label: "Manual entry",        className: "bg-gray-100 text-gray-600 border-gray-200" },
+};
+
+export default function SalvageRiskCard({ result, dataSource }: SalvageRiskCardProps) {
   const [checklistOpen, setChecklistOpen] = useState(false);
   const cfg = GRADE_CONFIG[result.grade];
   const Icon = cfg.icon;
@@ -87,6 +96,14 @@ export default function SalvageRiskCard({ result }: SalvageRiskCardProps) {
           <span className="text-2xl font-bold text-gray-900">{result.score}/100</span>
         </div>
       </div>
+      {/* Data source indicator */}
+      {dataSource && (
+        <div className="flex items-center gap-1.5">
+          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${DATA_SOURCE_BADGE[dataSource].className}`}>
+            {dataSource === "api" ? "●" : dataSource === "scrape" ? "◐" : "○"} {DATA_SOURCE_BADGE[dataSource].label}
+          </span>
+        </div>
+      )}
 
       {/* Overall bar */}
       <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">

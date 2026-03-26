@@ -21,8 +21,10 @@ import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
 import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
 import type { ListingReceipt } from "@/types/receipt";
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
+import type { LotData } from "@/app/api/copart/lot/route";
 
 type PageState = "idle" | "fetching" | "generating" | "done" | "error";
+type DataSource = "api" | "scrape" | "manual";
 
 const SESSION_KEY = "offo_copart_session";
 
@@ -38,6 +40,25 @@ function isCopartUrl(input: string): boolean {
   } catch {
     return false;
   }
+}
+
+function extractLotNumber(url: string): string | null {
+  const match = url.match(/\/lot\/(\d{6,12})/);
+  return match ? match[1] : null;
+}
+
+function buildSyntheticText(lot: LotData): string {
+  return [
+    lot.year, lot.make, lot.model, lot.trim,
+    lot.primaryDamage ? `Primary damage: ${lot.primaryDamage}` : null,
+    lot.secondaryDamage ? `Secondary damage: ${lot.secondaryDamage}` : null,
+    lot.lossType ? `Loss type: ${lot.lossType}` : null,
+    lot.highlights,
+    lot.titleType ? `Title: ${lot.titleType}` : null,
+    lot.odometer ? `Odometer: ${lot.odometer}` : null,
+    lot.odometerBrand ? `Odometer brand: ${lot.odometerBrand}` : null,
+    lot.location,
+  ].filter(Boolean).join(" ");
 }
 
 function extractVinFromText(text: string): string | null {
@@ -74,10 +95,10 @@ export default function CopartPage() {
   const [receiptId, setReceiptId] = useState<string | null>(null);
   const [salvageRisk, setSalvageRisk] = useState<SalvageRiskResult | null>(null);
   const [detectedVin, setDetectedVin] = useState<string | null>(null);
-  const [hasSaved, setHasSaved] = useState(false);
   const [showUnlock, setShowUnlock] = useState(true);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [fetchBlocked, setFetchBlocked] = useState(false);
+  const [dataSource, setDataSource] = useState<DataSource>("manual");
 
   // Store the listing text for the arbitrage card (ref = no re-render)
   const listingTextRef = useRef("");
@@ -135,51 +156,88 @@ export default function CopartPage() {
     setSalvageRisk(null);
     setReceiptId(null);
     setDetectedVin(null);
-    setHasSaved(false);
     setShowUnlock(true);
     setIsUnlocked(false);
     setFetchBlocked(false);
+    setDataSource("manual");
 
     trackEvent("copart_analyze_started", { input_type: isCopartUrl(trimmed) ? "url" : "vin_or_text" });
 
     let listingText = trimmed;
     let vin: string | undefined;
     let listingUrl: string | undefined;
+    let resolvedSource: DataSource = "manual";
 
-    // Step 1: if URL, proxy-fetch HTML
+    // Step 1: if URL, try Copart lot API first, then proxy-fetch as fallback
     if (isCopartUrl(trimmed)) {
       setPageState("fetching");
-      setStatusMsg("Fetching auction lot...");
+      listingUrl = trimmed;
 
-      try {
-        const res = await fetch("/api/proxy-fetch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: trimmed }),
-        });
-        const data = await res.json();
+      const lotNumber = extractLotNumber(trimmed);
 
-        if (data.success && data.html) {
-          const parsed = parseCopartHtml(data.html);
-          listingText = parsed.listingText;
-          vin = parsed.vin ?? undefined;
-          if (vin) setDetectedVin(vin);
-          listingUrl = trimmed;
-        } else if (data.cookie_wall) {
-          // Copart shows a cookie consent page — we can't scrape through it
-          setPageState("error");
-          setFetchBlocked(true);
-          setErrorMsg("cookie_wall");
-          return;
-        } else {
-          // Generic block / other scrape failure — still surface it
-          setPageState("error");
-          setFetchBlocked(true);
-          setErrorMsg("fetch_failed");
-          return;
+      if (lotNumber) {
+        // ── Strategy A: Copart public JSON API (no cookie required) ──────────
+        setStatusMsg("Fetching lot details...");
+        try {
+          const res = await fetch(`/api/copart/lot?lotNumber=${lotNumber}`);
+          const data = await res.json() as { success: boolean; lot?: LotData };
+
+          if (data.success && data.lot) {
+            const lot = data.lot;
+            listingText = buildSyntheticText(lot);
+            vin = lot.vin ?? undefined;
+            if (vin) setDetectedVin(vin);
+            resolvedSource = "api";
+            trackEvent("copart_lot_api_success", { lotNumber, source: lot.source });
+          }
+        } catch (e) {
+          console.warn("[Copart] Lot API error:", e);
         }
-      } catch (e) {
-        console.warn("[Copart] Proxy fetch error:", e);
+      }
+
+      // ── Strategy B: proxy-fetch HTML (fallback if lot API didn't populate) ─
+      if (resolvedSource !== "api" || !listingText.trim()) {
+        setStatusMsg("Fetching auction lot...");
+        try {
+          const res = await fetch("/api/proxy-fetch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: trimmed }),
+          });
+          const data = await res.json() as { success: boolean; html?: string; cookie_wall?: boolean };
+
+          if (data.success && data.html) {
+            const parsed = parseCopartHtml(data.html);
+            // Only use proxy text if we don't already have API data
+            if (!listingText.trim() || listingText === trimmed) {
+              listingText = parsed.listingText;
+            }
+            if (!vin && parsed.vin) {
+              vin = parsed.vin;
+              setDetectedVin(vin);
+            }
+            if (resolvedSource === "manual") resolvedSource = "scrape";
+          } else if (data.cookie_wall && resolvedSource === "manual") {
+            // Only hard-fail if we have no data at all from the lot API
+            setPageState("error");
+            setFetchBlocked(true);
+            setErrorMsg("cookie_wall");
+            return;
+          }
+          // If proxy fails but lot API already gave us data, continue silently
+        } catch (e) {
+          console.warn("[Copart] Proxy fetch error:", e);
+        }
+      }
+
+      setDataSource(resolvedSource);
+
+      // If we still have no usable data, show error
+      if (!listingText.trim() || listingText === trimmed) {
+        setPageState("error");
+        setFetchBlocked(true);
+        setErrorMsg("fetch_failed");
+        return;
       }
     } else {
       vin = extractVinFromText(trimmed) ?? undefined;
@@ -328,7 +386,7 @@ export default function CopartPage() {
         {pageState === "done" && receipt && salvageRisk && (
           <div className="space-y-4">
             {/* Phase 1: Salvage risk + bid guidance (always shown) */}
-            <SalvageRiskCard result={salvageRisk} />
+            <SalvageRiskCard result={salvageRisk} dataSource={dataSource} />
 
             <AuctionBidGuidanceCard
               result={salvageRisk}
@@ -363,10 +421,7 @@ export default function CopartPage() {
             />
 
             {/* Save to Garage */}
-            <SaveReceiptCTA
-              receipt={receipt}
-              onSaveSuccess={() => setHasSaved(true)}
-            />
+            <SaveReceiptCTA receipt={receipt} />
 
             {/* $19.99 upsell — hidden after unlock or save */}
             {showUnlock && !isUnlocked && receiptId && (
