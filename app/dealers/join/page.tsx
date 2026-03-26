@@ -11,9 +11,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Building, Check, Loader2, Mail } from "lucide-react";
-import { sendMagicLink } from "@/lib/supabase-auth";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
@@ -45,6 +45,7 @@ const EMPTY: FormData = {
 export default function DealerJoinPage() {
   const { isAuthenticated, isDealer, isReady } = useAuth();
   const router = useRouter();
+  const { trackEvent } = useEventTracking();
   const [form, setForm] = useState<FormData>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
@@ -79,6 +80,11 @@ export default function DealerJoinPage() {
 
     setSubmitting(true);
 
+    trackEvent("dealer_signup_started", {
+      has_phone: !!form.phone.trim(),
+      has_location: !!(form.city.trim() || form.zip.trim()),
+    });
+
     // Stash signup data so the confirm page can provision after email click
     try {
       localStorage.setItem(
@@ -98,13 +104,36 @@ export default function DealerJoinPage() {
       // localStorage unavailable — proceed anyway; confirm page will handle gracefully
     }
 
-    const result = await sendMagicLink(form.email.trim());
+    // Send via server route (Resend) for proper deliverability — not Supabase's shared mail
+    let success = false;
+    let errorMsg = "";
+    try {
+      const res = await fetch("/api/dealer/send-magic-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.email.trim(),
+          dealership_name: form.dealership_name.trim(),
+        }),
+      });
+      const data = await res.json();
+      success = data.success;
+      errorMsg = data.error || "Failed to send confirmation email.";
+    } catch {
+      errorMsg = "Network error. Please try again.";
+    }
+
     setSubmitting(false);
 
-    if (result.success) {
+    if (success) {
+      trackEvent("dealer_signup_email_sent", {
+        has_phone: !!form.phone.trim(),
+        has_location: !!(form.city.trim() || form.zip.trim()),
+      });
       setSent(true);
     } else {
-      setError(result.error || "Failed to send confirmation email.");
+      trackEvent("dealer_signup_email_failed");
+      setError(errorMsg);
     }
   };
 

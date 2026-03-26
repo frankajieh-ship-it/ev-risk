@@ -1718,6 +1718,10 @@ export async function GET(request: NextRequest) {
     const dealers = {
       total: dealersTotalResult.status === "fulfilled" ? (dealersTotalResult.value.count ?? 0) : 0,
       new_this_period: dealersNewResult.status === "fulfilled" ? (dealersNewResult.value.count ?? 0) : 0,
+      signup_started: countEvents(filteredUserEvents, "dealer_signup_started"),
+      signup_email_sent: countEvents(filteredUserEvents, "dealer_signup_email_sent"),
+      signup_email_failed: countEvents(filteredUserEvents, "dealer_signup_email_failed"),
+      signup_completed: countEvents(filteredUserEvents, "dealer_signup_completed"),
     };
 
     // Response

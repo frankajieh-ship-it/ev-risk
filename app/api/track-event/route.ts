@@ -232,6 +232,12 @@ const VALID_EVENT_NAMES = [
   "chat_message_sent",
   "chat_limit_reached",
   "chat_unlock_clicked",
+  // Dealer Signup Events
+  "dealer_signup_started",
+  "dealer_signup_email_sent",
+  "dealer_signup_email_failed",
+  "dealer_signup_completed",
+  "dealer_signup_provision_failed",
 ] as const;
 
 // Events that should be deduplicated by report_id (to prevent double-counting)

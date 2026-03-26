@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, AlertCircle, Building } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 type Status = "waiting_auth" | "provisioning" | "done" | "error" | "needs_input";
 
@@ -30,6 +31,7 @@ interface PendingData {
 export default function DealerConfirmPage() {
   const { session, isLoading, isAuthenticated, isDealer, isReady } = useAuth();
   const router = useRouter();
+  const { trackEvent } = useEventTracking();
   const [status, setStatus] = useState<Status>("waiting_auth");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -52,10 +54,12 @@ export default function DealerConfirmPage() {
       if (!res.ok) {
         setErrorMsg(json.error || "Provisioning failed");
         setStatus("error");
+        trackEvent("dealer_signup_provision_failed", { error: json.error });
         return;
       }
       // Clear stashed data
       try { localStorage.removeItem("dealer_signup_pending"); } catch {}
+      trackEvent("dealer_signup_completed");
       setStatus("done");
       // Reload session so role metadata propagates, then redirect
       setTimeout(() => {
@@ -64,6 +68,7 @@ export default function DealerConfirmPage() {
     } catch (e: any) {
       setErrorMsg(e.message || "Network error");
       setStatus("error");
+      trackEvent("dealer_signup_provision_failed", { error: e.message });
     }
   };
 

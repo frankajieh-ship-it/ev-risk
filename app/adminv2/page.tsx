@@ -61,6 +61,10 @@ interface SummaryData {
   dealers: {
     total: number;
     new_this_period: number;
+    signup_started: number;
+    signup_email_sent: number;
+    signup_email_failed: number;
+    signup_completed: number;
   };
   purchases_detail: {
     status: string;
@@ -227,6 +231,10 @@ export default function AdminV2Page() {
         dealers: {
           total: r.dealers?.total ?? 0,
           new_this_period: r.dealers?.new_this_period ?? 0,
+          signup_started: r.dealers?.signup_started ?? 0,
+          signup_email_sent: r.dealers?.signup_email_sent ?? 0,
+          signup_email_failed: r.dealers?.signup_email_failed ?? 0,
+          signup_completed: r.dealers?.signup_completed ?? 0,
         },
         purchases_detail: paidPurchases,
       };
@@ -496,15 +504,32 @@ export default function AdminV2Page() {
                   <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
                     <Users className="w-4 h-4 text-green-500" /> Dealers
                   </h2>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                       <p className="text-2xl font-bold text-gray-900">{fmt(data.dealers.total)}</p>
                       <p className="text-xs text-gray-500 mt-0.5">Total dealerships</p>
                     </div>
                     <div>
                       <p className="text-2xl font-bold text-gray-900">{fmt(data.dealers.new_this_period)}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">New this period</p>
+                      <p className="text-xs text-gray-500 mt-0.5">Provisioned this period</p>
                     </div>
+                  </div>
+                  {/* Signup funnel */}
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Signup Funnel</p>
+                  <div className="space-y-1.5">
+                    {[
+                      { label: "Form started", value: data.dealers.signup_started },
+                      { label: "Email sent", value: data.dealers.signup_email_sent },
+                      { label: "Email failed", value: data.dealers.signup_email_failed, warn: true },
+                      { label: "Completed", value: data.dealers.signup_completed, highlight: true },
+                    ].map(({ label, value, warn, highlight }) => (
+                      <div key={label} className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">{label}</span>
+                        <span className={`text-xs font-semibold ${highlight ? "text-green-600" : warn && value > 0 ? "text-red-500" : "text-gray-800"}`}>
+                          {fmt(value)}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
