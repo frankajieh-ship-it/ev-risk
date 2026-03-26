@@ -7,8 +7,8 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Copy,
   CheckCircle,
@@ -23,6 +23,10 @@ import {
   Info,
   Store,
   User,
+  ChevronLeft,
+  ChevronRight,
+  Expand,
+  X,
 } from "lucide-react";
 import type { ListingReceipt, LintError } from "@/types/receipt";
 import type { Region } from "@/lib/region";
@@ -51,6 +55,7 @@ interface ReceiptOutputCardProps {
   isUnlocked?: boolean;
   paymentsEnabled?: boolean;
   onPaywallClick?: () => void;
+  photos?: string[];
 }
 
 const VERDICT_STYLES = {
@@ -117,10 +122,22 @@ export default function ReceiptOutputCard({
   isUnlocked = false,
   paymentsEnabled = false,
   onPaywallClick,
+  photos = [],
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [scoringTooltipOpen, setScoringTooltipOpen] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const fallbackFiredRef = useRef(false);
+
+  const prevPhoto = useCallback(() =>
+    setPhotoIndex((i) => (i - 1 + photos.length) % photos.length),
+    [photos.length]
+  );
+  const nextPhoto = useCallback(() =>
+    setPhotoIndex((i) => (i + 1) % photos.length),
+    [photos.length]
+  );
 
   useEffect(() => {
     if (!lintPassed && receipt && !fallbackFiredRef.current) {
@@ -248,7 +265,71 @@ export default function ReceiptOutputCard({
             )}
           </div>
         </div>
-        <p className={`text-sm mt-2 ${isUpgrading ? "text-gray-400 italic" : "text-gray-700"}`}>
+
+        {/* Photo strip — hero + thumbnail row, only when photos available */}
+        {photos.length > 0 && (
+          <div className="mt-3 -mx-5 relative">
+            {/* Hero image */}
+            <div
+              className="relative w-full aspect-[16/7] overflow-hidden cursor-pointer group"
+              onClick={() => setLightboxOpen(true)}
+            >
+              <img
+                src={photos[photoIndex]}
+                alt="Vehicle listing photo"
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+              />
+              {/* Gradient overlay so text below stays readable */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
+              {/* Expand hint */}
+              <div className="absolute top-2 right-2 bg-black/40 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Expand className="w-3.5 h-3.5 text-white" />
+              </div>
+              {/* Prev/next on hero */}
+              {photos.length > 1 && (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); prevPhoto(); }}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/65 text-white rounded-full p-1.5 transition-colors"
+                    aria-label="Previous photo"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); nextPhoto(); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/65 text-white rounded-full p-1.5 transition-colors"
+                    aria-label="Next photo"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+              {/* Counter */}
+              <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
+                {photoIndex + 1} / {photos.length}
+              </div>
+            </div>
+
+            {/* Thumbnail strip — only when 2+ photos */}
+            {photos.length > 1 && (
+              <div className="flex gap-1.5 px-5 pt-2 pb-0 overflow-x-auto scrollbar-hide">
+                {photos.map((url, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setPhotoIndex(i)}
+                    className={`flex-shrink-0 w-14 h-10 rounded-lg overflow-hidden border-2 transition-all ${
+                      i === photoIndex ? "border-blue-500 opacity-100" : "border-transparent opacity-60 hover:opacity-90"
+                    }`}
+                  >
+                    <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <p className={`text-sm mt-3 ${isUpgrading ? "text-gray-400 italic" : "text-gray-700"}`}>
           {isUpgrading ? "Verdict and full reasoning will appear when analysis completes." : receipt.verdict_reason}
         </p>
         {region === "UK" && (
@@ -750,6 +831,58 @@ export default function ReceiptOutputCard({
       )}
 
       </div>
+
+      {/* Lightbox */}
+      <AnimatePresence>
+        {lightboxOpen && photos.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
+            onClick={() => setLightboxOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="relative max-w-3xl w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={photos[photoIndex]}
+                alt="Vehicle listing photo"
+                className="w-full max-h-[75vh] object-contain rounded-xl"
+              />
+              {photos.length > 1 && (
+                <>
+                  <button
+                    onClick={prevPhoto}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/75 text-white rounded-full p-2 transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={nextPhoto}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/75 text-white rounded-full p-2 transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => setLightboxOpen(false)}
+                className="absolute top-2 right-2 bg-black/50 hover:bg-black/75 text-white rounded-full p-1.5 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <p className="text-center text-white/70 text-xs mt-2">
+                {photoIndex + 1} of {photos.length} · Click outside to close
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

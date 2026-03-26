@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Receipt, Loader2, QrCode, ArrowLeft, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { Receipt, Loader2, QrCode, ArrowLeft, AlertTriangle } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { initAttribution } from "@/lib/attribution";
@@ -294,7 +294,6 @@ export default function ReceiptPage() {
 
   // Listing photos from Auto.dev enrichment
   const [listingPhotos, setListingPhotos] = useState<string[]>([]);
-  const [photoIndex, setPhotoIndex] = useState(0);
 
   // Prefill from SEO page or extension
   const [prefillText, setPrefillText] = useState<string | null>(null);
@@ -1112,59 +1111,6 @@ export default function ReceiptPage() {
           </div>
         )}
 
-        {/* Listing photo carousel — shown as soon as photos arrive (before or after receipt) */}
-        <AnimatePresence>
-          {listingPhotos.length > 0 && (
-            <motion.div
-              key="photo-carousel"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="mt-4 relative rounded-2xl overflow-hidden bg-gray-100 aspect-[16/9]"
-            >
-              <img
-                src={listingPhotos[photoIndex]}
-                alt="Listing photo"
-                className="w-full h-full object-cover"
-              />
-              {listingPhotos.length > 1 && (
-                <>
-                  <button
-                    onClick={() => setPhotoIndex((i) => (i - 1 + listingPhotos.length) % listingPhotos.length)}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
-                    aria-label="Previous photo"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setPhotoIndex((i) => (i + 1) % listingPhotos.length)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
-                    aria-label="Next photo"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                    {listingPhotos.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setPhotoIndex(i)}
-                        className={`w-1.5 h-1.5 rounded-full transition-colors ${i === photoIndex ? "bg-white" : "bg-white/50"}`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-              <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
-                {photoIndex + 1} / {listingPhotos.length}
-              </div>
-              <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
-                Similar listings via Auto.dev
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Output */}
         <AnimatePresence>
           {receipt && (
@@ -1197,6 +1143,7 @@ export default function ReceiptPage() {
                 isUnlocked={isUnlocked}
                 paymentsEnabled={paymentsEnabled}
                 onPaywallClick={() => handlePremiumAction("receipt_output_paywall")}
+                photos={listingPhotos}
               />
 
               {/* ── Save + Compare — immediately after verdict, max visibility ── */}
