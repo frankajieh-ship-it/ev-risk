@@ -226,6 +226,11 @@ const VALID_EVENT_NAMES = [
   "share_page_viewed",
   "share_to_fit_started",
   "share_to_fit_completed",
+  // Chat Events
+  "chat_session_opened",
+  "chat_message_sent",
+  "chat_limit_reached",
+  "chat_unlock_clicked",
 ] as const;
 
 // Events that should be deduplicated by report_id (to prevent double-counting)

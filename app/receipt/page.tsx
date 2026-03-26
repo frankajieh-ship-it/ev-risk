@@ -497,6 +497,7 @@ export default function ReceiptPage() {
 
     const poll = setInterval(async () => {
       attempts++;
+      let didFail = false;
       try {
         const res = await fetch(`/api/receipt/${encodeURIComponent(receiptId)}/status`);
         if (!res.ok) return;
@@ -519,6 +520,7 @@ export default function ReceiptPage() {
             upgrade_ms: attempts * 3000,
           });
         } else if (data.generation_status === "failed") {
+          didFail = true;
           clearInterval(poll);
           upgradePollingRef.current = null;
           setIsUpgrading(false);
@@ -533,7 +535,7 @@ export default function ReceiptPage() {
         // Network error — keep polling
       }
 
-      if (attempts >= maxAttempts) {
+      if (attempts >= maxAttempts && !didFail) {
         clearInterval(poll);
         upgradePollingRef.current = null;
         setIsUpgrading(false);
@@ -830,10 +832,11 @@ export default function ReceiptPage() {
       setError("Unable to regenerate — please re-submit your listing URL or text.");
       return;
     }
-    trackEvent("receipt_regenerate", {
+    trackEvent("receipt_regen", {
       receipt_id: receipt?.receipt_id,
       was_fallback: isFallback,
       was_similarity: isSimilarityMatch,
+      trigger: "manual",
     });
     handleGenerate({ ...lastInput, force_regenerate: true });
   }, [handleGenerate, receipt?.receipt_id, isFallback, isSimilarityMatch, trackEvent]);
@@ -943,6 +946,7 @@ export default function ReceiptPage() {
         trackEvent("receipt_regen", {
           receipt_id: receipt.receipt_id,
           lint_passed: result.lint_passed,
+          trigger: "lint_fix",
         });
       }
     } catch {
@@ -1009,7 +1013,6 @@ export default function ReceiptPage() {
         {/* Input Card */}
         <ReceiptInputCard
           onGenerate={(data) => {
-            setPhotoIndex(0);
             // Fetch photos from Auto.dev if extraction didn't return any
             if (listingPhotos.length === 0 && (data.fields.make || data.fields.year)) {
               fetch("/api/photos?" + new URLSearchParams({
@@ -1028,7 +1031,6 @@ export default function ReceiptPage() {
           onExtractionFields={handleExtractionFields}
           onPhotosExtracted={(photos) => {
             setListingPhotos(photos);
-            setPhotoIndex(0);
           }}
           isGenerating={isGenerating}
           generatingStep={generatingStep}
@@ -1381,6 +1383,7 @@ export default function ReceiptPage() {
           }}
           paymentsEnabled={paymentsEnabled}
           freeMode={freeMode}
+          trackEvent={trackEvent}
         />
       )}
 

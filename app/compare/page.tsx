@@ -1120,6 +1120,7 @@ function ComparePageContent() {
           }}
           paymentsEnabled={paymentsEnabled}
           freeMode={freeMode}
+          trackEvent={trackEvent}
         />
       )}
 

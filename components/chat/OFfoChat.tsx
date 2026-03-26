@@ -43,6 +43,7 @@ interface OFfoChatProps {
   isMobile?: boolean;
   paymentsEnabled?: boolean;
   freeMode?: boolean;
+  trackEvent?: (name: string, data?: Record<string, unknown>) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -141,6 +142,7 @@ export default function OFfoChat({
   isMobile = false,
   paymentsEnabled = true,
   freeMode = false,
+  trackEvent,
 }: OFfoChatProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -234,6 +236,7 @@ export default function OFfoChat({
 
   const handleCheckout = useCallback(async () => {
     if (checkoutLoading) return;
+    trackEvent?.("chat_unlock_clicked", { scenario_type: scenarioType, session_id: sessionId });
     setCheckoutLoading(true);
     try {
       const res = await fetch("/api/payments/checkout", {
@@ -287,6 +290,7 @@ export default function OFfoChat({
           setLimitReached(true);
           setMessagesUsedToday(FREE_DAILY_LIMIT);
           setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+          trackEvent?.("chat_limit_reached", { scenario_type: scenarioType, session_id: sessionId });
           return;
         }
 
@@ -310,6 +314,7 @@ export default function OFfoChat({
         // Track message count for nudge
         const newCount = messagesUsedToday + 1;
         setMessagesUsedToday(newCount);
+        trackEvent?.("chat_message_sent", { scenario_type: scenarioType, messages_used: newCount, is_paid: chatUnlocked });
       } catch {
         setMessages((prev) => [
           ...prev,
@@ -359,6 +364,7 @@ export default function OFfoChat({
               setIsOpen(true);
               setTooltipShown(false);
               if (typeof window !== "undefined") localStorage.setItem("offo_chat_tooltip_seen", "1");
+              trackEvent?.("chat_session_opened", { scenario_type: scenarioType });
             }}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-full shadow-lg transition-all hover:scale-105 active:scale-95"
             aria-label="Ask OFFO"
