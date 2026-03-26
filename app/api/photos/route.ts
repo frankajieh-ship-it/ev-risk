@@ -15,7 +15,9 @@ export const maxDuration = 10;
 const MODEL_EXACT_MAP: Record<string, string> = {
   // Nissan
   "leaf": "LEAF", "leaf s": "LEAF", "leaf sv": "LEAF", "leaf sl": "LEAF",
-  "leaf plus s": "LEAF", "leaf plus sv": "LEAF", "leaf plus sl": "LEAF",
+  "leaf plus": "LEAF", "leaf plus s": "LEAF", "leaf plus sv": "LEAF", "leaf plus sl": "LEAF",
+  // Ford
+  "mustang mach-e": "Mustang Mach-E",
   // Hyundai — Auto.dev uses title case, NOT all-caps
   "ioniq 5": "Ioniq 5", "ioniq 6": "Ioniq 6",
   // Mercedes (make comes in as "Mercedes" or "Mercedes-Benz")
@@ -74,17 +76,22 @@ function normalizeForAutodev(
     return { make: normalizedMake, model: MODEL_EXACT_MAP[exactKey] };
   }
 
-  // Strip known trim suffixes (case-insensitive)
-  const mLower = m.toLowerCase();
-  for (const suffix of TRIM_SUFFIXES) {
-    if (mLower.endsWith(suffix)) {
-      m = m.slice(0, m.length - suffix.length).trim();
-      // Re-check exact map after stripping
-      const newKey = m.toLowerCase();
-      if (MODEL_EXACT_MAP[newKey]) {
-        return { make: normalizedMake, model: MODEL_EXACT_MAP[newKey] };
+  // Strip known trim suffixes (case-insensitive) — loop until no more match
+  let stripped = true;
+  while (stripped) {
+    stripped = false;
+    const mLower = m.toLowerCase();
+    for (const suffix of TRIM_SUFFIXES) {
+      if (mLower.endsWith(suffix)) {
+        m = m.slice(0, m.length - suffix.length).trim();
+        // Re-check exact map after stripping
+        const newKey = m.toLowerCase();
+        if (MODEL_EXACT_MAP[newKey]) {
+          return { make: normalizedMake, model: MODEL_EXACT_MAP[newKey] };
+        }
+        stripped = true;
+        break;
       }
-      break;
     }
   }
 
