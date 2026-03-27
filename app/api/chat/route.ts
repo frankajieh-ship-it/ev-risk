@@ -10,6 +10,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+
+export const maxDuration = 26;
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import { guardTurnstile } from "@/lib/turnstile";
@@ -231,9 +233,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Master timeout: 10s
+  // Master timeout: 25s (function limit is 30s; leave 5s buffer)
   const masterController = new AbortController();
-  const masterTimeout = setTimeout(() => masterController.abort(), 10_000);
+  const masterTimeout = setTimeout(() => masterController.abort(), 25_000);
 
   const sources: string[] = [];
   let fallback = false;

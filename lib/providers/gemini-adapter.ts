@@ -103,19 +103,24 @@ export const geminiAdapter: ProviderAdapter = {
     // Combine system + user prompt (Gemini handles them as one string or via systemInstruction)
     const combinedPrompt = `${opts.systemPrompt}\n\n${opts.userPrompt}`;
 
-    const abortPromise = opts.signal
-      ? new Promise<never>((_, reject) => {
-          opts.signal!.addEventListener("abort", () =>
-            reject(new Error("Aborted"))
-          );
-        })
-      : null;
+    // Build a combined abort from master signal + per-call timeout
+    const timeoutMs = opts.timeoutMs ?? 8_000;
+    const localController = new AbortController();
+    const localTimeout = setTimeout(() => localController.abort(), timeoutMs);
+
+    const abortPromise = new Promise<never>((_, reject) => {
+      localController.signal.addEventListener("abort", () => reject(new Error("Aborted")));
+      opts.signal?.addEventListener("abort", () => reject(new Error("Aborted")));
+    });
 
     const generatePromise = genModel.generateContent(combinedPrompt);
 
-    const response = abortPromise
-      ? await Promise.race([generatePromise, abortPromise])
-      : await generatePromise;
+    let response: Awaited<typeof generatePromise>;
+    try {
+      response = await Promise.race([generatePromise, abortPromise]);
+    } finally {
+      clearTimeout(localTimeout);
+    }
 
     const rawText = response.response.text();
     const json = JSON.parse(rawText) as Record<string, unknown>;
