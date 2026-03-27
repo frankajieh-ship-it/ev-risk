@@ -19,6 +19,11 @@ export interface PaymentFlags {
   free_mode: boolean;
 }
 
+export interface IntelligenceFlags {
+  /** My Garage personalized news feed. Internal QA only until buyer-profile + Copart work is stable. */
+  garage_news_enabled: boolean;
+}
+
 /**
  * Get current payment feature flags from environment.
  */
@@ -38,6 +43,15 @@ export function getPaymentFlags(): PaymentFlags {
  */
 export function isFreeMode(): boolean {
   return process.env.FLAG_FREE_MODE === "true";
+}
+
+/**
+ * Get intelligence feature flags. All off by default until FLAG_* env vars are set.
+ */
+export function getIntelligenceFlags(): IntelligenceFlags {
+  return {
+    garage_news_enabled: process.env.FLAG_GARAGE_NEWS_ENABLED === "true",
+  };
 }
 
 /**

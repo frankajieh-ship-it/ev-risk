@@ -8,7 +8,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Plus, Pencil, Trash2, Loader2, Package, X, Search, ImagePlus, Camera } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Package, X, Search, ImagePlus, Camera, BarChart2, TrendingDown, TrendingUp, Minus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface InventoryItem {
@@ -24,6 +24,225 @@ interface InventoryItem {
   photo_urls: string[] | null;
   status: string;
   created_at: string;
+}
+
+interface PricingInsight {
+  vehicle_id: string;
+  asking_price_usd: number | null;
+  suggested_price_low_usd: number | null;
+  suggested_price_target_usd: number | null;
+  suggested_price_high_usd: number | null;
+  market_position: "below" | "at" | "above" | null;
+  market_avg_price_usd: number | null;
+  price_percentile: number | null;
+  comp_count: number;
+  buyer_count: number;
+  confidence: number | null;
+  explanation: {
+    headline: string;
+    why: string;
+    action: string;
+    caveats: string[];
+  } | null;
+  price_sensitivity: {
+    buckets: Array<{ price: number; estimated_buyers: number }>;
+  } | null;
+  refreshed_at: string | null;
+  refreshing: boolean;
+  cached: boolean;
+}
+
+function PricingPanel({
+  item,
+  token,
+  onClose,
+}: {
+  item: InventoryItem;
+  token: string;
+  onClose: () => void;
+}) {
+  const [insight, setInsight] = useState<PricingInsight | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/dealer/pricing/${item.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) throw new Error(data.error);
+        setInsight(data);
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [item.id, token]);
+
+  const positionIcon =
+    insight?.market_position === "below" ? (
+      <TrendingDown className="w-4 h-4 text-green-600" />
+    ) : insight?.market_position === "above" ? (
+      <TrendingUp className="w-4 h-4 text-red-500" />
+    ) : (
+      <Minus className="w-4 h-4 text-gray-500" />
+    );
+
+  const positionLabel =
+    insight?.market_position === "below"
+      ? "Below market"
+      : insight?.market_position === "above"
+        ? "Above market"
+        : "At market";
+
+  const positionColor =
+    insight?.market_position === "below"
+      ? "text-green-700 bg-green-50"
+      : insight?.market_position === "above"
+        ? "text-red-700 bg-red-50"
+        : "text-gray-700 bg-gray-50";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-purple-600" />
+              Pricing Intelligence
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {item.year ? `${item.year} ` : ""}{item.make} {item.model}
+              {item.trim ? ` · ${item.trim}` : ""}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-7 h-7 animate-spin text-purple-600" />
+          </div>
+        )}
+
+        {error && (
+          <p className="text-sm text-red-600 bg-red-50 rounded-lg px-4 py-3">{error}</p>
+        )}
+
+        {!loading && !error && insight && (
+          <div className="space-y-5">
+            {/* Price position */}
+            <div className={`rounded-lg px-4 py-3 flex items-center gap-3 ${positionColor}`}>
+              {positionIcon}
+              <div>
+                <p className="text-sm font-semibold">{positionLabel}</p>
+                {insight.market_avg_price_usd && (
+                  <p className="text-xs opacity-80">
+                    Market avg: ${insight.market_avg_price_usd.toLocaleString()}
+                    {insight.price_percentile != null && ` · ${insight.price_percentile}th percentile`}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Suggested range */}
+            {insight.suggested_price_target_usd && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                  Suggested Price Range
+                </p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-gray-50 rounded-lg px-3 py-2">
+                    <p className="text-xs text-gray-400">Low</p>
+                    <p className="text-sm font-semibold text-gray-700">
+                      ${insight.suggested_price_low_usd?.toLocaleString() ?? "—"}
+                    </p>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg px-3 py-2 ring-1 ring-purple-200">
+                    <p className="text-xs text-purple-500">Target</p>
+                    <p className="text-sm font-bold text-purple-700">
+                      ${insight.suggested_price_target_usd.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg px-3 py-2">
+                    <p className="text-xs text-gray-400">High</p>
+                    <p className="text-sm font-semibold text-gray-700">
+                      ${insight.suggested_price_high_usd?.toLocaleString() ?? "—"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* AI explanation */}
+            {insight.explanation && (
+              <div className="border border-gray-100 rounded-lg px-4 py-3 space-y-2">
+                <p className="text-sm font-semibold text-gray-800">{insight.explanation.headline}</p>
+                <p className="text-xs text-gray-600">{insight.explanation.why}</p>
+                <p className="text-xs text-purple-700 font-medium">{insight.explanation.action}</p>
+                {insight.explanation.caveats.length > 0 && (
+                  <ul className="space-y-0.5">
+                    {insight.explanation.caveats.map((c, i) => (
+                      <li key={i} className="text-xs text-gray-400 flex gap-1.5">
+                        <span>·</span> {c}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {/* Demand sensitivity curve */}
+            {insight.price_sensitivity?.buckets && insight.price_sensitivity.buckets.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                  Price Sensitivity
+                </p>
+                <div className="space-y-1.5">
+                  {insight.price_sensitivity.buckets.map((b) => {
+                    const maxBuyers = Math.max(...insight.price_sensitivity!.buckets.map((x) => x.estimated_buyers));
+                    const pct = Math.round((b.estimated_buyers / maxBuyers) * 100);
+                    const isAsking = insight.asking_price_usd != null &&
+                      Math.abs(b.price - insight.asking_price_usd) < 500;
+                    return (
+                      <div key={b.price} className="flex items-center gap-3">
+                        <span className={`text-xs w-20 text-right shrink-0 ${isAsking ? "font-semibold text-gray-900" : "text-gray-500"}`}>
+                          ${b.price.toLocaleString()}
+                          {isAsking && " ←"}
+                        </span>
+                        <div className="flex-1 bg-gray-100 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full transition-all ${isAsking ? "bg-purple-500" : "bg-purple-200"}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-400 w-16 shrink-0">
+                          ~{b.estimated_buyers} buyers
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Footer meta */}
+            <div className="flex items-center justify-between text-xs text-gray-400 border-t border-gray-100 pt-3">
+              <span>
+                {insight.comp_count} comps · {insight.buyer_count} interested buyers
+              </span>
+              <span>
+                {insight.cached ? "Cached" : "Live"}
+                {insight.refreshed_at && ` · ${new Date(insight.refreshed_at).toLocaleString()}`}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 const EMPTY_FORM = {
@@ -58,6 +277,9 @@ export default function DealerInventoryPage() {
   const [newPhotoPreviews, setNewPhotoPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Pricing panel state
+  const [pricingItem, setPricingItem] = useState<InventoryItem | null>(null);
 
   const authHeaders = useCallback(() => ({
     "Content-Type": "application/json",
@@ -338,6 +560,15 @@ export default function DealerInventoryPage() {
         </button>
       </div>
 
+      {/* Pricing Intelligence Panel */}
+      {pricingItem && session?.access_token && (
+        <PricingPanel
+          item={pricingItem}
+          token={session.access_token}
+          onClose={() => setPricingItem(null)}
+        />
+      )}
+
       {/* Add/Edit form modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -583,6 +814,15 @@ export default function DealerInventoryPage() {
                   </td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-1">
+                      {item.price_cents && (
+                        <button
+                          onClick={() => setPricingItem(item)}
+                          title="Pricing Intelligence"
+                          className="p-1.5 text-gray-400 hover:text-purple-600 rounded"
+                        >
+                          <BarChart2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       <button
                         onClick={() => openEdit(item)}
                         className="p-1.5 text-gray-400 hover:text-blue-600 rounded"

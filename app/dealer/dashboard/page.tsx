@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Loader2, TrendingUp, Car, MapPin, Users, AlertCircle } from "lucide-react";
+import { Loader2, TrendingUp, Car, MapPin, Users, AlertCircle, ChevronDown, ChevronUp, Zap } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 // ---------------------------------------------------------------------------
@@ -40,6 +40,13 @@ interface DashboardData {
   computed_at: string;
 }
 
+interface ChatSignal {
+  text: string;
+  confidence: number;
+  category: string;
+  count_mentions: number;
+}
+
 interface BuyerProfile {
   profile_id: string;
   vehicle_make: string;
@@ -50,6 +57,12 @@ interface BuyerProfile {
   fit_score: number | null;
   geo_metro: string | null;
   researched_at: string;
+  // Phase 6
+  inventory_match_score: number | null;
+  signal_strength: "high" | "medium" | "low" | "none" | null;
+  ai_chat_signals: ChatSignal[];
+  buyer_type_tags: string[];
+  anonymized_summary: string | null;
 }
 
 interface HeatmapPoint {
@@ -87,6 +100,69 @@ function KpiCard({
         <p className="text-sm text-gray-500 mt-1">{label}</p>
         {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
       </div>
+    </div>
+  );
+}
+
+function SignalBadge({ strength }: { strength: "high" | "medium" | "low" | "none" | null }) {
+  if (!strength || strength === "none") return <span className="text-gray-400 text-xs">—</span>;
+  const config = {
+    high: { label: "High", color: "bg-purple-100 text-purple-700" },
+    medium: { label: "Med", color: "bg-blue-100 text-blue-700" },
+    low: { label: "Low", color: "bg-gray-100 text-gray-500" },
+  }[strength];
+  return (
+    <span className={`text-xs px-1.5 py-0.5 rounded font-medium flex items-center gap-1 w-fit ${config.color}`}>
+      <Zap className="w-2.5 h-2.5" />
+      {config.label}
+    </span>
+  );
+}
+
+function MatchScoreBadge({ score }: { score: number | null }) {
+  if (score == null) return <span className="text-gray-400 text-xs">—</span>;
+  const color =
+    score >= 75
+      ? "bg-green-100 text-green-700"
+      : score >= 55
+        ? "bg-blue-100 text-blue-700"
+        : score >= 35
+          ? "bg-amber-100 text-amber-700"
+          : "bg-gray-100 text-gray-500";
+  return (
+    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${color}`}>
+      {score}
+    </span>
+  );
+}
+
+function SignalsDrawer({ signals, profileId }: { signals: ChatSignal[]; profileId: string }) {
+  const [open, setOpen] = useState(false);
+  if (!signals.length) return null;
+  return (
+    <div className="mt-1">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800"
+      >
+        {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        {open ? "Hide" : "Show"} signals ({signals.length})
+      </button>
+      {open && (
+        <ul className="mt-1.5 space-y-1">
+          {signals.map((sig, i) => (
+            <li key={`${profileId}-sig-${i}`} className="text-xs text-gray-600 flex items-start gap-1.5">
+              <span className="shrink-0 mt-0.5 w-1.5 h-1.5 rounded-full bg-purple-400" />
+              <span>
+                <span className="font-medium capitalize">{sig.category}</span>
+                {" · "}
+                {sig.text}
+                <span className="text-gray-400 ml-1">({sig.confidence}%)</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -341,12 +417,12 @@ export default function DealerDemandDashboard() {
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
                   <th className="px-5 py-3 text-left">Vehicle</th>
-                  <th className="px-5 py-3 text-left">Year</th>
+                  <th className="px-5 py-3 text-left">Match</th>
+                  <th className="px-5 py-3 text-left">AI Signals</th>
                   <th className="px-5 py-3 text-left">Fit Score</th>
                   <th className="px-5 py-3 text-left">Charging</th>
-                  <th className="px-5 py-3 text-left">Weekly Miles</th>
-                  <th className="px-5 py-3 text-left">Metro</th>
-                  <th className="px-5 py-3 text-left">Researched</th>
+                  <th className="px-5 py-3 text-left hidden md:table-cell">Weekly Miles</th>
+                  <th className="px-5 py-3 text-left hidden lg:table-cell">Researched</th>
                 </tr>
               </thead>
               <tbody>
@@ -355,10 +431,34 @@ export default function DealerDemandDashboard() {
                     key={p.profile_id}
                     className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
                   >
-                    <td className="px-5 py-3 font-medium text-gray-800">
-                      {p.vehicle_make} {p.vehicle_model}
+                    <td className="px-5 py-3">
+                      <div>
+                        <p className="font-medium text-gray-800">
+                          {p.vehicle_year ? `${p.vehicle_year} ` : ""}{p.vehicle_make} {p.vehicle_model}
+                        </p>
+                        {p.anonymized_summary && (
+                          <p className="text-xs text-gray-400 mt-0.5 max-w-xs truncate">{p.anonymized_summary}</p>
+                        )}
+                        {p.buyer_type_tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {p.buyer_type_tags.slice(0, 3).map((tag) => (
+                              <span key={tag} className="text-xs px-1 py-0.5 bg-gray-100 text-gray-500 rounded">
+                                {tag.replace(/_/g, " ")}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-5 py-3 text-gray-600">{p.vehicle_year || "—"}</td>
+                    <td className="px-5 py-3">
+                      <MatchScoreBadge score={p.inventory_match_score} />
+                    </td>
+                    <td className="px-5 py-3">
+                      <div>
+                        <SignalBadge strength={p.signal_strength} />
+                        <SignalsDrawer signals={p.ai_chat_signals} profileId={p.profile_id} />
+                      </div>
+                    </td>
                     <td className="px-5 py-3">
                       <FitBadge score={p.fit_score} />
                     </td>
@@ -369,11 +469,10 @@ export default function DealerDemandDashboard() {
                           ? "Home"
                           : "Public"}
                     </td>
-                    <td className="px-5 py-3 text-gray-600">
+                    <td className="px-5 py-3 text-gray-600 hidden md:table-cell">
                       {p.weekly_miles != null ? `${p.weekly_miles} mi` : "—"}
                     </td>
-                    <td className="px-5 py-3 text-gray-600">{p.geo_metro || "—"}</td>
-                    <td className="px-5 py-3 text-gray-400 text-xs">
+                    <td className="px-5 py-3 text-gray-400 text-xs hidden lg:table-cell">
                       {new Date(p.researched_at).toLocaleDateString()}
                     </td>
                   </tr>
