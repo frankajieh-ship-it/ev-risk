@@ -19,6 +19,7 @@ import { getWeatherClient, inferWeatherFallback } from "@/lib/weather-client";
 import { trackServerEvent } from "@/lib/track-server-event";
 import { getChargerClient } from "@/lib/charger-client";
 import type { VehicleRecommendation, DealerListingMatch, DataSources } from "@/types/recommendations";
+import { computeOwnershipCost } from "@/lib/ownership-cost";
 import type { WeatherData } from "@/types/routine-v2";
 
 const recLimiter = new RateLimiter(
@@ -176,10 +177,11 @@ export async function POST(request: NextRequest) {
     // 4. Query dealer inventory (optional — gracefully degrades)
     const dealerMap = await fetchDealerInventoryMatches(scored);
 
-    // 5. Merge dealer listings into recommendations
+    // 5. Merge dealer listings + ownership cost into recommendations
     const withDealers: VehicleRecommendation[] = scored.map((v) => ({
       ...v,
       dealer_listings: dealerMap.get(normalizeModelKey(v.make, v.model_short)) ?? [],
+      ownership_cost_5y: computeOwnershipCost(v, routine),
     }));
 
     // 6. Randomize within score tiers to avoid brand bias

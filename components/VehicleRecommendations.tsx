@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Search, AlertCircle, MessageSquare, ChevronDown, ChevronUp, Lightbulb, SlidersHorizontal, Bookmark, Check } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import RecommendationCard from "./RecommendationCard";
@@ -168,6 +168,19 @@ export default function VehicleRecommendations({
   const [refinePhase, setRefinePhase] = useState<"browse" | "refine" | "refined">("browse");
   const [refinedList, setRefinedList] = useState<VehicleRecommendation[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [compareSelected, setCompareSelected] = useState<Set<string>>(new Set());
+
+  const handleToggleCompare = (model: string) => {
+    setCompareSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(model)) {
+        next.delete(model);
+      } else if (next.size < 3) {
+        next.add(model);
+      }
+      return next;
+    });
+  };
 
   // Track page load time for "See Full Report" click tracking
   const pageLoadTimeRef = useRef(Date.now());
@@ -445,6 +458,29 @@ export default function VehicleRecommendations({
         </button>
       </div>
 
+      {/* Sticky compare bar — appears when 2+ cards selected */}
+      <AnimatePresence>
+        {compareSelected.size >= 2 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            className="sticky top-2 z-20 mb-4 flex items-center justify-between gap-3 bg-blue-600 text-white px-4 py-3 rounded-2xl shadow-lg"
+          >
+            <span className="text-sm font-medium">
+              {compareSelected.size} vehicle{compareSelected.size > 1 ? "s" : ""} selected
+            </span>
+            <a
+              href="#routine-compare-panel"
+              className="px-3 py-1.5 bg-white text-blue-600 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-colors"
+              onClick={() => trackEvent("compare_bar_clicked", { count: compareSelected.size })}
+            >
+              Compare selected →
+            </a>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">EVs That Match Your Routine</h2>
@@ -674,6 +710,9 @@ export default function VehicleRecommendations({
                   onSelect={() => handleSelect(rec, i + 1)}
                   userZipCode={userZipCode}
                   weeklyMiles={weeklyMiles}
+                  routine={routine}
+                  isSelectedForCompare={compareSelected.has(rec.model)}
+                  onToggleCompare={handleToggleCompare}
                 />
               ))}
               {/* Extension nudge — shown after list loads */}
@@ -723,12 +762,68 @@ export default function VehicleRecommendations({
             </div>
           )}
 
-          {/* Side-by-side compare panel — shown when 2+ recommended vehicles */}
+          {/* Side-by-side compare panel — filtered to selected, or top 2–3 */}
           {refinePhase === "browse" && sortedRecommended.length >= 2 && (
-            <RoutineComparePanel
-              vehicles={sortedRecommended.slice(0, Math.min(3, sortedRecommended.length))}
-              routine={routine}
-            />
+            <div id="routine-compare-panel">
+              <RoutineComparePanel
+                vehicles={
+                  compareSelected.size >= 2
+                    ? sortedRecommended.filter((r) => compareSelected.has(r.model))
+                    : sortedRecommended.slice(0, Math.min(3, sortedRecommended.length))
+                }
+                routine={routine}
+              />
+            </div>
+          )}
+
+          {/* Upgrade prompt — shown below free compare, before "also fits" */}
+          {refinePhase === "browse" && sortedRecommended.length >= 2 && (
+            <div className="mt-6 rounded-2xl border border-gray-200 overflow-hidden">
+              <div className="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-200">
+                {/* Free column */}
+                <div className="p-4 bg-gray-50">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Free — included now</p>
+                  <ul className="space-y-1.5">
+                    {[
+                      "Top 2 side-by-side comparison",
+                      "Fit scores + dimension breakdown",
+                      "Range and winter estimates",
+                      "5-year cost estimate",
+                    ].map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-xs text-gray-600">
+                        <Check className="w-3.5 h-3.5 text-green-500 shrink-0 mt-0.5" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {/* Paid column */}
+                <div className="p-4 bg-white">
+                  <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-3">Full Report — $9.99 one-time</p>
+                  <ul className="space-y-1.5 mb-4">
+                    {[
+                      "Full comparison across all matched models",
+                      "Deeper fit breakdown per vehicle",
+                      "Personalized negotiation script",
+                      "Listing fair-price analysis",
+                      "PDF export",
+                    ].map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-xs text-gray-600">
+                        <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    onClick={() => handleSelect(sortedRecommended[0], 1)}
+                    className="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors"
+                  >
+                    Unlock Full Report → $9.99
+                  </button>
+                  <p className="text-center text-xs text-gray-400 mt-2">One-time · No subscription</p>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* "Also fits" collapsed section */}
@@ -754,6 +849,9 @@ export default function VehicleRecommendations({
                       onSelect={() => handleSelect(rec, top3.length + i + 1)}
                       userZipCode={userZipCode}
                       weeklyMiles={weeklyMiles}
+                      routine={routine}
+                      isSelectedForCompare={compareSelected.has(rec.model)}
+                      onToggleCompare={handleToggleCompare}
                     />
                   ))}
                 </div>

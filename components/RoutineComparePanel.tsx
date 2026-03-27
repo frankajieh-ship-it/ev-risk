@@ -117,10 +117,29 @@ export default function RoutineComparePanel({ vehicles, routine }: RoutineCompar
                   <span className="text-gray-500">Real-world range</span>
                   <span className="font-medium text-gray-800">{rec.real_world_range_mi} mi</span>
                 </div>
+                {routine.climate === "winter" && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Winter range</span>
+                    <span className="font-medium text-blue-700">
+                      ~{Math.round(rec.real_world_range_mi * (
+                        routine.parking_exposure === "street"  ? 0.80 :
+                        routine.parking_exposure === "outdoor" ? 0.85 : 0.88
+                      ))} mi
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-500">Battery</span>
                   <span className="font-medium text-gray-800">{rec.battery_kwh} kWh</span>
                 </div>
+                {rec.ownership_cost_5y && rec.ownership_cost_5y.total > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">5-yr cost est.</span>
+                    <span className="font-medium text-gray-800">
+                      ${Math.round(rec.ownership_cost_5y.total / 1000)}k
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Dimension bars */}

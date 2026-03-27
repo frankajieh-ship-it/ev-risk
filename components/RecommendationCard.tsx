@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Zap, MapPin, ArrowRight, ExternalLink } from "lucide-react";
+import { ChevronDown, Zap, MapPin, ArrowRight, ExternalLink, Snowflake, CheckCircle2, Circle, ChevronUp } from "lucide-react";
 import type { VehicleRecommendation } from "@/types/recommendations";
+import type { MinimumViableRoutine } from "@/types/v2";
 import { getCarGurusUrl } from "@/lib/cargurus-links";
 import { ScoreImprovementSuggestions } from "./blocks/ScoreImprovementSuggestions";
 import { useEventTracking } from "@/hooks/useEventTracking";
@@ -30,6 +31,54 @@ interface RecommendationCardProps {
   muted?: boolean;
   userZipCode?: string | null;
   weeklyMiles?: number;
+  routine?: MinimumViableRoutine;
+  isSelectedForCompare?: boolean;
+  onToggleCompare?: (model: string) => void;
+}
+
+const DIMENSION_DISPLAY: { key: keyof NonNullable<VehicleRecommendation["dimensions"]>; label: string }[] = [
+  { key: "charging", label: "Charging fit"   },
+  { key: "range",    label: "Range fit"      },
+  { key: "budget",   label: "Cost fit"       },
+  { key: "climate",  label: "Climate fit"    },
+  { key: "recovery", label: "Longest-day fit"},
+  { key: "utility",  label: "Utility fit"   },
+];
+
+const POSITIVE_NOTES: Record<string, string> = {
+  charging: "Low charging burden for your setup",
+  range:    "Comfortable range buffer for your miles",
+  budget:   "Fits within your budget",
+  climate:  "Handles your climate well",
+  recovery: "Low risk on your longest days",
+  utility:  "Matches your size and utility needs",
+};
+const LIMITING_NOTES: Record<string, string> = {
+  charging: "Charging setup may add friction",
+  range:    "Range may feel tight on longer days",
+  budget:   "Slightly over your budget target",
+  climate:  "Range reduction expected in your climate",
+  recovery: "Longer days may require charging stops",
+  utility:  "Body style or towing may not fully match",
+};
+
+function deriveRangeFields(rec: VehicleRecommendation, routine: MinimumViableRoutine) {
+  const base = rec.real_world_range_mi;
+  const winterMultiplier =
+    routine.climate === "winter"
+      ? routine.parking_exposure === "street"  ? 0.80
+      : routine.parking_exposure === "outdoor" ? 0.85
+      : 0.88
+      : 1.0;
+  const winterRange = Math.round(base * winterMultiplier);
+
+  const peakMiles = Math.max(
+    routine.commute_miles_roundtrip ?? 0,
+    routine.longest_day_miles ?? (routine.weekly_miles ?? 100) / 5,
+  );
+  const bufferPct = Math.round(((base - peakMiles) / base) * 100);
+  const bufferLabel = bufferPct >= 40 ? "comfortable" : bufferPct >= 20 ? "adequate" : "tight";
+  return { winterRange, bufferPct, bufferLabel };
 }
 
 function formatPrice(cents: number): string {
@@ -43,10 +92,32 @@ function scoreToLabel(score: number): string {
   return "High Friction";
 }
 
-export default function RecommendationCard({ recommendation: rec, onSelect, muted, userZipCode, weeklyMiles }: RecommendationCardProps) {
+export default function RecommendationCard({
+  recommendation: rec,
+  onSelect,
+  muted,
+  userZipCode,
+  weeklyMiles,
+  routine,
+  isSelectedForCompare,
+  onToggleCompare,
+}: RecommendationCardProps) {
   const { trackExternalLinkClicked } = useEventTracking();
   const [expanded, setExpanded] = useState(false);
   const [showReceiptNudge, setShowReceiptNudge] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [showCostBreakdown, setShowCostBreakdown] = useState(false);
+
+  const rangeFields = routine ? deriveRangeFields(rec, routine) : null;
+  const cost = rec.ownership_cost_5y ?? null;
+
+  // Score breakdown helpers
+  const dims = rec.dimensions;
+  const dimEntries = dims
+    ? DIMENSION_DISPLAY.map((d) => ({ ...d, score: dims[d.key] ?? 75 }))
+    : [];
+  const bestDim  = dimEntries.length ? dimEntries.reduce((a, b) => a.score >= b.score ? a : b) : null;
+  const worstDim = dimEntries.length ? dimEntries.reduce((a, b) => a.score <= b.score ? a : b) : null;
   const fitLabel = scoreToLabel(rec.fit_score);
   const colors = fitColors[fitLabel] ?? fitColors["Mixed Fit"];
   const badgeBg = scoreBadgeColors[fitLabel] ?? "bg-gray-500";
@@ -82,7 +153,7 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
   };
 
   return (
-    <div className={`rounded-2xl border-2 ${colors.border} ${muted ? "opacity-70" : ""} bg-white overflow-hidden transition-shadow hover:shadow-md`}>
+    <div className={`rounded-2xl border-2 ${isSelectedForCompare ? "border-blue-500 shadow-md" : colors.border} ${muted ? "opacity-70" : ""} bg-white overflow-hidden transition-shadow hover:shadow-md`}>
       {/* Vehicle photo strip */}
       <div className="relative h-36 w-full">
         <VehicleImage
@@ -102,6 +173,19 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
             {fitLabel}
           </span>
         </div>
+        {/* Compare toggle — top right */}
+        {onToggleCompare && (
+          <button
+            onClick={() => onToggleCompare(rec.model)}
+            aria-label={isSelectedForCompare ? "Remove from compare" : "Add to compare"}
+            className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-white/90 shadow-sm hover:bg-white transition-colors"
+          >
+            {isSelectedForCompare
+              ? <><CheckCircle2 className="w-3.5 h-3.5 text-blue-600" /><span className="text-blue-600">Selected</span></>
+              : <><Circle className="w-3.5 h-3.5 text-gray-400" /><span className="text-gray-500">Compare</span></>
+            }
+          </button>
+        )}
       </div>
 
       <div className="p-5">
@@ -117,13 +201,120 @@ export default function RecommendationCard({ recommendation: rec, onSelect, mute
             <Zap className="w-3 h-3" />
             {rec.real_world_range_mi} mi range
           </span>
+          {rangeFields && routine?.climate === "winter" && (
+            <span className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+              <Snowflake className="w-3 h-3" />
+              ~{rangeFields.winterRange} mi winter
+            </span>
+          )}
           <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
             {rec.battery_kwh} kWh
           </span>
           <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
             {rec.chemistry}
           </span>
+          {cost && cost.total > 0 && (
+            <button
+              onClick={() => setShowCostBreakdown(!showCostBreakdown)}
+              className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 px-2 py-1 rounded-full transition-colors"
+            >
+              ~${Math.round(cost.total / 1000)}k est. 5-yr cost
+              {showCostBreakdown ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+          )}
         </div>
+
+        {/* Longest-day buffer */}
+        {rangeFields && (
+          <p className="mt-2 text-xs text-gray-500">
+            Longest-day buffer: <span className={
+              rangeFields.bufferLabel === "comfortable" ? "text-green-600 font-medium" :
+              rangeFields.bufferLabel === "adequate"    ? "text-amber-600 font-medium" :
+                                                          "text-red-600 font-medium"
+            }>{rangeFields.bufferLabel}</span>
+            {" "}({rangeFields.bufferPct}% margin)
+          </p>
+        )}
+
+        {/* Cost breakdown */}
+        <AnimatePresence>
+          {showCostBreakdown && cost && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-3 p-3 bg-gray-50 rounded-xl text-xs space-y-1 text-gray-600">
+                <p className="font-semibold text-gray-700 mb-1.5">Estimated 5-year costs</p>
+                {cost.purchase_price > 0 && (
+                  <div className="flex justify-between"><span>Purchase price</span><span>${cost.purchase_price.toLocaleString()}</span></div>
+                )}
+                <div className="flex justify-between"><span>Charging</span><span>${cost.charging_5y.toLocaleString()}</span></div>
+                <div className="flex justify-between"><span>Maintenance</span><span>${cost.maintenance_5y.toLocaleString()}</span></div>
+                <div className="flex justify-between"><span>Insurance</span><span>${cost.insurance_5y.toLocaleString()}</span></div>
+                {cost.purchase_price > 0 && (
+                  <div className="flex justify-between"><span>Depreciation</span><span>−${cost.depreciation_5y.toLocaleString()}</span></div>
+                )}
+                <div className="flex justify-between font-semibold text-gray-800 border-t border-gray-200 pt-1 mt-1">
+                  <span>5-yr running total</span><span>${cost.total.toLocaleString()}</span>
+                </div>
+                <p className="text-gray-400 mt-1">Estimates — US avg rates, transparent assumptions.</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Score breakdown — "Why X/100?" */}
+        {dimEntries.length > 0 && (
+          <div className="mt-3">
+            <button
+              onClick={() => setShowBreakdown(!showBreakdown)}
+              className="text-xs text-blue-500 hover:text-blue-700 underline"
+            >
+              Why {rec.fit_score}/100?
+            </button>
+            <AnimatePresence>
+              {showBreakdown && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-3 space-y-2">
+                    {dimEntries.map(({ key, label, score }) => (
+                      <div key={key}>
+                        <div className="flex justify-between text-xs text-gray-500 mb-0.5">
+                          <span>{label}</span>
+                          <span className="font-medium text-gray-700">{Math.round(score)}</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${badgeBg}`}
+                            style={{ width: `${Math.min(100, score)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    {bestDim && (
+                      <p className="text-xs text-green-700 bg-green-50 rounded-lg px-2 py-1.5 mt-2">
+                        ✓ {POSITIVE_NOTES[bestDim.key]}
+                      </p>
+                    )}
+                    {worstDim && worstDim.score < 70 && (
+                      <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1.5">
+                        ↓ {LIMITING_NOTES[worstDim.key]}
+                      </p>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Top stress flag insight */}
         {rec.top_stress_flag && (

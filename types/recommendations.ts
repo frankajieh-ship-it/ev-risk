@@ -5,6 +5,7 @@
  */
 
 import type { RoutineFitScore } from "./v2";
+import type { OwnershipCost5Y } from "@/lib/ownership-cost";
 
 export interface ScoreImprovement {
   type: "routine_change" | "vehicle_selection" | "optimized";
@@ -73,6 +74,12 @@ export interface VehicleRecommendation {
 
   /** Score improvement suggestions */
   score_improvements?: ScoreImprovement[];
+
+  /** 5-year total cost of ownership estimate */
+  ownership_cost_5y?: OwnershipCost5Y;
+
+  /** Computed MSRP — carried through from scoring data for ownership cost */
+  msrp_usd?: number;
 }
 
 export interface DataSources {
