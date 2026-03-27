@@ -48,9 +48,14 @@ export async function POST(request: NextRequest) {
   };
 
   // Build structured fields from VIN decode
+  // Auto.dev sometimes returns year in years[0].year instead of top-level modelYear/year
+  const resolvedYear = vinData.modelYear
+    ? Number(vinData.modelYear)
+    : (vinData.year ?? vinData.years?.[0]?.year ?? undefined);
+
   const fields: Record<string, unknown> = {
     vin,
-    year: vinData.modelYear ? Number(vinData.modelYear) : (vinData.year ?? undefined),
+    year: resolvedYear,
     make: resolveName(vinData.make),
     model: resolveName(vinData.model),
     trim: vinData.trim ?? undefined,

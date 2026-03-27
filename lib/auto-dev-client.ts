@@ -52,6 +52,7 @@ export interface AutoDevVinResult {
     usedPrivateParty?: number;
   };
   matchingType?: string;
+  years?: Array<{ id?: number; year?: number }>;
 }
 
 export interface AutoDevListing {
