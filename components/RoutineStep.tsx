@@ -233,7 +233,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
       {/* Confidence meter */}
       <div className="mb-8">
         <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-          <span>Routine confidence: {confidencePct}%</span>
+          <span title="Reflects how complete your routine inputs are">Recommendation confidence: {confidencePct}%</span>
           <span>{getNextHint()}</span>
         </div>
         <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">

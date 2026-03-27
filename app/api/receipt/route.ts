@@ -29,6 +29,10 @@ import { getFeatureFlags } from "@/lib/feature-flags";
 import { computeInputHash, checkIdempotency, claimRequest, completeRequest, failRequest } from "@/lib/receipt-idempotency";
 import { classifyVehicle } from "@/lib/vehicle-classifier";
 import { scoreReceipt } from "@/lib/receipt-scoring";
+import { computeRoutineFit } from "@/lib/compute-routine-fit";
+import type { RoutineFitScore } from "@/types/v2";
+import { findRangeDataByModel } from "@/lib/data";
+import type { MinimumViableRoutine } from "@/types/v2";
 import { isInternalTester } from "@/lib/rollout-flags";
 import { guardTurnstile } from "@/lib/turnstile";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
@@ -261,6 +265,22 @@ export async function POST(request: NextRequest) {
   const ruleScoring = scoreReceipt(ruleSignals);
   timings.rules = Date.now() - t0;
 
+  // --- Optional routine fit — runs only when routine_context is provided ---
+  let routineFit: RoutineFitScore | null = null;
+  const routineCtx = body.routine_context as MinimumViableRoutine | undefined;
+  if (routineCtx && input.model) {
+    try {
+      const rangeData = findRangeDataByModel(input.model);
+      routineFit = computeRoutineFit(routineCtx, {
+        model: input.model,
+        year: input.year ?? undefined,
+        real_world_range_mi: rangeData?.real_world_range_mi ?? undefined,
+      });
+    } catch {
+      // Non-blocking — routine fit failure must not break the receipt
+    }
+  }
+
   // --- RECEIPT LITE: Return deterministic receipt immediately (<2s) ---
   const liteReceipt = buildEnhancedFallbackReceipt(input, ruleSignals, ruleScoring);
 
@@ -356,6 +376,10 @@ export async function POST(request: NextRequest) {
     fallback: false,
     region: input.region || "US",
     vehicle_category: ruleClassification.category,
+    routine_context_used: routineFit !== null,
+    routine_fit_label: routineFit?.label ?? null,
+    routine_fit_score: routineFit?.score_0_100 ?? null,
+    routine_fit_summary: routineFit && routineCtx ? buildRoutineSummary(routineFit, routineCtx) : null,
   };
 
   // Cache for idempotency
@@ -459,6 +483,14 @@ export async function POST(request: NextRequest) {
     recalls,
     has_active_recalls: recalls.length > 0,
   });
+}
+
+function buildRoutineSummary(fit: RoutineFitScore, mvr: MinimumViableRoutine): string {
+  const chargeLabel =
+    mvr.charging_access === "home" ? "home charging" :
+    mvr.charging_access === "work" ? "workplace charging" : "public charging";
+  const climateNote = mvr.climate === "winter" ? " Cold climate may reduce range." : "";
+  return `${fit.label} for your routine (${chargeLabel}, ${mvr.climate} climate).${climateNote}`;
 }
 
 // --- Fix-only handler ---

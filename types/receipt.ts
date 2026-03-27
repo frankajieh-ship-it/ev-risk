@@ -100,6 +100,8 @@ export interface ReceiptGenerateRequest {
   // Compare listing B (Pro only)
   listing_b_url?: string;
   listing_b_text?: string;
+  // Optional routine context — when present, backend computes routine fit
+  routine_context?: import("@/types/v2").MinimumViableRoutine;
 }
 
 export interface ReceiptGenerateResponse {
@@ -112,6 +114,11 @@ export interface ReceiptGenerateResponse {
   lint_error_codes: import("@/lib/receipt-schema-validator").LintError[];
   remaining_free: number;
   vehicle_category?: import("@/lib/vehicle-classifier").VehicleCategory;
+  // Routine fit — present when routine_context was provided in the request
+  routine_context_used?: boolean;
+  routine_fit_label?: string;
+  routine_fit_score?: number;
+  routine_fit_summary?: string;
 }
 
 export interface ReceiptGenerateError {

@@ -186,6 +186,7 @@ export default function Home() {
   const handleRoutineComplete = (routine: MinimumViableRoutine) => {
     setRoutineData(routine);
     setCurrentStep("recommendations");
+    try { sessionStorage.setItem("offo_routine_context", JSON.stringify(routine)); } catch {}
     trackButtonClick("routine_step_complete", "homepage");
     trackIntakeStarted();
 
@@ -389,7 +390,7 @@ export default function Home() {
               className="text-center mb-8"
             >
               <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
-                Will this EV fit your real routine?
+                Check if this EV fits your routine
               </h2>
               <p className="text-gray-500 text-sm">
                 3 quick questions. No sign-up needed.

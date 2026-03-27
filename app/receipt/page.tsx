@@ -51,6 +51,8 @@ import { useRegion } from "@/hooks/useRegion";
 import RegionSelector from "@/components/RegionSelector";
 import { getOrCreateReceiptToken } from "@/lib/session-utils";
 import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent } from "@/types/receipt";
+import type { MinimumViableRoutine } from "@/types/v2";
+import RoutineContextBanner from "@/components/receipt/RoutineContextBanner";
 import OFfoChat from "@/components/chat/OFfoChat";
 
 // Persist/retrieve current receipt ID across auth redirects
@@ -191,6 +193,13 @@ export default function ReceiptPage() {
   const { isAuthenticated, isConfigured: authConfigured } = useAuth();
   const { region, setRegion } = useRegion();
 
+  // Routine context — read from sessionStorage when available
+  const [routineContext, setRoutineContext] = useState<MinimumViableRoutine | null>(null);
+  const [routineContextUsed, setRoutineContextUsed] = useState(false);
+  const [routineFitLabel, setRoutineFitLabel] = useState<string | null>(null);
+  const [routineFitScore, setRoutineFitScore] = useState<number | null>(null);
+  const [routineFitSummary, setRoutineFitSummary] = useState<string | null>(null);
+
   // Return-to-routine state
   const [returnToRoutine, setReturnToRoutine] = useState(false);
   const [routineRunId, setRoutineRunId] = useState<string | null>(null);
@@ -323,6 +332,12 @@ export default function ReceiptPage() {
     setReceiptToken(getOrCreateReceiptToken());
 
     // Email gate localStorage cleanup (gate removed)
+
+    // Read routine context persisted by homepage wizard
+    try {
+      const raw = sessionStorage.getItem("offo_routine_context");
+      if (raw) setRoutineContext(JSON.parse(raw) as MinimumViableRoutine);
+    } catch {}
 
     // Check for prefilled listing text from SEO page
     const storedText = sessionStorage.getItem("offo_listing_text");
@@ -741,6 +756,9 @@ export default function ReceiptPage() {
         if (f.country) body.country = f.country;
         if (f.zip_or_postcode) body.zip_or_postcode = f.zip_or_postcode;
 
+        // Pass routine context when available for personalized analysis
+        if (routineContext) body.routine_context = routineContext;
+
         const res = await fetchWithRetry("/api/receipt", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -778,6 +796,12 @@ export default function ReceiptPage() {
         setLintErrors(result.lint_error_codes || []);
         setIsFallback(!!result.fallback);
         setIsSimilarityMatch(!!result.similarity_match);
+        if (result.routine_context_used) {
+          setRoutineContextUsed(true);
+          setRoutineFitLabel(result.routine_fit_label ?? null);
+          setRoutineFitScore(result.routine_fit_score ?? null);
+          setRoutineFitSummary(result.routine_fit_summary ?? null);
+        }
         if (typeof result.remaining_free === "number") {
           setRemainingFree(result.remaining_free);
         }
@@ -1148,6 +1172,15 @@ export default function ReceiptPage() {
                 onPaywallClick={() => handlePremiumAction("receipt_output_paywall")}
                 photos={listingPhotos}
               />
+
+              {/* ── Routine context banner — shown when routine was provided ── */}
+              {routineContextUsed && routineFitLabel && (
+                <RoutineContextBanner
+                  label={routineFitLabel}
+                  score={routineFitScore ?? 0}
+                  summary={routineFitSummary ?? ""}
+                />
+              )}
 
               {/* ── Save + Compare — immediately after verdict, max visibility ── */}
               <div className="flex gap-2">

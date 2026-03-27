@@ -16,10 +16,9 @@ interface HeaderProps {
 }
 
 const navLinks = [
-  { label: "EV Fit", href: "#fit-check", isScroll: true },
-  { label: "Receipt", href: "/receipt", isScroll: false },
-  { label: "Compare", href: "/compare", isScroll: false },
-  { label: "Find a Dealer", href: "/dealers", isScroll: false },
+  { label: "EV Routine Check", href: "#fit-check", isScroll: true },
+  { label: "Analyze a Car",    href: "/receipt",   isScroll: false },
+  { label: "Compare",          href: "/compare",   isScroll: false },
 ];
 
 export default function Header({ variant = "receipt", historyCount, onHistoryClick, regionSelector }: HeaderProps) {
@@ -98,7 +97,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
                       >
                         <User className="w-3.5 h-3.5" />
-                        My Workspace
+                        My Garage
                       </Link>
                       {isDealer && (
                         <Link
@@ -127,6 +126,12 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                       Sign in
                     </button>
                   )}
+                  <Link
+                    href="/dealers"
+                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    For dealers →
+                  </Link>
                 </div>
 
                 {/* Mobile hamburger */}
@@ -234,7 +239,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                       className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium"
                     >
                       <User className="w-3.5 h-3.5" />
-                      My Workspace
+                      My Garage
                     </Link>
                     {isDealer && (
                       <Link
@@ -264,6 +269,13 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                     Sign in
                   </button>
                 )}
+                <Link
+                  href="/dealers"
+                  onClick={() => setMobileOpen(false)}
+                  className="block text-xs text-gray-400 hover:text-gray-600 py-1"
+                >
+                  For dealers →
+                </Link>
               </div>
             </div>
           </div>
