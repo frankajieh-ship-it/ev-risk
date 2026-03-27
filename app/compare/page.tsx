@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, HelpCircle, Copy, CheckCircle, GitCompareArrows, History, ChevronDown, ChevronUp, Lock, Loader2, ShieldCheck, BarChart2, MessageSquare } from "lucide-react";
+import { ArrowLeft, ArrowRight, Copy, CheckCircle, GitCompareArrows, History, ChevronDown, ChevronUp, Lock, Loader2, ShieldCheck, BarChart2, MessageSquare } from "lucide-react";
 import VehicleImage from "@/components/VehicleImage";
 import ListingExtractMini from "@/components/compare/ListingExtractMini";
 import ReceiptHistoryDrawer from "@/components/receipt/ReceiptHistoryDrawer";
@@ -563,14 +563,16 @@ function ComparePageContent() {
         </label>
       </div>
 
-      <div className="flex items-start gap-2 text-sm text-gray-500 bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-        <HelpCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-blue-400" />
-        <p>Don&apos;t know the specs? Leave them blank — the engine still gives useful output with &quot;Not sure&quot; values.</p>
-      </div>
+      {(!optionA.label?.trim() || !optionB.label?.trim()) && (
+        <p className="text-sm text-amber-600 text-center">
+          Enter a name for both vehicles to compare.
+        </p>
+      )}
 
       <button
         onClick={handleOptionsSubmit}
-        className="w-full py-4 rounded-xl font-semibold bg-gradient-to-r from-blue-600 to-green-600 text-white hover:shadow-lg transition-all flex items-center justify-center gap-2"
+        disabled={!optionA.label?.trim() || !optionB.label?.trim()}
+        className="w-full py-4 rounded-xl font-semibold bg-gradient-to-r from-blue-600 to-green-600 text-white hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none"
       >
         Compare <ArrowRight className="w-4 h-4" />
       </button>
