@@ -42,6 +42,7 @@ import {
   deriveBodyBucket,
 } from "@/lib/comparison-types";
 import OFfoChat from "@/components/chat/OFfoChat";
+import { getCarGurusUrl } from "@/lib/cargurus-links";
 
 // New flow: options → results → (optional) refine by routine
 type Phase = "options" | "results" | "routine";
@@ -110,6 +111,81 @@ function SpecRow({
       </td>
     </tr>
   );
+}
+
+// ── TCO + DEPRECIATION HELPERS ──────────────────────────────────────────────
+
+function formatCurrency(n: number): string {
+  return "$" + Math.round(n).toLocaleString("en-US");
+}
+
+function calcAnnualChargingCost(
+  efficiency_mi_per_kwh: number | null | undefined,
+  annualMiles = 12_000,
+  centsPerKwh = 16
+): number {
+  const eff = efficiency_mi_per_kwh ?? 3.5;
+  return (annualMiles / eff) * (centsPerKwh / 100);
+}
+
+function calcAnnualMaintenance(): number {
+  return 900;
+}
+
+function calcAnnualInsuranceRange(): [number, number] {
+  return [1_800, 2_400];
+}
+
+const TAX_CREDIT_TABLE: Record<string, number> = {
+  "chevrolet equinox ev": 7_500,
+  "chevrolet blazer ev": 7_500,
+  "chevrolet silverado ev": 7_500,
+  "ford f-150 lightning": 7_500,
+  "ford escape plug-in hybrid": 3_750,
+  "jeep wrangler 4xe": 3_750,
+  "jeep grand cherokee 4xe": 3_750,
+  "volkswagen id.4": 7_500,
+  "rivian r1t": 3_750,
+  "rivian r1s": 3_750,
+};
+const TESLA_CREDIT_TABLE: Record<string, number> = {
+  "model 3": 7_500,
+  "model y": 7_500,
+};
+
+function lookupTaxCredit(label: string): number {
+  const lower = label.toLowerCase();
+  if (lower.includes("tesla")) {
+    for (const [model, credit] of Object.entries(TESLA_CREDIT_TABLE)) {
+      if (lower.includes(model)) return credit;
+    }
+    return 0;
+  }
+  for (const [key, credit] of Object.entries(TAX_CREDIT_TABLE)) {
+    if (lower.includes(key)) return credit;
+  }
+  return 0;
+}
+
+const DEPRECIATION_TABLE: Record<string, { yr3: number; yr5: number }> = {
+  tesla:      { yr3: 0.55, yr5: 0.42 },
+  rivian:     { yr3: 0.52, yr5: 0.40 },
+  ford:       { yr3: 0.48, yr5: 0.37 },
+  chevrolet:  { yr3: 0.45, yr5: 0.35 },
+  gmc:        { yr3: 0.45, yr5: 0.35 },
+  volkswagen: { yr3: 0.43, yr5: 0.33 },
+  hyundai:    { yr3: 0.43, yr5: 0.33 },
+  kia:        { yr3: 0.43, yr5: 0.33 },
+  nissan:     { yr3: 0.38, yr5: 0.28 },
+  default:    { yr3: 0.44, yr5: 0.34 },
+};
+
+function getDepreciationRate(label: string): { yr3: number; yr5: number } {
+  const lower = label.toLowerCase();
+  for (const [make, rate] of Object.entries(DEPRECIATION_TABLE)) {
+    if (make !== "default" && lower.includes(make)) return rate;
+  }
+  return DEPRECIATION_TABLE.default;
 }
 
 function ComparePageContent() {
@@ -705,6 +781,33 @@ function ComparePageContent() {
     const coldRangeA = (isColdClimate && realWorldRangeA) ? Math.round(realWorldRangeA * 0.70) : null;
     const coldRangeB = (isColdClimate && realWorldRangeB) ? Math.round(realWorldRangeB * 0.70) : null;
 
+    // 5-Year TCO computations
+    const priceA = specA.price ?? null;
+    const priceB = specB.price ?? null;
+    const taxCreditA = lookupTaxCredit(labelA);
+    const taxCreditB = lookupTaxCredit(labelB);
+    const annualChargeA = calcAnnualChargingCost(specA.efficiency_mi_per_kwh);
+    const annualChargeB = calcAnnualChargingCost(specB.efficiency_mi_per_kwh);
+    const annualMaint = calcAnnualMaintenance();
+    const [insLow, insHigh] = calcAnnualInsuranceRange();
+    const depRateA = getDepreciationRate(labelA);
+    const depRateB = getDepreciationRate(labelB);
+    const yr3ValueA = priceA ? Math.round(priceA * depRateA.yr3) : null;
+    const yr5ValueA = priceA ? Math.round(priceA * depRateA.yr5) : null;
+    const yr3ValueB = priceB ? Math.round(priceB * depRateB.yr3) : null;
+    const yr5ValueB = priceB ? Math.round(priceB * depRateB.yr5) : null;
+    const midIns = (insLow + insHigh) / 2;
+    const total5A = priceA != null
+      ? priceA - taxCreditA + annualChargeA * 5 + annualMaint * 5 + midIns * 5
+      : null;
+    const total5B = priceB != null
+      ? priceB - taxCreditB + annualChargeB * 5 + annualMaint * 5 + midIns * 5
+      : null;
+    const showTco = priceA != null || priceB != null;
+    const tcoWinner = total5A != null && total5B != null
+      ? total5A < total5B ? "A" : total5B < total5A ? "B" : "TIE"
+      : null;
+
     const signalBadge = (signal: string) => {
       if (signal === "GOOD") return "bg-green-100 text-green-800 border-green-200";
       if (signal === "CONDITIONAL") return "bg-yellow-100 text-yellow-800 border-yellow-200";
@@ -868,6 +971,144 @@ function ComparePageContent() {
               </table>
             </div>
             <p className="text-xs text-gray-400 mt-3">Real-world range est. applies ~13% reduction from EPA. Cold weather est. assumes ~30% additional reduction. Charge time is a peak-rate ceiling; actual varies. Verify before purchasing.</p>
+          </div>
+        )}
+
+        {/* ── 5-YEAR COST OF OWNERSHIP ─────────────────────────── */}
+        {showTco && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-5 pt-4 pb-3 border-b border-gray-100">
+              <h3 className="font-bold text-gray-900 text-sm">5-Year Cost of Ownership</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Estimates based on US averages. Verify before purchasing.</p>
+            </div>
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="py-2 px-3 text-left text-gray-500 font-medium w-2/5"></th>
+                  <th className="py-2 px-3 text-center text-gray-700 font-semibold">{labelA}</th>
+                  <th className="py-2 px-3 text-center text-gray-700 font-semibold">{labelB}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(priceA != null || priceB != null) && (
+                  <tr className="bg-white">
+                    <td className="py-2 px-3 text-gray-500">Purchase price</td>
+                    <td className="py-2 px-3 text-center text-gray-800">{priceA != null ? formatCurrency(priceA) : "—"}</td>
+                    <td className="py-2 px-3 text-center text-gray-800">{priceB != null ? formatCurrency(priceB) : "—"}</td>
+                  </tr>
+                )}
+                {(taxCreditA > 0 || taxCreditB > 0) && (
+                  <tr className="bg-green-50">
+                    <td className="py-2 px-3 text-green-700">Fed. tax credit</td>
+                    <td className="py-2 px-3 text-center text-green-700">{taxCreditA > 0 ? `−${formatCurrency(taxCreditA)}` : "—"}</td>
+                    <td className="py-2 px-3 text-center text-green-700">{taxCreditB > 0 ? `−${formatCurrency(taxCreditB)}` : "—"}</td>
+                  </tr>
+                )}
+                <tr className="bg-gray-50">
+                  <td className="py-2 px-3 text-gray-500">Charging (5 yr)</td>
+                  <td className="py-2 px-3 text-center text-gray-800">{formatCurrency(annualChargeA * 5)}</td>
+                  <td className="py-2 px-3 text-center text-gray-800">{formatCurrency(annualChargeB * 5)}</td>
+                </tr>
+                <tr className="bg-white">
+                  <td className="py-2 px-3 text-gray-500">Maintenance (5 yr)</td>
+                  <td className="py-2 px-3 text-center text-gray-800">{formatCurrency(annualMaint * 5)}</td>
+                  <td className="py-2 px-3 text-center text-gray-800">{formatCurrency(annualMaint * 5)}</td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="py-2 px-3 text-gray-500">Insurance (5 yr)</td>
+                  <td className="py-2 px-3 text-center text-gray-800">{formatCurrency(insLow * 5)}–{formatCurrency(insHigh * 5)}</td>
+                  <td className="py-2 px-3 text-center text-gray-800">{formatCurrency(insLow * 5)}–{formatCurrency(insHigh * 5)}</td>
+                </tr>
+                {(total5A != null || total5B != null) && (
+                  <tr className="bg-indigo-50 font-semibold">
+                    <td className="py-2.5 px-3 text-indigo-800">5-yr total est.</td>
+                    <td className={`py-2.5 px-3 text-center ${tcoWinner === "A" ? "text-green-700" : "text-indigo-800"}`}>
+                      {total5A != null ? formatCurrency(total5A) : "—"}
+                      {tcoWinner === "A" && <span className="ml-1 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">lower</span>}
+                    </td>
+                    <td className={`py-2.5 px-3 text-center ${tcoWinner === "B" ? "text-green-700" : "text-indigo-800"}`}>
+                      {total5B != null ? formatCurrency(total5B) : "—"}
+                      {tcoWinner === "B" && <span className="ml-1 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">lower</span>}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {tcoWinner && tcoWinner !== "TIE" && total5A != null && total5B != null && (
+              <div className="px-5 py-3 bg-green-50 border-t border-green-100">
+                <p className="text-xs text-green-800">
+                  <span className="font-semibold">{tcoWinner === "A" ? labelA : labelB}</span> costs{" "}
+                  <span className="font-semibold">{formatCurrency(Math.abs(total5A - total5B))} less</span> over 5 years.
+                </p>
+              </div>
+            )}
+            <p className="text-[10px] text-gray-400 px-5 py-2">12,000 mi/yr · $0.16/kWh · AAA maintenance avg · mid-range insurance est.</p>
+          </div>
+        )}
+
+        {/* ── DEPRECIATION & RESALE VALUE ───────────────────────── */}
+        {(yr3ValueA != null || yr3ValueB != null || yr5ValueA != null || yr5ValueB != null) && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="px-5 pt-4 pb-3 border-b border-gray-100">
+              <h3 className="font-bold text-gray-900 text-sm">Depreciation &amp; Resale Value</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Projected value based on per-make iSeeCars / CarEdge benchmarks.</p>
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-gray-100">
+              {[
+                { label: labelA, yr3: yr3ValueA, yr5: yr5ValueA, price: priceA, rate: depRateA, meta: metaA },
+                { label: labelB, yr3: yr3ValueB, yr5: yr5ValueB, price: priceB, rate: depRateB, meta: metaB },
+              ].map(({ label, yr3, yr5, price, rate, meta }, i) => {
+                const otherYr5 = i === 0 ? yr5ValueB : yr5ValueA;
+                const isBetterResale = yr5 != null && otherYr5 != null && yr5 > otherYr5;
+                const searchUrl = meta.make && meta.model
+                  ? getCarGurusUrl(meta.make, meta.model, { year: meta.year })
+                  : null;
+                return (
+                  <div key={i} className="px-4 py-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-gray-700 truncate">{label}</p>
+                      {isBetterResale && (
+                        <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-semibold shrink-0 ml-1">Better resale</span>
+                      )}
+                    </div>
+                    {price != null && (
+                      <p className="text-[10px] text-gray-400">Purchase: {formatCurrency(price)}</p>
+                    )}
+                    <div className="space-y-1.5">
+                      {yr3 != null && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">After 3 yrs</span>
+                          <span className="font-semibold text-gray-800">~{formatCurrency(yr3)}</span>
+                        </div>
+                      )}
+                      {yr5 != null && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">After 5 yrs</span>
+                          <span className="font-semibold text-gray-800">~{formatCurrency(yr5)}</span>
+                        </div>
+                      )}
+                      {price != null && yr5 != null && (
+                        <div className="flex justify-between text-xs text-red-600">
+                          <span>5-yr loss</span>
+                          <span className="font-semibold">~{formatCurrency(price - yr5)} ({Math.round((1 - rate.yr5) * 100)}%)</span>
+                        </div>
+                      )}
+                    </div>
+                    {searchUrl && (
+                      <a
+                        href={searchUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-center text-[10px] text-indigo-600 hover:underline mt-1"
+                      >
+                        Search used listings →
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-gray-400 px-5 py-2 border-t border-gray-100">Depreciation rates are estimates. Actual resale value varies by trim, condition, and market.</p>
           </div>
         )}
 
