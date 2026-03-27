@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClientIP, RateLimiter } from "@/lib/rate-limiter";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 
-export const revalidate = 300; // ISR-style: revalidate every 5 minutes
+export const revalidate = 60; // revalidate every 1 minute
 
 const rateLimiter = new RateLimiter(60 * 1000, 30); // 30 req/min per IP
 
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     },
     {
       headers: {
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60",
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30",
       },
     }
   );
