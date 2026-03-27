@@ -153,3 +153,43 @@ CREATE TABLE IF NOT EXISTS market_cache (
 
 CREATE INDEX IF NOT EXISTS idx_market_cache_fetched_at
     ON market_cache(fetched_at DESC);
+
+
+-- -------------------------
+-- AI Jobs (Phase 2/3 async batch operations)
+-- Persists batch_copart_scan and dealer_inventory_match jobs.
+-- -------------------------
+
+CREATE TABLE IF NOT EXISTS ai_jobs (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_type     TEXT NOT NULL,
+    payload      JSONB NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'queued',  -- queued | running | done | error
+    result       JSONB,
+    error        TEXT,
+    created_at   TIMESTAMPTZ DEFAULT now(),
+    completed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_jobs_status
+    ON ai_jobs(status);
+
+CREATE INDEX IF NOT EXISTS idx_ai_jobs_created_at
+    ON ai_jobs(created_at DESC);
+
+
+-- -------------------------
+-- AI Cache (general-purpose LLM result cache)
+-- Used by AiCache service for tasks with cache_ttl_s > 0 (e.g. copart_analyze).
+-- -------------------------
+
+CREATE TABLE IF NOT EXISTS ai_cache (
+    cache_key  TEXT PRIMARY KEY,
+    task_id    TEXT NOT NULL,
+    value      JSONB NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_cache_expires_at
+    ON ai_cache(expires_at);
