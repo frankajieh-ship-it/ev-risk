@@ -1,5 +1,5 @@
 /**
- * POST /api/dealer/inventory/[id]/rematch
+ * POST /api/dealer/inventory/[itemId]/rematch
  *
  * Re-runs buyer profile matching for a specific inventory vehicle.
  * Clears stale buyer_profiles rows for this make+model, then rebuilds
@@ -25,9 +25,9 @@ export const maxDuration = 25;
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ itemId: string }> },
 ) {
-  const { id: vehicleId } = await params;
+  const { itemId: vehicleId } = await params;
 
   const authResult = await requireRole(req, "dealer_admin", "dealer_user");
   if (authResult instanceof NextResponse) return authResult;
