@@ -135,6 +135,11 @@ export interface FetchedListingFields {
   vin?: string;
   location?: string;
   url_domain?: string;
+  /** EV-specific specs extracted from listing page or text */
+  range_mi?: number;
+  battery_kwh?: number;
+  dc_fast_kw?: number;
+  efficiency_mi_per_kwh?: number;
   /** Photo URLs from Auto.dev market listings */
   photo_urls?: string[];
   /** Market price range from Auto.dev listings */

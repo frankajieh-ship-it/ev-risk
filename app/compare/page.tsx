@@ -398,8 +398,26 @@ function ComparePageContent() {
         <p className="text-xs font-medium text-gray-500 mb-1.5">Paste a listing URL or description to auto-fill</p>
         <ListingExtractMini
           onExtracted={(extracted) => {
-            setOption({ ...option, label: extracted.label, body_type_bucket: extracted.bodyType });
-            if (extracted.price) setSpec({ ...spec, price: extracted.price });
+            const newSpec: typeof spec = { ...spec };
+            if (extracted.price) newSpec.price = extracted.price;
+            if (extracted.range_mi) newSpec.range_mi = extracted.range_mi;
+            if (extracted.battery_kwh) newSpec.battery_kwh = extracted.battery_kwh;
+            if (extracted.dc_fast_kw) newSpec.dc_fast_kw = extracted.dc_fast_kw;
+            if (extracted.efficiency_mi_per_kwh) newSpec.efficiency_mi_per_kwh = extracted.efficiency_mi_per_kwh;
+            setSpec(newSpec);
+
+            const batteryBucket = deriveBatteryBucket(extracted.range_mi, extracted.battery_kwh);
+            const efficiencyBucket = deriveEfficiencyBucket(extracted.efficiency_mi_per_kwh);
+            const chargingBucket = extracted.dc_fast_kw ? deriveChargingBucket(extracted.dc_fast_kw) : option.charging_curve_bucket;
+            setOption({
+              ...option,
+              label: extracted.label,
+              body_type_bucket: extracted.bodyType,
+              ...(batteryBucket !== "UNKNOWN" && { battery_bucket: batteryBucket }),
+              ...(efficiencyBucket !== "UNKNOWN" && { efficiency_bucket: efficiencyBucket }),
+              ...(chargingBucket !== "UNKNOWN" && { charging_curve_bucket: chargingBucket }),
+            });
+
             const metaSetter = isA ? setMetaA : setMetaB;
             metaSetter({ make: extracted.make, model: extracted.model, year: extracted.year });
           }}

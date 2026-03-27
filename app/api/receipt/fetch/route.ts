@@ -24,6 +24,50 @@ import type { FieldConfidence } from "@/types/receipt";
 import { logApi, startTimer } from "@/lib/api-logger";
 import { hashIP } from "@/lib/session-utils";
 
+/** Extract EV-specific specs from raw listing page text using regex */
+function parseEvSpecsFromText(text: string): Pick<FetchedListingFields, 'range_mi' | 'battery_kwh' | 'dc_fast_kw' | 'efficiency_mi_per_kwh'> {
+  const specs: Pick<FetchedListingFields, 'range_mi' | 'battery_kwh' | 'dc_fast_kw' | 'efficiency_mi_per_kwh'> = {};
+
+  // Range: "272 mi", "Battery range: 272 mi", "Est. range: 272 miles", "272-mile range"
+  const rangeMatch = text.match(/(?:battery\s+range|est(?:imated)?\s*\.?\s*range|range)[:\s]+(\d{2,3})(?:\s*[-–]?\s*mi(?:les?)?)\b/i)
+    || text.match(/\b(\d{2,3})\s*[-–]?\s*mi(?:les?)?\s+(?:range|est)/i);
+  if (rangeMatch) {
+    const v = parseInt(rangeMatch[1]);
+    if (v >= 50 && v <= 600) specs.range_mi = v;
+  }
+
+  // Battery: "Battery capacity: 50 kWh", "75.7 kWh battery", "82kWh"
+  const battMatch = text.match(/(?:battery\s+(?:capacity|size|pack))[:\s]+(\d+(?:\.\d+)?)\s*kWh/i)
+    || text.match(/\b(\d+(?:\.\d+)?)\s*kWh\b/i);
+  if (battMatch) {
+    const v = parseFloat(battMatch[1]);
+    if (v >= 20 && v <= 250) specs.battery_kwh = v;
+  }
+
+  // DC fast charge: "DC fast peak: 150 kW", "250kW DC", "Max DC charging: 150kW"
+  const dcMatch = text.match(/(?:dc\s+fast(?:\s+(?:charge|charging|peak))?|max\s+dc\s+charg\w+)[:\s]+(\d+)\s*kW/i)
+    || text.match(/\b(\d+)\s*kW\s+(?:dc|fast\s+charg)/i);
+  if (dcMatch) {
+    const v = parseInt(dcMatch[1]);
+    if (v >= 20 && v <= 400) specs.dc_fast_kw = v;
+  }
+
+  // Efficiency: "3.5 mi/kWh", "MPGe: 134" (convert: MPGe / 33.7 ≈ mi/kWh)
+  const effMatch = text.match(/\b(\d+(?:\.\d+)?)\s*mi(?:les?)?\s*\/\s*kWh/i);
+  if (effMatch) {
+    const v = parseFloat(effMatch[1]);
+    if (v >= 1 && v <= 10) specs.efficiency_mi_per_kwh = v;
+  } else {
+    // Derive from range + battery if both available
+    if (specs.range_mi && specs.battery_kwh) {
+      const derived = Math.round((specs.range_mi / specs.battery_kwh) * 10) / 10;
+      if (derived >= 1 && derived <= 10) specs.efficiency_mi_per_kwh = derived;
+    }
+  }
+
+  return specs;
+}
+
 export const maxDuration = 30;
 
 /**
@@ -312,6 +356,15 @@ export async function POST(request: NextRequest) {
       location: result.data.location,
       url_domain: urlDomain,
     };
+
+    // Parse EV specs from the raw page text
+    if (result.data.raw_text) {
+      const evSpecs = parseEvSpecsFromText(result.data.raw_text);
+      if (evSpecs.range_mi) fields.range_mi = evSpecs.range_mi;
+      if (evSpecs.battery_kwh) fields.battery_kwh = evSpecs.battery_kwh;
+      if (evSpecs.dc_fast_kw) fields.dc_fast_kw = evSpecs.dc_fast_kw;
+      if (evSpecs.efficiency_mi_per_kwh) fields.efficiency_mi_per_kwh = evSpecs.efficiency_mi_per_kwh;
+    }
 
     // Await Auto.dev enrichment (already running in parallel above)
     const autoDevData = await autoDevPromise;

@@ -20,6 +20,10 @@ export interface ExtractedListing {
   make?: string;
   model?: string;
   trim?: string;
+  range_mi?: number;
+  battery_kwh?: number;
+  dc_fast_kw?: number;
+  efficiency_mi_per_kwh?: number;
 }
 
 interface Props {
@@ -77,8 +81,9 @@ export default function ListingExtractMini({ onExtracted, placeholder }: Props) 
         return;
       }
 
-      const { year, make, model, trim, price } = (data.fields ?? {}) as {
+      const { year, make, model, trim, price, range_mi, battery_kwh, dc_fast_kw, efficiency_mi_per_kwh } = (data.fields ?? {}) as {
         year?: number; make?: string; model?: string; trim?: string; price?: number;
+        range_mi?: number; battery_kwh?: number; dc_fast_kw?: number; efficiency_mi_per_kwh?: number;
       };
 
       if (!make && !model) {
@@ -91,7 +96,7 @@ export default function ListingExtractMini({ onExtracted, placeholder }: Props) 
       const bodyType = deriveBodyBucket(make ?? "", model ?? "");
       setSuccessLabel(label);
       setInput("");
-      onExtracted({ label, bodyType, price: price ?? undefined, year, make, model, trim });
+      onExtracted({ label, bodyType, price: price ?? undefined, year, make, model, trim, range_mi, battery_kwh, dc_fast_kw, efficiency_mi_per_kwh });
     } catch {
       setError("Network error. Try again.");
     } finally {
