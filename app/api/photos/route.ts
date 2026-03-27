@@ -22,6 +22,10 @@ const MODEL_EXACT_MAP: Record<string, string> = {
   "ioniq 5": "Ioniq 5", "ioniq 6": "Ioniq 6",
   // Kia
   "ev6": "EV6", "ev9": "EV9",
+  // Rivian
+  "r1t": "R1T", "r1s": "R1S",
+  // Volkswagen
+  "id.4": "ID.4", "id4": "ID.4",
   // Tesla
   "cybertruck": "Cybertruck",
   "cybertruck crew cab": "Cybertruck",
@@ -48,6 +52,9 @@ const TRIM_SUFFIXES = [
   " performance", " plaid", " plaid+",
   // Trim levels
   " gt", " gt-line", " gt line", " wind", " earth", " light",
+  " sel", " se", " limited", " blue",
+  // Pack/battery descriptors (Rivian)
+  " large pack", " max pack", " adventure",
   " xdrive50", " xdrive40", " edrive40", " edrive35", " m50",
   " 4s", " turbo", " turbo s", " cross turismo", " sport turismo",
   " pure", " grand touring", " grand touring+",

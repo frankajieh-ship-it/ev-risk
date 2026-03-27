@@ -92,6 +92,8 @@ export function computeRoutineFitV2(inputs: EnhancedInputs): RoutineFitScore {
     stress_flags: baseline.stress_flags,
     breakpoints_ranked: baseline.breakpoints_ranked,
     confidence,
+    // Propagate dimension sub-scores from baseline — V2 only adjusts the total
+    dimensions: baseline.dimensions,
   };
 }
 
