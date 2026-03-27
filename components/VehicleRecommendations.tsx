@@ -12,6 +12,8 @@ import { addToAnonGarage } from "@/lib/anon-garage";
 import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import type { MinimumViableRoutine } from "@/types/v2";
 import type { VehicleRecommendation, RecommendationsResponse } from "@/types/recommendations";
+import RoutineComparePanel from "./RoutineComparePanel";
+import { computeConfidencePct } from "@/lib/routine-confidence";
 
 interface VehicleRecommendationsProps {
   routine: MinimumViableRoutine;
@@ -477,6 +479,33 @@ export default function VehicleRecommendations({
       {/* Results */}
       {!loading && !error && (
         <>
+          {/* Recommendation confidence — shown once results load */}
+          {recommendations.length > 0 && (
+            <div className="mb-5">
+              {(() => {
+                const pct = computeConfidencePct(routine);
+                return (
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-400 rounded-full transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                    <span
+                      className="text-xs text-gray-400 shrink-0 cursor-help"
+                      title="Reflects how complete your routine inputs are and how strongly OFFO can distinguish between vehicle fits."
+                    >
+                      Recommendation confidence: {pct}%
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {/* Save & Compare CTA — above the fold */}
           {recommendations.length >= 2 && refinePhase === "browse" && (
             <div className="flex gap-3 mb-5">
@@ -692,6 +721,14 @@ export default function VehicleRecommendations({
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Side-by-side compare panel — shown when 2+ recommended vehicles */}
+          {refinePhase === "browse" && sortedRecommended.length >= 2 && (
+            <RoutineComparePanel
+              vehicles={sortedRecommended.slice(0, Math.min(3, sortedRecommended.length))}
+              routine={routine}
+            />
           )}
 
           {/* "Also fits" collapsed section */}
