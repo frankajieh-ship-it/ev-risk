@@ -694,6 +694,17 @@ function ComparePageContent() {
     const unlocked = isUnlocked || freeMode || !paymentsEnabled;
     const displayPrice = getDisplayPriceForRegion("999", regionResolved === "UK" ? "UK" : "US");
 
+    // Real-world context (client-side formulas, no API)
+    const isColdClimate = regionResolved === "UK";
+    const chargeTimeA = (specA.battery_kwh && specA.dc_fast_kw)
+      ? Math.round(0.7 * specA.battery_kwh / specA.dc_fast_kw * 60) : null;
+    const chargeTimeB = (specB.battery_kwh && specB.dc_fast_kw)
+      ? Math.round(0.7 * specB.battery_kwh / specB.dc_fast_kw * 60) : null;
+    const realWorldRangeA = specA.range_mi ? Math.round(specA.range_mi * 0.87) : null;
+    const realWorldRangeB = specB.range_mi ? Math.round(specB.range_mi * 0.87) : null;
+    const coldRangeA = (isColdClimate && realWorldRangeA) ? Math.round(realWorldRangeA * 0.70) : null;
+    const coldRangeB = (isColdClimate && realWorldRangeB) ? Math.round(realWorldRangeB * 0.70) : null;
+
     const signalBadge = (signal: string) => {
       if (signal === "GOOD") return "bg-green-100 text-green-800 border-green-200";
       if (signal === "CONDITIONAL") return "bg-yellow-100 text-yellow-800 border-yellow-200";
@@ -819,9 +830,33 @@ function ComparePageContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  <SpecRow rowIndex={0} label="Est. Range" valA={specA.range_mi ? `~${specA.range_mi} mi` : "—"} valB={specB.range_mi ? `~${specB.range_mi} mi` : "—"} numA={specA.range_mi} numB={specB.range_mi} better="higher" />
+                  <SpecRow rowIndex={0} label="Est. Range (EPA)" valA={specA.range_mi ? `~${specA.range_mi} mi` : "—"} valB={specB.range_mi ? `~${specB.range_mi} mi` : "—"} numA={specA.range_mi} numB={specB.range_mi} better="higher" />
+                  {(realWorldRangeA || realWorldRangeB) && (
+                    <tr className="bg-green-50">
+                      <td className="py-2 px-3 text-xs text-green-700 italic pl-5 w-1/3">Real-world est.</td>
+                      <td className="py-2 px-3 text-xs text-center text-green-700">
+                        {realWorldRangeA ? `~${realWorldRangeA} mi` : "—"}
+                        {coldRangeA && <span className="block text-[10px] text-blue-600">~{coldRangeA} mi in cold</span>}
+                      </td>
+                      <td className="py-2 px-3 text-xs text-center text-green-700">
+                        {realWorldRangeB ? `~${realWorldRangeB} mi` : "—"}
+                        {coldRangeB && <span className="block text-[10px] text-blue-600">~{coldRangeB} mi in cold</span>}
+                      </td>
+                    </tr>
+                  )}
                   <SpecRow rowIndex={1} label="Battery" valA={specA.battery_kwh ? `${specA.battery_kwh} kWh` : "—"} valB={specB.battery_kwh ? `${specB.battery_kwh} kWh` : "—"} numA={specA.battery_kwh} numB={specB.battery_kwh} better="higher" />
                   <SpecRow rowIndex={2} label="DC Fast (peak)" valA={specA.dc_fast_kw ? `${specA.dc_fast_kw} kW` : "—"} valB={specB.dc_fast_kw ? `${specB.dc_fast_kw} kW` : "—"} numA={specA.dc_fast_kw} numB={specB.dc_fast_kw} better="higher" />
+                  {(chargeTimeA || chargeTimeB) && (
+                    <tr className="bg-orange-50">
+                      <td className="py-2 px-3 text-xs text-orange-700 italic pl-5 w-1/3">10→80% est.</td>
+                      <td className="py-2 px-3 text-xs text-center text-orange-700">
+                        {chargeTimeA ? `~${chargeTimeA} min` : "—"}
+                      </td>
+                      <td className="py-2 px-3 text-xs text-center text-orange-700">
+                        {chargeTimeB ? `~${chargeTimeB} min` : "—"}
+                      </td>
+                    </tr>
+                  )}
                   <SpecRow rowIndex={3} label="Efficiency" valA={specA.efficiency_mi_per_kwh ? `${specA.efficiency_mi_per_kwh} mi/kWh` : "—"} valB={specB.efficiency_mi_per_kwh ? `${specB.efficiency_mi_per_kwh} mi/kWh` : "—"} numA={specA.efficiency_mi_per_kwh} numB={specB.efficiency_mi_per_kwh} better="higher" />
                   {(specA.drivetrain || specB.drivetrain) && (
                     <SpecRow rowIndex={4} label="Drivetrain" valA={specA.drivetrain && specA.drivetrain !== "UNKNOWN" ? specA.drivetrain : "—"} valB={specB.drivetrain && specB.drivetrain !== "UNKNOWN" ? specB.drivetrain : "—"} numA={null} numB={null} better={null} />
@@ -832,7 +867,28 @@ function ComparePageContent() {
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-gray-400 mt-3">Specs are estimated. Verify before purchasing.</p>
+            <p className="text-xs text-gray-400 mt-3">Real-world range est. applies ~13% reduction from EPA. Cold weather est. assumes ~30% additional reduction. Charge time is a peak-rate ceiling; actual varies. Verify before purchasing.</p>
+          </div>
+        )}
+
+        {/* ── FREE PERSONALIZATION CTA ─────────────────────────── */}
+        {!routineRefined && (
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-5">
+            <p className="font-semibold text-blue-900 text-sm mb-1">
+              Personalise to your routine — free
+            </p>
+            <p className="text-xs text-blue-700 mb-4">
+              Tell us how you drive and we&apos;ll re-score both fit signals for your actual situation. No payment needed.
+            </p>
+            <button
+              onClick={() => {
+                setPhase("routine");
+                trackEvent("compare_routine_free_entry", { region: regionResolved, was_unlocked: unlocked });
+              }}
+              className="w-full py-3 rounded-xl font-semibold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+            >
+              Personalise for my routine <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
         )}
 
@@ -876,7 +932,6 @@ function ComparePageContent() {
                 {[
                   { icon: BarChart2, text: "Deep-dive analysis for both vehicles" },
                   { icon: MessageSquare, text: "Verdict: what actually changes for your routine" },
-                  { icon: ShieldCheck, text: "Personalise to your driving habits" },
                   { icon: Copy, text: "Copy & share full takeaway" },
                 ].map(({ icon: Icon, text }, i) => (
                   <li key={i} className="flex items-center gap-2 text-xs text-gray-600">
@@ -922,20 +977,6 @@ function ComparePageContent() {
             <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-2xl border border-blue-100 p-5 text-center">
               <p className="text-sm text-gray-600 italic">{result.neutral_closer}</p>
             </div>
-
-            {/* Personalise by routine */}
-            {!routineRefined && (
-              <button
-                onClick={() => setPhase("routine")}
-                className="w-full flex items-center justify-between px-5 py-4 bg-white rounded-2xl border-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-400 transition-all"
-              >
-                <div className="text-left">
-                  <p className="font-semibold text-sm">Personalise to your routine</p>
-                  <p className="text-xs text-blue-500 mt-0.5">Tell us how you drive — we&apos;ll re-score both options for your actual situation</p>
-                </div>
-                <ChevronDown className="w-5 h-5 shrink-0" />
-              </button>
-            )}
 
             {/* Copy takeaway */}
             <button
@@ -1128,7 +1169,7 @@ function ComparePageContent() {
   );
 
   // Step indicator: options=1, results=2, routine=3 (optional)
-  const stepLabels = ["Two Options", "Results", "Refine Routine"];
+  const stepLabels = ["Two Options", "Results", "Your Routine"];
   const stepPhases: Phase[] = ["options", "results", "routine"];
   const currentStepIdx = stepPhases.indexOf(phase);
 
@@ -1145,7 +1186,7 @@ function ComparePageContent() {
           </div>
           <h1 className="text-3xl md:text-4xl font-bold mb-3">Compare Two EVs</h1>
           <p className="text-blue-100 text-base md:text-lg max-w-xl mx-auto">
-            Enter two options, get an instant comparison. Optionally personalise it to your driving routine.
+            Enter two options, get an instant comparison. Personalise free to your routine — unlock the full analysis for deeper insight.
           </p>
         </div>
       </div>
@@ -1168,7 +1209,7 @@ function ComparePageContent() {
                   {idx < currentStepIdx ? "✓" : idx + 1}
                 </div>
                 <span className="hidden sm:block">{stepLabels[idx]}</span>
-                {idx === 2 && <span className="hidden sm:block text-[10px] text-gray-400 -mt-0.5">optional</span>}
+                {idx === 2 && <span className="hidden sm:block text-[10px] text-green-600 -mt-0.5">free</span>}
               </div>
             ))}
           </div>
