@@ -10,8 +10,9 @@ import RefineStep, { type RefinePrefs } from "./RefineStep";
 import Link from "next/link";
 import { addToAnonGarage } from "@/lib/anon-garage";
 import { SourcesFooter } from "@/components/blocks/SourcesFooter";
+import { DataSourcesBadge } from "@/components/blocks/DataSourcesBadge";
 import type { MinimumViableRoutine } from "@/types/v2";
-import type { VehicleRecommendation, RecommendationsResponse } from "@/types/recommendations";
+import type { VehicleRecommendation, RecommendationsResponse, DataSources } from "@/types/recommendations";
 import RoutineComparePanel from "./RoutineComparePanel";
 import { computeConfidencePct } from "@/lib/routine-confidence";
 
@@ -172,6 +173,18 @@ export default function VehicleRecommendations({
   const [showSavePrompt, setShowSavePrompt] = useState(false);
   const [saveConfirmed, setSaveConfirmed] = useState(false);
 
+  // Quick-adjust state
+  const [localRoutine, setLocalRoutine] = useState<MinimumViableRoutine>(() => routine);
+  const [prevRecommendations, setPrevRecommendations] = useState<VehicleRecommendation[]>([]);
+  const [isRecomputing, setIsRecomputing] = useState(false);
+  const [adjustedLabel, setAdjustedLabel] = useState(false);
+  const [showAdjustBar, setShowAdjustBar] = useState(false);
+  const [adjustExpanded, setAdjustExpanded] = useState(false);
+
+  // Trust & methodology state
+  const [dataSources, setDataSources] = useState<DataSources | null>(null);
+  const [showMethodology, setShowMethodology] = useState(false);
+
   const handleToggleCompare = (model: string) => {
     setCompareSelected((prev) => {
       const next = new Set(prev);
@@ -190,6 +203,28 @@ export default function VehicleRecommendations({
 
   const weeklyMiles = routine.weekly_miles
     ?? (routine.commute_miles_roundtrip ? routine.commute_miles_roundtrip * 5 : 100);
+
+  // Re-POST with a mutated routine (quick-adjust)
+  async function recomputeWithRoutine(updated: MinimumViableRoutine) {
+    setIsRecomputing(true);
+    setPrevRecommendations(recommendations);
+    try {
+      const res = await fetch("/api/recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ routine: updated, zip_code: userZipCode }),
+      });
+      if (res.ok) {
+        const data: RecommendationsResponse = await res.json();
+        if (data.success) {
+          setRecommendations(data.recommendations);
+          setDataSources(data.data_sources ?? null);
+          setAdjustedLabel(true);
+        }
+      }
+    } catch { /* ignore — keep existing results */ }
+    setIsRecomputing(false);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -215,6 +250,8 @@ export default function VehicleRecommendations({
           setRecommendations(data.recommendations);
           setDealerQuestions(data.dealer_questions.top_3);
           setUserZipCode(data.user_zip_code ?? null);
+          setDataSources(data.data_sources ?? null);
+          setShowAdjustBar(true);
 
           // Auto-save this EVFit result to anon-garage (syncs to server on login)
           addToAnonGarage({
@@ -550,6 +587,256 @@ export default function VehicleRecommendations({
               })()}
             </div>
           )}
+
+          {/* "How are these ranked?" methodology accordion */}
+          {recommendations.length > 0 && (
+            <div className="mb-4">
+              <button
+                onClick={() => setShowMethodology(!showMethodology)}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1"
+              >
+                How are these ranked?
+                {showMethodology ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+              <AnimatePresence>
+                {showMethodology && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3 text-xs text-gray-600">
+                      <div>
+                        <p className="font-semibold text-gray-800 mb-1">Fit score (0–100)</p>
+                        <p>Weighted average of 6 dimensions: <strong>Charging fit (30%)</strong> · Range fit (25%) · Cost fit (15%) · Climate fit (10%) · Longest-day recovery (10%) · Utility fit (10%). Score ≥ 80 = Great Fit, 65–79 = Good Fit, 45–64 = Mixed Fit.</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800 mb-1">Range estimates</p>
+                        <p>EPA-certified range adjusted by the AAA real-world variance per vehicle (typically −5% to −15%). Winter climate applies an additional reduction based on your parking: garage −12%, outdoor −15%, street −20% (AAA cold-weather studies).</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800 mb-1">5-year cost estimate</p>
+                        <p>MSRP purchase price · Charging at $0.16/kWh (US avg 2024) · Maintenance $600/yr (EV avg, no oil changes) · Insurance $1,800/yr · Depreciation 45% of MSRP over 5 years. Estimates only — your costs will vary.</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {/* Quick-adjust bar */}
+          {showAdjustBar && recommendations.length > 0 && (
+            <div className="mb-5">
+              {/* Collapsed summary line */}
+              {!adjustExpanded && (
+                <div className="flex items-center justify-between gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                  <span className="truncate">
+                    Budget: {localRoutine.budget_max ? `$${Math.round(localRoutine.budget_max / 1000)}k` : "Any"}
+                    {" · "}Body: {localRoutine.body_style ?? "Any"}
+                    {" · "}
+                    {localRoutine.weekly_miles
+                      ? `~${Math.round(localRoutine.weekly_miles / 7)} mi/day`
+                      : localRoutine.commute_miles_roundtrip
+                      ? `~${Math.round(localRoutine.commute_miles_roundtrip * 5 / 7)} mi/day`
+                      : "~14 mi/day"}
+                    {" · "}Charging: {chargingLabels[localRoutine.charging_access] ?? localRoutine.charging_access}
+                  </span>
+                  <button
+                    onClick={() => setAdjustExpanded(true)}
+                    className="shrink-0 flex items-center gap-1 text-blue-600 font-medium hover:text-blue-700 transition-colors"
+                  >
+                    Adjust <ChevronDown className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
+              {/* Expanded controls */}
+              <AnimatePresence>
+                {adjustExpanded && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.15 }}
+                    className="bg-white border border-blue-200 rounded-2xl p-4 space-y-4"
+                  >
+                    {/* Budget */}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700 mb-1.5">Budget</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: "No limit", value: undefined },
+                          { label: "$25k", value: 25000 },
+                          { label: "$35k", value: 35000 },
+                          { label: "$45k", value: 45000 },
+                          { label: "$55k", value: 55000 },
+                        ].map(({ label, value }) => (
+                          <button
+                            key={label}
+                            onClick={() => setLocalRoutine(r => ({ ...r, budget_max: value }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              localRoutine.budget_max === value
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "bg-white text-gray-600 border-gray-300 hover:border-blue-400"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Body style */}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700 mb-1.5">Body style</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: "Any", value: undefined },
+                          { label: "Sedan", value: "sedan" },
+                          { label: "SUV", value: "suv" },
+                          { label: "Truck", value: "truck" },
+                          { label: "Hatch", value: "hatchback" },
+                        ].map(({ label, value }) => (
+                          <button
+                            key={label}
+                            onClick={() => setLocalRoutine(r => ({ ...r, body_style: value as MinimumViableRoutine["body_style"] }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              (localRoutine.body_style ?? undefined) === value
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "bg-white text-gray-600 border-gray-300 hover:border-blue-400"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Weekly miles */}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700 mb-1.5">Weekly driving</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: "< 100 mi", value: 70 },
+                          { label: "100–200 mi", value: 150 },
+                          { label: "200–300 mi", value: 250 },
+                          { label: "300+ mi", value: 350 },
+                        ].map(({ label, value }) => {
+                          const current = localRoutine.weekly_miles
+                            ?? (localRoutine.commute_miles_roundtrip ? localRoutine.commute_miles_roundtrip * 5 : 100);
+                          const active =
+                            (value === 70  && current < 100) ||
+                            (value === 150 && current >= 100 && current < 200) ||
+                            (value === 250 && current >= 200 && current < 300) ||
+                            (value === 350 && current >= 300);
+                          return (
+                            <button
+                              key={label}
+                              onClick={() => setLocalRoutine(r => ({ ...r, weekly_miles: value, commute_miles_roundtrip: undefined }))}
+                              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                active
+                                  ? "bg-blue-600 text-white border-blue-600"
+                                  : "bg-white text-gray-600 border-gray-300 hover:border-blue-400"
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Charging access */}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700 mb-1.5">Charging setup</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(["home", "work", "public"] as const).map((val) => (
+                          <button
+                            key={val}
+                            onClick={() => setLocalRoutine(r => ({ ...r, charging_access: val }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              localRoutine.charging_access === val
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "bg-white text-gray-600 border-gray-300 hover:border-blue-400"
+                            }`}
+                          >
+                            {chargingLabels[val]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
+                      <button
+                        onClick={() => {
+                          recomputeWithRoutine(localRoutine);
+                          setAdjustExpanded(false);
+                          trackEvent("quick_adjust_update", {
+                            budget: localRoutine.budget_max,
+                            body_style: localRoutine.body_style,
+                            weekly_miles: localRoutine.weekly_miles,
+                            charging_access: localRoutine.charging_access,
+                          });
+                        }}
+                        disabled={isRecomputing}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors"
+                      >
+                        {isRecomputing ? (
+                          <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />Updating…</>
+                        ) : (
+                          "Update Results"
+                        )}
+                      </button>
+                      {adjustedLabel && (
+                        <button
+                          onClick={() => {
+                            setLocalRoutine(routine);
+                            recomputeWithRoutine(routine);
+                            setAdjustedLabel(false);
+                            setAdjustExpanded(false);
+                          }}
+                          className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                          Reset to original
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setAdjustExpanded(false)}
+                        className="ml-auto text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* "Updated based on your changes" pill */}
+              {adjustedLabel && !adjustExpanded && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-emerald-700">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  Updated based on your changes
+                  <button
+                    onClick={() => {
+                      setLocalRoutine(routine);
+                      recomputeWithRoutine(routine);
+                      setAdjustedLabel(false);
+                    }}
+                    className="ml-1 text-gray-400 hover:text-gray-600 transition-colors underline"
+                  >
+                    Reset →
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Dim overlay on cards during recompute */}
+          <div className={isRecomputing ? "opacity-60 pointer-events-none transition-opacity" : "transition-opacity"}>
 
           {/* Save & Compare CTA — above the fold */}
           {recommendations.length >= 2 && refinePhase === "browse" && (
@@ -991,7 +1278,9 @@ export default function VehicleRecommendations({
             </button>
           </div>
 
+          {dataSources && <DataSourcesBadge dataSources={dataSources} chargingAccess={localRoutine.charging_access} />}
           <SourcesFooter />
+          </div>{/* end dim overlay wrapper */}
         </>
       )}
     </motion.div>
