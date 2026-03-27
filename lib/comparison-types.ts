@@ -73,7 +73,7 @@ export interface OptionSpec {
 
 export function deriveBodyBucket(make: string, model: string): BodyTypeBucket {
   const s = `${make} ${model}`.toLowerCase();
-  if (/van|pickup|f-150|silverado|r1t|ram|canyon|colorado|transit|promaster/.test(s)) return 'VAN_PICKUP';
+  if (/van|pickup|f-150|silverado|r1t|ram|canyon|colorado|transit|promaster|cybertruck/.test(s)) return 'VAN_PICKUP';
   if (/suv|crossover|model y|model x|ioniq 5|ioniq 7|ioniq 9|ev6|ev9|mach-e|ariya|bz4x|blazer|equinox|forester|outback|qx60|tiguan|id\.4|id\.6|enyaq/.test(s)) return 'SUV_CUV';
   return 'HATCH_SEDAN_WAGON';
 }
