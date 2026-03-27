@@ -98,8 +98,12 @@ export default function VehicleImage({
 
   const altText = alt ?? ([year, make, model].filter(Boolean).join(" ") || "Vehicle");
 
-  // No photo found — render nothing (no awkward placeholder)
-  if (status === "error") return null;
+  // No photo found — show car silhouette so the image slot has a clear affordance
+  if (status === "error") return (
+    <div className={`relative overflow-hidden bg-gray-100 flex items-center justify-center ${className}`}>
+      <CarSilhouette className="w-2/3 max-w-[160px] opacity-40" />
+    </div>
+  );
 
   return (
     <div className={`relative overflow-hidden bg-gray-100 ${className}`}>

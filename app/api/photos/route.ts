@@ -20,6 +20,12 @@ const MODEL_EXACT_MAP: Record<string, string> = {
   "mustang mach-e": "Mustang Mach-E",
   // Hyundai — Auto.dev uses title case, NOT all-caps
   "ioniq 5": "Ioniq 5", "ioniq 6": "Ioniq 6",
+  // Kia
+  "ev6": "EV6", "ev9": "EV9",
+  // Tesla
+  "cybertruck": "Cybertruck",
+  "cybertruck crew cab": "Cybertruck",
+  "cybertruck foundation series": "Cybertruck",
   // Mercedes (make comes in as "Mercedes" or "Mercedes-Benz")
   "eqs 450+": "EQS", "eqs 580 4matic": "EQS", "eqs": "EQS",
   "eqb 300 4matic": "EQB", "eqb": "EQB",
@@ -29,16 +35,27 @@ const MODEL_EXACT_MAP: Record<string, string> = {
 // Trim suffixes Auto.dev doesn't use — strip these from model names.
 // Order matters: longer strings first.
 const TRIM_SUFFIXES = [
+  // Truck / cab body styles (must come before shorter suffixes)
+  " crew cab", " super crew", " super cab", " extended cab", " double cab",
+  " quad cab", " mega cab", " king cab", " access cab", " regular cab",
+  " foundation series",
+  // Powertrain descriptors (long forms before short)
+  " rear-wheel drive", " all-wheel drive", " front-wheel drive",
+  " dual motor", " tri motor", " single motor",
+  // Range
   " long range", " standard range plus", " standard range", " extended range", " extended", " standard",
+  // Performance tiers
   " performance", " plaid", " plaid+",
+  // Trim levels
   " gt", " gt-line", " gt line", " wind", " earth", " light",
   " xdrive50", " xdrive40", " edrive40", " edrive35", " m50",
   " 4s", " turbo", " turbo s", " cross turismo", " sport turismo",
   " pure", " grand touring", " grand touring+",
-  " awd", " rwd", " fwd",
+  // Drivetrain short forms
+  " awd", " rwd", " fwd", " 4wd",
   " 450+", " 580", " 350+",
   " e-4wd",
-  " select", " premium", " pro",
+  " select", " premium", " pro", " plus",
 ];
 
 // Make aliases — Auto.dev uses specific make strings
