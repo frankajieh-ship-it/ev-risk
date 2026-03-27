@@ -56,6 +56,25 @@ export async function POST(request: NextRequest) {
     trim: vinData.trim ?? undefined,
   };
 
+  // EV spec extraction from VIN decode data
+  // MPGe (city+highway combined) → efficiency in mi/kWh  (MPGe ÷ 33.7)
+  if (vinData.mpg) {
+    const cityMpg = vinData.mpg.city ? parseFloat(vinData.mpg.city) : null;
+    const hwyMpg = vinData.mpg.highway ? parseFloat(vinData.mpg.highway) : null;
+    // Only treat as MPGe if the value is suspiciously high for a normal ICE car (>50 MPG city)
+    // Tesla Model 3 city MPGe ≈ 138; Kia EV6 ≈ 132 — ICE cars rarely exceed 50 city
+    if (cityMpg && cityMpg > 50) {
+      const combinedMpge = hwyMpg ? Math.round((cityMpg + hwyMpg) / 2) : cityMpg;
+      const eff = Math.round((combinedMpge / 33.7) * 10) / 10;
+      if (eff >= 2 && eff <= 10) fields.efficiency_mi_per_kwh = eff;
+    }
+  }
+
+  // Body style from VIN decode
+  if (vinData.categories?.vehicleStyle) {
+    fields.body_style = vinData.categories.vehicleStyle;
+  }
+
   // Pull photos from listings
   const photoUrls: string[] = [];
   if (listingsData?.records) {
@@ -82,6 +101,22 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Build auto_dev_specs for downstream consumers (engine, body style, MSRP)
+  const engineParts = [
+    vinData.engine?.cylinder ? `${vinData.engine.cylinder}-cyl` : null,
+    vinData.engine?.size ? `${vinData.engine.size}L` : null,
+    vinData.engine?.fuelType ?? null,
+  ].filter(Boolean);
+  const auto_dev_specs = {
+    engine: engineParts.length ? engineParts.join(" ") : undefined,
+    mpg_city: vinData.mpg?.city ? parseFloat(vinData.mpg.city) : undefined,
+    mpg_highway: vinData.mpg?.highway ? parseFloat(vinData.mpg.highway) : undefined,
+    drive: vinData.drivenWheels,
+    body_style: vinData.categories?.vehicleStyle,
+    msrp: vinData.price?.baseMsrp,
+    used_tmv: vinData.price?.usedTmvRetail,
+  };
+
   const vehicleLabel = [fields.year, fields.make, fields.model, fields.trim]
     .filter(Boolean)
     .join(" ") || undefined;
@@ -92,5 +127,6 @@ export async function POST(request: NextRequest) {
     photo_urls: photoUrls,
     market_price_range: market_price_range ?? null,
     vehicle_label: vehicleLabel ?? null,
+    auto_dev_specs,
   });
 }

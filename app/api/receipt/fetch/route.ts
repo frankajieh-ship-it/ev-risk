@@ -44,8 +44,13 @@ function parseEvSpecsFromText(text: string): Pick<FetchedListingFields, 'range_m
     if (v >= 20 && v <= 250) specs.battery_kwh = v;
   }
 
-  // DC fast charge: "DC fast peak: 150 kW", "250kW DC", "Max DC charging: 150kW"
+  // DC fast charge: "DC fast peak: 150 kW", "250kW DC", "Max DC charging: 150kW",
+  // "DC charging: 250kW", "Fast charge rate: 250kW", "250 kW DC"
   const dcMatch = text.match(/(?:dc\s+fast(?:\s+(?:charge|charging|peak))?|max\s+dc\s+charg\w+)[:\s]+(\d+)\s*kW/i)
+    || text.match(/\b(\d+)\s*kW\s+dc\b/i)
+    || text.match(/dc\s+(?:charge|charging)\s*[:\-]\s*(\d+)\s*kW/i)
+    || text.match(/fast\s+charg\w*\s*(?:rate\s*)?[:\-]\s*(\d+)\s*kW/i)
+    || text.match(/charg\w*\s+rate\s*[:\-]\s*(\d+)\s*kW/i)
     || text.match(/\b(\d+)\s*kW\s+(?:dc|fast\s+charg)/i);
   if (dcMatch) {
     const v = parseInt(dcMatch[1]);

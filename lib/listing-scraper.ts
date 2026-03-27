@@ -389,6 +389,10 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
   }
   if (!data.dc_fast_kw) {
     const m = html.match(/(?:dc\s+fast|max\s+dc\s+charg\w+)[^0-9]*(\d+)\s*kW/i)
+      || html.match(/\b(\d+)\s*kW\s+dc\b/i)
+      || html.match(/dc\s+(?:charge|charging)\s*[:\-]\s*(\d+)\s*kW/i)
+      || html.match(/fast\s+charg\w*\s*(?:rate\s*)?[:\-]\s*(\d+)\s*kW/i)
+      || html.match(/charg\w*\s+rate\s*[:\-]\s*(\d+)\s*kW/i)
       || html.match(/"(?:dcFastCharge|maxDcCharging|fastCharge)[^"]*"\s*:\s*"?(\d+)/i);
     if (m) { const v = parseInt(m[1]); if (v >= 20 && v <= 400) data.dc_fast_kw = v; }
   }
