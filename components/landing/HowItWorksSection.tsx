@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Link2, Search, ClipboardCheck, MessageSquare, Cpu, FileCheck } from "lucide-react";
+import { Link2, Search, ClipboardCheck, Eye, Unlock, MessageSquare, Cpu, FileCheck } from "lucide-react";
 
 const receiptSteps = [
   {
@@ -26,6 +26,41 @@ const receiptSteps = [
     title: "Go in prepared",
     description:
       "Take your checklist to the test drive. Know exactly what to verify before you commit.",
+    color: "bg-indigo-100 text-indigo-600",
+  },
+];
+
+const receiptStepsV2 = [
+  {
+    number: 1,
+    icon: Link2,
+    title: "Paste listing link",
+    description:
+      "Copy a URL from CarGurus, AutoTrader, Facebook Marketplace, or any listing site.",
+    color: "bg-blue-100 text-blue-600",
+  },
+  {
+    number: 2,
+    icon: Search,
+    title: "Get instant verdict",
+    description:
+      "See a deal score, price position, and overall risk rating in seconds — no sign-up needed.",
+    color: "bg-green-100 text-green-600",
+  },
+  {
+    number: 3,
+    icon: Eye,
+    title: "Preview 3 risks and 3 questions",
+    description:
+      "Your free report includes the top risks and the most important questions to ask the seller.",
+    color: "bg-yellow-100 text-yellow-600",
+  },
+  {
+    number: 4,
+    icon: Unlock,
+    title: "Unlock full analysis",
+    description:
+      "Get the full risk breakdown, negotiation script, checklist, and PDF export for $9.99 one-time.",
     color: "bg-indigo-100 text-indigo-600",
   },
 ];
@@ -70,14 +105,18 @@ const itemVariants = {
 };
 
 interface HowItWorksSectionProps {
-  variant?: "receipt" | "fit-check";
+  variant?: "receipt" | "receipt-v2" | "fit-check";
 }
 
-export default function HowItWorksSection({ variant = "receipt" }: HowItWorksSectionProps) {
-  const steps = variant === "fit-check" ? fitCheckSteps : receiptSteps;
-  const subtitle = variant === "fit-check"
-    ? "Three steps to knowing if an EV fits your life"
-    : "Three steps to confident used EV shopping";
+export default function HowItWorksSection({ variant = "receipt-v2" }: HowItWorksSectionProps) {
+  const steps =
+    variant === "fit-check" ? fitCheckSteps :
+    variant === "receipt-v2" ? receiptStepsV2 :
+    receiptSteps;
+  const subtitle =
+    variant === "fit-check" ? "Three steps to knowing if an EV fits your life" :
+    variant === "receipt-v2" ? "From paste to prepared in four steps" :
+    "Three steps to confident used EV shopping";
 
   return (
     <section id="how-it-works" className="py-16 md:py-24 bg-white">
@@ -96,7 +135,11 @@ export default function HowItWorksSection({ variant = "receipt" }: HowItWorksSec
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto"
+          className={`grid grid-cols-1 gap-8 mx-auto ${
+            variant === "receipt-v2"
+              ? "md:grid-cols-4 max-w-5xl"
+              : "md:grid-cols-3 max-w-5xl"
+          }`}
         >
           {steps.map((step) => {
             const Icon = step.icon;

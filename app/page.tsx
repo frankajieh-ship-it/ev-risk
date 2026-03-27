@@ -18,6 +18,8 @@ import LoginModal from "@/components/LoginModal";
 import RoutineStep from "@/components/RoutineStep";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
+import FreePaidMatrix from "@/components/landing/FreePaidMatrix";
+import SampleReportPreview from "@/components/landing/SampleReportPreview";
 
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 import type { MinimumViableRoutine } from "@/types/v2";
@@ -340,8 +342,10 @@ export default function Home() {
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-xs text-gray-400 text-center">Instant free report · Full risk analysis from $9.99 · Works on CarGurus, AutoTrader, FB Marketplace &amp; more</p>
+            <FreePaidMatrix />
           </div>
+
+          <SampleReportPreview />
 
           {/* Soft secondary link to routine check */}
           <p className="text-center text-sm text-gray-500 mt-5">
@@ -513,25 +517,6 @@ export default function Home() {
           />
         </section>
       )}
-
-      {/* Dealer CTA section */}
-      <section className="max-w-3xl mx-auto px-4 pb-8">
-        <div className="rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 p-6 md:p-8 text-white flex flex-col md:flex-row md:items-center gap-5">
-          <div className="flex-1">
-            <p className="text-xs font-semibold uppercase tracking-wider text-green-200 mb-1">For Dealerships</p>
-            <h2 className="text-lg md:text-xl font-bold mb-1">Reach high-intent EV buyers</h2>
-            <p className="text-sm text-green-100">
-              OFFO buyers run real routine-fit checks before they shop. List your inventory and get matched to buyers already researching your vehicles.
-            </p>
-          </div>
-          <a
-            href="/dealers"
-            className="shrink-0 px-6 py-3 bg-white text-green-700 rounded-xl text-sm font-semibold hover:bg-green-50 transition-colors text-center"
-          >
-            Find a dealer
-          </a>
-        </div>
-      </section>
 
       {/* News digest soft banner */}
       <div className="max-w-3xl mx-auto px-4 pb-4">

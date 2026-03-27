@@ -22,6 +22,7 @@ import ShareDropdown from "@/components/ShareDropdown";
 import SaveForLaterModal from "@/components/SaveForLaterModal";
 import DebugPanel from "@/components/DebugPanel";
 import WhyCheckpointCard from "@/components/WhyCheckpointCard";
+import CompareFromReportCTA from "@/components/receipt/CompareFromReportCTA";
 import DecisionResolution from "@/components/DecisionResolution";
 import { ResultPageLite } from "@/components/ResultPageLite";
 import { ResultPageV2 } from "@/components/ResultPageV2";
@@ -798,6 +799,8 @@ function ReportContent() {
           topDrivers={confidence.top_drivers}
           planB={confidence.plan_b}
         />
+
+        <CompareFromReportCTA reportId={reportId} />
 
         {/* Area Charging Context - Minimal Display */}
         {confidence.area_charging_context &&
