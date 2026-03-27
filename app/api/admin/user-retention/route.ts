@@ -16,6 +16,9 @@ const ADMIN_KEY = process.env.ADMIN_API_KEY || "your-secret-admin-key";
 
 const BOT_UA_PATTERNS = /bot|crawler|spider|headless|scraper|wget|curl|python-requests/i;
 
+// Internal team — excluded from all retention metrics
+const INTERNAL_VISITOR_IDS = new Set(["fp-uwi6gg", "fp-24bewu"]);
+
 // Human signal events — presence of any means real user interaction
 const HUMAN_SIGNAL_EVENTS = new Set([
   "page_visible_10s",
@@ -142,16 +145,17 @@ export async function GET(request: NextRequest) {
 
     const humanVisitorIds = new Set<string>();
 
-    // Add all visitors with a valid non-bot UA
+    // Add all visitors with a valid non-bot UA — skip internal team
     for (const v of allKnownVisitors) {
+      if (INTERNAL_VISITOR_IDS.has(v.visitor_id)) continue;
       if (!v.user_agent || v.user_agent.length <= 10) continue;
       if (BOT_UA_PATTERNS.test(v.user_agent)) continue;
       humanVisitorIds.add(v.visitor_id);
     }
 
-    // Also add any visitor with human-signal events (in case their visitors row is missing)
+    // Also add any visitor with human-signal events — skip internal team
     for (const ev of allEvents) {
-      if (ev.visitor_id && HUMAN_SIGNAL_EVENTS.has(ev.event_name)) {
+      if (ev.visitor_id && HUMAN_SIGNAL_EVENTS.has(ev.event_name) && !INTERNAL_VISITOR_IDS.has(ev.visitor_id)) {
         humanVisitorIds.add(ev.visitor_id);
       }
     }
@@ -222,6 +226,7 @@ export async function GET(request: NextRequest) {
     // Active users — visitors table is already deduplicated (one row per visitor_id).
     // Filter bots directly from UA on the returned rows. DAU ≤ WAU ≤ MAU always holds.
     const isHumanVisitor = (v: { visitor_id: string; user_agent?: string | null }) => {
+      if (INTERNAL_VISITOR_IDS.has(v.visitor_id)) return false;
       if (!v.user_agent || v.user_agent.length <= 10) return false;
       if (BOT_UA_PATTERNS.test(v.user_agent)) return false;
       return true;
