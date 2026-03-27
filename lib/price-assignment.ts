@@ -17,6 +17,7 @@ export const BUYER_PASS_PRICE = "$9.99";
 export const BUYER_PASS_CREDITS = 10;
 export const CHAT_PASS_PRICE = "$9.99";
 export const COPART_REPORT_PRICE = "$19.99";
+export const COMPARE_PASS_PRICE = "$4.99";
 
 export const SELLER_PACK_PRICE_A = "$2.99";
 export const SELLER_PACK_PRICE_B = "$4.99";

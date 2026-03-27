@@ -943,7 +943,7 @@ function ComparePageContent() {
     const labelA = result.optionA.label || "Option A";
     const labelB = result.optionB.label || "Option B";
     const unlocked = isUnlocked || freeMode || !paymentsEnabled;
-    const displayPrice = getDisplayPriceForRegion("999", regionResolved === "UK" ? "UK" : "US");
+    const displayPrice = getDisplayPriceForRegion("499", regionResolved === "UK" ? "UK" : "US");
 
     // Real-world context (client-side formulas, no API)
     const isColdClimate = regionResolved === "UK";
@@ -1359,15 +1359,14 @@ function ComparePageContent() {
             {/* Unlock CTA */}
             <div className="px-5 pb-5 pt-4 border-t border-indigo-100">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2.5 py-1 rounded-full">OFFO Buyer Pass</span>
+                <span className="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2.5 py-1 rounded-full">OFFO Compare Pass</span>
                 <span className="text-base font-bold text-gray-900">{displayPrice}</span>
               </div>
               <p className="text-sm font-semibold text-gray-900 mb-1">Unlock the full comparison</p>
-              <ul className="space-y-1.5 mb-4">
+              <ul className="space-y-1.5 mb-3">
                 {[
                   { icon: BarChart2, text: "Deep-dive analysis for both vehicles" },
                   { icon: MessageSquare, text: "Verdict: what actually changes for your routine" },
-                  { icon: Copy, text: "Copy & share full takeaway" },
                 ].map(({ icon: Icon, text }, i) => (
                   <li key={i} className="flex items-center gap-2 text-xs text-gray-600">
                     <Icon className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
@@ -1375,6 +1374,7 @@ function ComparePageContent() {
                   </li>
                 ))}
               </ul>
+              <p className="text-xs text-indigo-600 font-medium mb-3">See how these cars match your routine — one-time, no subscription.</p>
               <button
                 onClick={handleCompareCheckout}
                 disabled={checkoutLoading || !compareSessionId}
@@ -1383,7 +1383,7 @@ function ComparePageContent() {
                 {checkoutLoading ? (
                   <><Loader2 className="w-4 h-4 animate-spin" />Redirecting...</>
                 ) : (
-                  <><ShieldCheck className="w-4 h-4" />Unlock Full Analysis — {displayPrice}</>
+                  <><ShieldCheck className="w-4 h-4" />See full analysis &amp; what changes — {displayPrice}</>
                 )}
               </button>
               {checkoutError && <p className="text-xs text-red-600 mt-2">{checkoutError}</p>}
@@ -1412,48 +1412,68 @@ function ComparePageContent() {
             <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-2xl border border-blue-100 p-5 text-center">
               <p className="text-sm text-gray-600 italic">{result.neutral_closer}</p>
             </div>
+          </>
+        )}
 
-            {/* Copy takeaway */}
+        {/* ── COPY & SHARE — always free ────────────────────────── */}
+        {(() => {
+          const verdictForShare = buildVerdict(
+            result, labelA, labelB, specA, specB,
+            priceA, priceB, total5A, total5B, tcoWinner,
+            routineRefined, routinePattern, longDayFrequency
+          );
+          const handleCopy = async () => {
+            const specLines: string[] = [];
+            if (includeSpecs && hasAnySpec) {
+              specLines.push("", "Specs:");
+              if (specA.range_mi || specB.range_mi) specLines.push(`  Range: ${specA.range_mi ? `~${Math.round(specA.range_mi * 0.87)} mi real-world` : "—"} vs ${specB.range_mi ? `~${Math.round(specB.range_mi * 0.87)} mi real-world` : "—"}`);
+              if (specA.battery_kwh || specB.battery_kwh) specLines.push(`  Battery: ${specA.battery_kwh ?? "—"} kWh vs ${specB.battery_kwh ?? "—"} kWh`);
+              if (specA.dc_fast_kw || specB.dc_fast_kw) specLines.push(`  DC Fast: ${specA.dc_fast_kw ?? "—"} kW vs ${specB.dc_fast_kw ?? "—"} kW`);
+              if (specA.price || specB.price) specLines.push(`  Price: ${specA.price ? `$${specA.price.toLocaleString()}` : "—"} vs ${specB.price ? `$${specB.price.toLocaleString()}` : "—"}`);
+            }
+            const tcoLine = tcoWinner && tcoWinner !== "TIE" && total5A != null && total5B != null
+              ? [`5-yr cost est.: ${tcoWinner === "A" ? labelA : labelB} saves ~${formatCurrency(Math.abs(total5A - total5B))} over 5 years`]
+              : [];
+            const deltaLines = unlocked && result.routine_delta_bullets.length > 0
+              ? ["", "For your routine:", ...result.routine_delta_bullets.map(b => `• ${b}`)]
+              : [];
+            const takeaway = [
+              `OFFO Comparison: ${labelA} vs ${labelB}`,
+              "",
+              `Verdict: ${verdictForShare.title}`,
+              "",
+              `${labelA}: ${FIT_SIGNAL_LABELS[result.optionA.fit_signal]}`,
+              `${labelB}: ${FIT_SIGNAL_LABELS[result.optionB.fit_signal]}`,
+              ...specLines,
+              ...(tcoLine.length ? ["", ...tcoLine] : []),
+              ...deltaLines,
+              "",
+              result.neutral_closer,
+              "",
+              "Analysed with OFFO — offo.co",
+            ].join("\n");
+            try {
+              await navigator.clipboard.writeText(takeaway);
+              setShowCopySuccess(true);
+              setTimeout(() => setShowCopySuccess(false), 2000);
+              trackEvent("compare_copy_takeaway_clicked", { region: regionResolved, fit_signal_a: result.optionA.fit_signal, fit_signal_b: result.optionB.fit_signal });
+            } catch (err) {
+              console.error("Copy failed:", err);
+            }
+          };
+          return (
             <button
-              onClick={async () => {
-                const specLines: string[] = [];
-                if (includeSpecs && hasAnySpec) {
-                  specLines.push("", "Specs:");
-                  if (specA.range_mi || specB.range_mi) specLines.push(`  Range: ${specA.range_mi ? `~${specA.range_mi} mi` : "—"} vs ${specB.range_mi ? `~${specB.range_mi} mi` : "—"}`);
-                  if (specA.battery_kwh || specB.battery_kwh) specLines.push(`  Battery: ${specA.battery_kwh ?? "—"} kWh vs ${specB.battery_kwh ?? "—"} kWh`);
-                  if (specA.dc_fast_kw || specB.dc_fast_kw) specLines.push(`  DC Fast: ${specA.dc_fast_kw ?? "—"} kW vs ${specB.dc_fast_kw ?? "—"} kW`);
-                }
-                const takeaway = [
-                  `Comparing ${labelA} vs ${labelB}:`,
-                  ...specLines,
-                  "",
-                  `${labelA}: ${FIT_SIGNAL_LABELS[result.optionA.fit_signal]} — ${FADE_LABEL_DISPLAY[result.optionA.fade_label]}`,
-                  `${labelB}: ${FIT_SIGNAL_LABELS[result.optionB.fit_signal]} — ${FADE_LABEL_DISPLAY[result.optionB.fade_label]}`,
-                  "",
-                  "Key differences:",
-                  ...result.routine_delta_bullets.map(b => `• ${b}`),
-                  "",
-                  result.neutral_closer,
-                ].join("\n");
-                try {
-                  await navigator.clipboard.writeText(takeaway);
-                  setShowCopySuccess(true);
-                  setTimeout(() => setShowCopySuccess(false), 2000);
-                  trackEvent("compare_copy_takeaway_clicked", { region: regionResolved, fit_signal_a: result.optionA.fit_signal, fit_signal_b: result.optionB.fit_signal });
-                } catch (err) {
-                  console.error("Copy failed:", err);
-                }
-              }}
+              onClick={handleCopy}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-medium border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-400 transition-all"
             >
               {showCopySuccess ? (
                 <><CheckCircle className="w-4 h-4 text-green-600" /><span className="text-green-600">Copied!</span></>
               ) : (
-                <><Copy className="w-4 h-4" /><span>Copy key takeaway</span></>
+                <><Copy className="w-4 h-4" /><span>Copy &amp; share summary</span></>
               )}
             </button>
-          </>
-        )}
+          );
+        })()}
 
         <div className="flex gap-3">
           <button
@@ -1610,7 +1630,7 @@ function ComparePageContent() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <Header />
+      <Header variant="compare" />
 
       {/* Hero banner */}
       <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white">

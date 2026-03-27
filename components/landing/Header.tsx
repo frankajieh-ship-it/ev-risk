@@ -9,7 +9,7 @@ import { totalGarageCount } from "@/lib/anon-garage";
 import LoginModal from "@/components/LoginModal";
 
 interface HeaderProps {
-  variant?: "receipt" | "homepage";
+  variant?: "receipt" | "homepage" | "compare";
   historyCount?: number;
   onHistoryClick?: () => void;
   regionSelector?: ReactNode;
@@ -142,12 +142,14 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
               /* Receipt variant — existing behavior */
               <div className="flex items-center gap-4">
                 {regionSelector}
-                <span
-                  className="text-sm font-medium text-gray-400 cursor-default hidden sm:inline"
-                  title="Coming soon"
-                >
-                  Deal Watch
-                </span>
+                {variant !== "compare" && (
+                  <span
+                    className="text-sm font-medium text-gray-400 cursor-default hidden sm:inline"
+                    title="Coming soon"
+                  >
+                    Deal Watch
+                  </span>
+                )}
                 <GarageBadge />
                 {onHistoryClick && (
                   <button
