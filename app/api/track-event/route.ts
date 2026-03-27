@@ -15,6 +15,22 @@ import { logApi } from "@/lib/api-logger";
 import { getEventTags } from "@/lib/event-tags";
 import { enrichGeo } from "@/lib/geo-enrichment";
 
+// Internal team identifiers — events from these are flagged is_internal=true
+const INTERNAL_VISITOR_IDS = new Set(["fp-uwi6gg", "fp-24bewu"]);
+const INTERNAL_USER_IDS = new Set([
+  "a9e65037-00b3-443b-afba-5631e42b0505",
+  "71ccca48-add0-4a47-b7b4-14985c923a78",
+]);
+const INTERNAL_IPS = new Set(["107.21.254.59", "18.235.38.143", "3.234.24.20", "::1"]);
+
+function isInternalTraffic(visitorId?: string | null, userId?: string | null, ip?: string | null) {
+  return (
+    (visitorId && INTERNAL_VISITOR_IDS.has(visitorId)) ||
+    (userId && INTERNAL_USER_IDS.has(userId)) ||
+    (ip && INTERNAL_IPS.has(ip))
+  );
+}
+
 // Valid event names for validation
 const VALID_EVENT_NAMES = [
   // Form & Input Events
@@ -388,6 +404,7 @@ export async function POST(req: NextRequest) {
       geo_state: geo?.state || null,
       geo_lat: geo?.lat ?? null,
       geo_lon: geo?.lon ?? null,
+      is_internal: isInternalTraffic(visitorId, userId, ip) ? true : false,
     };
 
     // Include dedupe_key if provided (unique partial index enforces dedup)

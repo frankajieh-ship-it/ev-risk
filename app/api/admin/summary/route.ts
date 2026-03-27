@@ -15,10 +15,8 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 const ADMIN_KEY = process.env.ADMIN_API_KEY || "your-secret-admin-key";
 const TIMEZONE = "America/Indiana/Indianapolis";
 
-// Internal team identifiers — excluded from all analytics aggregations
-const EXCLUDED_VISITOR_IDS = ["fp-uwi6gg", "fp-24bewu"];
-const EXCLUDED_USER_IDS = ["71ccca48-add0-4a47-b7b4-14985c923a78"];
-const EXCLUDED_IP_ADDRESSES = ["107.21.254.59"];
+// Internal traffic is excluded via is_internal=true column on user_events
+// (set at ingest time in /api/track-event, back-filled via migration-internal-flag.sql)
 
 // ---------------------------------------------------------------------------
 // Time-window helpers (reused from /api/admin/kpis)
@@ -195,14 +193,13 @@ export async function GET(request: NextRequest) {
       .gte("created_at", window.start)
       .lt("created_at", window.end);
 
-    // 4. User events (exclude internal team)
+    // 4. User events (exclude internal team via is_internal column)
     const userEventsPromise = supabase
       .from("user_events")
       .select("event_name, event_data, visitor_id, session_id, ip_address, user_agent, timestamp")
       .gte("timestamp", window.start)
       .lt("timestamp", window.end)
-      .not("visitor_id", "in", `(${EXCLUDED_VISITOR_IDS.join(",")})`)
-      .not("user_id", "in", `(${EXCLUDED_USER_IDS.join(",")})`);
+      .eq("is_internal", false);
 
     // 5. Visitors
     const visitorsPromise = supabase
@@ -222,8 +219,7 @@ export async function GET(request: NextRequest) {
     const recentEventsPromise = supabase
       .from("user_events")
       .select("event_name, event_data, visitor_id, session_id, ip_address, user_agent, page_path, timestamp")
-      .not("visitor_id", "in", `(${EXCLUDED_VISITOR_IDS.join(",")})`)
-      .not("user_id", "in", `(${EXCLUDED_USER_IDS.join(",")})`)
+      .eq("is_internal", false)
       .order("timestamp", { ascending: false })
       .limit(50);
 
@@ -1494,7 +1490,7 @@ export async function GET(request: NextRequest) {
         timestamp: e.created_at,
       })),
     ]
-      .filter((e) => !EXCLUDED_VISITOR_IDS.includes(e.visitor_id || ""))
+      .filter((e) => !["fp-uwi6gg", "fp-24bewu"].includes(e.visitor_id || ""))
       .sort(
         (a, b) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
