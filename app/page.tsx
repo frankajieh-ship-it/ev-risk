@@ -20,6 +20,7 @@ import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import FreePaidMatrix from "@/components/landing/FreePaidMatrix";
 import SampleReportPreview from "@/components/landing/SampleReportPreview";
+import TrustBadge from "@/components/landing/TrustBadge";
 
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 import type { MinimumViableRoutine } from "@/types/v2";
@@ -343,6 +344,7 @@ export default function Home() {
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
+            <TrustBadge />
             <FreePaidMatrix />
           </div>
 

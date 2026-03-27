@@ -8,6 +8,7 @@
 "use client";
 
 import { useState } from "react";
+import type React from "react";
 import { motion } from "framer-motion";
 import {
   BarChart2,
@@ -23,20 +24,45 @@ import { getDisplayPriceForRegion } from "@/lib/price-assignment";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import type { Region } from "@/lib/region";
 
+export type UpgradeContext = "listing_analysis" | "ev_routine_check" | "compare";
+
 interface DecisionPackCardProps {
   receiptToken: string;
   receiptId: string;
   triggerReason?: string | null;
   onDismiss?: () => void;
   region?: Region;
+  upgradeContext?: UpgradeContext;
 }
 
-const ADDITIONAL_BENEFITS = [
-  { icon: Search, text: "Full deep-dive analysis" },
-  { icon: MessageSquare, text: "3 ready-to-use negotiation scripts" },
-  { icon: BarChart2, text: "Market comparison with similar listings" },
-  { icon: FileDown, text: "PDF export — share or print" },
-];
+const BENEFITS_BY_CONTEXT: Record<UpgradeContext, { icon: React.ElementType; text: string }[]> = {
+  listing_analysis: [
+    { icon: Search, text: "Full deep-dive analysis" },
+    { icon: MessageSquare, text: "3 ready-to-use negotiation scripts" },
+    { icon: BarChart2, text: "Market comparison with similar listings" },
+    { icon: FileDown, text: "PDF export — share or print" },
+  ],
+  ev_routine_check: [
+    { icon: Search, text: "Full routine fit breakdown with stress flags" },
+    { icon: MessageSquare, text: "Charging gap analysis for your daily schedule" },
+    { icon: BarChart2, text: "Range confidence by season and commute" },
+    { icon: FileDown, text: "PDF export — share or print" },
+  ],
+  compare: [
+    { icon: Search, text: "Side-by-side deep-dive on both listings" },
+    { icon: MessageSquare, text: "Negotiation scripts for each vehicle" },
+    { icon: BarChart2, text: "Which is the better deal for your routine" },
+    { icon: FileDown, text: "PDF export for both reports" },
+  ],
+};
+
+const HEADLINE_BY_CONTEXT: Record<UpgradeContext, string> = {
+  listing_analysis: "Get the full analysis",
+  ev_routine_check: "See how this EV fits your routine",
+  compare: "Compare both listings in depth",
+};
+
+const ADDITIONAL_BENEFITS = BENEFITS_BY_CONTEXT.listing_analysis;
 
 export default function DecisionPackCard({
   receiptToken,
@@ -44,10 +70,13 @@ export default function DecisionPackCard({
   triggerReason,
   onDismiss,
   region = "US",
+  upgradeContext = "listing_analysis",
 }: DecisionPackCardProps) {
   const { trackEvent } = useEventTracking();
   const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const benefits = BENEFITS_BY_CONTEXT[upgradeContext] ?? ADDITIONAL_BENEFITS;
+  const headline = HEADLINE_BY_CONTEXT[upgradeContext] ?? HEADLINE_BY_CONTEXT.listing_analysis;
 
   const handleDismiss = () => {
     trackEvent("paywall_dismissed", {
@@ -145,28 +174,42 @@ export default function DecisionPackCard({
           </span>
         </div>
 
-        {/* VIN Deep Analysis — hero feature */}
+        {/* Hero feature block */}
         <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-xl p-4 mb-4 text-white">
           <div className="flex items-start gap-3">
             <div className="bg-white/20 rounded-lg p-2 flex-shrink-0">
               <ShieldCheck className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="text-sm font-bold mb-1">VIN Deep Analysis</h3>
-              <p className="text-xs text-indigo-100 leading-relaxed">
-                Verify the car's identity, check open recalls, and detect listing mismatches — before you hand over a deposit.
-              </p>
+              <h3 className="text-sm font-bold mb-1">{headline}</h3>
+              {upgradeContext === "listing_analysis" && (
+                <p className="text-xs text-indigo-100 leading-relaxed">
+                  Verify the car's identity, check open recalls, and detect listing mismatches — before you hand over a deposit.
+                </p>
+              )}
+              {upgradeContext === "ev_routine_check" && (
+                <p className="text-xs text-indigo-100 leading-relaxed">
+                  See exactly how this EV handles your daily commute, charging access, and climate — with real-world range data.
+                </p>
+              )}
+              {upgradeContext === "compare" && (
+                <p className="text-xs text-indigo-100 leading-relaxed">
+                  Run a full side-by-side comparison of both listings including risk flags, pricing, and routine fit.
+                </p>
+              )}
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-indigo-200">
-            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-            <span>1 in 5 listings has a detail that doesn't match the VIN record</span>
-          </div>
+          {upgradeContext === "listing_analysis" && (
+            <div className="mt-3 flex items-center gap-1.5 text-xs text-indigo-200">
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>1 in 5 listings has a detail that doesn't match the VIN record</span>
+            </div>
+          )}
         </div>
 
-        {/* Additional benefits */}
+        {/* Benefits */}
         <ul className="space-y-2 mb-4">
-          {ADDITIONAL_BENEFITS.map(({ icon: Icon, text }, i) => (
+          {benefits.map(({ icon: Icon, text }, i) => (
             <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
               <Icon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
               <span>{text}</span>

@@ -42,7 +42,7 @@ import CompareBadge from "@/components/receipt/CompareBadge";
 import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import CompareSelectModal from "@/components/receipt/CompareSelectModal";
 import CompareView from "@/components/receipt/CompareView";
-import DecisionPackCard from "@/components/receipt/DecisionPackCard";
+import DecisionPackCard, { type UpgradeContext } from "@/components/receipt/DecisionPackCard";
 import PersonalConsultationCard from "@/components/receipt/PersonalConsultationCard";
 import ExtensionNudge from "@/components/ExtensionNudge";
 import ShareModal from "@/components/receipt/ShareModal";
@@ -53,6 +53,7 @@ import { getOrCreateReceiptToken } from "@/lib/session-utils";
 import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent } from "@/types/receipt";
 import type { MinimumViableRoutine } from "@/types/v2";
 import RoutineContextBanner from "@/components/receipt/RoutineContextBanner";
+import CompareFromReportCTA from "@/components/receipt/CompareFromReportCTA";
 import OFfoChat from "@/components/chat/OFfoChat";
 
 // Persist/retrieve current receipt ID across auth redirects
@@ -1182,6 +1183,13 @@ export default function ReceiptPage() {
                 />
               )}
 
+              {/* ── Compare CTA — shown after result, surfaces compare flow ── */}
+              {!compareBoundTo && (
+                <CompareFromReportCTA
+                  reportId={receipt.receipt_id}
+                />
+              )}
+
               {/* ── Save + Compare — immediately after verdict, max visibility ── */}
               <div className="flex gap-2">
                 <div className="flex-1">
@@ -1284,6 +1292,13 @@ export default function ReceiptPage() {
                         triggerReason={paywallTrigger}
                         onDismiss={() => setDecisionPackDismissed(true)}
                         region={region}
+                        upgradeContext={
+                          (compareBoundTo
+                            ? "compare"
+                            : routineContextUsed
+                              ? "ev_routine_check"
+                              : "listing_analysis") as UpgradeContext
+                        }
                       />
                     </div>
                   )}
