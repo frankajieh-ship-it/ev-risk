@@ -17,7 +17,7 @@ const ADMIN_KEY = process.env.ADMIN_API_KEY || "your-secret-admin-key";
 const BOT_UA_PATTERNS = /bot|crawler|spider|headless|scraper|wget|curl|python-requests/i;
 
 // Internal team — excluded from all retention metrics
-const INTERNAL_VISITOR_IDS = new Set(["fp-uwi6gg", "fp-24bewu"]);
+const INTERNAL_VISITOR_IDS = new Set(["fp-uwi6gg", "fp-24bewu", "fp-airyss"]);
 
 // Human signal events — presence of any means real user interaction
 const HUMAN_SIGNAL_EVENTS = new Set([
@@ -76,6 +76,8 @@ export async function GET(request: NextRequest) {
   const { start, end } = getWindowBoundaries(window);
 
   try {
+    const INTERNAL_IDS_PG = `(${[...INTERNAL_VISITOR_IDS].join(",")})`;
+
     // Run all queries in parallel
     const [
       visitorsData,
@@ -91,13 +93,15 @@ export async function GET(request: NextRequest) {
         .from("visitors")
         .select("visitor_id, visit_count, session_count, first_visit, last_visit, user_agent")
         .gte("last_visit", start)
-        .lte("last_visit", end),
+        .lte("last_visit", end)
+        .not("visitor_id", "in", INTERNAL_IDS_PG),
 
       // 2. ALL known visitors (no time filter) — used to build the full human ID set
       //    so DAU/WAU/MAU filtering works correctly across all time windows
       supabase
         .from("visitors")
         .select("visitor_id, user_agent")
+        .not("visitor_id", "in", INTERNAL_IDS_PG)
         .limit(10000),
 
       // 3. Get page views for window-scoped visit count calc
@@ -105,32 +109,37 @@ export async function GET(request: NextRequest) {
         .from("page_views")
         .select("visitor_id, timestamp")
         .gte("timestamp", start)
-        .lte("timestamp", end),
+        .lte("timestamp", end)
+        .not("visitor_id", "in", INTERNAL_IDS_PG),
 
       // 4. Get user events (for human signal detection)
       supabase
         .from("user_events")
         .select("session_id, visitor_id, event_name, timestamp")
         .gte("timestamp", start)
-        .lte("timestamp", end),
+        .lte("timestamp", end)
+        .eq("is_internal", false),
 
       // 5. Daily Active Users — use visitors table (deduplicated, has UA for bot filter)
       supabase
         .from("visitors")
         .select("visitor_id, user_agent")
-        .gte("last_visit", new Date(Date.now() - 86400000).toISOString()),
+        .gte("last_visit", new Date(Date.now() - 86400000).toISOString())
+        .not("visitor_id", "in", INTERNAL_IDS_PG),
 
       // 6. Weekly Active Users
       supabase
         .from("visitors")
         .select("visitor_id, user_agent")
-        .gte("last_visit", new Date(Date.now() - 7 * 86400000).toISOString()),
+        .gte("last_visit", new Date(Date.now() - 7 * 86400000).toISOString())
+        .not("visitor_id", "in", INTERNAL_IDS_PG),
 
       // 7. Monthly Active Users
       supabase
         .from("visitors")
         .select("visitor_id, user_agent")
-        .gte("last_visit", new Date(Date.now() - 30 * 86400000).toISOString()),
+        .gte("last_visit", new Date(Date.now() - 30 * 86400000).toISOString())
+        .not("visitor_id", "in", INTERNAL_IDS_PG),
     ]);
 
     const allVisitors = visitorsData.data || [];

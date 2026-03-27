@@ -16,7 +16,7 @@ CREATE INDEX IF NOT EXISTS idx_user_events_is_internal
 UPDATE user_events
 SET is_internal = true
 WHERE
-  visitor_id IN ('fp-uwi6gg', 'fp-24bewu')
+  visitor_id IN ('fp-uwi6gg', 'fp-24bewu', 'fp-airyss')
   OR user_id IN (
     'a9e65037-00b3-443b-afba-5631e42b0505',
     '71ccca48-add0-4a47-b7b4-14985c923a78'

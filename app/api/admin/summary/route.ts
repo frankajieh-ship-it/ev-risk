@@ -165,6 +165,15 @@ export async function GET(request: NextRequest) {
     const window = getWindowBoundaries(period, dateParam, startParam, endParam);
 
     // -----------------------------------------------------------------------
+    // Internal team exclusion lists
+    // -----------------------------------------------------------------------
+    const INTERNAL_VISITOR_IDS_FILTER = ["fp-uwi6gg", "fp-24bewu", "fp-airyss"];
+    const INTERNAL_USER_IDS_FILTER = [
+      "a9e65037-00b3-443b-afba-5631e42b0505",
+      "71ccca48-add0-4a47-b7b4-14985c923a78",
+    ];
+
+    // -----------------------------------------------------------------------
     // Parallel queries
     // -----------------------------------------------------------------------
 
@@ -173,7 +182,8 @@ export async function GET(request: NextRequest) {
       .from("receipts")
       .select("id, created_at, output_json, url_domain")
       .gte("created_at", window.start)
-      .lt("created_at", window.end);
+      .lt("created_at", window.end)
+      .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
     // 2. Receipt events
     const receiptEventsPromise = supabase
@@ -191,7 +201,8 @@ export async function GET(request: NextRequest) {
         "id, status, customer_email, vehicle_year, vehicle_model, payload_json, created_at"
       )
       .gte("created_at", window.start)
-      .lt("created_at", window.end);
+      .lt("created_at", window.end)
+      .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
     // 4. User events (exclude internal team via is_internal column)
     const userEventsPromise = supabase
@@ -202,7 +213,6 @@ export async function GET(request: NextRequest) {
       .eq("is_internal", false);
 
     // 5. Visitors (exclude internal team)
-    const INTERNAL_VISITOR_IDS_FILTER = ["fp-uwi6gg", "fp-24bewu"];
     const visitorsPromise = supabase
       .from("visitors")
       .select("visitor_id, page_path, visit_count, last_visit")
@@ -239,17 +249,20 @@ export async function GET(request: NextRequest) {
       .from("purchases")
       .select("status, amount, currency, price_variant, scenario_type, created_at")
       .gte("created_at", window.start)
-      .lt("created_at", window.end);
+      .lt("created_at", window.end)
+      .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
     // 10. Garage vehicles — all-time count per user (authenticated users only)
     const garageUsersPromise = supabase
       .from("garage_vehicles")
-      .select("user_id");
+      .select("user_id")
+      .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
     // 11. Saved scenarios — all-time count per user (authenticated users only)
     const savedScenariosUsersPromise = supabase
       .from("saved_scenarios")
-      .select("user_id");
+      .select("user_id")
+      .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
     // 12. Extraction attempts — URL vs text success/failure breakdown
     const extractionAttemptsPromise = supabase
@@ -831,7 +844,8 @@ export async function GET(request: NextRequest) {
         .from("saved_scenarios")
         .select("user_id, scenario_type, vehicle_model, vehicle_year, saved_at")
         .gte("saved_at", window.start)
-        .lte("saved_at", window.end);
+        .lte("saved_at", window.end)
+        .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
       if (savedRows && savedRows.length > 0) {
         const userSaves = new Map<string, { count: number; latest_vehicle: string; latest_at: string }>();
