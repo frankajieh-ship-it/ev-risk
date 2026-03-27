@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/api-auth";
 import { getClientIP } from "@/lib/rate-limiter";
 import { sendChecklistEmail } from "@/lib/resend";
 
