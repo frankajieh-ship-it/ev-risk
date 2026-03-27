@@ -15,6 +15,11 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 const ADMIN_KEY = process.env.ADMIN_API_KEY || "your-secret-admin-key";
 const TIMEZONE = "America/Indiana/Indianapolis";
 
+// Internal team identifiers — excluded from all analytics aggregations
+const EXCLUDED_VISITOR_IDS = ["fp-uwi6gg"];
+const EXCLUDED_USER_IDS = ["71ccca48-add0-4a47-b7b4-14985c923a78"];
+const EXCLUDED_IP_ADDRESSES = ["107.21.254.59"];
+
 // ---------------------------------------------------------------------------
 // Time-window helpers (reused from /api/admin/kpis)
 // ---------------------------------------------------------------------------
@@ -190,12 +195,14 @@ export async function GET(request: NextRequest) {
       .gte("created_at", window.start)
       .lt("created_at", window.end);
 
-    // 4. User events
+    // 4. User events (exclude internal team)
     const userEventsPromise = supabase
       .from("user_events")
       .select("event_name, event_data, visitor_id, session_id, ip_address, user_agent, timestamp")
       .gte("timestamp", window.start)
-      .lt("timestamp", window.end);
+      .lt("timestamp", window.end)
+      .not("visitor_id", "in", `(${EXCLUDED_VISITOR_IDS.join(",")})`)
+      .not("user_id", "in", `(${EXCLUDED_USER_IDS.join(",")})`);
 
     // 5. Visitors
     const visitorsPromise = supabase
@@ -211,10 +218,12 @@ export async function GET(request: NextRequest) {
       .gte("created_at", window.start)
       .lt("created_at", window.end);
 
-    // 7. Recent events (last 50, no window filter)
+    // 7. Recent events (last 50, no window filter — exclude internal team)
     const recentEventsPromise = supabase
       .from("user_events")
       .select("event_name, event_data, visitor_id, session_id, ip_address, user_agent, page_path, timestamp")
+      .not("visitor_id", "in", `(${EXCLUDED_VISITOR_IDS.join(",")})`)
+      .not("user_id", "in", `(${EXCLUDED_USER_IDS.join(",")})`)
       .order("timestamp", { ascending: false })
       .limit(50);
 
