@@ -201,12 +201,14 @@ export async function GET(request: NextRequest) {
       .lt("timestamp", window.end)
       .eq("is_internal", false);
 
-    // 5. Visitors
+    // 5. Visitors (exclude internal team)
+    const INTERNAL_VISITOR_IDS_FILTER = ["fp-uwi6gg", "fp-24bewu"];
     const visitorsPromise = supabase
       .from("visitors")
       .select("visitor_id, page_path, visit_count, last_visit")
       .gte("last_visit", window.start)
-      .lt("last_visit", window.end);
+      .lt("last_visit", window.end)
+      .not("visitor_id", "in", `(${INTERNAL_VISITOR_IDS_FILTER.join(",")})`);
 
     // 6. Report feedback
     const feedbackPromise = supabase
