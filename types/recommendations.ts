@@ -80,6 +80,12 @@ export interface VehicleRecommendation {
 
   /** Computed MSRP — carried through from scoring data for ownership cost */
   msrp_usd?: number;
+
+  /** Peak DC fast-charge rate in kW (from vehicle catalog) */
+  dc_fast_kw?: number;
+
+  /** Whether this vehicle is currently eligible for the federal $7,500 new-EV tax credit */
+  incentive_new?: boolean;
 }
 
 export interface DataSources {

@@ -46,6 +46,8 @@ export interface RangeDeltaRow {
   chemistry: string;
   battery_kwh: number;
   msrp_usd: number;
+  dc_fast_kw: number;
+  incentive_new: boolean;
 }
 
 export interface RecallRow {
@@ -129,11 +131,14 @@ export function loadRangeDeltaData(): RangeDeltaRow[] {
       // Cast numeric columns
       if (context.column === "year" || context.column === "epa_range_mi" ||
           context.column === "real_world_range_mi" || context.column === "battery_kwh" ||
-          context.column === "msrp_usd") {
-        return parseInt(value);
+          context.column === "msrp_usd" || context.column === "dc_fast_kw") {
+        return parseInt(value) || 0;
       }
       if (context.column === "delta_percent") {
         return parseFloat(value);
+      }
+      if (context.column === "incentive_new") {
+        return value === "Y";
       }
       return value;
     }

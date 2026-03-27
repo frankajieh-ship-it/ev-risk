@@ -169,6 +169,8 @@ export default function VehicleRecommendations({
   const [refinedList, setRefinedList] = useState<VehicleRecommendation[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [compareSelected, setCompareSelected] = useState<Set<string>>(new Set());
+  const [showSavePrompt, setShowSavePrompt] = useState(false);
+  const [saveConfirmed, setSaveConfirmed] = useState(false);
 
   const handleToggleCompare = (model: string) => {
     setCompareSelected((prev) => {
@@ -229,6 +231,13 @@ export default function VehicleRecommendations({
               })),
             },
           });
+
+          // Show save prompt once per session (after results load)
+          try {
+            if (!sessionStorage.getItem("offo_routine_save_prompted")) {
+              setShowSavePrompt(true);
+            }
+          } catch { /* ignore */ }
 
           trackEvent("recommendations_viewed", {
             count: data.recommendations.length,
@@ -561,6 +570,65 @@ export default function VehicleRecommendations({
               </Link>
             </div>
           )}
+
+          {/* Save routine to Garage prompt */}
+          <AnimatePresence>
+            {showSavePrompt && !saveConfirmed && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+                className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-2xl"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-blue-900">Save this routine to your Garage</p>
+                  <p className="text-xs text-blue-700 mt-0.5">Your OFFO extension will use it automatically on CarGurus listings.</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      // Push routine to extension (best-effort)
+                      try {
+                        const extId = process.env.NEXT_PUBLIC_EXTENSION_ID;
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const cr = (window as any).chrome;
+                        if (extId && cr?.runtime?.sendMessage) {
+                          cr.runtime.sendMessage(extId, { type: "save_routine", routine });
+                        }
+                      } catch { /* ignore */ }
+                      try { sessionStorage.setItem("offo_routine_save_prompted", "1"); } catch { /* ignore */ }
+                      setSaveConfirmed(true);
+                      setTimeout(() => setShowSavePrompt(false), 2500);
+                    }}
+                    className="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    {saveConfirmed ? "Saved!" : "Save to Garage"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      try { sessionStorage.setItem("offo_routine_save_prompted", "1"); } catch { /* ignore */ }
+                      setShowSavePrompt(false);
+                    }}
+                    className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
+                  >
+                    Not now
+                  </button>
+                </div>
+              </motion.div>
+            )}
+            {saveConfirmed && showSavePrompt && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="mb-4 flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-2xl text-sm text-green-800"
+              >
+                <Check className="w-4 h-4 text-green-600 shrink-0" />
+                Saved! Opens automatically in extension.
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* RefineStep panel */}
           {refinePhase === "refine" && (

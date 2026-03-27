@@ -107,6 +107,7 @@ export default function RecommendationCard({
   const [showReceiptNudge, setShowReceiptNudge] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showCostBreakdown, setShowCostBreakdown] = useState(false);
+  const [searchHintVisible, setSearchHintVisible] = useState(false);
 
   const rangeFields = routine ? deriveRangeFields(rec, routine) : null;
   const cost = rec.ownership_cost_5y ?? null;
@@ -130,9 +131,15 @@ export default function RecommendationCard({
     zip: userZipCode ?? undefined,
     range_mi: rec.real_world_range_mi,
     weekly_miles: weeklyMiles,
+    budget_max: routine?.budget_max,
   });
 
-  // Handle external link clicks (NEW: March 2026)
+  // Estimate 10–80% charge time from DC fast rate
+  const charging1080Min = rec.dc_fast_kw && rec.dc_fast_kw > 0
+    ? Math.round((0.70 * rec.battery_kwh / rec.dc_fast_kw) * 60)
+    : null;
+
+  // Handle external link clicks
   const handleCarGurusClick = (e: React.MouseEvent) => {
     e.preventDefault();
     trackExternalLinkClicked({
@@ -147,8 +154,18 @@ export default function RecommendationCard({
       link_text: "Search listings",
       session_id: "", // Will be added by tracking hook
     });
-    // Open link in new tab
-    window.open(carGurusUrl, "_blank", "noopener,noreferrer");
+    // Show extension hint if available, then open tab
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hasExtension = !!(window as any).chrome?.runtime?.sendMessage;
+    if (hasExtension) {
+      setSearchHintVisible(true);
+      setTimeout(() => {
+        setSearchHintVisible(false);
+        window.open(carGurusUrl, "_blank", "noopener,noreferrer");
+      }, 1500);
+    } else {
+      window.open(carGurusUrl, "_blank", "noopener,noreferrer");
+    }
     setShowReceiptNudge(true);
   };
 
@@ -213,6 +230,19 @@ export default function RecommendationCard({
           <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
             {rec.chemistry}
           </span>
+          {charging1080Min !== null && (
+            <span className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
+              ⚡ ~{charging1080Min} min 10–80%
+            </span>
+          )}
+          {rec.incentive_new === true && (
+            <span
+              className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded-full cursor-help"
+              title="Income and dealer-point restrictions apply — verify eligibility"
+            >
+              $7,500 fed. credit possible
+            </span>
+          )}
           {cost && cost.total > 0 && (
             <button
               onClick={() => setShowCostBreakdown(!showCostBreakdown)}
@@ -357,6 +387,12 @@ export default function RecommendationCard({
             Search listings
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
+          {searchHintVisible && (
+            <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
+              <Zap className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+              OFFO will apply your routine automatically on CarGurus.
+            </div>
+          )}
           {showReceiptNudge && (
             <div className="flex items-start gap-2 px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
               <ArrowRight className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-500" />

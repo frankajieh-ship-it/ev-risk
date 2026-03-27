@@ -132,6 +132,20 @@ export default function RoutineComparePanel({ vehicles, routine }: RoutineCompar
                   <span className="text-gray-500">Battery</span>
                   <span className="font-medium text-gray-800">{rec.battery_kwh} kWh</span>
                 </div>
+                {rec.dc_fast_kw && rec.dc_fast_kw > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">10–80% charge</span>
+                    <span className="font-medium text-gray-800">
+                      ~{Math.round((0.70 * rec.battery_kwh / rec.dc_fast_kw) * 60)} min
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Fed. tax credit</span>
+                  <span className={rec.incentive_new ? "font-medium text-green-700" : "font-medium text-gray-400"}>
+                    {rec.incentive_new ? "Possible" : "—"}
+                  </span>
+                </div>
                 {rec.ownership_cost_5y && rec.ownership_cost_5y.total > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">5-yr cost est.</span>

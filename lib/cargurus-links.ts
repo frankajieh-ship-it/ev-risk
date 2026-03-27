@@ -27,15 +27,16 @@ export function getCarGurusUrl(
     zip?: string;
     range_mi?: number;
     weekly_miles?: number;
+    budget_max?: number;
   }
 ): string {
   const searchTerms = [
     options?.year,
     make,
     modelShort,
-    options?.range_mi ? `${options.range_mi}mi range` : null,
     "used EV for sale",
     options?.zip ? `near ${options.zip}` : null,
+    "site:cargurus.com",
   ]
     .filter(Boolean)
     .join(" ");

@@ -181,6 +181,8 @@ export function batchScoreVehicles(
       model_short,
       sub_category: classification.subCategory,
       score_improvements: scoreImprovements,
+      dc_fast_kw: row.dc_fast_kw || undefined,
+      incentive_new: row.incentive_new || undefined,
     };
   });
 
