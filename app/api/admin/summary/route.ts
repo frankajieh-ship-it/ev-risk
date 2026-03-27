@@ -16,7 +16,7 @@ const ADMIN_KEY = process.env.ADMIN_API_KEY || "your-secret-admin-key";
 const TIMEZONE = "America/Indiana/Indianapolis";
 
 // Internal team identifiers — excluded from all analytics aggregations
-const EXCLUDED_VISITOR_IDS = ["fp-uwi6gg"];
+const EXCLUDED_VISITOR_IDS = ["fp-uwi6gg", "fp-24bewu"];
 const EXCLUDED_USER_IDS = ["71ccca48-add0-4a47-b7b4-14985c923a78"];
 const EXCLUDED_IP_ADDRESSES = ["107.21.254.59"];
 

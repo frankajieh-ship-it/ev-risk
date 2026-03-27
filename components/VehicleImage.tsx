@@ -98,18 +98,14 @@ export default function VehicleImage({
 
   const altText = alt ?? ([year, make, model].filter(Boolean).join(" ") || "Vehicle");
 
+  // No photo found — render nothing (no awkward placeholder)
+  if (status === "error") return null;
+
   return (
     <div className={`relative overflow-hidden bg-gray-100 ${className}`}>
-      {/* Silhouette placeholder — always rendered, fades out when photo loads */}
+      {/* Shimmer while loading */}
       {status !== "loaded" && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <CarSilhouette className="w-3/4 h-3/4 opacity-60" />
-        </div>
-      )}
-
-      {/* Loading shimmer */}
-      {status === "loading" && (
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-pulse" />
+        <div className="absolute inset-0 bg-gray-100 animate-pulse" />
       )}
 
       {/* Actual photo */}
