@@ -50,6 +50,12 @@ export interface VehicleData {
   vin?: string;
   location?: string;
 
+  // EV-specific specs
+  range_mi?: number;
+  battery_kwh?: number;
+  dc_fast_kw?: number;
+  efficiency_mi_per_kwh?: number;
+
   // Raw text from the page (first 5000 chars, stripped of HTML tags)
   raw_text?: string;
 
@@ -345,9 +351,53 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
         data.mileage = data.mileage || listing.mileage;
         data.vin = data.vin || listing.vin;
         data.location = data.location || listing.dealer?.cityState;
+
+        // EV specs — CarGurus nests these under various keys
+        const specs = listing.specs || listing.vehicleSpecs || listing.attributes || {};
+        const fuelEcon = listing.fuelEconomy || listing.mpg || {};
+        const evRange = listing.electricRange ?? listing.epaRange ?? listing.rangeElectric
+          ?? specs.electricRange ?? specs.rangeElectric ?? specs.range;
+        const battKwh = listing.batteryCapacityKwh ?? listing.batteryKwh ?? listing.usableBatteryKwh
+          ?? specs.batteryCapacityKwh ?? specs.batteryKwh;
+        const dcKw = listing.dcFastChargeKw ?? listing.maxDcChargingKw ?? listing.fastChargeKw
+          ?? specs.dcFastChargeKw ?? specs.maxDcChargingKw;
+        const mpge = listing.mpge ?? listing.mpgElectric ?? fuelEcon.mpge ?? fuelEcon.city;
+
+        if (evRange && !data.range_mi) data.range_mi = Number(evRange);
+        if (battKwh && !data.battery_kwh) data.battery_kwh = Number(battKwh);
+        if (dcKw && !data.dc_fast_kw) data.dc_fast_kw = Number(dcKw);
+        // Convert MPGe → mi/kWh (33.7 kWh per gallon equivalent)
+        if (mpge && !data.efficiency_mi_per_kwh) {
+          const eff = Math.round((Number(mpge) / 33.7) * 10) / 10;
+          if (eff >= 1 && eff <= 10) data.efficiency_mi_per_kwh = eff;
+        }
       }
     } catch (e) {
       console.log('[CarGurus] Failed to parse __NEXT_DATA__:', e);
+    }
+  }
+
+  // Fallback: regex scan the raw HTML for EV spec patterns before scripts are stripped
+  if (!data.range_mi) {
+    const m = html.match(/(?:electric\s+range|battery\s+range|est(?:imated)?\s*\.?\s*range)[^0-9]*(\d{2,3})\s*mi/i);
+    if (m) { const v = parseInt(m[1]); if (v >= 50 && v <= 600) data.range_mi = v; }
+  }
+  if (!data.battery_kwh) {
+    const m = html.match(/(?:battery\s+(?:capacity|size|pack))[^0-9]*(\d+(?:\.\d+)?)\s*kWh/i)
+      || html.match(/"batteryCapacity[^"]*"\s*:\s*"?(\d+(?:\.\d+)?)(?:\s*kWh)?/i);
+    if (m) { const v = parseFloat(m[1]); if (v >= 20 && v <= 250) data.battery_kwh = v; }
+  }
+  if (!data.dc_fast_kw) {
+    const m = html.match(/(?:dc\s+fast|max\s+dc\s+charg\w+)[^0-9]*(\d+)\s*kW/i)
+      || html.match(/"(?:dcFastCharge|maxDcCharging|fastCharge)[^"]*"\s*:\s*"?(\d+)/i);
+    if (m) { const v = parseInt(m[1]); if (v >= 20 && v <= 400) data.dc_fast_kw = v; }
+  }
+  if (!data.efficiency_mi_per_kwh && !data.range_mi) {
+    // Try MPGe from HTML
+    const m = html.match(/(?:mpge|mpg-e|miles\s+per\s+gallon\s+equivalent)[^0-9]*(\d+)/i);
+    if (m) {
+      const eff = Math.round((parseInt(m[1]) / 33.7) * 10) / 10;
+      if (eff >= 1 && eff <= 10) data.efficiency_mi_per_kwh = eff;
     }
   }
 

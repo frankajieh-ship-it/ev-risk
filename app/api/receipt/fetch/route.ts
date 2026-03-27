@@ -357,13 +357,25 @@ export async function POST(request: NextRequest) {
       url_domain: urlDomain,
     };
 
-    // Parse EV specs from the raw page text
-    if (result.data.raw_text) {
+    // Map EV specs extracted directly by the scraper (from __NEXT_DATA__ or HTML patterns)
+    if (result.data.range_mi) fields.range_mi = result.data.range_mi;
+    if (result.data.battery_kwh) fields.battery_kwh = result.data.battery_kwh;
+    if (result.data.dc_fast_kw) fields.dc_fast_kw = result.data.dc_fast_kw;
+    if (result.data.efficiency_mi_per_kwh) fields.efficiency_mi_per_kwh = result.data.efficiency_mi_per_kwh;
+
+    // Fallback: parse EV specs from the raw page text (catches remaining patterns)
+    if (result.data.raw_text && (!fields.range_mi || !fields.battery_kwh)) {
       const evSpecs = parseEvSpecsFromText(result.data.raw_text);
-      if (evSpecs.range_mi) fields.range_mi = evSpecs.range_mi;
-      if (evSpecs.battery_kwh) fields.battery_kwh = evSpecs.battery_kwh;
-      if (evSpecs.dc_fast_kw) fields.dc_fast_kw = evSpecs.dc_fast_kw;
-      if (evSpecs.efficiency_mi_per_kwh) fields.efficiency_mi_per_kwh = evSpecs.efficiency_mi_per_kwh;
+      if (!fields.range_mi && evSpecs.range_mi) fields.range_mi = evSpecs.range_mi;
+      if (!fields.battery_kwh && evSpecs.battery_kwh) fields.battery_kwh = evSpecs.battery_kwh;
+      if (!fields.dc_fast_kw && evSpecs.dc_fast_kw) fields.dc_fast_kw = evSpecs.dc_fast_kw;
+      if (!fields.efficiency_mi_per_kwh && evSpecs.efficiency_mi_per_kwh) fields.efficiency_mi_per_kwh = evSpecs.efficiency_mi_per_kwh;
+    }
+
+    // Derive efficiency from range ÷ battery if not yet set
+    if (!fields.efficiency_mi_per_kwh && fields.range_mi && fields.battery_kwh) {
+      const derived = Math.round((fields.range_mi / fields.battery_kwh) * 10) / 10;
+      if (derived >= 1 && derived <= 10) fields.efficiency_mi_per_kwh = derived;
     }
 
     // Await Auto.dev enrichment (already running in parallel above)
