@@ -188,6 +188,137 @@ function getDepreciationRate(label: string): { yr3: number; yr5: number } {
   return DEPRECIATION_TABLE.default;
 }
 
+// ── ACTIONABLE VERDICT BUILDER ───────────────────────────────────────────────
+
+interface VerdictResult {
+  title: string;
+  body: string;
+  winner: "A" | "B" | null;
+}
+
+function buildVerdict(
+  result: import("@/lib/comparison-types").ComparisonResult,
+  labelA: string,
+  labelB: string,
+  specA: import("@/lib/comparison-types").OptionSpec,
+  specB: import("@/lib/comparison-types").OptionSpec,
+  priceA: number | null,
+  priceB: null | number,
+  total5A: number | null,
+  total5B: number | null,
+  tcoWinner: string | null,
+  routineRefined: boolean,
+  routinePattern: string | null,
+  longDayFrequency: string | null
+): VerdictResult {
+  const rangeA = specA.range_mi ? Math.round(specA.range_mi * 0.87) : null;
+  const rangeB = specB.range_mi ? Math.round(specB.range_mi * 0.87) : null;
+  const ctA = (specA.battery_kwh && specA.dc_fast_kw)
+    ? Math.round(0.7 * specA.battery_kwh / specA.dc_fast_kw * 60) : null;
+  const ctB = (specB.battery_kwh && specB.dc_fast_kw)
+    ? Math.round(0.7 * specB.battery_kwh / specB.dc_fast_kw * 60) : null;
+
+  // Rule 1: Value for money — both GOOD, prices differ >10% and TCO winner exists
+  if (
+    result.optionA.fit_signal === "GOOD" &&
+    result.optionB.fit_signal === "GOOD" &&
+    priceA != null && priceB != null &&
+    tcoWinner && tcoWinner !== "TIE" &&
+    total5A != null && total5B != null
+  ) {
+    const priceDiff = Math.abs(priceA - priceB);
+    const cheaperPrice = Math.min(priceA, priceB);
+    if (priceDiff / cheaperPrice > 0.10) {
+      const cheaper = tcoWinner === "A" ? labelA : labelB;
+      const saving = Math.abs(total5A - total5B);
+      const rangeDiff = rangeA != null && rangeB != null ? Math.abs(rangeA - rangeB) : null;
+      const rangeLine = rangeDiff != null && rangeDiff < 40 ? ", similar real-world range" : "";
+      return {
+        title: `Best value: ${cheaper} saves ${formatCurrency(saving)} over 5 years${rangeLine}`,
+        body: "Based on purchase price, charging costs, maintenance, and insurance estimates.",
+        winner: tcoWinner as "A" | "B",
+      };
+    }
+  }
+
+  // Rule 2: Long-trip advantage — range differs ≥50 mi and user does long days
+  if (
+    rangeA != null && rangeB != null &&
+    Math.abs(rangeA - rangeB) >= 50 &&
+    (longDayFrequency === "WEEKLY" || longDayFrequency === "MONTHLY" || routinePattern === "MOTORWAY_HEAVY")
+  ) {
+    const biggerIsA = rangeA > rangeB;
+    const bigger = biggerIsA ? labelA : labelB;
+    const diff = Math.abs(rangeA - rangeB);
+    const ctDiff = ctA != null && ctB != null ? Math.abs(ctA - ctB) : null;
+    const chargeLine = ctDiff ? ` and charges ~${ctDiff} min faster 10→80%` : "";
+    return {
+      title: `Best for long trips: ${bigger} adds ~${diff} mi real-world range${chargeLine}`,
+      body: "Extra range matters most given your long-day driving pattern.",
+      winner: biggerIsA ? "A" : "B",
+    };
+  }
+
+  // Rule 3: Charging speed advantage — DC fast differs ≥50 kW, motorway-heavy
+  if (
+    specA.dc_fast_kw != null && specB.dc_fast_kw != null &&
+    Math.abs(specA.dc_fast_kw - specB.dc_fast_kw) >= 50 &&
+    routinePattern === "MOTORWAY_HEAVY"
+  ) {
+    const fasterIsA = specA.dc_fast_kw > specB.dc_fast_kw;
+    const faster = fasterIsA ? labelA : labelB;
+    const ctDiff = ctA != null && ctB != null ? Math.abs(ctA - ctB) : null;
+    const timeStr = ctDiff ? `~${ctDiff} min` : "significantly";
+    return {
+      title: `Best for road trips: ${faster} charges 10→80% ${timeStr} faster`,
+      body: "Faster DC charging reduces stop time on longer motorway journeys.",
+      winner: fasterIsA ? "A" : "B",
+    };
+  }
+
+  // Rule 4: Clear fit mismatch
+  const sigA = result.optionA.fit_signal;
+  const sigB = result.optionB.fit_signal;
+  if (sigA !== sigB) {
+    const aIsBetter = sigA === "GOOD" || (sigA === "CONDITIONAL" && sigB === "HIGH_FRICTION");
+    const better = aIsBetter ? labelA : labelB;
+    const worse = aIsBetter ? labelB : labelA;
+    return {
+      title: `Clear choice: ${better} fits your routine`,
+      body: `${worse} has friction points worth reviewing before committing.`,
+      winner: aIsBetter ? "A" : "B",
+    };
+  }
+
+  // Rule 5: City efficiency advantage
+  if (
+    specA.efficiency_mi_per_kwh != null && specB.efficiency_mi_per_kwh != null &&
+    Math.abs(specA.efficiency_mi_per_kwh - specB.efficiency_mi_per_kwh) >= 0.4 &&
+    routinePattern === "LOCAL"
+  ) {
+    const effA = specA.efficiency_mi_per_kwh;
+    const effB = specB.efficiency_mi_per_kwh;
+    const moreEfficientIsA = effA > effB;
+    const better = moreEfficientIsA ? labelA : labelB;
+    // kWh per 100 mi difference
+    const kwh100A = 100 / effA;
+    const kwh100B = 100 / effB;
+    const kwh100Diff = Math.round(Math.abs(kwh100A - kwh100B) * 10) / 10;
+    return {
+      title: `Most efficient for your commute: ${better}`,
+      body: `Uses ~${kwh100Diff} kWh less per 100 mi — meaningful savings for mostly local driving.`,
+      winner: moreEfficientIsA ? "A" : "B",
+    };
+  }
+
+  // Fallback: use engine's neutral closer
+  return {
+    title: result.neutral_closer,
+    body: "",
+    winner: null,
+  };
+}
+
 function ComparePageContent() {
   const { trackEvent } = useEventTracking();
   const searchParams = useSearchParams();
@@ -447,13 +578,38 @@ function ComparePageContent() {
     const label = [year, make, model].filter(Boolean).join(" ");
     const bodyType = deriveBodyBucket(make, model);
 
+    // Build partial spec from history entry
+    const specUpdate: Partial<OptionSpec> = {};
+    if (entry.price) specUpdate.price = entry.price;
+
+    // Derive buckets from available spec data
+    const batteryBucket = deriveBatteryBucket(specUpdate.range_mi, specUpdate.battery_kwh);
+    const efficiencyBucket = deriveEfficiencyBucket(specUpdate.efficiency_mi_per_kwh);
+    const chargingBucket = specUpdate.dc_fast_kw ? deriveChargingBucket(specUpdate.dc_fast_kw) : "UNKNOWN" as const;
+
     if (isA) {
-      setOptionA(prev => ({ ...prev, label, body_type_bucket: bodyType }));
-      if (entry.price) setSpecA(prev => ({ ...prev, price: entry.price! }));
+      setOptionA(prev => ({
+        ...prev,
+        label,
+        body_type_bucket: bodyType,
+        ...(batteryBucket !== "UNKNOWN" && { battery_bucket: batteryBucket }),
+        ...(efficiencyBucket !== "UNKNOWN" && { efficiency_bucket: efficiencyBucket }),
+        ...(chargingBucket !== "UNKNOWN" && { charging_curve_bucket: chargingBucket }),
+      }));
+      setSpecA(prev => ({ ...prev, ...specUpdate }));
+      setMetaA({ make: make || undefined, model: model || undefined, year });
       setHistoryOpenA(false);
     } else {
-      setOptionB(prev => ({ ...prev, label, body_type_bucket: bodyType }));
-      if (entry.price) setSpecB(prev => ({ ...prev, price: entry.price! }));
+      setOptionB(prev => ({
+        ...prev,
+        label,
+        body_type_bucket: bodyType,
+        ...(batteryBucket !== "UNKNOWN" && { battery_bucket: batteryBucket }),
+        ...(efficiencyBucket !== "UNKNOWN" && { efficiency_bucket: efficiencyBucket }),
+        ...(chargingBucket !== "UNKNOWN" && { charging_curve_bucket: chargingBucket }),
+      }));
+      setSpecB(prev => ({ ...prev, ...specUpdate }));
+      setMetaB({ make: make || undefined, model: model || undefined, year });
       setHistoryOpenB(false);
     }
   };
@@ -500,13 +656,32 @@ function ComparePageContent() {
           placeholder="e.g. cargurus.com/… or paste listing text"
         />
         {history.length > 0 && (
-          <button
-            onClick={() => isA ? setHistoryOpenA(true) : setHistoryOpenB(true)}
-            className="mt-2 flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
-          >
-            <History className="w-3.5 h-3.5" />
-            Or pick from history ({history.length})
-          </button>
+          <div className="mt-3">
+            <p className="text-[10px] font-medium text-gray-400 uppercase mb-1.5">Your saved listings</p>
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+              {history.slice(0, 5).map((entry) => {
+                const entryLabel = [entry.year, entry.make, entry.model].filter(Boolean).join(" ");
+                const verdictColor = entry.verdict === "GREEN"
+                  ? "border-green-300 bg-green-50 hover:bg-green-100"
+                  : entry.verdict === "YELLOW"
+                  ? "border-yellow-300 bg-yellow-50 hover:bg-yellow-100"
+                  : "border-red-300 bg-red-50 hover:bg-red-100";
+                return (
+                  <button
+                    key={entry.receipt_id}
+                    onClick={() => handleHistorySelect(entry, isA)}
+                    className={`shrink-0 border rounded-xl px-3 py-2 text-left min-w-[130px] max-w-[160px] transition-shadow hover:shadow-md ${verdictColor}`}
+                  >
+                    <p className="text-xs font-semibold text-gray-800 truncate">{entryLabel || "Unknown"}</p>
+                    {entry.price && <p className="text-[10px] text-gray-500">${entry.price.toLocaleString()}</p>}
+                    {(entry.receipt as { mileage?: number })?.mileage != null && (
+                      <p className="text-[10px] text-gray-400">{(entry.receipt as { mileage?: number }).mileage!.toLocaleString()} mi</p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
 
@@ -914,6 +1089,25 @@ function ComparePageContent() {
                   <div className="sm:hidden border-t border-gray-200" />
                   {renderDetails(result.optionB)}
                 </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ── OFFO VERDICT ──────────────────────────────────────── */}
+        {(() => {
+          const v = buildVerdict(
+            result, labelA, labelB, specA, specB,
+            priceA, priceB, total5A, total5B, tcoWinner,
+            routineRefined, routinePattern, longDayFrequency
+          );
+          return (
+            <div className={`rounded-2xl border-2 p-5 ${v.winner ? "border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50" : "border-gray-200 bg-gray-50"}`}>
+              <p className="text-[10px] font-semibold text-indigo-500 uppercase tracking-widest mb-1">OFFO Verdict</p>
+              <p className="font-bold text-gray-900 text-sm leading-snug">{v.title}</p>
+              {v.body && <p className="text-xs text-gray-600 mt-1.5">{v.body}</p>}
+              {!routineRefined && (
+                <p className="text-[10px] text-gray-400 mt-2">Personalise to your routine above for a more accurate verdict.</p>
               )}
             </div>
           );
