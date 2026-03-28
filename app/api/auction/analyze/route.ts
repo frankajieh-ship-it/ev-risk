@@ -107,8 +107,6 @@ export async function POST(request: NextRequest) {
       routine_profile: null,
     });
 
-    const salvageRisk = report.salvage_risk as Record<string, unknown> | null;
-
     // Track analysis completed
     try {
       await supabase?.from("user_events").insert({
@@ -118,8 +116,8 @@ export async function POST(request: NextRequest) {
           auction_source: rawSource,
           lot_number: report.lot?.lot_number ?? null,
           cached: report.cached ?? false,
-          salvage_grade: (salvageRisk?.grade as string) ?? null,
-          salvage_score: (salvageRisk?.score as number) ?? null,
+          salvage_grade: report.salvage_risk?.grade ?? null,
+          salvage_score: report.salvage_risk?.score ?? null,
           recall_count: Array.isArray(report.recalls) ? report.recalls.length : 0,
           provider: report.lot?.provider_name ?? null,
           latency_ms: Date.now() - startedAt,
