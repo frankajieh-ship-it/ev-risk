@@ -46,40 +46,57 @@ function extractLotNumber(url: string): string | null {
 function RecallsCard({ recalls }: { recalls: NhtsaRecallSummary[] }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 space-y-3">
+    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 space-y-3">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between"
+        className="w-full flex items-center justify-between group"
       >
         <div className="flex items-center gap-2">
-          <Bell className="w-5 h-5 text-amber-600" />
+          <Bell className="w-5 h-5 text-amber-500" />
           <h3 className="text-base font-bold text-gray-900">Open Recalls</h3>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
             {recalls.length}
           </span>
         </div>
-        {open ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+        <div className="flex items-center gap-1 text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
+          <span>{open ? "Hide" : "Show all"}</span>
+          {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </div>
       </button>
-      {open && (
-        <div className="space-y-3 pt-1">
+
+      {!open && (
+        <div className="flex flex-wrap gap-1.5">
           {recalls.map((r) => (
-            <div key={r.NHTSACampaignNumber} className="bg-white/80 rounded-xl border border-amber-100 p-3 space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-gray-800">{r.Component}</p>
-                <span className="text-xs text-gray-400 flex-shrink-0">#{r.NHTSACampaignNumber}</span>
+            <span
+              key={r.NHTSACampaignNumber}
+              className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100"
+            >
+              {r.Component.split(":")[0].trim()}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {open && (
+        <div className="space-y-2 pt-1">
+          {recalls.map((r) => (
+            <div key={r.NHTSACampaignNumber} className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-1.5">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs font-semibold text-gray-800 leading-snug">{r.Component}</p>
+                <span className="text-[10px] text-gray-400 font-mono flex-shrink-0 mt-0.5">
+                  #{r.NHTSACampaignNumber}
+                </span>
               </div>
-              <p className="text-xs text-gray-600">{r.Summary}</p>
+              <p className="text-xs text-gray-600 leading-relaxed">{r.Summary}</p>
               {r.Remedy && (
-                <p className="text-xs text-green-700"><span className="font-semibold">Remedy:</span> {r.Remedy}</p>
+                <div className="flex items-start gap-1.5 pt-0.5">
+                  <span className="text-[10px] font-semibold text-green-700 uppercase tracking-wide flex-shrink-0 mt-0.5">Remedy</span>
+                  <p className="text-xs text-green-800 leading-relaxed">{r.Remedy}</p>
+                </div>
               )}
             </div>
           ))}
         </div>
-      )}
-      {!open && (
-        <p className="text-xs text-amber-700">
-          {recalls.map((r) => r.Component).join(" · ")}
-        </p>
       )}
     </div>
   );
@@ -292,12 +309,7 @@ export default function CopartPage() {
               askingPrice={lot.current_bid}
             />
 
-            {/* Recall list — shown inline when recalls present */}
-            {report.recalls.length > 0 && (
-              <RecallsCard recalls={report.recalls} />
-            )}
-
-            {/* Phase 2: Arbitrage + title flags (paid unlock) */}
+            {/* Phase 2: Arbitrage + title flags + recalls (paid unlock) */}
             {isUnlocked && resultId && (
               <>
                 <ArbitrageCalculatorCard
@@ -312,6 +324,9 @@ export default function CopartPage() {
                   receiptToken={receiptToken}
                 />
                 <TitleFlagsCard zip={lot.location ?? null} />
+                {report.recalls.length > 0 && (
+                  <RecallsCard recalls={report.recalls} />
+                )}
               </>
             )}
 
