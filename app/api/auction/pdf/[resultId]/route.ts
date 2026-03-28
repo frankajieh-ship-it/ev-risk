@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { getClientIP, RateLimiter } from "@/lib/rate-limiter";
 import type { NormalizedAuctionLot } from "@/lib/auction/types";
+import { isInternalUserId } from "@/lib/rollout-flags";
 
 export const maxDuration = 30;
 
@@ -39,7 +40,7 @@ export async function GET(
 
   const { data: row } = await supabase
     .from("auction_analyses")
-    .select("result_id, is_paid, raw_data, final_report, created_at, auction_source")
+    .select("result_id, is_paid, raw_data, final_report, created_at, auction_source, user_id")
     .eq("result_id", resultId)
     .maybeSingle();
 
@@ -47,8 +48,8 @@ export async function GET(
     return NextResponse.json({ success: false, error: "Result not found" }, { status: 404 });
   }
 
-  // Check entitlement: paid flag on record OR a row in auction_entitlements
-  let isPaidUnlocked = row.is_paid;
+  // Check entitlement: paid flag, entitlements table, or internal QA user
+  let isPaidUnlocked = row.is_paid || isInternalUserId(row.user_id as string | null);
   if (!isPaidUnlocked) {
     const { data: entitlement } = await supabase
       .from("auction_entitlements")

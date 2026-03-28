@@ -16,6 +16,7 @@
  */
 
 import { getSupabaseAdmin } from "@/lib/api-auth";
+import { isInternalUserId } from "@/lib/rollout-flags";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
 import { checkPurchaseStatus } from "@/lib/payment-status";
 import { copartAdapter } from "./adapters/copart-adapter";
@@ -131,7 +132,7 @@ export class AuctionEvaluationService {
       lot.lot_number,
       input.receipt_token
     ).catch(() => null);
-    const isPaid = paymentStatus?.unlocked_base ?? false;
+    const isPaid = (paymentStatus?.unlocked_base ?? false) || isInternalUserId(input.user_id);
 
     // 6. Deterministic pre-pass (no AI)
     const metrics = computeDeterministicMetrics(

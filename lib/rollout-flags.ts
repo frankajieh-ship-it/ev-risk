@@ -65,6 +65,21 @@ export function isInternalTester(anonId: string): boolean {
 }
 
 /**
+ * Internal QA user UUIDs — these bypass all paid gates so the team can test
+ * the full paid experience without going through Stripe.
+ * Mirrors the INTERNAL_USER_IDS set in /api/track-event/route.ts.
+ */
+const INTERNAL_USER_IDS = new Set([
+  "a9e65037-00b3-443b-afba-5631e42b0505",
+  "71ccca48-add0-4a47-b7b4-14985c923a78",
+]);
+
+export function isInternalUserId(userId: string | null | undefined): boolean {
+  if (!userId) return false;
+  return INTERNAL_USER_IDS.has(userId);
+}
+
+/**
  * Check if payments are enabled for a given user.
  * Returns true if globally enabled OR if user is an internal tester.
  */
