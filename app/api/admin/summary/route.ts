@@ -752,7 +752,28 @@ export async function GET(request: NextRequest) {
 
     const daily_trend = Array.from(dailyMap.entries())
       .map(([date, counts]) => ({ date, ...counts }))
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // -----------------------------------------------------------------------
+    // Daily visitors trend (unique visitor_ids + total events per day)
+    // -----------------------------------------------------------------------
+
+    const dailyVisitorMap = new Map<string, { unique_visitors: Set<string>; total_visits: number }>();
+    for (const e of filteredUserEvents) {
+      const date = (e as any).timestamp?.split("T")[0];
+      if (!date) continue;
+      if (!dailyVisitorMap.has(date)) dailyVisitorMap.set(date, { unique_visitors: new Set(), total_visits: 0 });
+      const entry = dailyVisitorMap.get(date)!;
+      if ((e as any).visitor_id) entry.unique_visitors.add((e as any).visitor_id);
+      entry.total_visits++;
+    }
+    const daily_visitors = Array.from(dailyVisitorMap.entries())
+      .map(([date, { unique_visitors, total_visits }]) => ({
+        date,
+        unique_visitors: unique_visitors.size,
+        total_visits,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     // -----------------------------------------------------------------------
     // Top vehicles (from reports + receipts output_json)
@@ -1765,6 +1786,7 @@ export async function GET(request: NextRequest) {
       visitors: visitorsSection,
       feedback: feedbackSection,
       daily_trend,
+      daily_visitors,
       top_vehicles,
       scenario_saves,
       saved_listings,

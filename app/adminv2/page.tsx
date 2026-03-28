@@ -5,6 +5,7 @@
  *
  * Pulls from /api/admin/summary (same API as /admin) with a cleaner layout:
  * — KPI row (receipts, reports, purchases, revenue)
+ * — Trend charts (receipts, unique visitors, total visits, field completion)
  * — Funnel (views → routines → receipts → purchases)
  * — Top events table
  * — Dealer signups
@@ -44,6 +45,9 @@ interface SummaryData {
     checkouts_started: number;
     purchases: number;
   };
+  daily_trend: { date: string; receipts: number; reports_free: number; reports_paid: number }[];
+  daily_visitors: { date: string; unique_visitors: number; total_visits: number }[];
+  field_completions: { field_id: string; count: number }[];
   top_events: { name: string; count: number; unique_visitors: number }[];
   recent_events: {
     event_name: string;
@@ -127,6 +131,96 @@ function FunnelBar({ label, value, max, color }: { label: string; value: number;
         <div className={`h-2.5 rounded-full ${color} transition-all`} style={{ width: `${pctWidth}%` }} />
       </div>
       <span className="text-xs font-medium text-gray-700 w-12 text-right shrink-0">{fmt(value)}</span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SVG bar chart — no external dependencies
+// ---------------------------------------------------------------------------
+
+function BarChart({
+  data,
+  valueKey,
+  color,
+  height = 80,
+}: {
+  data: { date: string; [key: string]: number | string }[];
+  valueKey: string;
+  color: string;
+  height?: number;
+}) {
+  if (!data || data.length === 0) {
+    return <div className="flex items-center justify-center h-20 text-xs text-gray-300">No data</div>;
+  }
+
+  const values = data.map((d) => (d[valueKey] as number) || 0);
+  const maxVal = Math.max(...values, 1);
+  const barW = Math.max(4, Math.floor(320 / data.length) - 2);
+  const gap = 2;
+  const totalW = data.length * (barW + gap);
+
+  return (
+    <div className="overflow-x-auto">
+      <svg width={totalW} height={height + 20} style={{ display: "block" }}>
+        {data.map((d, i) => {
+          const val = (d[valueKey] as number) || 0;
+          const barH = Math.max(2, Math.round((val / maxVal) * height));
+          const x = i * (barW + gap);
+          const y = height - barH;
+          const isLast = i === data.length - 1;
+          const showLabel = data.length <= 14 || i === 0 || isLast || i % Math.ceil(data.length / 7) === 0;
+          const dateLabel = String(d.date).slice(5); // MM-DD
+          return (
+            <g key={d.date}>
+              <rect x={x} y={y} width={barW} height={barH} fill={color} rx={2} opacity={0.85}>
+                <title>{d.date}: {val.toLocaleString()}</title>
+              </rect>
+              {showLabel && (
+                <text
+                  x={x + barW / 2}
+                  y={height + 14}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fill="#9ca3af"
+                >
+                  {dateLabel}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function ChartCard({
+  title,
+  total,
+  color,
+  data,
+  valueKey,
+  icon: Icon,
+}: {
+  title: string;
+  total: string | number;
+  color: string;
+  data: { date: string; [key: string]: number | string }[];
+  valueKey: string;
+  icon: React.ElementType;
+}) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-5">
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-2">
+          <Icon className={`w-4 h-4`} style={{ color }} />
+          <span className="text-sm font-semibold text-gray-800">{title}</span>
+        </div>
+        <span className="text-lg font-bold text-gray-900">{typeof total === "number" ? total.toLocaleString() : total}</span>
+      </div>
+      <p className="text-xs text-gray-400 mb-3">Daily over selected period</p>
+      <BarChart data={data} valueKey={valueKey} color={color} />
     </div>
   );
 }
@@ -220,6 +314,9 @@ export default function AdminV2Page() {
           checkouts_started: r.revenue?.buyer_pass?.paid ?? 0,
           purchases: r.revenue?.buyer_pass?.paid ?? 0,
         },
+        daily_trend: r.daily_trend ?? [],
+        daily_visitors: r.daily_visitors ?? [],
+        field_completions: r.routine_engagement?.fields ?? [],
         top_events: topEvents,
         recent_events: r.recent_events ?? [],
         extraction: {
@@ -356,6 +453,66 @@ export default function AdminV2Page() {
               <KpiCard label="Routines / Reports" value={fmt(data.totals.reports)} icon={TrendingUp} color="bg-green-500" sub="EV fit checks" />
               <KpiCard label="Purchases" value={fmt(data.totals.purchases)} icon={ShoppingCart} color="bg-purple-500" sub={fmtDollars(data.totals.revenue_cents) + " revenue"} />
               <KpiCard label="Unique Visitors" value={fmt(data.totals.unique_visitors)} icon={Users} color="bg-amber-500" sub={`${fmt(data.totals.human_sessions)} human sessions`} />
+            </div>
+
+            {/* Trend Charts */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <ChartCard
+                title="Receipts Generated"
+                total={data.totals.receipts}
+                color="#3b82f6"
+                data={data.daily_trend}
+                valueKey="receipts"
+                icon={FileText}
+              />
+              <ChartCard
+                title="Unique Visitors"
+                total={data.totals.unique_visitors}
+                color="#f59e0b"
+                data={data.daily_visitors}
+                valueKey="unique_visitors"
+                icon={Users}
+              />
+              <ChartCard
+                title="Total Visits (Events)"
+                total={data.daily_visitors.reduce((s, d) => s + d.total_visits, 0)}
+                color="#8b5cf6"
+                data={data.daily_visitors}
+                valueKey="total_visits"
+                icon={Eye}
+              />
+              {/* Field Completion — horizontal bar chart */}
+              <div className="bg-white border border-gray-200 rounded-xl p-5">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-green-500" />
+                    <span className="text-sm font-semibold text-gray-800">Field Completion</span>
+                  </div>
+                  <span className="text-lg font-bold text-gray-900">
+                    {data.field_completions.reduce((s, f) => s + f.count, 0).toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 mb-3">Routine form fields completed</p>
+                {data.field_completions.length === 0 ? (
+                  <p className="text-xs text-gray-300 text-center py-6">No field data</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {data.field_completions.slice(0, 10).map((f) => {
+                      const maxCount = Math.max(...data.field_completions.map((x) => x.count), 1);
+                      const pctW = Math.round((f.count / maxCount) * 100);
+                      return (
+                        <div key={f.field_id} className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 w-32 shrink-0 truncate">{f.field_id}</span>
+                          <div className="flex-1 bg-gray-100 rounded-full h-2">
+                            <div className="h-2 rounded-full bg-green-400" style={{ width: `${pctW}%` }} />
+                          </div>
+                          <span className="text-xs font-medium text-gray-700 w-10 text-right shrink-0">{f.count.toLocaleString()}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Funnel + Sessions */}
