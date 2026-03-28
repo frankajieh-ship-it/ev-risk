@@ -227,7 +227,13 @@ export class AuctionEvaluationService {
             total_model_calls: aiChainOutput.total_model_calls,
           },
           final_report: {
-            salvage_risk: metrics,
+            salvage_risk: {
+              score: metrics.salvage_risk_score,
+              grade: metrics.salvage_risk_grade,
+              factors: metrics.salvage_risk_factors,
+              routine_impact_summary: aiChainOutput.routine_impact?.routine_impact ?? "",
+              suggested_bid_discount: metrics.suggested_bid_discount,
+            },
             arbitrage,
             routine_fit: routineFit,
             recalls,
