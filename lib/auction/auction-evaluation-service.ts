@@ -330,10 +330,28 @@ export class AuctionEvaluationService {
 
       const report = row.final_report as Record<string, unknown>;
 
+      // Normalise salvage_risk — old records stored raw DeterministicMetrics
+      // (salvage_risk_score / salvage_risk_grade / salvage_risk_factors).
+      // New records store the correctly shaped SalvageRiskResult (score / grade / factors).
+      const rawSr = report.salvage_risk as Record<string, unknown>;
+      const salvageRisk: AuctionEvalReport["salvage_risk"] =
+        rawSr?.grade !== undefined
+          ? (rawSr as unknown as AuctionEvalReport["salvage_risk"])
+          : {
+              score: (rawSr?.salvage_risk_score as number) ?? 50,
+              grade: ((rawSr?.salvage_risk_grade as string) ?? "yellow") as "green" | "yellow" | "red",
+              factors: (rawSr?.salvage_risk_factors as AuctionEvalReport["salvage_risk"]["factors"]) ?? {
+                battery_risk: 50, structural_risk: 50, title_impact: 50,
+                recall_overlap: 0, repair_cost_risk: 50, mileage_penalty: 0,
+              },
+              routine_impact_summary: "",
+              suggested_bid_discount: (rawSr?.suggested_bid_discount as number) ?? 0,
+            };
+
       return {
         report_id: row.result_id,
         lot: row.raw_data as NormalizedAuctionLot,
-        salvage_risk: report.salvage_risk as AuctionEvalReport["salvage_risk"],
+        salvage_risk: salvageRisk,
         arbitrage: (report.arbitrage as AuctionEvalReport["arbitrage"]) ?? null,
         recalls: (report.recalls as NhtsaRecallSummary[]) ?? [],
         routine_fit: (report.routine_fit as AuctionEvalReport["routine_fit"]) ?? null,
