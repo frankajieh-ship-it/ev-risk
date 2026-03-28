@@ -16,9 +16,7 @@
  */
 
 import { getSupabaseAdmin } from "@/lib/api-auth";
-import { isInternalUserId } from "@/lib/rollout-flags";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
-import { checkPurchaseStatus } from "@/lib/payment-status";
 import { copartAdapter } from "./adapters/copart-adapter";
 import { iaaiAdapter } from "./adapters/iaai-adapter";
 import { computeDeterministicMetrics } from "./deterministic-metrics";
@@ -94,11 +92,18 @@ export class AuctionEvaluationService {
       ? await adapter.fetchByLot(input.lot_number)
       : (() => { throw new Error("Either url or lot_number is required"); })();
 
+    console.log(`[EvalService][1-LOT] provider=${lot.provider_name} lot=${lot.lot_number} vin=${lot.vin} year=${lot.year} make=${lot.make} model=${lot.model} primary_damage=${lot.primary_damage} secondary_damage=${lot.secondary_damage} condition_notes=${lot.condition_notes} title_status=${lot.title_status} odometer=${lot.odometer}`);
+
     // 2. Check persistence cache — skip for incomplete slug/unavailable lots
     const isIncompleteSource = lot.provider_name === "copart_url_slug" || lot.provider_name === "copart_unavailable";
+    console.log(`[EvalService][2-CACHE] isIncompleteSource=${isIncompleteSource} supabase=${!!supabase}`);
     if (supabase && !isIncompleteSource) {
       const cached = await this.checkCache(supabase, lot.auction_source, lot.lot_number);
-      if (cached) return { ...cached, cached: true };
+      if (cached) {
+        console.log(`[EvalService][2-CACHE] HIT — returning cached result`);
+        return { ...cached, cached: true };
+      }
+      console.log(`[EvalService][2-CACHE] MISS — proceeding with fresh evaluation`);
     }
 
     // 3. Parallel: Auto.dev enrichment + NHTSA recalls
@@ -111,6 +116,9 @@ export class AuctionEvaluationService {
       }).catch(() => null),
       fetchRecalls(lot.make, lot.model, lot.year),
     ]);
+
+    console.log(`[EvalService][3-ENRICH] enrichResult.source=${enrichResult?.source ?? "null"} recalls=${recalls.length}`);
+    console.log(`[EvalService][3-ENRICH] market_price_range=${JSON.stringify(enrichResult?.market_price_range ?? null)} vin_data.price=${JSON.stringify(enrichResult?.vin_data?.price ?? null)}`);
 
     // 4. Resolve ARV from enrichment
     let arv: number | null = null;
@@ -126,21 +134,22 @@ export class AuctionEvaluationService {
       arv = enrichResult.vin_data.price.usedTmvRetail;
     }
     hasVinData = Boolean(enrichResult?.vin_data);
+    console.log(`[EvalService][4-ARV] arv=${arv} arvListingCount=${arvListingCount} hasVinData=${hasVinData}`);
 
-    // 5. Check payment status
-    const paymentStatus = await checkPurchaseStatus(
-      "copart",
-      lot.lot_number,
-      input.receipt_token
-    ).catch(() => null);
-    const isPaid = (paymentStatus?.unlocked_base ?? false) || isInternalUserId(input.user_id);
+    // 5. Payment — all features are free; isPaid always true
+    const isPaid = true;
+    console.log(`[EvalService][5-PAYMENT] isPaid=${isPaid} (free tier — all features unlocked)`);
 
     // 6. Deterministic pre-pass (no AI)
+    console.log(`[EvalService][6-METRICS] computing deterministic metrics...`);
     const metrics = computeDeterministicMetrics(
       lot,
       { arv, arvListingCount, hasVinData },
       recalls
     );
+
+    console.log(`[EvalService][6-METRICS] score=${metrics.salvage_risk_score} grade=${metrics.salvage_risk_grade} source_confidence=${metrics.source_confidence} damage_severity=${metrics.damage_severity_baseline} mileage_adj=${metrics.mileage_adjustment}`);
+    console.log(`[EvalService][6-METRICS] factors=${JSON.stringify(metrics.salvage_risk_factors)}`);
 
     // 7. Optional routine context
     let routineContext: Record<string, unknown> | null = null;
@@ -149,6 +158,7 @@ export class AuctionEvaluationService {
     }
 
     // 8. AI chain
+    console.log(`[EvalService][8-AICHAIN] isPaid=${isPaid} arv=${arv} damage_severity=${metrics.damage_severity_baseline}`);
     const aiChainOutput = await runAuctionAiChain({
       lot,
       metrics,
@@ -157,6 +167,9 @@ export class AuctionEvaluationService {
       arv,
       isPaid,
     });
+
+    console.log(`[EvalService][8-AICHAIN] steps=${aiChainOutput.steps_run.map(s => `${s.step}:${s.status}`).join(", ")} total_calls=${aiChainOutput.total_model_calls}`);
+    console.log(`[EvalService][8-AICHAIN] classification=${JSON.stringify(aiChainOutput.classification)}`);
 
     // 9. Optional routine fit (synchronous, separate from AI chain)
     let routineFit = null;

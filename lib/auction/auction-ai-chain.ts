@@ -206,8 +206,11 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
   );
   if (classification) totalCalls++;
 
+  console.log(`[AiChain][1-CLASSIFY] status=${logs[logs.length-1]?.status ?? "n/a"} damage_severity=${classification?.damage_severity ?? "null"} bid_risk=${classification?.bid_risk_level ?? "null"}`);
+
   // ── Step 2: Gemini + GPT-4o in parallel ──────────────────────────────────
   const skipRepairCost = canSkipRepairCost(metrics, arv, isPaid);
+  console.log(`[AiChain][2-SKIP] skipRepairCost=${skipRepairCost} isPaid=${isPaid} damage_severity_baseline=${metrics.damage_severity_baseline} arv=${arv}`);
 
   const [routineImpact, repairCostRaw] = await Promise.all([
     // Gemini: routine impact + owner translation
@@ -246,6 +249,8 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
           logs
         ).then((r) => { if (r) totalCalls++; return r; }),
   ]);
+
+  console.log(`[AiChain][2-RESULTS] routineImpact=${routineImpact ? "ok" : "null"} repairCost=${repairCostRaw ? "ok" : "null"} totalCalls=${totalCalls}`);
 
   // Cap at 3 meaningful calls — skip polish if already at limit
   const canRunPolish = totalCalls < 3;

@@ -87,24 +87,37 @@ export function computeSalvageRisk(input: MinimalReceiptInput): SalvageRiskResul
   const marketValue = input.receipt?.market_value ?? price;
   const activeRecalls = input.receipt?.active_recalls ?? 0;
 
+  console.log(`[SalvageScorer] listingText="${listingText}"`);
+  console.log(`[SalvageScorer] titleStatus="${titleStatus}" mileage=${mileage} price=${price} marketValue=${marketValue} activeRecalls=${activeRecalls}`);
+
   // ── 1. Battery damage risk (35 pts weight) ──────────────────────────────
   let batteryRisk = 0;
+  // Apply a floor when there's no listing text — unknown risk ≠ no risk
+  if (!listingText) batteryRisk = 15;
   const batteryHits = containsKeyword(listingText, BATTERY_DAMAGE_KEYWORDS);
+  const batteryMatched = BATTERY_DAMAGE_KEYWORDS.filter(k => listingText.toLowerCase().includes(k));
   batteryRisk += Math.min(batteryHits * 25, 75); // up to 75 from keywords
 
   if (titleStatus === "salvage") batteryRisk += 15;
   if (titleStatus === "rebuilt") batteryRisk += 5;
   if (accidents === "yes") batteryRisk += 10;
   batteryRisk = Math.min(batteryRisk, 100);
+  console.log(`[SalvageScorer] batteryHits=${batteryHits} matched=${JSON.stringify(batteryMatched)} batteryRisk=${batteryRisk}`);
 
   // ── 2. Structural / charging risk (25 pts weight) ────────────────────────
   let structuralRisk = 0;
   const structuralHits = containsKeyword(listingText, STRUCTURAL_KEYWORDS);
+  const structuralMatched = STRUCTURAL_KEYWORDS.filter(k => listingText.toLowerCase().includes(k));
   structuralRisk += Math.min(structuralHits * 20, 60);
+  console.log(`[SalvageScorer] structuralHits=${structuralHits} matched=${JSON.stringify(structuralMatched)} (pre-title structuralRisk=${structuralRisk})`);
 
   if (titleStatus === "salvage") structuralRisk += 20;
-  if (titleStatus === "rebuilt") structuralRisk += 8;
+  else if (titleStatus === "rebuilt") structuralRisk += 8;
+  // If we have no listing text at all (slug/unavailable lot), apply a floor
+  // so the score reflects data uncertainty rather than implying zero risk
+  if (!listingText && structuralRisk === 0) structuralRisk = 25;
   structuralRisk = Math.min(structuralRisk, 100);
+  console.log(`[SalvageScorer] structuralRisk (final)=${structuralRisk} titleImpact contribution: salvage=+20 rebuilt=+8`);
 
   // ── 3. Title branding impact (15 pts weight) ─────────────────────────────
   let titleImpact = 0;
@@ -144,6 +157,8 @@ export function computeSalvageRisk(input: MinimalReceiptInput): SalvageRiskResul
   else if (mileage > 100000) milagePenalty = 50;
   else if (mileage > 75000) milagePenalty = 25;
 
+  console.log(`[SalvageScorer] titleImpact=${titleImpact} recallOverlap=${recallOverlap} repairCostRisk=${repairCostRisk} milagePenalty=${milagePenalty}`);
+
   // ── Weighted composite risk score (0–100, higher = riskier) ─────────────
   const rawRisk =
     batteryRisk * 0.35 +
@@ -153,6 +168,7 @@ export function computeSalvageRisk(input: MinimalReceiptInput): SalvageRiskResul
     repairCostRisk * 0.10 +
     milagePenalty * 0.05;
 
+  console.log(`[SalvageScorer] rawRisk=${rawRisk.toFixed(2)} → score=${Math.round(100 - rawRisk)}`);
   // Invert: safety score = 100 - risk
   const score = Math.round(Math.max(0, Math.min(100, 100 - rawRisk)));
 

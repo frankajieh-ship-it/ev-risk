@@ -167,6 +167,10 @@ export function computeDeterministicMetrics(
     lot.loss_type,
   ].filter(Boolean).join(" ");
 
+  console.log(`[DetMetrics] lot=${lot.lot_number} provider=${lot.provider_name} title_status=${lot.title_status} odometer=${lot.odometer}`);
+  console.log(`[DetMetrics] listingText="${listingText}"`);
+  console.log(`[DetMetrics] arv=${enrichment.arv} arvListingCount=${enrichment.arvListingCount} hasVinData=${enrichment.hasVinData} recalls=${recalls.length}`);
+
   const salvageRisk = computeSalvageRisk({
     title_status: lot.title_status,
     mileage: lot.odometer,
@@ -175,8 +179,11 @@ export function computeDeterministicMetrics(
     receipt: { active_recalls: recalls.length },
   });
 
+  console.log(`[DetMetrics] salvageRisk.score=${salvageRisk.score} grade=${salvageRisk.grade} factors=${JSON.stringify(salvageRisk.factors)}`);
+
   const damageSeverity = classifyDamageSeverity(lot);
   const mileageAdjustment = computeMileageAdjustment(lot.odometer);
+  console.log(`[DetMetrics] damageSeverity=${damageSeverity} mileageAdjustment=${mileageAdjustment}`);
   const sourceConfidence = assessSourceConfidence(lot);
   const compAvailability = assessCompAvailability(
     enrichment.arv,

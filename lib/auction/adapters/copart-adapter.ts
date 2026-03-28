@@ -301,6 +301,8 @@ async function fetchFromApify(lotNumber: string): Promise<NormalizedAuctionLot |
   const token = process.env.APIFY_API_TOKEN;
   const actorId = process.env.APIFY_COPART_ACTOR_ID;
 
+  console.log(`[CopartAdapter][Apify] token=${token ? `present(${token.slice(0, 6)}...)` : "MISSING"} actorId=${actorId ?? "MISSING"}`);
+
   if (!token || !actorId) {
     console.warn("[CopartAdapter] Apify credentials not configured — skipping fallback");
     return null;
@@ -322,15 +324,20 @@ async function fetchFromApify(lotNumber: string): Promise<NormalizedAuctionLot |
     });
     clearTimeout(timer);
 
+    console.log(`[CopartAdapter][Apify] HTTP ${res.status} for lot ${lotNumber}`);
     if (!res.ok) {
-      console.warn(`[CopartAdapter] Apify returned ${res.status} for lot ${lotNumber}`);
+      const body = await res.text().catch(() => "");
+      console.warn(`[CopartAdapter][Apify] Error body: ${body.slice(0, 200)}`);
       return null;
     }
 
     const items = (await res.json()) as Record<string, unknown>[];
+    console.log(`[CopartAdapter][Apify] items.length=${items.length} keys=${items[0] ? Object.keys(items[0]).join(",") : "empty"}`);
     if (!Array.isArray(items) || items.length === 0) return null;
 
-    return normaliseFromApify(items[0], lotNumber);
+    const normalized = normaliseFromApify(items[0], lotNumber);
+    console.log(`[CopartAdapter][Apify] normalized: vin=${normalized.vin} primary_damage=${normalized.primary_damage} title_status=${normalized.title_status} odometer=${normalized.odometer}`);
+    return normalized;
   } catch (err) {
     clearTimeout(timer);
     console.warn(`[CopartAdapter] Apify fetch failed for lot ${lotNumber}:`, err);

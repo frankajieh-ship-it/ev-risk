@@ -1,20 +1,33 @@
 /**
  * /copart — Copart Auction Fit & Risk Advisor
  *
- * Calls POST /api/auction/analyze (unified service) and renders the full report.
- * Backward-compat components (SalvageRiskCard, ArbitrageCalculatorCard, etc.)
- * are kept unchanged — we map AuctionEvalReport fields to their existing props.
+ * Unified free-tier page. All features visible — no paywall.
+ * Uses site-standard Header + Footer components.
  */
 
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Search, AlertTriangle, Loader2, ChevronRight, Bell, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Search,
+  AlertTriangle,
+  Loader2,
+  ChevronRight,
+  Bell,
+  ChevronDown,
+  ChevronUp,
+  Shield,
+  Gavel,
+  Car,
+  Info,
+} from "lucide-react";
+import Link from "next/link";
+import Header from "@/components/landing/Header";
+import Footer from "@/components/landing/Footer";
 import { getOrCreateReceiptToken } from "@/lib/session-utils";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import SalvageRiskCard from "@/components/copart/SalvageRiskCard";
 import AuctionBidGuidanceCard from "@/components/copart/AuctionBidGuidanceCard";
-import CopartUnlockCard from "@/components/copart/CopartUnlockCard";
 import ArbitrageCalculatorCard from "@/components/copart/ArbitrageCalculatorCard";
 import TitleFlagsCard from "@/components/copart/TitleFlagsCard";
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
@@ -112,20 +125,15 @@ export default function CopartPage() {
   const [report, setReport] = useState<AuctionEvalReport | null>(null);
   const [resultId, setResultId] = useState<string | null>(null);
   const [salvageRisk, setSalvageRisk] = useState<SalvageRiskResult | null>(null);
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [showUnlock, setShowUnlock] = useState(true);
 
   const receiptToken = typeof window !== "undefined" ? getOrCreateReceiptToken() : "";
-
-  // Used to pass lot metadata to ArbitrageCalculatorCard (backward compat)
   const listingTextRef = useRef("");
 
-  // ── Handle Stripe redirect return (?checkout=success) ───────────────────
+  // Restore session after Stripe redirect (kept for backward compat, no longer used for paywall)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") !== "success") return;
-
     try {
       const stored = sessionStorage.getItem(SESSION_KEY);
       if (stored) {
@@ -133,28 +141,10 @@ export default function CopartPage() {
         sessionStorage.removeItem(SESSION_KEY);
         setInput(session.input);
         setResultId(session.resultId);
-        setIsUnlocked(true);
-        setShowUnlock(false);
       }
     } catch { /* ignore */ }
-
-    const clean = window.location.pathname;
-    window.history.replaceState({}, "", clean);
+    window.history.replaceState({}, "", window.location.pathname);
   }, []);
-
-  // ── Check payment status when we have a resultId ─────────────────────────
-  useEffect(() => {
-    if (!resultId || !receiptToken) return;
-    fetch(`/api/payments/status?scenario_type=copart&scenario_id=${resultId}&anon_id=${receiptToken}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.unlocked_base) {
-          setIsUnlocked(true);
-          setShowUnlock(false);
-        }
-      })
-      .catch(() => {});
-  }, [resultId, receiptToken]);
 
   const handleAnalyze = useCallback(async () => {
     const trimmed = input.trim();
@@ -165,8 +155,6 @@ export default function CopartPage() {
     setReport(null);
     setSalvageRisk(null);
     setResultId(null);
-    setShowUnlock(true);
-    setIsUnlocked(false);
     listingTextRef.current = "";
 
     trackEvent("copart_analyze_started", {
@@ -176,9 +164,7 @@ export default function CopartPage() {
     setPageState("fetching");
     setStatusMsg("Analyzing auction lot...");
 
-    // Build request — detect URL vs bare lot number
     const isUrl = isCopartUrl(trimmed);
-    const lotNumber = !isUrl ? extractLotNumber(trimmed) ?? trimmed : null;
 
     try {
       const res = await fetch("/api/auction/analyze", {
@@ -203,11 +189,8 @@ export default function CopartPage() {
       const r = data.report;
       setReport(r);
       setResultId(r.report_id);
-
-      // Map salvage_risk to SalvageRiskResult shape for existing components
       setSalvageRisk(r.salvage_risk as SalvageRiskResult);
 
-      // Build synthetic listing text for ArbitrageCalculatorCard backward compat
       const lot = r.lot;
       listingTextRef.current = [
         lot.year, lot.make, lot.model, lot.trim,
@@ -220,7 +203,6 @@ export default function CopartPage() {
         lot.location,
       ].filter(Boolean).join(" ");
 
-      // Store session for post-Stripe restore
       try {
         sessionStorage.setItem(SESSION_KEY, JSON.stringify({ input: trimmed, resultId: r.report_id } as StoredSession));
       } catch { /* ignore */ }
@@ -244,47 +226,74 @@ export default function CopartPage() {
   const lot = report?.lot ?? null;
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <Header variant="receipt" />
+
       {/* Hero */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-2xl mx-auto px-4 py-10 text-center">
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-3xl mx-auto px-4 py-10 text-center">
           <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-700 bg-orange-100 px-3 py-1 rounded-full mb-4">
-            <AlertTriangle className="w-3.5 h-3.5" />
+            <Gavel className="w-3.5 h-3.5" />
             Salvage &amp; Auction Intelligence
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
             Evaluate any Copart auction before you bid
           </h1>
           <p className="text-sm text-gray-500 max-w-md mx-auto">
-            Paste a Copart lot URL or lot number. Get a salvage risk score, ARV, repair cost estimate, and max safe bid.
+            Paste a Copart lot URL or lot number. Get a salvage risk score, ARV estimate, repair cost breakdown, and max safe bid — free.
           </p>
+
+          {/* Feature pills */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+            {[
+              { icon: Shield, label: "Salvage risk score" },
+              { icon: Car, label: "Battery health projection" },
+              { icon: Gavel, label: "Max safe bid calc" },
+              { icon: Bell, label: "Open recalls" },
+            ].map(({ icon: Icon, label }) => (
+              <span key={label} className="inline-flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">
+                <Icon className="w-3 h-3 text-blue-500" />
+                {label}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Input */}
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      {/* Main content */}
+      <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-8 space-y-5">
+
+        {/* Input card */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
           <label className="block text-sm font-semibold text-gray-800 mb-2">
             Copart lot URL or lot number
           </label>
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="https://www.copart.com/lot/12345678 or 12345678"
-            className="w-full h-20 px-3 py-2 text-sm border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
-            disabled={isLoading}
-          />
-          <button
-            onClick={handleAnalyze}
-            disabled={isLoading || !input.trim()}
-            className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 transition-all shadow-sm disabled:opacity-50"
-          >
-            {isLoading ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> {statusMsg}</>
-            ) : (
-              <><Search className="w-4 h-4" /> Get Fit &amp; Risk Report</>
-            )}
-          </button>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !isLoading && input.trim() && handleAnalyze()}
+              placeholder="https://www.copart.com/lot/12345678  or  12345678"
+              className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+              disabled={isLoading}
+            />
+            <button
+              onClick={handleAnalyze}
+              disabled={isLoading || !input.trim()}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 whitespace-nowrap"
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Search className="w-4 h-4" />
+              )}
+              {isLoading ? statusMsg : "Analyze"}
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            Works with Copart and IAAI lot URLs or bare lot numbers.
+          </p>
         </div>
 
         {/* Error */}
@@ -292,15 +301,67 @@ export default function CopartPage() {
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
             <div className="flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-              <p className="text-sm font-semibold text-amber-800">{errorMsg}</p>
+              <p className="text-sm font-medium text-amber-800">{errorMsg}</p>
             </div>
+          </div>
+        )}
+
+        {/* Loading state */}
+        {isLoading && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 flex flex-col items-center gap-3">
+            <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center">
+              <Loader2 className="w-7 h-7 text-blue-600 animate-spin" />
+            </div>
+            <p className="text-sm font-medium text-gray-700">{statusMsg}</p>
+            <p className="text-xs text-gray-400">Fetching lot data, market comps, recalls…</p>
           </div>
         )}
 
         {/* Results */}
         {pageState === "done" && report && salvageRisk && lot && (
           <div className="space-y-4">
-            {/* Phase 1: Salvage risk + bid guidance */}
+
+            {/* Lot summary strip */}
+            {(lot.year || lot.make || lot.model) && (
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Lot {lot.lot_number}</p>
+                    <h2 className="text-lg font-bold text-gray-900">
+                      {[lot.year, lot.make, lot.model, lot.trim].filter(Boolean).join(" ")}
+                    </h2>
+                    <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-500">
+                      {lot.primary_damage && (
+                        <span className="flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3 text-amber-400" />
+                          {lot.primary_damage}
+                        </span>
+                      )}
+                      {lot.title_status && (
+                        <span className="flex items-center gap-1">
+                          <Info className="w-3 h-3 text-blue-400" />
+                          {lot.title_status} title
+                        </span>
+                      )}
+                      {lot.odometer && (
+                        <span>{lot.odometer.toLocaleString()} mi</span>
+                      )}
+                      {lot.location && (
+                        <span>{lot.location}</span>
+                      )}
+                    </div>
+                  </div>
+                  {lot.current_bid && (
+                    <div className="text-right">
+                      <p className="text-xs text-gray-400">Current bid</p>
+                      <p className="text-xl font-bold text-gray-900">${lot.current_bid.toLocaleString()}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Risk + guidance */}
             <SalvageRiskCard result={salvageRisk} dataSource="api" />
 
             <AuctionBidGuidanceCard
@@ -309,50 +370,85 @@ export default function CopartPage() {
               askingPrice={lot.current_bid}
             />
 
-            {/* Phase 2: Arbitrage + title flags + recalls (paid unlock) */}
-            {isUnlocked && resultId && (
-              <>
-                <ArbitrageCalculatorCard
-                  receiptId={resultId}
-                  vin={lot.vin}
-                  listingText={listingTextRef.current}
-                  askingPrice={lot.current_bid}
-                  make={lot.make}
-                  model={lot.model}
-                  year={lot.year}
-                  trim={lot.trim}
-                  receiptToken={receiptToken}
-                />
-                <TitleFlagsCard zip={lot.location ?? null} />
-                {report.recalls.length > 0 && (
-                  <RecallsCard recalls={report.recalls} />
-                )}
-              </>
-            )}
-
-            {/* $19.99 upsell — hidden after unlock */}
-            {showUnlock && !isUnlocked && resultId && (
-              <CopartUnlockCard
-                receiptToken={receiptToken}
+            {/* Arbitrage calculator — always shown */}
+            {resultId && (
+              <ArbitrageCalculatorCard
                 receiptId={resultId}
-                onDismiss={() => setShowUnlock(false)}
-                teaserArvLow={salvageRisk?.arv_hint_low ?? null}
-                teaserArvHigh={salvageRisk?.arv_hint_high ?? null}
+                vin={lot.vin}
+                listingText={listingTextRef.current}
+                askingPrice={lot.current_bid}
+                make={lot.make}
+                model={lot.model}
+                year={lot.year}
+                trim={lot.trim}
+                receiptToken={receiptToken}
               />
             )}
 
-            <div className="text-center py-2">
-              <a
+            {/* Title flags — always shown */}
+            <TitleFlagsCard zip={lot.location ?? null} />
+
+            {/* Recalls — always shown */}
+            {report.recalls.length > 0 && (
+              <RecallsCard recalls={report.recalls} />
+            )}
+
+            {/* Cross-link to retail receipt tool */}
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-blue-900">Evaluating a retail listing instead?</p>
+                <p className="text-xs text-blue-600 mt-0.5">Use the Listing Receipt for private-sale and dealer listings.</p>
+              </div>
+              <Link
                 href="/receipt"
-                className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                className="flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900 transition-colors whitespace-nowrap"
               >
-                Evaluating a retail listing instead?
-                <ChevronRight className="w-3.5 h-3.5" />
-              </a>
+                Try it <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+          </div>
+        )}
+
+        {/* Idle state — how it works */}
+        {pageState === "idle" && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700">How it works</h3>
+            <div className="space-y-3">
+              {[
+                {
+                  step: "1",
+                  title: "Paste a Copart URL or lot number",
+                  desc: "We fetch live lot data including damage, title, mileage, and bid price.",
+                },
+                {
+                  step: "2",
+                  title: "Get a 6-factor salvage risk score",
+                  desc: "Battery risk, structural damage, title impact, recalls, repair cost, and mileage — all scored.",
+                },
+                {
+                  step: "3",
+                  title: "See your max safe bid",
+                  desc: "We pull market comps (ARV), estimate repair cost via AI, and compute a break-even bid with margin.",
+                },
+              ].map(({ step, title, desc }) => (
+                <div key={step} className="flex gap-3">
+                  <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                    {step}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
+
       </div>
-    </main>
+
+      <Footer />
+    </div>
   );
 }

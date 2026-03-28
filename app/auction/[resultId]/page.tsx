@@ -22,13 +22,13 @@ import {
   CheckCircle,
   ChevronLeft,
 } from "lucide-react";
-import { getOrCreateReceiptToken } from "@/lib/session-utils";
 import { useAuth } from "@/hooks/useAuth";
+import Header from "@/components/landing/Header";
+import Footer from "@/components/landing/Footer";
 import AuctionSourceBadge from "@/components/auction/AuctionSourceBadge";
 import AuctionVerdictCard from "@/components/auction/AuctionVerdictCard";
 import AuctionDamageCard from "@/components/auction/AuctionDamageCard";
 import SalvageRiskCard from "@/components/copart/SalvageRiskCard";
-import CopartUnlockCard from "@/components/copart/CopartUnlockCard";
 import type { AuctionSource, NormalizedAuctionLot, NhtsaRecallSummary } from "@/lib/auction/types";
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
 import type { ArbitrageResult } from "@/lib/copart-arbitrage-engine";
@@ -78,7 +78,6 @@ function vehicleTitle(lot: NormalizedAuctionLot): string {
 export default function AuctionResultPage() {
   const { resultId } = useParams<{ resultId: string }>();
   const { isAuthenticated } = useAuth();
-  const receiptToken = typeof window !== "undefined" ? getOrCreateReceiptToken() : "";
 
   const [pageState, setPageState] = useState<PageState>("loading");
   const [data, setData] = useState<AuctionResultApiResponse | null>(null);
@@ -115,8 +114,9 @@ export default function AuctionResultPage() {
   // ── Loading skeleton ────────────────────────────────────────────────────────
   if (pageState === "loading") {
     return (
-      <main className="min-h-screen bg-gray-50">
-        <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Header variant="receipt" />
+        <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 space-y-4">
           <div className="animate-pulse space-y-4">
             <div className="h-7 w-48 bg-gray-200 rounded-full" />
             <div className="h-24 bg-gray-200 rounded-2xl" />
@@ -124,38 +124,44 @@ export default function AuctionResultPage() {
             <div className="h-36 bg-gray-200 rounded-2xl" />
             <div className="h-32 bg-gray-200 rounded-2xl" />
           </div>
-        </div>
-      </main>
+        </main>
+        <Footer />
+      </div>
     );
   }
 
-  // ── Error state ─────────────────────────────────────────────────────────────
   if (pageState === "error" || !data) {
     return (
-      <main className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-md mx-auto px-4 text-center space-y-4">
-          <p className="text-lg font-semibold text-gray-800">Result not found or expired</p>
-          <p className="text-sm text-gray-500">
-            This auction analysis result was not found or has expired (analyses are cached for 24 hours).
-          </p>
-          <Link
-            href="/copart"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-orange-600 hover:text-orange-800 transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Analyze a new lot
-          </Link>
-        </div>
-      </main>
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Header variant="receipt" />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="max-w-md mx-auto px-4 text-center space-y-4">
+            <p className="text-lg font-semibold text-gray-800">Result not found or expired</p>
+            <p className="text-sm text-gray-500">
+              This auction analysis result was not found or has expired (analyses are cached for 24 hours).
+            </p>
+            <Link
+              href="/copart"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Analyze a new lot
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
     );
   }
 
-  const { report, auction_source, paid_unlocked } = data;
+  const { report, auction_source } = data;
   const { lot } = report;
   const photo = lot.photos?.[0] ?? null;
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <Header variant="receipt" />
+      <main className="flex-1">
       {/* Back link */}
       <div className="max-w-2xl mx-auto px-4 pt-4">
         <Link
@@ -210,8 +216,8 @@ export default function AuctionResultPage() {
           )}
         </div>
 
-        {/* 7. Arbitrage (paid only) */}
-        {paid_unlocked && report.arbitrage && (
+        {/* 7. Arbitrage */}
+        {report.arbitrage && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
             <div className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-gray-500" />
@@ -260,8 +266,8 @@ export default function AuctionResultPage() {
           </div>
         )}
 
-        {/* 8. Routine impact (paid only) */}
-        {paid_unlocked && report.routine_impact && (
+        {/* 8. Routine impact */}
+        {report.routine_impact && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-3">
             <h3 className="text-sm font-semibold text-gray-800">EV Ownership Impact</h3>
             <p className="text-sm text-gray-700">{report.routine_impact.owner_summary}</p>
@@ -304,14 +310,9 @@ export default function AuctionResultPage() {
           </div>
         )}
 
-        {/* 10. Unlock card for free tier */}
-        {!paid_unlocked && resultId && (
-          <CopartUnlockCard
-            receiptToken={receiptToken}
-            receiptId={resultId}
-          />
-        )}
       </div>
-    </main>
+      </main>
+      <Footer />
+    </div>
   );
 }

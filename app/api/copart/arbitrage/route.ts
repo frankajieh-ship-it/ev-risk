@@ -14,7 +14,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIP, RateLimiter } from "@/lib/rate-limiter";
-import { checkPurchaseStatus } from "@/lib/payment-status";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
 import { hedgedGenerate } from "@/lib/providers/hedged-generate";
 import {
@@ -59,20 +58,11 @@ export async function POST(request: NextRequest) {
   const year = typeof body.year === "number" ? body.year : null;
   const trim = (body.trim as string) || null;
 
-  if (!receiptId || !receiptToken) {
-    return NextResponse.json({ success: false, error: "Missing receipt_id or receipt_token" }, { status: 400 });
+  if (!receiptId) {
+    return NextResponse.json({ success: false, error: "Missing receipt_id" }, { status: 400 });
   }
   if (!listingText || listingText.length < 10) {
     return NextResponse.json({ success: false, error: "Missing listing_text" }, { status: 400 });
-  }
-
-  // ── Payment gate ─────────────────────────────────────────────────────────
-  const paymentStatus = await checkPurchaseStatus("copart", receiptId, receiptToken);
-  if (!paymentStatus.unlocked_base) {
-    return NextResponse.json(
-      { success: false, error: "Payment required", payment_required: true },
-      { status: 402 }
-    );
   }
 
   // ── Infer damage type from listing text ──────────────────────────────────

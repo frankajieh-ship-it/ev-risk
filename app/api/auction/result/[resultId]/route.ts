@@ -15,7 +15,7 @@ import { getSupabaseAdmin } from "@/lib/api-auth";
 import { getClientIP, RateLimiter } from "@/lib/rate-limiter";
 import type { NormalizedAuctionLot, NhtsaRecallSummary } from "@/lib/auction/types";
 import type { ClassificationOutput, RoutineImpactOutput } from "@/lib/auction/auction-ai-chain";
-import { isInternalUserId } from "@/lib/rollout-flags";
+
 
 export const maxDuration = 15;
 
@@ -44,7 +44,7 @@ export async function GET(
   const { data: row, error } = await supabase
     .from("auction_analyses")
     .select(
-      "result_id, auction_source, lot_number, vin, raw_data, final_report, ai_output, is_paid, cache_expires_at, created_at, user_id"
+      "result_id, auction_source, lot_number, vin, raw_data, final_report, ai_output, cache_expires_at, created_at"
     )
     .eq("result_id", resultId)
     .maybeSingle();
@@ -60,16 +60,8 @@ export async function GET(
     routine_impact?: RoutineImpactOutput | null;
   } | null;
 
-  // Check entitlement: paid flag, entitlements table, or internal QA user
-  let isPaidUnlocked = row.is_paid || isInternalUserId(row.user_id as string | null);
-  if (!isPaidUnlocked) {
-    const { data: entitlement } = await supabase
-      .from("auction_entitlements")
-      .select("id")
-      .eq("result_id", resultId)
-      .maybeSingle();
-    isPaidUnlocked = Boolean(entitlement);
-  }
+  // All features are free — always unlocked
+  const isPaidUnlocked = true;
 
   // Strip arbitrage from free-tier response
   const arbitrage = isPaidUnlocked ? (report.arbitrage ?? null) : null;

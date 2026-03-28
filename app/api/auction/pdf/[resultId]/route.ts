@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { getClientIP, RateLimiter } from "@/lib/rate-limiter";
 import type { NormalizedAuctionLot } from "@/lib/auction/types";
-import { isInternalUserId } from "@/lib/rollout-flags";
+
 
 export const maxDuration = 30;
 
@@ -40,30 +40,12 @@ export async function GET(
 
   const { data: row } = await supabase
     .from("auction_analyses")
-    .select("result_id, is_paid, raw_data, final_report, created_at, auction_source, user_id")
+    .select("result_id, raw_data, final_report, created_at, auction_source")
     .eq("result_id", resultId)
     .maybeSingle();
 
   if (!row) {
     return NextResponse.json({ success: false, error: "Result not found" }, { status: 404 });
-  }
-
-  // Check entitlement: paid flag, entitlements table, or internal QA user
-  let isPaidUnlocked = row.is_paid || isInternalUserId(row.user_id as string | null);
-  if (!isPaidUnlocked) {
-    const { data: entitlement } = await supabase
-      .from("auction_entitlements")
-      .select("id")
-      .eq("result_id", resultId)
-      .maybeSingle();
-    isPaidUnlocked = Boolean(entitlement);
-  }
-
-  if (!isPaidUnlocked) {
-    return NextResponse.json(
-      { success: false, error: "Payment required to download PDF", payment_required: true },
-      { status: 402 }
-    );
   }
 
   const lot = row.raw_data as NormalizedAuctionLot;
