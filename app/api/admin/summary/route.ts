@@ -285,6 +285,13 @@ export async function GET(request: NextRequest) {
       .gte("created_at", window.start)
       .lt("created_at", window.end);
 
+    // 15. Auction analyses — all copart/auction evaluations
+    const auctionAnalysesPromise = supabase
+      .from("auction_analyses")
+      .select("result_id, auction_source, lot_number, final_report, created_at")
+      .gte("created_at", window.start)
+      .lt("created_at", window.end);
+
     const [
       { data: receipts },
       { data: receiptEvents },
@@ -300,6 +307,7 @@ export async function GET(request: NextRequest) {
       { data: extractionAttempts },
       { data: chatAnalyticsRaw },
       { data: chatMessagesRaw },
+      { data: auctionAnalyses },
     ] = await Promise.all([
       receiptsPromise,
       receiptEventsPromise,
@@ -315,6 +323,7 @@ export async function GET(request: NextRequest) {
       extractionAttemptsPromise,
       chatAnalyticsPromise,
       chatMessagesPromise,
+      auctionAnalysesPromise,
     ]);
 
     const allReceipts = receipts || [];
@@ -722,6 +731,76 @@ export async function GET(request: NextRequest) {
       rating_distribution: Array.from(ratingDist.entries())
         .map(([rating, count]) => ({ rating, count }))
         .sort((a, b) => b.rating - a.rating),
+    };
+
+    // -----------------------------------------------------------------------
+    // Auction / Copart metrics
+    // -----------------------------------------------------------------------
+
+    const allAuctions = auctionAnalyses || [];
+
+    // Grade distribution
+    const auctionGradeDist: Record<string, number> = { green: 0, yellow: 0, red: 0, unknown: 0 };
+    // Source breakdown
+    const auctionSourceDist: Record<string, number> = {};
+    // Provider (how data was fetched: copart_api, apify, copart_url_slug)
+    const auctionProviderDist: Record<string, number> = {};
+    // Daily trend
+    const auctionDailyMap = new Map<string, number>();
+
+    for (const a of allAuctions) {
+      const report = a.final_report as Record<string, unknown> | null;
+      const salvageRisk = report?.salvage_risk as Record<string, unknown> | null;
+      const grade = (salvageRisk?.grade as string) ?? "unknown";
+      auctionGradeDist[grade] = (auctionGradeDist[grade] ?? 0) + 1;
+
+      const src = a.auction_source ?? "unknown";
+      auctionSourceDist[src] = (auctionSourceDist[src] ?? 0) + 1;
+
+      const date = a.created_at?.split("T")[0];
+      if (date) auctionDailyMap.set(date, (auctionDailyMap.get(date) ?? 0) + 1);
+    }
+
+    const auctionDailyTrend = Array.from(auctionDailyMap.entries())
+      .map(([date, count]) => ({ date, analyses: count }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Event-based metrics from user_events
+    const auctionResultViews = countEvents(filteredUserEvents, "auction_result_viewed");
+    const auctionPdfDownloads = countEvents(filteredUserEvents, "auction_pdf_downloaded");
+    const auctionEmailSent = countEvents(filteredUserEvents, "auction_report_email_sent");
+    const auctionEmailFailed = countEvents(filteredUserEvents, "auction_report_email_failed");
+    const auctionShared = countEvents(filteredUserEvents, "auction_report_shared");
+
+    // Cached vs fresh
+    const auctionCachedEvents = filteredUserEvents.filter(
+      (e) => e.event_name === "copart_analyze_completed" && e.event_data?.cached === true
+    ).length;
+    const auctionFreshEvents = filteredUserEvents.filter(
+      (e) => e.event_name === "copart_analyze_completed" && e.event_data?.cached === false
+    ).length;
+
+    // Average latency from completed events
+    const completedLatencies = filteredUserEvents
+      .filter((e) => e.event_name === "copart_analyze_completed" && typeof e.event_data?.latency_ms === "number")
+      .map((e) => e.event_data.latency_ms as number);
+    const avgLatencyMs = completedLatencies.length
+      ? Math.round(completedLatencies.reduce((s, v) => s + v, 0) / completedLatencies.length)
+      : null;
+
+    const auction_metrics = {
+      total_analyses: allAuctions.length,
+      grade_distribution: auctionGradeDist,
+      source_distribution: auctionSourceDist,
+      daily_trend: auctionDailyTrend,
+      result_views: auctionResultViews,
+      pdf_downloads: auctionPdfDownloads,
+      email_sent: auctionEmailSent,
+      email_failed: auctionEmailFailed,
+      shared: auctionShared,
+      cached_hits: auctionCachedEvents,
+      fresh_analyses: auctionFreshEvents,
+      avg_latency_ms: avgLatencyMs,
     };
 
     // -----------------------------------------------------------------------
@@ -1810,6 +1889,7 @@ export async function GET(request: NextRequest) {
       repeat_usage,
       chat_metrics,
       dealers,
+      auction_metrics,
     });
   } catch (err) {
     console.error("Admin summary error:", err);

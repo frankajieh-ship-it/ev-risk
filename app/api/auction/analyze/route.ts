@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIP, RateLimiter } from "@/lib/rate-limiter";
 import { auctionEvaluationService } from "@/lib/auction/auction-evaluation-service";
+import { getSupabaseAdmin } from "@/lib/api-auth";
 import {
   AuctionSourceNotSupportedError,
   AuctionLotNotFoundError,
@@ -78,6 +79,24 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const supabase = getSupabaseAdmin();
+  const startedAt = Date.now();
+
+  // Track analysis started
+  try {
+    await supabase?.from("user_events").insert({
+      event_name: "copart_analyze_started",
+      event_data: {
+        auction_source: rawSource,
+        input_type: url ? "url" : "lot_number",
+      },
+      anon_id: receiptToken,
+      ip_address: ip,
+      page_path: "/api/auction/analyze",
+      timestamp: new Date().toISOString(),
+    });
+  } catch { /* non-critical */ }
+
   try {
     const report = await auctionEvaluationService.evaluate({
       url,
@@ -85,11 +104,51 @@ export async function POST(request: NextRequest) {
       auction_source: rawSource as AuctionSource,
       receipt_token: receiptToken,
       user_id: userId,
-      routine_profile: null, // Future: accept from body when routine-aware output is needed
+      routine_profile: null,
     });
+
+    const salvageRisk = report.salvage_risk as Record<string, unknown> | null;
+
+    // Track analysis completed
+    try {
+      await supabase?.from("user_events").insert({
+        event_name: "copart_analyze_completed",
+        event_data: {
+          result_id: report.report_id,
+          auction_source: rawSource,
+          lot_number: report.lot?.lot_number ?? null,
+          cached: report.cached ?? false,
+          salvage_grade: (salvageRisk?.grade as string) ?? null,
+          salvage_score: (salvageRisk?.score as number) ?? null,
+          recall_count: Array.isArray(report.recalls) ? report.recalls.length : 0,
+          provider: report.lot?.provider_name ?? null,
+          latency_ms: Date.now() - startedAt,
+        },
+        anon_id: receiptToken,
+        ip_address: ip,
+        page_path: "/api/auction/analyze",
+        timestamp: new Date().toISOString(),
+      });
+    } catch { /* non-critical */ }
 
     return NextResponse.json({ success: true, report });
   } catch (err) {
+    // Track analysis failed
+    try {
+      await supabase?.from("user_events").insert({
+        event_name: "copart_analyze_failed",
+        event_data: {
+          auction_source: rawSource,
+          error: err instanceof Error ? err.message : "unknown",
+          latency_ms: Date.now() - startedAt,
+        },
+        anon_id: receiptToken,
+        ip_address: ip,
+        page_path: "/api/auction/analyze",
+        timestamp: new Date().toISOString(),
+      });
+    } catch { /* non-critical */ }
+
     if (err instanceof AuctionSourceNotSupportedError) {
       return NextResponse.json(
         {

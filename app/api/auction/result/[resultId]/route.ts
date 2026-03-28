@@ -60,6 +60,27 @@ export async function GET(
     routine_impact?: RoutineImpactOutput | null;
   } | null;
 
+  // Track result view (fire-and-forget)
+  const salvageRisk = report.salvage_risk as Record<string, unknown> | null;
+  try {
+    const anonId = request.nextUrl.searchParams.get("anon_id") ?? undefined;
+    await supabase.from("user_events").insert({
+      event_name: "auction_result_viewed",
+      event_data: {
+        result_id: resultId,
+        auction_source: row.auction_source,
+        lot_number: lot?.lot_number ?? null,
+        salvage_grade: (salvageRisk?.grade as string) ?? null,
+        salvage_score: (salvageRisk?.score as number) ?? null,
+        recall_count: Array.isArray(report.recalls) ? (report.recalls as unknown[]).length : 0,
+      },
+      anon_id: anonId ?? null,
+      ip_address: ip,
+      page_path: `/auction/${resultId}`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch { /* non-critical */ }
+
   // All features are free — always unlocked
   const isPaidUnlocked = true;
 

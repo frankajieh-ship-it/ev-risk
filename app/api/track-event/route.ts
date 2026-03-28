@@ -254,6 +254,15 @@ const VALID_EVENT_NAMES = [
   "dealer_signup_email_failed",
   "dealer_signup_completed",
   "dealer_signup_provision_failed",
+  // Auction / Copart Events
+  "copart_analyze_started",
+  "copart_analyze_completed",
+  "copart_analyze_failed",
+  "auction_result_viewed",
+  "auction_pdf_downloaded",
+  "auction_report_email_sent",
+  "auction_report_email_failed",
+  "auction_report_shared",
 ] as const;
 
 // Events that should be deduplicated by report_id (to prevent double-counting)

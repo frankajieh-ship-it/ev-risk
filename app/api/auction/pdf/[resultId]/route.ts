@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { getClientIP, RateLimiter } from "@/lib/rate-limiter";
+
 import type { NormalizedAuctionLot } from "@/lib/auction/types";
 
 
@@ -109,6 +110,23 @@ export async function GET(
   const filename = `auction-report-${lot.make ?? "vehicle"}-${lot.year ?? ""}-${resultId.slice(-8)}.pdf`
     .toLowerCase()
     .replace(/\s+/g, "-");
+
+  // Track PDF download (fire-and-forget)
+  try {
+    const anonId = request.nextUrl.searchParams.get("anon_id") ?? null;
+    await supabase?.from("user_events").insert({
+      event_name: "auction_pdf_downloaded",
+      event_data: {
+        result_id: resultId,
+        auction_source: row.auction_source,
+        lot_number: lot?.lot_number ?? null,
+      },
+      anon_id: anonId,
+      ip_address: ip,
+      page_path: `/api/auction/pdf/${resultId}`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch { /* non-critical */ }
 
   return new NextResponse(pdfBuffer, {
     status: 200,

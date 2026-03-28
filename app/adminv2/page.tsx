@@ -26,6 +26,21 @@ import {
 // Types (subset of /api/admin/summary response)
 // ---------------------------------------------------------------------------
 
+interface AuctionMetrics {
+  total_analyses: number;
+  grade_distribution: { green: number; yellow: number; red: number; unknown: number };
+  source_distribution: Record<string, number>;
+  daily_trend: { date: string; analyses: number }[];
+  result_views: number;
+  pdf_downloads: number;
+  email_sent: number;
+  email_failed: number;
+  shared: number;
+  cached_hits: number;
+  fresh_analyses: number;
+  avg_latency_ms: number | null;
+}
+
 interface SummaryData {
   window: { start: string; end: string; period: string };
   totals: {
@@ -77,6 +92,7 @@ interface SummaryData {
     scenario_type: string;
     created_at: string;
   }[];
+  auction_metrics?: AuctionMetrics;
 }
 
 // ---------------------------------------------------------------------------
@@ -334,6 +350,7 @@ export default function AdminV2Page() {
           signup_completed: r.dealers?.signup_completed ?? 0,
         },
         purchases_detail: paidPurchases,
+        auction_metrics: r.auction_metrics ?? undefined,
       };
 
       setData(mapped);
@@ -691,6 +708,101 @@ export default function AdminV2Page() {
                 </div>
               </div>
             </div>
+
+            {/* Auction / Copart Section */}
+            {data.auction_metrics && (
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    <span className="text-base">🔨</span> Auction Bidder (Copart)
+                  </h2>
+                  <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
+                    {fmt(data.auction_metrics.total_analyses)} analyses
+                  </span>
+                </div>
+                <div className="p-5 space-y-5">
+                  {/* KPI strip */}
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                    {[
+                      { label: "Result Views", value: data.auction_metrics.result_views, color: "text-blue-600" },
+                      { label: "PDF Downloads", value: data.auction_metrics.pdf_downloads, color: "text-purple-600" },
+                      { label: "Emails Sent", value: data.auction_metrics.email_sent, color: "text-green-600" },
+                      { label: "Email Fails", value: data.auction_metrics.email_failed, color: "text-red-500" },
+                      { label: "Shared", value: data.auction_metrics.shared, color: "text-amber-600" },
+                      { label: "Avg Latency", value: data.auction_metrics.avg_latency_ms !== null ? `${(data.auction_metrics.avg_latency_ms / 1000).toFixed(1)}s` : "—", color: "text-gray-600" },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="text-center">
+                        <p className={`text-lg font-bold ${color}`}>{typeof value === "number" ? value.toLocaleString() : value}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-5">
+                    {/* Grade distribution */}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Risk Grade Distribution</p>
+                      <div className="space-y-1.5">
+                        {(["green", "yellow", "red", "unknown"] as const).map((grade) => {
+                          const count = data.auction_metrics!.grade_distribution[grade] ?? 0;
+                          const total = data.auction_metrics!.total_analyses || 1;
+                          const pctW = Math.round((count / total) * 100);
+                          const colors: Record<string, string> = { green: "bg-green-400", yellow: "bg-amber-400", red: "bg-red-400", unknown: "bg-gray-300" };
+                          const labels: Record<string, string> = { green: "Low Risk", yellow: "Moderate", red: "High Risk", unknown: "Unknown" };
+                          return (
+                            <div key={grade} className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 w-20 shrink-0">{labels[grade]}</span>
+                              <div className="flex-1 bg-gray-100 rounded-full h-2">
+                                <div className={`h-2 rounded-full ${colors[grade]}`} style={{ width: `${pctW}%` }} />
+                              </div>
+                              <span className="text-xs font-medium text-gray-700 w-8 text-right shrink-0">{count}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Cache hit / source breakdown */}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cache & Source</p>
+                      <div className="space-y-1.5 mb-3">
+                        {[
+                          { label: "Fresh analyses", value: data.auction_metrics.fresh_analyses, color: "bg-blue-400" },
+                          { label: "Cache hits", value: data.auction_metrics.cached_hits, color: "bg-gray-300" },
+                        ].map(({ label, value, color }) => {
+                          const total = Math.max(data.auction_metrics!.fresh_analyses + data.auction_metrics!.cached_hits, 1);
+                          return (
+                            <div key={label} className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 w-28 shrink-0">{label}</span>
+                              <div className="flex-1 bg-gray-100 rounded-full h-2">
+                                <div className={`h-2 rounded-full ${color}`} style={{ width: `${Math.round((value / total) * 100)}%` }} />
+                              </div>
+                              <span className="text-xs font-medium text-gray-700 w-8 text-right shrink-0">{value}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="space-y-1">
+                        {Object.entries(data.auction_metrics.source_distribution).map(([src, count]) => (
+                          <div key={src} className="flex justify-between text-xs">
+                            <span className="text-gray-500 capitalize">{src}</span>
+                            <span className="font-medium text-gray-700">{count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Daily trend chart */}
+                  {data.auction_metrics.daily_trend.length > 1 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Daily Analyses</p>
+                      <BarChart data={data.auction_metrics.daily_trend} valueKey="analyses" color="#f97316" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Live Events Feed */}
             <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
