@@ -329,6 +329,14 @@ export class AuctionEvaluationService {
 
       if (!row?.final_report || !row.raw_data) return null;
 
+      // Reject slug-sourced cache hits — they have null damage/odometer fields.
+      // Delete the stale row so the re-analysis can insert a fresh one.
+      const rawLot = row.raw_data as NormalizedAuctionLot;
+      if (rawLot.provider_name === "copart_url_slug" || rawLot.provider_name === "copart_unavailable") {
+        await supabase.from("auction_analyses").delete().eq("result_id", row.result_id);
+        return null;
+      }
+
       const report = row.final_report as Record<string, unknown>;
 
       // Normalise salvage_risk — old records stored raw DeterministicMetrics
