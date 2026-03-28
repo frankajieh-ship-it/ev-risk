@@ -428,6 +428,24 @@ async function fulfillBuyerPass(session: Stripe.Checkout.Session) {
       }
     }
 
+    // Auction report entitlement — insert when pack_tier is copart_report
+    // base_scenario_id carries the auc_xxx result_id for auction purchases
+    if (packTier === "copart_report" && baseScenarioId) {
+      const userId = session.metadata?.user_id ?? null;
+      try {
+        await supabase.from("auction_entitlements").insert({
+          result_id: baseScenarioId,
+          stripe_purchase_id: data.purchase_id,
+          stripe_session_id: session.id,
+          user_id: userId,
+          pack_tier: "copart_report",
+        });
+      } catch {
+        // Non-fatal — entitlement can be granted manually if insert fails
+        console.error("⚠️ Failed to insert auction entitlement for", baseScenarioId);
+      }
+    }
+
     // Update email funnel stage → purchased (fire-and-forget)
     const anonId = session.metadata?.anon_id;
     if (anonId) {

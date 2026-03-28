@@ -366,6 +366,25 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Auction Intelligence banner */}
+      <section className="max-w-2xl mx-auto px-4 pb-4">
+        <a
+          href="/copart"
+          className="flex items-center justify-between gap-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl px-5 py-4 hover:border-orange-300 hover:shadow-sm transition-all group"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🔨</span>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Bidding on a Copart auction?</p>
+              <p className="text-xs text-gray-500 mt-0.5">Get salvage risk score, ARV, repair cost estimate, and max safe bid.</p>
+            </div>
+          </div>
+          <span className="text-xs font-semibold text-orange-600 bg-orange-100 px-3 py-1.5 rounded-full whitespace-nowrap group-hover:bg-orange-200 transition-colors">
+            Auction Bidder →
+          </span>
+        </a>
+      </section>
+
       {/* Divider before EV routine wizard */}
       {currentStep === "routine" && (
         <div className="max-w-2xl mx-auto px-4 py-6">

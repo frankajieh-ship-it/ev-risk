@@ -65,10 +65,10 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "20", 10), 50);
   const hours = Math.min(parseInt(url.searchParams.get("hours") ?? "48", 10), 168);
 
-  // Fetch user's garage vehicles
+  // Fetch user's garage vehicles (owned + auction)
   const { data: garageVehicles } = await supabase
     .from("garage_vehicles")
-    .select("make, model, year, is_owned_ev")
+    .select("make, model, year, is_owned_ev, source, auction_source")
     .eq("user_id", user.id)
     .limit(10);
 
@@ -189,10 +189,10 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Extra +10 boost for articles matched to an owned EV
+    // Extra +10 boost for articles matched to an owned EV or an auction vehicle
     const hasOwnedEvBoost = matchedVehicles.length > 0 &&
       garageVehicles.some((gv) => {
-        if (!gv.is_owned_ev) return false;
+        if (!gv.is_owned_ev && gv.source !== "auction") return false;
         const gvTags = vehicleToTags(gv.make, gv.model);
         return effectsLower.some((e) => gvTags.some((t) => e.includes(t) || t.includes(e)));
       });

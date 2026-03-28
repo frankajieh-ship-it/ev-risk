@@ -5,41 +5,32 @@
  *
  * Responsibilities:
  * 1. Route to the correct source adapter
- * 2. Check 24h persistence cache
+ * 2. Check 24h persistence cache (auction_analyses table)
  * 3. Enrich via Auto.dev (ARV + specs)
  * 4. Fetch NHTSA recalls
- * 5. Deterministic scoring (computeSalvageRisk)
- * 6. AI repair cost via hedgedGenerate (reuses copart-arbitrage-engine prompts)
- * 7. Optional routine fit (computeRoutineFitV2)
- * 8. Persist to auction_lots + auction_eval_reports
+ * 5. Deterministic pre-pass (computeDeterministicMetrics)
+ * 6. AI chain (runAuctionAiChain): Grok classify → Gemini+GPT-4o ∥ → Grok polish
+ * 7. Log AI runs to auction_ai_runs
+ * 8. Persist to auction_analyses
  * 9. Garage upsert if user authenticated
  */
 
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
-import { computeSalvageRisk } from "@/lib/salvage-risk-scorer";
-import {
-  inferDamageType,
-  buildRepairCostUserPrompt,
-  REPAIR_COST_JSON_SCHEMA,
-  REPAIR_COST_SYSTEM_PROMPT,
-  AUCTION_FEES_ESTIMATE,
-  computeMaxSafeBid,
-  type RepairCostOutput,
-  type ArbitrageResult,
-} from "@/lib/copart-arbitrage-engine";
-import { hedgedGenerate } from "@/lib/providers/hedged-generate";
 import { checkPurchaseStatus } from "@/lib/payment-status";
 import { copartAdapter } from "./adapters/copart-adapter";
 import { iaaiAdapter } from "./adapters/iaai-adapter";
+import { computeDeterministicMetrics } from "./deterministic-metrics";
+import { runAuctionAiChain } from "./auction-ai-chain";
 import {
   type AuctionEvalInput,
   type AuctionEvalReport,
   type AuctionSource,
   type AuctionSourceAdapter,
   type NhtsaRecallSummary,
-  AuctionSourceNotSupportedError,
+  type NormalizedAuctionLot,
 } from "./types";
+import type { AiStepLog } from "./auction-ai-chain";
 
 // ── Adapter registry ──────────────────────────────────────────────────────────
 
@@ -49,7 +40,7 @@ const ADAPTERS: Record<AuctionSource, AuctionSourceAdapter> = {
   manheim: iaaiAdapter, // Phase 3: replace with manheimAdapter
 };
 
-// ── NHTSA recall fetch (reuses the same caching logic as /api/recalls/nhtsa) ──
+// ── NHTSA recall fetch ────────────────────────────────────────────────────────
 
 async function fetchRecalls(
   make: string | null,
@@ -59,12 +50,8 @@ async function fetchRecalls(
   if (!make || !model || !year) return [];
 
   try {
-    const url = new URL(
-      `https://api.nhtsa.gov/recalls/recallsByVehicle?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&modelYear=${year}`
-    );
-    const res = await fetch(url.toString(), {
-      signal: AbortSignal.timeout(8000),
-    });
+    const url = `https://api.nhtsa.gov/recalls/recallsByVehicle?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&modelYear=${year}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return [];
     const data = await res.json() as { results?: NhtsaRecallSummary[] };
     return data.results ?? [];
@@ -73,44 +60,23 @@ async function fetchRecalls(
   }
 }
 
-// ── Repair cost AI call ───────────────────────────────────────────────────────
+// ── result_id generator ───────────────────────────────────────────────────────
 
-const isRepairCostOutput = (v: unknown): v is RepairCostOutput => {
-  if (!v || typeof v !== "object") return false;
-  const d = v as Record<string, unknown>;
-  return (
-    typeof d.repair_cost_total_low === "number" &&
-    typeof d.repair_cost_total_high === "number" &&
-    Array.isArray(d.breakdown)
-  );
-};
+function makeResultId(source: AuctionSource, lotNumber: string): string {
+  const ts = Date.now().toString(36);
+  return `auc_${source}_${lotNumber}_${ts}`;
+}
 
-async function runRepairCostAI(params: {
-  year: number | null;
-  make: string | null;
-  model: string | null;
-  trim: string | null;
-  damageType: string;
-  askingPrice: number | null;
-  listingText: string;
-}): Promise<RepairCostOutput | null> {
-  try {
-    const result = await hedgedGenerate({
-      systemPrompt: REPAIR_COST_SYSTEM_PROMPT,
-      userPrompt: buildRepairCostUserPrompt(params),
-      jsonSchema: REPAIR_COST_JSON_SCHEMA,
-      schemaName: "repair_cost_output",
-      temperature: 0.2,
-      maxTokens: 1500,
-      validate: (json) => {
-        if (isRepairCostOutput(json)) return { valid: true, errors: [] };
-        return { valid: false, errors: ["Invalid repair cost output shape"] };
-      },
-    });
-    return isRepairCostOutput(result.result.json) ? result.result.json : null;
-  } catch {
-    return null;
+// ── Input hash for cache deduplication ───────────────────────────────────────
+
+function makeInputHash(lot: NormalizedAuctionLot, routineProfileId?: string): string {
+  const key = `${lot.auction_source}:${lot.lot_number}:${routineProfileId ?? "none"}`;
+  // Cheap deterministic fingerprint — not a security hash
+  let h = 0;
+  for (let i = 0; i < key.length; i++) {
+    h = (Math.imul(31, h) + key.charCodeAt(i)) | 0;
   }
+  return (h >>> 0).toString(16);
 }
 
 // ── Main service ──────────────────────────────────────────────────────────────
@@ -130,33 +96,10 @@ export class AuctionEvaluationService {
     // 2. Check persistence cache
     if (supabase) {
       const cached = await this.checkCache(supabase, lot.auction_source, lot.lot_number);
-      if (cached) {
-        return { ...cached, cached: true };
-      }
+      if (cached) return { ...cached, cached: true };
     }
 
-    // 3. Upsert normalized lot snapshot
-    let auctionLotId: string | null = null;
-    if (supabase) {
-      const { data: lotRow } = await supabase
-        .from("auction_lots")
-        .upsert(
-          {
-            auction_source: lot.auction_source,
-            lot_number: lot.lot_number,
-            vin: lot.vin,
-            normalized_data: lot,
-            provider_name: lot.provider_name,
-            fetched_at: new Date().toISOString(),
-          },
-          { onConflict: "auction_source,lot_number" }
-        )
-        .select("id")
-        .single();
-      auctionLotId = lotRow?.id ?? null;
-    }
-
-    // 4. Parallel: Auto.dev enrichment + NHTSA recalls
+    // 3. Parallel: Auto.dev enrichment + NHTSA recalls
     const [enrichResult, recalls] = await Promise.all([
       enrichFromAutodev({
         vin: lot.vin ?? undefined,
@@ -167,16 +110,22 @@ export class AuctionEvaluationService {
       fetchRecalls(lot.make, lot.model, lot.year),
     ]);
 
-    // 5. Deterministic salvage risk score
-    const salvageRisk = computeSalvageRisk({
-      title_status: lot.title_status,
-      mileage: lot.odometer,
-      price: lot.current_bid,
-      listing_text: lot.condition_notes ?? "",
-      receipt: { active_recalls: recalls.length },
-    });
+    // 4. Resolve ARV from enrichment
+    let arv: number | null = null;
+    let arvListingCount = 0;
+    let hasVinData = false;
 
-    // 6. Check payment status for paid arbitrage
+    if (enrichResult?.market_price_range && enrichResult.market_price_range.count > 0) {
+      arv = Math.round(
+        (enrichResult.market_price_range.low + enrichResult.market_price_range.high) / 2
+      );
+      arvListingCount = enrichResult.market_price_range.count;
+    } else if (enrichResult?.vin_data?.price?.usedTmvRetail) {
+      arv = enrichResult.vin_data.price.usedTmvRetail;
+    }
+    hasVinData = Boolean(enrichResult?.vin_data);
+
+    // 5. Check payment status
     const paymentStatus = await checkPurchaseStatus(
       "copart",
       lot.lot_number,
@@ -184,137 +133,166 @@ export class AuctionEvaluationService {
     ).catch(() => null);
     const isPaid = paymentStatus?.unlocked_base ?? false;
 
-    // 7. ARV from Auto.dev
-    let arv: number | null = null;
-    let arvRange: { low: number; high: number } | null = null;
-    let arvSource: ArbitrageResult["arv_source"] = "none";
-    let arvListingCount = 0;
+    // 6. Deterministic pre-pass (no AI)
+    const metrics = computeDeterministicMetrics(
+      lot,
+      { arv, arvListingCount, hasVinData },
+      recalls
+    );
 
-    if (enrichResult?.market_price_range && enrichResult.market_price_range.count > 0) {
-      arvRange = {
-        low: enrichResult.market_price_range.low,
-        high: enrichResult.market_price_range.high,
-      };
-      arv = Math.round(
-        (enrichResult.market_price_range.low + enrichResult.market_price_range.high) / 2
-      );
-      arvSource = "auto_dev_listings";
-      arvListingCount = enrichResult.market_price_range.count;
-    } else if (enrichResult?.vin_data?.price?.usedTmvRetail) {
-      arv = enrichResult.vin_data.price.usedTmvRetail;
-      arvSource = "vin_msrp";
+    // 7. Optional routine context
+    let routineContext: Record<string, unknown> | null = null;
+    if (input.routine_profile) {
+      routineContext = input.routine_profile as unknown as Record<string, unknown>;
     }
 
-    // 8. AI repair cost (only compute if paid or if we want free risk signal)
-    let arbitrage: ArbitrageResult | null = null;
+    // 8. AI chain
+    const aiChainOutput = await runAuctionAiChain({
+      lot,
+      metrics,
+      recalls,
+      routineContext,
+      arv,
+      isPaid,
+    });
 
-    if (isPaid) {
-      const damageType =
-        lot.damage_type ??
-        inferDamageType([lot.primary_damage, lot.secondary_damage, lot.condition_notes]
-          .filter(Boolean)
-          .join(" "));
-
-      const repairOutput = await runRepairCostAI({
-        year: lot.year,
-        make: lot.make,
-        model: lot.model,
-        trim: lot.trim,
-        damageType,
-        askingPrice: lot.current_bid,
-        listingText: lot.condition_notes ?? "",
-      });
-
-      const repairCostLow = repairOutput?.repair_cost_total_low ?? 0;
-      const repairCostHigh = repairOutput?.repair_cost_total_high ?? 0;
-      const repairCostMidpoint = Math.round((repairCostLow + repairCostHigh) / 2);
-
-      const maxSafeBid =
-        arv !== null && repairCostMidpoint > 0
-          ? computeMaxSafeBid(arv, repairCostMidpoint, AUCTION_FEES_ESTIMATE, 20)
-          : null;
-
-      arbitrage = {
-        arv,
-        arv_range: arvRange,
-        arv_source: arvSource,
-        arv_listing_count: arvListingCount,
-        repair_cost_estimate: repairCostMidpoint,
-        repair_cost_low: repairCostLow,
-        repair_cost_high: repairCostHigh,
-        repair_cost_breakdown: repairOutput?.breakdown ?? [],
-        parts_value: repairOutput?.parts_value_total ?? 0,
-        parts_value_breakdown: repairOutput?.parts_value_breakdown ?? [],
-        max_safe_bid: maxSafeBid,
-        auction_fees_estimate: AUCTION_FEES_ESTIMATE,
-        confidence: repairOutput?.confidence ?? "low",
-        caveats: repairOutput?.caveats ?? [
-          "Repair cost estimate unavailable — manual inspection strongly recommended.",
-        ],
-        damage_type_inferred: damageType,
-      };
-    }
-
-    // 9. Optional routine fit
+    // 9. Optional routine fit (synchronous, separate from AI chain)
     let routineFit = null;
     if (input.routine_profile) {
       try {
         const { computeRoutineFitV2 } = await import("@/lib/compute-routine-fit-v2");
         routineFit = computeRoutineFitV2({ routine: input.routine_profile });
       } catch {
-        // Non-critical — routine fit is optional
+        // Non-critical
       }
     }
 
-    // 10. Persist report
+    // 10. Build arbitrage result from AI output (paid only)
+    let arbitrage = null;
+    if (isPaid && aiChainOutput.repair_cost) {
+      const rc = aiChainOutput.repair_cost;
+      const { AUCTION_FEES_ESTIMATE, computeMaxSafeBid } = await import("@/lib/copart-arbitrage-engine");
+      const maxSafeBid = arv && rc.repair_cost_midpoint > 0
+        ? computeMaxSafeBid(arv, rc.repair_cost_midpoint, AUCTION_FEES_ESTIMATE, 20)
+        : null;
+
+      arbitrage = {
+        arv,
+        arv_range: enrichResult?.market_price_range && enrichResult.market_price_range.count > 0
+          ? { low: enrichResult.market_price_range.low, high: enrichResult.market_price_range.high }
+          : null,
+        arv_source: (arvListingCount > 0 ? "auto_dev_listings" : hasVinData ? "vin_msrp" : "none") as "auto_dev_listings" | "vin_msrp" | "none",
+        arv_listing_count: arvListingCount,
+        repair_cost_estimate: rc.repair_cost_midpoint,
+        repair_cost_low: rc.repair_cost_low,
+        repair_cost_high: rc.repair_cost_high,
+        repair_cost_breakdown: rc.breakdown,
+        parts_value: rc.parts_value_total,
+        parts_value_breakdown: rc.parts_value_breakdown,
+        max_safe_bid: maxSafeBid,
+        auction_fees_estimate: (await import("@/lib/copart-arbitrage-engine")).AUCTION_FEES_ESTIMATE,
+        confidence: rc.confidence,
+        caveats: rc.caveats,
+        damage_type_inferred: lot.damage_type ?? "unspecified damage",
+      };
+    }
+
+    // 11. Persist to auction_analyses + log AI runs
+    const resultId = makeResultId(lot.auction_source, lot.lot_number);
+    const inputHash = makeInputHash(lot);
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    let reportId = `eval_${lot.auction_source}_${lot.lot_number}_${Date.now()}`;
 
-    if (supabase && auctionLotId) {
-      const { data: reportRow } = await supabase
-        .from("auction_eval_reports")
+    let analysisId: string | null = null;
+
+    if (supabase) {
+      const { data: row } = await supabase
+        .from("auction_analyses")
         .insert({
-          auction_lot_id: auctionLotId,
-          user_id: input.user_id ?? null,
+          result_id: resultId,
+          auction_source: lot.auction_source,
+          lot_number: lot.lot_number,
+          vin: lot.vin,
+          input_hash: inputHash,
+          raw_data: lot,
+          vehicle_data: enrichResult ?? null,
+          recall_data: recalls.length > 0 ? recalls : null,
+          routine_context: routineContext,
+          deterministic_metrics: metrics,
+          ai_output: {
+            classification: aiChainOutput.classification,
+            routine_impact: aiChainOutput.routine_impact,
+            repair_cost: aiChainOutput.repair_cost,
+            polish: aiChainOutput.polish,
+            total_model_calls: aiChainOutput.total_model_calls,
+          },
+          final_report: {
+            salvage_risk: metrics,
+            arbitrage,
+            routine_fit: routineFit,
+            recalls,
+            verdict: aiChainOutput.polish,
+          },
           receipt_token: input.receipt_token,
-          salvage_risk: salvageRisk,
-          arbitrage: arbitrage,
-          routine_fit: routineFit,
-          recalls: recalls,
+          user_id: input.user_id ?? null,
           is_paid: isPaid,
-          created_at: now.toISOString(),
-          expires_at: expiresAt.toISOString(),
+          cache_expires_at: expiresAt.toISOString(),
         })
         .select("id")
         .single();
-      if (reportRow?.id) reportId = reportRow.id;
-    }
 
-    // 11. Garage upsert for authenticated users
-    if (supabase && input.user_id && lot.make && lot.model) {
-      try {
-        await supabase.from("garage_vehicles").upsert(
-          {
-            user_id: input.user_id,
-            vin: lot.vin,
-            make: lot.make,
-            model: lot.model,
-            year: lot.year,
-            trim: lot.trim,
-            auction_eval_report_id: reportId,
-          },
-          { onConflict: "user_id,vin", ignoreDuplicates: false }
+      analysisId = row?.id ?? null;
+
+      // Log AI step runs
+      if (analysisId && aiChainOutput.steps_run.length > 0) {
+        await supabase.from("auction_ai_runs").insert(
+          aiChainOutput.steps_run.map((step: AiStepLog) => ({
+            auction_analysis_id: analysisId,
+            step_name: step.step,
+            model_name: step.model,
+            status: step.status,
+            latency_ms: step.latency_ms,
+          }))
         );
-      } catch {
-        // Non-critical — garage upsert failures don't fail the evaluation
+      }
+
+      // Garage upsert for authenticated users
+      if (input.user_id && lot.make && lot.model) {
+        try {
+          await supabase.from("garage_vehicles").upsert(
+            {
+              user_id: input.user_id,
+              vin: lot.vin,
+              make: lot.make,
+              model: lot.model,
+              year: lot.year,
+              trim: lot.trim,
+              source: "auction",
+              auction_source: lot.auction_source,
+              lot_number: lot.lot_number,
+              damage_type: lot.damage_type,
+              title_status: lot.title_status,
+              auction_analysis_id: analysisId,
+              auction_result_id: resultId,
+            },
+            { onConflict: "user_id,vin", ignoreDuplicates: false }
+          );
+        } catch {
+          // Non-critical
+        }
       }
     }
 
     return {
-      report_id: reportId,
+      report_id: resultId,
       lot,
-      salvage_risk: salvageRisk,
+      salvage_risk: {
+        score: metrics.salvage_risk_score,
+        grade: metrics.salvage_risk_grade,
+        factors: metrics.salvage_risk_factors,
+        routine_impact_summary: aiChainOutput.routine_impact?.routine_impact ?? "",
+        suggested_bid_discount: metrics.suggested_bid_discount,
+      },
       arbitrage,
       recalls,
       routine_fit: routineFit,
@@ -332,44 +310,29 @@ export class AuctionEvaluationService {
     if (!supabase) return null;
 
     try {
-      const { data: lotRow } = await supabase
-        .from("auction_lots")
-        .select("id")
+      const { data: row } = await supabase
+        .from("auction_analyses")
+        .select("result_id, final_report, raw_data, created_at, cache_expires_at")
         .eq("auction_source", source)
         .eq("lot_number", lotNumber)
-        .maybeSingle();
-
-      if (!lotRow?.id) return null;
-
-      const { data: reportRow } = await supabase
-        .from("auction_eval_reports")
-        .select("id, salvage_risk, arbitrage, routine_fit, recalls, created_at, expires_at")
-        .eq("auction_lot_id", lotRow.id)
-        .gt("expires_at", new Date().toISOString())
+        .gt("cache_expires_at", new Date().toISOString())
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (!reportRow) return null;
+      if (!row?.final_report || !row.raw_data) return null;
 
-      // Re-fetch normalized lot data
-      const { data: lotData } = await supabase
-        .from("auction_lots")
-        .select("normalized_data")
-        .eq("id", lotRow.id)
-        .single();
-
-      if (!lotData?.normalized_data) return null;
+      const report = row.final_report as Record<string, unknown>;
 
       return {
-        report_id: reportRow.id,
-        lot: lotData.normalized_data as import("./types").NormalizedAuctionLot,
-        salvage_risk: reportRow.salvage_risk,
-        arbitrage: reportRow.arbitrage,
-        recalls: reportRow.recalls ?? [],
-        routine_fit: reportRow.routine_fit,
-        created_at: reportRow.created_at,
-        expires_at: reportRow.expires_at,
+        report_id: row.result_id,
+        lot: row.raw_data as NormalizedAuctionLot,
+        salvage_risk: report.salvage_risk as AuctionEvalReport["salvage_risk"],
+        arbitrage: (report.arbitrage as AuctionEvalReport["arbitrage"]) ?? null,
+        recalls: (report.recalls as NhtsaRecallSummary[]) ?? [],
+        routine_fit: (report.routine_fit as AuctionEvalReport["routine_fit"]) ?? null,
+        created_at: row.created_at,
+        expires_at: row.cache_expires_at,
       };
     } catch {
       return null;

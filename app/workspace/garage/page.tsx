@@ -7,8 +7,8 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap, LogIn, ChevronRight, ShieldCheck } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap, LogIn, ChevronRight, ShieldCheck, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import NewsCard, { type NewsArticle } from "@/components/NewsCard";
 import { useRouter } from "next/navigation";
@@ -34,7 +34,14 @@ interface GarageVehicle {
   notes: string | null;
   is_owned_ev?: boolean;
   created_at: string;
+  // Auction source fields (null for listing-sourced vehicles)
+  source?: string;
+  auction_source?: string | null;
+  auction_result_id?: string | null;
+  lot_number?: string | null;
 }
+
+type GarageSourceFilter = "all" | "listing" | "copart" | "iaai" | "manheim";
 
 interface OwnedEvReportHealth {
   score: number;
@@ -68,6 +75,19 @@ export default function GaragePage() {
   const [ownedEvReportLoading, setOwnedEvReportLoading] = useState<Record<string, boolean>>({});
   const [markingOwnedId, setMarkingOwnedId] = useState<string | null>(null);
   const [justAddedVehicleId, setJustAddedVehicleId] = useState<string | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<GarageSourceFilter>("all");
+
+  // Derived: which auction sources exist in the vehicle list
+  const hasAuctionSource = useCallback(
+    (src: string) => vehicles.some((v) => v.auction_source === src),
+    [vehicles]
+  );
+
+  const filteredVehicles = useMemo(() => {
+    if (sourceFilter === "all") return vehicles;
+    if (sourceFilter === "listing") return vehicles.filter((v) => !v.auction_source && v.source !== "auction");
+    return vehicles.filter((v) => v.auction_source === sourceFilter);
+  }, [vehicles, sourceFilter]);
 
   const headers = useCallback(() => {
     return session?.access_token
@@ -394,6 +414,47 @@ export default function GaragePage() {
               Select any vehicle to start a side-by-side comparison
             </p>
           )}
+
+          {/* Source filter pills — only shown when auction vehicles exist */}
+          {vehicles.length > 0 && (hasAuctionSource("copart") || hasAuctionSource("iaai") || hasAuctionSource("manheim")) && (
+            <div className="flex items-center gap-1.5 flex-wrap pb-1">
+              {(["all", "listing", "copart", "iaai", "manheim"] as GarageSourceFilter[])
+                .filter((f) => {
+                  if (f === "all" || f === "listing") return true;
+                  return hasAuctionSource(f);
+                })
+                .map((f) => {
+                  const labels: Record<GarageSourceFilter, string> = {
+                    all: "All",
+                    listing: "Listings",
+                    copart: "Copart",
+                    iaai: "IAAI",
+                    manheim: "Manheim",
+                  };
+                  const active = sourceFilter === f;
+                  return (
+                    <button
+                      key={f}
+                      onClick={() => setSourceFilter(f)}
+                      className={`text-xs font-semibold px-3 py-1 rounded-full border transition-colors ${
+                        active
+                          ? f === "copart"
+                            ? "bg-orange-500 text-white border-orange-500"
+                            : f === "iaai"
+                            ? "bg-blue-500 text-white border-blue-500"
+                            : f === "manheim"
+                            ? "bg-purple-500 text-white border-purple-500"
+                            : "bg-gray-800 text-white border-gray-800"
+                          : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      {labels[f]}
+                    </button>
+                  );
+                })}
+            </div>
+          )}
+
           {vehicles.length > 0 && shortlistItems.length > 0 && (
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1 pb-0.5">Added Vehicles</p>
           )}
@@ -441,7 +502,7 @@ export default function GaragePage() {
             </div>
           )}
 
-          {vehicles.map((v) => {
+          {filteredVehicles.map((v) => {
             const isCompareBase = compareBase?.id === v.id;
             const isCompareTarget = compareBase && compareBase.id !== v.id;
             return (
@@ -473,6 +534,17 @@ export default function GaragePage() {
                         My Car
                       </span>
                     )}
+                    {v.auction_source && (
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                        v.auction_source === "copart"
+                          ? "bg-orange-100 text-orange-800 border-orange-200"
+                          : v.auction_source === "iaai"
+                          ? "bg-blue-100 text-blue-800 border-blue-200"
+                          : "bg-purple-100 text-purple-800 border-purple-200"
+                      }`}>
+                        {v.auction_source.toUpperCase()}
+                      </span>
+                    )}
                     {session?.access_token && (
                       <RecallBadge
                         vehicleId={v.id}
@@ -492,6 +564,15 @@ export default function GaragePage() {
                       >
                         <ShieldCheck className="w-3 h-3" />
                         View Owned EV Report
+                      </Link>
+                    )}
+                    {v.auction_result_id && (
+                      <Link
+                        href={`/auction/${v.auction_result_id}`}
+                        className="flex items-center gap-1 text-orange-600 hover:text-orange-800 font-medium transition-colors"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        View Analysis
                       </Link>
                     )}
                   </div>

@@ -1,8 +1,9 @@
 /**
  * /copart — Copart Auction Fit & Risk Advisor
  *
- * Phase 1: salvage risk score + bid guidance + standard receipt
- * Phase 2: arbitrage calculator + title flags (unlocked after $19.99 payment)
+ * Calls POST /api/auction/analyze (unified service) and renders the full report.
+ * Backward-compat components (SalvageRiskCard, ArbitrageCalculatorCard, etc.)
+ * are kept unchanged — we map AuctionEvalReport fields to their existing props.
  */
 
 "use client";
@@ -10,27 +11,22 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Search, AlertTriangle, Loader2, ChevronRight } from "lucide-react";
 import { getOrCreateReceiptToken } from "@/lib/session-utils";
-import { computeSalvageRisk } from "@/lib/salvage-risk-scorer";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import SalvageRiskCard from "@/components/copart/SalvageRiskCard";
 import AuctionBidGuidanceCard from "@/components/copart/AuctionBidGuidanceCard";
 import CopartUnlockCard from "@/components/copart/CopartUnlockCard";
 import ArbitrageCalculatorCard from "@/components/copart/ArbitrageCalculatorCard";
 import TitleFlagsCard from "@/components/copart/TitleFlagsCard";
-import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
-import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
-import type { ListingReceipt } from "@/types/receipt";
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
-import type { LotData } from "@/app/api/copart/lot/route";
+import type { AuctionEvalReport } from "@/lib/auction/types";
 
-type PageState = "idle" | "fetching" | "generating" | "done" | "error";
-type DataSource = "api" | "scrape" | "manual";
+type PageState = "idle" | "fetching" | "done" | "error";
 
 const SESSION_KEY = "offo_copart_session";
 
 interface StoredSession {
   input: string;
-  receiptId: string;
+  resultId: string;
 }
 
 function isCopartUrl(input: string): boolean {
@@ -47,68 +43,50 @@ function extractLotNumber(url: string): string | null {
   return match ? match[1] : null;
 }
 
-function buildSyntheticText(lot: LotData): string {
-  return [
-    lot.year, lot.make, lot.model, lot.trim,
-    lot.primaryDamage ? `Primary damage: ${lot.primaryDamage}` : null,
-    lot.secondaryDamage ? `Secondary damage: ${lot.secondaryDamage}` : null,
-    lot.lossType ? `Loss type: ${lot.lossType}` : null,
-    lot.highlights,
-    lot.titleType ? `Title: ${lot.titleType}` : null,
-    lot.odometer ? `Odometer: ${lot.odometer}` : null,
-    lot.odometerBrand ? `Odometer brand: ${lot.odometerBrand}` : null,
-    lot.location,
-  ].filter(Boolean).join(" ");
-}
-
-function extractVinFromText(text: string): string | null {
-  const match = text.match(/\b([A-HJ-NPR-Z0-9]{17})\b/i);
-  return match ? match[1].toUpperCase() : null;
-}
-
-function parseCopartHtml(html: string): { vin?: string; listingText: string } {
-  const vinMatch =
-    html.match(/["']vin["']\s*:\s*["']([A-HJ-NPR-Z0-9]{17})["']/i) ||
-    html.match(/VIN[:\s]+([A-HJ-NPR-Z0-9]{17})/i) ||
-    html.match(/\b([A-HJ-NPR-Z0-9]{17})\b/);
-
-  const vin = vinMatch ? vinMatch[1].toUpperCase() : undefined;
-
-  const stripped = html
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s{2,}/g, " ")
-    .trim()
-    .slice(0, 4000);
-
-  return { vin, listingText: stripped };
-}
-
 export default function CopartPage() {
   const { trackEvent } = useEventTracking();
   const [input, setInput] = useState("");
   const [pageState, setPageState] = useState<PageState>("idle");
   const [statusMsg, setStatusMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [receipt, setReceipt] = useState<ListingReceipt | null>(null);
-  const [receiptId, setReceiptId] = useState<string | null>(null);
-  const [salvageRisk, setSalvageRisk] = useState<SalvageRiskResult | null>(null);
-  const [detectedVin, setDetectedVin] = useState<string | null>(null);
-  const [showUnlock, setShowUnlock] = useState(true);
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [fetchBlocked, setFetchBlocked] = useState(false);
-  const [dataSource, setDataSource] = useState<DataSource>("manual");
 
-  // Store the listing text for the arbitrage card (ref = no re-render)
-  const listingTextRef = useRef("");
+  const [report, setReport] = useState<AuctionEvalReport | null>(null);
+  const [resultId, setResultId] = useState<string | null>(null);
+  const [salvageRisk, setSalvageRisk] = useState<SalvageRiskResult | null>(null);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [showUnlock, setShowUnlock] = useState(true);
 
   const receiptToken = typeof window !== "undefined" ? getOrCreateReceiptToken() : "";
 
-  // ── Check payment status when we have a receiptId ────────────────────────
+  // Used to pass lot metadata to ArbitrageCalculatorCard (backward compat)
+  const listingTextRef = useRef("");
+
+  // ── Handle Stripe redirect return (?checkout=success) ───────────────────
   useEffect(() => {
-    if (!receiptId || !receiptToken) return;
-    fetch(`/api/payments/status?scenario_type=copart&scenario_id=${receiptId}&anon_id=${receiptToken}`)
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") !== "success") return;
+
+    try {
+      const stored = sessionStorage.getItem(SESSION_KEY);
+      if (stored) {
+        const session: StoredSession = JSON.parse(stored);
+        sessionStorage.removeItem(SESSION_KEY);
+        setInput(session.input);
+        setResultId(session.resultId);
+        setIsUnlocked(true);
+        setShowUnlock(false);
+      }
+    } catch { /* ignore */ }
+
+    const clean = window.location.pathname;
+    window.history.replaceState({}, "", clean);
+  }, []);
+
+  // ── Check payment status when we have a resultId ─────────────────────────
+  useEffect(() => {
+    if (!resultId || !receiptToken) return;
+    fetch(`/api/payments/status?scenario_type=copart&scenario_id=${resultId}&anon_id=${receiptToken}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.unlocked_base) {
@@ -117,34 +95,7 @@ export default function CopartPage() {
         }
       })
       .catch(() => {});
-  }, [receiptId, receiptToken]);
-
-  // ── Handle Stripe redirect return (?checkout=success) ───────────────────
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("checkout") !== "success") return;
-
-    // Restore session from sessionStorage
-    try {
-      const stored = sessionStorage.getItem(SESSION_KEY);
-      if (stored) {
-        const session: StoredSession = JSON.parse(stored);
-        sessionStorage.removeItem(SESSION_KEY);
-        setInput(session.input);
-        setReceiptId(session.receiptId);
-        setIsUnlocked(true);
-        setShowUnlock(false);
-        setPageState("done");
-        // Re-run analysis to restore receipt + risk data
-        // (triggers via the input being set in state + user can re-click, or we auto-run)
-      }
-    } catch { /* ignore */ }
-
-    // Remove checkout query param from URL without reload
-    const clean = window.location.pathname;
-    window.history.replaceState({}, "", clean);
-  }, []);
+  }, [resultId, receiptToken]);
 
   const handleAnalyze = useCallback(async () => {
     const trimmed = input.trim();
@@ -152,156 +103,76 @@ export default function CopartPage() {
 
     setPageState("idle");
     setErrorMsg(null);
-    setReceipt(null);
+    setReport(null);
     setSalvageRisk(null);
-    setReceiptId(null);
-    setDetectedVin(null);
+    setResultId(null);
     setShowUnlock(true);
     setIsUnlocked(false);
-    setFetchBlocked(false);
-    setDataSource("manual");
+    listingTextRef.current = "";
 
-    trackEvent("copart_analyze_started", { input_type: isCopartUrl(trimmed) ? "url" : "vin_or_text" });
+    trackEvent("copart_analyze_started", {
+      input_type: isCopartUrl(trimmed) ? "url" : "lot_or_text",
+    });
 
-    let listingText = trimmed;
-    let vin: string | undefined;
-    let listingUrl: string | undefined;
-    let resolvedSource: DataSource = "manual";
+    setPageState("fetching");
+    setStatusMsg("Analyzing auction lot...");
 
-    // Step 1: if URL, try Copart lot API first, then proxy-fetch as fallback
-    if (isCopartUrl(trimmed)) {
-      setPageState("fetching");
-      listingUrl = trimmed;
-
-      const lotNumber = extractLotNumber(trimmed);
-
-      if (lotNumber) {
-        // ── Strategy A: Copart public JSON API (no cookie required) ──────────
-        setStatusMsg("Fetching lot details...");
-        try {
-          const res = await fetch(`/api/copart/lot?lotNumber=${lotNumber}`);
-          const data = await res.json() as { success: boolean; lot?: LotData };
-
-          if (data.success && data.lot) {
-            const lot = data.lot;
-            listingText = buildSyntheticText(lot);
-            vin = lot.vin ?? undefined;
-            if (vin) setDetectedVin(vin);
-            resolvedSource = "api";
-            trackEvent("copart_lot_api_success", { lotNumber, source: lot.source });
-          }
-        } catch (e) {
-          console.warn("[Copart] Lot API error:", e);
-        }
-      }
-
-      // ── Strategy B: proxy-fetch HTML (fallback if lot API didn't populate) ─
-      if (resolvedSource !== "api" || !listingText.trim()) {
-        setStatusMsg("Fetching auction lot...");
-        try {
-          const res = await fetch("/api/proxy-fetch", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: trimmed }),
-          });
-          const data = await res.json() as { success: boolean; html?: string; cookie_wall?: boolean };
-
-          if (data.success && data.html) {
-            const parsed = parseCopartHtml(data.html);
-            // Only use proxy text if we don't already have API data
-            if (!listingText.trim() || listingText === trimmed) {
-              listingText = parsed.listingText;
-            }
-            if (!vin && parsed.vin) {
-              vin = parsed.vin;
-              setDetectedVin(vin);
-            }
-            if (resolvedSource === "manual") resolvedSource = "scrape";
-          } else if (data.cookie_wall && resolvedSource === "manual") {
-            // Only hard-fail if we have no data at all from the lot API
-            setPageState("error");
-            setFetchBlocked(true);
-            setErrorMsg("cookie_wall");
-            return;
-          }
-          // If proxy fails but lot API already gave us data, continue silently
-        } catch (e) {
-          console.warn("[Copart] Proxy fetch error:", e);
-        }
-      }
-
-      setDataSource(resolvedSource);
-
-      // If we still have no usable data, show error
-      if (!listingText.trim() || listingText === trimmed) {
-        setPageState("error");
-        setFetchBlocked(true);
-        setErrorMsg("fetch_failed");
-        return;
-      }
-    } else {
-      vin = extractVinFromText(trimmed) ?? undefined;
-      if (vin) setDetectedVin(vin);
-    }
-
-    // Store listing text for arbitrage card
-    listingTextRef.current = listingText;
-
-    // Step 2: generate receipt via /api/receipt
-    setPageState("generating");
-    setStatusMsg("Analyzing vehicle...");
+    // Build request — detect URL vs bare lot number
+    const isUrl = isCopartUrl(trimmed);
+    const lotNumber = !isUrl ? extractLotNumber(trimmed) ?? trimmed : null;
 
     try {
-      const res = await fetch("/api/receipt", {
+      const res = await fetch("/api/auction/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          listing_url: listingUrl ?? null,
-          listing_text: listingText,
-          vin: vin ?? null,
+          url: isUrl ? trimmed : undefined,
+          lot_number: !isUrl ? trimmed : undefined,
+          auction_source: "copart",
           receipt_token: receiptToken,
-          title_status: "salvage",
-          seller_type: "auction",
-          listing_source: "copart",
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json() as { success: boolean; report?: AuctionEvalReport; error?: string; message?: string };
 
-      if (!data.success || !data.receipt) {
+      if (!data.success || !data.report) {
         setPageState("error");
-        setErrorMsg(data.error || "Analysis failed. Please try again.");
+        setErrorMsg(data.message ?? data.error ?? "Analysis failed. Please try again.");
         return;
       }
 
-      const r: ListingReceipt = data.receipt;
-      const rid: string = data.receipt_id ?? "";
+      const r = data.report;
+      setReport(r);
+      setResultId(r.report_id);
 
-      setReceipt(r);
-      setReceiptId(rid);
+      // Map salvage_risk to SalvageRiskResult shape for existing components
+      setSalvageRisk(r.salvage_risk as SalvageRiskResult);
+
+      // Build synthetic listing text for ArbitrageCalculatorCard backward compat
+      const lot = r.lot;
+      listingTextRef.current = [
+        lot.year, lot.make, lot.model, lot.trim,
+        lot.primary_damage ? `Primary damage: ${lot.primary_damage}` : null,
+        lot.secondary_damage ? `Secondary damage: ${lot.secondary_damage}` : null,
+        lot.loss_type ? `Loss type: ${lot.loss_type}` : null,
+        lot.condition_notes,
+        lot.title_status ? `Title: ${lot.title_status}` : null,
+        lot.odometer ? `Odometer: ${lot.odometer}` : null,
+        lot.location,
+      ].filter(Boolean).join(" ");
 
       // Store session for post-Stripe restore
       try {
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ input: trimmed, receiptId: rid } as StoredSession));
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ input: trimmed, resultId: r.report_id } as StoredSession));
       } catch { /* ignore */ }
-
-      // Step 3: compute salvage risk
-      const ls = r.listing_summary;
-      const risk = computeSalvageRisk({
-        title_status: ls.title_status,
-        accidents_reported: ls.accidents_reported,
-        mileage: ls.mileage,
-        price: ls.price,
-        listing_text: listingText,
-        zip_or_postcode: ls.zip_or_postcode,
-      });
-      setSalvageRisk(risk);
 
       setPageState("done");
       trackEvent("copart_analyze_completed", {
-        receipt_id: rid,
-        salvage_grade: risk.grade,
-        salvage_score: risk.score,
+        result_id: r.report_id,
+        cached: r.cached,
+        salvage_grade: r.salvage_risk.grade,
+        salvage_score: r.salvage_risk.score,
+        recall_count: r.recalls.length,
       });
     } catch (err) {
       setPageState("error");
@@ -310,7 +181,8 @@ export default function CopartPage() {
     }
   }, [input, receiptToken, trackEvent]);
 
-  const isLoading = pageState === "fetching" || pageState === "generating";
+  const isLoading = pageState === "fetching";
+  const lot = report?.lot ?? null;
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -319,13 +191,13 @@ export default function CopartPage() {
         <div className="max-w-2xl mx-auto px-4 py-10 text-center">
           <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-700 bg-orange-100 px-3 py-1 rounded-full mb-4">
             <AlertTriangle className="w-3.5 h-3.5" />
-            Salvage & Auction Intelligence
+            Salvage &amp; Auction Intelligence
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Evaluate any Copart auction before you bid
           </h1>
           <p className="text-sm text-gray-500 max-w-md mx-auto">
-            Paste a Copart lot URL or VIN. Get a salvage risk score, ARV, repair cost estimate, and max safe bid.
+            Paste a Copart lot URL or lot number. Get a salvage risk score, ARV, repair cost estimate, and max safe bid.
           </p>
         </div>
       </div>
@@ -334,13 +206,13 @@ export default function CopartPage() {
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
           <label className="block text-sm font-semibold text-gray-800 mb-2">
-            Copart lot URL or VIN
+            Copart lot URL or lot number
           </label>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="https://www.copart.com/lot/... or 1GNSKSKL2NR123456 or paste listing details"
-            className="w-full h-24 px-3 py-2 text-sm border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+            placeholder="https://www.copart.com/lot/12345678 or 12345678"
+            className="w-full h-20 px-3 py-2 text-sm border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
             disabled={isLoading}
           />
           <button
@@ -358,76 +230,49 @@ export default function CopartPage() {
 
         {/* Error */}
         {pageState === "error" && errorMsg && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
             <div className="flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-              <p className="text-sm font-semibold text-amber-800">
-                {errorMsg === "cookie_wall"
-                  ? "Copart blocked automatic extraction (cookie consent wall)"
-                  : errorMsg === "fetch_failed"
-                  ? "Couldn't fetch the auction lot page"
-                  : errorMsg}
-              </p>
+              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+              <p className="text-sm font-semibold text-amber-800">{errorMsg}</p>
             </div>
-            {fetchBlocked && (
-              <div className="pl-6 space-y-1.5 text-sm text-amber-700">
-                <p>To get an accurate analysis, paste the lot details manually:</p>
-                <ul className="list-disc list-inside text-xs space-y-0.5 text-amber-600">
-                  <li>Open the Copart lot in your browser and accept cookies</li>
-                  <li>Copy the damage description, title type, VIN, year/make/model, and mileage</li>
-                  <li>Paste everything into the box above and click Analyse</li>
-                </ul>
-              </div>
-            )}
           </div>
         )}
 
         {/* Results */}
-        {pageState === "done" && receipt && salvageRisk && (
+        {pageState === "done" && report && salvageRisk && lot && (
           <div className="space-y-4">
-            {/* Phase 1: Salvage risk + bid guidance (always shown) */}
-            <SalvageRiskCard result={salvageRisk} dataSource={dataSource} />
+            {/* Phase 1: Salvage risk + bid guidance */}
+            <SalvageRiskCard result={salvageRisk} dataSource="api" />
 
             <AuctionBidGuidanceCard
               result={salvageRisk}
-              vin={detectedVin}
-              askingPrice={receipt.listing_summary.price || null}
+              vin={lot.vin}
+              askingPrice={lot.current_bid}
             />
 
-            {/* Phase 2: Arbitrage + title flags (unlocked content) */}
-            {isUnlocked && receiptId && (
+            {/* Phase 2: Arbitrage + title flags (paid unlock) */}
+            {isUnlocked && resultId && (
               <>
                 <ArbitrageCalculatorCard
-                  receiptId={receiptId}
-                  vin={detectedVin}
+                  receiptId={resultId}
+                  vin={lot.vin}
                   listingText={listingTextRef.current}
-                  askingPrice={receipt.listing_summary.price || null}
-                  make={receipt.listing_summary.make || null}
-                  model={receipt.listing_summary.model || null}
-                  year={receipt.listing_summary.year || null}
-                  trim={receipt.listing_summary.trim || null}
+                  askingPrice={lot.current_bid}
+                  make={lot.make}
+                  model={lot.model}
+                  year={lot.year}
+                  trim={lot.trim}
                   receiptToken={receiptToken}
                 />
-                <TitleFlagsCard zip={receipt.listing_summary.zip_or_postcode} />
+                <TitleFlagsCard zip={lot.location ?? null} />
               </>
             )}
 
-            {/* Standard receipt */}
-            <ReceiptOutputCard
-              receipt={receipt}
-              lintPassed={true}
-              lintErrors={[]}
-              region="US"
-            />
-
-            {/* Save to Garage */}
-            <SaveReceiptCTA receipt={receipt} />
-
-            {/* $19.99 upsell — hidden after unlock or save */}
-            {showUnlock && !isUnlocked && receiptId && (
+            {/* $19.99 upsell — hidden after unlock */}
+            {showUnlock && !isUnlocked && resultId && (
               <CopartUnlockCard
                 receiptToken={receiptToken}
-                receiptId={receiptId}
+                receiptId={resultId}
                 onDismiss={() => setShowUnlock(false)}
               />
             )}
