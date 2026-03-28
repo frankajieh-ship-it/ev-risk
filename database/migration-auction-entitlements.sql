@@ -6,7 +6,7 @@
 CREATE TABLE IF NOT EXISTS auction_entitlements (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   result_id text NOT NULL,                                           -- auc_xxx stable identifier
-  auction_analysis_id uuid REFERENCES auction_analyses(id) ON DELETE SET NULL,
+  auction_analysis_id uuid,                                          -- soft reference to auction_analyses.id (no FK constraint — order-independent)
   user_id uuid,                                                      -- set if authenticated at purchase time
   stripe_purchase_id uuid,                                           -- purchases.purchase_id (no FK — cross-schema safe)
   stripe_session_id text,
