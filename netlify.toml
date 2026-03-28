@@ -1,6 +1,9 @@
 [build]
-  command = "rm -rf .next && npm run build"
+  command = "npm run build"
   publish = ".next"
+
+[build.environment]
+  TURBOPACK_CACHE_VERSION = "2"
 
 [functions]
   directory = "netlify/functions"
