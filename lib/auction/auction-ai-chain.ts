@@ -131,10 +131,16 @@ function isPolish(v: unknown): v is PolishOutput {
 
 // ── Helper: run a single model call with logging ──────────────────────────────
 
+type StepAdapter = {
+  name: string;
+  isConfigured(): boolean;
+  generate(opts: Record<string, unknown>): Promise<{ json: Record<string, unknown>; latencyMs?: number }>;
+};
+
 async function runStep<T>(
   step: string,
-  adapter: { name: string; isConfigured(): boolean; generate(opts: Parameters<typeof adapter.generate>[0]): Promise<{ json: Record<string, unknown>; latencyMs?: number }> },
-  opts: Parameters<typeof adapter.generate>[0],
+  adapter: StepAdapter,
+  opts: Record<string, unknown>,
   guard: (v: unknown) => v is T,
   logs: AiStepLog[]
 ): Promise<T | null> {
