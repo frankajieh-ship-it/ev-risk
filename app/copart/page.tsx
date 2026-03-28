@@ -20,11 +20,14 @@ import {
   Gavel,
   Car,
   Info,
+  Copy,
+  CheckCircle,
+  Mail,
 } from "lucide-react";
 import Link from "next/link";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
-import { getOrCreateReceiptToken } from "@/lib/session-utils";
+import { getOrCreateReceiptToken, getOrCreatePersistentSessionId } from "@/lib/session-utils";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import SalvageRiskCard from "@/components/copart/SalvageRiskCard";
 import AuctionBidGuidanceCard from "@/components/copart/AuctionBidGuidanceCard";
@@ -40,6 +43,100 @@ const SESSION_KEY = "offo_copart_session";
 interface StoredSession {
   input: string;
   resultId: string;
+}
+
+function AuctionShareButton({ resultId }: { resultId: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    const url = `${window.location.origin}/auction/${resultId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.style.cssText = "position:fixed;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border whitespace-nowrap ${
+        copied ? "bg-green-50 border-green-200 text-green-700" : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900"
+      }`}
+    >
+      {copied ? <><CheckCircle className="w-3.5 h-3.5" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy link</>}
+    </button>
+  );
+}
+
+function AuctionEmailCapture({ resultId }: { resultId: string }) {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setStatus("submitting");
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/auction/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), result_id: resultId, anon_id: getOrCreatePersistentSessionId() }),
+      });
+      const data = await res.json();
+      if (data.success) { setStatus("success"); } else { setErrorMsg(data.error ?? "Failed. Try again."); setStatus("error"); }
+    } catch { setErrorMsg("Connection error."); setStatus("error"); }
+  };
+
+  if (status === "success") {
+    return (
+      <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
+        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+        <p className="text-sm font-semibold text-green-800">Report sent — check your inbox!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+          <Mail className="w-4 h-4 text-blue-600" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-gray-900">Save this report to your inbox</p>
+          <p className="text-xs text-gray-500">Get the full analysis + shareable link sent to you.</p>
+        </div>
+      </div>
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="your@email.com"
+          className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+          required
+        />
+        <button
+          type="submit"
+          disabled={status === "submitting" || !email.trim()}
+          className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl disabled:opacity-50 transition-colors whitespace-nowrap"
+        >
+          {status === "submitting" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Send report"}
+        </button>
+      </form>
+      {errorMsg && <p className="text-xs text-red-500 mt-2">{errorMsg}</p>}
+      <p className="text-xs text-gray-400 mt-2">No spam. One email. Unsubscribe any time.</p>
+    </div>
+  );
 }
 
 function isCopartUrl(input: string): boolean {
@@ -391,6 +488,20 @@ export default function CopartPage() {
             {/* Recalls — always shown */}
             {report.recalls.length > 0 && (
               <RecallsCard recalls={report.recalls} />
+            )}
+
+            {/* Email capture */}
+            {resultId && <AuctionEmailCapture resultId={resultId} />}
+
+            {/* Share nudge */}
+            {resultId && (
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-blue-900">Share this report</p>
+                  <p className="text-xs text-blue-600 mt-0.5">Send the link to your mechanic, partner, or bidding group.</p>
+                </div>
+                <AuctionShareButton resultId={resultId} />
+              </div>
             )}
 
             {/* Cross-link to retail receipt tool */}
