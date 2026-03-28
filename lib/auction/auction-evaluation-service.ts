@@ -94,8 +94,9 @@ export class AuctionEvaluationService {
       ? await adapter.fetchByLot(input.lot_number)
       : (() => { throw new Error("Either url or lot_number is required"); })();
 
-    // 2. Check persistence cache
-    if (supabase) {
+    // 2. Check persistence cache — skip for incomplete slug/unavailable lots
+    const isIncompleteSource = lot.provider_name === "copart_url_slug" || lot.provider_name === "copart_unavailable";
+    if (supabase && !isIncompleteSource) {
       const cached = await this.checkCache(supabase, lot.auction_source, lot.lot_number);
       if (cached) return { ...cached, cached: true };
     }

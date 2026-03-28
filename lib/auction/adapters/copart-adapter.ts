@@ -38,6 +38,34 @@ export function extractLotNumberFromUrl(url: string): string | null {
  * e.g. /lot/99707075/2023-tesla-model-y-ca-san-bernardino
  * Returns partial lot data if slug is present, null otherwise.
  */
+// Known Copart damage tokens that appear in URL slugs
+// e.g. "2023-tesla-model-y-front-end-ca-san-bernardino"
+const SLUG_DAMAGE_TOKENS: { tokens: string[]; damage: string }[] = [
+  { tokens: ["front", "end"],       damage: "Front End" },
+  { tokens: ["rear", "end"],        damage: "Rear End" },
+  { tokens: ["all", "over"],        damage: "All Over" },
+  { tokens: ["side"],               damage: "Side" },
+  { tokens: ["rollover"],           damage: "Rollover" },
+  { tokens: ["fire"],               damage: "Fire" },
+  { tokens: ["flood"],              damage: "Flood" },
+  { tokens: ["hail"],               damage: "Hail" },
+  { tokens: ["vandalism"],          damage: "Vandalism" },
+  { tokens: ["mechanical"],         damage: "Mechanical" },
+  { tokens: ["burn"],               damage: "Burn" },
+  { tokens: ["minor", "dents"],     damage: "Minor Dents/Scratches" },
+  { tokens: ["undercarriage"],      damage: "Undercarriage" },
+  { tokens: ["suspension"],         damage: "Suspension" },
+];
+
+function extractDamageFromSlugParts(parts: string[]): string | null {
+  const joined = parts.join(" ");
+  for (const { tokens, damage } of SLUG_DAMAGE_TOKENS) {
+    if (tokens.every((t) => parts.includes(t))) return damage;
+    if (tokens.length === 1 && joined.includes(tokens[0])) return damage;
+  }
+  return null;
+}
+
 function parseFromUrlSlug(
   url: string,
   lotNumber: string
@@ -55,41 +83,49 @@ function parseFromUrlSlug(
 
   const year = parseInt(parts[yearIdx], 10);
 
-  // State abbreviation appears as 2-letter uppercase-equivalent token near the end
-  // e.g. "ca" in "2023-tesla-model-y-ca-san-bernardino"
-  // make is the token after year, model is the rest before the state code
+  // State abbreviation: 2-letter token after at least one non-state token
   const afterYear = parts.slice(yearIdx + 1);
   const stateIdx = afterYear.findIndex((p) => /^[a-z]{2}$/.test(p) && afterYear.indexOf(p) > 0);
 
   let make: string | null = null;
   let model: string | null = null;
   let location: string | null = null;
+  let primaryDamage: string | null = null;
+
+  // Known EV/car model token counts to help split make+model from damage tokens
+  // make = afterYear[0], then we walk forward until we hit a damage token or state code
+  const KNOWN_MAKES: Record<string, number> = {
+    tesla: 2, chevrolet: 2, nissan: 1, ford: 2, hyundai: 2,
+    kia: 2, rivian: 2, lucid: 2, volkswagen: 2, bmw: 1, audi: 1,
+  };
+
+  const makeToken = afterYear[0]?.toLowerCase() ?? "";
+  const modelTokenCount = KNOWN_MAKES[makeToken] ?? 1;
+  const modelTokens = afterYear.slice(1, 1 + modelTokenCount);
+  const remainder = afterYear.slice(1 + modelTokenCount, stateIdx > 0 ? stateIdx : undefined);
+
+  make = afterYear[0]
+    ? afterYear[0].charAt(0).toUpperCase() + afterYear[0].slice(1)
+    : null;
+  model = modelTokens.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ") || null;
+
+  // Extract damage from remainder tokens (between model and state code)
+  if (remainder.length > 0) {
+    primaryDamage = extractDamageFromSlugParts(remainder);
+    // If no damage match, remainder tokens are extra model words (e.g. trim)
+    if (!primaryDamage && stateIdx > 0) {
+      model = afterYear.slice(1, stateIdx)
+        .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+        .join(" ") || null;
+    }
+  }
 
   if (stateIdx > 0) {
-    make = afterYear[0]
-      ? afterYear[0].charAt(0).toUpperCase() + afterYear[0].slice(1)
-      : null;
-    model = afterYear
-      .slice(1, stateIdx)
-      .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-      .join(" ") || null;
-    location = afterYear
-      .slice(stateIdx)
-      .map((p) => p.toUpperCase())
-      .join(", ") || null;
-  } else {
-    // Fallback: make = token[0], model = rest
-    make = afterYear[0]
-      ? afterYear[0].charAt(0).toUpperCase() + afterYear[0].slice(1)
-      : null;
-    model = afterYear
-      .slice(1)
-      .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-      .join(" ") || null;
+    location = afterYear.slice(stateIdx).map((p) => p.toUpperCase()).join(", ") || null;
   }
 
   console.log(
-    `[CopartAdapter] URL slug fallback: lot=${lotNumber} year=${year} make=${make} model=${model}`
+    `[CopartAdapter] URL slug fallback: lot=${lotNumber} year=${year} make=${make} model=${model} damage=${primaryDamage}`
   );
 
   return {
@@ -101,8 +137,8 @@ function parseFromUrlSlug(
     model,
     trim: null,
     title_status: null,
-    damage_type: null,
-    primary_damage: null,
+    damage_type: primaryDamage ? inferDamageType(primaryDamage) : null,
+    primary_damage: primaryDamage,
     secondary_damage: null,
     current_bid: null,
     buy_now_price: null,
@@ -113,7 +149,7 @@ function parseFromUrlSlug(
     sale_date: null,
     location,
     photos: [],
-    condition_notes: null,
+    condition_notes: primaryDamage,
     provider_name: "copart_url_slug",
     raw_provider_payload: { url, slug: slugMatch[1] },
   };
