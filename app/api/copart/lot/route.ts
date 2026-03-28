@@ -1,19 +1,20 @@
 /**
- * Copart Lot Detail API
+ * Copart Lot Detail API — Backward-Compatibility Wrapper
  *
  * GET /api/copart/lot?lotNumber=443134431
  *
- * Strategy:
- * 1. Try Copart's own internal JSON API (no cookie required)
- * 2. Fall back to Apify actor if Copart API is blocked/unavailable
+ * Delegates to CopartAdapter (lib/auction/adapters/copart-adapter.ts).
+ * Preserved for backward compatibility — the canonical path is
+ * POST /api/auction/analyze.
  *
- * Returns normalised lot data: VIN, damage fields, title type, odometer,
- * current bid, loss type, highlights — enough to run computeSalvageRisk()
- * with real data instead of empty/generic inputs.
+ * Returns LotData shape (mapped from NormalizedAuctionLot) so existing
+ * callers (app/copart/page.tsx) continue to work unchanged.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIP, RateLimiter } from "@/lib/rate-limiter";
+import { copartAdapter } from "@/lib/auction/adapters/copart-adapter";
+import { AuctionLotNotFoundError } from "@/lib/auction/types";
 
 export const maxDuration = 30;
 
@@ -247,28 +248,51 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Cache hit
+  // In-memory short-term cache (10 min) — preserves original response time
   const cached = getCached(lotNumber);
   if (cached) {
     return NextResponse.json({ success: true, lot: cached, cached: true });
   }
 
-  // Try Copart API first
-  let lot = await fetchFromCopartApi(lotNumber);
+  try {
+    const normalized = await copartAdapter.fetchByLot(lotNumber);
 
-  // Fall back to Apify if Copart API failed
-  if (!lot) {
-    console.log(`[CopartLot] Trying Apify fallback for lot ${lotNumber}`);
-    lot = await fetchFromApify(lotNumber);
-  }
+    // Map NormalizedAuctionLot → legacy LotData shape for backward compat
+    const lot: LotData = {
+      lotNumber: normalized.lot_number,
+      vin: normalized.vin,
+      year: normalized.year,
+      make: normalized.make,
+      model: normalized.model,
+      trim: normalized.trim,
+      primaryDamage: normalized.primary_damage,
+      secondaryDamage: normalized.secondary_damage,
+      titleType: normalized.title_status,
+      odometer: normalized.odometer,
+      odometerBrand: normalized.odometer_brand,
+      currentBid: normalized.current_bid,
+      buyNowPrice: normalized.buy_now_price,
+      lossType: normalized.loss_type,
+      highlights: normalized.condition_notes,
+      saleDate: normalized.sale_date,
+      location: normalized.location,
+      images: normalized.photos,
+      source: normalized.provider_name as LotData["source"],
+    };
 
-  if (!lot) {
+    setCached(lotNumber, lot);
+    return NextResponse.json({ success: true, lot, cached: false });
+  } catch (err) {
+    if (err instanceof AuctionLotNotFoundError) {
+      return NextResponse.json(
+        { success: false, error: "Could not retrieve lot data from Copart or Apify" },
+        { status: 502 }
+      );
+    }
+    console.error("[CopartLot] Error:", err);
     return NextResponse.json(
-      { success: false, error: "Could not retrieve lot data from Copart or Apify" },
+      { success: false, error: "Could not retrieve lot data" },
       { status: 502 }
     );
   }
-
-  setCached(lotNumber, lot);
-  return NextResponse.json({ success: true, lot, cached: false });
 }

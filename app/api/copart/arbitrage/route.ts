@@ -1,24 +1,22 @@
 /**
- * Copart Arbitrage Calculator API
+ * Copart Arbitrage Calculator API — Backward-Compatibility Wrapper
  *
  * POST /api/copart/arbitrage
  * Payment-gated (requires copart_report purchase).
  *
- * Returns:
- * - After-Repair Value (ARV) from Auto.dev market data
- * - Repair cost estimate (AI-generated, itemized)
- * - Max safe bid at 20% default margin
- * - Parts value breakdown
- * - Confidence + caveats
+ * Preserved for backward compatibility — the canonical path is
+ * POST /api/auction/analyze (which returns the full AuctionEvalReport
+ * including arbitrage when paid).
  *
- * Stateless — no DB writes. maxDuration = 60.
+ * This route now routes the AI call through hedgedGenerate (multi-model)
+ * instead of calling openaiAdapter directly.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIP, RateLimiter } from "@/lib/rate-limiter";
 import { checkPurchaseStatus } from "@/lib/payment-status";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
-import { openaiAdapter } from "@/lib/providers/openai-adapter";
+import { hedgedGenerate } from "@/lib/providers/hedged-generate";
 import {
   inferDamageType,
   buildRepairCostUserPrompt,
@@ -80,17 +78,29 @@ export async function POST(request: NextRequest) {
   // ── Infer damage type from listing text ──────────────────────────────────
   const damageType = inferDamageType(listingText);
 
-  // ── Parallel: Auto.dev ARV + OpenAI repair cost ──────────────────────────
+  // ── Parallel: Auto.dev ARV + hedged AI repair cost ───────────────────────
+  const isRepairCostOutputInner = (v: unknown): v is RepairCostOutput => {
+    if (!v || typeof v !== "object") return false;
+    const d = v as Record<string, unknown>;
+    return (
+      typeof d.repair_cost_total_low === "number" &&
+      typeof d.repair_cost_total_high === "number" &&
+      Array.isArray(d.breakdown)
+    );
+  };
+
   const [enrichment, repairResult] = await Promise.allSettled([
     enrichFromAutodev({ vin: vin ?? undefined, make: make ?? undefined, model: model ?? undefined, year: year ?? undefined }),
-    openaiAdapter.generate({
+    hedgedGenerate({
       systemPrompt: REPAIR_COST_SYSTEM_PROMPT,
       userPrompt: buildRepairCostUserPrompt({ year, make, model, trim, damageType, askingPrice, listingText }),
       jsonSchema: REPAIR_COST_JSON_SCHEMA,
       schemaName: "repair_cost_output",
       temperature: 0.2,
       maxTokens: 1500,
-      timeoutMs: 50_000,
+      validate: (json) => isRepairCostOutputInner(json)
+        ? { valid: true, errors: [] }
+        : { valid: false, errors: ["Invalid repair cost output shape"] },
     }),
   ]);
 
@@ -115,19 +125,10 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Parse repair cost output ──────────────────────────────────────────────
-  const isRepairCostOutput = (v: unknown): v is RepairCostOutput => {
-    if (!v || typeof v !== "object") return false;
-    const d = v as Record<string, unknown>;
-    return (
-      typeof d.repair_cost_total_low === "number" &&
-      typeof d.repair_cost_total_high === "number" &&
-      Array.isArray(d.breakdown)
-    );
-  };
   let repairOutput: RepairCostOutput | null = null;
   if (repairResult.status === "fulfilled") {
-    const parsed = repairResult.value.json;
-    repairOutput = isRepairCostOutput(parsed) ? parsed : null;
+    const parsed = repairResult.value.result.json;
+    repairOutput = isRepairCostOutputInner(parsed) ? parsed : null;
   }
 
   // Graceful fallback if AI failed
