@@ -158,11 +158,20 @@ export function computeDeterministicMetrics(
   recalls: NhtsaRecallSummary[]
 ): DeterministicMetrics {
   // Delegate core salvage risk to existing scorer
+  // Build a composite text blob so the scorer sees all damage signals,
+  // not just condition_notes (which may be empty for URL-slug sourced lots)
+  const listingText = [
+    lot.condition_notes,
+    lot.primary_damage,
+    lot.secondary_damage,
+    lot.loss_type,
+  ].filter(Boolean).join(" ");
+
   const salvageRisk = computeSalvageRisk({
     title_status: lot.title_status,
     mileage: lot.odometer,
     price: lot.current_bid,
-    listing_text: lot.condition_notes ?? "",
+    listing_text: listingText,
     receipt: { active_recalls: recalls.length },
   });
 

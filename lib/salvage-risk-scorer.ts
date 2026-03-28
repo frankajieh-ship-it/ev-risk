@@ -49,6 +49,9 @@ const STRUCTURAL_KEYWORDS = [
   "frame damage", "frame bent", "unibody", "structural damage",
   "rollover", "roof damage", "underbody", "charging port damage",
   "onboard charger", "dcdc converter", "ac damage",
+  // Common Copart primary_damage field values
+  "front end", "all over", "side", "rear end", "undercarriage",
+  "suspension", "collision", "impact",
 ];
 
 function containsKeyword(text: string, keywords: string[]): number {

@@ -9,7 +9,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Search, AlertTriangle, Loader2, ChevronRight } from "lucide-react";
+import { Search, AlertTriangle, Loader2, ChevronRight, Bell, ChevronDown, ChevronUp } from "lucide-react";
 import { getOrCreateReceiptToken } from "@/lib/session-utils";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import SalvageRiskCard from "@/components/copart/SalvageRiskCard";
@@ -18,7 +18,7 @@ import CopartUnlockCard from "@/components/copart/CopartUnlockCard";
 import ArbitrageCalculatorCard from "@/components/copart/ArbitrageCalculatorCard";
 import TitleFlagsCard from "@/components/copart/TitleFlagsCard";
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
-import type { AuctionEvalReport } from "@/lib/auction/types";
+import type { AuctionEvalReport, NhtsaRecallSummary } from "@/lib/auction/types";
 
 type PageState = "idle" | "fetching" | "done" | "error";
 
@@ -41,6 +41,48 @@ function isCopartUrl(input: string): boolean {
 function extractLotNumber(url: string): string | null {
   const match = url.match(/\/lot\/(\d{6,12})/);
   return match ? match[1] : null;
+}
+
+function RecallsCard({ recalls }: { recalls: NhtsaRecallSummary[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 space-y-3">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between"
+      >
+        <div className="flex items-center gap-2">
+          <Bell className="w-5 h-5 text-amber-600" />
+          <h3 className="text-base font-bold text-gray-900">Open Recalls</h3>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+            {recalls.length}
+          </span>
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+      </button>
+      {open && (
+        <div className="space-y-3 pt-1">
+          {recalls.map((r) => (
+            <div key={r.NHTSACampaignNumber} className="bg-white/80 rounded-xl border border-amber-100 p-3 space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-gray-800">{r.Component}</p>
+                <span className="text-xs text-gray-400 flex-shrink-0">#{r.NHTSACampaignNumber}</span>
+              </div>
+              <p className="text-xs text-gray-600">{r.Summary}</p>
+              {r.Remedy && (
+                <p className="text-xs text-green-700"><span className="font-semibold">Remedy:</span> {r.Remedy}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {!open && (
+        <p className="text-xs text-amber-700">
+          {recalls.map((r) => r.Component).join(" · ")}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function CopartPage() {
@@ -249,6 +291,11 @@ export default function CopartPage() {
               vin={lot.vin}
               askingPrice={lot.current_bid}
             />
+
+            {/* Recall list — shown inline when recalls present */}
+            {report.recalls.length > 0 && (
+              <RecallsCard recalls={report.recalls} />
+            )}
 
             {/* Phase 2: Arbitrage + title flags (paid unlock) */}
             {isUnlocked && resultId && (
