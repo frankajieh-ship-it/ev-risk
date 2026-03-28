@@ -22,7 +22,7 @@ const rateLimiter = new RateLimiter(60 * 1000, 10); // 10/min per IP
 
 function getStripe(): Stripe | null {
   if (!process.env.STRIPE_SECRET_KEY) return null;
-  return new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-01-27.acacia" });
+  return new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2025-12-15.clover" });
 }
 
 export async function POST(
