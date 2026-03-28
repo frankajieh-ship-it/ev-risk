@@ -33,6 +33,92 @@ export function extractLotNumberFromUrl(url: string): string | null {
   return match ? match[1] : null;
 }
 
+/**
+ * Parse year/make/model/location from the Copart URL slug.
+ * e.g. /lot/99707075/2023-tesla-model-y-ca-san-bernardino
+ * Returns partial lot data if slug is present, null otherwise.
+ */
+function parseFromUrlSlug(
+  url: string,
+  lotNumber: string
+): NormalizedAuctionLot | null {
+  // Slug is the path segment after the lot number
+  const slugMatch = url.match(/\/lot\/\d+\/([a-z0-9-]+)/i);
+  if (!slugMatch) return null;
+
+  const parts = slugMatch[1].split("-");
+  if (parts.length < 3) return null;
+
+  // First token is often the year (4-digit number)
+  const yearIdx = parts.findIndex((p) => /^\d{4}$/.test(p));
+  if (yearIdx === -1) return null;
+
+  const year = parseInt(parts[yearIdx], 10);
+
+  // State abbreviation appears as 2-letter uppercase-equivalent token near the end
+  // e.g. "ca" in "2023-tesla-model-y-ca-san-bernardino"
+  // make is the token after year, model is the rest before the state code
+  const afterYear = parts.slice(yearIdx + 1);
+  const stateIdx = afterYear.findIndex((p) => /^[a-z]{2}$/.test(p) && afterYear.indexOf(p) > 0);
+
+  let make: string | null = null;
+  let model: string | null = null;
+  let location: string | null = null;
+
+  if (stateIdx > 0) {
+    make = afterYear[0]
+      ? afterYear[0].charAt(0).toUpperCase() + afterYear[0].slice(1)
+      : null;
+    model = afterYear
+      .slice(1, stateIdx)
+      .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+      .join(" ") || null;
+    location = afterYear
+      .slice(stateIdx)
+      .map((p) => p.toUpperCase())
+      .join(", ") || null;
+  } else {
+    // Fallback: make = token[0], model = rest
+    make = afterYear[0]
+      ? afterYear[0].charAt(0).toUpperCase() + afterYear[0].slice(1)
+      : null;
+    model = afterYear
+      .slice(1)
+      .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+      .join(" ") || null;
+  }
+
+  console.log(
+    `[CopartAdapter] URL slug fallback: lot=${lotNumber} year=${year} make=${make} model=${model}`
+  );
+
+  return {
+    auction_source: "copart",
+    lot_number: lotNumber,
+    vin: null,
+    year,
+    make,
+    model,
+    trim: null,
+    title_status: null,
+    damage_type: null,
+    primary_damage: null,
+    secondary_damage: null,
+    current_bid: null,
+    buy_now_price: null,
+    odometer: null,
+    odometer_brand: null,
+    run_and_drive_status: null,
+    loss_type: null,
+    sale_date: null,
+    location,
+    photos: [],
+    condition_notes: null,
+    provider_name: "copart_url_slug",
+    raw_provider_payload: { url, slug: slugMatch[1] },
+  };
+}
+
 // ── Copart browser headers ────────────────────────────────────────────────────
 
 const COPART_BROWSER_HEADERS = {
@@ -227,7 +313,34 @@ async function fetchByLot(lotNumber: string): Promise<NormalizedAuctionLot> {
   }
 
   if (!lot) {
-    throw new AuctionLotNotFoundError(lotNumber);
+    // No URL slug available for bare lot number — return minimal shell so
+    // the evaluation service can still run Auto.dev enrichment by lot number
+    console.warn(`[CopartAdapter] All providers failed for lot ${lotNumber} — returning minimal shell`);
+    lot = {
+      auction_source: "copart",
+      lot_number: lotNumber,
+      vin: null,
+      year: null,
+      make: null,
+      model: null,
+      trim: null,
+      title_status: null,
+      damage_type: null,
+      primary_damage: null,
+      secondary_damage: null,
+      current_bid: null,
+      buy_now_price: null,
+      odometer: null,
+      odometer_brand: null,
+      run_and_drive_status: null,
+      loss_type: null,
+      sale_date: null,
+      location: null,
+      photos: [],
+      condition_notes: null,
+      provider_name: "copart_unavailable",
+      raw_provider_payload: null,
+    };
   }
 
   return lot;
@@ -238,7 +351,28 @@ async function fetchByUrl(url: string): Promise<NormalizedAuctionLot> {
   if (!lotNumber) {
     throw new Error(`Could not extract lot number from URL: ${url}`);
   }
-  return fetchByLot(lotNumber);
+
+  // Try standard fetch path first
+  let lot = await fetchFromCopartApi(lotNumber);
+
+  if (!lot) {
+    console.log(`[CopartAdapter] Trying Apify fallback for lot ${lotNumber}`);
+    lot = await fetchFromApify(lotNumber);
+  }
+
+  // If both API sources fail but we have a URL with a slug, extract partial data from it
+  if (!lot) {
+    lot = parseFromUrlSlug(url, lotNumber);
+    if (lot) {
+      console.log(`[CopartAdapter] Using URL slug partial data for lot ${lotNumber}`);
+    }
+  }
+
+  if (!lot) {
+    throw new AuctionLotNotFoundError(lotNumber);
+  }
+
+  return lot;
 }
 
 async function fetchByVin(_vin: string): Promise<NormalizedAuctionLot> {
