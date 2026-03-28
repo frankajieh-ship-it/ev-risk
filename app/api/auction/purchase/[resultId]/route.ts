@@ -76,14 +76,27 @@ export async function POST(
   }
 
   const priceId = process.env.STRIPE_COPART_REPORT_PRICE_ID;
-  if (!priceId) {
-    return NextResponse.json({ success: false, error: "Product not configured" }, { status: 503 });
-  }
+
+  const lineItems: import("stripe").Stripe.Checkout.SessionCreateParams.LineItem[] = priceId
+    ? [{ price: priceId, quantity: 1 }]
+    : [
+        {
+          price_data: {
+            currency: "usd",
+            unit_amount: 1999,
+            product_data: {
+              name: "OFFO Full Copart Risk Report",
+              description: "Full salvage risk analysis: battery projection, repair impact, post-auction routine estimate, and AI deep-dive.",
+            },
+          },
+          quantity: 1,
+        },
+      ];
 
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: lineItems,
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: {
