@@ -1792,10 +1792,10 @@ export async function GET(request: NextRequest) {
       .map((r: Record<string, unknown>) => r.latency_ms as number)
       .filter((n: number) => typeof n === "number" && n > 0)
       .sort((a: number, b: number) => a - b);
-    const avgLatencyMs = latencies.length > 0
+    const chatAvgLatencyMs = latencies.length > 0
       ? Math.round(latencies.reduce((s: number, v: number) => s + v, 0) / latencies.length)
       : 0;
-    const p95LatencyMs = latencies.length > 0
+    const chatP95LatencyMs = latencies.length > 0
       ? latencies[Math.floor(latencies.length * 0.95)] ?? latencies[latencies.length - 1]
       : 0;
 
@@ -1821,8 +1821,8 @@ export async function GET(request: NextRequest) {
       model_distribution: modelCounts,
       fallback_count: fallbackCount,
       fallback_rate_pct: fallbackRatePct,
-      avg_latency_ms: avgLatencyMs,
-      p95_latency_ms: p95LatencyMs,
+      avg_latency_ms: chatAvgLatencyMs,
+      p95_latency_ms: chatP95LatencyMs,
       chat_pass_purchases: chatPassPurchases.length,
       chat_pass_revenue_cents: chatPassRevenue,
       chat_conversion_pct: chatConversionPct,
