@@ -50,18 +50,7 @@ export async function GET(
       );
     }
 
-    // Verify payment or free status
-    if (report.status !== "paid" && report.status !== "free") {
-      securityLogger.logReportAccessDenied(
-        reportId,
-        clientIP,
-        `Unpaid report access attempt (status: ${report.status})`
-      );
-      return NextResponse.json(
-        { error: "Payment required - report not paid" },
-        { status: 402 }
-      );
-    }
+    // PDF generation is free for all users — no payment gate
 
     // Detect schema version
     const schemaVersion = report.schema_version || report.payload_json?.schema_version || "v1";

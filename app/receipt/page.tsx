@@ -42,8 +42,6 @@ import CompareBadge from "@/components/receipt/CompareBadge";
 import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import CompareSelectModal from "@/components/receipt/CompareSelectModal";
 import CompareView from "@/components/receipt/CompareView";
-import DecisionPackCard, { type UpgradeContext } from "@/components/receipt/DecisionPackCard";
-import PersonalConsultationCard from "@/components/receipt/PersonalConsultationCard";
 import ExtensionNudge from "@/components/ExtensionNudge";
 import ShareModal from "@/components/receipt/ShareModal";
 import { useReceiptHistory } from "@/hooks/useReceiptHistory";
@@ -449,9 +447,9 @@ export default function ReceiptPage() {
     return () => clearInterval(poll);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-load deep dive when payment is confirmed
+  // Auto-load deep dive for all users (free — no payment gate)
   useEffect(() => {
-    if (!isUnlocked || !receipt?.receipt_id || !receiptToken) return;
+    if (!receipt?.receipt_id || !receiptToken) return;
     if (deepDive || isLoadingDeepDive) return;
 
     let cancelled = false;
@@ -1164,13 +1162,13 @@ export default function ReceiptPage() {
                 isRegenerating={isGenerating}
                 onTrackLintFallback={handleLintFallback}
                 region={region}
-                sellerPackUnlocked={sellerPackUnlocked}
-                onSellerPackUpgrade={handleSellerPackAction}
+                sellerPackUnlocked={true}
+                onSellerPackUpgrade={() => {}}
                 isUpgrading={isUpgrading}
                 upgradeFailed={upgradeFailed}
-                isUnlocked={isUnlocked}
-                paymentsEnabled={paymentsEnabled}
-                onPaywallClick={() => handlePremiumAction("receipt_output_paywall")}
+                isUnlocked={true}
+                paymentsEnabled={false}
+                onPaywallClick={() => {}}
                 photos={listingPhotos}
               />
 
@@ -1280,51 +1278,14 @@ export default function ReceiptPage() {
                 />
               </div>
 
-              {/* ── Upsell cards — shown to non-unlocked users ── */}
-              {!isUnlocked && !freeMode && paymentsEnabled && (
-                <>
-                  {/* $9.99 Buyer Pass — paid card first while attention is highest */}
-                  {!decisionPackDismissed && (
-                    <div id="decision-pack-card">
-                      <DecisionPackCard
-                        receiptToken={receiptToken}
-                        receiptId={receipt.receipt_id}
-                        triggerReason={paywallTrigger}
-                        onDismiss={() => setDecisionPackDismissed(true)}
-                        region={region}
-                        upgradeContext={
-                          (compareBoundTo
-                            ? "compare"
-                            : routineContextUsed
-                              ? "ev_routine_check"
-                              : "listing_analysis") as UpgradeContext
-                        }
-                      />
-                    </div>
-                  )}
-
-                  {/* Free consultation — fallback for users not ready to pay */}
-                  <PersonalConsultationCard
-                    receiptId={receipt.receipt_id}
-                    vehicleLabel={
-                      receipt.listing_summary?.year && receipt.listing_summary?.make && receipt.listing_summary?.model
-                        ? `${receipt.listing_summary.year} ${receipt.listing_summary.make} ${receipt.listing_summary.model}`
-                        : receipt.listing_summary?.make
-                          ? `${receipt.listing_summary.make} ${receipt.listing_summary.model ?? ""}`.trim()
-                          : undefined
-                    }
-                  />
-                </>
-              )}
 
               {/* On-demand: extended negotiation scripts */}
               {!isUpgrading && receipt.receipt_id && (
                 <NegotiationDeepSection
                   receiptId={receipt.receipt_id}
                   initialStatus={sections?.negotiation_deep?.status}
-                  isUnlocked={isUnlocked}
-                  paymentsEnabled={paymentsEnabled}
-                  onPaywallClick={() => handlePremiumAction("negotiation_scripts_paywall")}
+                  isUnlocked={true}
+                  paymentsEnabled={false}
                 />
               )}
 
@@ -1346,8 +1307,8 @@ export default function ReceiptPage() {
                 model={receipt.listing_summary?.model}
               />
 
-              {/* Deep dive content (when unlocked, hidden in free mode) */}
-              {isUnlocked && deepDive && !freeMode && (
+              {/* Deep dive content — free for all users */}
+              {deepDive && (
                 <DeepDiveSection
                   deepDive={deepDive}
                   receiptId={receipt.receipt_id}
@@ -1355,8 +1316,8 @@ export default function ReceiptPage() {
                 />
               )}
 
-              {/* Deep dive loading spinner (hidden in free mode) */}
-              {isUnlocked && isLoadingDeepDive && !deepDive && !freeMode && (
+              {/* Deep dive loading spinner */}
+              {isLoadingDeepDive && !deepDive && (
                 <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-500">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Generating your deep dive analysis...
@@ -1429,8 +1390,8 @@ export default function ReceiptPage() {
             price: receipt.listing_summary.price ?? undefined,
             mileage: receipt.listing_summary.mileage ?? undefined,
           }}
-          paymentsEnabled={paymentsEnabled}
-          freeMode={freeMode}
+          paymentsEnabled={false}
+          freeMode={true}
           trackEvent={trackEvent}
         />
       )}

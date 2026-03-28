@@ -10,7 +10,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { checkPurchaseStatus } from "@/lib/payment-status";
 import { generateDeepDive } from "@/lib/receipt-openai";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import type { ListingReceipt } from "@/types/receipt";
@@ -72,16 +71,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 1. Check entitlement
-  const status = await checkPurchaseStatus(scenarioType, scenarioId, anonId);
-  if (!status.unlocked_base || status.purchase_status !== "paid") {
-    return NextResponse.json(
-      { error: "Purchase required to access deep dive" },
-      { status: 403 }
-    );
-  }
-
-  const packTier = status.pack_tier || "buyer_pass";
+  // Payment gate removed — deep dive is free for all users
+  const packTier = "buyer_pass";
 
   // 2. Check cache
   const { data: cached } = await supabase

@@ -18,8 +18,6 @@ import { guardTurnstile } from "@/lib/turnstile";
 import { grokAdapter } from "@/lib/providers/grok-adapter";
 import { openaiAdapter } from "@/lib/providers/openai-adapter";
 import { geminiAdapter } from "@/lib/providers/gemini-adapter";
-import { checkPurchaseStatus } from "@/lib/payment-status";
-import { isFreeMode } from "@/lib/rollout-flags";
 import type { GenerateOpts } from "@/lib/providers/types";
 
 // ---------------------------------------------------------------------------
@@ -203,30 +201,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Message too long" }, { status: 400 });
   }
 
-  // Check chat unlock status
+  // Chat is free for all users — no payment gate
   const limitKey = sessionId || getClientIP(request);
-  let chatUnlocked = isFreeMode();
-  if (!chatUnlocked && isSupabaseConfigured()) {
-    try {
-      const payStatus = await checkPurchaseStatus("chat", sessionId, sessionId);
-      chatUnlocked = payStatus.chat_unlocked;
-    } catch {
-      // Default to free tier on error
-    }
-  }
+  const chatUnlocked = true;
 
-  // Rate limiting: free = 5/day, paid = 200/day
-  const limiter = chatUnlocked ? paidChatLimiter : freeChatLimiter;
-  const rateCheck = limiter.check(limitKey);
+  // Rate limiting: 200/day per session
+  const rateCheck = paidChatLimiter.check(limitKey);
   if (!rateCheck.allowed) {
     const retryAfter = Math.ceil((rateCheck.resetAt - Date.now()) / 1000);
-    if (!chatUnlocked) {
-      // Free tier exhausted — prompt upgrade
-      return NextResponse.json(
-        { error: "daily_limit_reached", messages_used: 5, retry_after: retryAfter },
-        { status: 402 }
-      );
-    }
     return NextResponse.json(
       { error: "Too many messages. Please wait before sending more.", retry_after: retryAfter },
       { status: 429, headers: { "Retry-After": String(retryAfter) } }
