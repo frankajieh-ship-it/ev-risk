@@ -784,7 +784,7 @@ export async function GET(request: NextRequest) {
     const completedLatencies = filteredUserEvents
       .filter((e) => e.event_name === "copart_analyze_completed" && typeof e.event_data?.latency_ms === "number")
       .map((e) => e.event_data.latency_ms as number);
-    const avgLatencyMs = completedLatencies.length
+    const auctionAvgLatencyMs = completedLatencies.length
       ? Math.round(completedLatencies.reduce((s, v) => s + v, 0) / completedLatencies.length)
       : null;
 
@@ -800,7 +800,7 @@ export async function GET(request: NextRequest) {
       shared: auctionShared,
       cached_hits: auctionCachedEvents,
       fresh_analyses: auctionFreshEvents,
-      avg_latency_ms: avgLatencyMs,
+      avg_latency_ms: auctionAvgLatencyMs,
     };
 
     // -----------------------------------------------------------------------
