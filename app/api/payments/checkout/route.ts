@@ -83,20 +83,21 @@ export async function POST(request: NextRequest) {
   // 1. Validate scenario exists and verify ownership
   // chat_pass uses sessionId as scenarioId — no DB row to look up
   if (scenarioType !== "chat") {
-    const tableMap: Record<string, { table: string; select: string; ownerColumn: string | null }> = {
+    const tableMap: Record<string, { table: string; select: string; ownerColumn: string | null; idColumn?: string }> = {
       receipt: { table: "receipts", select: "id, session_id", ownerColumn: "session_id" },
       evroutine: { table: "reports", select: "id", ownerColumn: null },
       routine: { table: "routine_runs", select: "id", ownerColumn: null },
       compare: { table: "compare_sessions", select: "id", ownerColumn: null },
-      copart: { table: "receipts", select: "id, session_id", ownerColumn: "session_id" },
+      // copart scenario_id is auc_xxx (result_id), not a UUID — look up in auction_analyses
+      copart: { table: "auction_analyses", select: "id, result_id", ownerColumn: null, idColumn: "result_id" },
       owned_ev: { table: "garage_vehicles", select: "id", ownerColumn: null },
     };
-    const { table: tableName, select: selectColumns, ownerColumn } = tableMap[scenarioType] || tableMap.evroutine;
+    const { table: tableName, select: selectColumns, ownerColumn, idColumn = "id" } = tableMap[scenarioType] || tableMap.evroutine;
 
     const { data: scenario, error: scenarioError } = await supabase
       .from(tableName)
       .select(selectColumns)
-      .eq("id", scenarioId)
+      .eq(idColumn, scenarioId)
       .maybeSingle();
 
     if (scenarioError || !scenario) {
