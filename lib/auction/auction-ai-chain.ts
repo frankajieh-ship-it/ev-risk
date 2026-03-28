@@ -25,6 +25,7 @@
 import { grokAdapter } from "@/lib/providers/grok-adapter";
 import { geminiAdapter } from "@/lib/providers/gemini-adapter";
 import { openaiAdapter } from "@/lib/providers/openai-adapter";
+import type { GenerateOpts } from "@/lib/providers/types";
 import type { NormalizedAuctionLot, NhtsaRecallSummary } from "./types";
 import type { DeterministicMetrics } from "./deterministic-metrics";
 import {
@@ -134,13 +135,13 @@ function isPolish(v: unknown): v is PolishOutput {
 type StepAdapter = {
   name: string;
   isConfigured(): boolean;
-  generate(opts: Record<string, unknown>): Promise<{ json: Record<string, unknown>; latencyMs?: number }>;
+  generate(opts: GenerateOpts): Promise<{ json: Record<string, unknown>; latencyMs?: number }>;
 };
 
 async function runStep<T>(
   step: string,
   adapter: StepAdapter,
-  opts: Record<string, unknown>,
+  opts: GenerateOpts,
   guard: (v: unknown) => v is T,
   logs: AiStepLog[]
 ): Promise<T | null> {
