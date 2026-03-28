@@ -26,7 +26,7 @@ function fmt(n: number) {
   return "$" + Math.round(n).toLocaleString();
 }
 
-export default function CopartUnlockCard({ receiptToken, receiptId, onDismiss, teaserArvLow, teaserArvHigh }: CopartUnlockCardProps) {
+export default function CopartUnlockCard({ receiptToken: _receiptToken, receiptId, onDismiss, teaserArvLow, teaserArvHigh }: CopartUnlockCardProps) {
   const { trackEvent } = useEventTracking();
   const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,26 +56,23 @@ export default function CopartUnlockCard({ receiptToken, receiptId, onDismiss, t
     });
 
     try {
-      const res = await fetch("/api/payments/checkout", {
+      const res = await fetch(`/api/auction/purchase/${receiptId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          scenario_type: "copart",
-          scenario_id: receiptId,
-          anon_id: receiptToken,
-          pack_tier: "copart_report",
-          page_source: "copart_page",
+          success_url: window.location.href + (window.location.href.includes("?") ? "&" : "?") + "checkout=success",
+          cancel_url: window.location.href,
         }),
       });
 
       const data = await res.json();
 
-      if (data.url) {
-        window.location.href = data.url;
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
         return;
       }
 
-      if (data.status === "paid") {
+      if (data.success === false && data.error === "Already purchased") {
         window.location.reload();
         return;
       }
