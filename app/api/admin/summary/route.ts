@@ -1,3 +1,4 @@
+// cache-bust: 20260328-1
 /**
  * Unified Admin Summary Endpoint
  *
