@@ -194,11 +194,43 @@ export interface ReceiptPdfData {
   generatedAt: string;
 }
 
+// ---- Sellers Report PDF Data ----
+
+export interface SellersReportVehicleSummary {
+  year: number;
+  make: string;
+  model: string;
+  trim: string | null;
+  vin_redacted: string | null;
+  range_mi: number | null;
+}
+
+export interface SellersReportRecallSnapshot {
+  open_count: number;
+  resolved_count: number;
+  summary: string;
+}
+
+export interface SellersReportBuyerAnswer {
+  question: string;
+  answer: string;
+}
+
+export interface SellersReportPdfData {
+  vehicle_summary: SellersReportVehicleSummary;
+  routine_fit_highlights: string[];
+  recall_snapshot: SellersReportRecallSnapshot;
+  buyer_ready_answers: SellersReportBuyerAnswer[];
+  verification_token: string;
+  generated_at: string;
+}
+
 // ---- Render function request contract ----
 
 export interface RenderPdfRequest {
-  version: "v1" | "v2" | "receipt";
+  version: "v1" | "v2" | "receipt" | "sellers_report";
   v1Data?: ReportPayload;
   v2Data?: ReportPdfV2Data;
   receiptData?: ReceiptPdfData;
+  sellersReportData?: SellersReportPdfData;
 }

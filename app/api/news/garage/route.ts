@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
   // Fetch user's garage vehicles
   const { data: garageVehicles } = await supabase
     .from("garage_vehicles")
-    .select("make, model, year")
+    .select("make, model, year, is_owned_ev")
     .eq("user_id", user.id)
     .limit(10);
 
@@ -189,6 +189,14 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Extra +10 boost for articles matched to an owned EV
+    const hasOwnedEvBoost = matchedVehicles.length > 0 &&
+      garageVehicles.some((gv) => {
+        if (!gv.is_owned_ev) return false;
+        const gvTags = vehicleToTags(gv.make, gv.model);
+        return effectsLower.some((e) => gvTags.some((t) => e.includes(t) || t.includes(e)));
+      });
+
     scored.push({
       id: article.id,
       title: article.title,
@@ -197,7 +205,7 @@ export async function GET(req: NextRequest) {
       source: article.source,
       published_at: article.published_at,
       impact_score: article.impact_score,
-      adjusted_score: article.impact_score + (hasBoost ? 10 : 0),
+      adjusted_score: article.impact_score + (hasBoost ? 10 : 0) + (hasOwnedEvBoost ? 10 : 0),
       ai_summary: article.ai_summary ?? null,
       matched_vehicles: matchedVehicles,
     });

@@ -22,7 +22,7 @@ import {
   type PackTier,
 } from "@/lib/price-assignment";
 
-const VALID_PACK_TIERS: PackTier[] = ["buyer_pass", "seller_questions", "chat_pass", "copart_report"];
+const VALID_PACK_TIERS: PackTier[] = ["buyer_pass", "seller_questions", "chat_pass", "copart_report", "sellers_report_pdf"];
 
 const checkoutRateLimiter = new RateLimiter(60 * 1000, 5); // 5 attempts per minute per IP
 
@@ -32,7 +32,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
     })
   : null;
 
-const VALID_SCENARIO_TYPES = ["receipt", "evroutine", "routine", "compare", "chat", "copart"] as const;
+const VALID_SCENARIO_TYPES = ["receipt", "evroutine", "routine", "compare", "chat", "copart", "owned_ev"] as const;
 type ScenarioType = (typeof VALID_SCENARIO_TYPES)[number];
 
 export async function POST(request: NextRequest) {
@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
       routine: { table: "routine_runs", select: "id", ownerColumn: null },
       compare: { table: "compare_sessions", select: "id", ownerColumn: null },
       copart: { table: "receipts", select: "id, session_id", ownerColumn: "session_id" },
+      owned_ev: { table: "garage_vehicles", select: "id", ownerColumn: null },
     };
     const { table: tableName, select: selectColumns, ownerColumn } = tableMap[scenarioType] || tableMap.evroutine;
 
@@ -163,8 +164,8 @@ export async function POST(request: NextRequest) {
         pack_tier: packTier,
         ...utmFields,
       },
-      success_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : scenarioType === "compare" ? "/compare" : scenarioType === "chat" ? "/receipt" : scenarioType === "copart" ? "/copart" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=success&chat_pass=1&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : scenarioType === "compare" ? "/compare" : scenarioType === "chat" ? "/receipt" : scenarioType === "copart" ? "/copart" : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=cancel`,
+      success_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : scenarioType === "compare" ? "/compare" : scenarioType === "chat" ? "/receipt" : scenarioType === "copart" ? "/copart" : scenarioType === "owned_ev" ? `/workspace/garage/${scenarioId}/owned-ev` : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : scenarioType === "compare" ? "/compare" : scenarioType === "chat" ? "/receipt" : scenarioType === "copart" ? "/copart" : scenarioType === "owned_ev" ? `/workspace/garage/${scenarioId}/owned-ev` : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=cancel`,
     };
 
     // Use pre-created Price if available, otherwise inline price_data
@@ -174,13 +175,16 @@ export async function POST(request: NextRequest) {
       const isSeller = packTier === "seller_questions";
       const isChat = packTier === "chat_pass";
       const isCopart = packTier === "copart_report";
-      const productName = isSeller ? "OFFO Seller Questions Pack" : isChat ? "OFFO AI Unlimited" : isCopart ? "OFFO Full Copart Risk Report" : "OFFO Buyer Pass";
+      const isSellersReport = packTier === "sellers_report_pdf";
+      const productName = isSeller ? "OFFO Seller Questions Pack" : isChat ? "OFFO AI Unlimited" : isCopart ? "OFFO Full Copart Risk Report" : isSellersReport ? "OFFO Sellers Report" : "OFFO Buyer Pass";
       const productDescription = isSeller
         ? "Full seller questions pack + inspect-first checklist for this listing."
         : isChat
         ? "Unlimited AI chat questions forever — full multi-model reasoning, saved history."
         : isCopart
         ? "Full salvage risk analysis: battery projection, repair impact, post-auction routine estimate, and AI deep-dive."
+        : isSellersReport
+        ? "One-page dealer-ready Sellers Report with routine fit highlights, recall snapshot, and buyer-ready answers."
         : "10 receipts with full AI analysis, deep-dive, and PDF export.";
 
       sessionParams.line_items = [

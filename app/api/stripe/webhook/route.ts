@@ -410,6 +410,24 @@ async function fulfillBuyerPass(session: Stripe.Checkout.Session) {
       // Non-critical — don't fail fulfillment over analytics
     }
 
+    // Sellers Report PDF entitlement — insert when pack_tier is sellers_report_pdf
+    if (packTier === "sellers_report_pdf" && baseScenarioId) {
+      const userId = session.metadata?.user_id;
+      if (userId) {
+        try {
+          await supabase.from("owned_ev_entitlements").insert({
+            user_id: userId,
+            garage_vehicle_id: baseScenarioId,
+            entitlement_type: "sellers_report_pdf",
+            stripe_purchase_id: data.purchase_id,
+          });
+        } catch {
+          // Non-fatal — entitlement can be granted manually if insert fails
+          console.error("⚠️ Failed to insert sellers_report entitlement for vehicle", baseScenarioId);
+        }
+      }
+    }
+
     // Update email funnel stage → purchased (fire-and-forget)
     const anonId = session.metadata?.anon_id;
     if (anonId) {

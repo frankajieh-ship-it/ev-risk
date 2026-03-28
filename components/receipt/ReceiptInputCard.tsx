@@ -162,12 +162,18 @@ export default function ReceiptInputCard({
   // Dirty-after-result: tracks whether user changed inputs after a receipt was displayed
   const [dirtyAfterResult, setDirtyAfterResult] = useState(false);
 
-  // Reset dirty flag when a new result arrives
+  // Reset dirty flag and manual banner when a new result arrives
   useEffect(() => {
-    if (hasResult) setDirtyAfterResult(false);
+    if (hasResult) {
+      setDirtyAfterResult(false);
+      setShowManualFallbackBanner(false);
+    }
   }, [hasResult]);
 
-  // VIN fallback state — shown after extraction failure
+  // Manual form fallback banner — shown after extraction failure
+  const [showManualFallbackBanner, setShowManualFallbackBanner] = useState(false);
+
+  // VIN fallback state — shown after VIN autofill flow (not auto-triggered on extraction failure)
   const [showVinFallback, setShowVinFallback] = useState(false);
   const [vinFallbackValue, setVinFallbackValue] = useState("");
   const [vinLookupStatus, setVinLookupStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -281,7 +287,16 @@ export default function ReceiptInputCard({
   // Can extract?
   const canExtractUrl = inputMode === "url" && listingUrl.trim().length > 0;
   const canExtractText = inputMode === "text" && listingText.trim().length >= 20;
-  const canExtract = !isExtracting && !isGenerating && (canExtractUrl || canExtractText);
+
+  // Opens the manual form after extraction failure
+  const showManualForm = () => {
+    setDetailsOpen(true);
+    setShowManualFallbackBanner(true);
+    trackEvent?.("manual_form_shown", { anon_id: receiptToken, trigger: "extraction_failure" });
+    setTimeout(() => {
+      document.getElementById("vehicle-details-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
 
   // Unified extract handler for both URL and text modes
   const handleExtract = async (urlOverride?: string) => {
@@ -289,6 +304,10 @@ export default function ReceiptInputCard({
 
     setIsExtracting(true);
     setExtractError(null);
+    setShowManualFallbackBanner(false);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
       const bodyPayload: Record<string, string> = {};
@@ -302,6 +321,7 @@ export default function ReceiptInputCard({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyPayload),
+        signal: controller.signal,
       });
 
       const data = await res.json();
@@ -321,14 +341,12 @@ export default function ReceiptInputCard({
           setExtractError({
             message: "This site blocked auto-extraction."
           });
-          setShowVinFallback(true);
-          setTimeout(() => vinInputRef.current?.focus(), 150);
+          showManualForm();
         } else if (data.diagnostics?.failureReason === "timeout") {
           setExtractError({
-            message: "Extraction timed out."
+            message: "Extraction timed out — please fill in the details below."
           });
-          setShowVinFallback(true);
-          setTimeout(() => vinInputRef.current?.focus(), 150);
+          showManualForm();
         } else if (data.diagnostics?.failureReason === "search_page") {
           const urlValue = urlOverride ?? listingUrl.trim();
           const id = extractCarGurusListingId(urlValue);
@@ -340,18 +358,18 @@ export default function ReceiptInputCard({
             setExtractError({
               message: "That looks like a search page. Open a specific listing and copy its URL."
             });
-            setShowVinFallback(true);
-            setTimeout(() => vinInputRef.current?.focus(), 150);
+            showManualForm();
           }
         } else {
           setExtractError({
             message: "Couldn't extract listing details."
           });
-          setShowVinFallback(true);
-          setTimeout(() => vinInputRef.current?.focus(), 150);
+          showManualForm();
         }
         return;
       }
+
+      setShowManualFallbackBanner(false);
 
       // Merge extracted fields into state, skipping dirty fields
       const f: FetchedListingFields = data.fields;
@@ -416,17 +434,31 @@ export default function ReceiptInputCard({
       onExtractionFields?.({ year: f.year, make: f.make, model: f.model, trim: f.trim, mileage: f.mileage });
       if (data.photo_urls?.length) onPhotosExtracted?.(data.photo_urls);
     } catch (err) {
-      trackEvent?.("receipt_extract_failed", {
-        input_mode: inputMode,
-        anon_id: receiptToken,
-        error: err instanceof Error ? err.message : "network_error",
-        failure_reason: "network_error",
-        input_length: inputMode === "url" ? (urlOverride ?? listingUrl.trim()).length : listingText.trim().length,
-      });
-      setExtractError({
-        message: "Network error — try again or paste the listing text"
-      });
+      if (err instanceof Error && err.name === "AbortError") {
+        trackEvent?.("receipt_extract_failed", {
+          input_mode: inputMode,
+          anon_id: receiptToken,
+          error: "client_timeout",
+          failure_reason: "client_timeout",
+          input_length: inputMode === "url" ? (urlOverride ?? listingUrl.trim()).length : listingText.trim().length,
+        });
+        setExtractError({ message: "Extraction timed out — please fill in the details below." });
+        showManualForm();
+      } else {
+        trackEvent?.("receipt_extract_failed", {
+          input_mode: inputMode,
+          anon_id: receiptToken,
+          error: err instanceof Error ? err.message : "network_error",
+          failure_reason: "network_error",
+          input_length: inputMode === "url" ? (urlOverride ?? listingUrl.trim()).length : listingText.trim().length,
+        });
+        setExtractError({
+          message: "Network error — try again or paste the listing text"
+        });
+        showManualForm();
+      }
     } finally {
+      clearTimeout(timeoutId);
       setIsExtracting(false);
     }
   };
@@ -511,6 +543,14 @@ export default function ReceiptInputCard({
       listing_source: listingSource || (inputMode === "text" ? "text_paste" : "manual"),
     });
 
+    if (showManualFallbackBanner || (!hasExtracted && inputMode === "url")) {
+      trackEvent?.("manual_form_submitted", {
+        anon_id: receiptToken,
+        fields_filled: filledRequired.length,
+        input_mode: inputMode,
+      });
+    }
+
     onGenerate({
       listing_url: inputMode === "url" ? listingUrl.trim() : undefined,
       // In URL mode, pass the scraped raw text so the AI has full listing context
@@ -570,7 +610,7 @@ export default function ReceiptInputCard({
               : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
           }`}
         >
-          <FileText className="w-4 h-4" /> Paste Text
+          <FileText className="w-4 h-4" /> Paste Text <span className="text-xs text-gray-400 ml-0.5 font-normal">(advanced)</span>
         </button>
       </div>
 
@@ -586,6 +626,7 @@ export default function ReceiptInputCard({
                   setListingUrl(e.target.value);
                   setExtractError(null);
                   setShowVinFallback(false);
+                  setShowManualFallbackBanner(false);
                   setVinFallbackValue("");
                   setVinLookupStatus("idle");
                   setVinLookupError(null);
@@ -967,6 +1008,15 @@ export default function ReceiptInputCard({
 
         {detailsOpen && (
           <div className="space-y-3">
+            {/* Extraction failure banner */}
+            {showManualFallbackBanner && (
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800">
+                  We couldn&apos;t extract the listing automatically. Please fill in the details below.
+                </p>
+              </div>
+            )}
             {/* VIN-fill prompt — shown after VIN autofill when price/mileage still missing */}
             {vinFilledNeedsPriceMileage && !fields.price && !fields.mileage && (
               <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">

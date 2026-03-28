@@ -11,7 +11,7 @@
 import type { Region } from "@/lib/region";
 
 export type PriceVariant = "299" | "499" | "999" | "1999";
-export type PackTier = "buyer_pass" | "seller_questions" | "chat_pass" | "copart_report";
+export type PackTier = "buyer_pass" | "seller_questions" | "chat_pass" | "copart_report" | "sellers_report_pdf";
 
 export const BUYER_PASS_PRICE = "$9.99";
 export const BUYER_PASS_CREDITS = 10;
@@ -67,7 +67,7 @@ export function getVariantForTier(tier: PackTier, anonId?: string): PriceVariant
     return assignSellerPackVariant(anonId);
   }
   if (tier === "copart_report") return "1999";
-  // chat_pass and buyer_pass both price at $9.99
+  // sellers_report_pdf, chat_pass, and buyer_pass all price at $9.99
   return "999";
 }
 

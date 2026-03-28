@@ -15,6 +15,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { ReportPdf } from "../../lib/pdf/ReportPdf.js";
 import { ReportPdfV2 } from "../../lib/pdf/ReportPdfV2.js";
 import { ReceiptPdf } from "../../lib/pdf/ReceiptPdf.js";
+import { SellersReportPdf } from "../../lib/pdf/SellersReportPdf.js";
 import type { RenderPdfRequest } from "../../lib/pdf/shared-types.js";
 
 const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> => {
@@ -51,6 +52,9 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
       pdfBuffer = await renderToBuffer(doc);
     } else if (body.version === "receipt" && body.receiptData) {
       const doc = React.createElement(ReceiptPdf, { data: body.receiptData }) as any;
+      pdfBuffer = await renderToBuffer(doc);
+    } else if (body.version === "sellers_report" && body.sellersReportData) {
+      const doc = React.createElement(SellersReportPdf, { data: body.sellersReportData }) as any;
       pdfBuffer = await renderToBuffer(doc);
     } else {
       return {

@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap, LogIn, ChevronRight } from "lucide-react";
+import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap, LogIn, ChevronRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import NewsCard, { type NewsArticle } from "@/components/NewsCard";
 import { useRouter } from "next/navigation";
@@ -20,6 +20,7 @@ import { getShortlist, removeFromShortlist } from "@/lib/shortlist-store";
 import type { ShortlistCandidate } from "@/lib/shortlist-coach";
 import RecallBadge, { type Recall } from "@/components/garage/RecallBadge";
 import RecallPanel from "@/components/garage/RecallPanel";
+import OwnedEvCard from "@/components/garage/OwnedEvCard";
 
 interface GarageVehicle {
   id: string;
@@ -31,7 +32,15 @@ interface GarageVehicle {
   nickname: string | null;
   classification: { category?: string; subCategory?: string } | null;
   notes: string | null;
+  is_owned_ev?: boolean;
   created_at: string;
+}
+
+interface OwnedEvReportHealth {
+  score: number;
+  label: string;
+  headline: string;
+  watch_area: string | null;
 }
 
 function vehicleLabel(v: GarageVehicle): string {
@@ -54,6 +63,11 @@ export default function GaragePage() {
   const [compareBase, setCompareBase] = useState<GarageVehicle | null>(null);
   const [recallPanel, setRecallPanel] = useState<{ vehicle: GarageVehicle; recalls: Recall[] } | null>(null);
   const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
+  // Owned EV state
+  const [ownedEvReports, setOwnedEvReports] = useState<Record<string, OwnedEvReportHealth | null>>({});
+  const [ownedEvReportLoading, setOwnedEvReportLoading] = useState<Record<string, boolean>>({});
+  const [markingOwnedId, setMarkingOwnedId] = useState<string | null>(null);
+  const [justAddedVehicleId, setJustAddedVehicleId] = useState<string | null>(null);
 
   const headers = useCallback(() => {
     return session?.access_token
@@ -137,6 +151,7 @@ export default function GaragePage() {
         trackEvent("my_garage_vehicle_added", { mode: addMode });
         setShowAdd(false);
         setFormData({ vin: "", make: "", model: "", year: "", nickname: "" });
+        if (data.vehicle?.id) setJustAddedVehicleId(data.vehicle.id);
         loadVehicles();
       }
     } catch {
@@ -152,6 +167,45 @@ export default function GaragePage() {
     await fetch(`/api/workspace/garage/${id}`, { method: "DELETE", headers: h });
     setVehicles((prev) => prev.filter((v) => v.id !== id));
     if (compareBase?.id === id) setCompareBase(null);
+  };
+
+  const handleMarkAsOwned = async (vehicleId: string) => {
+    const h = headers();
+    if (!h) return;
+    setMarkingOwnedId(vehicleId);
+    try {
+      const res = await fetch("/api/workspace/garage/owned-ev", {
+        method: "POST",
+        headers: h,
+        body: JSON.stringify({ garage_vehicle_id: vehicleId, ownership_source: "manual" }),
+      });
+      if (res.ok) {
+        setJustAddedVehicleId(null);
+        trackEvent("owned_ev_marked", { vehicle_id: vehicleId });
+        loadVehicles();
+      }
+    } catch {} finally {
+      setMarkingOwnedId(null);
+    }
+  };
+
+  const handleGenerateOwnedEvReport = async (vehicleId: string) => {
+    const h = headers();
+    if (!h) return;
+    setOwnedEvReportLoading((prev) => ({ ...prev, [vehicleId]: true }));
+    try {
+      const res = await fetch(`/api/workspace/garage/${vehicleId}/owned-ev/report`, {
+        method: "POST",
+        headers: h,
+        body: JSON.stringify({ report_type: "routine_health" }),
+      });
+      const data = await res.json();
+      if (res.ok && data.report?.output_payload?.routine_health) {
+        setOwnedEvReports((prev) => ({ ...prev, [vehicleId]: data.report.output_payload.routine_health }));
+      }
+    } catch {} finally {
+      setOwnedEvReportLoading((prev) => ({ ...prev, [vehicleId]: false }));
+    }
   };
 
   const handleCompareClick = (v: GarageVehicle) => {
@@ -414,6 +468,11 @@ export default function GaragePage() {
                     <p className="font-medium text-gray-900">
                       {v.nickname || vehicleLabel(v)}
                     </p>
+                    {v.is_owned_ev && (
+                      <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                        My Car
+                      </span>
+                    )}
                     {session?.access_token && (
                       <RecallBadge
                         vehicleId={v.id}
@@ -426,6 +485,15 @@ export default function GaragePage() {
                     {v.nickname && <span>{vehicleLabel(v)}</span>}
                     {v.trim && <span>&middot; {v.trim}</span>}
                     {v.vin && <span className="font-mono">&middot; {v.vin}</span>}
+                    {v.is_owned_ev && (
+                      <Link
+                        href={`/workspace/garage/${v.id}/owned-ev`}
+                        className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                      >
+                        <ShieldCheck className="w-3 h-3" />
+                        View Owned EV Report
+                      </Link>
+                    )}
                   </div>
                 </div>
 
@@ -477,6 +545,73 @@ export default function GaragePage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Mark as Owned prompt — shown after adding a new vehicle */}
+      {justAddedVehicleId && isAuthenticated && (
+        <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-blue-900">Is this your vehicle?</p>
+            <p className="text-xs text-blue-700 mt-0.5">
+              Mark it as Owned to unlock your free Routine Health Report.
+            </p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={() => handleMarkAsOwned(justAddedVehicleId)}
+              disabled={markingOwnedId === justAddedVehicleId}
+              className="flex items-center gap-1 py-1.5 px-3 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {markingOwnedId === justAddedVehicleId ? (
+                <><Loader2 className="w-3 h-3 animate-spin" /> Marking…</>
+              ) : (
+                "Yes, mark as Owned"
+              )}
+            </button>
+            <button
+              onClick={() => setJustAddedVehicleId(null)}
+              className="py-1.5 px-3 rounded-lg text-xs text-blue-600 hover:text-blue-800 transition-colors"
+            >
+              Not mine
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* My Owned EVs section */}
+      {isAuthenticated && vehicles.filter((v) => v.is_owned_ev).length > 0 && (
+        <div className="mt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <h2 className="text-sm font-semibold text-gray-900">My Owned EVs</h2>
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+              {vehicles.filter((v) => v.is_owned_ev).length}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {vehicles
+              .filter((v) => v.is_owned_ev)
+              .map((v) => {
+                const vinRedacted = v.vin
+                  ? v.vin.slice(0, 3) + "****" + v.vin.slice(-4)
+                  : null;
+                return (
+                  <OwnedEvCard
+                    key={v.id}
+                    vehicleId={v.id}
+                    make={v.make}
+                    model={v.model}
+                    year={v.year}
+                    trim={v.trim}
+                    vinRedacted={vinRedacted}
+                    routineHealth={ownedEvReports[v.id] ?? null}
+                    reportLoading={ownedEvReportLoading[v.id] ?? false}
+                    sellersReportUnlocked={false}
+                    onGenerateReport={() => handleGenerateOwnedEvReport(v.id)}
+                  />
+                );
+              })}
+          </div>
         </div>
       )}
 
