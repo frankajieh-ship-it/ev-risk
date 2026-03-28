@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { ShieldCheck, ShieldAlert, AlertTriangle, Zap, Wrench, Tag, Bell, DollarSign, Gauge, TrendingUp, Lock, ChevronDown, ChevronUp } from "lucide-react";
+import { ShieldCheck, ShieldAlert, AlertTriangle, Zap, Wrench, Tag, Bell, DollarSign, Gauge, TrendingUp, Lock } from "lucide-react";
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
 
 type DataSource = "api" | "scrape" | "manual";
@@ -71,15 +70,8 @@ const DATA_SOURCE_BADGE: Record<DataSource, { label: string; className: string }
 };
 
 export default function SalvageRiskCard({ result, dataSource }: SalvageRiskCardProps) {
-  const [checklistOpen, setChecklistOpen] = useState(false);
   const cfg = GRADE_CONFIG[result.grade];
   const Icon = cfg.icon;
-
-  // Top risk factors for checklist (only those >= 60)
-  const highFactors = FACTOR_ROWS
-    .filter(({ key }) => result.factors[key] >= 60)
-    .sort((a, b) => result.factors[b.key] - result.factors[a.key])
-    .slice(0, 3);
 
   return (
     <div className={`rounded-2xl border ${cfg.borderClass} ${cfg.bgClass} p-5 space-y-4`}>
@@ -138,31 +130,25 @@ export default function SalvageRiskCard({ result, dataSource }: SalvageRiskCardP
       {/* Summary */}
       <p className="text-sm text-gray-700 leading-relaxed">{result.routine_impact_summary}</p>
 
-      {/* Risk checklist — collapsible, only shown when factors >= 60 */}
-      {highFactors.length > 0 && (
-        <div className="border-t border-gray-200/60 pt-3">
-          <button
-            onClick={() => setChecklistOpen((o) => !o)}
-            className="w-full flex items-center justify-between text-xs font-semibold text-gray-600 hover:text-gray-800"
-          >
-            <span>What&apos;s raising this risk score?</span>
-            {checklistOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
-          {checklistOpen && (
-            <div className="mt-2 space-y-2">
-              {highFactors.map(({ key, label, icon: FactorIcon }) => (
-                <div key={key} className="flex items-start gap-2 p-2 bg-white/70 rounded-lg">
-                  <FactorIcon className="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-semibold text-gray-800">{label}</p>
-                    <p className="text-xs text-gray-600 mt-0.5">{FACTOR_EXPLANATIONS[key]}</p>
-                  </div>
-                </div>
-              ))}
+      {/* Risk factor summary — always visible */}
+      <div className="border-t border-gray-200/60 pt-3 space-y-1.5">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Risk factor summary</p>
+        {FACTOR_ROWS.map(({ key, label, icon: FactorIcon }) => {
+          const val = result.factors[key];
+          const isHigh = val >= 60;
+          const isMid = val >= 30 && val < 60;
+          const textColor = isHigh ? "text-red-700" : isMid ? "text-amber-700" : "text-green-700";
+          const levelLabel = isHigh ? "Elevated" : isMid ? "Moderate" : "Low";
+          return (
+            <div key={key} className="flex items-start gap-2 text-xs">
+              <FactorIcon className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${textColor}`} />
+              <span className="text-gray-700 w-28 flex-shrink-0">{label}</span>
+              <span className={`font-semibold ${textColor}`}>{levelLabel} ({val})</span>
+              {isHigh && <span className="text-gray-500 ml-1">— {FACTOR_EXPLANATIONS[key].split("—")[0].trim()}</span>}
             </div>
-          )}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
       {/* ARV hint — shown when price was available for heuristic */}
       {result.arv_hint_low != null && result.arv_hint_high != null && (

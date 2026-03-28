@@ -28,7 +28,7 @@ export default function AuctionBidGuidanceCard({ result, askingPrice, currentBid
   const discountNote =
     suggested_bid_discount > 0
       ? `Suggest bidding ${suggested_bid_discount}% below retail book value to account for salvage risk.`
-      : "This vehicle scores well — standard auction bidding applies.";
+      : "Risk score is strong. Focus your due diligence on title inspection and battery diagnostics.";
 
   // Determine reference price: asking price > current bid > manual entry
   const manualParsed = parseFloat(manualBid.replace(/[^0-9.]/g, ""));
@@ -75,6 +75,20 @@ export default function AuctionBidGuidanceCard({ result, askingPrice, currentBid
         <div className="flex items-start gap-2 p-3 bg-white/70 rounded-xl border border-white/50">
           <Info className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
           <p className="text-sm text-gray-700">{discountNote}</p>
+        </div>
+      )}
+
+      {/* ARV hint — shown when heuristic estimate is available */}
+      {result.arv_hint_low != null && result.arv_hint_high != null && (
+        <div className="p-3 bg-white/70 rounded-xl border border-white/50 space-y-1">
+          <p className="text-xs font-semibold text-gray-600">Estimated post-repair market value</p>
+          <p className="text-lg font-bold text-gray-900">
+            {fmt(result.arv_hint_low)} – {fmt(result.arv_hint_high)}
+          </p>
+          <p className="text-xs text-gray-400">
+            Rough range based on damage grade ·{" "}
+            <span className="text-orange-600">Unlock for live ARV from market comps</span>
+          </p>
         </div>
       )}
 

@@ -9,6 +9,8 @@ interface CopartUnlockCardProps {
   receiptToken: string;
   receiptId: string;
   onDismiss?: () => void;
+  teaserArvLow?: number | null;
+  teaserArvHigh?: number | null;
 }
 
 const BENEFITS = [
@@ -20,7 +22,11 @@ const BENEFITS = [
   { icon: FileDown, text: "Full AI deep-dive + PDF export" },
 ];
 
-export default function CopartUnlockCard({ receiptToken, receiptId, onDismiss }: CopartUnlockCardProps) {
+function fmt(n: number) {
+  return "$" + Math.round(n).toLocaleString();
+}
+
+export default function CopartUnlockCard({ receiptToken, receiptId, onDismiss, teaserArvLow, teaserArvHigh }: CopartUnlockCardProps) {
   const { trackEvent } = useEventTracking();
   const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +128,30 @@ export default function CopartUnlockCard({ receiptToken, receiptId, onDismiss }:
         <p className="text-sm text-gray-600 mb-4">
           Get the complete salvage analysis — battery projection, repair impact, and post-auction routine fit.
         </p>
+
+        {/* Teaser preview with blurred numbers */}
+        {(teaserArvLow != null || teaserArvHigh != null) && (
+          <div className="bg-white/60 rounded-xl border border-orange-100 p-3 mb-4 space-y-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">What you&apos;ll unlock</p>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-xs text-gray-500">Est. ARV</p>
+                <p className="text-sm font-bold text-gray-900 blur-[3px] select-none">
+                  {teaserArvLow ? fmt(teaserArvLow) : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Repair Est.</p>
+                <p className="text-sm font-bold text-gray-900 blur-[3px] select-none">$8,200</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Max Safe Bid</p>
+                <p className="text-sm font-bold text-green-700 blur-[3px] select-none">$27,400</p>
+              </div>
+            </div>
+            <p className="text-xs text-center text-orange-600 font-medium">Unlock to see your numbers →</p>
+          </div>
+        )}
 
         <ul className="space-y-2 mb-5">
           {BENEFITS.map(({ icon: Icon, text }) => (

@@ -274,6 +274,8 @@ export default function CopartPage() {
                 receiptToken={receiptToken}
                 receiptId={resultId}
                 onDismiss={() => setShowUnlock(false)}
+                teaserArvLow={salvageRisk?.arv_hint_low ?? null}
+                teaserArvHigh={salvageRisk?.arv_hint_high ?? null}
               />
             )}
 
