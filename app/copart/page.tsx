@@ -30,6 +30,7 @@ import Footer from "@/components/landing/Footer";
 import { getOrCreateReceiptToken, getOrCreatePersistentSessionId } from "@/lib/session-utils";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import SalvageRiskCard from "@/components/copart/SalvageRiskCard";
+import OffoScoreCard from "@/components/copart/OffoScoreCard";
 import AuctionBidGuidanceCard from "@/components/copart/AuctionBidGuidanceCard";
 import ArbitrageCalculatorCard from "@/components/copart/ArbitrageCalculatorCard";
 import TitleFlagsCard from "@/components/copart/TitleFlagsCard";
@@ -42,6 +43,7 @@ import type {
   IncentiveStatus,
   ElectricityContext,
 } from "@/lib/auction/types";
+import type { OffoScore } from "@/types/v2";
 
 type PageState = "idle" | "fetching" | "done" | "error";
 
@@ -387,6 +389,7 @@ export default function CopartPage() {
   const [report, setReport] = useState<AuctionEvalReport | null>(null);
   const [resultId, setResultId] = useState<string | null>(null);
   const [salvageRisk, setSalvageRisk] = useState<SalvageRiskResult | null>(null);
+  const [offoScore, setOffoScore] = useState<OffoScore | null>(null);
 
   const receiptToken = typeof window !== "undefined" ? getOrCreateReceiptToken() : "";
   const listingTextRef = useRef("");
@@ -416,6 +419,7 @@ export default function CopartPage() {
     setErrorMsg(null);
     setReport(null);
     setSalvageRisk(null);
+    setOffoScore(null);
     setResultId(null);
     listingTextRef.current = "";
 
@@ -452,6 +456,7 @@ export default function CopartPage() {
       setReport(r);
       setResultId(r.report_id);
       setSalvageRisk(r.salvage_risk as SalvageRiskResult);
+      setOffoScore((r.offo_score as OffoScore | undefined) ?? null);
 
       const lot = r.lot;
       listingTextRef.current = [
@@ -622,6 +627,9 @@ export default function CopartPage() {
                 </div>
               </div>
             )}
+
+            {/* OFFO Score — unified verdict shown first */}
+            {offoScore && <OffoScoreCard offoScore={offoScore} />}
 
             {/* Risk + guidance */}
             <SalvageRiskCard result={salvageRisk} dataSource="api" />

@@ -1,7 +1,10 @@
 /**
- * Batch Vehicle Scorer
+ * Batch Vehicle Scorer — Phase 5/6 Unified Score
  *
  * Scores all vehicles from range_delta.csv against a user's routine.
+ * Phase 5/6: Unified final score = weighted composite of 4 components:
+ *   routine_fit (45%) + hardware_match (25%) + ownership_cost (20%) + reliability (10%)
+ *
  * Pure function — no I/O, no external calls.
  */
 
@@ -9,10 +12,13 @@ import { computeRoutineFit } from "./compute-routine-fit";
 import { computeRoutineFitV2 } from "./compute-routine-fit-v2";
 import { classifyVehicle } from "./vehicle-classifier";
 import { computeScoreImprovements } from "./compute-score-improvements";
-import type { MinimumViableRoutine } from "@/types/v2";
+import { getTraits, reliabilityTierToScore } from "./specs-scorer";
+import { computeOffoScore } from "./offo-score";
+import type { MinimumViableRoutine, OffoScore } from "@/types/v2";
 import type { RangeDeltaRow } from "./data";
 import type { VehicleRecommendation, FitDimensions, TieChips } from "@/types/recommendations";
 import type { WeatherData } from "@/types/routine-v2";
+import type { SpecsMatchResult } from "./specs-scorer";
 
 /** Known two-word make prefixes */
 const TWO_WORD_MAKES = ["mercedes"];
@@ -20,7 +26,6 @@ const TWO_WORD_MAKES = ["mercedes"];
 /**
  * Parse make and short model from full model string.
  * e.g. "Tesla Model 3 Long Range" → { make: "Tesla", model_short: "Model 3 Long Range" }
- * e.g. "Mercedes EQS 450+" → { make: "Mercedes", model_short: "EQS 450+" }
  */
 function extractMakeAndModel(fullModel: string): { make: string; model_short: string } {
   const words = fullModel.split(" ");
@@ -38,14 +43,38 @@ export interface RealTimeData {
 }
 
 // ---------------------------------------------------------------------------
-// Tie-break helpers
+// Ownership cost scoring (deterministic — no LLM)
 // ---------------------------------------------------------------------------
 
 /**
- * Compute a secondary tie-break score from dimension sub-scores.
- * Weights shift based on charging_access: home users care more about range,
- * public charging users care more about charging convenience.
+ * Compute a 0–100 ownership cost score.
+ * Components: price vs budget (60%) + vehicle efficiency (40%)
  */
+function computeOwnershipCostScore(
+  row: RangeDeltaRow,
+  mvr: MinimumViableRoutine
+): number {
+  // Effective price after federal incentive
+  const incentiveAmount = row.incentive_new ? 7500 : 0;
+  const effectivePrice = (row.msrp_usd ?? 50000) - incentiveAmount;
+
+  // Price score: exponential decay above budget
+  const budgetMax = mvr.budget_max ?? 60000;
+  const budgetRatio = effectivePrice / budgetMax;
+  const priceScore = Math.max(0, Math.round(100 * Math.exp(-1.8 * (budgetRatio - 1))));
+
+  // Efficiency score: higher MPGe = lower running cost
+  const traits = getTraits(row.model);
+  const mpge = traits.efficiency_mpge ?? 100;
+  const efficiencyScore = Math.min(100, Math.round((mpge / 130) * 100));
+
+  return Math.round(priceScore * 0.6 + efficiencyScore * 0.4);
+}
+
+// ---------------------------------------------------------------------------
+// Tie-break helpers (preserved from Phase 2)
+// ---------------------------------------------------------------------------
+
 function computeTieScore(
   dimensions: FitDimensions,
   mvr: MinimumViableRoutine
@@ -68,10 +97,6 @@ function computeTieScore(
   );
 }
 
-/**
- * Derive vehicle-specific top stress flag from the weakest dimension score.
- * Returns a concrete, vehicle-specific message rather than a generic breakpoint title.
- */
 function getTopStressFlag(dimensions: FitDimensions): string {
   const candidates: [number, string][] = [
     [dimensions.range,    "Range buffer is tight for your longest day"],
@@ -82,15 +107,10 @@ function getTopStressFlag(dimensions: FitDimensions): string {
     [dimensions.utility,  "Body style or towing doesn't match well"],
   ];
 
-  // Lowest dimension score is the primary stress
   candidates.sort((a, b) => a[0] - b[0]);
   return candidates[0][1];
 }
 
-/**
- * Compute bucketed chip labels for the tie-break comparison UI.
- * Each chip summarises one dimension at a glance.
- */
 function computeTieChips(dimensions: FitDimensions, subCategory: string): TieChips {
   return {
     buffer:   dimensions.range    >= 70 ? "strong" : dimensions.range    >= 45 ? "ok"       : "tight",
@@ -103,30 +123,44 @@ function computeTieChips(dimensions: FitDimensions, subCategory: string): TieChi
   };
 }
 
+// ---------------------------------------------------------------------------
+// Main export
+// ---------------------------------------------------------------------------
+
 /**
  * Score all vehicles against a routine and return sorted recommendations.
  * Does NOT include dealer_listings — those are added by the API endpoint.
- *
- * @param mvr - User's routine
- * @param rangeData - Vehicle data from range_delta.csv
- * @param realTimeData - Optional weather + charger data for V2 scoring
  */
 export function batchScoreVehicles(
   mvr: MinimumViableRoutine,
   rangeData: RangeDeltaRow[],
-  realTimeData?: RealTimeData
+  realTimeData?: RealTimeData,
+  specsResults?: SpecsMatchResult[]
 ): Omit<VehicleRecommendation, "dealer_listings">[] {
   const useV2 = !!realTimeData;
+
+  // Build penalty lookup map for O(1) access per vehicle
+  const specsPenaltyMap = new Map<string, number>();
+  if (specsResults) {
+    for (const sr of specsResults) {
+      specsPenaltyMap.set(sr.candidate.vehicle_label.toLowerCase(), sr.penalty_score);
+    }
+  }
 
   const scored = rangeData.map((row) => {
     const { make, model_short } = extractMakeAndModel(row.model);
     const classification = classifyVehicle(make, model_short);
+    const traits = getTraits(row.model);
 
     const vehicleBasics = {
       model: row.model,
       year: row.year,
       real_world_range_mi: row.real_world_range_mi,
       sub_category: classification.subCategory,
+      msrp_usd: row.msrp_usd,
+      dc_fast_kw: row.dc_fast_kw || undefined,
+      // Pass incentive amount so budget scoring uses effective price
+      incentive_amount: row.incentive_new ? 7500 : 0,
     };
 
     // Use V2 scoring if real-time data is available, otherwise baseline
@@ -154,13 +188,46 @@ export function batchScoreVehicles(
         })
       : computeRoutineFit(mvr, vehicleBasics);
 
-    // Compute score improvements
     const scoreImprovements = computeScoreImprovements(mvr, vehicleBasics, fit);
 
-    // Dimension sub-scores (previously stripped — now propagated)
     const dimensions: FitDimensions = fit.dimensions ?? {
       charging: 50, range: 50, recovery: 50, climate: 50, budget: 50, utility: 50,
     };
+
+    // ── UNIFIED FINAL SCORE (Phase 5/6D) ────────────────────────────────────
+    // confidence_adjusted_score from Phase 4F — downgrades when data is missing
+    const routine_fit = fit.confidence_adjusted_score ?? fit.score_0_100;
+
+    // hardware_match: use penalty from specsResults if provided, else neutral 75
+    const penaltyScore = specsPenaltyMap.get(row.model.toLowerCase());
+    const hw_match = penaltyScore !== undefined
+      ? Math.max(0, Math.min(100, 100 - penaltyScore))
+      : 75;
+
+    // ownership_cost: deterministic price + efficiency
+    const own_cost = computeOwnershipCostScore(row, mvr);
+
+    // reliability: from JD Power / CR tier in traits
+    const reliability = reliabilityTierToScore(traits.reliability_tier);
+
+    const unified_score = Math.round(
+      routine_fit  * 0.45 +
+      hw_match     * 0.25 +
+      own_cost     * 0.20 +
+      reliability  * 0.10
+    );
+
+    const offoScore: OffoScore = computeOffoScore({
+      context:     "retail",
+      financial:   own_cost,
+      usability:   routine_fit,
+      feasibility: hw_match,
+      reliability,
+      confidence:  fit.confidence?.level ?? "medium",
+      hints: {
+        top_risk_dimension: fit.top_risk_dimension ?? null,
+      },
+    });
 
     return {
       model: row.model,
@@ -169,28 +236,26 @@ export function batchScoreVehicles(
       real_world_range_mi: row.real_world_range_mi,
       battery_kwh: row.battery_kwh,
       chemistry: row.chemistry,
-      fit_score: fit.score_0_100,
+      fit_score: unified_score,
       fit_label: fit.label,
       mental_load: fit.mental_load,
-      // Vehicle-specific: derived from weakest dimension, not first breakpoint title
       top_stress_flag: getTopStressFlag(dimensions),
-      // Sub-scores for tie-breaking and UI chip display
       dimensions,
       tie_chips: computeTieChips(dimensions, classification.subCategory),
       make,
       model_short,
       sub_category: classification.subCategory,
       score_improvements: scoreImprovements,
+      msrp_usd: row.msrp_usd || undefined,
       dc_fast_kw: row.dc_fast_kw || undefined,
       incentive_new: row.incentive_new || undefined,
+      offo_score: offoScore,
     };
   });
 
-  // Primary sort: fit_score descending.
-  // Secondary sort: tie_score descending within same fit_score group.
+  // Sort by unified fit_score descending; tie-break by dimension tie score
   return scored.sort((a, b) => {
     if (b.fit_score !== a.fit_score) return b.fit_score - a.fit_score;
-    // Both dimensions are guaranteed non-null at this point
     const tieA = computeTieScore(a.dimensions!, mvr);
     const tieB = computeTieScore(b.dimensions!, mvr);
     return tieB - tieA;

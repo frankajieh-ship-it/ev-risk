@@ -4,7 +4,7 @@
  * Used by /api/recommendations and the VehicleRecommendations UI component.
  */
 
-import type { RoutineFitScore } from "./v2";
+import type { RoutineFitScore, OffoScore } from "./v2";
 import type { OwnershipCost5Y } from "@/lib/ownership-cost";
 
 export interface ScoreImprovement {
@@ -86,6 +86,8 @@ export interface VehicleRecommendation {
 
   /** Whether this vehicle is currently eligible for the federal $7,500 new-EV tax credit */
   incentive_new?: boolean;
+  /** Unified OFFO score for this vehicle in retail context */
+  offo_score?: OffoScore;
 }
 
 export interface DataSources {

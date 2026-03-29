@@ -1,23 +1,30 @@
 /**
- * computeRoutineFit - V2 Primary Scoring Engine
+ * computeRoutineFit - V2 Primary Scoring Engine (Phase 4)
  *
- * Pure function: MVR + optional vehicle basics → RoutineFitScore
+ * Pure function: MVR + optional vehicle basics + optional charger context → RoutineFitScore
  * Client-safe (no fs imports). Works WITHOUT battery/VIN data.
  *
  * Scoring dimensions (weighted):
- * - Charging Stress (30%): access type + feasibility + subtype (L1/L2) + dwell time
- * - Range Buffer (25%): continuous usage curve — no step-bucket cliffs
+ * - Charging Stress (30%): access type + feasibility + subtype (L1/L2) + dwell time + charger density
+ * - Range Buffer (25%): sigmoid curve — smooth, no step-bucket cliffs
  * - Recovery Resilience (10%): long-day frequency × charging access compound
- * - Climate Friction (10%): winter/hot × parking exposure compound
- * - Budget Fit (15%): vehicle MSRP vs user budget
+ * - Climate Friction (10%): winter/hot × parking exposure compound × physics model
+ * - Budget Fit (15%): effective price (MSRP - incentives) vs user budget
  * - Utility Fit (10%): body style match + towing compatibility
  *
  * Cross-dimension interactions applied after individual dimension scoring:
- * - Low charging × low range = compound penalty (multiplicative, not additive)
+ * - Low charging × low range = compound penalty (multiplicative)
  * - Winter × street parking = extra climate friction
  * - Public charging × high mileage = recovery penalty escalation
+ * - Catastrophic failure zone: collapses score when routine is near-unworkable
  *
- * Uncertainty: missing vehicle data is tracked and propagates to confidence level.
+ * Phase 4 additions:
+ * - 4A: Sigmoid range buffer (replaces piecewise linear)
+ * - 4B: Charger density integration (ChargerContext)
+ * - 4C: Three-factor winter range model (climate × speed × battery)
+ * - 4D: Incentive-adjusted budget scoring
+ * - 4E: Penalty asymmetry (catastrophic failure zone)
+ * - 4F: New outputs: failure_probability, top_risk_dimension, confidence_adjusted_score
  */
 
 import type {
@@ -39,57 +46,46 @@ export type VehicleBasics = {
   dc_fast_kw?: number;
   /** True if vehicle has heat pump — reduces winter climate friction */
   has_heat_pump?: boolean;
+  /** Federal + state incentive amount to subtract from MSRP for budget scoring */
+  incentive_amount?: number;
 };
 
-// ── Range buffer: continuous curve ────────────────────────────────────────────
-//
-// Replaces four hard step buckets (<30%→100, <50%→80, <70%→55, else→25).
-// A linear interpolation within each meaningful zone produces smooth scores:
-//   0% usage → 100   (always charge to full, totally carefree)
-//  30% usage → 100   (generous buffer, no friction)
-//  50% usage →  78   (comfortable but worth noting)
-//  70% usage →  48   (starts to require planning)
-//  85% usage →  22   (meaningful daily stress)
-// 100% usage →   5   (not viable without top-ups)
-//
-// Formula: piecewise linear segments between control points.
+/** Charger availability context for the user's home area */
+export type ChargerContext = {
+  zip?: string;
+  /** Total DCFC chargers in user's ZIP (from charger_density_v2.json) */
+  dcfc_count?: number;
+  /** Density tier from charger_density_v2.json */
+  density_score?: "Excellent" | "Good" | "Moderate" | "Poor";
+};
 
-const RANGE_CURVE_POINTS: [number, number][] = [
-  [0,   100],
-  [30,  100],
-  [50,   78],
-  [70,   48],
-  [85,   22],
-  [100,   5],
-];
+// ── Range buffer: sigmoid curve ───────────────────────────────────────────────
+//
+// Phase 4A: Replaces piecewise linear (Phase 2) with logistic sigmoid.
+// Centered at 62% usage — steeper at both extremes, smooth throughout.
+//
+// Approximate values:
+//   0%  → 100   30% → ~96   50% → ~82   60% → ~68
+//  70%  →  ~50  80% → ~31   90% → ~17  100% →  ~8
 
 function rangeScoreFromUsagePct(usagePct: number): number {
   const pct = Math.max(0, Math.min(100, usagePct));
-  for (let i = 1; i < RANGE_CURVE_POINTS.length; i++) {
-    const [x0, y0] = RANGE_CURVE_POINTS[i - 1];
-    const [x1, y1] = RANGE_CURVE_POINTS[i];
-    if (pct <= x1) {
-      const t = (pct - x0) / (x1 - x0);
-      return Math.round(y0 + t * (y1 - y0));
-    }
-  }
-  return 5;
+  // Logistic sigmoid: 100 / (1 + e^(k*(pct - center)))
+  const raw = 100 / (1 + Math.exp(0.085 * (pct - 62)));
+  return Math.max(5, Math.round(raw));
 }
 
-// ── Budget fit: smooth curve ──────────────────────────────────────────────────
+// ── Budget fit: smooth exponential decay ──────────────────────────────────────
 //
-// Replaces four hard thresholds (0%→100, 20%→70, 50%→40, 50%+→15).
-// Smooth exponential decay above budget:
+// score = 100 × e^(-2.3 × overBudgetRatio)
 //   at budget     → 100
 //   10% over      →  82
 //   20% over      →  68
 //   40% over      →  45
-//   70% over      →  22
 //  100%+ over     →  10
 
 function budgetScoreFromRatio(overBudgetRatio: number): number {
   if (overBudgetRatio <= 0) return 100;
-  // Exponential decay: score = 100 * e^(-2.3 * ratio)
   return Math.max(10, Math.round(100 * Math.exp(-2.3 * overBudgetRatio)));
 }
 
@@ -97,7 +93,8 @@ function budgetScoreFromRatio(overBudgetRatio: number): number {
 
 export function computeRoutineFit(
   mvr: MinimumViableRoutine,
-  vehicle?: VehicleBasics
+  vehicle?: VehicleBasics,
+  chargerCtx?: ChargerContext
 ): RoutineFitScore {
   const effectiveDailyMiles = mvr.commute_miles_roundtrip
     ? mvr.commute_miles_roundtrip
@@ -119,15 +116,14 @@ export function computeRoutineFit(
     if (mvr.home_charging_type === "L1") {
       const l1RecoveryPerNight = Math.min((mvr.overnight_dwell_hours ?? 10) * 4.5, 45);
       if (effectiveDailyMiles > l1RecoveryPerNight) {
-        // L1 can't keep up — penalty proportional to the shortfall
         const shortfallRatio = (effectiveDailyMiles - l1RecoveryPerNight) / effectiveDailyMiles;
         chargingScore = Math.max(30, chargingScore - Math.round(shortfallRatio * 35));
       }
-      // Even if L1 keeps up, it adds dwell-time stress
+      // L1 cap: even when keeping up, adds dwell-time stress
       chargingScore = Math.min(chargingScore, 85);
     }
 
-    // Short dwell time penalty (regardless of charger type)
+    // Short dwell time penalty
     if (mvr.overnight_dwell_hours != null && mvr.overnight_dwell_hours < 6) {
       chargingScore = Math.max(0, chargingScore - 15);
     } else if (mvr.overnight_dwell_hours != null && mvr.overnight_dwell_hours < 8) {
@@ -139,32 +135,50 @@ export function computeRoutineFit(
 
   } else if (mvr.charging_access === "work") {
     chargingScore = 65;
-    // Work charging on L1 at a DCFC-primary vehicle is fine; L2 at work = stronger
-    // No sub-type modifier needed here — work charging is what it is
+
+    // 4B: Charger density affects work charging fallback reliability
+    if (chargerCtx?.density_score === "Poor")     chargingScore = Math.max(0, chargingScore - 8);
+    else if (chargerCtx?.density_score === "Excellent") chargingScore = Math.min(100, chargingScore + 5);
+
+    // Single public charger = no backup
+    if (chargerCtx?.dcfc_count !== undefined && chargerCtx.dcfc_count <= 1) {
+      chargingScore = Math.max(0, chargingScore - 6);
+    }
 
   } else {
     // Public only
     chargingScore = 28;
-    // High usage on public charging is worse than low usage
-    const dailyUsagePct = (effectiveDailyMiles / effectiveRange) * 100;
-    if (dailyUsagePct > 60) chargingScore = Math.max(10, chargingScore - 8);
+
+    // 4B: Density directly impacts public charging reliability
+    if (chargerCtx?.density_score === "Poor")       chargingScore = Math.max(0, chargingScore - 12);
+    else if (chargerCtx?.density_score === "Moderate") chargingScore = Math.max(0, chargingScore - 5);
+    else if (chargerCtx?.density_score === "Excellent") chargingScore = Math.min(100, chargingScore + 6);
+
+    // Single charger = no redundancy
+    if (chargerCtx?.dcfc_count !== undefined && chargerCtx.dcfc_count <= 1) {
+      chargingScore = Math.max(0, chargingScore - 8);
+    }
+
+    // High usage on public charging compounds the problem
+    const publicDailyPct = (effectiveDailyMiles / effectiveRange) * 100;
+    if (publicDailyPct > 60) chargingScore = Math.max(10, chargingScore - 8);
   }
 
   // ── DIMENSION 2: Range Buffer (25%) ───────────────────────────────────────
-  // Use longest_day_miles if provided and greater than average daily
   const peakDailyMiles = mvr.longest_day_miles
     ? Math.max(effectiveDailyMiles, mvr.longest_day_miles)
     : effectiveDailyMiles;
 
-  // Climate-adjusted range
+  // 4C: Three-factor winter range model (replaces flat multipliers)
   let adjustedRange = effectiveRange;
   if (mvr.climate === "winter") {
-    // Heat pump vehicles lose less range in cold
-    const heatPumpMultiplier = vehicle?.has_heat_pump ? 0.87 : 0.80;
-    if (mvr.parking_exposure === "street")       adjustedRange *= heatPumpMultiplier - 0.03;
-    else if (mvr.parking_exposure === "outdoor") adjustedRange *= heatPumpMultiplier;
-    // garage: heat pump vehicle slightly better, otherwise neutral
-    else if (vehicle?.has_heat_pump)             adjustedRange *= 0.92;
+    const climate_factor = 0.82;
+    const speed_factor   = effectiveDailyMiles > 70 ? 0.96 : 1.0;  // highway drain in cold
+    const battery_factor = vehicle?.has_heat_pump ? 1.09 : 1.0;     // heat pump recovers ~9%
+    adjustedRange = effectiveRange * climate_factor * speed_factor * battery_factor;
+    // Street parking: precondition unavailable → extra cold penalty
+    if (mvr.parking_exposure === "street") adjustedRange *= 0.95;
+    else if (mvr.parking_exposure === "outdoor") adjustedRange *= 0.98;
   } else if (mvr.climate === "hot") {
     // AC load in extreme heat
     adjustedRange *= 0.93;
@@ -180,18 +194,16 @@ export function computeRoutineFit(
 
   // ── DIMENSION 3: Recovery Resilience (10%) ────────────────────────────────
   let recoveryScore: number;
-  if (mvr.longest_day_pattern === "once_a_week")   recoveryScore = 50;
+  if (mvr.longest_day_pattern === "once_a_week")    recoveryScore = 50;
   else if (mvr.longest_day_pattern === "monthly_trip") recoveryScore = 75;
-  else                                              recoveryScore = 95;
+  else                                               recoveryScore = 95;
 
-  // Cross-interaction: public charging + frequent long days compounds
   if (mvr.charging_access === "public" && mvr.longest_day_pattern === "once_a_week") {
     recoveryScore = Math.max(0, recoveryScore - 22);
   } else if (mvr.charging_access === "work" && mvr.longest_day_pattern === "once_a_week") {
     recoveryScore = Math.max(0, recoveryScore - 12);
   }
 
-  // High daily mileage with public charging = harder to recover
   if (mvr.charging_access === "public" && effectiveDailyMiles > 80) {
     recoveryScore = Math.max(0, recoveryScore - 10);
   }
@@ -201,17 +213,14 @@ export function computeRoutineFit(
   if (mvr.climate === "winter") {
     climateScore = 60;
     if (mvr.charging_access === "public") climateScore = 38;
-    // Parking exposure compounds winter friction
     if (mvr.parking_exposure === "street") {
       climateScore = Math.max(0, climateScore - 12);
     } else if (mvr.parking_exposure === "outdoor") {
       climateScore = Math.max(0, climateScore - 6);
     }
-    // Heat pump partially offsets winter friction
     if (vehicle?.has_heat_pump) climateScore = Math.min(100, climateScore + 8);
   } else if (mvr.climate === "hot") {
     climateScore = 75;
-    // DC fast charge vehicles handle heat better (active thermal management)
     if (vehicle?.dc_fast_kw && vehicle.dc_fast_kw >= 150) climateScore = 80;
   } else {
     climateScore = 100;
@@ -220,10 +229,12 @@ export function computeRoutineFit(
   // ── DIMENSION 5: Budget Fit (15%) ─────────────────────────────────────────
   let budgetScore: number;
   if (mvr.budget_max && vehicle?.msrp_usd) {
-    const overBudgetRatio = (vehicle.msrp_usd - mvr.budget_max) / mvr.budget_max;
+    // 4D: Subtract incentives from MSRP for effective price
+    const effectivePrice = vehicle.msrp_usd - (vehicle.incentive_amount ?? 0);
+    const overBudgetRatio = (effectivePrice - mvr.budget_max) / mvr.budget_max;
     budgetScore = budgetScoreFromRatio(overBudgetRatio);
   } else {
-    budgetScore = 75; // neutral when no budget or no price
+    budgetScore = 75;
   }
 
   // ── DIMENSION 6: Utility Fit (10%) ────────────────────────────────────────
@@ -245,25 +256,34 @@ export function computeRoutineFit(
   }
 
   // ── CROSS-DIMENSION INTERACTIONS ──────────────────────────────────────────
-  // Applied as a multiplier on the weighted total to avoid double-counting.
-  // Each interaction flag reduces the final score multiplicatively.
 
   let interactionMultiplier = 1.0;
 
-  // Compound 1: Low charging AND tight range — both stresses at once
-  // (e.g. public charging + 65% daily usage = harder than either alone)
+  // Compound 1: Low charging AND tight range
   if (chargingScore < 50 && rangeScore < 55) {
     interactionMultiplier *= 0.93;
   }
 
-  // Compound 2: Winter + street parking + public charging — triple friction
+  // Compound 2: Winter + street parking + public charging
   if (mvr.climate === "winter" && mvr.parking_exposure === "street" && mvr.charging_access === "public") {
     interactionMultiplier *= 0.91;
   }
 
-  // Compound 3: High mileage + no home charging — no nightly recovery
+  // Compound 3: High mileage + no home charging
   if (effectiveDailyMiles > 100 && mvr.charging_access !== "home") {
     interactionMultiplier *= 0.95;
+  }
+
+  // 4E: Penalty asymmetry — catastrophic failure zone
+  // Near-failure conditions hurt more than near-perfect conditions help
+  const catastrophicRisk =
+    dailyUsagePct > 90 ||
+    (mvr.charging_access === "public" &&
+      chargerCtx?.density_score === "Poor" &&
+      mvr.longest_day_pattern === "once_a_week");
+
+  if (catastrophicRisk) {
+    interactionMultiplier *= 0.85;
   }
 
   // ── WEIGHTED TOTAL ─────────────────────────────────────────────────────────
@@ -296,9 +316,8 @@ export function computeRoutineFit(
   const stress_flags = deriveStressFlags(breakpoints_ranked);
 
   // ── CONFIDENCE ─────────────────────────────────────────────────────────────
-  // Tracks what data is available and how much it affects accuracy
-  const hasRange = !!vehicle?.real_world_range_mi;
-  const hasMsrp  = !!vehicle?.msrp_usd;
+  const hasRange  = !!vehicle?.real_world_range_mi;
+  const hasMsrp   = !!vehicle?.msrp_usd;
   const hasSubCat = !!vehicle?.sub_category;
 
   const confidenceLevel: RoutineFitConfidence["level"] =
@@ -322,6 +341,34 @@ export function computeRoutineFit(
     has_battery_data: false,
   };
 
+  // ── 4F: DERIVED OUTPUT FIELDS ─────────────────────────────────────────────
+
+  // failure_probability: inverse of score, amplified by interaction penalty depth
+  const interactionPenaltyDepth = 1 - interactionMultiplier;
+  const failure_probability = Math.max(0, Math.min(1,
+    1 - (score / 100) * (1 - 0.3 * interactionPenaltyDepth)
+  ));
+
+  // top_risk_dimension: the weakest scoring dimension
+  const dimScores = {
+    charging: chargingScore,
+    range: rangeScore,
+    recovery: recoveryScore,
+    climate: climateScore,
+    budget: budgetScore,
+    utility: utilityScore,
+  } as const;
+
+  const top_risk_dimension = (Object.keys(dimScores) as Array<keyof typeof dimScores>)
+    .reduce((a, b) => dimScores[a] < dimScores[b] ? a : b);
+
+  // confidence_adjusted_score: penalizes scores when data is missing
+  const confMultiplier =
+    confidenceLevel === "high"   ? 1.0
+    : confidenceLevel === "medium" ? 0.9
+    :                               0.75;
+  const confidence_adjusted_score = Math.round(score * confMultiplier);
+
   return {
     score_0_100: score,
     label,
@@ -337,6 +384,9 @@ export function computeRoutineFit(
       budget: budgetScore,
       utility: utilityScore,
     },
+    failure_probability,
+    top_risk_dimension,
+    confidence_adjusted_score,
   };
 }
 

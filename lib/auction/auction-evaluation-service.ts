@@ -28,6 +28,7 @@ import { copartAdapter } from "./adapters/copart-adapter";
 import { iaaiAdapter } from "./adapters/iaai-adapter";
 import { computeDeterministicMetrics } from "./deterministic-metrics";
 import { runAuctionAiChain } from "./auction-ai-chain";
+import { computeAuctionOffoScore } from "./auction-unified-score";
 import {
   type AuctionEvalInput,
   type AuctionEvalReport,
@@ -312,6 +313,21 @@ export class AuctionEvaluationService {
       }
     }
 
+    // 9b. Compute unified OFFO score (deterministic, no AI)
+    const salvageRiskForOffo = {
+      score:                    metrics.salvage_risk_score,
+      grade:                    metrics.salvage_risk_grade,
+      factors:                  metrics.salvage_risk_factors,
+      risk_probability:         metrics.risk_probability,
+      routine_impact_summary:   aiChainOutput.routine_impact?.routine_impact ?? "",
+      suggested_bid_discount:   metrics.suggested_bid_discount,
+      uncertainty_level:        metrics.uncertainty_level,
+      expected_repair_cost:     metrics.expected_repair_cost,
+      profit_margin:            metrics.profit_margin,
+      arv_hint_low:             arv ?? undefined,
+    };
+    const offoScore = computeAuctionOffoScore(salvageRiskForOffo, routineFit);
+
     // 10. Build arbitrage result from AI output (paid only)
     let arbitrage = null;
     if (isPaid && aiChainOutput.repair_cost) {
@@ -383,6 +399,7 @@ export class AuctionEvaluationService {
             routine_fit: routineFit,
             recalls,
             verdict: aiChainOutput.polish,
+            offo_score: offoScore,
           },
           receipt_token: input.receipt_token,
           user_id: input.user_id ?? null,
@@ -451,6 +468,7 @@ export class AuctionEvaluationService {
       range_projection: rangeProjection,
       incentive_status: incentiveStatus,
       electricity_context: electricityContext,
+      offo_score: offoScore,
       cached: false,
       created_at: now.toISOString(),
       expires_at: expiresAt.toISOString(),
@@ -516,6 +534,7 @@ export class AuctionEvaluationService {
         range_projection: (report.range_projection as AuctionEvalReport["range_projection"]) ?? null,
         incentive_status: (report.incentive_status as AuctionEvalReport["incentive_status"]) ?? null,
         electricity_context: (report.electricity_context as AuctionEvalReport["electricity_context"]) ?? null,
+        offo_score: (report.offo_score as AuctionEvalReport["offo_score"]) ?? undefined,
         created_at: row.created_at,
         expires_at: row.cache_expires_at,
       };

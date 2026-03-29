@@ -9,7 +9,7 @@
 
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
 import type { ArbitrageResult } from "@/lib/copart-arbitrage-engine";
-import type { RoutineFitScore } from "@/types/v2";
+import type { RoutineFitScore, OffoScore } from "@/types/v2";
 import type { MinimumViableRoutine } from "@/types/v2";
 
 // ── Source identifiers ─────────────────────────────────────────────────────────
@@ -149,6 +149,8 @@ export interface AuctionEvalReport {
   incentive_status: IncentiveStatus | null;
   /** State electricity rate + monthly cost estimate; null when location unknown */
   electricity_context: ElectricityContext | null;
+  /** Unified OFFO score — composite verdict combining salvage risk + routine fit */
+  offo_score?: OffoScore;
   /** true when result was served from the 24h persistence cache */
   cached: boolean;
   created_at: string;

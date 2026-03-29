@@ -14,7 +14,7 @@ import type {
   RoutineFitConfidence,
 } from "@/types/v2";
 import type { WeatherData, VehicleProfile } from "@/types/routine-v2";
-import { computeRoutineFit } from "./compute-routine-fit";
+import { computeRoutineFit, type ChargerContext } from "./compute-routine-fit";
 
 export interface EnhancedInputs {
   routine: MinimumViableRoutine;
@@ -35,22 +35,29 @@ export function computeRoutineFitV2(inputs: EnhancedInputs): RoutineFitScore {
       }
     : undefined;
 
-  // Get baseline score from existing engine
-  const baseline = computeRoutineFit(routine, vehicleBasics);
+  // Build ChargerContext from chargerCount for Phase 4B integration
+  const chargerCtx: ChargerContext | undefined = chargerCount > 0 || chargerCount === 0
+    ? {
+        dcfc_count: chargerCount,
+        // Derive density tier from count (rough heuristic when ZIP not available)
+        density_score:
+          chargerCount === 0 ? "Poor"
+          : chargerCount <= 2 ? "Moderate"
+          : chargerCount <= 6 ? "Good"
+          : "Excellent",
+      }
+    : undefined;
 
-  // Apply real-time adjustments
+  // Get baseline score from existing engine — pass charger context
+  const baseline = computeRoutineFit(routine, vehicleBasics, chargerCtx);
+
+  // Apply real-time adjustments (weather only — charger density handled in base engine)
   let adjustedScore = baseline.score_0_100;
 
   // Weather adjustment
   if (weather) {
     const weatherDelta = calculateWeatherImpact(weather, routine);
     adjustedScore += weatherDelta;
-  }
-
-  // Charger availability adjustment (only for public charging)
-  if (routine.charging_access === "public") {
-    const chargerDelta = calculateChargerImpact(chargerCount);
-    adjustedScore += chargerDelta;
   }
 
   // Clamp to 0-100
@@ -85,6 +92,10 @@ export function computeRoutineFitV2(inputs: EnhancedInputs): RoutineFitScore {
     has_vehicle_data: !!vehicle,
   };
 
+  // Recalculate derived fields based on adjusted score
+  const confMultiplier =
+    confidence.level === "high" ? 1.0 : confidence.level === "medium" ? 0.9 : 0.75;
+
   return {
     score_0_100: adjustedScore,
     label,
@@ -94,6 +105,10 @@ export function computeRoutineFitV2(inputs: EnhancedInputs): RoutineFitScore {
     confidence,
     // Propagate dimension sub-scores from baseline — V2 only adjusts the total
     dimensions: baseline.dimensions,
+    // Propagate Phase 4F fields, recalculated for adjusted score
+    failure_probability: Math.max(0, Math.min(1, 1 - adjustedScore / 100)),
+    top_risk_dimension: baseline.top_risk_dimension,
+    confidence_adjusted_score: Math.round(adjustedScore * confMultiplier),
   };
 }
 
@@ -123,15 +138,5 @@ function calculateWeatherImpact(
     return +3;
   }
 
-  return 0;
-}
-
-// ============================================
-// CHARGER AVAILABILITY IMPACT
-// ============================================
-
-function calculateChargerImpact(chargerCount: number): number {
-  if (chargerCount === 0) return -5; // No backup chargers mapped
-  if (chargerCount >= 2) return +3; // Good backup resilience
   return 0;
 }

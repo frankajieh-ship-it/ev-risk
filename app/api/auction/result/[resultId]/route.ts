@@ -21,6 +21,7 @@ import type {
   IncentiveStatus,
   ElectricityContext,
 } from "@/lib/auction/types";
+import type { OffoScore } from "@/types/v2";
 import type { ClassificationOutput, RoutineImpactOutput } from "@/lib/auction/auction-ai-chain";
 
 
@@ -111,6 +112,7 @@ export async function GET(
       range_projection: (report.range_projection as RangeProjection) ?? null,
       incentive_status: (report.incentive_status as IncentiveStatus) ?? null,
       electricity_context: (report.electricity_context as ElectricityContext) ?? null,
+      offo_score: (report.offo_score as OffoScore) ?? null,
       verdict: report.verdict ?? null,
       classification: aiOutput?.classification ?? null,
       routine_impact: aiOutput?.routine_impact ?? null,

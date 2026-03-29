@@ -156,6 +156,12 @@ export interface RoutineFitScore {
     budget: number;
     utility: number;
   };
+  /** 0.0–1.0 probability that the routine fails (runs out of charge, can't recover) */
+  failure_probability: number;
+  /** The weakest scoring dimension — primary driver of risk */
+  top_risk_dimension: "charging" | "range" | "recovery" | "climate" | "budget" | "utility" | null;
+  /** Score adjusted downward when vehicle data is incomplete */
+  confidence_adjusted_score: number;
 }
 
 // ============================================
@@ -174,6 +180,37 @@ export interface OwnershipRiskModule {
 export interface OwnershipRiskFlags {
   overall_risk_label: "Low ownership friction" | "Moderate ownership friction" | "High ownership friction" | "Insufficient data";
   modules: OwnershipRiskModule[];
+}
+
+// ============================================
+// OFFO SCORE — unified cross-context verdict
+// ============================================
+
+export type OffoVerdict = "green" | "yellow" | "red";
+
+export interface OffoScore {
+  /** 0–100 composite score */
+  offo_score: number;
+  verdict: OffoVerdict;
+  /** "Strong buy" | "Proceed with caution" | "High risk" */
+  verdict_label: string;
+  /** 2–4 deterministic bullet reasons derived from component scores */
+  why: string[];
+  /** 2–3 deterministic failure mode strings derived from risk factors */
+  failure_modes: string[];
+  confidence: "low" | "medium" | "high";
+  component_scores: {
+    /** From salvage scorer (auction) or ownership-cost scorer (retail) */
+    financial: number;
+    /** From routine fit score */
+    usability: number;
+    /** From specs/hardware match */
+    feasibility: number;
+    /** From reliability tier */
+    reliability: number;
+  };
+  /** Which weight formula was applied */
+  context: "auction" | "retail";
 }
 
 // ============================================
