@@ -13,7 +13,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { getClientIP, RateLimiter } from "@/lib/rate-limiter";
-import type { NormalizedAuctionLot, NhtsaRecallSummary } from "@/lib/auction/types";
+import type {
+  NormalizedAuctionLot,
+  NhtsaRecallSummary,
+  ChargingProfileSummary,
+  RangeProjection,
+  IncentiveStatus,
+  ElectricityContext,
+} from "@/lib/auction/types";
 import type { ClassificationOutput, RoutineImpactOutput } from "@/lib/auction/auction-ai-chain";
 
 
@@ -100,6 +107,10 @@ export async function GET(
       arbitrage,
       recalls: (report.recalls as NhtsaRecallSummary[]) ?? [],
       routine_fit: report.routine_fit ?? null,
+      charging_profile: (report.charging_profile as ChargingProfileSummary) ?? null,
+      range_projection: (report.range_projection as RangeProjection) ?? null,
+      incentive_status: (report.incentive_status as IncentiveStatus) ?? null,
+      electricity_context: (report.electricity_context as ElectricityContext) ?? null,
       verdict: report.verdict ?? null,
       classification: aiOutput?.classification ?? null,
       routine_impact: aiOutput?.routine_impact ?? null,

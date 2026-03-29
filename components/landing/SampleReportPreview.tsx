@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, ChevronDown, ChevronUp, AlertTriangle, MessageSquare } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertTriangle, MessageSquare } from "lucide-react";
 
 const SAMPLE_RISKS = [
   { label: "Battery at 81% health", detail: "Below average for mileage — factor in future replacement cost" },
@@ -88,19 +88,6 @@ export default function SampleReportPreview() {
             </ul>
           </div>
 
-          {/* Locked teaser */}
-          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 opacity-50 select-none">
-              <Lock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-              <p className="text-xs text-gray-500 blur-[2px]">Negotiation script · Checklist · PDF export</p>
-            </div>
-            <a
-              href="#pricing"
-              className="shrink-0 text-xs font-semibold text-blue-600 hover:underline whitespace-nowrap"
-            >
-              Unlock full analysis →
-            </a>
-          </div>
         </div>
       </div>
     </div>

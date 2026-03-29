@@ -6,7 +6,7 @@
  * Skipped if total model calls already reached 3.
  */
 
-import type { NormalizedAuctionLot } from "../types";
+import type { NormalizedAuctionLot, IncentiveStatus } from "../types";
 import type { DeterministicMetrics } from "../deterministic-metrics";
 import type {
   ClassificationOutput,
@@ -49,13 +49,18 @@ export function buildPolishPrompt(
   classification: ClassificationOutput | null,
   routineImpact: RoutineImpactOutput | null,
   repairCost: RepairCostAiOutput | null,
-  arv: number | null
+  arv: number | null,
+  incentiveStatus?: IncentiveStatus | null
 ): string {
   const arvStr = arv ? `$${arv.toLocaleString()}` : "unavailable";
   const maxBidHint =
     arv && repairCost
       ? `~$${Math.max(0, arv - repairCost.repair_cost_midpoint - 1000).toLocaleString()}`
       : "unknown";
+
+  const incentiveLine = incentiveStatus?.salvage_title_disqualifies
+    ? `TAX CREDIT: Salvage title — NOT eligible for federal EV tax credit (§30D). Original buyer may have claimed $${incentiveStatus.federal_new_amount.toLocaleString()} new vehicle credit.`
+    : "";
 
   return `VEHICLE: ${vehicleLabel(lot)}
 RISK LEVEL: ${classification?.bid_risk_level ?? "unknown"}
@@ -65,7 +70,7 @@ ARV: ${arvStr}
 MAX SAFE BID HINT: ${maxBidHint}
 OWNER SUMMARY: ${routineImpact?.owner_summary ?? "not available"}
 REPAIR CONFIDENCE: ${repairCost?.confidence ?? "unknown"}
-TOP RED FLAGS: ${(classification?.red_flags ?? []).slice(0, 3).join("; ") || "none"}
+TOP RED FLAGS: ${(classification?.red_flags ?? []).slice(0, 3).join("; ") || "none"}${incentiveLine ? `\n${incentiveLine}` : ""}
 
 Write the final buyer verdict. The headline must include the vehicle name and either a bid range or a clear "avoid" signal. Be direct — buyers use this to decide whether to bid.`;
 }

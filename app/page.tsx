@@ -18,7 +18,6 @@ import LoginModal from "@/components/LoginModal";
 import RoutineStep from "@/components/RoutineStep";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
-import FreePaidMatrix from "@/components/landing/FreePaidMatrix";
 import SampleReportPreview from "@/components/landing/SampleReportPreview";
 import TrustBadge from "@/components/landing/TrustBadge";
 
@@ -345,7 +344,6 @@ export default function Home() {
               </button>
             </div>
             <TrustBadge />
-            <FreePaidMatrix />
           </div>
 
           <SampleReportPreview />

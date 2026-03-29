@@ -34,7 +34,14 @@ import AuctionBidGuidanceCard from "@/components/copart/AuctionBidGuidanceCard";
 import ArbitrageCalculatorCard from "@/components/copart/ArbitrageCalculatorCard";
 import TitleFlagsCard from "@/components/copart/TitleFlagsCard";
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
-import type { AuctionEvalReport, NhtsaRecallSummary } from "@/lib/auction/types";
+import type {
+  AuctionEvalReport,
+  NhtsaRecallSummary,
+  ChargingProfileSummary,
+  RangeProjection,
+  IncentiveStatus,
+  ElectricityContext,
+} from "@/lib/auction/types";
 
 type PageState = "idle" | "fetching" | "done" | "error";
 
@@ -151,6 +158,164 @@ function isCopartUrl(input: string): boolean {
 function extractLotNumber(url: string): string | null {
   const match = url.match(/\/lot\/(\d{6,12})/);
   return match ? match[1] : null;
+}
+
+function ChargingProfileCard({ profile }: { profile: ChargingProfileSummary }) {
+  const curveLabel: Record<ChargingProfileSummary["curve_shape"], string> = {
+    flat: "Flat — holds full speed longer (better for road trips)",
+    tapered: "Tapered — speed drops gradually above 50%",
+    steep_taper: "Steep taper — speed drops sharply above 50%",
+  };
+  const coldKw = profile.peak_dc_kw
+    ? Math.round(profile.peak_dc_kw * (1 - profile.cold_derate_percent / 100))
+    : null;
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-gray-900">DC Charging Profile</h3>
+          <p className="text-xs text-gray-400">{profile.source_model}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+          <p className="text-xs text-gray-500 mb-0.5">Peak charge rate</p>
+          <p className="text-lg font-bold text-gray-900">{profile.peak_dc_kw ?? "—"} <span className="text-sm font-normal text-gray-500">kW</span></p>
+        </div>
+        <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+          <p className="text-xs text-gray-500 mb-0.5">10–80% charge time</p>
+          <p className="text-lg font-bold text-gray-900">{profile.time_10_to_80_min ?? "—"} <span className="text-sm font-normal text-gray-500">min</span></p>
+        </div>
+      </div>
+      <div className="rounded-xl bg-amber-50 border border-amber-100 p-3 space-y-1">
+        <p className="text-xs font-semibold text-amber-800">Cold weather impact (32°F)</p>
+        <p className="text-xs text-amber-700">
+          Peak drops ~{profile.cold_derate_percent}% — from {profile.peak_dc_kw ?? "?"} kW to ~{coldKw ?? "?"} kW
+        </p>
+      </div>
+      <p className="text-xs text-gray-500">{curveLabel[profile.curve_shape]}</p>
+    </div>
+  );
+}
+
+function RangeProjectionCard({ range }: { range: RangeProjection }) {
+  const bars: Array<{ label: string; mi: number | null; color: string }> = [
+    { label: "EPA rated", mi: range.epa_range_mi, color: "bg-blue-500" },
+    { label: "Real-world", mi: range.real_world_range_mi, color: "bg-green-500" },
+    { label: "At 32°F", mi: range.cold_range_mi, color: "bg-amber-400" },
+    { label: "At 0°F", mi: range.extreme_cold_range_mi, color: "bg-red-400" },
+  ];
+  const maxMi = Math.max(...bars.map((b) => b.mi ?? 0), 1);
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+          <Car className="w-4 h-4 text-green-600" />
+        </div>
+        <h3 className="text-base font-bold text-gray-900">Range Projection</h3>
+      </div>
+      <div className="space-y-2">
+        {bars.filter((b) => b.mi !== null).map((b) => (
+          <div key={b.label} className="flex items-center gap-3">
+            <p className="text-xs text-gray-500 w-20 flex-shrink-0">{b.label}</p>
+            <div className="flex-1 bg-gray-100 rounded-full h-2">
+              <div
+                className={`${b.color} h-2 rounded-full transition-all`}
+                style={{ width: `${Math.round(((b.mi ?? 0) / maxMi) * 100)}%` }}
+              />
+            </div>
+            <p className="text-xs font-semibold text-gray-800 w-14 text-right flex-shrink-0">{b.mi} mi</p>
+          </div>
+        ))}
+      </div>
+      {range.climate_note && (
+        <p className="text-xs text-gray-400 pt-1">{range.climate_note}</p>
+      )}
+      <p className="text-[10px] text-gray-300">Source: AAA + Recurrent fleet data</p>
+    </div>
+  );
+}
+
+function IncentiveStatusCard({ incentive }: { incentive: IncentiveStatus }) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+          <Shield className="w-4 h-4 text-red-500" />
+        </div>
+        <h3 className="text-base font-bold text-gray-900">EV Tax Credit Eligibility</h3>
+      </div>
+      <div className="space-y-2">
+        <div className="rounded-xl border border-red-100 bg-red-50 p-3">
+          <p className="text-xs font-semibold text-red-800">Federal new vehicle credit (§30D)</p>
+          <p className="text-xs text-red-700 mt-0.5">
+            Salvage title — NOT eligible.
+            {incentive.federal_new_amount > 0
+              ? ` Original buyer may have claimed $${incentive.federal_new_amount.toLocaleString()} — factor this into your negotiation.`
+              : ""}
+          </p>
+        </div>
+        <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+          <p className="text-xs font-semibold text-gray-700">Federal used vehicle credit (§25E)</p>
+          <p className="text-xs text-gray-600 mt-0.5">
+            {incentive.federal_used_amount > 0
+              ? `Up to $${incentive.federal_used_amount.toLocaleString()} if purchased from a licensed dealer.`
+              : "Not eligible for this vehicle."}
+          </p>
+        </div>
+        {incentive.state_amount > 0 && incentive.state && (
+          <div className="rounded-xl border border-green-100 bg-green-50 p-3">
+            <p className="text-xs font-semibold text-green-800">{incentive.state} state incentive</p>
+            <p className="text-xs text-green-700 mt-0.5">Up to ${incentive.state_amount.toLocaleString()}</p>
+          </div>
+        )}
+        {incentive.notes && (
+          <p className="text-xs text-gray-400">{incentive.notes}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ElectricityContextCard({ electricity }: { electricity: ElectricityContext }) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <h3 className="text-base font-bold text-gray-900">Charging Cost Estimate</h3>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+          <p className="text-xs text-gray-500 mb-0.5">{electricity.state} residential rate</p>
+          <p className="text-lg font-bold text-gray-900">{electricity.residential_kwh_cents}<span className="text-sm font-normal text-gray-500">¢/kWh</span></p>
+        </div>
+        {electricity.monthly_cost_estimate_usd !== null && (
+          <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
+            <p className="text-xs text-gray-500 mb-0.5">Est. monthly cost</p>
+            <p className="text-lg font-bold text-gray-900">${electricity.monthly_cost_estimate_usd}<span className="text-sm font-normal text-gray-500">/mo</span></p>
+          </div>
+        )}
+      </div>
+      {electricity.ev_tou_kwh_cents !== null && (
+        <div className="rounded-xl bg-green-50 border border-green-100 p-3">
+          <p className="text-xs font-semibold text-green-800">Off-peak EV rate available</p>
+          <p className="text-xs text-green-700 mt-0.5">TOU rate ~{electricity.ev_tou_kwh_cents}¢/kWh may reduce monthly cost significantly.</p>
+        </div>
+      )}
+      <p className="text-[10px] text-gray-300">At 12,000 mi/yr · {electricity.state} state average rate · EIA data</p>
+    </div>
+  );
 }
 
 function RecallsCard({ recalls }: { recalls: NhtsaRecallSummary[] }) {
@@ -488,6 +653,20 @@ export default function CopartPage() {
             {/* Recalls — always shown */}
             {report.recalls.length > 0 && (
               <RecallsCard recalls={report.recalls} />
+            )}
+
+            {/* data_v2 cards — shown when enrichment data is available */}
+            {report.charging_profile && (
+              <ChargingProfileCard profile={report.charging_profile} />
+            )}
+            {report.range_projection && (
+              <RangeProjectionCard range={report.range_projection} />
+            )}
+            {report.incentive_status && (
+              <IncentiveStatusCard incentive={report.incentive_status} />
+            )}
+            {report.electricity_context && (
+              <ElectricityContextCard electricity={report.electricity_context} />
             )}
 
             {/* Email capture */}

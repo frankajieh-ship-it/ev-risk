@@ -16,6 +16,7 @@
  */
 
 import { computeSalvageRisk, type SalvageRiskResult } from "@/lib/salvage-risk-scorer";
+import type { RepairCostEstimate, ProfitMargin } from "./repair-cost-estimate";
 import type { NormalizedAuctionLot, NhtsaRecallSummary } from "./types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -47,6 +48,14 @@ export interface DeterministicMetrics {
   recall_count: number;
   /** Suggested bid discount % from salvage scorer */
   suggested_bid_discount: number;
+  /** Underlying risk probability 0.0–1.0 from logistic transform */
+  risk_probability: number;
+  /** How much data uncertainty affected the score */
+  uncertainty_level: "low" | "medium" | "high";
+  /** Deterministic repair cost range (null when ARV unavailable) */
+  expected_repair_cost: RepairCostEstimate | null;
+  /** Profit margin after bid + repair (null when ARV or bid unavailable) */
+  profit_margin: ProfitMargin | null;
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -175,8 +184,14 @@ export function computeDeterministicMetrics(
     title_status: lot.title_status,
     mileage: lot.odometer,
     price: lot.current_bid,
+    arv: enrichment.arv,
+    auction_source: lot.auction_source,
     listing_text: listingText,
-    receipt: { active_recalls: recalls.length },
+    primary_damage: lot.primary_damage,
+    secondary_damage: lot.secondary_damage,
+    loss_type: lot.loss_type,
+    recalls,
+    receipt: { market_value: enrichment.arv ?? undefined },
   });
 
   console.log(`[DetMetrics] salvageRisk.score=${salvageRisk.score} grade=${salvageRisk.grade} factors=${JSON.stringify(salvageRisk.factors)}`);
@@ -205,5 +220,9 @@ export function computeDeterministicMetrics(
     rough_arv_ceiling: guardrails.ceiling,
     recall_count: recalls.length,
     suggested_bid_discount: salvageRisk.suggested_bid_discount,
+    risk_probability: salvageRisk.risk_probability,
+    uncertainty_level: salvageRisk.uncertainty_level,
+    expected_repair_cost: salvageRisk.expected_repair_cost,
+    profit_margin: salvageRisk.profit_margin,
   };
 }

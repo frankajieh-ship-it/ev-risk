@@ -26,7 +26,14 @@ import { grokAdapter } from "@/lib/providers/grok-adapter";
 import { geminiAdapter } from "@/lib/providers/gemini-adapter";
 import { openaiAdapter } from "@/lib/providers/openai-adapter";
 import type { GenerateOpts } from "@/lib/providers/types";
-import type { NormalizedAuctionLot, NhtsaRecallSummary } from "./types";
+import type {
+  NormalizedAuctionLot,
+  NhtsaRecallSummary,
+  ChargingProfileSummary,
+  RangeProjection,
+  ElectricityContext,
+  IncentiveStatus,
+} from "./types";
 import type { DeterministicMetrics } from "./deterministic-metrics";
 import {
   type AuctionPromptKey,
@@ -50,6 +57,11 @@ export interface AiChainInput {
   /** ARV from Auto.dev — null signals GPT-4o repair cost step is needed */
   arv: number | null;
   isPaid: boolean;
+  /** data_v2 enrichment — passed to routine-impact and polish prompts */
+  charging_profile?: ChargingProfileSummary | null;
+  range_projection?: RangeProjection | null;
+  electricity_context?: ElectricityContext | null;
+  incentive_status?: IncentiveStatus | null;
 }
 
 export interface AiChainOutput {
@@ -175,7 +187,7 @@ function canSkipRepairCost(metrics: DeterministicMetrics, arv: number | null, is
 // ── Main chain ────────────────────────────────────────────────────────────────
 
 export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOutput> {
-  const { lot, metrics, recalls, routineContext, arv, isPaid } = input;
+  const { lot, metrics, recalls, routineContext, arv, isPaid, charging_profile, range_projection, electricity_context, incentive_status } = input;
   const logs: AiStepLog[] = [];
   let totalCalls = 0;
 
@@ -219,7 +231,7 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
       geminiAdapter,
       {
         systemPrompt: AUCTION_SYSTEM_PROMPTS.auction_routine_impact,
-        userPrompt: buildRoutineImpactPrompt(lot, classification, recalls, routineContext),
+        userPrompt: buildRoutineImpactPrompt(lot, classification, recalls, routineContext, charging_profile, range_projection, electricity_context),
         jsonSchema: AUCTION_SCHEMAS.auction_routine_impact,
         schemaName: AUCTION_SCHEMA_NAMES.auction_routine_impact,
         temperature: 0.2,
@@ -262,7 +274,7 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
         grokAdapter,
         {
           systemPrompt: AUCTION_SYSTEM_PROMPTS.auction_final_polish,
-          userPrompt: buildPolishPrompt(lot, metrics, classification, routineImpact, repairCostRaw, arv),
+          userPrompt: buildPolishPrompt(lot, metrics, classification, routineImpact, repairCostRaw, arv, incentive_status),
           jsonSchema: AUCTION_SCHEMAS.auction_final_polish,
           schemaName: AUCTION_SCHEMA_NAMES.auction_final_polish,
           temperature: 0.3,

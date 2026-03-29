@@ -17,6 +17,13 @@
 
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
+import {
+  getChargingProfile,
+  getElectricityRate,
+  getIncentivesForVehicle,
+  loadRangeStackForVehicle,
+  findVehicleInMaster,
+} from "@/lib/data";
 import { copartAdapter } from "./adapters/copart-adapter";
 import { iaaiAdapter } from "./adapters/iaai-adapter";
 import { computeDeterministicMetrics } from "./deterministic-metrics";
@@ -28,8 +35,111 @@ import {
   type AuctionSourceAdapter,
   type NhtsaRecallSummary,
   type NormalizedAuctionLot,
+  type ChargingProfileSummary,
+  type RangeProjection,
+  type IncentiveStatus,
+  type ElectricityContext,
 } from "./types";
 import type { AiStepLog } from "./auction-ai-chain";
+
+// ── Location helpers ───────────────────────────────────────────────────────────
+
+/** Extract 2-letter state code from Copart location strings like "San Bernardino, CA" */
+function extractStateFromLocation(location: string): string | null {
+  const m = location.match(/,\s*([A-Z]{2})(?:\s|$)/);
+  return m ? m[1] : null;
+}
+
+/** Build ChargingProfileSummary from data_v2 lookup */
+function buildChargingProfile(make: string, model: string, year: number): ChargingProfileSummary | null {
+  const p = getChargingProfile(make, model, year);
+  if (!p) return null;
+  return {
+    peak_dc_kw: p.real_peak_dc_kw ?? p.peak_dc_kw,
+    time_10_to_80_min: p.time_10_to_80_min,
+    cold_derate_percent: p.cold_derate_percent,
+    curve_shape: p.curve_shape,
+    source_model: `${p.make} ${p.model} (${p.year_start}${p.year_end ? `–${p.year_end}` : "+"})`,
+  };
+}
+
+/** Build RangeProjection from data_v2 + vehicle master */
+function buildRangeProjection(
+  make: string,
+  model: string,
+  year: number,
+  location: string | null
+): RangeProjection | null {
+  const rangeRow = loadRangeStackForVehicle(make, model, year);
+  const vehicleRow = findVehicleInMaster(make, model, year);
+  const epaRange = vehicleRow?.epa_range_mi ?? null;
+  const realWorldRange = vehicleRow?.real_world_range_mi ?? (epaRange ? Math.round(epaRange * 0.85) : null);
+
+  if (!rangeRow && !epaRange) return null;
+
+  // Temperature-adjusted ranges (multiply EPA range by fraction)
+  const cold = epaRange && rangeRow?.range_at_32f ? Math.round(epaRange * rangeRow.range_at_32f) : null;
+  const extremeCold = epaRange && rangeRow?.range_at_0f ? Math.round(epaRange * rangeRow.range_at_0f) : null;
+  const heat = epaRange && rangeRow?.range_at_100f ? Math.round(epaRange * rangeRow.range_at_100f) : null;
+
+  return {
+    epa_range_mi: epaRange,
+    real_world_range_mi: realWorldRange,
+    cold_range_mi: cold,
+    extreme_cold_range_mi: extremeCold,
+    heat_range_mi: heat,
+    climate_note: location ? `Lot location: ${location}` : null,
+  };
+}
+
+/** Build IncentiveStatus — salvage titles always disqualify federal credit */
+function buildIncentiveStatus(
+  make: string,
+  model: string,
+  year: number,
+  state: string | null
+): IncentiveStatus {
+  const incentives = getIncentivesForVehicle(make, model, year, state ?? undefined);
+  const federalNew = incentives.find(i => i.incentive_type === "federal_new");
+  const federalUsed = incentives.find(i => i.incentive_type === "federal_used");
+  const stateInc = incentives.find(i => i.incentive_type === "state_new" || i.incentive_type === "state_used");
+
+  return {
+    federal_new_amount: federalNew?.amount_usd ?? 0,
+    federal_used_amount: federalUsed?.amount_usd ?? 0,
+    salvage_title_disqualifies: true, // IRS §30D — salvage title not eligible
+    state: stateInc?.state ?? null,
+    state_amount: stateInc?.amount_usd ?? 0,
+    notes: "Salvage-titled vehicles are ineligible for the federal EV tax credit (IRS §30D). " +
+           "If rebuilt and retitled, used vehicle credit ($4,000) may apply — consult a tax advisor.",
+  };
+}
+
+/** Build ElectricityContext from state electricity rate + vehicle efficiency */
+function buildElectricityContext(
+  state: string,
+  make: string,
+  model: string,
+  year: number
+): ElectricityContext | null {
+  const rate = getElectricityRate(state);
+  if (!rate) return null;
+
+  // Monthly cost: assume 12,000 mi/year, ~3.5 mi/kWh average EV efficiency
+  const vehicleRow = findVehicleInMaster(make, model, year);
+  const efficiencyMiPerKwh = 3.5; // conservative default
+  const annualKwh = 12000 / efficiencyMiPerKwh;
+  const monthlyKwh = annualKwh / 12;
+  const monthlyRate = (rate.ev_tou_kwh_cents ?? rate.residential_kwh_cents) / 100;
+  const monthlyCost = Math.round(monthlyKwh * monthlyRate);
+
+  return {
+    state,
+    residential_kwh_cents: rate.residential_kwh_cents,
+    ev_tou_kwh_cents: rate.ev_tou_kwh_cents,
+    monthly_cost_estimate_usd: monthlyCost,
+  };
+}
 
 // ── Adapter registry ──────────────────────────────────────────────────────────
 
@@ -120,6 +230,23 @@ export class AuctionEvaluationService {
     console.log(`[EvalService][3-ENRICH] enrichResult.source=${enrichResult?.source ?? "null"} recalls=${recalls.length}`);
     console.log(`[EvalService][3-ENRICH] market_price_range=${JSON.stringify(enrichResult?.market_price_range ?? null)} vin_data.price=${JSON.stringify(enrichResult?.vin_data?.price ?? null)}`);
 
+    // 3b. data_v2 static enrichment (synchronous, no network)
+    const state = lot.location ? extractStateFromLocation(lot.location) : null;
+    const chargingProfileSummary = (lot.make && lot.model && lot.year)
+      ? buildChargingProfile(lot.make, lot.model, lot.year)
+      : null;
+    const rangeProjection = (lot.make && lot.model && lot.year)
+      ? buildRangeProjection(lot.make, lot.model, lot.year, lot.location)
+      : null;
+    const incentiveStatus = (lot.make && lot.model && lot.year)
+      ? buildIncentiveStatus(lot.make, lot.model, lot.year, state)
+      : null;
+    const electricityContext = (state && lot.make && lot.model && lot.year)
+      ? buildElectricityContext(state, lot.make, lot.model, lot.year)
+      : null;
+
+    console.log(`[EvalService][3b-DATA2] charging=${!!chargingProfileSummary} range=${!!rangeProjection} incentive=${!!incentiveStatus} electricity=${!!electricityContext}`);
+
     // 4. Resolve ARV from enrichment
     let arv: number | null = null;
     let arvListingCount = 0;
@@ -166,6 +293,9 @@ export class AuctionEvaluationService {
       routineContext,
       arv,
       isPaid,
+      charging_profile: chargingProfileSummary,
+      range_projection: rangeProjection,
+      electricity_context: electricityContext,
     });
 
     console.log(`[EvalService][8-AICHAIN] steps=${aiChainOutput.steps_run.map(s => `${s.step}:${s.status}`).join(", ")} total_calls=${aiChainOutput.total_model_calls}`);
@@ -317,6 +447,10 @@ export class AuctionEvaluationService {
       arbitrage,
       recalls,
       routine_fit: routineFit,
+      charging_profile: chargingProfileSummary,
+      range_projection: rangeProjection,
+      incentive_status: incentiveStatus,
+      electricity_context: electricityContext,
       cached: false,
       created_at: now.toISOString(),
       expires_at: expiresAt.toISOString(),
@@ -378,6 +512,10 @@ export class AuctionEvaluationService {
         arbitrage: (report.arbitrage as AuctionEvalReport["arbitrage"]) ?? null,
         recalls: (report.recalls as NhtsaRecallSummary[]) ?? [],
         routine_fit: (report.routine_fit as AuctionEvalReport["routine_fit"]) ?? null,
+        charging_profile: (report.charging_profile as AuctionEvalReport["charging_profile"]) ?? null,
+        range_projection: (report.range_projection as AuctionEvalReport["range_projection"]) ?? null,
+        incentive_status: (report.incentive_status as AuctionEvalReport["incentive_status"]) ?? null,
+        electricity_context: (report.electricity_context as AuctionEvalReport["electricity_context"]) ?? null,
         created_at: row.created_at,
         expires_at: row.cache_expires_at,
       };

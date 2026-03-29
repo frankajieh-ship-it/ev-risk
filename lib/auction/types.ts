@@ -82,6 +82,42 @@ export interface NhtsaRecallSummary {
   Remedy: string;
 }
 
+// ── data_v2 enrichment types ──────────────────────────────────────────────────
+
+export interface ChargingProfileSummary {
+  peak_dc_kw: number | null;
+  time_10_to_80_min: number | null;
+  cold_derate_percent: number;
+  curve_shape: "flat" | "tapered" | "steep_taper";
+  source_model: string;
+}
+
+export interface RangeProjection {
+  epa_range_mi: number | null;
+  real_world_range_mi: number | null;
+  cold_range_mi: number | null;
+  extreme_cold_range_mi: number | null;
+  heat_range_mi: number | null;
+  climate_note: string | null;
+}
+
+export interface IncentiveStatus {
+  federal_new_amount: number;
+  federal_used_amount: number;
+  /** Salvage-titled vehicles are never eligible for §30D */
+  salvage_title_disqualifies: boolean;
+  state: string | null;
+  state_amount: number;
+  notes: string | null;
+}
+
+export interface ElectricityContext {
+  state: string;
+  residential_kwh_cents: number;
+  ev_tou_kwh_cents: number | null;
+  monthly_cost_estimate_usd: number | null;
+}
+
 // ── Orchestrator input / output ───────────────────────────────────────────────
 
 export interface AuctionEvalInput {
@@ -105,6 +141,14 @@ export interface AuctionEvalReport {
   recalls: NhtsaRecallSummary[];
   /** null when no routine_profile provided */
   routine_fit: RoutineFitScore | null;
+  /** DC charging performance from data_v2; null when vehicle not in catalog */
+  charging_profile: ChargingProfileSummary | null;
+  /** Temperature-adjusted range projection; null when vehicle not in catalog */
+  range_projection: RangeProjection | null;
+  /** Federal + state incentive eligibility; null when make/model/year unknown */
+  incentive_status: IncentiveStatus | null;
+  /** State electricity rate + monthly cost estimate; null when location unknown */
+  electricity_context: ElectricityContext | null;
   /** true when result was served from the 24h persistence cache */
   cached: boolean;
   created_at: string;

@@ -50,3 +50,16 @@ next-env.d.ts
 
 # Pattern tracking data (user-submitted behavioral patterns)
 /data/patterns.json
+
+# Generated ETL output files (data_v2/) — large, regenerated from scripts/etl/
+# Run scripts/etl/*.ts to regenerate. Do NOT commit these files.
+/data_v2/vehicle_master.json
+/data_v2/recalls_live.json
+/data_v2/charger_density_v2.json
+/data_v2/electricity_rates.json
+/data_v2/market_pricing.json
+# Keep semi-manual compiled files (they represent manual research effort):
+# data_v2/incentives.json
+# data_v2/charging_profiles.json
+# data_v2/range_stack.json
+# data_v2/ownership_cost.json
