@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { useTurnstile } from "@/hooks/useTurnstile";
 
 const FEEDBACK_TYPES = [
   { value: "bug", label: "Bug Report" },
@@ -36,6 +37,11 @@ function ContactForm() {
   const verdict = searchParams.get("verdict");
   const isFromReceipt = from === "receipt";
 
+  const { execute: executeTurnstile } = useTurnstile({
+    containerId: "turnstile-contact",
+    action: "contact-submit",
+  });
+
   const [feedbackType, setFeedbackType] = useState("general");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -58,11 +64,15 @@ function ContactForm() {
     setIsSubmitting(true);
 
     try {
+      const turnstileToken = await executeTurnstile();
+
       const body: Record<string, unknown> = {
         feedbackType,
         email,
         comments: message,
         additionalData: name || null,
+        turnstileToken: turnstileToken || undefined,
+        leave_this_empty: "",
       };
 
       if (isFromReceipt) {
@@ -139,6 +149,7 @@ function ContactForm() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
+      <div id="turnstile-contact" className="hidden" />
       <div className="max-w-lg mx-auto">
         <div className="mb-6">
           <Link

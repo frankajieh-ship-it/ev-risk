@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { sendChecklistEmail } from "@/lib/resend";
+import { guardTurnstile } from "@/lib/turnstile";
 
 // Rate limiting map (in-memory, per instance)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request body
-    let body;
+    let body: Record<string, unknown>;
     try {
       body = await request.json();
     } catch (parseError) {
@@ -75,6 +76,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Turnstile bot protection (honeypot + token verification)
+    const blocked = await guardTurnstile(body, clientIP, "/api/feedback");
+    if (blocked) return blocked;
 
     const { email, feedbackType, helpful, missing, additionalData, comments, name } =
       body as Record<string, string | undefined>;
