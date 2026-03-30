@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Search, AlertCircle, MessageSquare, ChevronDown, ChevronUp, Lightbulb, SlidersHorizontal, Bookmark, Check } from "lucide-react";
+import { ArrowLeft, Search, AlertCircle, MessageSquare, ChevronDown, ChevronUp, Lightbulb, SlidersHorizontal, Bookmark, Check, LayoutGrid, LayoutList, List } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import RecommendationCard from "./RecommendationCard";
+import RecommendationCardGrid from "./RecommendationCardGrid";
+import RecommendationCardList from "./RecommendationCardList";
 import ExtensionNudge from "./ExtensionNudge";
 import RefineStep, { type RefinePrefs } from "./RefineStep";
 import Link from "next/link";
@@ -38,6 +40,7 @@ const chargingLabels: Record<string, string> = {
 };
 
 type DecisionPriority = "friction" | "spend" | "space" | null;
+type ViewMode = "card" | "grid" | "list";
 
 function SkeletonCard() {
   return (
@@ -180,6 +183,7 @@ export default function VehicleRecommendations({
   const [adjustedLabel, setAdjustedLabel] = useState(false);
   const [showAdjustBar, setShowAdjustBar] = useState(false);
   const [adjustExpanded, setAdjustExpanded] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("card");
 
   // Trust & methodology state
   const [dataSources, setDataSources] = useState<DataSources | null>(null);
@@ -1028,6 +1032,28 @@ export default function VehicleRecommendations({
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 Narrow to Top 3
               </button>
+
+              {/* View mode toggle */}
+              <div className="flex items-center gap-0.5 ml-1 shrink-0">
+                {([
+                  { mode: "card" as ViewMode, Icon: LayoutList, label: "Card view" },
+                  { mode: "grid" as ViewMode, Icon: LayoutGrid, label: "Grid view" },
+                  { mode: "list" as ViewMode, Icon: List,       label: "List view" },
+                ] as const).map(({ mode, Icon, label }) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    title={label}
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      viewMode === mode
+                        ? "bg-blue-100 text-blue-600"
+                        : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -1057,8 +1083,21 @@ export default function VehicleRecommendations({
 
           {/* Recommended vehicles — Top 3 */}
           {refinePhase === "browse" && top3.length > 0 && (
-            <div className="space-y-4 mb-4">
-              {top3.map((rec, i) => (
+            <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4" : "space-y-4 mb-4"}>
+              {top3.map((rec, i) => viewMode === "grid" ? (
+                <RecommendationCardGrid
+                  key={rec.model}
+                  recommendation={rec}
+                  onSelect={() => handleSelect(rec, i + 1)}
+                />
+              ) : viewMode === "list" ? (
+                <RecommendationCardList
+                  key={rec.model}
+                  recommendation={rec}
+                  onSelect={() => handleSelect(rec, i + 1)}
+                  rank={i + 1}
+                />
+              ) : (
                 <RecommendationCard
                   key={rec.model}
                   recommendation={rec}
@@ -1070,8 +1109,8 @@ export default function VehicleRecommendations({
                   onToggleCompare={handleToggleCompare}
                 />
               ))}
-              {/* Extension nudge — shown after list loads */}
-              <ExtensionNudge context="fits" />
+              {/* Extension nudge — shown after list loads (card view only) */}
+              {viewMode === "card" && <ExtensionNudge context="fits" />}
             </div>
           )}
 
@@ -1147,8 +1186,21 @@ export default function VehicleRecommendations({
                 {showAlsoFits ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
               {showAlsoFits && (
-                <div className="space-y-4 mt-4">
-                  {alsoFits.map((rec, i) => (
+                <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4" : "space-y-4 mt-4"}>
+                  {alsoFits.map((rec, i) => viewMode === "grid" ? (
+                    <RecommendationCardGrid
+                      key={rec.model}
+                      recommendation={rec}
+                      onSelect={() => handleSelect(rec, top3.length + i + 1)}
+                    />
+                  ) : viewMode === "list" ? (
+                    <RecommendationCardList
+                      key={rec.model}
+                      recommendation={rec}
+                      onSelect={() => handleSelect(rec, top3.length + i + 1)}
+                      rank={top3.length + i + 1}
+                    />
+                  ) : (
                     <RecommendationCard
                       key={rec.model}
                       recommendation={rec}
