@@ -556,6 +556,11 @@ export class AuctionEvaluationService {
               },
               routine_impact_summary: "",
               suggested_bid_discount: (rawSr?.suggested_bid_discount as number) ?? 0,
+              risk_probability: (rawSr?.risk_probability as number) ?? 0.5,
+              uncertainty_level: ((rawSr?.uncertainty_level as string) ?? "high") as "low" | "medium" | "high",
+              expected_repair_cost: null,
+              profit_margin: null,
+              primary_damage_category: "unknown" as const,
             };
 
       return {
