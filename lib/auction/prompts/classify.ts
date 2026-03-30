@@ -12,7 +12,9 @@ import type { DeterministicMetrics } from "../deterministic-metrics";
 
 export const CLASSIFICATION_SYSTEM_PROMPT =
   "You are an expert salvage vehicle risk classifier. Return structured JSON only. " +
-  "Be concise and factual. Do not invent issues not present in the data.";
+  "Be concise and factual. Do not invent issues not present in the data. " +
+  "If auction photos are provided, use them as primary evidence for damage assessment — " +
+  "photos override ambiguous text descriptions.";
 
 // ── JSON schema ───────────────────────────────────────────────────────────────
 

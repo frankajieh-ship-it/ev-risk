@@ -46,7 +46,7 @@ export interface RepairCostInput {
 // [low_fraction, high_fraction]
 // Calibrated to EV-specific repair costs (HV system work is expensive)
 
-const REPAIR_MULTIPLIERS: Record<DamageCategory, [number, number]> = {
+export const REPAIR_MULTIPLIERS: Record<DamageCategory, [number, number]> = {
   front_end:       [0.08, 0.28],   // airbags, bumper, frunk — often fixable
   rear_end:        [0.07, 0.25],   // trunk, bumper, tail lights
   side:            [0.09, 0.26],   // door panels, quarter panel

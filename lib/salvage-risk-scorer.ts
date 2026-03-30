@@ -22,9 +22,10 @@
  */
 
 import { parseDamageSignals, severityToRisk } from "./auction/damage-parser";
-import type { DamageSignals } from "./auction/damage-parser";
+import type { DamageSignals, DamageCategory } from "./auction/damage-parser";
 import type { NhtsaRecallSummary } from "./auction/types";
 import {
+  REPAIR_MULTIPLIERS,
   estimateRepairCost,
   computeProfitMargin,
   type RepairCostEstimate,
@@ -63,6 +64,8 @@ export interface SalvageRiskResult {
   expected_repair_cost: RepairCostEstimate | null;
   /** Profit margin after bid + repair (requires ARV + current_bid) */
   profit_margin: ProfitMargin | null;
+  /** Inferred primary damage category — used for display and downstream filtering */
+  primary_damage_category: DamageCategory;
 }
 
 // ── Title risk table ──────────────────────────────────────────────────────────
@@ -98,7 +101,21 @@ function titleRisk(
   return 30; // unknown
 }
 
-// ── Recall severity scoring ───────────────────────────────────────────────────
+// ── 11B. Damage category inference ───────────────────────────────────────────
+//
+// Maps parsed DamageSignals → DamageCategory for repair cost lookup.
+// Mirrors the priority hierarchy in damage-parser's inferPrimaryCategory.
+
+function inferDamageCategory(signals: DamageSignals): DamageCategory {
+  if (signals.fire.detected && signals.fire.severity === "confirmed") return "fire";
+  if (signals.battery.detected && signals.battery.severity !== "possible") return "battery";
+  if (signals.flood.detected) return "flood";
+  if (signals.structural.detected && signals.structural.severity !== "possible") return "structural";
+  if (signals.electrical.detected) return "electrical";
+  return signals.primary_category !== "unknown" ? signals.primary_category : "unknown";
+}
+
+// ── 11C. Recall severity scoring — open status + summary text ────────────────
 
 const HIGH_SEVERITY_RECALL_COMPONENTS = [
   "battery", "high voltage", "fire", "thermal", "charging system",
@@ -108,11 +125,21 @@ const HIGH_SEVERITY_RECALL_COMPONENTS = [
 
 function recallRisk(recalls: NhtsaRecallSummary[]): number {
   if (!recalls.length) return 0;
-  const total = recalls.reduce((acc, r) => {
-    const component = r.Component.toLowerCase();
+  let total = 0;
+  for (const r of recalls) {
+    const component = (r.Component ?? "").toLowerCase();
+    const summary   = (r.Summary   ?? "").toLowerCase();
+    // Open recall: Remedy field absent or very short (< 10 chars = no fix described)
+    const isOpen = !r.Remedy || r.Remedy.length < 10;
+
     const isHighSeverity = HIGH_SEVERITY_RECALL_COMPONENTS.some((c) => component.includes(c));
-    return acc + (isHighSeverity ? 35 : 12);
-  }, 0);
+    const mentionsFire   = summary.includes("fire") || summary.includes("thermal");
+
+    let pts = isHighSeverity ? 35 : 12;
+    if (isOpen)        pts = Math.round(pts * 1.4);   // unresolved recall = more risk
+    if (mentionsFire)  pts = Math.round(pts * 1.2);   // fire/thermal in description
+    total += pts;
+  }
   return Math.min(100, total);
 }
 
@@ -201,15 +228,22 @@ export function computeSalvageRisk(input: MinimalReceiptInput): SalvageRiskResul
   // ── 4. Recall severity (10%) — component-weighted ────────────────────────
   const recallOverlap = recallRisk(recalls);
 
-  // ── 5. Repair cost proxy (10%) ───────────────────────────────────────────
-  let repairCostRisk = 0;
+  // ── 5. Repair cost risk (10%) — 11A: damage-type multiplier ─────────────────
+  // Replaces the price-ratio proxy (which required ARV to be available).
+  // Always computable from damage signals alone.
+  const primaryDamageCategory = inferDamageCategory(signals);
+  const [rcLow, rcHigh] = REPAIR_MULTIPLIERS[primaryDamageCategory] ?? [0.15, 0.45];
+  const repairMidpointFraction = (rcLow + rcHigh) / 2;
+  // Map repair fraction to 0–100 risk: 0.18 → ~20, 0.40 → ~44, 0.70 → ~77, 0.95 → ~100
+  let repairCostRisk = Math.min(100, Math.round(repairMidpointFraction * 110));
+  // Secondary signal: if bid is very high relative to market (>85%) AND severe damage → +10
   if (marketValue > 0 && price > 0) {
     const priceRatio = price / marketValue;
-    if (priceRatio < 0.4)      repairCostRisk = 90;
-    else if (priceRatio < 0.6) repairCostRisk = 60;
-    else if (priceRatio < 0.8) repairCostRisk = 30;
-  } else {
-    repairCostRisk = 20;
+    if (priceRatio > 0.85 &&
+        (primaryDamageCategory === "structural" || primaryDamageCategory === "battery" ||
+         primaryDamageCategory === "fire" || primaryDamageCategory === "flood")) {
+      repairCostRisk = Math.min(100, repairCostRisk + 10);
+    }
   }
 
   // ── 6. Mileage penalty (5%) — smooth exponential ─────────────────────────
@@ -304,6 +338,7 @@ export function computeSalvageRisk(input: MinimalReceiptInput): SalvageRiskResul
     uncertainty_level: uncertaintyLevel,
     expected_repair_cost,
     profit_margin,
+    primary_damage_category: primaryDamageCategory,
   };
 }
 

@@ -23,6 +23,9 @@ import {
   REPAIR_COST_SYSTEM_PROMPT,
   AUCTION_FEES_ESTIMATE,
   computeMaxSafeBid,
+  computeExpectedProfits,
+  computeSafeBidRange,
+  computeProfitScenarios,
   type RepairCostOutput,
   type ArbitrageResult,
 } from "@/lib/copart-arbitrage-engine";
@@ -127,10 +130,30 @@ export async function POST(request: NextRequest) {
   const repairCostMidpoint = Math.round((repairCostLow + repairCostHigh) / 2);
   const partsValue = repairOutput?.parts_value_total ?? 0;
 
-  // ── Max safe bid ──────────────────────────────────────────────────────────
+  // ── Max safe bid + range ──────────────────────────────────────────────────
   const maxSafeBid =
     arv !== null && repairCostMidpoint > 0
       ? computeMaxSafeBid(arv, repairCostMidpoint, AUCTION_FEES_ESTIMATE, 20)
+      : null;
+
+  const safeBidRange =
+    arv !== null && repairCostLow > 0
+      ? computeSafeBidRange(arv, repairCostLow, repairCostHigh, AUCTION_FEES_ESTIMATE, 20)
+      : null;
+
+  const { repair: expectedProfitRepair, parts: expectedProfitParts } =
+    computeExpectedProfits(arv, partsValue, askingPrice, repairCostMidpoint, AUCTION_FEES_ESTIMATE);
+
+  const profitScenariosRepair =
+    arv !== null && askingPrice !== null && repairCostMidpoint > 0
+      ? computeProfitScenarios(arv, askingPrice, repairCostLow, repairCostMidpoint, repairCostHigh, AUCTION_FEES_ESTIMATE)
+      : null;
+
+  const recommendedStrategy: ArbitrageResult["recommended_strategy"] =
+    expectedProfitRepair !== null && expectedProfitParts !== null
+      ? expectedProfitParts > expectedProfitRepair ? "parts" : "repair"
+      : expectedProfitRepair !== null ? "repair"
+      : expectedProfitParts  !== null ? "parts"
       : null;
 
   const result: ArbitrageResult = {
@@ -149,6 +172,11 @@ export async function POST(request: NextRequest) {
     confidence: repairOutput?.confidence ?? "low",
     caveats: repairOutput?.caveats ?? ["Repair cost estimate unavailable — manual inspection strongly recommended."],
     damage_type_inferred: damageType,
+    expected_profit_repair: expectedProfitRepair,
+    expected_profit_parts: expectedProfitParts,
+    safe_bid_range: safeBidRange,
+    profit_scenarios_repair: profitScenariosRepair,
+    recommended_strategy: recommendedStrategy,
   };
 
   return NextResponse.json({ success: true, result });

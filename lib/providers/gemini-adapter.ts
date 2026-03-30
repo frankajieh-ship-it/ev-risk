@@ -12,7 +12,7 @@
  *     but also accepts lowercase in recent SDK versions — we use lowercase for safety
  */
 
-import { GoogleGenerativeAI, type SchemaType } from "@google/generative-ai";
+import { GoogleGenerativeAI, type SchemaType, type Part } from "@google/generative-ai";
 import type { ProviderAdapter, GenerateOpts, GenerateResult } from "./types";
 
 let _client: GoogleGenerativeAI | null = null;
@@ -100,8 +100,9 @@ export const geminiAdapter: ProviderAdapter = {
       },
     });
 
-    // Combine system + user prompt (Gemini handles them as one string or via systemInstruction)
-    const combinedPrompt = `${opts.systemPrompt}\n\n${opts.userPrompt}`;
+    // Build content parts — include image fileData parts when imageUrls provided
+    const hasImages = (opts.imageUrls?.length ?? 0) > 0;
+    const combinedText = `${opts.systemPrompt}\n\n${opts.userPrompt}`;
 
     // Build a combined abort from master signal + per-call timeout
     const timeoutMs = opts.timeoutMs ?? 8_000;
@@ -113,7 +114,18 @@ export const geminiAdapter: ProviderAdapter = {
       opts.signal?.addEventListener("abort", () => reject(new Error("Aborted")));
     });
 
-    const generatePromise = genModel.generateContent(combinedPrompt);
+    let generatePromise: ReturnType<typeof genModel.generateContent>;
+    if (hasImages) {
+      const parts: Part[] = [
+        { text: combinedText },
+        ...opts.imageUrls!.slice(0, 3).map((url): Part => ({
+          fileData: { mimeType: "image/jpeg", fileUri: url },
+        })),
+      ];
+      generatePromise = genModel.generateContent({ contents: [{ role: "user", parts }] });
+    } else {
+      generatePromise = genModel.generateContent(combinedText);
+    }
 
     let response: Awaited<typeof generatePromise>;
     try {

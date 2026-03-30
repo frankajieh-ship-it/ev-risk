@@ -62,6 +62,8 @@ export interface AiChainInput {
   range_projection?: RangeProjection | null;
   electricity_context?: ElectricityContext | null;
   incentive_status?: IncentiveStatus | null;
+  /** Up to 3 auction photo URLs — passed to classify step for visual damage assessment */
+  photos?: string[];
 }
 
 export interface AiChainOutput {
@@ -212,6 +214,7 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
       temperature: 0.1,
       maxTokens: 600,
       timeoutMs: 20_000,
+      imageUrls: input.photos?.slice(0, 3),
     },
     isClassification,
     logs

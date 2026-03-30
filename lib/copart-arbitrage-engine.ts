@@ -56,6 +56,34 @@ export interface ArbitrageResult {
   confidence: "high" | "medium" | "low";
   caveats: string[];
   damage_type_inferred: string;
+  /**
+   * Expected profit if you buy at asking price and repair.
+   * = ARV − asking_price − repair_cost_estimate − auction_fees
+   * Null when ARV or asking price is unavailable.
+   */
+  expected_profit_repair: number | null;
+  /**
+   * Expected profit if you buy at asking price and strip for parts.
+   * = parts_value − asking_price − auction_fees
+   * Null when asking price is unavailable.
+   */
+  expected_profit_parts: number | null;
+  /**
+   * Safe bid range at the default 20% margin, using repair_cost_low/high
+   * to express uncertainty as a range instead of a single number.
+   */
+  safe_bid_range: { low: number; high: number } | null;
+  /**
+   * Profit scenarios for repair strategy at asking price.
+   * best = ARV - repair_cost_low - fees
+   * worst = ARV - repair_cost_high - fees
+   * likely = ARV - repair_cost_estimate - fees  (same as expected_profit_repair)
+   */
+  profit_scenarios_repair: { best: number; worst: number; likely: number } | null;
+  /**
+   * Recommended strategy based on best expected profit.
+   */
+  recommended_strategy: "repair" | "parts" | null;
 }
 
 // ── Damage type inference ─────────────────────────────────────────────────────
@@ -189,4 +217,66 @@ export function computeMaxSafeBid(
 ): number {
   const marginDollars = arv * (targetMarginPct / 100);
   return Math.max(0, arv - repairCostMidpoint - auctionFees - marginDollars);
+}
+
+/**
+ * Compute expected profit for repair and parts strategies.
+ * No margin baked in — this is raw profit/loss at the given bid price.
+ */
+export function computeExpectedProfits(
+  arv: number | null,
+  partsValue: number,
+  bidPrice: number | null,
+  repairCostMidpoint: number,
+  auctionFees: number
+): { repair: number | null; parts: number | null } {
+  const parts =
+    bidPrice !== null
+      ? partsValue - bidPrice - auctionFees
+      : null;
+  const repair =
+    arv !== null && bidPrice !== null
+      ? arv - bidPrice - repairCostMidpoint - auctionFees
+      : null;
+  return { repair, parts };
+}
+
+/**
+ * Safe bid range at a given margin, using repair cost low/high to express
+ * uncertainty — users see a range instead of a falsely precise single number.
+ *
+ * high end = optimistic (uses repair_cost_low)
+ * low end  = conservative (uses repair_cost_high)
+ */
+export function computeSafeBidRange(
+  arv: number,
+  repairCostLow: number,
+  repairCostHigh: number,
+  auctionFees: number,
+  targetMarginPct: number
+): { low: number; high: number } {
+  const marginDollars = arv * (targetMarginPct / 100);
+  return {
+    low:  Math.max(0, arv - repairCostHigh - auctionFees - marginDollars),
+    high: Math.max(0, arv - repairCostLow  - auctionFees - marginDollars),
+  };
+}
+
+/**
+ * Best / worst / likely profit scenarios for repair strategy at a given bid price.
+ * Assumes ARV is fixed; uncertainty comes from repair cost range.
+ */
+export function computeProfitScenarios(
+  arv: number,
+  bidPrice: number,
+  repairCostLow: number,
+  repairCostMidpoint: number,
+  repairCostHigh: number,
+  auctionFees: number
+): { best: number; worst: number; likely: number } {
+  return {
+    best:   arv - bidPrice - repairCostLow      - auctionFees,
+    likely: arv - bidPrice - repairCostMidpoint - auctionFees,
+    worst:  arv - bidPrice - repairCostHigh     - auctionFees,
+  };
 }

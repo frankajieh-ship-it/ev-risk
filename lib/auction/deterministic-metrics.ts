@@ -16,6 +16,7 @@
  */
 
 import { computeSalvageRisk, type SalvageRiskResult } from "@/lib/salvage-risk-scorer";
+import type { DamageCategory } from "./damage-parser";
 import type { RepairCostEstimate, ProfitMargin } from "./repair-cost-estimate";
 import type { NormalizedAuctionLot, NhtsaRecallSummary } from "./types";
 
@@ -56,6 +57,8 @@ export interface DeterministicMetrics {
   expected_repair_cost: RepairCostEstimate | null;
   /** Profit margin after bid + repair (null when ARV or bid unavailable) */
   profit_margin: ProfitMargin | null;
+  /** Primary damage category inferred from listing signals */
+  primary_damage_category: DamageCategory;
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -224,5 +227,6 @@ export function computeDeterministicMetrics(
     uncertainty_level: salvageRisk.uncertainty_level,
     expected_repair_cost: salvageRisk.expected_repair_cost,
     profit_margin: salvageRisk.profit_margin,
+    primary_damage_category: salvageRisk.primary_damage_category,
   };
 }

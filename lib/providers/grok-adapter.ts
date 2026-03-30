@@ -32,14 +32,29 @@ export const grokAdapter: ProviderAdapter = {
 
   async generate(opts: GenerateOpts): Promise<GenerateResult> {
     const t0 = Date.now();
-    const model = process.env.GROK_MODEL || "grok-3-mini";
+    const hasImages = (opts.imageUrls?.length ?? 0) > 0;
+    // grok-3-mini does not support vision — upgrade to grok-2-vision when images present
+    const model = hasImages
+      ? (process.env.GROK_VISION_MODEL || "grok-2-vision-1212")
+      : (process.env.GROK_MODEL || "grok-3-mini");
+
+    type ContentPart =
+      | { type: "text"; text: string }
+      | { type: "image_url"; image_url: { url: string; detail: "low" } };
+
+    const userContent: ContentPart[] = [{ type: "text", text: opts.userPrompt }];
+    if (hasImages) {
+      for (const url of opts.imageUrls!.slice(0, 3)) {
+        userContent.push({ type: "image_url", image_url: { url, detail: "low" } });
+      }
+    }
 
     const response = await getClient().chat.completions.create(
       {
         model,
         messages: [
           { role: "system", content: opts.systemPrompt },
-          { role: "user", content: opts.userPrompt },
+          { role: "user", content: hasImages ? userContent : opts.userPrompt },
         ],
         temperature: opts.temperature,
         max_tokens: opts.maxTokens,

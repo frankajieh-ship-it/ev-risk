@@ -49,6 +49,8 @@ export interface HedgeOpts {
   providerOrder?: string[];
   /** Event callback for analytics (fire-and-forget) */
   onEvent?: (event: HedgeEvent) => void;
+  /** Optional image URLs for vision analysis (max 3). Passed to all providers. */
+  imageUrls?: string[];
 }
 
 export interface HedgeEvent {
@@ -85,6 +87,7 @@ export async function hedgedGenerate(opts: HedgeOpts): Promise<HedgeResult> {
     temperature,
     maxTokens,
     timeoutMs: 55_000,
+    imageUrls: opts.imageUrls,
   };
 
   // Track abort controllers so we can cancel losers

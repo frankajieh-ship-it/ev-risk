@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { TrendingDown, ExternalLink, CircleDollarSign, Info, Calculator } from "lucide-react";
+import { TrendingDown, ExternalLink, CircleDollarSign, Info, Calculator, ShieldCheck, TrendingUp, AlertTriangle, XCircle } from "lucide-react";
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
+import type { ArbitrageResult } from "@/lib/copart-arbitrage-engine";
 
 interface AuctionBidGuidanceCardProps {
   result: SalvageRiskResult;
@@ -11,19 +12,71 @@ interface AuctionBidGuidanceCardProps {
   /** Current auction bid in dollars, if known */
   currentBid?: number | null;
   vin?: string | null;
+  /** Arbitrage result, if available — used to derive Deal Quality score */
+  arbitrage?: ArbitrageResult | null;
 }
 
 function fmt(n: number) {
   return "$" + Math.round(n).toLocaleString();
 }
 
-export default function AuctionBidGuidanceCard({ result, askingPrice, currentBid, vin }: AuctionBidGuidanceCardProps) {
+function fmtProfit(n: number) {
+  if (n >= 0) return "+" + fmt(n);
+  return "−" + fmt(Math.abs(n));
+}
+
+/** Derive a 0–100 Deal Quality score from arbitrage financials */
+function dealQualityScore(arbitrage: ArbitrageResult): {
+  score: number;
+  label: string;
+  grade: "green" | "yellow" | "red";
+  primary: number | null;
+  strategy: "repair" | "parts";
+} {
+  const repairProfit = arbitrage.expected_profit_repair;
+  const partsProfit = arbitrage.expected_profit_parts;
+  const arv = arbitrage.arv;
+
+  // Pick best strategy
+  const bestProfit =
+    repairProfit !== null && partsProfit !== null
+      ? Math.max(repairProfit, partsProfit)
+      : repairProfit ?? partsProfit;
+  const strategy: "repair" | "parts" =
+    partsProfit !== null && repairProfit !== null && partsProfit > repairProfit
+      ? "parts"
+      : "repair";
+
+  if (bestProfit === null || arv === null) {
+    return { score: 50, label: "Unknown", grade: "yellow", primary: null, strategy };
+  }
+
+  // Score: profit as % of ARV, mapped to 0–100
+  const profitPct = bestProfit / arv;
+  const score = Math.max(0, Math.min(100, Math.round(50 + profitPct * 200)));
+
+  const grade: "green" | "yellow" | "red" = score >= 65 ? "green" : score >= 40 ? "yellow" : "red";
+  const label = score >= 65 ? "Good Deal" : score >= 40 ? "Marginal Deal" : "Poor Deal";
+  return { score, label, grade, primary: bestProfit, strategy };
+}
+
+export default function AuctionBidGuidanceCard({ result, askingPrice, currentBid, vin, arbitrage }: AuctionBidGuidanceCardProps) {
   const [manualBid, setManualBid] = useState("");
   const { grade, score, suggested_bid_discount } = result;
 
-  const gradeLabel = grade === "green" ? "Low Risk" : grade === "yellow" ? "Moderate Risk" : "High Risk";
+  // Repair Risk (structural/damage — from salvage score)
+  const repairRiskLabel = grade === "green" ? "Low" : grade === "yellow" ? "Moderate" : "High";
+  const repairRiskText = grade === "green" ? "text-green-700" : grade === "yellow" ? "text-amber-700" : "text-red-700";
+  const repairRiskBg = grade === "green" ? "bg-green-50 border-green-200" : grade === "yellow" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200";
+  const RepairRiskIcon = grade === "green" ? ShieldCheck : grade === "yellow" ? AlertTriangle : XCircle;
+
+  // Deal Quality (financial outcome — from arbitrage, if available)
+  const dq = arbitrage ? dealQualityScore(arbitrage) : null;
+  const dqText = dq ? (dq.grade === "green" ? "text-green-700" : dq.grade === "yellow" ? "text-amber-700" : "text-red-700") : "text-gray-500";
+  const dqBg  = dq ? (dq.grade === "green" ? "bg-green-50 border-green-200" : dq.grade === "yellow" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200") : "bg-gray-50 border-gray-200";
+  const DqIcon = dq ? (dq.grade === "green" ? TrendingUp : dq.grade === "yellow" ? AlertTriangle : XCircle) : Info;
+
   const gradeBg = grade === "green" ? "bg-green-50 border-green-200" : grade === "yellow" ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200";
-  const gradeText = grade === "green" ? "text-green-800" : grade === "yellow" ? "text-amber-800" : "text-red-800";
 
   const discountNote =
     suggested_bid_discount > 0
@@ -58,9 +111,35 @@ export default function AuctionBidGuidanceCard({ result, askingPrice, currentBid
         <h3 className="text-base font-bold text-gray-900">Bid Guidance</h3>
       </div>
 
-      {/* Grade summary */}
-      <div className={`text-sm font-semibold ${gradeText}`}>
-        Risk rating: <span className="font-bold">{gradeLabel}</span> ({score}/100 safety score)
+      {/* Two-score split: Repair Risk + Deal Quality */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Repair Risk */}
+        <div className={`rounded-xl border p-3 space-y-1 ${repairRiskBg}`}>
+          <div className="flex items-center gap-1.5">
+            <RepairRiskIcon className={`w-3.5 h-3.5 ${repairRiskText}`} />
+            <p className="text-xs font-semibold text-gray-600">Repair Risk</p>
+          </div>
+          <p className={`text-lg font-bold ${repairRiskText}`}>{repairRiskLabel}</p>
+          <p className="text-xs text-gray-500">{score}/100 structural</p>
+        </div>
+        {/* Deal Quality */}
+        <div className={`rounded-xl border p-3 space-y-1 ${dqBg}`}>
+          <div className="flex items-center gap-1.5">
+            <DqIcon className={`w-3.5 h-3.5 ${dqText}`} />
+            <p className="text-xs font-semibold text-gray-600">Deal Quality</p>
+          </div>
+          {dq ? (
+            <>
+              <p className={`text-lg font-bold ${dqText}`}>{dq.label}</p>
+              <p className="text-xs text-gray-500">{dq.score}/100 financial</p>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-bold text-gray-400">—</p>
+              <p className="text-xs text-gray-400">Run full analysis</p>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Discount recommendation */}

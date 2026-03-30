@@ -2,11 +2,12 @@
  * Feedback Submission API
  *
  * POST /api/feedback
- * Saves user feedback to database for application improvement
+ * Saves user feedback to database and notifies admin via email.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { sendChecklistEmail } from "@/lib/resend";
 
 // Rate limiting map (in-memory, per instance)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -75,8 +76,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, feedbackType, helpful, missing, additionalData, comments } =
-      body;
+    const { email, feedbackType, helpful, missing, additionalData, comments, name } =
+      body as Record<string, string | undefined>;
 
     // Validate required field
     if (!feedbackType) {
@@ -151,6 +152,26 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[Feedback API] Feedback saved successfully:", data.id);
+
+    // ── Admin notification email (fire-and-forget) ─────────────────────────
+    const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
+    if (adminEmail) {
+      const typeLabel = feedbackType.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+      const html = `
+        <h2 style="margin:0 0 12px;font-family:sans-serif">New ${typeLabel} via Contact Form</h2>
+        <table style="font-family:sans-serif;font-size:14px;border-collapse:collapse;width:100%">
+          <tr><td style="padding:6px 12px 6px 0;color:#666;white-space:nowrap">Type</td><td style="padding:6px 0"><strong>${typeLabel}</strong></td></tr>
+          <tr><td style="padding:6px 12px 6px 0;color:#666">From</td><td style="padding:6px 0">${email || "(no email)"}</td></tr>
+          ${name ? `<tr><td style="padding:6px 12px 6px 0;color:#666">Name</td><td style="padding:6px 0">${name}</td></tr>` : ""}
+          <tr><td style="padding:6px 12px 6px 0;color:#666;vertical-align:top">Message</td><td style="padding:6px 0;white-space:pre-wrap">${(comments || "").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td></tr>
+          <tr><td style="padding:6px 12px 6px 0;color:#666">ID</td><td style="padding:6px 0;color:#999;font-size:12px">${data.id}</td></tr>
+          <tr><td style="padding:6px 12px 6px 0;color:#666">IP</td><td style="padding:6px 0;color:#999;font-size:12px">${clientIP}</td></tr>
+        </table>
+      `;
+      sendChecklistEmail(adminEmail, `[OFFO] ${typeLabel} from ${email || "anonymous"}`, html).catch(
+        (err) => console.error("[Feedback API] Admin notify failed:", err)
+      );
+    }
 
     return NextResponse.json({
       success: true,

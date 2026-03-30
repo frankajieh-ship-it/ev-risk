@@ -44,6 +44,7 @@ import type {
   ElectricityContext,
 } from "@/lib/auction/types";
 import type { OffoScore } from "@/types/v2";
+import type { ArbitrageResult } from "@/lib/copart-arbitrage-engine";
 
 type PageState = "idle" | "fetching" | "done" | "error";
 
@@ -390,6 +391,7 @@ export default function CopartPage() {
   const [resultId, setResultId] = useState<string | null>(null);
   const [salvageRisk, setSalvageRisk] = useState<SalvageRiskResult | null>(null);
   const [offoScore, setOffoScore] = useState<OffoScore | null>(null);
+  const [arbitrageResult, setArbitrageResult] = useState<ArbitrageResult | null>(null);
 
   const receiptToken = typeof window !== "undefined" ? getOrCreateReceiptToken() : "";
   const listingTextRef = useRef("");
@@ -420,6 +422,7 @@ export default function CopartPage() {
     setReport(null);
     setSalvageRisk(null);
     setOffoScore(null);
+    setArbitrageResult(null);
     setResultId(null);
     listingTextRef.current = "";
 
@@ -638,6 +641,7 @@ export default function CopartPage() {
               result={salvageRisk}
               vin={lot.vin}
               askingPrice={lot.current_bid}
+              arbitrage={arbitrageResult}
             />
 
             {/* Arbitrage calculator — always shown */}
@@ -652,6 +656,7 @@ export default function CopartPage() {
                 year={lot.year}
                 trim={lot.trim}
                 receiptToken={receiptToken}
+                onResult={setArbitrageResult}
               />
             )}
 

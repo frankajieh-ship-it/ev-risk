@@ -16,6 +16,9 @@ export interface GenerateOpts {
   maxTokens: number;
   timeoutMs: number;
   signal?: AbortSignal;
+  /** Optional image URLs for vision analysis (max 3). Providers that don't support
+   *  vision will silently ignore this field. */
+  imageUrls?: string[];
 }
 
 export interface GenerateResult {

@@ -48,6 +48,10 @@ export type VehicleBasics = {
   has_heat_pump?: boolean;
   /** Federal + state incentive amount to subtract from MSRP for budget scoring */
   incentive_amount?: number;
+  /** "used" applies a market discount to MSRP before budget scoring */
+  purchase_type?: "new" | "used";
+  /** Home charging type — used for L1+winter cross-penalty */
+  home_charging_type?: "L1" | "L2" | "UNKNOWN";
 };
 
 /** Charger availability context for the user's home area */
@@ -130,8 +134,17 @@ export function computeRoutineFit(
       chargingScore = Math.max(0, chargingScore - 8);
     }
 
-    // Shared charger contention
-    if (mvr.shared_charger) chargingScore = Math.max(0, chargingScore - 8);
+    // 12B: L1 + winter cross-penalty — L1 can't precondition in cold
+    if (vehicle?.home_charging_type === "L1" && mvr.climate === "winter") {
+      chargingScore = Math.max(0, chargingScore - 8);
+    }
+
+    // Shared charger contention — raised from -8 to -12 for HIGH shared infra
+    if (mvr.shared_charger || mvr.shared_infrastructure === "HIGH") {
+      chargingScore = Math.max(0, chargingScore - 12);
+    } else if (mvr.shared_infrastructure === "SOME") {
+      chargingScore = Math.max(0, chargingScore - 5);
+    }
 
   } else if (mvr.charging_access === "work") {
     chargingScore = 65;
@@ -208,6 +221,14 @@ export function computeRoutineFit(
     recoveryScore = Math.max(0, recoveryScore - 10);
   }
 
+  // 12D: DC fast charge speed affects road-trip recovery ability
+  if (mvr.longest_day_pattern === "once_a_week" || mvr.longest_day_pattern === "monthly_trip") {
+    if (vehicle?.dc_fast_kw !== undefined) {
+      if (vehicle.dc_fast_kw >= 150)     recoveryScore = Math.min(100, recoveryScore + 8);
+      else if (vehicle.dc_fast_kw < 75)  recoveryScore = Math.max(0,   recoveryScore - 10);
+    }
+  }
+
   // ── DIMENSION 4: Climate Friction (10%) ───────────────────────────────────
   let climateScore: number;
   if (mvr.climate === "winter") {
@@ -229,8 +250,14 @@ export function computeRoutineFit(
   // ── DIMENSION 5: Budget Fit (15%) ─────────────────────────────────────────
   let budgetScore: number;
   if (mvr.budget_max && vehicle?.msrp_usd) {
-    // 4D: Subtract incentives from MSRP for effective price
-    const effectivePrice = vehicle.msrp_usd - (vehicle.incentive_amount ?? 0);
+    // 12C: Used market discount — used EVs trade below MSRP, ~6% per year up to 30%
+    const currentYear = new Date().getFullYear();
+    const vehicleAge = vehicle.year ? Math.max(0, currentYear - vehicle.year) : 0;
+    const usedDiscount = vehicle.purchase_type === "used"
+      ? Math.min(0.30, vehicleAge * 0.06)
+      : 0;
+    // 4D: Subtract used discount + incentives from MSRP for effective price
+    const effectivePrice = vehicle.msrp_usd * (1 - usedDiscount) - (vehicle.incentive_amount ?? 0);
     const overBudgetRatio = (effectivePrice - mvr.budget_max) / mvr.budget_max;
     budgetScore = budgetScoreFromRatio(overBudgetRatio);
   } else {
@@ -253,6 +280,20 @@ export function computeRoutineFit(
     if (vehicle.sub_category === "sedan" || vehicle.sub_category === "hatchback") {
       utilityScore = Math.min(utilityScore, 52);
     }
+  }
+
+  // ── 12A: CONFIDENCE PENALTY — missing range data inflates uncertainty ────────
+  // Applied to individual dims before the weighted sum so it propagates correctly.
+  // Confidence is determined by vehicle data availability (computed below for now
+  // we derive it inline here since we need it before the confidence struct).
+  const hasRangeData = !!vehicle?.real_world_range_mi;
+  if (!hasRangeData) {
+    // low confidence: range and recovery scores are unreliable — apply pessimism
+    rangeScore    = Math.max(0, rangeScore    - 10);
+    recoveryScore = Math.max(0, recoveryScore - 10);
+  } else if (!vehicle?.msrp_usd) {
+    // medium confidence: range known but price missing — slight range pessimism
+    rangeScore = Math.max(0, rangeScore - 5);
   }
 
   // ── CROSS-DIMENSION INTERACTIONS ──────────────────────────────────────────

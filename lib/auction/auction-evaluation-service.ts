@@ -286,7 +286,7 @@ export class AuctionEvaluationService {
     }
 
     // 8. AI chain
-    console.log(`[EvalService][8-AICHAIN] isPaid=${isPaid} arv=${arv} damage_severity=${metrics.damage_severity_baseline}`);
+    console.log(`[EvalService][8-AICHAIN] isPaid=${isPaid} arv=${arv} damage_severity=${metrics.damage_severity_baseline} photos=${lot.photos?.length ?? 0}`);
     const aiChainOutput = await runAuctionAiChain({
       lot,
       metrics,
@@ -297,6 +297,8 @@ export class AuctionEvaluationService {
       charging_profile: chargingProfileSummary,
       range_projection: rangeProjection,
       electricity_context: electricityContext,
+      incentive_status: incentiveStatus,
+      photos: lot.photos?.slice(0, 3),
     });
 
     console.log(`[EvalService][8-AICHAIN] steps=${aiChainOutput.steps_run.map(s => `${s.step}:${s.status}`).join(", ")} total_calls=${aiChainOutput.total_model_calls}`);
@@ -324,6 +326,7 @@ export class AuctionEvaluationService {
       uncertainty_level:        metrics.uncertainty_level,
       expected_repair_cost:     metrics.expected_repair_cost,
       profit_margin:            metrics.profit_margin,
+      primary_damage_category:  metrics.primary_damage_category,
       arv_hint_low:             arv ?? undefined,
     };
     const offoScore = computeAuctionOffoScore(salvageRiskForOffo, routineFit);
@@ -332,10 +335,32 @@ export class AuctionEvaluationService {
     let arbitrage = null;
     if (isPaid && aiChainOutput.repair_cost) {
       const rc = aiChainOutput.repair_cost;
-      const { AUCTION_FEES_ESTIMATE, computeMaxSafeBid } = await import("@/lib/copart-arbitrage-engine");
+      const {
+        AUCTION_FEES_ESTIMATE,
+        computeMaxSafeBid,
+        computeSafeBidRange,
+        computeExpectedProfits,
+        computeProfitScenarios,
+      } = await import("@/lib/copart-arbitrage-engine");
+
+      const askingPrice = lot.current_bid ?? null;
       const maxSafeBid = arv && rc.repair_cost_midpoint > 0
         ? computeMaxSafeBid(arv, rc.repair_cost_midpoint, AUCTION_FEES_ESTIMATE, 20)
         : null;
+      const safeBidRange = arv && rc.repair_cost_low > 0
+        ? computeSafeBidRange(arv, rc.repair_cost_low, rc.repair_cost_high, AUCTION_FEES_ESTIMATE, 20)
+        : null;
+      const { repair: expectedProfitRepair, parts: expectedProfitParts } =
+        computeExpectedProfits(arv, rc.parts_value_total, askingPrice, rc.repair_cost_midpoint, AUCTION_FEES_ESTIMATE);
+      const profitScenariosRepair = arv && askingPrice && rc.repair_cost_midpoint > 0
+        ? computeProfitScenarios(arv, askingPrice, rc.repair_cost_low, rc.repair_cost_midpoint, rc.repair_cost_high, AUCTION_FEES_ESTIMATE)
+        : null;
+      const recommendedStrategy: "repair" | "parts" | null =
+        expectedProfitRepair !== null && expectedProfitParts !== null
+          ? expectedProfitParts > expectedProfitRepair ? "parts" : "repair"
+          : expectedProfitRepair !== null ? "repair"
+          : expectedProfitParts !== null ? "parts"
+          : null;
 
       arbitrage = {
         arv,
@@ -351,10 +376,15 @@ export class AuctionEvaluationService {
         parts_value: rc.parts_value_total,
         parts_value_breakdown: rc.parts_value_breakdown,
         max_safe_bid: maxSafeBid,
-        auction_fees_estimate: (await import("@/lib/copart-arbitrage-engine")).AUCTION_FEES_ESTIMATE,
+        auction_fees_estimate: AUCTION_FEES_ESTIMATE,
         confidence: rc.confidence,
         caveats: rc.caveats,
         damage_type_inferred: lot.damage_type ?? "unspecified damage",
+        expected_profit_repair: expectedProfitRepair,
+        expected_profit_parts: expectedProfitParts,
+        safe_bid_range: safeBidRange,
+        profit_scenarios_repair: profitScenariosRepair,
+        recommended_strategy: recommendedStrategy,
       };
     }
 
@@ -460,6 +490,11 @@ export class AuctionEvaluationService {
         factors: metrics.salvage_risk_factors,
         routine_impact_summary: aiChainOutput.routine_impact?.routine_impact ?? "",
         suggested_bid_discount: metrics.suggested_bid_discount,
+        risk_probability: metrics.risk_probability,
+        uncertainty_level: metrics.uncertainty_level,
+        expected_repair_cost: metrics.expected_repair_cost,
+        profit_margin: metrics.profit_margin,
+        primary_damage_category: metrics.primary_damage_category,
       },
       arbitrage,
       recalls,
