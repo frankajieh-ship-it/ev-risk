@@ -65,6 +65,33 @@ const receiptStepsV2 = [
   },
 ];
 
+const homepageSteps = [
+  {
+    number: 1,
+    icon: Link2,
+    title: "Paste the listing",
+    description:
+      "Copy any CarGurus, AutoTrader, Facebook Marketplace, or dealer URL.",
+    color: "bg-blue-100 text-blue-600",
+  },
+  {
+    number: 2,
+    icon: Search,
+    title: "Get a verdict and top risks",
+    description:
+      "See a deal score, price flags, and the 3 questions that decide whether this car is worth your time.",
+    color: "bg-green-100 text-green-600",
+  },
+  {
+    number: 3,
+    icon: Unlock,
+    title: "Save, compare, or unlock the full breakdown",
+    description:
+      "Shortlist it, stack it against alternatives, or get the full negotiation script — all free.",
+    color: "bg-indigo-100 text-indigo-600",
+  },
+];
+
 const fitCheckSteps = [
   {
     number: 1,
@@ -105,15 +132,17 @@ const itemVariants = {
 };
 
 interface HowItWorksSectionProps {
-  variant?: "receipt" | "receipt-v2" | "fit-check";
+  variant?: "receipt" | "receipt-v2" | "fit-check" | "homepage";
 }
 
 export default function HowItWorksSection({ variant = "receipt-v2" }: HowItWorksSectionProps) {
   const steps =
+    variant === "homepage" ? homepageSteps :
     variant === "fit-check" ? fitCheckSteps :
     variant === "receipt-v2" ? receiptStepsV2 :
     receiptSteps;
   const subtitle =
+    variant === "homepage" ? "From listing URL to confident decision in under a minute" :
     variant === "fit-check" ? "Three steps to knowing if an EV fits your life" :
     variant === "receipt-v2" ? "From paste to prepared in four steps" :
     "Three steps to confident used EV shopping";
