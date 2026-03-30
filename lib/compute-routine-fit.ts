@@ -203,7 +203,7 @@ export function computeRoutineFit(
   }
 
   const dailyUsagePct = (peakDailyMiles / adjustedRange) * 100;
-  const rangeScore = rangeScoreFromUsagePct(dailyUsagePct);
+  let rangeScore = rangeScoreFromUsagePct(dailyUsagePct);
 
   // ── DIMENSION 3: Recovery Resilience (10%) ────────────────────────────────
   let recoveryScore: number;
