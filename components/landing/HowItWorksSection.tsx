@@ -58,9 +58,9 @@ const receiptStepsV2 = [
   {
     number: 4,
     icon: Unlock,
-    title: "Unlock full analysis",
+    title: "Get the full breakdown",
     description:
-      "Get the full risk breakdown, negotiation script, checklist, and PDF export for $9.99 one-time.",
+      "Full risk breakdown, negotiation script, checklist, and PDF export — completely free.",
     color: "bg-indigo-100 text-indigo-600",
   },
 ];

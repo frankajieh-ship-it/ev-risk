@@ -1155,10 +1155,7 @@ function ReportContent() {
           <div className="text-center mb-6">
             <h2 className="text-3xl font-bold mb-3">Want the Full Picture?</h2>
             <p className="text-xl text-blue-100">
-              {paymentsEnabled && !isUnlocked
-                ? <>Unlock the full PDF report — <span className="font-bold">{reportId && anonId ? getDisplayPrice(assignPriceVariant(anonId, reportId)) : "$9.99"}</span></>
-                : <>Get the full report — {paymentsEnabled ? <span className="font-bold">Unlocked</span> : <><span className="line-through opacity-70">$15</span> <span className="font-bold">Free during early access</span></>}</>
-              }
+              Get the full report — <span className="font-bold">Free</span>
             </p>
           </div>
 
@@ -1247,10 +1244,10 @@ function ReportContent() {
                   }}
                   className="bg-white text-blue-600 font-bold text-lg px-12 py-4 rounded-full hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
-                  Unlock Full Report — {reportId && anonId ? getDisplayPrice(assignPriceVariant(anonId, reportId)) : "$9.99"}
+                  Get Full Report — Free
                 </button>
                 <p className="mt-4 text-sm text-blue-100">
-                  One-time payment — includes PDF + listing receipt unlock
+                  Includes PDF + listing receipt — no payment required
                 </p>
               </>
             ) : (
@@ -1289,10 +1286,7 @@ function ReportContent() {
                   {isUnlocked ? "Download Full Report" : "Get Full Report"}
                 </button>
                 <p className="mt-4 text-sm text-blue-100">
-                  {paymentsEnabled
-                    ? "Your purchase includes this PDF"
-                    : <><span className="line-through opacity-75">$15</span> <span className="font-bold text-white">FREE</span> - First report is on us!</>
-                  }
+                  Free — no payment required
                 </p>
                 {!paymentsEnabled && (
                   <p className="mt-2 text-xs text-blue-100 opacity-90">
@@ -1395,7 +1389,7 @@ function ReportContent() {
               <h3 className="text-2xl font-bold text-gray-900 mb-2">Your Report is Ready!</h3>
               <p className="text-gray-600">The PDF should download shortly.</p>
               <p className="text-sm text-gray-500 mt-2">
-                <span className="line-through">$15</span> <span className="font-bold text-green-600">FREE</span> - This first one's on us!
+                <span className="font-bold text-green-600">Free</span> — no payment required
               </p>
             </div>
 

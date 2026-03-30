@@ -445,7 +445,7 @@ export default function ReceiptOutputCard({
                   className="flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-800 transition-colors"
                 >
                   <Lock className="w-3.5 h-3.5" />
-                  +{receipt.why_not_green.length - 1} more reason{receipt.why_not_green.length - 1 !== 1 ? "s" : ""} — unlock full analysis ($9.99)
+                  +{receipt.why_not_green.length - 1} more reason{receipt.why_not_green.length - 1 !== 1 ? "s" : ""} — see full analysis
                 </button>
               )}
             </div>
@@ -678,7 +678,7 @@ export default function ReceiptOutputCard({
                         className="flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 transition-colors mt-1"
                       >
                         <Lock className="w-3.5 h-3.5" />
-                        Unlock all {receipt.risk_flags.length} deal watch items — $9.99
+                        See all {receipt.risk_flags.length} deal watch items
                       </button>
                     </li>
                   </>
@@ -731,7 +731,7 @@ export default function ReceiptOutputCard({
                         className="flex items-center gap-1.5 text-xs font-medium text-green-600 hover:text-green-700 transition-colors mt-1"
                       >
                         <Lock className="w-3.5 h-3.5" />
-                        Unlock all {questions.length} questions — $9.99
+                        See all {questions.length} questions
                       </button>
                     </li>
                   </>
@@ -777,7 +777,7 @@ export default function ReceiptOutputCard({
                         className="flex items-center gap-1.5 text-xs font-medium text-purple-600 hover:text-purple-700 transition-colors mt-1"
                       >
                         <Lock className="w-3.5 h-3.5" />
-                        Unlock all {vbvItems.length} items — $9.99
+                        See all {vbvItems.length} items
                       </button>
                     </li>
                   </>
