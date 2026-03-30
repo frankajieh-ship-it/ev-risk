@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { FileSearch, Gavel, Route, ArrowLeft } from "lucide-react";
+import Header from "@/components/landing/Header";
+import Footer from "@/components/landing/Footer";
 import MethodologyAccordion from "@/components/methodology/MethodologyAccordion";
 import {
   METHODOLOGY_VERSION,
@@ -82,6 +84,7 @@ const CONFIDENCE_LEVELS = [
 export default function MethodologyPage() {
   return (
     <div className="min-h-screen bg-white">
+      <Header variant="receipt" />
 
       {/* 1. Hero */}
       <div className="max-w-3xl mx-auto px-4 pt-12 pb-10">
@@ -271,6 +274,7 @@ export default function MethodologyPage() {
         </ul>
       </div>
 
+      <Footer />
     </div>
   );
 }
