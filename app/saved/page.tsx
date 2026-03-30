@@ -11,7 +11,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bookmark, FileText, Zap, Loader2, GitCompare, X } from "lucide-react";
+import { ArrowLeft, Bookmark, FileText, Zap, Loader2, GitCompare, X, LayoutGrid, List } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventTracking } from "@/hooks/useEventTracking";
@@ -119,6 +119,7 @@ export default function SavedPage() {
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [compareSelection, setCompareSelection] = useState<SavedScenarioPreview | null>(null);
+  const [savedViewMode, setSavedViewMode] = useState<"grid" | "list">("grid");
 
   useEffect(() => {
     trackEvent("saved_dashboard_viewed");
@@ -241,8 +242,9 @@ export default function SavedPage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-gray-100 rounded-lg p-1">
+        {/* Tabs + view toggle */}
+        <div className="flex items-center gap-2 mb-6">
+        <div className="flex gap-1 flex-1 bg-gray-100 rounded-lg p-1">
           {tabs.map((tab) => (
             <button
               key={tab.key}
@@ -257,6 +259,26 @@ export default function SavedPage() {
               {tab.label}
             </button>
           ))}
+        </div>
+        <div className="flex gap-0.5 shrink-0">
+          {([
+            { mode: "grid" as const, Icon: LayoutGrid, label: "Grid view" },
+            { mode: "list" as const, Icon: List, label: "List view" },
+          ]).map(({ mode, Icon, label }) => (
+            <button
+              key={mode}
+              onClick={() => setSavedViewMode(mode)}
+              title={label}
+              className={`p-1.5 rounded-lg transition-colors ${
+                savedViewMode === mode
+                  ? "bg-indigo-100 text-indigo-600"
+                  : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+            </button>
+          ))}
+        </div>
         </div>
 
         {/* Loading */}
@@ -330,7 +352,7 @@ export default function SavedPage() {
 
         {/* Scenario cards */}
         {!loading && !error && scenarios.length > 0 && (
-          <div className="space-y-3">
+          <div className={savedViewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-3 gap-3" : "space-y-3"}>
             {scenarios.map((scenario) => {
               const verdictStyles = getVerdictStyles(
                 scenario.scenario_type,
@@ -341,13 +363,15 @@ export default function SavedPage() {
               return (
                 <div
                   key={scenario.id}
-                  className={`w-full text-left p-4 bg-white border rounded-xl transition-all ${
+                  className={`w-full text-left bg-white border rounded-xl transition-all ${
+                    savedViewMode === "grid" ? "p-3" : "p-4"
+                  } ${
                     isSelected
                       ? "border-blue-400 ring-2 ring-blue-100"
                       : "border-gray-200 hover:border-indigo-300 hover:shadow-sm"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className={`flex ${savedViewMode === "grid" ? "flex-col gap-2" : "items-start justify-between gap-2"}`}>
                     <button
                       onClick={() => handleScenarioClick(scenario)}
                       className="flex-1 min-w-0 text-left"
@@ -358,36 +382,36 @@ export default function SavedPage() {
                         ) : (
                           <Zap className="w-4 h-4 text-amber-500 flex-shrink-0" />
                         )}
-                        <h3 className="font-medium text-gray-900 truncate">
+                        <h3 className="font-medium text-gray-900 truncate text-sm">
                           {scenario.title ||
                             `${scenario.vehicle_year} ${scenario.vehicle_model}`}
                         </h3>
                       </div>
 
-                      {scenario.one_sentence_verdict && (
+                      {scenario.one_sentence_verdict && savedViewMode !== "grid" && (
                         <p className="text-sm text-gray-600 line-clamp-2 ml-6 mb-2">
                           {scenario.one_sentence_verdict}
                         </p>
                       )}
 
-                      <div className="flex items-center gap-3 text-xs text-gray-500 ml-6">
+                      <div className={`flex items-center gap-2 text-xs text-gray-500 ${savedViewMode !== "grid" ? "ml-6" : ""}`}>
                         <span>{formatDate(scenario.saved_at, regionConfig.locale)}</span>
-                        <span className="capitalize text-gray-400">
-                          {scenario.scenario_type === "receipt"
-                            ? "Listing Receipt"
-                            : "EV Routine"}
-                        </span>
+                        {!scenario.is_comparison && (
+                          <span className="capitalize text-gray-400 hidden sm:inline">
+                            {scenario.scenario_type === "receipt" ? "Receipt" : "EV Routine"}
+                          </span>
+                        )}
                         {scenario.is_comparison && (
                           <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">
-                            Comparison
+                            Compare
                           </span>
                         )}
                       </div>
                     </button>
 
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className={`flex items-center gap-2 ${savedViewMode === "grid" ? "" : "flex-shrink-0"}`}>
                       <span
-                        className={`px-2.5 py-1 text-xs font-medium rounded-full ${verdictStyles.bg} ${verdictStyles.text}`}
+                        className={`px-2 py-0.5 text-xs font-medium rounded-full ${verdictStyles.bg} ${verdictStyles.text}`}
                       >
                         {verdictStyles.label}
                       </span>

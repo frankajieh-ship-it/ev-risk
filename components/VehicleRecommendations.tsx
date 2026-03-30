@@ -183,7 +183,7 @@ export default function VehicleRecommendations({
   const [adjustedLabel, setAdjustedLabel] = useState(false);
   const [showAdjustBar, setShowAdjustBar] = useState(false);
   const [adjustExpanded, setAdjustExpanded] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("card");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   // Trust & methodology state
   const [dataSources, setDataSources] = useState<DataSources | null>(null);

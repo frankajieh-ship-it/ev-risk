@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap, LogIn, ChevronRight, ShieldCheck, ExternalLink } from "lucide-react";
+import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap, LogIn, ChevronRight, ShieldCheck, ExternalLink, LayoutGrid, LayoutList, List } from "lucide-react";
 import Link from "next/link";
 import NewsCard, { type NewsArticle } from "@/components/NewsCard";
 import { useRouter } from "next/navigation";
@@ -76,6 +76,7 @@ export default function GaragePage() {
   const [markingOwnedId, setMarkingOwnedId] = useState<string | null>(null);
   const [justAddedVehicleId, setJustAddedVehicleId] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<GarageSourceFilter>("all");
+  const [garageViewMode, setGarageViewMode] = useState<"grid" | "list">("grid");
 
   // Derived: which auction sources exist in the vehicle list
   const hasAuctionSource = useCallback(
@@ -415,6 +416,29 @@ export default function GaragePage() {
             </p>
           )}
 
+          {/* View mode toggle */}
+          {(filteredVehicles.length > 0 || shortlistItems.length > 0) && (
+            <div className="flex justify-end gap-0.5 pb-1">
+              {([
+                { mode: "grid" as const, Icon: LayoutGrid, label: "Grid view" },
+                { mode: "list" as const, Icon: List, label: "List view" },
+              ]).map(({ mode, Icon, label }) => (
+                <button
+                  key={mode}
+                  onClick={() => setGarageViewMode(mode)}
+                  title={label}
+                  className={`p-1.5 rounded-lg transition-colors ${
+                    garageViewMode === mode
+                      ? "bg-blue-100 text-blue-600"
+                      : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Source filter pills — only shown when auction vehicles exist */}
           {vehicles.length > 0 && (hasAuctionSource("copart") || hasAuctionSource("iaai") || hasAuctionSource("manheim")) && (
             <div className="flex items-center gap-1.5 flex-wrap pb-1">
@@ -460,22 +484,28 @@ export default function GaragePage() {
           )}
           {/* EVFit Shortlist — localStorage, visible for all users */}
           {shortlistItems.length > 0 && (
-            <div className="space-y-2">
-              {vehicles.length > 0 && (
+            <div className={garageViewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-3 gap-3" : "space-y-2"}>
+              {vehicles.length > 0 && garageViewMode !== "grid" && (
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-2 pb-1">EV Fit Shortlist</p>
               )}
-              {vehicles.length === 0 && (
+              {vehicles.length === 0 && garageViewMode !== "grid" && (
                 <p className="text-xs text-gray-400 pb-1">
                   Vehicles saved from your EV Fit results. <span className="font-medium">Add a vehicle above</span> to save it permanently.
                 </p>
               )}
               {shortlistItems.map((s) => (
-                <div key={s.run_id} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4 group">
-                  <div className="w-16 h-12 rounded-xl overflow-hidden shrink-0">
-                    <VehicleImage make={s.vehicle_label.split(" ").slice(1, 2).join("")} model={s.vehicle_label.split(" ").slice(2).join(" ")} className="w-full h-full rounded-xl" imgClassName="w-full h-full object-cover" />
-                  </div>
+                <div key={s.run_id} className={`bg-white rounded-xl border border-gray-200 group ${garageViewMode === "grid" ? "p-3 flex flex-col" : "p-4 flex items-center gap-4"}`}>
+                  {garageViewMode === "grid" ? (
+                    <div className="w-full h-24 rounded-xl overflow-hidden mb-2">
+                      <VehicleImage make={s.vehicle_label.split(" ").slice(1, 2).join("")} model={s.vehicle_label.split(" ").slice(2).join(" ")} className="w-full h-full rounded-xl" imgClassName="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-16 h-12 rounded-xl overflow-hidden shrink-0">
+                      <VehicleImage make={s.vehicle_label.split(" ").slice(1, 2).join("")} model={s.vehicle_label.split(" ").slice(2).join(" ")} className="w-full h-full rounded-xl" imgClassName="w-full h-full object-cover" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900">{s.vehicle_label}</p>
+                    <p className="font-medium text-gray-900 truncate">{s.vehicle_label}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {s.fit_score.label} · {s.fit_score.score_0_100}/100
                     </p>
@@ -502,18 +532,33 @@ export default function GaragePage() {
             </div>
           )}
 
+          <div className={filteredVehicles.length > 0 ? (garageViewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-3 gap-3" : "space-y-2") : ""}>
           {filteredVehicles.map((v) => {
             const isCompareBase = compareBase?.id === v.id;
             const isCompareTarget = compareBase && compareBase.id !== v.id;
             return (
               <div
                 key={v.id}
-                className={`bg-white rounded-xl border p-4 flex items-center gap-4 group transition-all ${
+                className={`bg-white rounded-xl border group transition-all ${
+                  garageViewMode === "grid" ? "p-0 overflow-hidden flex flex-col" : "p-4 flex items-center gap-4"
+                } ${
                   isCompareBase
                     ? "border-blue-400 ring-2 ring-blue-100"
                     : "border-gray-200"
                 }`}
               >
+                {garageViewMode === "grid" ? (
+                  <div className="w-full h-24 overflow-hidden">
+                    <VehicleImage
+                      make={v.make}
+                      model={v.model}
+                      year={v.year ?? undefined}
+                      vin={v.vin ?? undefined}
+                      className="w-full h-full"
+                      imgClassName="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
                 <div className="w-16 h-12 rounded-xl overflow-hidden shrink-0">
                   <VehicleImage
                     make={v.make}
@@ -524,9 +569,10 @@ export default function GaragePage() {
                     imgClassName="w-full h-full object-cover"
                   />
                 </div>
-                <div className="flex-1 min-w-0">
+                )}
+                <div className={`flex-1 min-w-0 ${garageViewMode === "grid" ? "p-3" : ""}`}>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium text-gray-900">
+                    <p className="font-medium text-gray-900 truncate">
                       {v.nickname || vehicleLabel(v)}
                     </p>
                     {v.is_owned_ev && (
@@ -626,6 +672,7 @@ export default function GaragePage() {
               </div>
             );
           })}
+          </div>
         </div>
       )}
 
