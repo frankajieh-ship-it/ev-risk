@@ -61,7 +61,7 @@ function computeOwnershipCostScore(
   // Price score: exponential decay above budget
   const budgetMax = mvr.budget_max ?? 60000;
   const budgetRatio = effectivePrice / budgetMax;
-  const priceScore = Math.max(0, Math.round(100 * Math.exp(-1.8 * (budgetRatio - 1))));
+  const priceScore = Math.min(100, Math.max(0, Math.round(100 * Math.exp(-1.8 * (budgetRatio - 1)))));
 
   // Efficiency score: higher MPGe = lower running cost
   const traits = getTraits(row.model);
@@ -210,12 +210,12 @@ export function batchScoreVehicles(
     // reliability: from JD Power / CR tier in traits
     const reliability = reliabilityTierToScore(traits.reliability_tier);
 
-    const unified_score = Math.round(
+    const unified_score = Math.min(100, Math.max(0, Math.round(
       routine_fit  * 0.45 +
       hw_match     * 0.25 +
       own_cost     * 0.20 +
       reliability  * 0.10
-    );
+    )));
 
     const offoScore: OffoScore = computeOffoScore({
       context:     "retail",
