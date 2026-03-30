@@ -19,6 +19,7 @@ import RoutineStep from "@/components/RoutineStep";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import SampleReportPreview from "@/components/landing/SampleReportPreview";
+import HeroFeatureStrip from "@/components/landing/HeroFeatureStrip";
 import TrustBadge from "@/components/landing/TrustBadge";
 
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
@@ -76,6 +77,32 @@ export default function Home() {
 
   // Homepage inline URL input
   const [listingUrl, setListingUrl] = useState("");
+  const [detectedDomain, setDetectedDomain] = useState<string | null>(null);
+
+  // Paste detection — normalize URL and show detected source label
+  useEffect(() => {
+    if (!listingUrl.trim()) { setDetectedDomain(null); return; }
+    try {
+      const url = new URL(listingUrl.trim());
+      const host = url.hostname.replace(/^www\./, "");
+      const path = url.pathname.toLowerCase();
+
+      // Strip UTM params + tracking suffixes
+      const clean = new URL(listingUrl.trim());
+      ["utm_source","utm_medium","utm_campaign","utm_term","utm_content","fbclid","gclid"].forEach(p => clean.searchParams.delete(p));
+
+      let label: string | null = null;
+      if (host.includes("cargurus.com")) label = "CarGurus listing detected ✓";
+      else if (host.includes("cars.com")) label = "Cars.com listing detected ✓";
+      else if (host.includes("autotrader.com")) label = "AutoTrader listing detected ✓";
+      else if (host.includes("facebook.com") && path.includes("marketplace")) label = "Facebook Marketplace listing detected ✓";
+      else if (path.includes("/inventory/") || path.includes("/used/") || path.includes("/vehicle/")) label = "Dealer listing detected ✓";
+
+      setDetectedDomain(label);
+    } catch {
+      setDetectedDomain(null);
+    }
+  }, [listingUrl]);
 
   const handleHomePasteSubmit = () => {
     const trimmed = listingUrl.trim();
@@ -308,13 +335,13 @@ export default function Home() {
         <div className="relative max-w-2xl mx-auto px-4 pt-10 pb-6 md:pt-20 md:pb-10">
           <div className="text-center">
             <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 md:mb-4">
-              Get a quick second opinion{" "}
+              Know if this used EV is worth your time{" "}
               <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-                on any car deal
+                before the test drive
               </span>
             </h1>
             <p className="text-base md:text-lg text-gray-600 mb-6 md:mb-8 max-w-xl mx-auto">
-              Paste any listing link. Get an instant deal verdict, risk flags, and negotiation angles — before you waste a trip.
+              Paste any listing. Get a verdict, top risks, price context, and the seller questions that decide the deal.
             </p>
           </div>
 
@@ -343,24 +370,20 @@ export default function Home() {
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
+            {detectedDomain && (
+              <p className="text-xs text-green-600 font-medium mb-2">{detectedDomain}</p>
+            )}
+            {/* Static trust badges */}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+              <span>✓ Free verdict</span>
+              <span>✓ No sign-up required</span>
+              <span>✓ Built for used EV listings</span>
+            </div>
             <TrustBadge />
           </div>
 
           <SampleReportPreview />
-
-          {/* Soft secondary link to routine check */}
-          <p className="text-center text-sm text-gray-500 mt-5">
-            Buying an EV?{" "}
-            <button
-              onClick={() => {
-                trackCTAClick("start_fit_check");
-                document.getElementById("fit-check")?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
-            >
-              Also check if it fits your driving routine →
-            </button>
-          </p>
+          <HeroFeatureStrip />
         </div>
       </section>
 
