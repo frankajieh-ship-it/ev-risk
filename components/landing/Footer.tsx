@@ -20,6 +20,7 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li><Link href="/" className="hover:text-white transition-colors">EV Fit Check</Link></li>
               <li><Link href="/receipt" className="hover:text-white transition-colors">Listing Receipt</Link></li>
+              <li><Link href="/news" className="hover:text-white transition-colors">EV News Digest</Link></li>
               <li><Link href="/dealer" className="hover:text-white transition-colors">Dealer Workspace</Link></li>
               <li><Link href="/extension" className="hover:text-white transition-colors">Browser Extension</Link></li>
               <li><span className="text-gray-500">Deal Watch <span className="text-xs">(coming soon)</span></span></li>

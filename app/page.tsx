@@ -17,6 +17,7 @@ import Footer from "@/components/landing/Footer";
 import SampleReportPreview from "@/components/landing/SampleReportPreview";
 import HeroFeatureStrip from "@/components/landing/HeroFeatureStrip";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
+import WhyTrustOffo from "@/components/landing/WhyTrustOffo";
 import TrustBadge from "@/components/landing/TrustBadge";
 
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
@@ -381,6 +382,27 @@ export default function Home() {
 
           <SampleReportPreview />
           <HeroFeatureStrip />
+
+          {/* What happens next */}
+          <div className="mt-4 text-center">
+            <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide font-medium">After your analysis, you can:</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {[
+                { label: "Compare with another car", href: "/compare" },
+                { label: "Save to Garage", href: "/shortlist" },
+                { label: "Run EV Routine Check", href: "/receipt" },
+                { label: "Unlock full analysis", href: "/receipt" },
+              ].map(({ label, href }) => (
+                <Link
+                  key={label}
+                  href={href}
+                  className="px-3 py-1.5 rounded-full border border-gray-200 bg-white text-xs text-gray-600 hover:border-blue-300 hover:text-blue-600 transition-colors"
+                >
+                  → {label}
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -433,24 +455,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* News digest soft banner */}
-      <div className="max-w-3xl mx-auto px-4 pb-4">
-        <a
-          href="/news"
-          className="flex items-center justify-between gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"
-        >
-          <div className="flex items-center gap-2.5">
-            <span className="text-lg">⚡</span>
-            <div>
-              <p className="text-sm font-semibold text-blue-800">EV Routine Impact Digest</p>
-              <p className="text-xs text-blue-600">What actually affects your daily EV life — updated every morning</p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-blue-400 flex-shrink-0" />
-        </a>
-      </div>
+      {/* Why trust OFFO */}
+      <WhyTrustOffo />
 
-      {/* 10. Footer */}
+      {/* Footer */}
       <Footer />
 
       {/* Modals */}
