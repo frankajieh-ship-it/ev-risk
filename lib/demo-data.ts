@@ -110,9 +110,7 @@ export const DEMO_REPORTS: Record<string, EvRiskReportV2Contract> = {
         score_0_100: 92,
         label: "Great Fit",
         mental_load: "low",
-        stress_flags: [
-          { id: "ideal", label: "Ideal Setup — Low Mental Load", severity: "low", routine_citation: "Home charging + moderate miles" }
-        ],
+        stress_flags: ["ideal"],
         breakpoints_ranked: [],
         confidence: {
           level: "high",
