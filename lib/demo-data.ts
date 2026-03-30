@@ -117,7 +117,10 @@ export const DEMO_REPORTS: Record<string, EvRiskReportV2Contract> = {
           note: "High confidence based on routine and vehicle specs",
           has_vehicle_data: true,
           has_battery_data: false
-        }
+        },
+        failure_probability: 0.05,
+        top_risk_dimension: null,
+        confidence_adjusted_score: 92
       },
       ownership_risk: {
         overall_risk_label: "Low ownership friction",
