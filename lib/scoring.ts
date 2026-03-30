@@ -17,6 +17,7 @@ import {
   inferBatteryChemistry,
   type RecallRow,
   type ChargerDensityRow,
+  type ChargerDensityV2Row,
 } from "./data";
 
 // ---------- Input Types ----------
@@ -291,7 +292,7 @@ function generateEVHistoryFlags(input: ScoringInput, battery_risk: BatteryRiskSc
  */
 function calculateAreaChargingContext(
   input: ScoringInput,
-  chargerDensity: ChargerDensityRow | null
+  chargerDensity: ChargerDensityRow | ChargerDensityV2Row | null
 ): AreaChargingContext {
   const hasPublicDependency = !input.homeCharging;
 
