@@ -1131,55 +1131,6 @@ export default function VehicleRecommendations({
             </div>
           )}
 
-          {/* Upgrade prompt — shown below free compare, before "also fits" */}
-          {refinePhase === "browse" && sortedRecommended.length >= 2 && (
-            <div className="mt-6 rounded-2xl border border-gray-200 overflow-hidden">
-              <div className="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-200">
-                {/* Free column */}
-                <div className="p-4 bg-gray-50">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Free — included now</p>
-                  <ul className="space-y-1.5">
-                    {[
-                      "Top 2 side-by-side comparison",
-                      "Fit scores + dimension breakdown",
-                      "Range and winter estimates",
-                      "5-year cost estimate",
-                    ].map((item) => (
-                      <li key={item} className="flex items-start gap-2 text-xs text-gray-600">
-                        <Check className="w-3.5 h-3.5 text-green-500 shrink-0 mt-0.5" />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                {/* Paid column */}
-                <div className="p-4 bg-white">
-                  <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-3">Full Report — $9.99 one-time</p>
-                  <ul className="space-y-1.5 mb-4">
-                    {[
-                      "Full comparison across all matched models",
-                      "Deeper fit breakdown per vehicle",
-                      "Personalized negotiation script",
-                      "Listing fair-price analysis",
-                      "PDF export",
-                    ].map((item) => (
-                      <li key={item} className="flex items-start gap-2 text-xs text-gray-600">
-                        <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    onClick={() => handleSelect(sortedRecommended[0], 1)}
-                    className="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors"
-                  >
-                    Unlock Full Report → $9.99
-                  </button>
-                  <p className="text-center text-xs text-gray-400 mt-2">One-time · No subscription</p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* "Also fits" collapsed section */}
           {refinePhase === "browse" && alsoFits.length > 0 && (

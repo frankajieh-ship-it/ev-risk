@@ -18,6 +18,13 @@ const MODEL_EXACT_MAP: Record<string, string> = {
   "leaf plus": "LEAF", "leaf plus s": "LEAF", "leaf plus sv": "LEAF", "leaf plus sl": "LEAF",
   // Ford
   "mustang mach-e": "Mustang Mach-E",
+  "mustang mach-e select rwd": "Mustang Mach-E",
+  "mustang mach-e select": "Mustang Mach-E",
+  "mustang mach-e premium rwd": "Mustang Mach-E",
+  "mustang mach-e premium awd": "Mustang Mach-E",
+  "mustang mach-e premium": "Mustang Mach-E",
+  "mustang mach-e gt awd": "Mustang Mach-E",
+  "mustang mach-e gt": "Mustang Mach-E",
   // Hyundai — Auto.dev uses title case, NOT all-caps
   "ioniq 5": "Ioniq 5", "ioniq 6": "Ioniq 6",
   // Kia
