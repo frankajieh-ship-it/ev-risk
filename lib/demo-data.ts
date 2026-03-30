@@ -110,7 +110,7 @@ export const DEMO_REPORTS: Record<string, EvRiskReportV2Contract> = {
         score_0_100: 92,
         label: "Great Fit",
         mental_load: "low",
-        stress_flags: ["ideal"],
+        stress_flags: [],
         breakpoints_ranked: [],
         confidence: {
           level: "high",
