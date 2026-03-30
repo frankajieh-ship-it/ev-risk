@@ -292,7 +292,10 @@ export const DEMO_REPORTS: Record<string, EvRiskReportV2Contract> = {
           note: "Medium confidence — battery degradation unknown",
           has_vehicle_data: true,
           has_battery_data: false
-        }
+        },
+        failure_probability: 0.28,
+        top_risk_dimension: "charging",
+        confidence_adjusted_score: 62
       },
       ownership_risk: {
         overall_risk_label: "Moderate ownership friction",
@@ -494,7 +497,10 @@ export const DEMO_REPORTS: Record<string, EvRiskReportV2Contract> = {
           note: "Low confidence — battery replacement status unknown, degradation severe",
           has_vehicle_data: true,
           has_battery_data: false
-        }
+        },
+        failure_probability: 0.62,
+        top_risk_dimension: "charging",
+        confidence_adjusted_score: 35
       },
       ownership_risk: {
         overall_risk_label: "High ownership friction",
@@ -673,7 +679,10 @@ export const DEMO_REPORTS: Record<string, EvRiskReportV2Contract> = {
           note: "High confidence — home charging + mild climate + moderate miles is the ideal Bolt EV use case",
           has_vehicle_data: true,
           has_battery_data: false
-        }
+        },
+        failure_probability: 0.08,
+        top_risk_dimension: null,
+        confidence_adjusted_score: 86
       },
       ownership_risk: {
         overall_risk_label: "Low ownership friction",
@@ -851,7 +860,10 @@ export const DEMO_REPORTS: Record<string, EvRiskReportV2Contract> = {
           note: "Medium confidence — winter performance uncertain",
           has_vehicle_data: true,
           has_battery_data: false
-        }
+        },
+        failure_probability: 0.22,
+        top_risk_dimension: "climate",
+        confidence_adjusted_score: 68
       },
       ownership_risk: {
         overall_risk_label: "Low ownership friction",
@@ -1023,7 +1035,10 @@ export const DEMO_REPORTS: Record<string, EvRiskReportV2Contract> = {
           note: "Medium confidence — longest day logistics need validation",
           has_vehicle_data: true,
           has_battery_data: false
-        }
+        },
+        failure_probability: 0.18,
+        top_risk_dimension: "range",
+        confidence_adjusted_score: 70
       },
       ownership_risk: {
         overall_risk_label: "Low ownership friction",
