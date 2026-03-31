@@ -12,7 +12,6 @@ import { ArrowRight, Route, Gavel, Star, ChevronDown, ChevronUp, Mail } from "lu
 import Link from "next/link";
 import Image from "next/image";
 import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
-import VehicleImage from "@/components/VehicleImage";
 import LoginModal from "@/components/LoginModal";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
@@ -335,10 +334,10 @@ export default function Home() {
   ];
 
   const featuredVehicles = [
-    { year: 2024, make: "Ford", model: "F-150 Lightning", trim: "LARIAT", mileage: "17K mi", range: "320 mi range", score: 98, price: "$51,998", badge: "Ext Range Battery", people: 1240 },
-    { year: 2025, make: "Tesla", model: "Model 3", trim: "Long Range", mileage: "18K mi", range: "330 mi range", score: 96, price: "$39,997", badge: null, people: 3820 },
-    { year: 2024, make: "Tesla", model: "Model X", trim: "Base", mileage: "16K mi", range: "293 mi range", score: 92, price: "$73,997", badge: null, people: 890 },
-    { year: 2018, make: "Nissan", model: "LEAF", trim: "S", mileage: "22K mi", range: "133 mi range", score: 86, price: "$12,998", badge: null, people: 2100 },
+    { year: 2024, make: "Ford", model: "F-150 Lightning", trim: "LARIAT", mileage: "17K mi", range: "320 mi range", score: 98, price: "$51,998", badge: "Ext Range Battery", people: 1240, img: "/car-f150-lightning.webp" },
+    { year: 2025, make: "Tesla", model: "Model 3", trim: "Long Range", mileage: "18K mi", range: "330 mi range", score: 96, price: "$39,997", badge: null, people: 3820, img: "/car-tesla-model3.webp" },
+    { year: 2024, make: "Tesla", model: "Model X", trim: "Base", mileage: "16K mi", range: "293 mi range", score: 92, price: "$73,997", badge: null, people: 890, img: "/car-f150-lightning-2.webp" },
+    { year: 2018, make: "Nissan", model: "LEAF", trim: "S", mileage: "22K mi", range: "133 mi range", score: 86, price: "$12,998", badge: null, people: 2100, img: "/car-hyundai-kona.webp" },
   ];
 
   return (
@@ -502,14 +501,14 @@ export default function Home() {
           <p className="text-sm text-gray-500 text-center mb-8">Real OFFO users, real decisions.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { name: "Marcus T.", location: "Chicago, IL", make: "Chevrolet", model: "Bolt EV", year: 2022, quote: "Saved $2,400 on a used Bolt after seeing the hidden battery risk flag. Would never have caught it myself.", tag: "Used-EV buyer" },
-              { name: "Priya S.", location: "Austin, TX", make: "Hyundai", model: "Ioniq 5", year: 2023, quote: "Avoided a $6k repair on a salvage Ioniq 5 — the routine impact score was a dealbreaker the seller couldn't argue with.", tag: "First EV purchase" },
-              { name: "Jordan R.", location: "Denver, CO", make: "Tesla", model: "Model 3", year: 2023, quote: "Compared 12 listings in one weekend. First time I've ever felt confident walking into a dealership...", tag: "EV switcher" },
-              { name: "Alicia M.", location: "Seattle, WA", make: "Nissan", model: "LEAF", year: 2021, quote: "The apartment charging check alone was worth it. OFFO told me exactly which vehicles fit my situation.", tag: "Apartment renter" },
-            ].map(({ name, location, make, model, year, quote, tag }) => (
+              { name: "Marcus T.", location: "Chicago, IL", photo: "/car-bolt-ev.webp", quote: "Saved $2,400 on a used Bolt after seeing the hidden battery risk flag. Would never have caught it myself.", tag: "Used-EV buyer" },
+              { name: "Priya S.", location: "Austin, TX", photo: "/car-ioniq5.webp", quote: "Avoided a $6k repair on a salvage Ioniq 5 — the routine impact score was a dealbreaker the seller couldn't argue with.", tag: "First EV purchase" },
+              { name: "Jordan R.", location: "Denver, CO", photo: "/car-tesla-model3.webp", quote: "Compared 12 listings in one weekend. First time I've ever felt confident walking into a dealership...", tag: "EV switcher" },
+              { name: "Alicia M.", location: "Seattle, WA", photo: "/car-hyundai-kona.webp", quote: "The apartment charging check alone was worth it. OFFO told me exactly which vehicles fit my situation.", tag: "Apartment renter" },
+            ].map(({ name, location, photo, quote, tag }) => (
               <div key={name} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-                <div className="h-36 overflow-hidden">
-                  <VehicleImage make={make} model={model} year={year} className="w-full h-full" imgClassName="w-full h-full object-cover" alt={`${year} ${make} ${model}`} />
+                <div className="h-36 overflow-hidden bg-gray-50">
+                  <Image src={photo} alt={name} width={300} height={144} className="w-full h-full object-cover object-center" />
                 </div>
                 <div className="p-4 flex flex-col flex-1">
                   <div className="flex items-center justify-between mb-2">
@@ -534,14 +533,14 @@ export default function Home() {
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Top searches on OFFO</h2>
           <p className="text-sm text-gray-500 mb-8">Popular vehicles analyzed by OFFO users this week.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {featuredVehicles.map(({ year, make, model, trim, mileage, range, score, price, badge, people }) => (
+            {featuredVehicles.map(({ year, make, model, trim, mileage, range, score, price, badge, people, img }) => (
               <Link
                 key={`${year}-${make}-${model}`}
                 href={`/receipt?q=${encodeURIComponent(`${year} ${make} ${model}`)}`}
                 className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md hover:border-blue-200 transition-all group"
               >
-                <div className="relative h-36 overflow-hidden">
-                  <VehicleImage make={make} model={model} year={year} className="w-full h-full group-hover:scale-105 transition-transform duration-300" imgClassName="w-full h-full object-cover" />
+                <div className="relative h-36 overflow-hidden bg-gray-50">
+                  <Image src={img} alt={`${year} ${make} ${model}`} width={300} height={144} className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300" />
                   {badge && (
                     <div className="absolute top-0 left-0 bg-black text-white text-[9px] font-bold px-2 py-1 rounded-br-lg">
                       {badge}
