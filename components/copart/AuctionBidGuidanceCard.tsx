@@ -36,16 +36,22 @@ function dealQualityScore(arbitrage: ArbitrageResult): {
   const repairProfit = arbitrage.expected_profit_repair;
   const partsProfit = arbitrage.expected_profit_parts;
   const arv = arbitrage.arv;
-
-  // Pick best strategy
-  const bestProfit =
-    repairProfit !== null && partsProfit !== null
-      ? Math.max(repairProfit, partsProfit)
-      : repairProfit ?? partsProfit;
   const strategy: "repair" | "parts" =
     partsProfit !== null && repairProfit !== null && partsProfit > repairProfit
       ? "parts"
       : "repair";
+
+  // If no bid price but ARV + repair cost + market estimate available, compute proxy profit
+  let bestProfit: number | null =
+    repairProfit !== null && partsProfit !== null
+      ? Math.max(repairProfit, partsProfit)
+      : repairProfit ?? partsProfit;
+
+  if (bestProfit === null && arv !== null && arbitrage.repair_cost_estimate > 0) {
+    // Use market closing midpoint as proxy bid price when no current bid
+    const proxyBid = arbitrage.market_closing_estimate?.midpoint ?? Math.round(arv * 0.38);
+    bestProfit = arv - proxyBid - arbitrage.repair_cost_estimate - arbitrage.auction_fees_estimate;
+  }
 
   if (bestProfit === null || arv === null) {
     return { score: 50, label: "Unknown", grade: "yellow", primary: null, strategy };
@@ -80,8 +86,8 @@ export default function AuctionBidGuidanceCard({ result, askingPrice, currentBid
 
   const discountNote =
     suggested_bid_discount > 0
-      ? `Suggest bidding ${suggested_bid_discount}% below retail book value to account for salvage risk.`
-      : "Risk score is strong. Focus your due diligence on title inspection and battery diagnostics.";
+      ? `Suggest bidding ${suggested_bid_discount}% below KBB clean private-party value to account for salvage title and unknown repair risk.`
+      : "Risk score is strong. Verify title history, run a VIN check, and confirm no frame/structural damage before bidding.";
 
   // Determine reference price: asking price > current bid > manual entry
   const manualParsed = parseFloat(manualBid.replace(/[^0-9.]/g, ""));
@@ -96,6 +102,10 @@ export default function AuctionBidGuidanceCard({ result, askingPrice, currentBid
     const discFraction = suggested_bid_discount / 100;
     safeBidLow  = Math.max(0, Math.round(refPrice * (1 - discFraction - 0.08) / 100) * 100);
     safeBidHigh = Math.max(0, Math.round(refPrice * (1 - discFraction + 0.04) / 100) * 100);
+  } else if (refPrice && suggested_bid_discount === 0) {
+    // Low-risk lot: light 5% buffer still gives a useful range
+    safeBidLow  = Math.max(0, Math.round(refPrice * 0.90 / 100) * 100);
+    safeBidHigh = Math.max(0, Math.round(refPrice * 0.97 / 100) * 100);
   }
 
   const refLabel = askingPrice ? "listing price" : currentBid ? "current bid" : "entered bid";

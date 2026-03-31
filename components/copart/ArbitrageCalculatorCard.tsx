@@ -5,8 +5,89 @@ import {
   Loader2, TrendingUp, Wrench, DollarSign, ChevronDown, ChevronUp,
   AlertTriangle, Info, PencilLine, CheckCircle, Zap, Package,
 } from "lucide-react";
-import type { ArbitrageResult } from "@/lib/copart-arbitrage-engine";
+import type { ArbitrageResult, CopartFeeBreakdown, MarketClosingRange } from "@/lib/copart-arbitrage-engine";
 import { computeMaxSafeBid, computeExpectedProfits, computeSafeBidRange, computeProfitScenarios } from "@/lib/copart-arbitrage-engine";
+
+// ── Fee breakdown sub-component ──────────────────────────────────────────────
+
+function FeeBreakdown({ breakdown }: { breakdown: CopartFeeBreakdown }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
+      >
+        <Info className="w-3 h-3" />
+        Auction fees: {fmt(breakdown.total)}
+        {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+      </button>
+      {open && (
+        <div className="mt-2 space-y-1 pl-4 text-xs text-gray-500">
+          <div className="flex justify-between"><span>Buyer fee (tiered)</span><span>{fmt(breakdown.buyer_fee)}</span></div>
+          <div className="flex justify-between"><span>Gate / processing</span><span>{fmt(breakdown.gate_fee)}</span></div>
+          <div className="flex justify-between"><span>Internet fee</span><span>{fmt(breakdown.internet_fee)}</span></div>
+          <div className="flex justify-between"><span>Title / transfer</span><span>{fmt(breakdown.title_fee)}</span></div>
+          {breakdown.transport_estimate > 0 && (
+            <div className="flex justify-between"><span>Transport estimate</span><span>{fmt(breakdown.transport_estimate)}</span></div>
+          )}
+          <div className="flex justify-between font-semibold text-gray-700 pt-1 border-t border-gray-200">
+            <span>Total fees</span><span>{fmt(breakdown.total)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── OFFO vs Market comparison ─────────────────────────────────────────────────
+
+function OFFOvsMarket({
+  offoRange,
+  market,
+}: {
+  offoRange: { low: number; high: number };
+  market: MarketClosingRange;
+}) {
+  let signal: string;
+  let signalClass: string;
+  if (offoRange.high < market.low) {
+    signal = "Strong position — your ceiling is below where market closes";
+    signalClass = "text-green-700 bg-green-50 border-green-200";
+  } else if (offoRange.low > market.high) {
+    signal = "Market pricing is low — verify condition carefully";
+    signalClass = "text-amber-700 bg-amber-50 border-amber-200";
+  } else {
+    signal = "In the zone — you\u2019re competitive with market bidders";
+    signalClass = "text-blue-700 bg-blue-50 border-blue-200";
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+        <p className="text-xs font-semibold text-gray-600">OFFO vs Market</p>
+      </div>
+      <div className="grid grid-cols-2 divide-x divide-gray-200">
+        <div className="p-3">
+          <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide mb-1">OFFO Safe Bid</p>
+          <p className="text-sm font-bold text-gray-900">{fmt(offoRange.low)} – {fmt(offoRange.high)}</p>
+          <p className="text-[10px] text-gray-400 mt-0.5">Your protected range</p>
+        </div>
+        <div className="p-3">
+          <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide mb-1">Market Est. Close</p>
+          <p className="text-sm font-bold text-gray-900">{fmt(market.low)} – {fmt(market.high)}</p>
+          <p className="text-[10px] text-gray-400 mt-0.5">~{fmt(market.midpoint)} median</p>
+        </div>
+      </div>
+      <div className={`px-4 py-2 border-t border-gray-100 text-xs font-medium ${signalClass}`}>
+        {signal}
+      </div>
+      <div className="px-4 py-1.5 bg-white">
+        <p className="text-[10px] text-gray-400">{market.note}</p>
+      </div>
+    </div>
+  );
+}
 
 interface ArbitrageCalculatorCardProps {
   receiptId: string;
@@ -17,6 +98,8 @@ interface ArbitrageCalculatorCardProps {
   model: string | null;
   year: number | null;
   trim: string | null;
+  /** Copart primary damage field (e.g. "Front End") — used directly, bypasses text inference */
+  primaryDamage?: string | null;
   receiptToken: string;
   /** Called once when the arbitrage result is fetched — allows parent to show Deal Quality */
   onResult?: (result: ArbitrageResult) => void;
@@ -39,8 +122,25 @@ function fmtProfit(n: number) {
   return (n >= 0 ? "+" : "−") + fmt(Math.abs(n));
 }
 
+const DAMAGE_TYPE_OPTIONS = [
+  { value: "front impact",    label: "Front-end impact" },
+  { value: "rear impact",     label: "Rear-end impact" },
+  { value: "side impact",     label: "Side impact / T-bone" },
+  { value: "hail damage",     label: "Hail damage" },
+  { value: "flood/water damage", label: "Flood / water damage" },
+  { value: "fire damage",     label: "Fire damage" },
+  { value: "rollover damage", label: "Rollover" },
+  { value: "theft recovery",  label: "Theft recovery" },
+];
+
+const CONFIDENCE_REASONS: Record<string, string> = {
+  low: "Damage type is unspecified or vague — repair cost range is wide. Narrowed once you confirm damage type below.",
+  medium: "Damage involves electrical systems or partial information — estimate has moderate uncertainty.",
+  high: "Damage type and vehicle data are clear — estimate is reliable.",
+};
+
 export default function ArbitrageCalculatorCard({
-  receiptId, vin, listingText, askingPrice, make, model, year, trim, receiptToken, onResult,
+  receiptId, vin, listingText, askingPrice, make, model, year, trim, primaryDamage, receiptToken, onResult,
 }: ArbitrageCalculatorCardProps) {
   const [fetchState, setFetchState] = useState<FetchState>("idle");
   const [result, setResult] = useState<ArbitrageResult | null>(null);
@@ -51,6 +151,7 @@ export default function ArbitrageCalculatorCard({
   const [customArv, setCustomArv] = useState<string>("");
   const [editingArv, setEditingArv] = useState(false);
   const [strategy, setStrategy] = useState<Strategy>("repair");
+  const [selectedDamageType, setSelectedDamageType] = useState<string>("");
 
   const fetchArbitrage = useCallback(async () => {
     setFetchState("loading");
@@ -69,6 +170,7 @@ export default function ArbitrageCalculatorCard({
           model,
           year,
           trim,
+          primary_damage: primaryDamage ?? null,
         }),
       });
       const data = await res.json();
@@ -87,7 +189,7 @@ export default function ArbitrageCalculatorCard({
       setError(err instanceof Error ? err.message : "Connection error.");
       setFetchState("error");
     }
-  }, [receiptId, receiptToken, vin, listingText, askingPrice, make, model, year, trim]);
+  }, [receiptId, receiptToken, vin, listingText, askingPrice, make, model, year, trim, primaryDamage]);
 
   useEffect(() => {
     if (fetchState === "idle") fetchArbitrage();
@@ -177,6 +279,11 @@ export default function ArbitrageCalculatorCard({
   const confidenceCfg = CONFIDENCE_CONFIG[result.confidence];
   const isBelowAskingPrice = askingPrice && maxSafeBid !== null && maxSafeBid < askingPrice;
   const repairUnviable = maxSafeBid !== null && maxSafeBid <= 0;
+  const isUnspecifiedDamage = result.damage_type_inferred === "unspecified damage";
+  // Use user-selected damage type label for display when original is unspecified
+  const displayDamage = isUnspecifiedDamage && selectedDamageType
+    ? DAMAGE_TYPE_OPTIONS.find(o => o.value === selectedDamageType)?.label ?? result.damage_type_inferred
+    : result.damage_type_inferred;
 
   const activeProfit = strategy === "repair" ? liveExpectedRepair : liveExpectedParts;
 
@@ -191,8 +298,14 @@ export default function ArbitrageCalculatorCard({
           </span>
         </div>
         <p className="text-xs text-orange-100 mt-0.5">
-          Damage: {result.damage_type_inferred}
+          Damage: {displayDamage}
         </p>
+        {/* Confidence reason — shown inline under the badge */}
+        {result.confidence !== "high" && (
+          <p className="text-xs text-orange-200 mt-1.5">
+            {CONFIDENCE_REASONS[result.confidence]}
+          </p>
+        )}
       </div>
 
       <div className="p-5 space-y-5">
@@ -262,6 +375,9 @@ export default function ArbitrageCalculatorCard({
               {result.arv_source === "vin_msrp" && (
                 <p className="text-xs text-gray-400">From VIN market data (no live listings found)</p>
               )}
+              {result.arv_source === "depreciation_curve" && (
+                <p className="text-xs text-amber-600 font-medium">Estimated — no live listings found</p>
+              )}
             </div>
           </div>
 
@@ -301,6 +417,32 @@ export default function ArbitrageCalculatorCard({
             </div>
           )}
         </div>
+
+        {/* ── Damage type refinement (shown when damage is unspecified) ── */}
+        {isUnspecifiedDamage && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+              <p className="text-xs font-semibold text-amber-800">Damage type unspecified — refine estimate</p>
+            </div>
+            <select
+              value={selectedDamageType}
+              onChange={(e) => setSelectedDamageType(e.target.value)}
+              className="w-full text-sm border border-amber-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-orange-400 text-gray-700"
+            >
+              <option value="">— Select damage type —</option>
+              {DAMAGE_TYPE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            {selectedDamageType && (
+              <p className="text-xs text-amber-700">
+                Repair costs updated for <strong>{DAMAGE_TYPE_OPTIONS.find(o => o.value === selectedDamageType)?.label}</strong>.
+                For a precise re-analysis, save this and re-run with updated listing text.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* ── Repair cost row (shown in repair strategy) ── */}
         {strategy === "repair" && (
@@ -441,13 +583,26 @@ export default function ArbitrageCalculatorCard({
               </div>
             )}
 
-            <div className="flex items-start gap-1.5 text-xs text-gray-400">
-              <Info className="w-3 h-3 flex-shrink-0 mt-0.5" />
-              <span>
-                Includes est. auction fees of {fmt(result.auction_fees_estimate)} (buyer fee + title + transport).
-              </span>
-            </div>
+            {/* Real fee breakdown */}
+            {result.auction_fees_breakdown ? (
+              <FeeBreakdown breakdown={result.auction_fees_breakdown} />
+            ) : (
+              <div className="flex items-start gap-1.5 text-xs text-gray-400">
+                <Info className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                <span>
+                  Includes est. auction fees of {fmt(result.auction_fees_estimate)} (buyer fee + title + transport).
+                </span>
+              </div>
+            )}
           </div>
+        )}
+
+        {/* ── OFFO vs Market comparison panel ── */}
+        {result.market_closing_estimate && liveSafeBidRange && (
+          <OFFOvsMarket
+            offoRange={liveSafeBidRange}
+            market={result.market_closing_estimate}
+          />
         )}
 
         {/* ── Best / Worst / Likely scenarios (repair strategy, when data available) ── */}

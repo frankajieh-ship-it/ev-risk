@@ -25,6 +25,11 @@ export const CLASSIFICATION_SCHEMA: Record<string, unknown> = {
   properties: {
     damage_severity: { type: "string", enum: ["minor", "moderate", "severe", "total_loss"] },
     damage_tone: { type: "string" },
+    /** Structured damage type inferred from photos + text. Use "unspecified" if truly unclear. */
+    primary_damage_type: {
+      type: "string",
+      enum: ["front impact", "rear impact", "side impact", "rollover damage", "hail damage", "flood/water damage", "fire damage", "theft recovery", "unspecified"],
+    },
     bid_risk_level: { type: "string", enum: ["low", "medium", "high", "extreme"] },
     red_flags: { type: "array", items: { type: "string" } },
     title_risk_summary: { type: "string" },
@@ -57,5 +62,5 @@ DETERMINISTIC RISK SCORE: ${metrics.salvage_risk_score}/100 (higher = safer)
 TITLE RISK FACTOR: ${metrics.title_risk_factor}
 DAMAGE SEVERITY BASELINE: ${metrics.damage_severity_baseline}
 
-Classify this auction lot. Be concise. Identify actual red flags from the damage description — do not fabricate issues not in the data.`;
+Classify this auction lot. Be concise. Identify actual red flags from the damage description — do not fabricate issues not in the data. If photos are provided, use them to determine primary_damage_type (e.g. front impact, flood/water damage). Set primary_damage_type to "unspecified" only if neither photos nor text reveal the damage location/type.`;
 }

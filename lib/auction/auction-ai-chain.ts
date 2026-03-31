@@ -87,6 +87,8 @@ export interface AiStepLog {
 export interface ClassificationOutput {
   damage_severity: "minor" | "moderate" | "severe" | "total_loss";
   damage_tone: string;
+  /** Structured damage type extracted from photos + text by vision model */
+  primary_damage_type?: "front impact" | "rear impact" | "side impact" | "rollover damage" | "hail damage" | "flood/water damage" | "fire damage" | "theft recovery" | "unspecified";
   bid_risk_level: "low" | "medium" | "high" | "extreme";
   red_flags: string[];
   title_risk_summary: string;
@@ -181,8 +183,9 @@ async function runStep<T>(
 // ── Determine if GPT-4o repair cost step can be skipped ──────────────────────
 
 function canSkipRepairCost(metrics: DeterministicMetrics, arv: number | null, isPaid: boolean): boolean {
-  if (!isPaid) return true;
-  if (metrics.damage_severity_baseline === "minor" && arv !== null) return true;
+  void isPaid;
+  // Only skip when damage is confirmed minor AND we have real damage data (not a data-absent default)
+  if (metrics.damage_severity_baseline === "minor" && arv !== null && metrics.source_confidence !== "low") return true;
   return false;
 }
 

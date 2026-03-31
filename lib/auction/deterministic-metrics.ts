@@ -99,7 +99,9 @@ function classifyDamageSeverity(lot: NormalizedAuctionLot): DamageSeverityBaseli
   if (title === "salvage") return "severe";
   if (title === "rebuilt") return "moderate";
 
-  return "minor";
+  // No damage data at all — treat as moderate, not minor (unknown ≠ undamaged)
+  const hasDamageData = !!(lot.primary_damage || lot.condition_notes || lot.loss_type);
+  return hasDamageData ? "minor" : "moderate";
 }
 
 function computeMileageAdjustment(odometer: number | null): number {

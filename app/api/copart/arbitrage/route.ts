@@ -21,14 +21,17 @@ import {
   buildRepairCostUserPrompt,
   REPAIR_COST_JSON_SCHEMA,
   REPAIR_COST_SYSTEM_PROMPT,
-  AUCTION_FEES_ESTIMATE,
   computeMaxSafeBid,
   computeExpectedProfits,
   computeSafeBidRange,
   computeProfitScenarios,
+  computeCopartFees,
+  getRiskBufferPct,
+  computeMarketClosingEstimate,
   type RepairCostOutput,
   type ArbitrageResult,
 } from "@/lib/copart-arbitrage-engine";
+import { estimateFallbackArv } from "@/lib/auction/fallback-arv";
 
 export const maxDuration = 60;
 
@@ -60,6 +63,13 @@ export async function POST(request: NextRequest) {
   const model = (body.model as string) || null;
   const year = typeof body.year === "number" ? body.year : null;
   const trim = (body.trim as string) || null;
+  const _pdRaw = body.primary_damage;
+  const _ltRaw = body.loss_type;
+  // Guard against JS null serialized as string "null"
+  const primaryDamageRaw =
+    (typeof _pdRaw === "string" && _pdRaw !== "null" && _pdRaw.trim()) ? _pdRaw.trim() :
+    (typeof _ltRaw === "string" && _ltRaw !== "null" && _ltRaw.trim()) ? _ltRaw.trim() :
+    null;
 
   if (!receiptId) {
     return NextResponse.json({ success: false, error: "Missing receipt_id" }, { status: 400 });
@@ -68,8 +78,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Missing listing_text" }, { status: 400 });
   }
 
-  // ── Infer damage type from listing text ──────────────────────────────────
-  const damageType = inferDamageType(listingText);
+  // ── Damage type: use explicit primary_damage field first, fall back to text inference ──
+  const damageType = primaryDamageRaw
+    ? inferDamageType(primaryDamageRaw)
+    : inferDamageType(listingText);
+  console.log(`[ArbitrageRoute] damageType="${damageType}" from primaryDamage="${primaryDamageRaw}"`)
 
   // ── Parallel: Auto.dev ARV + hedged AI repair cost ───────────────────────
   const isRepairCostOutputInner = (v: unknown): v is RepairCostOutput => {
@@ -117,6 +130,15 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Fallback ARV from depreciation curve when Auto.dev has no data
+  if (!arv && make && model && year) {
+    const fallback = estimateFallbackArv(make, model, year);
+    if (fallback) {
+      arv = fallback.arv;
+      arvSource = "depreciation_curve";
+    }
+  }
+
   // ── Parse repair cost output ──────────────────────────────────────────────
   let repairOutput: RepairCostOutput | null = null;
   if (repairResult.status === "fulfilled") {
@@ -130,23 +152,31 @@ export async function POST(request: NextRequest) {
   const repairCostMidpoint = Math.round((repairCostLow + repairCostHigh) / 2);
   const partsValue = repairOutput?.parts_value_total ?? 0;
 
+  // ── Real tiered fees ──────────────────────────────────────────────────────
+  const feesBreakdown = computeCopartFees(
+    askingPrice ?? (repairCostMidpoint > 0 ? repairCostMidpoint * 2 : 5000)
+  );
+  const totalFees = feesBreakdown.total;
+  // No salvage score in this backward-compat route — use conservative default
+  const riskBufferPct = getRiskBufferPct(50);
+
   // ── Max safe bid + range ──────────────────────────────────────────────────
   const maxSafeBid =
     arv !== null && repairCostMidpoint > 0
-      ? computeMaxSafeBid(arv, repairCostMidpoint, AUCTION_FEES_ESTIMATE, 20)
+      ? computeMaxSafeBid(arv, repairCostMidpoint, totalFees, riskBufferPct)
       : null;
 
   const safeBidRange =
     arv !== null && repairCostLow > 0
-      ? computeSafeBidRange(arv, repairCostLow, repairCostHigh, AUCTION_FEES_ESTIMATE, 20)
+      ? computeSafeBidRange(arv, repairCostLow, repairCostHigh, totalFees, riskBufferPct)
       : null;
 
   const { repair: expectedProfitRepair, parts: expectedProfitParts } =
-    computeExpectedProfits(arv, partsValue, askingPrice, repairCostMidpoint, AUCTION_FEES_ESTIMATE);
+    computeExpectedProfits(arv, partsValue, askingPrice, repairCostMidpoint, totalFees);
 
   const profitScenariosRepair =
     arv !== null && askingPrice !== null && repairCostMidpoint > 0
-      ? computeProfitScenarios(arv, askingPrice, repairCostLow, repairCostMidpoint, repairCostHigh, AUCTION_FEES_ESTIMATE)
+      ? computeProfitScenarios(arv, askingPrice, repairCostLow, repairCostMidpoint, repairCostHigh, totalFees)
       : null;
 
   const recommendedStrategy: ArbitrageResult["recommended_strategy"] =
@@ -155,6 +185,11 @@ export async function POST(request: NextRequest) {
       : expectedProfitRepair !== null ? "repair"
       : expectedProfitParts  !== null ? "parts"
       : null;
+
+  const caveats = repairOutput?.caveats ?? ["Repair cost estimate unavailable — manual inspection strongly recommended."];
+  if (arvSource === "depreciation_curve") {
+    caveats.unshift("ARV estimated from depreciation model — no active listings found. Verify current market value before bidding.");
+  }
 
   const result: ArbitrageResult = {
     arv,
@@ -168,15 +203,18 @@ export async function POST(request: NextRequest) {
     parts_value: partsValue,
     parts_value_breakdown: repairOutput?.parts_value_breakdown ?? [],
     max_safe_bid: maxSafeBid,
-    auction_fees_estimate: AUCTION_FEES_ESTIMATE,
+    auction_fees_estimate: totalFees,
+    auction_fees_breakdown: feesBreakdown,
+    risk_buffer_pct: riskBufferPct,
     confidence: repairOutput?.confidence ?? "low",
-    caveats: repairOutput?.caveats ?? ["Repair cost estimate unavailable — manual inspection strongly recommended."],
+    caveats,
     damage_type_inferred: damageType,
     expected_profit_repair: expectedProfitRepair,
     expected_profit_parts: expectedProfitParts,
     safe_bid_range: safeBidRange,
     profit_scenarios_repair: profitScenariosRepair,
     recommended_strategy: recommendedStrategy,
+    market_closing_estimate: arv ? computeMarketClosingEstimate(arv) : null,
   };
 
   return NextResponse.json({ success: true, result });

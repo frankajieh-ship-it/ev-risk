@@ -8,6 +8,8 @@ type DataSource = "api" | "scrape" | "manual";
 interface SalvageRiskCardProps {
   result: SalvageRiskResult;
   dataSource?: DataSource;
+  /** Pass false for confirmed ICE to hide EV-specific battery factor */
+  isEv?: boolean | null;
 }
 
 const GRADE_CONFIG = {
@@ -69,7 +71,7 @@ const DATA_SOURCE_BADGE: Record<DataSource, { label: string; className: string }
   manual: { label: "Manual entry",        className: "bg-gray-100 text-gray-600 border-gray-200" },
 };
 
-export default function SalvageRiskCard({ result, dataSource }: SalvageRiskCardProps) {
+export default function SalvageRiskCard({ result, dataSource, isEv }: SalvageRiskCardProps) {
   const cfg = GRADE_CONFIG[result.grade];
   const Icon = cfg.icon;
 
@@ -107,7 +109,7 @@ export default function SalvageRiskCard({ result, dataSource }: SalvageRiskCardP
 
       {/* Factor breakdown */}
       <div className="space-y-2">
-        {FACTOR_ROWS.map(({ key, label, icon: FactorIcon }) => {
+        {FACTOR_ROWS.filter(({ key }) => key !== "battery_risk" || isEv !== false).map(({ key, label, icon: FactorIcon }) => {
           const riskVal = result.factors[key];
           const barColor =
             riskVal >= 70 ? "bg-red-500" : riskVal >= 40 ? "bg-amber-500" : "bg-green-500";
@@ -133,7 +135,7 @@ export default function SalvageRiskCard({ result, dataSource }: SalvageRiskCardP
       {/* Risk factor summary — always visible */}
       <div className="border-t border-gray-200/60 pt-3 space-y-1.5">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Risk factor summary</p>
-        {FACTOR_ROWS.map(({ key, label, icon: FactorIcon }) => {
+        {FACTOR_ROWS.filter(({ key }) => key !== "battery_risk" || isEv !== false).map(({ key, label, icon: FactorIcon }) => {
           const val = result.factors[key];
           const isHigh = val >= 60;
           const isMid = val >= 30 && val < 60;
@@ -143,7 +145,7 @@ export default function SalvageRiskCard({ result, dataSource }: SalvageRiskCardP
             <div key={key} className="flex items-start gap-2 text-xs">
               <FactorIcon className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${textColor}`} />
               <span className="text-gray-700 w-28 flex-shrink-0">{label}</span>
-              <span className={`font-semibold ${textColor}`}>{levelLabel} ({val})</span>
+              <span className={`font-semibold ${textColor}`}>{val > 0 ? `${levelLabel} (${val})` : "None detected"}</span>
               {isHigh && <span className="text-gray-500 ml-1">— {FACTOR_EXPLANATIONS[key].split("—")[0].trim()}</span>}
             </div>
           );

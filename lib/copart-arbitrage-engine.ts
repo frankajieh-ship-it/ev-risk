@@ -5,6 +5,10 @@
  * Used by /api/copart/arbitrage/route.ts
  */
 
+import { computeCopartFees, type CopartFeeBreakdown } from "@/lib/auction/copart-fee-calculator"
+
+export type { CopartFeeBreakdown }
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface ArbitrageRequest {
@@ -37,11 +41,18 @@ export interface RepairCostOutput {
   caveats: string[];
 }
 
+export interface MarketClosingRange {
+  low: number;
+  high: number;
+  midpoint: number;
+  note: string;
+}
+
 export interface ArbitrageResult {
   /** After-Repair Value midpoint (null if unavailable) */
   arv: number | null;
   arv_range: { low: number; high: number } | null;
-  arv_source: "auto_dev_listings" | "vin_msrp" | "none";
+  arv_source: "auto_dev_listings" | "vin_msrp" | "depreciation_curve" | "none";
   arv_listing_count: number;
   repair_cost_estimate: number;
   repair_cost_low: number;
@@ -51,8 +62,12 @@ export interface ArbitrageResult {
   parts_value_breakdown: RepairLineItem[];
   /** Max safe bid at default 20% target margin */
   max_safe_bid: number | null;
-  /** Fixed estimate: buyer fee + title + transport */
+  /** Backward-compat: total fees in dollars */
   auction_fees_estimate: number;
+  /** Real tiered fee breakdown */
+  auction_fees_breakdown: CopartFeeBreakdown | null;
+  /** Risk buffer percentage applied (dynamic based on salvage score) */
+  risk_buffer_pct: number;
   confidence: "high" | "medium" | "low";
   caveats: string[];
   damage_type_inferred: string;
@@ -84,6 +99,11 @@ export interface ArbitrageResult {
    * Recommended strategy based on best expected profit.
    */
   recommended_strategy: "repair" | "parts" | null;
+  /**
+   * Deterministic market closing estimate (32–45% of clean ARV).
+   * Represents where competitive bidders are likely to land.
+   */
+  market_closing_estimate: MarketClosingRange | null;
 }
 
 // ── Damage type inference ─────────────────────────────────────────────────────
@@ -96,6 +116,7 @@ const DAMAGE_PATTERNS: Array<{ keywords: string[]; label: string }> = [
   { keywords: ["rear end", "rear impact", "hit from behind", "rear collision", "back end"], label: "rear impact" },
   { keywords: ["side impact", "t-bone", "side collision", "door damage", "b-pillar"], label: "side impact" },
   { keywords: ["front end", "front impact", "head-on", "front collision", "hood damage", "bumper"], label: "front impact" },
+  { keywords: ["theft", "stolen", "stripped"], label: "theft recovery" },
 ];
 
 export function inferDamageType(listingText: string): string {
@@ -201,11 +222,39 @@ Estimate:
 // ── Auction fee estimate ──────────────────────────────────────────────────────
 
 /**
- * Fixed auction fee estimate.
- * Covers: Copart buyer fee (~$400–$700) + title transfer ($50–$100) + transport to shop ($200–$400).
- * A future enhancement could make this dynamic based on hammer price tier.
+ * Legacy fixed estimate — kept for backward compatibility where a bid price
+ * isn't available yet. Prefer computeCopartFees(bidPrice) when bid is known.
  */
 export const AUCTION_FEES_ESTIMATE = 1000;
+
+// ── Risk buffer ───────────────────────────────────────────────────────────────
+
+/**
+ * Dynamic risk buffer percentage based on salvage risk score (0–100).
+ * Higher score = lower risk = smaller required margin buffer.
+ */
+export function getRiskBufferPct(salvageRiskScore: number): number {
+  if (salvageRiskScore >= 75) return 5;   // low risk
+  if (salvageRiskScore >= 50) return 10;  // moderate risk
+  if (salvageRiskScore >= 25) return 20;  // high risk
+  return 30;                              // very high risk
+}
+
+// ── Market closing estimate ───────────────────────────────────────────────────
+
+/**
+ * Deterministic estimate of where competitive bidders will close.
+ * Salvage vehicles historically close at ~32–45% of clean ARV (median ~38%).
+ * This gives users the "OFFO vs Market" signal without needing historical data.
+ */
+export function computeMarketClosingEstimate(arv: number): MarketClosingRange {
+  return {
+    low:      Math.round(arv * 0.32 / 100) * 100,
+    high:     Math.round(arv * 0.45 / 100) * 100,
+    midpoint: Math.round(arv * 0.38 / 100) * 100,
+    note: "Based on salvage auction market patterns (32–45% of clean ARV); varies by demand and damage type.",
+  };
+}
 
 // ── Max safe bid calculator ───────────────────────────────────────────────────
 
@@ -280,3 +329,6 @@ export function computeProfitScenarios(
     worst:  arv - bidPrice - repairCostHigh     - auctionFees,
   };
 }
+
+// Re-export fee calculator for consumers that import from this module
+export { computeCopartFees };

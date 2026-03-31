@@ -25,6 +25,7 @@ import {
   Mail,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import { getOrCreateReceiptToken, getOrCreatePersistentSessionId } from "@/lib/session-utils";
@@ -45,6 +46,7 @@ import type {
 } from "@/lib/auction/types";
 import type { OffoScore } from "@/types/v2";
 import type { ArbitrageResult } from "@/lib/copart-arbitrage-engine";
+import { detectVehicleType, isElectric } from "@/lib/auction/vehicle-type";
 
 type PageState = "idle" | "fetching" | "done" | "error";
 
@@ -392,6 +394,7 @@ export default function CopartPage() {
   const [salvageRisk, setSalvageRisk] = useState<SalvageRiskResult | null>(null);
   const [offoScore, setOffoScore] = useState<OffoScore | null>(null);
   const [arbitrageResult, setArbitrageResult] = useState<ArbitrageResult | null>(null);
+  const [isEv, setIsEv] = useState<boolean | null>(null);
 
   const receiptToken = typeof window !== "undefined" ? getOrCreateReceiptToken() : "";
   const listingTextRef = useRef("");
@@ -424,6 +427,7 @@ export default function CopartPage() {
     setOffoScore(null);
     setArbitrageResult(null);
     setResultId(null);
+    setIsEv(null);
     listingTextRef.current = "";
 
     trackEvent("copart_analyze_started", {
@@ -460,6 +464,16 @@ export default function CopartPage() {
       setResultId(r.report_id);
       setSalvageRisk(r.salvage_risk as SalvageRiskResult);
       setOffoScore((r.offo_score as OffoScore | undefined) ?? null);
+      // Seed arbitrage immediately from evaluation result so Deal Quality shows without waiting for card fetch
+      if (r.arbitrage) setArbitrageResult(r.arbitrage as ArbitrageResult);
+      const vType = detectVehicleType({
+        make: r.lot.make,
+        model: r.lot.model,
+        year: r.lot.year,
+        primaryDamage: r.lot.primary_damage,
+        conditionNotes: r.lot.condition_notes,
+      });
+      setIsEv(isElectric(vType));
 
       const lot = r.lot;
       listingTextRef.current = [
@@ -501,31 +515,48 @@ export default function CopartPage() {
 
       {/* Hero */}
       <div className="bg-white border-b border-gray-100">
-        <div className="max-w-3xl mx-auto px-4 py-10 text-center">
-          <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-700 bg-orange-100 px-3 py-1 rounded-full mb-4">
-            <Gavel className="w-3.5 h-3.5" />
-            Salvage &amp; Auction Intelligence
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-            Evaluate any Copart auction before you bid
-          </h1>
-          <p className="text-sm text-gray-500 max-w-md mx-auto">
-            Paste a Copart lot URL or lot number. Get a salvage risk score, ARV estimate, repair cost breakdown, and max safe bid — free.
-          </p>
+        <div className="max-w-5xl mx-auto px-4 py-10">
+          <div className="flex flex-col lg:flex-row items-center gap-8">
+            {/* Left: copy */}
+            <div className="flex-1 text-center lg:text-left">
+              <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-700 bg-orange-100 px-3 py-1 rounded-full mb-4">
+                <Gavel className="w-3.5 h-3.5" />
+                Salvage &amp; Auction Intelligence
+              </div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+                Evaluate any Copart auction before you bid
+              </h1>
+              <p className="text-sm text-gray-500 max-w-md mx-auto lg:mx-0">
+                Paste a Copart lot URL or lot number. Get a salvage risk score, ARV estimate, repair cost breakdown, and max safe bid — free.
+              </p>
 
-          {/* Feature pills */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-            {[
-              { icon: Shield, label: "Salvage risk score" },
-              { icon: Car, label: "Battery health projection" },
-              { icon: Gavel, label: "Max safe bid calc" },
-              { icon: Bell, label: "Open recalls" },
-            ].map(({ icon: Icon, label }) => (
-              <span key={label} className="inline-flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">
-                <Icon className="w-3 h-3 text-blue-500" />
-                {label}
-              </span>
-            ))}
+              {/* Feature pills */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 mt-4">
+                {[
+                  { icon: Shield, label: "Salvage risk score" },
+                  { icon: Car, label: "Battery health projection" },
+                  { icon: Gavel, label: "Max safe bid calc" },
+                  { icon: Bell, label: "Open recalls" },
+                ].map(({ icon: Icon, label }) => (
+                  <span key={label} className="inline-flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">
+                    <Icon className="w-3 h-3 text-blue-500" />
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: hero image */}
+            <div className="flex-shrink-0 w-full max-w-xs lg:max-w-sm">
+              <Image
+                src="/copart-hero.jpg"
+                alt="Copart auction analysis"
+                width={480}
+                height={320}
+                className="w-full rounded-2xl shadow-lg object-cover"
+                priority
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -634,15 +665,16 @@ export default function CopartPage() {
             {/* OFFO Score — unified verdict shown first */}
             {offoScore && <OffoScoreCard offoScore={offoScore} />}
 
-            {/* Risk + guidance */}
-            <SalvageRiskCard result={salvageRisk} dataSource="api" />
-
+            {/* Bid Guidance — shown immediately after score as key selling point */}
             <AuctionBidGuidanceCard
               result={salvageRisk}
               vin={lot.vin}
               askingPrice={lot.current_bid}
-              arbitrage={arbitrageResult}
+              arbitrage={arbitrageResult ?? report.arbitrage}
             />
+
+            {/* Salvage Risk breakdown */}
+            <SalvageRiskCard result={salvageRisk} dataSource="api" isEv={isEv} />
 
             {/* Arbitrage calculator — always shown */}
             {resultId && (
@@ -655,6 +687,7 @@ export default function CopartPage() {
                 model={lot.model}
                 year={lot.year}
                 trim={lot.trim}
+                primaryDamage={lot.primary_damage ?? lot.loss_type}
                 receiptToken={receiptToken}
                 onResult={setArbitrageResult}
               />
@@ -668,17 +701,17 @@ export default function CopartPage() {
               <RecallsCard recalls={report.recalls} />
             )}
 
-            {/* data_v2 cards — shown when enrichment data is available */}
-            {report.charging_profile && (
+            {/* data_v2 cards — EV/PHEV only */}
+            {isEv !== false && report.charging_profile && (
               <ChargingProfileCard profile={report.charging_profile} />
             )}
-            {report.range_projection && (
+            {isEv !== false && report.range_projection && (
               <RangeProjectionCard range={report.range_projection} />
             )}
-            {report.incentive_status && (
+            {isEv !== false && report.incentive_status && (
               <IncentiveStatusCard incentive={report.incentive_status} />
             )}
-            {report.electricity_context && (
+            {isEv !== false && report.electricity_context && (
               <ElectricityContextCard electricity={report.electricity_context} />
             )}
 

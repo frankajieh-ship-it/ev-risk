@@ -17,6 +17,7 @@
 
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
+import { estimateFallbackArv } from "@/lib/auction/fallback-arv";
 import {
   getChargingProfile,
   getElectricityRate,
@@ -252,17 +253,31 @@ export class AuctionEvaluationService {
     let arv: number | null = null;
     let arvListingCount = 0;
     let hasVinData = false;
+    let arvSource: "auto_dev_listings" | "vin_msrp" | "depreciation_curve" | "none" = "none";
 
     if (enrichResult?.market_price_range && enrichResult.market_price_range.count > 0) {
       arv = Math.round(
         (enrichResult.market_price_range.low + enrichResult.market_price_range.high) / 2
       );
       arvListingCount = enrichResult.market_price_range.count;
+      arvSource = "auto_dev_listings";
     } else if (enrichResult?.vin_data?.price?.usedTmvRetail) {
       arv = enrichResult.vin_data.price.usedTmvRetail;
+      arvSource = "vin_msrp";
     }
     hasVinData = Boolean(enrichResult?.vin_data);
-    console.log(`[EvalService][4-ARV] arv=${arv} arvListingCount=${arvListingCount} hasVinData=${hasVinData}`);
+
+    // Fallback ARV: depreciation curve when Auto.dev has no data
+    if (!arv && lot.make && lot.model && lot.year) {
+      const fallback = estimateFallbackArv(lot.make, lot.model, lot.year);
+      if (fallback) {
+        arv = fallback.arv;
+        arvSource = "depreciation_curve";
+        console.log(`[EvalService][4-ARV] fallback ARV=${arv} (age=${fallback.age_years}y, factor=${fallback.depreciation_factor}, msrp=${fallback.msrp_used})`);
+      }
+    }
+
+    console.log(`[EvalService][4-ARV] arv=${arv} arvSource=${arvSource} arvListingCount=${arvListingCount} hasVinData=${hasVinData}`);
 
     // 5. Payment — all features are free; isPaid always true
     const isPaid = true;
@@ -329,31 +344,41 @@ export class AuctionEvaluationService {
       primary_damage_category:  metrics.primary_damage_category,
       arv_hint_low:             arv ?? undefined,
     };
-    const offoScore = computeAuctionOffoScore(salvageRiskForOffo, routineFit);
+    const offoScore = computeAuctionOffoScore(salvageRiskForOffo, routineFit, lot.year);
 
-    // 10. Build arbitrage result from AI output (paid only)
+    // 10. Build arbitrage result — always built when AI repair cost is available
     let arbitrage = null;
-    if (isPaid && aiChainOutput.repair_cost) {
+    if (aiChainOutput.repair_cost) {
       const rc = aiChainOutput.repair_cost;
       const {
-        AUCTION_FEES_ESTIMATE,
         computeMaxSafeBid,
         computeSafeBidRange,
         computeExpectedProfits,
         computeProfitScenarios,
+        computeCopartFees,
+        getRiskBufferPct,
+        computeMarketClosingEstimate,
       } = await import("@/lib/copart-arbitrage-engine");
 
       const askingPrice = lot.current_bid ?? null;
+      const riskBufferPct = getRiskBufferPct(metrics.salvage_risk_score);
+
+      // Use real tiered fees based on asking/current bid, fallback to legacy estimate
+      const feesBreakdown = askingPrice
+        ? computeCopartFees(askingPrice)
+        : computeCopartFees(rc.repair_cost_midpoint > 0 ? rc.repair_cost_midpoint * 2 : 5000);
+      const totalFees = feesBreakdown.total;
+
       const maxSafeBid = arv && rc.repair_cost_midpoint > 0
-        ? computeMaxSafeBid(arv, rc.repair_cost_midpoint, AUCTION_FEES_ESTIMATE, 20)
+        ? computeMaxSafeBid(arv, rc.repair_cost_midpoint, totalFees, riskBufferPct)
         : null;
       const safeBidRange = arv && rc.repair_cost_low > 0
-        ? computeSafeBidRange(arv, rc.repair_cost_low, rc.repair_cost_high, AUCTION_FEES_ESTIMATE, 20)
+        ? computeSafeBidRange(arv, rc.repair_cost_low, rc.repair_cost_high, totalFees, riskBufferPct)
         : null;
       const { repair: expectedProfitRepair, parts: expectedProfitParts } =
-        computeExpectedProfits(arv, rc.parts_value_total, askingPrice, rc.repair_cost_midpoint, AUCTION_FEES_ESTIMATE);
+        computeExpectedProfits(arv, rc.parts_value_total, askingPrice, rc.repair_cost_midpoint, totalFees);
       const profitScenariosRepair = arv && askingPrice && rc.repair_cost_midpoint > 0
-        ? computeProfitScenarios(arv, askingPrice, rc.repair_cost_low, rc.repair_cost_midpoint, rc.repair_cost_high, AUCTION_FEES_ESTIMATE)
+        ? computeProfitScenarios(arv, askingPrice, rc.repair_cost_low, rc.repair_cost_midpoint, rc.repair_cost_high, totalFees)
         : null;
       const recommendedStrategy: "repair" | "parts" | null =
         expectedProfitRepair !== null && expectedProfitParts !== null
@@ -362,12 +387,18 @@ export class AuctionEvaluationService {
           : expectedProfitParts !== null ? "parts"
           : null;
 
+      // Add fallback ARV caveat when using estimated value
+      const caveats = [...rc.caveats];
+      if (arvSource === "depreciation_curve") {
+        caveats.unshift("ARV estimated from depreciation model — no active listings found. Verify current market value before bidding.");
+      }
+
       arbitrage = {
         arv,
         arv_range: enrichResult?.market_price_range && enrichResult.market_price_range.count > 0
           ? { low: enrichResult.market_price_range.low, high: enrichResult.market_price_range.high }
           : null,
-        arv_source: (arvListingCount > 0 ? "auto_dev_listings" : hasVinData ? "vin_msrp" : "none") as "auto_dev_listings" | "vin_msrp" | "none",
+        arv_source: arvSource,
         arv_listing_count: arvListingCount,
         repair_cost_estimate: rc.repair_cost_midpoint,
         repair_cost_low: rc.repair_cost_low,
@@ -376,15 +407,62 @@ export class AuctionEvaluationService {
         parts_value: rc.parts_value_total,
         parts_value_breakdown: rc.parts_value_breakdown,
         max_safe_bid: maxSafeBid,
-        auction_fees_estimate: AUCTION_FEES_ESTIMATE,
+        auction_fees_estimate: totalFees,
+        auction_fees_breakdown: feesBreakdown,
+        risk_buffer_pct: riskBufferPct,
         confidence: rc.confidence,
-        caveats: rc.caveats,
-        damage_type_inferred: lot.damage_type ?? "unspecified damage",
+        caveats,
+        damage_type_inferred: (aiChainOutput.classification?.primary_damage_type && aiChainOutput.classification.primary_damage_type !== "unspecified")
+          ? aiChainOutput.classification.primary_damage_type
+          : (lot.damage_type ?? "unspecified damage"),
         expected_profit_repair: expectedProfitRepair,
         expected_profit_parts: expectedProfitParts,
         safe_bid_range: safeBidRange,
         profit_scenarios_repair: profitScenariosRepair,
         recommended_strategy: recommendedStrategy,
+        market_closing_estimate: arv ? computeMarketClosingEstimate(arv) : null,
+      };
+    } else if (arv && metrics.expected_repair_cost) {
+      // Deterministic fallback — AI repair step was skipped, use damage-category estimate
+      const { computeExpectedProfits, computeCopartFees, getRiskBufferPct, computeMarketClosingEstimate } =
+        await import("@/lib/copart-arbitrage-engine");
+      const rc = metrics.expected_repair_cost;
+      const askingPrice = lot.current_bid ?? null;
+      const feesBreakdown = computeCopartFees(askingPrice ?? rc.midpoint * 2);
+      const totalFees = feesBreakdown.total;
+      const { repair: expectedProfitRepair } = computeExpectedProfits(arv, 0, askingPrice, rc.midpoint, totalFees);
+      const caveats: string[] = [];
+      if (arvSource === "depreciation_curve") {
+        caveats.push("ARV estimated from depreciation model — no active listings found. Verify before bidding.");
+      }
+      arbitrage = {
+        arv,
+        arv_range: enrichResult?.market_price_range && enrichResult.market_price_range.count > 0
+          ? { low: enrichResult.market_price_range.low, high: enrichResult.market_price_range.high }
+          : null,
+        arv_source: arvSource,
+        arv_listing_count: arvListingCount,
+        repair_cost_estimate: rc.midpoint,
+        repair_cost_low: rc.low,
+        repair_cost_high: rc.high,
+        repair_cost_breakdown: [],
+        parts_value: 0,
+        parts_value_breakdown: [],
+        max_safe_bid: null,
+        auction_fees_estimate: totalFees,
+        auction_fees_breakdown: feesBreakdown,
+        risk_buffer_pct: getRiskBufferPct(metrics.salvage_risk_score),
+        confidence: rc.confidence,
+        caveats,
+        damage_type_inferred: (aiChainOutput.classification?.primary_damage_type && aiChainOutput.classification.primary_damage_type !== "unspecified")
+          ? aiChainOutput.classification.primary_damage_type
+          : (lot.damage_type ?? "unspecified damage"),
+        expected_profit_repair: expectedProfitRepair,
+        expected_profit_parts: null,
+        safe_bid_range: null,
+        profit_scenarios_repair: null,
+        recommended_strategy: null,
+        market_closing_estimate: computeMarketClosingEstimate(arv),
       };
     }
 
@@ -518,25 +596,39 @@ export class AuctionEvaluationService {
     if (!supabase) return null;
 
     try {
-      const { data: row } = await supabase
+      const { data: rows } = await supabase
         .from("auction_analyses")
         .select("result_id, final_report, raw_data, created_at, cache_expires_at")
         .eq("auction_source", source)
         .eq("lot_number", lotNumber)
         .gt("cache_expires_at", new Date().toISOString())
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(10);
 
-      if (!row?.final_report || !row.raw_data) return null;
+      if (!rows || rows.length === 0) return null;
 
-      // Reject slug-sourced cache hits — they have null damage/odometer fields.
-      // Delete the stale row so the re-analysis can insert a fresh one.
-      const rawLot = row.raw_data as NormalizedAuctionLot;
-      if (rawLot.provider_name === "copart_url_slug" || rawLot.provider_name === "copart_unavailable") {
-        await supabase.from("auction_analyses").delete().eq("result_id", row.result_id);
-        return null;
+      // Find the best valid row — has arbitrage + primary_damage + not slug-sourced
+      let row = null;
+      const badIds: string[] = [];
+      for (const r of rows) {
+        if (!r.final_report || !r.raw_data) { badIds.push(r.result_id); continue; }
+        const rl = r.raw_data as NormalizedAuctionLot;
+        const rp = r.final_report as Record<string, unknown>;
+        const isStale =
+          rl.provider_name === "copart_url_slug" ||
+          rl.provider_name === "copart_unavailable" ||
+          !rp?.arbitrage ||
+          !rl.primary_damage;
+        console.log(`[EvalService][CACHE] result_id=${r.result_id} provider=${rl.provider_name} primary_damage=${rl.primary_damage} hasArbitrage=${!!rp?.arbitrage} isStale=${isStale}`);
+        if (isStale) { badIds.push(r.result_id); continue; }
+        row = r;
+        break;
       }
+      // Delete all stale rows
+      if (badIds.length > 0) {
+        await supabase.from("auction_analyses").delete().in("result_id", badIds);
+      }
+      if (!row) return null;
 
       const report = row.final_report as Record<string, unknown>;
 
