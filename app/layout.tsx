@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import JsonLd from "@/components/seo/JsonLd";
 import { HumanSignalCollector } from "@/components/HumanSignalCollector";
+import CookieConsent from "@/components/CookieConsent";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -83,10 +84,13 @@ export default function RootLayout({
           }}
         />
         <HumanSignalCollector />
+        <CookieConsent />
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
           strategy="afterInteractive"
         />
+        {/* GA loads unconditionally but consent defaults to denied.
+            CookieConsent upgrades to granted on Accept. */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-17983820539"
           strategy="afterInteractive"
@@ -95,6 +99,11 @@ export default function RootLayout({
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
+            gtag('consent', 'default', {
+              analytics_storage: 'denied',
+              ad_storage: 'denied',
+              wait_for_update: 2000,
+            });
             gtag('js', new Date());
             gtag('config', 'AW-17983820539');
           `}
