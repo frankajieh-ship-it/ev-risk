@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? process.env.URL ?? "https://www.offolab.com";
+
+const ogTitle = "Three Months of OFFO: What 286 Real EV Fit Checks Revealed";
+const ogSubtitle = "What 286 real EV fit checks revealed.";
 
 export const metadata: Metadata = {
   title: "Three Months of OFFO: What 286 Real EV Fit Checks Revealed",
@@ -10,18 +14,29 @@ export const metadata: Metadata = {
     canonical: `${SITE_URL}/blog/offo-ev-fit-check-insights`,
   },
   openGraph: {
-    title: "Three Months of OFFO: What 286 Real EV Fit Checks Revealed",
+    title: ogTitle,
     description:
       "Data from 286 real EV fit checks: which vehicles buyers compare most, what questionnaire fields matter, and what the numbers say about EV readiness in 2026.",
     url: `${SITE_URL}/blog/offo-ev-fit-check-insights`,
     type: "article",
     siteName: "OFFO",
+    images: [
+      {
+        url: `${APP_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subtitle=${encodeURIComponent(ogSubtitle)}`,
+        width: 1200,
+        height: 630,
+        alt: ogTitle,
+      },
+    ],
   },
   twitter: {
-    card: "summary",
-    title: "Three Months of OFFO: What 286 Real EV Fit Checks Revealed",
+    card: "summary_large_image",
+    title: ogTitle,
     description:
       "Data from 286 real EV fit checks: which vehicles buyers compare most, what questionnaire fields matter, and what the numbers say about EV readiness in 2026.",
+    images: [
+      `${APP_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subtitle=${encodeURIComponent(ogSubtitle)}`,
+    ],
   },
   robots: {
     index: true,

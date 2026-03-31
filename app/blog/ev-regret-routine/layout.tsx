@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? process.env.URL ?? "https://www.offolab.com";
+
+const ogTitle = "EV Regret Isn't About Range. It's About Routine.";
+const ogSubtitle = "Why EV regret is about routine, not range.";
 
 export const metadata: Metadata = {
   title: "EV Regret Isn't About Range. It's About Routine.",
@@ -10,18 +14,29 @@ export const metadata: Metadata = {
     canonical: `${SITE_URL}/blog/ev-regret-routine`,
   },
   openGraph: {
-    title: "EV Regret Isn't About Range. It's About Routine.",
+    title: ogTitle,
     description:
       "After analyzing dozens of real EV regret stories, one pattern kept repeating: the problem wasn't range — it was routine mismatch.",
     url: `${SITE_URL}/blog/ev-regret-routine`,
     type: "article",
     siteName: "OFFO",
+    images: [
+      {
+        url: `${APP_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subtitle=${encodeURIComponent(ogSubtitle)}`,
+        width: 1200,
+        height: 630,
+        alt: ogTitle,
+      },
+    ],
   },
   twitter: {
-    card: "summary",
-    title: "EV Regret Isn't About Range. It's About Routine.",
+    card: "summary_large_image",
+    title: ogTitle,
     description:
       "After analyzing dozens of real EV regret stories, one pattern kept repeating: the problem wasn't range — it was routine mismatch.",
+    images: [
+      `${APP_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subtitle=${encodeURIComponent(ogSubtitle)}`,
+    ],
   },
   robots: {
     index: true,

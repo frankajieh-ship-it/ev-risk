@@ -3,25 +3,23 @@ import type { Metadata } from "next";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? process.env.URL ?? "https://www.offolab.com";
 
-const ogTitle = "OFFO Blog – Ownership Clarity";
-const ogSubtitle = "EV buying and ownership decision guides.";
+const ogTitle = "Copart Auction Analyzer | OFFO";
+const ogSubtitle = "Free risk score, ARV estimate, and max safe bid for any lot.";
 
 export const metadata: Metadata = {
-  title: {
-    absolute: "OFFO Blog – Ownership Clarity",
-  },
+  title: "Copart Auction Analyzer",
   description:
-    "Decision clarity for EV buying and ownership: predictability, buffers, fallback plans, and what to verify next.",
+    "Free Copart auction risk analysis. Paste any lot URL to get a salvage risk score, repair cost estimate, after-repair value, and max safe bid in seconds.",
   alternates: {
-    canonical: `${SITE_URL}/blog`,
+    canonical: `${SITE_URL}/copart`,
   },
   openGraph: {
     title: ogTitle,
     description:
-      "Decision clarity for EV buying and ownership: predictability, buffers, fallback plans, and what to verify next.",
-    url: `${SITE_URL}/blog`,
-    type: "website",
+      "Free Copart auction risk analysis. Paste any lot URL to get a salvage risk score, repair cost estimate, ARV, and max safe bid in seconds.",
+    url: `${SITE_URL}/copart`,
     siteName: "OFFO",
+    type: "website",
     images: [
       {
         url: `${APP_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subtitle=${encodeURIComponent(ogSubtitle)}`,
@@ -35,14 +33,14 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: ogTitle,
     description:
-      "Decision clarity for EV buying and ownership: predictability, buffers, fallback plans, and what to verify next.",
+      "Free Copart auction risk analysis. Salvage risk score, ARV, repair cost, and max safe bid.",
     images: [
       `${APP_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subtitle=${encodeURIComponent(ogSubtitle)}`,
     ],
   },
 };
 
-export default function BlogLayout({
+export default function CopartLayout({
   children,
 }: {
   children: React.ReactNode;

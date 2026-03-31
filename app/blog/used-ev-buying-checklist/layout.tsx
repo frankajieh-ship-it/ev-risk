@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? process.env.URL ?? "https://www.offolab.com";
+
+const ogTitle = "Used EV Buying Checklist: 10 Things to Check Before You Buy";
+const ogSubtitle = "10 things to check before buying a used EV.";
 
 export const metadata: Metadata = {
   title: "Used EV Buying Checklist: 10 Things to Check Before You Buy",
@@ -10,18 +14,29 @@ export const metadata: Metadata = {
     canonical: `${SITE_URL}/blog/used-ev-buying-checklist`,
   },
   openGraph: {
-    title: "Used EV Buying Checklist: 10 Things to Check Before You Buy",
+    title: ogTitle,
     description:
       "Buying a used electric car? This 10-point checklist covers battery health, charging capability, recall status, and everything else you need to verify before signing.",
     url: `${SITE_URL}/blog/used-ev-buying-checklist`,
     type: "article",
     siteName: "OFFO",
+    images: [
+      {
+        url: `${APP_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subtitle=${encodeURIComponent(ogSubtitle)}`,
+        width: 1200,
+        height: 630,
+        alt: ogTitle,
+      },
+    ],
   },
   twitter: {
-    card: "summary",
-    title: "Used EV Buying Checklist: 10 Things to Check Before You Buy",
+    card: "summary_large_image",
+    title: ogTitle,
     description:
       "Buying a used electric car? This 10-point checklist covers battery health, charging capability, recall status, and everything else you need to verify before signing.",
+    images: [
+      `${APP_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subtitle=${encodeURIComponent(ogSubtitle)}`,
+    ],
   },
   robots: {
     index: true,

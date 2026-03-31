@@ -29,14 +29,6 @@ export const metadata: Metadata = {
       "Paste a used car listing. Get a deal verdict in seconds.",
     url: "https://offolab.com",
     siteName: "OFFO",
-    images: [
-      {
-        url: "/offo-logo.png",
-        width: 1200,
-        height: 630,
-        alt: "OFFO - Used Car Deal Checker",
-      },
-    ],
     locale: "en_US",
     type: "website",
   },
@@ -44,7 +36,6 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "OFFO | Used Car Deal Checker",
     description: "Paste a used car listing. Get a deal verdict in seconds.",
-    images: ["/offo-logo.png"],
   },
   robots: {
     index: true,

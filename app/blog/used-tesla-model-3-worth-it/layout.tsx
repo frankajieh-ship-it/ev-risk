@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? process.env.URL ?? "https://www.offolab.com";
+
+const ogTitle = "Is a Used Tesla Model 3 Worth It in 2026? Honest Buyer's Guide";
+const ogSubtitle = "What to expect at 30k, 60k, and 100k miles.";
 
 export const metadata: Metadata = {
   title: "Is a Used Tesla Model 3 Worth It in 2026? Honest Buyer's Guide",
@@ -10,18 +14,29 @@ export const metadata: Metadata = {
     canonical: `${SITE_URL}/blog/used-tesla-model-3-worth-it`,
   },
   openGraph: {
-    title: "Is a Used Tesla Model 3 Worth It in 2026? Honest Buyer's Guide",
+    title: ogTitle,
     description:
       "What to actually expect from a used Tesla Model 3 at 30k, 60k, and 100k miles. Common problems, battery degradation reality, insurance costs, and which model years to target.",
     url: `${SITE_URL}/blog/used-tesla-model-3-worth-it`,
     type: "article",
     siteName: "OFFO",
+    images: [
+      {
+        url: `${APP_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subtitle=${encodeURIComponent(ogSubtitle)}`,
+        width: 1200,
+        height: 630,
+        alt: ogTitle,
+      },
+    ],
   },
   twitter: {
-    card: "summary",
-    title: "Is a Used Tesla Model 3 Worth It in 2026? Honest Buyer's Guide",
+    card: "summary_large_image",
+    title: ogTitle,
     description:
       "What to actually expect from a used Tesla Model 3 at 30k, 60k, and 100k miles. Common problems, battery degradation reality, and which model years to target.",
+    images: [
+      `${APP_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subtitle=${encodeURIComponent(ogSubtitle)}`,
+    ],
   },
   robots: {
     index: true,
