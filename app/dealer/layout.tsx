@@ -3,14 +3,15 @@
  *
  * Shared sidebar navigation for authenticated dealer workspace.
  * Guards on authentication + dealer role — redirects non-dealers.
+ * Shows a "pending review" screen if dealership status is not yet approved.
  */
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Package, MessageSquare, Building, ArrowLeft, Loader2, BarChart2 } from "lucide-react";
+import { LayoutDashboard, Package, MessageSquare, Building, ArrowLeft, Loader2, BarChart2, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const NAV_ITEMS = [
@@ -26,9 +27,10 @@ export default function DealerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading, isReady, isDealer } = useAuth();
+  const { isAuthenticated, isLoading, isReady, isDealer, session } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [dealerStatus, setDealerStatus] = useState<"loading" | "approved" | "pending" | "rejected">("loading");
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -37,6 +39,20 @@ export default function DealerLayout({
       router.replace("/workspace");
     }
   }, [isLoading, isAuthenticated, isReady, isDealer, router, pathname]);
+
+  // Fetch dealership status once authenticated as dealer
+  useEffect(() => {
+    if (!isDealer || !session?.access_token) return;
+    fetch("/api/dealer/profile", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const status = data.dealership?.status ?? "approved"; // default approved for legacy rows
+        setDealerStatus(status === "approved" ? "approved" : status === "rejected" ? "rejected" : "pending");
+      })
+      .catch(() => setDealerStatus("approved")); // fail open so existing dealers aren't locked out
+  }, [isDealer, session?.access_token]);
 
   if (isLoading || !isReady) {
     return (
@@ -47,6 +63,55 @@ export default function DealerLayout({
   }
 
   if (!isAuthenticated || !isDealer) return null;
+
+  // Pending review screen
+  if (dealerStatus === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (dealerStatus === "pending") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
+          <div className="w-14 h-14 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Clock className="w-7 h-7 text-yellow-600" />
+          </div>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Application under review</h1>
+          <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+            Your dealership application is being reviewed by our team. You&apos;ll receive an email once it&apos;s approved — usually within 1 business day.
+          </p>
+          <Link
+            href="/"
+            className="inline-block px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            Back to OFFO
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (dealerStatus === "rejected") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Application not approved</h1>
+          <p className="text-sm text-gray-600 mb-6">
+            Your dealer application wasn&apos;t approved at this time. Please contact{" "}
+            <a href="mailto:support@offolab.com" className="text-blue-600 hover:underline">support@offolab.com</a>{" "}
+            if you have questions.
+          </p>
+          <Link href="/" className="inline-block px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-700 transition-colors">
+            Back to OFFO
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">

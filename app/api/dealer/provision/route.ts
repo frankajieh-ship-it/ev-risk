@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, getSupabaseAdmin } from "@/lib/api-auth";
+import { sendChecklistEmail, isResendConfigured } from "@/lib/resend";
 
 function slugify(name: string): string {
   return name
@@ -84,10 +85,11 @@ export async function POST(req: NextRequest) {
       state: state?.trim() || null,
       zip: zip?.trim() || null,
       country: "US",
-      description: contact_name?.trim()
-        ? `Contact: ${contact_name.trim()}`
-        : null,
+      contact_name: contact_name?.trim() || null,
+      contact_email: authResult.email || null,
+      description: null,
       is_verified: false,
+      status: "pending",
     })
     .select("id, slug")
     .single();
@@ -131,9 +133,24 @@ export async function POST(req: NextRequest) {
     // but layout redirect may not work until metadata propagates
   }
 
+  // Notify admin of new dealer signup
+  const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
+  if (adminEmail && isResendConfigured()) {
+    sendChecklistEmail(
+      adminEmail,
+      `[OFFO] New dealer signup: ${dealership_name.trim()}`,
+      `<p><strong>${dealership_name.trim()}</strong> signed up as a dealer.</p>
+       <p>Contact: ${contact_name || "—"} · ${authResult.email}</p>
+       <p>Location: ${city || "—"}, ${state || "—"}</p>
+       <p><a href="${siteUrl}/admin/dealers">Review in admin panel →</a></p>`
+    ).catch(() => {});
+  }
+
   return NextResponse.json({
     success: true,
     dealership_id: dealership.id,
     slug: dealership.slug,
+    status: "pending",
   });
 }
