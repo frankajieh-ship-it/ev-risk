@@ -87,7 +87,7 @@ const homepageSteps = [
     icon: Unlock,
     title: "Save, compare, or unlock the full breakdown",
     description:
-      "Shortlist it, stack it against alternatives, or get the full negotiation script — all free.",
+      "Save to My Garage to track listings, compare options, and get alerts.",
     color: "bg-indigo-100 text-indigo-600",
   },
 ];

@@ -8,17 +8,13 @@ import { useEventTracking } from "@/hooks/useEventTracking";
 import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowRight, ChevronRight } from "lucide-react";
+import { ArrowRight, Route, Gavel } from "lucide-react";
 import Link from "next/link";
 import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
 import LoginModal from "@/components/LoginModal";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
-import SampleReportPreview from "@/components/landing/SampleReportPreview";
-import HeroFeatureStrip from "@/components/landing/HeroFeatureStrip";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
-import WhyTrustOffo from "@/components/landing/WhyTrustOffo";
-import TrustBadge from "@/components/landing/TrustBadge";
 
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 import type { MinimumViableRoutine } from "@/types/v2";
@@ -321,144 +317,186 @@ export default function Home() {
     });
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <div id="turnstile-score" className="hidden" />
+  const scrollToPaste = () => {
+    document.getElementById("paste-box")?.scrollIntoView({ behavior: "smooth" });
+    setTimeout(() => document.getElementById("listing-input")?.focus(), 400);
+  };
 
-      {/* 1. Header with persona nav */}
+  return (
+    <div className="min-h-screen bg-white">
+      <div id="turnstile-score" className="hidden" />
       <Header variant="homepage" />
 
-      {/* 3. Hero — inline paste box */}
-      <section className="relative overflow-hidden">
-        <div className="relative max-w-2xl mx-auto px-4 pt-10 pb-6 md:pt-20 md:pb-10">
-          <div className="text-center">
-            <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 md:mb-4">
-              Know if this used EV is worth your time{" "}
-              <span className="bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-                before the test drive
-              </span>
+      {/* ── Section 1: Hero ─────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 py-16 md:py-24">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+          {/* Left: copy */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+              Free · No sign-up required
+            </p>
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 leading-tight">
+              Get the second opinion that actually matters.
             </h1>
-            <p className="text-base md:text-lg text-gray-600 mb-6 md:mb-8 max-w-xl mx-auto">
-              Paste any listing. Get a verdict, top risks, price context, and the seller questions that decide the deal.
+            <p className="text-base md:text-lg text-gray-600 mb-6 leading-relaxed">
+              Paste any used car or Copart listing.<br />
+              Instantly see routine fit, real risks, and what to ask the seller.
+            </p>
+            <button
+              onClick={scrollToPaste}
+              className="w-full sm:w-auto px-6 py-3.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-md flex items-center gap-2"
+            >
+              Paste Listing → Get Free Report
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <p className="text-xs text-gray-400 mt-3">
+              Works with CarGurus, AutoTrader, Craigslist, Facebook Marketplace, Copart &amp; IAAI
             </p>
           </div>
 
-          {/* Inline URL input */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-5">
-            <div className="flex gap-2 mb-3">
-              <input
-                type="url"
-                value={listingUrl}
-                onChange={(e) => setListingUrl(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleHomePasteSubmit(); }}
-                placeholder="Paste a CarGurus, AutoTrader, or Facebook Marketplace link"
-                className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
-                autoFocus
-              />
-              <button
-                onClick={handleHomePasteSubmit}
-                disabled={!listingUrl.trim()}
-                className={`px-5 py-3 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
-                  listingUrl.trim()
-                    ? "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
-                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                }`}
-              >
-                Analyze
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-            {detectedDomain && (
-              <p className="text-xs text-green-600 font-medium mb-2">{detectedDomain}</p>
-            )}
-            {/* Static trust badges */}
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-              <span>✓ Free verdict</span>
-              <span>✓ No sign-up required</span>
-              <span>✓ Built for used EV listings</span>
-            </div>
-            <TrustBadge />
-          </div>
-
-          <SampleReportPreview />
-          <HeroFeatureStrip />
-
-          {/* What happens next */}
-          <div className="mt-4 text-center">
-            <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide font-medium">After your analysis, you can:</p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {[
-                { label: "Compare with another car", href: "/compare" },
-                { label: "Save to Garage", href: "/shortlist" },
-                { label: "Run EV Routine Check", href: "/receipt" },
-                { label: "Unlock full analysis", href: "/receipt" },
-              ].map(({ label, href }) => (
-                <Link
-                  key={label}
-                  href={href}
-                  className="px-3 py-1.5 rounded-full border border-gray-200 bg-white text-xs text-gray-600 hover:border-blue-300 hover:text-blue-600 transition-colors"
-                >
-                  → {label}
-                </Link>
-              ))}
+          {/* Right: static sample report card */}
+          <div className="flex justify-center lg:justify-end">
+            <div className="w-full max-w-sm rounded-2xl shadow-xl border border-gray-100 bg-white p-5">
+              <p className="text-[10px] text-gray-400 mb-3">Example result — not your listing</p>
+              <div className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                CarGurus listing detected ✓
+              </div>
+              <div className="inline-flex items-center gap-2 bg-yellow-100 text-yellow-800 text-sm font-semibold px-3 py-1.5 rounded-lg mb-4 ml-2">
+                ● Conditional Buy
+              </div>
+              <div className="border-t border-gray-100 pt-4 mb-4">
+                <p className="text-xs font-semibold text-gray-700 mb-2">⚠ Top risks</p>
+                <ul className="space-y-1.5 text-xs text-gray-600">
+                  <li className="flex items-start gap-1.5"><span className="mt-0.5 w-1 h-1 rounded-full bg-yellow-400 shrink-0" />Battery at 81% health</li>
+                  <li className="flex items-start gap-1.5"><span className="mt-0.5 w-1 h-1 rounded-full bg-yellow-400 shrink-0" />Priced 8% above market</li>
+                  <li className="flex items-start gap-1.5"><span className="mt-0.5 w-1 h-1 rounded-full bg-yellow-400 shrink-0" />No service history on record</li>
+                </ul>
+              </div>
+              <div className="border-t border-gray-100 pt-4 space-y-1.5">
+                <p className="text-xs text-blue-600">→ Ask about battery test results</p>
+                <p className="text-xs text-blue-600">→ Request full service records</p>
+                <p className="text-xs text-blue-600">→ Is there flexibility on price?</p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* How it works */}
+      {/* ── Section 2: Trust Bar ─────────────────────────────────────── */}
+      <div className="border-y border-gray-100 bg-gray-50 py-3">
+        <p className="text-center text-xs text-gray-500">
+          Used by serious EV shoppers · Powered by Auto.dev + NHTSA data · No sales pitch. Just honest analysis.
+        </p>
+      </div>
+
+      {/* ── Section 3: How It Works ──────────────────────────────────── */}
       <HowItWorksSection variant="homepage" />
 
-      {/* Auction Intelligence */}
-      <section className="max-w-2xl mx-auto px-4 pb-6">
-        <a
-          href="/copart"
-          className="block bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-px shadow-md hover:shadow-lg transition-shadow group"
-        >
-          <div className="bg-white rounded-[15px] px-5 py-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center flex-shrink-0 text-lg">
-                🔨
-              </div>
-              <div>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <p className="text-sm font-bold text-gray-900">Auction Bidder — free</p>
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-white bg-orange-500 px-1.5 py-0.5 rounded-full leading-none">
-                    NEW
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 leading-snug">
-                  Paste any Copart lot URL. Get salvage risk, ARV, repair cost breakdown, and max safe bid — instantly.
-                </p>
-              </div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-orange-500 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
-          </div>
-        </a>
-      </section>
-
-      {/* EV Routine Check — compact entry card */}
-      <section className="max-w-2xl mx-auto px-4 pb-10">
-        <div className="rounded-2xl border border-gray-200 bg-white px-5 py-4 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-bold text-gray-900 mb-0.5">Check if an EV fits your weekly routine</p>
-            <p className="text-xs text-gray-500 leading-snug">
-              Charging, winter, longest-day stress, and fallback planning · 3 quick questions
+      {/* ── Section 4: Main Paste Box ────────────────────────────────── */}
+      <section id="paste-box" className="py-10 md:py-16 bg-gray-50">
+        <div className="max-w-2xl mx-auto px-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Analyze a listing</h2>
+            <p className="text-sm text-gray-500 mb-4">Paste any used car or auction URL below.</p>
+            <input
+              id="listing-input"
+              type="url"
+              value={listingUrl}
+              onChange={(e) => setListingUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleHomePasteSubmit(); }}
+              placeholder="Paste any used car or auction link here…"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-900 placeholder-gray-400 mb-3"
+            />
+            {detectedDomain && (
+              <p className="text-xs text-green-600 font-medium mb-3">{detectedDomain}</p>
+            )}
+            <button
+              onClick={handleHomePasteSubmit}
+              disabled={!listingUrl.trim()}
+              className={`w-full px-5 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
+                listingUrl.trim()
+                  ? "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              Analyze Listing — It&apos;s Free
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <p className="text-xs text-gray-400 text-center mt-3">
+              Instant verdict + routine risks. No account needed.
             </p>
           </div>
-          <Link
-            href="/receipt"
-            className="shrink-0 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors whitespace-nowrap"
-          >
-            Start →
-          </Link>
         </div>
       </section>
 
-      {/* Why trust OFFO */}
-      <WhyTrustOffo />
+      {/* ── Section 5: Feature Highlights ───────────────────────────── */}
+      <section className="py-10 md:py-16">
+        <div className="max-w-4xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* EV Routine Fit */}
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-6">
+            <div className="w-10 h-10 rounded-xl bg-green-100 text-green-600 flex items-center justify-center mb-4">
+              <Route className="w-5 h-5" />
+            </div>
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">
+              Buying an EV? Check if it actually fits your real life.
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Daily commute, apartment charging, winter range, hardest day.
+            </p>
+            <Link href="/receipt" className="text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors">
+              Run EV Routine Check →
+            </Link>
+          </div>
 
-      {/* Footer */}
+          {/* Copart & Salvage */}
+          <div className="rounded-2xl border border-orange-100 bg-orange-50 p-6">
+            <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center mb-4">
+              <Gavel className="w-5 h-5" />
+            </div>
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">
+              Evaluating a salvage or auction vehicle?
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Repair estimates, after-repair value, max safe bid, post-repair routine impact.
+            </p>
+            <Link href="/copart" className="text-sm font-semibold text-orange-600 hover:text-orange-700 transition-colors">
+              Try Auction Bidder →
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section 6: Social Proof ──────────────────────────────────── */}
+      <section className="py-10 md:py-16 bg-gray-50">
+        <div className="max-w-5xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[
+            { quote: "Saved $2,400 on a used Bolt after seeing hidden battery risk", attr: "Apartment owner, Chicago" },
+            { quote: "Avoided a $6k repair on a salvage Ioniq 5 – the routine impact was a dealbreaker", attr: "Used-EV buyer" },
+            { quote: "Compared 12 listings in one weekend and felt confident for the first time", attr: "First-time EV shopper" },
+          ].map(({ quote, attr }) => (
+            <div key={attr} className="bg-white border border-gray-100 rounded-2xl p-5">
+              <p className="text-sm text-gray-700 italic mb-2">&ldquo;{quote}&rdquo;</p>
+              <p className="text-xs text-gray-400">{attr}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Section 7: Final CTA ─────────────────────────────────────── */}
+      <section className="py-16 md:py-24 text-center">
+        <div className="max-w-lg mx-auto px-4">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Ready to check a listing?</h2>
+          <p className="text-sm text-gray-500 mb-6">Takes under 30 seconds. Free, no account needed.</p>
+          <button
+            onClick={scrollToPaste}
+            className="px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-md"
+          >
+            Paste it here →
+          </button>
+        </div>
+      </section>
+
       <Footer />
 
       {/* Modals */}
