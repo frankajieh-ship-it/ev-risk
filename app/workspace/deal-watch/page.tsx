@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Bell, Plus, Trash2, Loader2, ChevronDown, ChevronUp, Mail, MailOff } from "lucide-react";
+import { Bell, Plus, Trash2, Loader2, ChevronDown, ChevronUp, Mail, MailX } from "lucide-react";
 
 interface DealWatchSearch {
   id: string;
@@ -326,7 +326,7 @@ export default function DealWatchPage() {
                     title={search.email_alerts ? "Disable email alerts" : "Enable email alerts"}
                     className="p-2 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
-                    {search.email_alerts ? <Mail className="w-4 h-4" /> : <MailOff className="w-4 h-4" />}
+                    {search.email_alerts ? <Mail className="w-4 h-4" /> : <MailX className="w-4 h-4" />}
                   </button>
                   <button
                     onClick={() => handleDelete(search.id)}
