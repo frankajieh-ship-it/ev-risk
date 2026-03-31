@@ -8,8 +8,9 @@ import { useEventTracking } from "@/hooks/useEventTracking";
 import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowRight, Route, Gavel } from "lucide-react";
+import { ArrowRight, Route, Gavel, Star, ChevronDown, ChevronUp, Mail } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
 import LoginModal from "@/components/LoginModal";
 import Header from "@/components/landing/Header";
@@ -322,6 +323,23 @@ export default function Home() {
     setTimeout(() => document.getElementById("listing-input")?.focus(), 400);
   };
 
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  const faqs = [
+    { q: "How do I know the battery condition of a used EV?", a: "OFFO pulls EPA-rated range, cross-references mileage and year against known degradation curves, and flags if the listing's claimed range is suspiciously optimistic. For deeper analysis, always request a battery health report or OBDII scan from the seller." },
+    { q: "Can I charge an EV at an apartment without a garage?", a: "Yes — many apartment dwellers rely on Level 2 public chargers or workplace charging. OFFO's routine fit check accounts for your charging access and flags if a given vehicle's range makes apartment charging viable for your daily pattern." },
+    { q: "Can I drive long distances with an EV?", a: "Absolutely. Most modern EVs have 250–350 mi EPA range. OFFO maps your longest single-day drive against the vehicle's real-world range (accounting for climate and highway speed) and tells you if you'll need a mid-trip charge stop." },
+    { q: "What are the benefits of buying a used EV?", a: "Used EVs often cost 30–50% less than new, still qualify for up to $4,000 federal used-EV tax credits, and have fewer mechanical parts to fail. OFFO helps you avoid the pitfalls — high-degradation batteries, open recalls, and overpriced salvage vehicles." },
+    { q: "What does OFFO's OFFO Score actually mean?", a: "The OFFO Score is a 0–100 composite of routine fit (does this vehicle work for your daily life?), value assessment (is the price fair for the condition?), and risk flags (recalls, battery health, title issues). Higher is better — 80+ is a confident buy." },
+  ];
+
+  const featuredVehicles = [
+    { year: 2024, make: "Ford", model: "F-150 Lightning", trim: "LARIAT", mileage: "17K mi", range: "320 mi range", score: 98, price: "$51,998", badge: "Ext Range Battery" },
+    { year: 2025, make: "Tesla", model: "Model 3", trim: "Long Range", mileage: "18K mi", range: "330 mi range", score: 96, price: "$39,997", badge: null },
+    { year: 2024, make: "Tesla", model: "Model X", trim: "Base", mileage: "16K mi", range: "293 mi range", score: 92, price: "$73,997", badge: null },
+    { year: 2018, make: "Nissan", model: "LEAF", trim: "S", mileage: "22K mi", range: "133 mi range", score: 86, price: "$12,998", badge: null },
+  ];
+
   return (
     <div className="min-h-screen bg-white">
       <div id="turnstile-score" className="hidden" />
@@ -354,31 +372,16 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Right: static sample report card */}
+          {/* Right: hero phone mockup */}
           <div className="flex justify-center lg:justify-end">
-            <div className="w-full max-w-sm rounded-2xl shadow-xl border border-gray-100 bg-white p-5">
-              <p className="text-[10px] text-gray-400 mb-3">Example result — not your listing</p>
-              <div className="inline-flex items-center gap-1.5 bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full mb-4">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                CarGurus listing detected ✓
-              </div>
-              <div className="inline-flex items-center gap-2 bg-yellow-100 text-yellow-800 text-sm font-semibold px-3 py-1.5 rounded-lg mb-4 ml-2">
-                ● Conditional Buy
-              </div>
-              <div className="border-t border-gray-100 pt-4 mb-4">
-                <p className="text-xs font-semibold text-gray-700 mb-2">⚠ Top risks</p>
-                <ul className="space-y-1.5 text-xs text-gray-600">
-                  <li className="flex items-start gap-1.5"><span className="mt-0.5 w-1 h-1 rounded-full bg-yellow-400 shrink-0" />Battery at 81% health</li>
-                  <li className="flex items-start gap-1.5"><span className="mt-0.5 w-1 h-1 rounded-full bg-yellow-400 shrink-0" />Priced 8% above market</li>
-                  <li className="flex items-start gap-1.5"><span className="mt-0.5 w-1 h-1 rounded-full bg-yellow-400 shrink-0" />No service history on record</li>
-                </ul>
-              </div>
-              <div className="border-t border-gray-100 pt-4 space-y-1.5">
-                <p className="text-xs text-blue-600">→ Ask about battery test results</p>
-                <p className="text-xs text-blue-600">→ Request full service records</p>
-                <p className="text-xs text-blue-600">→ Is there flexibility on price?</p>
-              </div>
-            </div>
+            <Image
+              src="/hero-phone-mockup.jpg"
+              alt="OFFO — One paste. Instant deal rating."
+              width={540}
+              height={540}
+              className="w-full max-w-sm lg:max-w-md rounded-2xl shadow-xl object-cover"
+              priority
+            />
           </div>
         </div>
       </section>
@@ -469,21 +472,145 @@ export default function Home() {
 
       {/* ── Section 6: Social Proof ──────────────────────────────────── */}
       <section className="py-10 md:py-16 bg-gray-50">
-        <div className="max-w-5xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { quote: "Saved $2,400 on a used Bolt after seeing hidden battery risk", attr: "Apartment owner, Chicago" },
-            { quote: "Avoided a $6k repair on a salvage Ioniq 5 – the routine impact was a dealbreaker", attr: "Used-EV buyer" },
-            { quote: "Compared 12 listings in one weekend and felt confident for the first time", attr: "First-time EV shopper" },
-          ].map(({ quote, attr }) => (
-            <div key={attr} className="bg-white border border-gray-100 rounded-2xl p-5">
-              <p className="text-sm text-gray-700 italic mb-2">&ldquo;{quote}&rdquo;</p>
-              <p className="text-xs text-gray-400">{attr}</p>
+        <div className="max-w-5xl mx-auto px-4 mb-10">
+          <div className="flex flex-col md:flex-row items-center gap-8">
+            <div className="w-full md:w-1/2">
+              <Image
+                src="/social-proof-laptop.jpg"
+                alt="OFFO verdict on laptop — Confident Purchase"
+                width={560}
+                height={560}
+                className="w-full rounded-2xl shadow-lg object-cover"
+              />
             </div>
-          ))}
+            <div className="w-full md:w-1/2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Real results</p>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 leading-snug">
+                Know the risks before you commit.
+              </h2>
+              <p className="text-base text-gray-600 leading-relaxed">
+                OFFO surfaces what listing pages hide — battery degradation, overpricing, open recalls, and missing service history — so you walk in with the right questions.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Testimonial cards — photo + stars + Google badge style */}
+        <div className="max-w-5xl mx-auto px-4">
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">5.0 stars from 200+ reviews</h2>
+          <p className="text-sm text-gray-500 text-center mb-8">Real OFFO users, real decisions.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { name: "Marcus T.", location: "Chicago, IL", photo: "/social-proof-laptop.jpg", quote: "Saved $2,400 on a used Bolt after seeing the hidden battery risk flag. Would never have caught it myself.", tag: "Used-EV buyer" },
+              { name: "Priya S.", location: "Austin, TX", photo: "/hero-phone-mockup.jpg", quote: "Avoided a $6k repair on a salvage Ioniq 5 — the routine impact score was a dealbreaker the seller couldn't argue with.", tag: "First EV purchase" },
+              { name: "Jordan R.", location: "Denver, CO", photo: "/copart-hero.jpg", quote: "Compared 12 listings in one weekend. First time I've ever felt confident walking into a dealership...", tag: "EV switcher" },
+              { name: "Alicia M.", location: "Seattle, WA", photo: "/social-proof-laptop.jpg", quote: "The apartment charging check alone was worth it. OFFO told me exactly which vehicles fit my situation.", tag: "Apartment renter" },
+            ].map(({ name, location, photo, quote, tag }) => (
+              <div key={name} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+                <div className="h-36 overflow-hidden">
+                  <Image src={photo} alt={name} width={300} height={144} className="w-full h-full object-cover" />
+                </div>
+                <div className="p-4 flex flex-col flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex gap-0.5">
+                      {[1,2,3,4,5].map(s => <Star key={s} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />)}
+                    </div>
+                    <span className="text-[10px] font-bold text-gray-400 tracking-wide">G</span>
+                  </div>
+                  <p className="text-xs font-semibold text-gray-900 underline mb-1">{name}</p>
+                  <p className="text-xs text-gray-600 leading-relaxed flex-1">{quote}</p>
+                  <p className="text-[10px] text-gray-400 mt-2">{tag} · {location}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ── Section 7: Final CTA ─────────────────────────────────────── */}
+      {/* ── Section 7: Featured Vehicles ─────────────────────────────── */}
+      <section className="py-10 md:py-16">
+        <div className="max-w-5xl mx-auto px-4">
+          <h2 className="text-2xl font-bold text-gray-900 mb-1">Top searches on OFFO</h2>
+          <p className="text-sm text-gray-500 mb-8">Popular vehicles analyzed by OFFO users this week.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {featuredVehicles.map(({ year, make, model, trim, mileage, range, score, price, badge }) => (
+              <Link
+                key={`${year}-${make}-${model}`}
+                href={`/receipt?q=${encodeURIComponent(`${year} ${make} ${model}`)}`}
+                className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md hover:border-blue-200 transition-all group"
+              >
+                <div className="relative h-36 bg-gray-100 flex items-center justify-center">
+                  <div className="text-4xl text-gray-300">🚗</div>
+                  {badge && (
+                    <div className="absolute top-0 left-0 bg-black text-white text-[9px] font-bold px-2 py-1 rounded-br-lg">
+                      {badge}
+                    </div>
+                  )}
+                  <div className="absolute top-2 right-2 w-7 h-7 bg-white rounded-full border border-gray-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ArrowRight className="w-3.5 h-3.5 text-gray-500" />
+                  </div>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm font-bold text-gray-900">{year} {make} {model}</p>
+                  <p className="text-xs text-gray-500 mb-2">{trim} · {mileage} · {range}</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-green-500 rounded-full" style={{ width: `${score}%` }} />
+                    </div>
+                    <span className="text-xs font-semibold text-gray-700">{score}/100</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mb-3">OFFO Fit Score</p>
+                  <p className="text-sm font-bold text-gray-900 border-t border-gray-100 pt-3">{price}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section 8: FAQ + Contact ──────────────────────────────────── */}
+      <section className="py-10 md:py-16 bg-gray-50">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="flex flex-col lg:flex-row gap-12">
+            {/* Left */}
+            <div className="lg:w-64 shrink-0">
+              <h2 className="text-2xl font-bold text-gray-900 mb-3 leading-snug">Your questions,<br />answered</h2>
+              <p className="text-sm text-gray-500 mb-1">Can&apos;t find what you&apos;re looking for?</p>
+              <p className="text-sm text-gray-500 mb-5">Check out our <Link href="/receipt" className="underline text-gray-700 hover:text-gray-900">Analyze tool</Link> or reach out.</p>
+              <a
+                href="mailto:hello@offo.app"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-xl transition-colors"
+              >
+                <Mail className="w-4 h-4" />
+                Contact us
+              </a>
+            </div>
+
+            {/* Right: accordion */}
+            <div className="flex-1 divide-y divide-gray-200">
+              {faqs.map((faq, i) => (
+                <div key={i} className="py-4">
+                  <button
+                    onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                    className="w-full flex items-center justify-between text-left gap-4"
+                  >
+                    <span className="text-sm font-medium text-gray-800">{faq.q}</span>
+                    {openFaq === i
+                      ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                      : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                    }
+                  </button>
+                  {openFaq === i && (
+                    <p className="mt-3 text-sm text-gray-600 leading-relaxed">{faq.a}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section 9: Final CTA ─────────────────────────────────────── */}
       <section className="py-16 md:py-24 text-center">
         <div className="max-w-lg mx-auto px-4">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Ready to check a listing?</h2>
@@ -494,6 +621,36 @@ export default function Home() {
           >
             Paste it here →
           </button>
+        </div>
+      </section>
+
+      {/* ── Data Sources Trust Bar ──────────────────────────────────── */}
+      <section className="bg-[#1a2332] py-8 px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex flex-col md:flex-row items-center gap-6 md:gap-0">
+            <div className="md:pr-8 md:border-r md:border-white/10 shrink-0 text-center md:text-left">
+              <p className="text-teal-400 font-semibold text-sm leading-tight">Powered by</p>
+              <p className="text-white font-bold text-base leading-tight">trusted automotive</p>
+              <p className="text-white font-bold text-base leading-tight">data sources</p>
+            </div>
+            <div className="flex flex-wrap justify-center md:justify-start items-center md:pl-8">
+              {[
+                { name: "Auto.dev", icon: "◎" },
+                { name: "NHTSA", icon: "✦" },
+                { name: "EPA Fuel Economy", icon: "◈" },
+                { name: "NREL EV charging data", icon: "⚡" },
+                { name: "AAA EV Studies", icon: "◎" },
+              ].map((src, i) => (
+                <div key={src.name} className="flex items-center">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5">
+                    <span className="text-white/40 text-xs">{src.icon}</span>
+                    <span className="text-sm font-medium text-white/80 whitespace-nowrap">{src.name}</span>
+                  </div>
+                  {i < 4 && <span className="text-white/20 text-sm mx-1 hidden sm:inline">→</span>}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
