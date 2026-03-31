@@ -23,7 +23,7 @@ export default function Footer() {
               <li><Link href="/news" className="hover:text-white transition-colors">EV News Digest</Link></li>
               <li><Link href="/dealer" className="hover:text-white transition-colors">Dealer Workspace</Link></li>
               <li><Link href="/extension" className="hover:text-white transition-colors">Browser Extension</Link></li>
-              <li><span className="text-gray-500">Deal Watch <span className="text-xs">(coming soon)</span></span></li>
+              <li><Link href="/workspace/deal-watch" className="hover:text-white transition-colors">Deal Watch</Link></li>
             </ul>
           </div>
 

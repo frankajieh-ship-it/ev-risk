@@ -25,5 +25,9 @@
 [functions.send-nudge-emails]
   timeout = 30
 
+# Scheduled function: daily deal watch price-drop scanner (runs at 09:00 UTC)
+[functions.scan-deal-watch]
+  timeout = 60
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"

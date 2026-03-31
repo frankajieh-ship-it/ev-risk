@@ -10,12 +10,13 @@
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { Car, MessageSquare, Bookmark, Settings, ArrowLeft, Loader2 } from "lucide-react";
+import { Car, MessageSquare, Bookmark, Settings, ArrowLeft, Loader2, Bell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const NAV_ITEMS = [
   { href: "/workspace", label: "Dashboard", icon: Car, exact: true },
   { href: "/workspace/garage", label: "Garage", icon: Car },
+  { href: "/workspace/deal-watch", label: "Deal Watch", icon: Bell },
   { href: "/workspace/inquiries", label: "Inquiries", icon: MessageSquare },
   { href: "/saved", label: "Saved Results", icon: Bookmark },
 ];
