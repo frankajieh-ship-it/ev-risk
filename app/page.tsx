@@ -336,8 +336,8 @@ export default function Home() {
   const featuredVehicles = [
     { year: 2024, make: "Ford", model: "F-150 Lightning", trim: "LARIAT", mileage: "17K mi", range: "320 mi range", score: 98, price: "$51,998", badge: "Ext Range Battery", people: 1240, img: "/car-f150-lightning.webp" },
     { year: 2025, make: "Tesla", model: "Model 3", trim: "Long Range", mileage: "18K mi", range: "330 mi range", score: 96, price: "$39,997", badge: null, people: 3820, img: "/car-tesla-model3.webp" },
-    { year: 2024, make: "Tesla", model: "Model X", trim: "Base", mileage: "16K mi", range: "293 mi range", score: 92, price: "$73,997", badge: null, people: 890, img: "/car-f150-lightning-2.webp" },
-    { year: 2018, make: "Nissan", model: "LEAF", trim: "S", mileage: "22K mi", range: "133 mi range", score: 86, price: "$12,998", badge: null, people: 2100, img: "/car-hyundai-kona.webp" },
+    { year: 2024, make: "Tesla", model: "Model X", trim: "Base", mileage: "16K mi", range: "293 mi range", score: 92, price: "$73,997", badge: null, people: 890, img: "/car-tesla-modelx.webp" },
+    { year: 2018, make: "Nissan", model: "LEAF", trim: "S", mileage: "22K mi", range: "133 mi range", score: 86, price: "$12,998", badge: null, people: 2100, img: "/car-nissan-leaf.webp" },
   ];
 
   return (
