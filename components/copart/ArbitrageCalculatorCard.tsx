@@ -330,6 +330,84 @@ export default function ArbitrageCalculatorCard({
 
       <div className="p-5 space-y-5">
 
+        {/* ── OFFO Safe Bid Hero — always first ── */}
+        <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-gray-800 p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-orange-400 uppercase tracking-wider">OFFO Safe Bid</p>
+            {result.market_closing_estimate && (
+              <p className="text-[10px] text-gray-400">
+                Market closes ~{fmt(result.market_closing_estimate.midpoint)}
+              </p>
+            )}
+          </div>
+
+          {liveSafeBidRange ? (
+            <div>
+              <p className="text-4xl font-extrabold text-white tracking-tight">
+                {fmt(liveSafeBidRange.low)} – {fmt(liveSafeBidRange.high)}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {targetMargin}% margin · based on repair cost range · {confidenceCfg.label}
+              </p>
+            </div>
+          ) : repairUnviable ? (
+            <div>
+              <p className="text-2xl font-extrabold text-red-400">Not viable at {targetMargin}%</p>
+              <p className="text-xs text-gray-400 mt-1">Repair costs + fees exceed ARV — try Parts strategy</p>
+            </div>
+          ) : (
+            <div>
+              <p className="text-2xl font-extrabold text-gray-500">—</p>
+              <p className="text-xs text-gray-500 mt-1">Enter ARV above to calculate</p>
+            </div>
+          )}
+
+          {/* Margin slider inline */}
+          {effectiveArv && (
+            <div className="space-y-1 pt-1">
+              <input
+                type="range"
+                min={10}
+                max={30}
+                step={5}
+                value={targetMargin}
+                onChange={(e) => setTargetMargin(Number(e.target.value))}
+                className="w-full accent-orange-500"
+              />
+              <div className="flex justify-between text-[10px] text-gray-500">
+                {[10, 15, 20, 25, 30].map((v) => (
+                  <span key={v} className={targetMargin === v ? "text-orange-400 font-bold" : ""}>{v}%</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* OFFO vs Market inline */}
+          {result.market_closing_estimate && liveSafeBidRange && (
+            <div className="pt-1 border-t border-white/10 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wide">Your range</p>
+                <p className="text-sm font-bold text-white">{fmt(liveSafeBidRange.low)} – {fmt(liveSafeBidRange.high)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wide">Market est. close</p>
+                <p className="text-sm font-bold text-gray-300">{fmt(result.market_closing_estimate.low)} – {fmt(result.market_closing_estimate.high)}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Fee summary */}
+          {result.auction_fees_breakdown ? (
+            <div className="pt-1">
+              <FeeBreakdown breakdown={result.auction_fees_breakdown} />
+            </div>
+          ) : (
+            <p className="text-[10px] text-gray-500">
+              Est. auction fees: {fmt(result.auction_fees_estimate)} included
+            </p>
+          )}
+        </div>
+
         {/* ── Strategy Switcher ── */}
         <div className="flex rounded-xl border border-gray-200 overflow-hidden">
           <button
@@ -541,88 +619,14 @@ export default function ArbitrageCalculatorCard({
           </div>
         )}
 
-        {/* ── Safe Bid Range + margin slider (repair strategy only) ── */}
-        {strategy === "repair" && (
-          <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-gray-600">
-                Safe Bid Range ({targetMargin}% margin)
-              </p>
-              {isBelowAskingPrice && (
-                <span className="text-xs text-red-600 font-medium">
-                  Below asking ({fmt(askingPrice!)})
-                </span>
-              )}
-            </div>
-
-            {repairUnviable ? (
-              <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-100">
-                <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-bold text-red-700">Repair not viable at {targetMargin}% margin</p>
-                  <p className="text-xs text-red-600 mt-0.5">
-                    Repair costs + fees exceed ARV. Switch to Parts strategy or lower your margin target.
-                  </p>
-                </div>
-              </div>
-            ) : liveSafeBidRange ? (
-              <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {fmt(liveSafeBidRange.low)} – {fmt(liveSafeBidRange.high)}
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Based on repair cost range · {confidenceCfg.label}
-                </p>
-              </div>
-            ) : (
-              <p className="text-2xl font-bold text-gray-900">
-                {maxSafeBid !== null ? fmt(maxSafeBid) : "—"}
-              </p>
-            )}
-
-            {/* Margin slider */}
-            {effectiveArv && (
-              <div className="space-y-1">
-                <input
-                  type="range"
-                  min={10}
-                  max={30}
-                  step={5}
-                  value={targetMargin}
-                  onChange={(e) => setTargetMargin(Number(e.target.value))}
-                  className="w-full accent-orange-500"
-                />
-                <div className="flex justify-between text-xs text-gray-400">
-                  {[10, 15, 20, 25, 30].map((v) => (
-                    <span key={v} className={targetMargin === v ? "text-orange-600 font-semibold" : ""}>{v}%</span>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-400 text-center">
-                  Adjust target margin — range updates live
-                </p>
-              </div>
-            )}
-
-            {/* Real fee breakdown */}
-            {result.auction_fees_breakdown ? (
-              <FeeBreakdown breakdown={result.auction_fees_breakdown} />
-            ) : (
-              <div className="flex items-start gap-1.5 text-xs text-gray-400">
-                <Info className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                <span>
-                  Includes est. auction fees of {fmt(result.auction_fees_estimate)} (buyer fee + title + transport).
-                </span>
-              </div>
-            )}
+        {/* Asking price warning — shown below strategy when relevant */}
+        {strategy === "repair" && isBelowAskingPrice && liveSafeBidRange && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-xl border border-red-200">
+            <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+            <p className="text-xs text-red-700 font-medium">
+              Safe bid ceiling ({fmt(liveSafeBidRange.high)}) is below asking price ({fmt(askingPrice!)})
+            </p>
           </div>
-        )}
-
-        {/* ── OFFO vs Market comparison panel ── */}
-        {result.market_closing_estimate && liveSafeBidRange && (
-          <OFFOvsMarket
-            offoRange={liveSafeBidRange}
-            market={result.market_closing_estimate}
-          />
         )}
 
         {/* ── Best / Worst / Likely scenarios (repair strategy, when data available) ── */}
