@@ -64,6 +64,7 @@ export interface AiChainInput {
   incentive_status?: IncentiveStatus | null;
   /** Up to 3 auction photo URLs — passed to classify step for visual damage assessment */
   photos?: string[];
+  trace?: import("@/lib/debug-trace").PipelineTrace;
 }
 
 export interface AiChainOutput {
@@ -291,6 +292,11 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
         logs
       ).then((r) => { if (r) totalCalls++; return r; })
     : (logs.push({ step: "polish", model: "grok", status: "skipped", latency_ms: 0 }), null);
+
+  if (input.trace) {
+    const { stepsFromAiChain } = await import("@/lib/debug-trace");
+    input.trace.steps.push(...stepsFromAiChain(logs));
+  }
 
   return {
     classification,

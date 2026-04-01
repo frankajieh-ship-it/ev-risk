@@ -39,6 +39,8 @@ import type { ReceiptGenerateRequest } from "@/types/receipt";
 import { logApi } from "@/lib/api-logger";
 import { detectListingSource } from "@/lib/listing-scraper";
 import { getSupabaseAdmin } from "@/lib/api-auth";
+import { createTrace, finalizeTrace } from "@/lib/debug-trace";
+import { persistTrace } from "@/lib/debug-trace-store";
 
 export const maxDuration = 90;
 
@@ -76,6 +78,9 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+
+  const debugEnabled = body.debug_trace === true;
+  const trace = debugEnabled ? createTrace("receipt") : null;
 
   // 3. Burst rate limit (testers bypass)
   if (!tokenIsInternal) {
@@ -264,6 +269,7 @@ export async function POST(request: NextRequest) {
   );
   const ruleScoring = scoreReceipt(ruleSignals);
   timings.rules = Date.now() - t0;
+  if (trace) trace.timings = { ...trace.timings, ...timings };
 
   // --- Optional routine fit — runs only when routine_context is provided ---
   let routineFit: RoutineFitScore | null = null;
@@ -477,6 +483,16 @@ export async function POST(request: NextRequest) {
       });
     }
   });
+
+  if (trace) {
+    finalizeTrace(trace, {
+      verdict: ruleScoring.verdict,
+      fit_score: ruleScoring.fit_score,
+      signal_count: ruleSignals.length,
+      generation_status: "lite",
+    });
+    persistTrace(trace);
+  }
 
   return NextResponse.json({
     ...litePayload,

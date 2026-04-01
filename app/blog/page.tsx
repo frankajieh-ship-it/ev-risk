@@ -42,6 +42,34 @@ export default function BlogPage() {
         </div>
 
         <div className="space-y-8">
+          {/* Engineering Post */}
+          <article className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 hover:shadow-xl transition-shadow">
+            <div className="mb-4">
+              <span className="bg-indigo-100 text-indigo-800 text-xs font-semibold px-3 py-1 rounded-full">
+                Engineering
+              </span>
+            </div>
+            <Link href="/blog/deterministic-first-multi-llm-second">
+              <h2 className="text-3xl font-bold text-gray-900 mb-3 hover:text-blue-600 transition-colors">
+                Deterministic First, Multi-LLM Second: How OFFO&apos;s Deal Intelligence Pipeline Works
+              </h2>
+            </Link>
+            <p className="text-gray-600 mb-4 leading-relaxed">
+              How we built a two-layer EV deal intelligence pipeline: a deterministic rule engine that
+              responds in under 500ms, upgraded asynchronously by a three-model AI chain. The user never
+              sees a loading state for the AI.
+            </p>
+            <div className="flex items-center justify-between text-sm text-gray-500">
+              <span>14 min read &middot; April 2026</span>
+              <Link
+                href="/blog/deterministic-first-multi-llm-second"
+                className="text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Read article &rarr;
+              </Link>
+            </div>
+          </article>
+
           {/* Data Report Post */}
           <article className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 hover:shadow-xl transition-shadow">
             <div className="mb-4">
