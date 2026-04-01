@@ -197,7 +197,34 @@ export class AuctionEvaluationService {
     const adapter = ADAPTERS[input.auction_source];
     const supabase = getSupabaseAdmin();
 
-    // 1. Fetch normalized lot from source adapter
+    // 1. For URL inputs, extract slug hints immediately so enrichment can fire in parallel
+    //    with the Copart API + Apify fetch — saves up to 8s off the critical path.
+    let earlyHints: { make?: string; model?: string; year?: number } | null = null;
+    if (input.url && input.auction_source === "copart") {
+      const { extractLotNumberFromUrl } = await import("./adapters/copart-adapter");
+      const lotNum = extractLotNumberFromUrl(input.url);
+      if (lotNum) {
+        // Inline slug parse for year/make/model only (no full adapter call)
+        const slugMatch = input.url.match(/\/lot\/\d+\/([a-z0-9-]+)/i);
+        if (slugMatch) {
+          const parts = slugMatch[1].split("-");
+          const year = parseInt(parts[0], 10);
+          if (year >= 1990 && year <= new Date().getFullYear() + 2 && parts.length >= 3) {
+            earlyHints = { year, make: parts[1], model: parts[2] };
+          }
+        }
+      }
+    }
+
+    // Fire enrichment early (in parallel with the lot fetch) when we have slug hints
+    const earlyEnrichPromise = earlyHints
+      ? enrichFromAutodev({ make: earlyHints.make, model: earlyHints.model, year: earlyHints.year }).catch(() => null)
+      : null;
+    const earlyRecallsPromise = (earlyHints?.make && earlyHints?.model && earlyHints?.year)
+      ? fetchRecalls(earlyHints.make, earlyHints.model, earlyHints.year)
+      : null;
+
+    // 1b. Fetch normalized lot from source adapter
     const lot = input.url
       ? await adapter.fetchByUrl(input.url)
       : input.lot_number
@@ -219,14 +246,15 @@ export class AuctionEvaluationService {
     }
 
     // 3. Parallel: Auto.dev enrichment + NHTSA recalls
+    // If we fired early promises, await those — otherwise fire now with full lot data.
     const [enrichResult, recalls] = await Promise.all([
-      enrichFromAutodev({
+      earlyEnrichPromise ?? enrichFromAutodev({
         vin: lot.vin ?? undefined,
         make: lot.make ?? undefined,
         model: lot.model ?? undefined,
         year: lot.year ?? undefined,
       }).catch(() => null),
-      fetchRecalls(lot.make, lot.model, lot.year),
+      earlyRecallsPromise ?? fetchRecalls(lot.make, lot.model, lot.year),
     ]);
 
     console.log(`[EvalService][3-ENRICH] enrichResult.source=${enrichResult?.source ?? "null"} recalls=${recalls.length}`);

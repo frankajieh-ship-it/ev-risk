@@ -309,10 +309,10 @@ async function fetchFromApify(lotNumber: string): Promise<NormalizedAuctionLot |
   }
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
+  const timer = setTimeout(() => controller.abort(), 10000);
 
   try {
-    const runUrl = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${token}&timeout=12`;
+    const runUrl = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items?token=${token}&timeout=8`;
     const res = await fetch(runUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
