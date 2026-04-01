@@ -277,18 +277,13 @@ export class AuctionEvaluationService {
       }
     }
 
-    // Priority 4: AI ARV estimation — only when all other sources return null
-    if (!arv && lot.make && lot.model && lot.year) {
-      console.log(`[EvalService][4-ARV] table miss — trying AI ARV estimation for ${lot.year} ${lot.make} ${lot.model}`);
-      const aiArv = await estimateArvWithAi(lot.make, lot.model, lot.year, lot.trim, lot.odometer);
-      if (aiArv) {
-        arv = aiArv.arv;
-        arvSource = "depreciation_curve"; // reuse existing type — closest semantic match
-        console.log(`[EvalService][4-ARV] AI ARV=${arv} reasoning="${aiArv.reasoning}"`);
-      }
-    }
+    // Priority 4: AI ARV estimation — kick off in parallel, resolved before polish step
+    // Running sequentially here would add ~8s before the AI chain even starts.
+    const aiArvPromise = (!arv && lot.make && lot.model && lot.year)
+      ? estimateArvWithAi(lot.make, lot.model, lot.year, lot.trim, lot.odometer).catch(() => null)
+      : Promise.resolve(null);
 
-    console.log(`[EvalService][4-ARV] arv=${arv} arvSource=${arvSource} arvListingCount=${arvListingCount} hasVinData=${hasVinData}`);
+    console.log(`[EvalService][4-ARV] arv=${arv} arvSource=${arvSource} arvListingCount=${arvListingCount} hasVinData=${hasVinData} aiArvInFlight=${!arv && !!lot.make}`);
 
     // 5. Payment — all features are free; isPaid always true
     const isPaid = true;
@@ -309,6 +304,16 @@ export class AuctionEvaluationService {
     let routineContext: Record<string, unknown> | null = null;
     if (input.routine_profile) {
       routineContext = input.routine_profile as unknown as Record<string, unknown>;
+    }
+
+    // Resolve AI ARV before AI chain (it has been running in parallel since step 4)
+    if (!arv) {
+      const aiArv = await aiArvPromise;
+      if (aiArv) {
+        arv = aiArv.arv;
+        arvSource = "depreciation_curve";
+        console.log(`[EvalService][4-ARV] AI ARV resolved=${arv} reasoning="${aiArv.reasoning}"`);
+      }
     }
 
     // 8. AI chain
