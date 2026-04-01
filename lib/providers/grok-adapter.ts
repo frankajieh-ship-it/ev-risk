@@ -49,37 +49,51 @@ export const grokAdapter: ProviderAdapter = {
       }
     }
 
-    const response = await getClient().chat.completions.create(
-      {
-        model,
-        messages: [
-          { role: "system", content: opts.systemPrompt },
-          { role: "user", content: hasImages ? userContent : opts.userPrompt },
-        ],
-        temperature: opts.temperature,
-        max_tokens: opts.maxTokens,
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: opts.schemaName,
-            strict: true,
-            schema: opts.jsonSchema,
+    // Enforce per-call timeout via AbortSignal (client-level timeout is 55s — too long)
+    const localController = new AbortController();
+    const timeoutMs = opts.timeoutMs ?? 15_000;
+    const localTimeout = setTimeout(() => localController.abort(), timeoutMs);
+    const signal = opts.signal
+      ? AbortSignal.any([opts.signal, localController.signal])
+      : localController.signal;
+
+    try {
+      const response = await getClient().chat.completions.create(
+        {
+          model,
+          messages: [
+            { role: "system", content: opts.systemPrompt },
+            { role: "user", content: hasImages ? userContent : opts.userPrompt },
+          ],
+          temperature: opts.temperature,
+          max_tokens: opts.maxTokens,
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: opts.schemaName,
+              strict: true,
+              schema: opts.jsonSchema,
+            },
           },
         },
-      },
-      { signal: opts.signal }
-    );
+        { signal }
+      );
+      clearTimeout(localTimeout);
 
-    const rawText = response.choices[0]?.message?.content ?? "{}";
-    const json = JSON.parse(rawText) as Record<string, unknown>;
+      const rawText = response.choices[0]?.message?.content ?? "{}";
+      const json = JSON.parse(rawText) as Record<string, unknown>;
 
-    return {
-      json,
-      rawText,
-      provider: "grok",
-      latencyMs: Date.now() - t0,
-      inputTokens: response.usage?.prompt_tokens ?? 0,
-      outputTokens: response.usage?.completion_tokens ?? 0,
-    };
+      return {
+        json,
+        rawText,
+        provider: "grok",
+        latencyMs: Date.now() - t0,
+        inputTokens: response.usage?.prompt_tokens ?? 0,
+        outputTokens: response.usage?.completion_tokens ?? 0,
+      };
+    } catch (err) {
+      clearTimeout(localTimeout);
+      throw err;
+    }
   },
 };
