@@ -31,7 +31,7 @@ import {
   type RepairCostOutput,
   type ArbitrageResult,
 } from "@/lib/copart-arbitrage-engine";
-import { estimateFallbackArv } from "@/lib/auction/fallback-arv";
+import { estimateFallbackArv, estimateArvWithAi } from "@/lib/auction/fallback-arv";
 
 export const maxDuration = 60;
 
@@ -135,6 +135,15 @@ export async function POST(request: NextRequest) {
     const fallback = estimateFallbackArv(make, model, year);
     if (fallback) {
       arv = fallback.arv;
+      arvSource = "depreciation_curve";
+    }
+  }
+
+  // Priority 4: AI ARV estimation — only when all other sources return null
+  if (!arv && make && model && year) {
+    const aiArv = await estimateArvWithAi(make, model, year, trim, null);
+    if (aiArv) {
+      arv = aiArv.arv;
       arvSource = "depreciation_curve";
     }
   }

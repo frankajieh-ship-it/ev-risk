@@ -17,7 +17,7 @@
 
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
-import { estimateFallbackArv } from "@/lib/auction/fallback-arv";
+import { estimateFallbackArv, estimateArvWithAi } from "@/lib/auction/fallback-arv";
 import {
   getChargingProfile,
   getElectricityRate,
@@ -274,6 +274,17 @@ export class AuctionEvaluationService {
         arv = fallback.arv;
         arvSource = "depreciation_curve";
         console.log(`[EvalService][4-ARV] fallback ARV=${arv} (age=${fallback.age_years}y, factor=${fallback.depreciation_factor}, msrp=${fallback.msrp_used})`);
+      }
+    }
+
+    // Priority 4: AI ARV estimation — only when all other sources return null
+    if (!arv && lot.make && lot.model && lot.year) {
+      console.log(`[EvalService][4-ARV] table miss — trying AI ARV estimation for ${lot.year} ${lot.make} ${lot.model}`);
+      const aiArv = await estimateArvWithAi(lot.make, lot.model, lot.year, lot.trim, lot.odometer);
+      if (aiArv) {
+        arv = aiArv.arv;
+        arvSource = "depreciation_curve"; // reuse existing type — closest semantic match
+        console.log(`[EvalService][4-ARV] AI ARV=${arv} reasoning="${aiArv.reasoning}"`);
       }
     }
 

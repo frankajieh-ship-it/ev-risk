@@ -6,6 +6,9 @@
  *
  * Covers both EV and common ICE vehicles that appear frequently in salvage auctions.
  * Confidence is always "estimated" to distinguish from real comp-based ARV.
+ *
+ * Priority 4 fallback: AI-based ARV estimation via hedgedGenerate.
+ * Only triggered when all other ARV sources return null.
  */
 
 // ── Common ICE vehicles at salvage auctions (USD, approximate base/mid MSRP) ──
@@ -491,5 +494,82 @@ export function estimateFallbackArv(
     msrp_used: msrp,
     age_years: age,
     depreciation_factor: factor,
+  }
+}
+
+// ── Priority 4: AI ARV estimation ─────────────────────────────────────────────
+
+export interface AiArvResult {
+  arv: number
+  confidence: "ai_estimated"
+  source: "ai_estimation"
+  reasoning: string
+}
+
+const AI_ARV_SCHEMA = {
+  type: "object",
+  properties: {
+    clean_market_value_usd: { type: "number", description: "Estimated clean private-party market value in USD" },
+    reasoning: { type: "string", description: "Brief explanation of the estimate (1-2 sentences)" },
+    confidence: { type: "string", enum: ["high", "medium", "low"] },
+  },
+  required: ["clean_market_value_usd", "reasoning", "confidence"],
+  additionalProperties: false,
+}
+
+/**
+ * Priority 4 ARV fallback — ask the AI for a clean market value estimate.
+ * Only called when Auto.dev and the depreciation table both return null.
+ * Uses hedgedGenerate (OpenAI first, Gemini fallback) with a 6s timeout.
+ */
+export async function estimateArvWithAi(
+  make: string,
+  model: string,
+  year: number,
+  trim: string | null,
+  mileage: number | null,
+): Promise<AiArvResult | null> {
+  try {
+    const { hedgedGenerate } = await import("@/lib/providers/hedged-generate")
+
+    const mileageStr = mileage ? `${mileage.toLocaleString()} miles` : "unknown mileage"
+    const trimStr = trim ? ` ${trim}` : ""
+
+    const result = await hedgedGenerate({
+      systemPrompt:
+        "You are an automotive market analyst. Estimate the clean private-party market value (after full repair, no damage) for the vehicle described. Return only a JSON object. Be conservative and realistic — this will be used for salvage auction bid calculations.",
+      userPrompt:
+        `Vehicle: ${year} ${make} ${model}${trimStr}\nMileage: ${mileageStr}\n\nWhat is the estimated clean private-party market value in USD today?`,
+      jsonSchema: AI_ARV_SCHEMA,
+      schemaName: "ai_arv_estimate",
+      temperature: 0.1,
+      maxTokens: 150,
+      hedgeDelays: [3_000, 5_000],
+      validate: (json) => {
+        const v = json as Record<string, unknown>
+        return typeof v.clean_market_value_usd === "number" && v.clean_market_value_usd > 0
+          ? { valid: true, errors: [] }
+          : { valid: false, errors: ["Invalid ARV output"] }
+      },
+    })
+
+    const json = result.result.json as Record<string, unknown>
+    const rawArv = json.clean_market_value_usd as number
+    if (!rawArv || rawArv <= 0) return null
+
+    // Round to nearest $100
+    const arv = Math.round(rawArv / 100) * 100
+
+    console.log(`[FallbackArv][AI] ${year} ${make} ${model} → ARV=$${arv} (provider=${result.result.provider} reasoning="${json.reasoning}")`)
+
+    return {
+      arv,
+      confidence: "ai_estimated",
+      source: "ai_estimation",
+      reasoning: (json.reasoning as string) ?? "",
+    }
+  } catch (err) {
+    console.warn("[FallbackArv][AI] estimation failed:", err)
+    return null
   }
 }
