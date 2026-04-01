@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap, LogIn, ChevronRight, ShieldCheck, ExternalLink, LayoutGrid, LayoutList, List } from "lucide-react";
+import { Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap, LogIn, ChevronRight, ShieldCheck, ExternalLink, LayoutGrid, LayoutList, List, Star } from "lucide-react";
 import Link from "next/link";
 import NewsCard, { type NewsArticle } from "@/components/NewsCard";
 import { useRouter } from "next/navigation";
@@ -21,6 +21,8 @@ import type { ShortlistCandidate } from "@/lib/shortlist-coach";
 import RecallBadge, { type Recall } from "@/components/garage/RecallBadge";
 import RecallPanel from "@/components/garage/RecallPanel";
 import OwnedEvCard from "@/components/garage/OwnedEvCard";
+import StarRating from "@/components/garage/StarRating";
+import ReviewModal, { type GarageReview } from "@/components/garage/ReviewModal";
 
 interface GarageVehicle {
   id: string;
@@ -77,6 +79,9 @@ export default function GaragePage() {
   const [justAddedVehicleId, setJustAddedVehicleId] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<GarageSourceFilter>("all");
   const [garageViewMode, setGarageViewMode] = useState<"grid" | "list">("grid");
+  // Review/rating state
+  const [reviews, setReviews] = useState<Record<string, GarageReview | null>>({});
+  const [reviewModal, setReviewModal] = useState<{ vehicleId: string; vehicleName: string } | null>(null);
 
   // Derived: which auction sources exist in the vehicle list
   const hasAuctionSource = useCallback(
@@ -124,6 +129,24 @@ export default function GaragePage() {
   useEffect(() => {
     loadVehicles();
   }, [loadVehicles]);
+
+  // Fetch reviews for all vehicles whenever the vehicle list changes
+  useEffect(() => {
+    const h = headers();
+    if (!h || vehicles.length === 0) return;
+    Promise.all(
+      vehicles.map((v) =>
+        fetch(`/api/workspace/garage/${v.id}/review`, { headers: h })
+          .then((r) => r.json())
+          .then((d) => ({ id: v.id, review: d.success ? d.review : null }))
+          .catch(() => ({ id: v.id, review: null }))
+      )
+    ).then((results) => {
+      const map: Record<string, GarageReview | null> = {};
+      results.forEach(({ id, review }) => { map[id] = review; });
+      setReviews(map);
+    });
+  }, [vehicles, headers]);
 
   // Fetch news digest once on mount
   useEffect(() => {
@@ -622,6 +645,29 @@ export default function GaragePage() {
                       </Link>
                     )}
                   </div>
+                  {/* Rating row */}
+                  {isAuthenticated && (
+                    <div className="mt-1">
+                      {reviews[v.id] ? (
+                        <button
+                          onClick={() => setReviewModal({ vehicleId: v.id, vehicleName: v.nickname || vehicleLabel(v) })}
+                          className="flex items-center gap-1.5 group/rating"
+                          title="Edit your rating"
+                        >
+                          <StarRating value={reviews[v.id]!.rating} readonly size="sm" />
+                          <span className="text-xs text-gray-400 group-hover/rating:text-gray-600 transition-colors">Edit</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setReviewModal({ vehicleId: v.id, vehicleName: v.nickname || vehicleLabel(v) })}
+                          className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 transition-colors"
+                        >
+                          <Star className="w-3 h-3" />
+                          Rate this vehicle
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}
@@ -765,6 +811,21 @@ export default function GaragePage() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Review modal */}
+      {reviewModal && session?.access_token && (
+        <ReviewModal
+          vehicleId={reviewModal.vehicleId}
+          vehicleName={reviewModal.vehicleName}
+          authToken={session.access_token}
+          existingReview={reviews[reviewModal.vehicleId] ?? null}
+          onClose={() => setReviewModal(null)}
+          onSaved={(review) => {
+            setReviews((prev) => ({ ...prev, [reviewModal.vehicleId]: review }));
+            setReviewModal(null);
+          }}
+        />
       )}
     </div>
   );
