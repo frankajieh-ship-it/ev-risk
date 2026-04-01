@@ -1630,7 +1630,7 @@ function ComparePageContent() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
-      <Header variant="compare" />
+      <Header variant="homepage" />
 
       {/* Hero banner */}
       <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white">
