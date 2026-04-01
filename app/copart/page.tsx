@@ -456,7 +456,11 @@ export default function CopartPage() {
         data = await res.json();
       } catch {
         setPageState("error");
-        setErrorMsg(`Server error (HTTP ${res.status}) — please try again.`);
+        setErrorMsg(
+          res.status === 504 || res.status === 524
+            ? "Analysis timed out — the AI chain took too long. Please try again."
+            : `Server error (HTTP ${res.status}) — please try again.`
+        );
         return;
       }
 

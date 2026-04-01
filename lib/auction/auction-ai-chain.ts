@@ -216,7 +216,7 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
       schemaName: AUCTION_SCHEMA_NAMES.auction_classification,
       temperature: 0.1,
       maxTokens: 600,
-      timeoutMs: 20_000,
+      timeoutMs: 12_000,
       imageUrls: input.photos?.slice(0, 3),
     },
     isClassification,
@@ -242,7 +242,7 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
         schemaName: AUCTION_SCHEMA_NAMES.auction_routine_impact,
         temperature: 0.2,
         maxTokens: 500,
-        timeoutMs: 25_000,
+        timeoutMs: 18_000,
       },
       isRoutineImpact,
       logs
@@ -261,7 +261,7 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
             schemaName: AUCTION_SCHEMA_NAMES[repairCostKey],
             temperature: 0.2,
             maxTokens: 1500,
-            timeoutMs: 50_000,
+            timeoutMs: 30_000,
           },
           isRepairCost,
           logs
@@ -285,7 +285,7 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
           schemaName: AUCTION_SCHEMA_NAMES.auction_final_polish,
           temperature: 0.3,
           maxTokens: 500,
-          timeoutMs: 20_000,
+          timeoutMs: 12_000,
         },
         isPolish,
         logs
