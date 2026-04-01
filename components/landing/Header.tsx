@@ -19,6 +19,7 @@ const navLinks = [
   { label: "Analyze a Car",  href: "/receipt",  isScroll: false },
   { label: "Auction Bidder", href: "/copart",   isScroll: false },
   { label: "Compare",        href: "/compare",  isScroll: false },
+  { label: "Blog",           href: "/blog",     isScroll: false },
 ];
 
 export default function Header({ variant = "receipt", historyCount, onHistoryClick, regionSelector }: HeaderProps) {
