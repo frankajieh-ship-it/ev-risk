@@ -60,12 +60,23 @@ function dealQualityScore(arbitrage: ArbitrageResult): {
     bestProfit = arv - proxyBid - midRepair - arbitrage.auction_fees_estimate;
   }
 
-  if (bestProfit === null || arv === null) {
+  // No ARV from market data — use market_closing_estimate midpoint as synthetic ARV
+  // This allows Deal Quality to score even when Auto.dev returns no listings
+  const effectiveArv = arv ?? (arbitrage.market_closing_estimate?.midpoint
+    ? Math.round(arbitrage.market_closing_estimate.midpoint / 0.38) // back-solve from 38% closing ratio
+    : null);
+
+  if (bestProfit === null && effectiveArv !== null && arbitrage.repair_cost_estimate > 0) {
+    const proxyBid = arbitrage.market_closing_estimate?.midpoint ?? Math.round(effectiveArv * 0.38);
+    bestProfit = effectiveArv - proxyBid - arbitrage.repair_cost_estimate - arbitrage.auction_fees_estimate;
+  }
+
+  if (bestProfit === null || effectiveArv === null) {
     return { score: 50, label: "Calculating...", grade: "yellow", primary: null, strategy };
   }
 
   // Score: profit as % of ARV, mapped to 0–100
-  const profitPct = bestProfit / arv;
+  const profitPct = bestProfit / effectiveArv;
   const score = Math.max(0, Math.min(100, Math.round(50 + profitPct * 200)));
 
   const grade: "green" | "yellow" | "red" = score >= 65 ? "green" : score >= 40 ? "yellow" : "red";

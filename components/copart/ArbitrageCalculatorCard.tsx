@@ -205,11 +205,16 @@ export default function ArbitrageCalculatorCard({
     if (fetchState === "idle") fetchArbitrage();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Effective ARV: custom override > API result
+  // Effective ARV: custom override > API result > synthetic back-solve from market closing estimate
   const effectiveArv = useMemo(() => {
     const parsed = parseFloat(customArv.replace(/[^0-9.]/g, ""));
     if (!isNaN(parsed) && parsed > 0) return parsed;
-    return result?.arv ?? null;
+    if (result?.arv != null) return result.arv;
+    // Synthesize ARV from market closing midpoint (historically closes at ~38% of clean ARV)
+    if (result?.market_closing_estimate?.midpoint) {
+      return Math.round(result.market_closing_estimate.midpoint / 0.38 / 100) * 100;
+    }
+    return null;
   }, [customArv, result]);
 
   // Live max safe bid (repair strategy midpoint)

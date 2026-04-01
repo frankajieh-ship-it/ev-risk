@@ -48,6 +48,7 @@ const ICE_MSRP_TABLE: Record<string, Record<string, number>> = {
     Explorer: 37000,
     Expedition: 55000,
     Escape: 28000,
+    EcoSport: 22000,
     Edge: 34000,
     Ranger: 31000,
     Bronco: 33695,
@@ -55,7 +56,9 @@ const ICE_MSRP_TABLE: Record<string, Record<string, number>> = {
     Mustang: 29995,
     Fusion: 24000,
     Focus: 19000,
+    Fiesta: 15000,
     Transit: 41000,
+    "Transit Connect": 28000,
   },
   Dodge: {
     Ram: 37690,
