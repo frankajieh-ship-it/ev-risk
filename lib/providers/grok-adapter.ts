@@ -33,10 +33,11 @@ export const grokAdapter: ProviderAdapter = {
   async generate(opts: GenerateOpts): Promise<GenerateResult> {
     const t0 = Date.now();
     const hasImages = (opts.imageUrls?.length ?? 0) > 0;
-    // grok-3-mini does not support vision — upgrade to grok-2-vision when images present
+    // grok-3-mini-fast is lower latency than grok-3-mini — use it unless overridden
+    // grok-3-mini-fast does not support vision — upgrade to grok-2-vision when images present
     const model = hasImages
       ? (process.env.GROK_VISION_MODEL || "grok-2-vision-1212")
-      : (process.env.GROK_MODEL || "grok-3-mini");
+      : (process.env.GROK_MODEL || "grok-3-mini-fast");
 
     type ContentPart =
       | { type: "text"; text: string }

@@ -206,39 +206,38 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
   const repairCostUserPromptBuilder =
     lot.auction_source === "manheim" ? buildRepairCostPromptManheim : buildRepairCostPrompt;
 
-  // ── Step 1: Grok — classification + tone ─────────────────────────────────
-  const classification = await runStep(
-    "classify",
-    grokAdapter,
-    {
-      systemPrompt: AUCTION_SYSTEM_PROMPTS.auction_classification,
-      userPrompt: buildClassifyPrompt(lot, metrics),
-      jsonSchema: AUCTION_SCHEMAS.auction_classification,
-      schemaName: AUCTION_SCHEMA_NAMES.auction_classification,
-      temperature: 0.1,
-      maxTokens: 600,
-      timeoutMs: 12_000,
-      imageUrls: input.photos?.slice(0, 3),
-    },
-    isClassification,
-    logs
-  );
-  if (classification) totalCalls++;
-
-  console.log(`[AiChain][1-CLASSIFY] status=${logs[logs.length-1]?.status ?? "n/a"} damage_severity=${classification?.damage_severity ?? "null"} bid_risk=${classification?.bid_risk_level ?? "null"}`);
-
-  // ── Step 2: Gemini + GPT-4o in parallel ──────────────────────────────────
+  // ── Steps 1+2: All three run in parallel ─────────────────────────────────
+  // classify used to block Gemini+GPT-4o. Now all fire at t=0.
+  // buildRoutineImpactPrompt + buildRepairCostPrompt accept null classification gracefully.
   const skipRepairCost = canSkipRepairCost(metrics, arv, isPaid);
-  console.log(`[AiChain][2-SKIP] skipRepairCost=${skipRepairCost} isPaid=${isPaid} damage_severity_baseline=${metrics.damage_severity_baseline} arv=${arv}`);
+  console.log(`[AiChain][SKIP] skipRepairCost=${skipRepairCost} isPaid=${isPaid} damage_severity_baseline=${metrics.damage_severity_baseline} arv=${arv}`);
 
-  const [routineImpact, repairCostRaw] = await Promise.all([
+  const [classification, routineImpact, repairCostRaw] = await Promise.all([
+    // Grok: classification + tone
+    runStep(
+      "classify",
+      grokAdapter,
+      {
+        systemPrompt: AUCTION_SYSTEM_PROMPTS.auction_classification,
+        userPrompt: buildClassifyPrompt(lot, metrics),
+        jsonSchema: AUCTION_SCHEMAS.auction_classification,
+        schemaName: AUCTION_SCHEMA_NAMES.auction_classification,
+        temperature: 0.1,
+        maxTokens: 600,
+        timeoutMs: 8_000,
+        imageUrls: input.photos?.slice(0, 3),
+      },
+      isClassification,
+      logs
+    ).then((r) => { if (r) totalCalls++; return r; }),
+
     // Gemini: routine impact + owner translation
     runStep(
       "routine_impact",
       geminiAdapter,
       {
         systemPrompt: AUCTION_SYSTEM_PROMPTS.auction_routine_impact,
-        userPrompt: buildRoutineImpactPrompt(lot, classification, recalls, routineContext, charging_profile, range_projection, electricity_context),
+        userPrompt: buildRoutineImpactPrompt(lot, null, recalls, routineContext, charging_profile, range_projection, electricity_context),
         jsonSchema: AUCTION_SCHEMAS.auction_routine_impact,
         schemaName: AUCTION_SCHEMA_NAMES.auction_routine_impact,
         temperature: 0.2,
@@ -257,24 +256,23 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
           openaiAdapter,
           {
             systemPrompt: AUCTION_SYSTEM_PROMPTS[repairCostKey],
-            userPrompt: repairCostUserPromptBuilder(lot, classification),
+            userPrompt: repairCostUserPromptBuilder(lot, null),
             jsonSchema: AUCTION_SCHEMAS[repairCostKey],
             schemaName: AUCTION_SCHEMA_NAMES[repairCostKey],
             temperature: 0.2,
             maxTokens: 1500,
-            timeoutMs: 30_000,
+            timeoutMs: 25_000,
           },
           isRepairCost,
           logs
         ).then((r) => { if (r) totalCalls++; return r; }),
   ]);
 
-  console.log(`[AiChain][2-RESULTS] routineImpact=${routineImpact ? "ok" : "null"} repairCost=${repairCostRaw ? "ok" : "null"} totalCalls=${totalCalls}`);
+  console.log(`[AiChain][PARALLEL-RESULTS] classify=${classification ? "ok" : "null"} routineImpact=${routineImpact ? "ok" : "null"} repairCost=${repairCostRaw ? "ok" : "null"} totalCalls=${totalCalls}`);
 
-  // Cap at 3 meaningful calls — skip polish if already at limit
-  const canRunPolish = totalCalls < 3;
-
-  // ── Step 3: Grok — final polish + verdict ────────────────────────────────
+  // ── Step 3: Grok — final polish + verdict (only if budget allows) ────────
+  // Budget: parallel steps take max(8s, 18s, 25s) = 25s. Polish gets remaining ~20s.
+  const canRunPolish = totalCalls > 0; // skip only if all three failed
   const polish = canRunPolish
     ? await runStep(
         "polish",
@@ -286,7 +284,7 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
           schemaName: AUCTION_SCHEMA_NAMES.auction_final_polish,
           temperature: 0.3,
           maxTokens: 500,
-          timeoutMs: 12_000,
+          timeoutMs: 8_000,
         },
         isPolish,
         logs
