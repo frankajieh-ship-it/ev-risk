@@ -439,17 +439,35 @@ export default function CopartPage() {
 
     const isUrl = isCopartUrl(trimmed);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 65_000);
+
     try {
-      const res = await fetch("/api/auction/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: isUrl ? trimmed : undefined,
-          lot_number: !isUrl ? trimmed : undefined,
-          auction_source: "copart",
-          receipt_token: receiptToken,
-        }),
-      });
+      let res: Response;
+      try {
+        res = await fetch("/api/auction/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: isUrl ? trimmed : undefined,
+            lot_number: !isUrl ? trimmed : undefined,
+            auction_source: "copart",
+            receipt_token: receiptToken,
+          }),
+          signal: controller.signal,
+        });
+      } catch (fetchErr) {
+        clearTimeout(timeoutId);
+        const isTimeout = fetchErr instanceof DOMException && fetchErr.name === "AbortError";
+        setPageState("error");
+        setErrorMsg(isTimeout
+          ? "Analysis timed out (>65s) — the AI chain is under load. Please try again in a moment."
+          : "Could not reach the server. Check your connection and try again."
+        );
+        trackEvent("copart_analyze_failed", { error: isTimeout ? "client_timeout" : "network_error" });
+        return;
+      }
+      clearTimeout(timeoutId);
 
       let data: { success: boolean; report?: AuctionEvalReport; error?: string; message?: string };
       try {
@@ -511,7 +529,8 @@ export default function CopartPage() {
         recall_count: r.recalls.length,
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Connection error";
+      clearTimeout(timeoutId);
+      const msg = err instanceof Error ? err.message : "Unexpected error";
       setPageState("error");
       setErrorMsg(`${msg}. Please try again.`);
       trackEvent("copart_analyze_failed", { error: msg });

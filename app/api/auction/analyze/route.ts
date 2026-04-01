@@ -97,15 +97,28 @@ export async function POST(request: NextRequest) {
     });
   } catch { /* non-critical */ }
 
+  // Hard 55s guard — Netlify kills the function at 60s with no response, which
+  // surfaces as a raw TCP reset ("Connection error") on the client. This ensures
+  // we always return a proper JSON error before the function is killed.
+  const PIPELINE_TIMEOUT_MS = 55_000;
+  let pipelineTimeout: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    pipelineTimeout = setTimeout(() => reject(new Error("pipeline_timeout")), PIPELINE_TIMEOUT_MS);
+  });
+
   try {
-    const report = await auctionEvaluationService.evaluate({
-      url,
-      lot_number: lotNumber,
-      auction_source: rawSource as AuctionSource,
-      receipt_token: receiptToken,
-      user_id: userId,
-      routine_profile: null,
-    });
+    const report = await Promise.race([
+      auctionEvaluationService.evaluate({
+        url,
+        lot_number: lotNumber,
+        auction_source: rawSource as AuctionSource,
+        receipt_token: receiptToken,
+        user_id: userId,
+        routine_profile: null,
+      }),
+      timeoutPromise,
+    ]);
+    if (pipelineTimeout) clearTimeout(pipelineTimeout);
 
     // Track analysis completed
     try {
@@ -131,6 +144,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, report });
   } catch (err) {
+    if (pipelineTimeout) clearTimeout(pipelineTimeout);
+
     // Track analysis failed
     try {
       await supabase?.from("user_events").insert({
@@ -146,6 +161,13 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString(),
       });
     } catch { /* non-critical */ }
+
+    if (err instanceof Error && err.message === "pipeline_timeout") {
+      return NextResponse.json(
+        { success: false, error: "timeout", message: "Analysis took too long — please try again. Results may be cached on the next attempt." },
+        { status: 504 }
+      );
+    }
 
     if (err instanceof AuctionSourceNotSupportedError) {
       return NextResponse.json(
