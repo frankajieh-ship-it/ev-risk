@@ -247,7 +247,7 @@ export default function AuctionResultPage() {
   if (pageState === "loading") {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header variant="receipt" />
+        <Header variant="homepage" />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 space-y-4">
           <div className="animate-pulse space-y-4">
             <div className="h-7 w-48 bg-gray-200 rounded-full" />
@@ -266,7 +266,7 @@ export default function AuctionResultPage() {
   if (pageState === "error" || !data) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header variant="receipt" />
+        <Header variant="homepage" />
         <main className="flex-1 flex items-center justify-center">
           <div className="max-w-md mx-auto px-4 text-center space-y-4">
             <p className="text-lg font-semibold text-gray-800">Result not found or expired</p>
@@ -293,7 +293,7 @@ export default function AuctionResultPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header variant="receipt" />
+      <Header variant="homepage" />
       <main className="flex-1">
 
         {/* Back + share strip */}

@@ -84,7 +84,7 @@ const CONFIDENCE_LEVELS = [
 export default function MethodologyPage() {
   return (
     <div className="min-h-screen bg-white">
-      <Header variant="receipt" />
+      <Header variant="homepage" />
 
       {/* 1. Hero */}
       <div className="max-w-3xl mx-auto px-4 pt-12 pb-10">

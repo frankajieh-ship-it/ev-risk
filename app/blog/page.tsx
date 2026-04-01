@@ -60,7 +60,7 @@ export default function BlogPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header variant="receipt" />
+      <Header variant="homepage" />
 
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-12">
         {/* Page title */}

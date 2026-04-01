@@ -542,7 +542,7 @@ export default function CopartPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header variant="receipt" />
+      <Header variant="homepage" />
 
       {/* Hero */}
       <div className="bg-white border-b border-gray-100">
