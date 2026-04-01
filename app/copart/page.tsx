@@ -732,16 +732,16 @@ export default function CopartPage() {
             )}
 
             {/* data_v2 cards — EV/PHEV only */}
-            {isEv !== false && report.charging_profile && (
+            {isEv === true && report.charging_profile && (
               <ChargingProfileCard profile={report.charging_profile} />
             )}
-            {isEv !== false && report.range_projection && (
+            {isEv === true && report.range_projection && (
               <RangeProjectionCard range={report.range_projection} />
             )}
-            {isEv !== false && report.incentive_status && (
+            {isEv === true && report.incentive_status && (
               <IncentiveStatusCard incentive={report.incentive_status} />
             )}
-            {isEv !== false && report.electricity_context && (
+            {isEv === true && report.electricity_context && (
               <ElectricityContextCard electricity={report.electricity_context} />
             )}
 
