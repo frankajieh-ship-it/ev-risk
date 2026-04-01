@@ -152,6 +152,8 @@ export default function ArbitrageCalculatorCard({
   const [editingArv, setEditingArv] = useState(false);
   const [strategy, setStrategy] = useState<Strategy>("repair");
   const [selectedDamageType, setSelectedDamageType] = useState<string>("");
+  const [repairCostAdj, setRepairCostAdj] = useState<number | null>(null); // user override multiplier (null = use API value)
+  const [showBidExplainer, setShowBidExplainer] = useState(false);
 
   const fetchArbitrage = useCallback(async () => {
     setFetchState("loading");
@@ -217,63 +219,50 @@ export default function ArbitrageCalculatorCard({
     return null;
   }, [customArv, result]);
 
+  // Repair cost values — use user adjustment if set, otherwise API values
+  const effectiveRepairMid = useMemo(() => {
+    if (!result) return 0;
+    return repairCostAdj !== null ? repairCostAdj : result.repair_cost_estimate;
+  }, [result, repairCostAdj]);
+
+  const effectiveRepairLow = useMemo(() => {
+    if (!result) return 0;
+    if (repairCostAdj !== null) return repairCostAdj * 0.85;
+    return result.repair_cost_low > 0 ? result.repair_cost_low : result.repair_cost_estimate * 0.85;
+  }, [result, repairCostAdj]);
+
+  const effectiveRepairHigh = useMemo(() => {
+    if (!result) return 0;
+    if (repairCostAdj !== null) return repairCostAdj * 1.15;
+    return result.repair_cost_high > 0 ? result.repair_cost_high : result.repair_cost_estimate * 1.15;
+  }, [result, repairCostAdj]);
+
   // Live max safe bid (repair strategy midpoint)
   const maxSafeBid = useMemo(() => {
     if (!effectiveArv || !result) return null;
-    return computeMaxSafeBid(
-      effectiveArv,
-      result.repair_cost_estimate,
-      result.auction_fees_estimate,
-      targetMargin
-    );
-  }, [effectiveArv, result, targetMargin]);
+    return computeMaxSafeBid(effectiveArv, effectiveRepairMid, result.auction_fees_estimate, targetMargin);
+  }, [effectiveArv, result, targetMargin, effectiveRepairMid]);
 
-  // Live safe bid range (uses repair cost low/high to express uncertainty)
-  // Falls back to ±15% around maxSafeBid when low/high are unavailable
+  // Live safe bid range
   const liveSafeBidRange = useMemo(() => {
     if (!effectiveArv || !result) return null;
-    if (result.repair_cost_low > 0) {
-      return computeSafeBidRange(
-        effectiveArv,
-        result.repair_cost_low,
-        result.repair_cost_high,
-        result.auction_fees_estimate,
-        targetMargin
-      );
-    }
-    // Fallback: derive range from midpoint ±15%
-    if (result.repair_cost_estimate > 0) {
-      const low = result.repair_cost_estimate * 0.85;
-      const high = result.repair_cost_estimate * 1.15;
-      return computeSafeBidRange(effectiveArv, low, high, result.auction_fees_estimate, targetMargin);
+    if (effectiveRepairLow > 0) {
+      return computeSafeBidRange(effectiveArv, effectiveRepairLow, effectiveRepairHigh, result.auction_fees_estimate, targetMargin);
     }
     return null;
-  }, [effectiveArv, result, targetMargin]);
+  }, [effectiveArv, result, targetMargin, effectiveRepairLow, effectiveRepairHigh]);
 
   // Live expected profit at asking price
   const { repair: liveExpectedRepair, parts: liveExpectedParts } = useMemo(() => {
     if (!result) return { repair: null, parts: null };
-    return computeExpectedProfits(
-      effectiveArv,
-      result.parts_value,
-      askingPrice,
-      result.repair_cost_estimate,
-      result.auction_fees_estimate
-    );
-  }, [effectiveArv, result, askingPrice]);
+    return computeExpectedProfits(effectiveArv, result.parts_value, askingPrice, effectiveRepairMid, result.auction_fees_estimate);
+  }, [effectiveArv, result, askingPrice, effectiveRepairMid]);
 
   // Live profit scenarios for repair strategy
   const liveProfitScenarios = useMemo(() => {
-    if (!effectiveArv || !result || !askingPrice || result.repair_cost_estimate <= 0) return null;
-    return computeProfitScenarios(
-      effectiveArv,
-      askingPrice,
-      result.repair_cost_low,
-      result.repair_cost_estimate,
-      result.repair_cost_high,
-      result.auction_fees_estimate
-    );
-  }, [effectiveArv, result, askingPrice]);
+    if (!effectiveArv || !result || !askingPrice || effectiveRepairMid <= 0) return null;
+    return computeProfitScenarios(effectiveArv, askingPrice, effectiveRepairLow, effectiveRepairMid, effectiveRepairHigh, result.auction_fees_estimate);
+  }, [effectiveArv, result, askingPrice, effectiveRepairLow, effectiveRepairMid, effectiveRepairHigh]);
 
   if (fetchState === "loading") {
     return (
@@ -338,13 +327,29 @@ export default function ArbitrageCalculatorCard({
         {/* ── OFFO Safe Bid Hero — always first ── */}
         <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-gray-800 p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold text-orange-400 uppercase tracking-wider">OFFO Safe Bid</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs font-bold text-orange-400 uppercase tracking-wider">OFFO Safe Bid</p>
+              <button
+                onClick={() => setShowBidExplainer((v) => !v)}
+                className="text-gray-500 hover:text-gray-300"
+                title="What's the difference?"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
+            </div>
             {result.market_closing_estimate && (
               <p className="text-[10px] text-gray-400">
                 Market closes ~{fmt(result.market_closing_estimate.midpoint)}
               </p>
             )}
           </div>
+          {showBidExplainer && (
+            <div className="rounded-lg bg-gray-800 border border-gray-700 p-3 space-y-2 text-[11px] text-gray-300">
+              <p><span className="text-orange-400 font-semibold">OFFO Safe Bid</span> — the max <em>you</em> should pay to hit your profit margin target after repair costs, auction fees, and your buffer.</p>
+              <p><span className="text-gray-200 font-semibold">Market Est. Close</span> — what the auction crowd will likely bid. Salvage lots typically close at 35–45% of clean market value.</p>
+              <p className="text-gray-400">If your Safe Bid is <em>above</em> market close → you have room. If it&apos;s <em>below</em> → the crowd will outbid a profitable purchase.</p>
+            </div>
+          )}
 
           {liveSafeBidRange ? (
             <div>
@@ -549,7 +554,7 @@ export default function ArbitrageCalculatorCard({
 
         {/* ── Repair cost row (shown in repair strategy) ── */}
         {strategy === "repair" && (
-          <div>
+          <div className="space-y-2">
             <button
               onClick={() => setRepairOpen((o) => !o)}
               className="w-full flex items-center justify-between"
@@ -557,20 +562,57 @@ export default function ArbitrageCalculatorCard({
               <div className="flex items-center gap-2">
                 <Wrench className="w-4 h-4 text-gray-400" />
                 <div className="text-left">
-                  <p className="text-xs text-gray-500 font-medium">Repair Cost Estimate</p>
+                  <p className="text-xs text-gray-500 font-medium">
+                    Repair Cost Estimate
+                    {repairCostAdj !== null && (
+                      <span className="ml-1.5 text-orange-500 text-[10px] font-semibold">ADJUSTED</span>
+                    )}
+                  </p>
                   <p className="text-xs text-gray-400">
-                    {fmt(result.repair_cost_low)} – {fmt(result.repair_cost_high)} range
+                    {fmt(effectiveRepairLow)} – {fmt(effectiveRepairHigh)} range
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-lg font-bold text-gray-900">{fmt(result.repair_cost_estimate)}</span>
+                <span className="text-lg font-bold text-gray-900">{fmt(effectiveRepairMid)}</span>
                 {repairOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
               </div>
             </button>
 
+            {/* Repair cost adjustment slider */}
+            {result.repair_cost_estimate > 0 && (
+              <div className="px-1 space-y-1">
+                <div className="flex items-center justify-between text-[10px] text-gray-400">
+                  <span>Adjust estimate</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-600">{fmt(effectiveRepairMid)}</span>
+                    {repairCostAdj !== null && (
+                      <button
+                        onClick={() => setRepairCostAdj(null)}
+                        className="text-orange-500 underline text-[10px]"
+                      >reset</button>
+                    )}
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min={Math.round(result.repair_cost_estimate * 0.25)}
+                  max={Math.round(result.repair_cost_estimate * 2.5)}
+                  step={250}
+                  value={repairCostAdj ?? result.repair_cost_estimate}
+                  onChange={(e) => setRepairCostAdj(Number(e.target.value))}
+                  className="w-full accent-orange-500"
+                />
+                <div className="flex justify-between text-[10px] text-gray-400">
+                  <span>{fmt(result.repair_cost_estimate * 0.25)}</span>
+                  <span className="text-gray-300">AI estimate: {fmt(result.repair_cost_estimate)}</span>
+                  <span>{fmt(result.repair_cost_estimate * 2.5)}</span>
+                </div>
+              </div>
+            )}
+
             {repairOpen && result.repair_cost_breakdown.length > 0 && (
-              <div className="mt-2 space-y-1.5 pl-6">
+              <div className="mt-1 space-y-1.5 pl-6">
                 {result.repair_cost_breakdown.map((item, i) => (
                   <div key={i} className="flex items-start justify-between gap-2 text-xs">
                     <div>

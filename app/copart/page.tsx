@@ -701,7 +701,6 @@ export default function CopartPage() {
               result={salvageRisk}
               vin={lot.vin}
               askingPrice={lot.current_bid}
-              arbitrage={arbitrageResult ?? report.arbitrage}
             />
 
             {/* Salvage Risk breakdown */}
