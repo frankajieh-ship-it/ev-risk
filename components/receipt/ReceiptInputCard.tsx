@@ -816,7 +816,8 @@ export default function ReceiptInputCard({
             {!isExtracting && !extractError && (
               <div className="flex items-center justify-between">
                 <p className="text-xs text-gray-400">
-                  Supports AutoTrader, CarGurus, Cars.com, Facebook Marketplace, and more
+                  CarGurus extraction works now —{" "}
+                  <span className="text-gray-300">AutoTrader, Cars.com & more coming soon</span>
                 </p>
                 {!hasExtracted && (
                   <button
