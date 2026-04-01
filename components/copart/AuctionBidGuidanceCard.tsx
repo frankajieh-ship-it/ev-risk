@@ -53,8 +53,15 @@ function dealQualityScore(arbitrage: ArbitrageResult): {
     bestProfit = arv - proxyBid - arbitrage.repair_cost_estimate - arbitrage.auction_fees_estimate;
   }
 
+  // Last resort: if we have repair_cost_low/high and ARV, estimate using safe bid midpoint as proxy
+  if (bestProfit === null && arv !== null && arbitrage.repair_cost_low > 0) {
+    const proxyBid = arbitrage.market_closing_estimate?.midpoint ?? Math.round(arv * 0.38);
+    const midRepair = Math.round((arbitrage.repair_cost_low + arbitrage.repair_cost_high) / 2);
+    bestProfit = arv - proxyBid - midRepair - arbitrage.auction_fees_estimate;
+  }
+
   if (bestProfit === null || arv === null) {
-    return { score: 50, label: "Unknown", grade: "yellow", primary: null, strategy };
+    return { score: 50, label: "Calculating...", grade: "yellow", primary: null, strategy };
   }
 
   // Score: profit as % of ARV, mapped to 0–100

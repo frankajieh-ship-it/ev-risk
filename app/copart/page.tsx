@@ -451,9 +451,16 @@ export default function CopartPage() {
         }),
       });
 
-      const data = await res.json() as { success: boolean; report?: AuctionEvalReport; error?: string; message?: string };
+      let data: { success: boolean; report?: AuctionEvalReport; error?: string; message?: string };
+      try {
+        data = await res.json();
+      } catch {
+        setPageState("error");
+        setErrorMsg(`Server error (HTTP ${res.status}) — please try again.`);
+        return;
+      }
 
-      if (!data.success || !data.report) {
+      if (!res.ok || !data.success || !data.report) {
         setPageState("error");
         setErrorMsg(data.message ?? data.error ?? "Analysis failed. Please try again.");
         return;
@@ -500,9 +507,10 @@ export default function CopartPage() {
         recall_count: r.recalls.length,
       });
     } catch (err) {
+      const msg = err instanceof Error ? err.message : "Connection error";
       setPageState("error");
-      setErrorMsg("Connection error. Please try again.");
-      trackEvent("copart_analyze_failed", { error: err instanceof Error ? err.message : "unknown" });
+      setErrorMsg(`${msg}. Please try again.`);
+      trackEvent("copart_analyze_failed", { error: msg });
     }
   }, [input, receiptToken, trackEvent]);
 

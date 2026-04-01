@@ -173,9 +173,19 @@ export default function ArbitrageCalculatorCard({
           primary_damage: primaryDamage ?? null,
         }),
       });
-      const data = await res.json();
-      if (!data.success) {
-        setError(data.error || "Analysis failed.");
+
+      let data: { success: boolean; result?: ArbitrageResult; error?: string };
+      try {
+        data = await res.json();
+      } catch {
+        // Non-JSON response (504 timeout, Netlify function limit, HTML error page)
+        setError(`Server error (HTTP ${res.status}) — tap "Try again" to retry.`);
+        setFetchState("error");
+        return;
+      }
+
+      if (!res.ok || !data.success) {
+        setError(data.error || `Request failed (${res.status}). Please try again.`);
         setFetchState("error");
         return;
       }
@@ -214,15 +224,25 @@ export default function ArbitrageCalculatorCard({
   }, [effectiveArv, result, targetMargin]);
 
   // Live safe bid range (uses repair cost low/high to express uncertainty)
+  // Falls back to ±15% around maxSafeBid when low/high are unavailable
   const liveSafeBidRange = useMemo(() => {
-    if (!effectiveArv || !result || result.repair_cost_low <= 0) return null;
-    return computeSafeBidRange(
-      effectiveArv,
-      result.repair_cost_low,
-      result.repair_cost_high,
-      result.auction_fees_estimate,
-      targetMargin
-    );
+    if (!effectiveArv || !result) return null;
+    if (result.repair_cost_low > 0) {
+      return computeSafeBidRange(
+        effectiveArv,
+        result.repair_cost_low,
+        result.repair_cost_high,
+        result.auction_fees_estimate,
+        targetMargin
+      );
+    }
+    // Fallback: derive range from midpoint ±15%
+    if (result.repair_cost_estimate > 0) {
+      const low = result.repair_cost_estimate * 0.85;
+      const high = result.repair_cost_estimate * 1.15;
+      return computeSafeBidRange(effectiveArv, low, high, result.auction_fees_estimate, targetMargin);
+    }
+    return null;
   }, [effectiveArv, result, targetMargin]);
 
   // Live expected profit at asking price

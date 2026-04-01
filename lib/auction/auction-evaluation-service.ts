@@ -424,13 +424,23 @@ export class AuctionEvaluationService {
       };
     } else if (arv && metrics.expected_repair_cost) {
       // Deterministic fallback — AI repair step was skipped, use damage-category estimate
-      const { computeExpectedProfits, computeCopartFees, getRiskBufferPct, computeMarketClosingEstimate } =
-        await import("@/lib/copart-arbitrage-engine");
+      const {
+        computeExpectedProfits, computeCopartFees, getRiskBufferPct,
+        computeMarketClosingEstimate, computeMaxSafeBid, computeSafeBidRange, computeProfitScenarios,
+      } = await import("@/lib/copart-arbitrage-engine");
       const rc = metrics.expected_repair_cost;
       const askingPrice = lot.current_bid ?? null;
       const feesBreakdown = computeCopartFees(askingPrice ?? rc.midpoint * 2);
       const totalFees = feesBreakdown.total;
+      const detRiskBufferPct = getRiskBufferPct(metrics.salvage_risk_score);
       const { repair: expectedProfitRepair } = computeExpectedProfits(arv, 0, askingPrice, rc.midpoint, totalFees);
+      const detMaxSafeBid = rc.midpoint > 0 ? computeMaxSafeBid(arv, rc.midpoint, totalFees, detRiskBufferPct) : null;
+      const detSafeBidRange = rc.low > 0
+        ? computeSafeBidRange(arv, rc.low, rc.high, totalFees, detRiskBufferPct)
+        : null;
+      const detProfitScenarios = arv && askingPrice && rc.midpoint > 0
+        ? computeProfitScenarios(arv, askingPrice, rc.low, rc.midpoint, rc.high, totalFees)
+        : null;
       const caveats: string[] = [];
       if (arvSource === "depreciation_curve") {
         caveats.push("ARV estimated from depreciation model — no active listings found. Verify before bidding.");
@@ -448,10 +458,10 @@ export class AuctionEvaluationService {
         repair_cost_breakdown: [],
         parts_value: 0,
         parts_value_breakdown: [],
-        max_safe_bid: null,
+        max_safe_bid: detMaxSafeBid,
         auction_fees_estimate: totalFees,
         auction_fees_breakdown: feesBreakdown,
-        risk_buffer_pct: getRiskBufferPct(metrics.salvage_risk_score),
+        risk_buffer_pct: detRiskBufferPct,
         confidence: rc.confidence,
         caveats,
         damage_type_inferred: (aiChainOutput.classification?.primary_damage_type && aiChainOutput.classification.primary_damage_type !== "unspecified")
@@ -459,9 +469,9 @@ export class AuctionEvaluationService {
           : (lot.damage_type ?? "unspecified damage"),
         expected_profit_repair: expectedProfitRepair,
         expected_profit_parts: null,
-        safe_bid_range: null,
-        profit_scenarios_repair: null,
-        recommended_strategy: null,
+        safe_bid_range: detSafeBidRange,
+        profit_scenarios_repair: detProfitScenarios,
+        recommended_strategy: expectedProfitRepair !== null ? ("repair" as const) : null,
         market_closing_estimate: computeMarketClosingEstimate(arv),
       };
     }
