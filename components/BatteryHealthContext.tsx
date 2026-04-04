@@ -47,12 +47,12 @@ export default function BatteryHealthContext({
         };
       case "below-average":
         return {
-          bg: "bg-yellow-50",
-          border: "border-yellow-200",
+          bg: "bg-amber-50",
+          border: "border-amber-200",
           icon: TrendingDown,
-          iconColor: "text-yellow-600",
-          textColor: "text-yellow-800",
-          badge: "bg-yellow-100 text-yellow-700 border-yellow-200",
+          iconColor: "text-amber-700",
+          textColor: "text-amber-900",
+          badge: "bg-amber-100 text-amber-900 border-amber-200",
         };
       case "faster-decline":
         return {

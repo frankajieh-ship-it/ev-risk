@@ -54,33 +54,36 @@ export async function POST(request: NextRequest) {
 
     // Create Stripe Checkout Session
     // Docs: https://stripe.com/docs/api/checkout/sessions/create
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment", // One-time payment (not subscription)
-      client_reference_id: reportId, // Link to database record
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            unit_amount: 1500, // $15.00 in cents
-            product_data: {
-              name: "EV-Risk™ Full Report + Negotiation Tools",
-              description:
-                "Complete used EV risk analysis with negotiation script, inspection checklist, and TCO estimate",
-              images: [], // TODO: Add product image URL
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "payment", // One-time payment (not subscription)
+        client_reference_id: reportId, // Link to database record
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              unit_amount: 1500, // $15.00 in cents
+              product_data: {
+                name: "EV-Risk™ Full Report + Negotiation Tools",
+                description:
+                  "Complete used EV risk analysis with negotiation script, inspection checklist, and TCO estimate",
+                images: [], // TODO: Add product image URL
+              },
             },
+            quantity: 1,
           },
-          quantity: 1,
+        ],
+        // Success: redirect to report page (loads from database)
+        success_url: `${origin}/report/${reportId}?paid=true&session_id={CHECKOUT_SESSION_ID}`,
+        // Cancel: return to report page
+        cancel_url: `${origin}/report/${reportId}?canceled=true`,
+        // Store metadata for webhook fulfillment
+        metadata: {
+          reportId: reportId,
         },
-      ],
-      // Success: redirect to report page (loads from database)
-      success_url: `${origin}/report/${reportId}?paid=true&session_id={CHECKOUT_SESSION_ID}`,
-      // Cancel: return to report page
-      cancel_url: `${origin}/report/${reportId}?canceled=true`,
-      // Store metadata for webhook fulfillment
-      metadata: {
-        reportId: reportId,
       },
-    });
+      { idempotencyKey: `checkout:${reportId}` }
+    );
 
     return NextResponse.json({ url: session.url });
   } catch (error) {

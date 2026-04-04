@@ -124,11 +124,18 @@ export async function GET(request: NextRequest) {
     description: "Search for warranty coverage details",
   });
 
-  return NextResponse.json({
-    success: true,
-    make,
-    model,
-    year: year || null,
-    resources,
-  });
+  return NextResponse.json(
+    {
+      success: true,
+      make,
+      model,
+      year: year || null,
+      resources,
+    },
+    {
+      headers: {
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+      },
+    }
+  );
 }

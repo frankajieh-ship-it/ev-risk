@@ -159,7 +159,7 @@ export default function Home() {
           {/* Right: hero phone mockup */}
           <div className="flex justify-center lg:justify-end">
             <Image
-              src="/hero-phone-mockup.jpg"
+              src="/hero-phone-mockup.webp"
               alt="OFFO — One paste. Instant deal rating."
               width={540}
               height={540}
@@ -230,7 +230,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row items-center gap-8">
             <div className="w-full md:w-1/2">
               <Image
-                src="/social-proof-laptop-v2.png"
+                src="/social-proof-laptop-v2.webp"
                 alt="OFFO verdict on laptop — Confident Purchase"
                 width={560}
                 height={560}

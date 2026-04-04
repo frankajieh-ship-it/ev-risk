@@ -19,6 +19,8 @@ export default function MethodologyAccordion({ items }: Props) {
           <div key={item.id}>
             <button
               onClick={() => setOpenId(isOpen ? null : item.id)}
+              aria-expanded={isOpen}
+              aria-controls={`methodology-${item.id}`}
               className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition-colors"
             >
               <span className="text-sm font-semibold text-gray-900">{item.title}</span>
@@ -29,7 +31,7 @@ export default function MethodologyAccordion({ items }: Props) {
               )}
             </button>
             {isOpen && (
-              <div className="px-5 pb-5">
+              <div id={`methodology-${item.id}`} className="px-5 pb-5">
                 <p className="text-sm text-gray-600 leading-relaxed">{item.body}</p>
                 {item.note && (
                   <p className="mt-3 text-xs text-gray-400 italic">{item.note}</p>

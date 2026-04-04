@@ -213,6 +213,8 @@ function AccordionItem({
     <div>
       <button
         onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls={`accordion-${id}`}
         className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-center gap-2">
@@ -225,7 +227,7 @@ function AccordionItem({
           }`}
         />
       </button>
-      {isOpen && <div className="px-5 pb-4">{children}</div>}
+      {isOpen && <div id={`accordion-${id}`} className="px-5 pb-4">{children}</div>}
     </div>
   );
 }

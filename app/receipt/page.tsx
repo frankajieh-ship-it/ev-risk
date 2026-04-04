@@ -34,16 +34,22 @@ import FeedbackWidget from "@/components/FeedbackWidget";
 import ExitFeedbackModal from "@/components/receipt/ExitFeedbackModal";
 import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
 import ModelInfoSection from "@/components/receipt/ModelInfoSection";
-import NewsCarousel from "@/components/NewsCarousel";
-import DeepDiveSection from "@/components/receipt/DeepDiveSection";
-import NegotiationDeepSection from "@/components/receipt/NegotiationDeepSection";
+import dynamic from "next/dynamic";
+
+// Heavy components lazy-loaded — not needed for initial receipt render
+const NewsCarousel = dynamic(() => import("@/components/NewsCarousel"), { ssr: false });
+const DeepDiveSection = dynamic(() => import("@/components/receipt/DeepDiveSection"), { ssr: false });
+const NegotiationDeepSection = dynamic(() => import("@/components/receipt/NegotiationDeepSection"), { ssr: false });
+const CompareView = dynamic(() => import("@/components/receipt/CompareView"), { ssr: false });
+const CompareSelectModal = dynamic(() => import("@/components/receipt/CompareSelectModal"), { ssr: false });
+const ShareModal = dynamic(() => import("@/components/receipt/ShareModal"), { ssr: false });
+const OFfoChat = dynamic(() => import("@/components/chat/OFfoChat"), { ssr: false });
+
+// Lighter components — static import fine
 import PdfDownloadButton from "@/components/receipt/PdfDownloadButton";
 import CompareBadge from "@/components/receipt/CompareBadge";
 import { SourcesFooter } from "@/components/blocks/SourcesFooter";
-import CompareSelectModal from "@/components/receipt/CompareSelectModal";
-import CompareView from "@/components/receipt/CompareView";
 import ExtensionNudge from "@/components/ExtensionNudge";
-import ShareModal from "@/components/receipt/ShareModal";
 import { useReceiptHistory } from "@/hooks/useReceiptHistory";
 import { useRegion } from "@/hooks/useRegion";
 import RegionSelector from "@/components/RegionSelector";
@@ -52,8 +58,6 @@ import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistory
 import type { MinimumViableRoutine } from "@/types/v2";
 import RoutineContextBanner from "@/components/receipt/RoutineContextBanner";
 import CompareFromReportCTA from "@/components/receipt/CompareFromReportCTA";
-import OFfoChat from "@/components/chat/OFfoChat";
-
 // Persist/retrieve current receipt ID across auth redirects
 const ACTIVE_RECEIPT_KEY = "offo_active_receipt_id";
 

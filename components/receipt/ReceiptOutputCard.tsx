@@ -276,7 +276,7 @@ export default function ReceiptOutputCard({
             >
               <img
                 src={photos[photoIndex]}
-                alt="Vehicle listing photo"
+                alt={vehicleDesc ? `${vehicleDesc} — listing photo ${photoIndex + 1} of ${photos.length}` : `Listing photo ${photoIndex + 1} of ${photos.length}`}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
               />
               {/* Gradient overlay so text below stays readable */}
@@ -321,7 +321,7 @@ export default function ReceiptOutputCard({
                       i === photoIndex ? "border-blue-500 opacity-100" : "border-transparent opacity-60 hover:opacity-90"
                     }`}
                   >
-                    <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                    <img src={url} alt={vehicleDesc ? `${vehicleDesc} — photo ${i + 1}` : `Photo ${i + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -851,7 +851,7 @@ export default function ReceiptOutputCard({
             >
               <img
                 src={photos[photoIndex]}
-                alt="Vehicle listing photo"
+                alt={vehicleDesc ? `${vehicleDesc} — photo ${photoIndex + 1} of ${photos.length}` : `Listing photo ${photoIndex + 1} of ${photos.length}`}
                 className="w-full max-h-[75vh] object-contain rounded-xl"
               />
               {photos.length > 1 && (

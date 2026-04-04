@@ -596,7 +596,7 @@ export default function CopartPage() {
             {/* Right: hero image */}
             <div className="flex-shrink-0 w-full max-w-xs lg:max-w-sm">
               <Image
-                src="/copart-hero.jpg"
+                src="/copart-hero.webp"
                 alt="Copart auction analysis"
                 width={480}
                 height={320}
@@ -627,7 +627,7 @@ export default function CopartPage() {
               disabled={isLoading}
             />
             <button
-              onClick={handleAnalyze}
+              onClick={() => handleAnalyze()}
               disabled={isLoading || !input.trim()}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 whitespace-nowrap"
             >

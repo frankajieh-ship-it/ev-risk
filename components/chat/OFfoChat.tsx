@@ -157,7 +157,6 @@ export default function OFfoChat({
   scenarioId,
   sessionId,
   context,
-  isMobile = false,
   paymentsEnabled = true,
   freeMode = false,
   trackEvent,
@@ -183,6 +182,26 @@ export default function OFfoChat({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // ---------------------------------------------------------------------------
+  // Persist messages to sessionStorage (survives page refresh within same tab)
+  // ---------------------------------------------------------------------------
+
+  const SESSION_KEY = `offo_chat_${scenarioId}`;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = sessionStorage.getItem(SESSION_KEY);
+      if (stored) setMessages(JSON.parse(stored));
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [SESSION_KEY]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || messages.length === 0) return;
+    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(messages)); } catch {}
+  }, [messages, SESSION_KEY]);
 
   // ---------------------------------------------------------------------------
   // Check unlock status on mount
@@ -245,8 +264,8 @@ export default function OFfoChat({
 
   // Focus input when panel opens
   useEffect(() => {
-    if (isOpen && !isMobile) setTimeout(() => inputRef.current?.focus(), 100);
-  }, [isOpen, isMobile]);
+    if (isOpen && window.innerWidth >= 480) setTimeout(() => inputRef.current?.focus(), 100);
+  }, [isOpen]);
 
   // ---------------------------------------------------------------------------
   // Checkout
@@ -361,11 +380,18 @@ export default function OFfoChat({
 
   if (!isVisible) return null;
 
-  const panelClasses = isMobile
-    ? "fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-2xl border-t border-gray-200 flex flex-col"
-    : "fixed bottom-20 right-4 z-50 w-[380px] max-h-[600px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col";
+  // Responsive layout: bottom sheet on small screens, sidebar on ≥480px
+  const panelClasses = [
+    "fixed z-50 bg-white shadow-2xl flex flex-col",
+    // Mobile (< 480px): full-width bottom sheet
+    "inset-x-0 bottom-0 rounded-t-2xl border-t border-gray-200",
+    // ≥480px: right sidebar
+    "min-[480px]:inset-x-auto min-[480px]:bottom-20 min-[480px]:right-4",
+    "min-[480px]:w-[380px] min-[480px]:max-h-[600px]",
+    "min-[480px]:rounded-2xl min-[480px]:border min-[480px]:border-gray-200",
+  ].join(" ");
 
-  const panelStyle = isMobile ? { height: "80vh" } : {};
+  const panelStyle: React.CSSProperties = { height: "80vh", maxHeight: "80vh" };
 
   return (
     <>
@@ -399,9 +425,8 @@ export default function OFfoChat({
       {/* Chat panel */}
       {isOpen && (
         <>
-          {isMobile && (
-            <div className="fixed inset-0 z-40 bg-black/30" onClick={() => setIsOpen(false)} />
-          )}
+          {/* Backdrop on mobile only */}
+          <div className="fixed inset-0 z-40 bg-black/30 min-[480px]:hidden" onClick={() => setIsOpen(false)} />
           <div className={panelClasses} style={panelStyle}>
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
@@ -419,7 +444,8 @@ export default function OFfoChat({
                 className="text-gray-400 hover:text-gray-700 transition-colors p-1 rounded"
                 aria-label="Close chat"
               >
-                {isMobile ? <ChevronDown className="w-5 h-5" /> : <X className="w-5 h-5" />}
+                <ChevronDown className="w-5 h-5 min-[480px]:hidden" />
+                <X className="w-5 h-5 hidden min-[480px]:block" />
               </button>
             </div>
 
@@ -432,7 +458,12 @@ export default function OFfoChat({
             )}
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
+            <div
+              role="log"
+              aria-live="polite"
+              aria-label="Conversation with OFFO AI"
+              className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0"
+            >
               {/* Welcome / quick questions */}
               {showQuickQuestions && (
                 <div className="space-y-3">
@@ -522,8 +553,9 @@ export default function OFfoChat({
                 <button
                   onClick={() => sendMessage(input)}
                   disabled={isLoading || !input.trim()}
+                  aria-label="Send message"
+                  aria-busy={isLoading}
                   className="flex-shrink-0 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white p-2 rounded-xl transition-colors"
-                  aria-label="Send"
                 >
                   <Send className="w-4 h-4" />
                 </button>

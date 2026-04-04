@@ -18,9 +18,9 @@ interface ConfidenceBlockProps {
 
 export function ConfidenceBlock({ level, summary }: ConfidenceBlockProps) {
   const getBadgeStyle = () => {
-    if (level === "High") return "bg-green-100 text-green-700";
-    if (level === "Medium") return "bg-yellow-100 text-yellow-700";
-    return "bg-red-100 text-red-700";
+    if (level === "High") return "bg-green-100 text-green-800";
+    if (level === "Medium") return "bg-amber-100 text-amber-900";
+    return "bg-red-100 text-red-800";
   };
 
   // Reframe confidence as data completeness
