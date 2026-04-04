@@ -24,6 +24,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import type { FetchedListingFields, StructuredListingFields } from "@/types/receipt";
+import FbMarketplacePasteModal from "@/components/receipt/FbMarketplacePasteModal";
 
 type InputMode = "url" | "text";
 
@@ -49,7 +50,7 @@ interface ReceiptInputCardProps {
   isPro?: boolean;
   prefillText?: string | null;
   prefillUrl?: string | null;
-  trackEvent?: (eventName: string, eventData?: Record<string, any>) => void;
+  trackEvent?: (eventName: string, eventData?: Record<string, unknown>) => void;
   receiptToken?: string;
   hasResult?: boolean;
 }
@@ -117,6 +118,29 @@ function isCarGurusSearchUrl(url: string): boolean {
     lower.includes("/cars/") || lower.includes("/shopping/results")
   );
 }
+
+function isFacebookMarketplaceUrl(url: string): boolean {
+  const lower = url.toLowerCase();
+  return (
+    lower.includes("facebook.com/marketplace") ||
+    lower.includes("facebook.com/commerce") ||
+    lower.includes("fb.com/marketplace")
+  );
+}
+
+const SOURCE_DISPLAY_LABELS: Record<string, string> = {
+  facebook: "Facebook Marketplace",
+  cargurus: "CarGurus",
+  autotrader: "AutoTrader",
+  "cars.com": "Cars.com",
+  carvana: "Carvana",
+  carfax: "Carfax",
+  truecar: "TrueCar",
+  edmunds: "Edmunds",
+  kbb: "KBB",
+  vroom: "Vroom",
+  carmax: "CarMax",
+};
 
 export default function ReceiptInputCard({
   onGenerate,
@@ -186,6 +210,12 @@ export default function ReceiptInputCard({
   const [carGurusCleanId, setCarGurusCleanId] = useState<string | null>(null);
   const [showCarGurusBanner, setShowCarGurusBanner] = useState(false);
 
+  // CarGurus bot-protection specific hint (shown after failed extraction)
+  const [showCgPasteHint, setShowCgPasteHint] = useState(false);
+
+  // Facebook Marketplace paste modal
+  const [showFbPasteModal, setShowFbPasteModal] = useState(false);
+
   // Clean-and-extract success toast
   const [cleanToast, setCleanToast] = useState<{ durationSec: string } | null>(null);
   const cleanStartRef = useRef<number>(0);
@@ -248,6 +278,13 @@ export default function ReceiptInputCard({
     setLastAutoExtractedUrl(pasted);
     setExtractError(null);
 
+    // Intercept Facebook Marketplace URLs — show paste modal immediately
+    if (isFacebookMarketplaceUrl(pasted)) {
+      setShowFbPasteModal(true);
+      trackEvent?.("fb_marketplace_url_detected", { anon_id: receiptToken });
+      return;
+    }
+
     // Intercept CarGurus search URLs — show banner instead of auto-extracting
     if (isCarGurusSearchUrl(pasted)) {
       const id = extractCarGurusListingId(pasted);
@@ -301,11 +338,20 @@ export default function ReceiptInputCard({
 
   // Unified extract handler for both URL and text modes
   const handleExtract = async (urlOverride?: string) => {
+    // Intercept Facebook Marketplace URLs before any API call
+    const urlToCheck = urlOverride ?? (inputMode === "url" ? listingUrl.trim() : "");
+    if (urlToCheck && isFacebookMarketplaceUrl(urlToCheck)) {
+      setShowFbPasteModal(true);
+      trackEvent?.("fb_marketplace_url_detected", { anon_id: receiptToken, trigger: "manual_extract" });
+      return;
+    }
+
     trackEvent?.("receipt_extract_clicked", { input_mode: inputMode, anon_id: receiptToken });
 
     setIsExtracting(true);
     setExtractError(null);
     setShowManualFallbackBanner(false);
+    setShowCgPasteHint(false);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -341,9 +387,17 @@ export default function ReceiptInputCard({
 
         // Show specific error based on diagnostics
         if (data.diagnostics?.botProtectionDetected) {
-          setExtractError({
-            message: "This site blocked auto-extraction."
-          });
+          const urlValue = urlOverride ?? listingUrl.trim();
+          if (urlValue.toLowerCase().includes("cargurus.com")) {
+            setShowCgPasteHint(true);
+            setExtractError({
+              message: "CarGurus blocked auto-fetch. Copy the listing details and paste them below."
+            });
+          } else {
+            setExtractError({
+              message: "This site blocked auto-extraction."
+            });
+          }
           showManualForm();
         } else if (data.diagnostics?.failureReason === "timeout") {
           setExtractError({
@@ -570,6 +624,20 @@ export default function ReceiptInputCard({
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Facebook Marketplace paste modal */}
+      {showFbPasteModal && (
+        <FbMarketplacePasteModal
+          onAnalyze={(text) => {
+            setShowFbPasteModal(false);
+            setInputMode("text");
+            setListingText(text);
+            // Trigger extraction with the pasted text
+            setTimeout(() => handleExtract(), 50);
+          }}
+          onClose={() => setShowFbPasteModal(false)}
+        />
+      )}
+
       {/* Clean-and-extract success toast */}
       <AnimatePresence>
         {cleanToast && (
@@ -727,7 +795,44 @@ export default function ReceiptInputCard({
                 >
                   Paste the full page text instead
                 </button>
+                {" · "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowFbPasteModal(true);
+                    trackEvent?.("fb_paste_modal_opened", { from: "url_fallback_hint" });
+                  }}
+                  className="text-[#1877F2] underline hover:opacity-80"
+                >
+                  Facebook Marketplace?
+                </button>
               </p>
+            )}
+
+            {/* CarGurus bot-protection hint — shown after a blocked CarGurus extraction */}
+            {showCgPasteHint && !isExtracting && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                <div>
+                  <p className="text-amber-800 font-medium text-xs">CarGurus blocked auto-fetch</p>
+                  <p className="text-amber-700 text-xs mt-0.5">
+                    On the listing, copy the specs panel on the right side, then{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCgPasteHint(false);
+                        setExtractError(null);
+                        setInputMode("text");
+                        setTimeout(() => textareaRef.current?.focus(), 100);
+                        trackEvent?.("cg_paste_hint_clicked", { anon_id: receiptToken });
+                      }}
+                      className="font-semibold underline text-amber-800 hover:text-amber-900"
+                    >
+                      switch to paste mode →
+                    </button>
+                  </p>
+                </div>
+              </div>
             )}
 
             {/* Extraction loading with step progress */}
@@ -963,7 +1068,7 @@ export default function ReceiptInputCard({
             </div>
             {listingSource && listingSource !== "text_paste" && (
               <p className="text-xs text-gray-400">
-                Source: {listingSource}
+                Source: {SOURCE_DISPLAY_LABELS[listingSource] ?? listingSource}
               </p>
             )}
           </div>
