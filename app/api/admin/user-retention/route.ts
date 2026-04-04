@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
       // 1. Window-scoped visitors (for repeat/segment metrics)
       supabase
         .from("visitors")
-        .select("visitor_id, visit_count, session_count, first_visit, last_visit, user_agent")
+        .select("visitor_id, visit_count, session_count, first_visit, last_visit, user_agent, referrer")
         .gte("last_visit", start)
         .lte("last_visit", end)
         .not("visitor_id", "in", INTERNAL_IDS_PG),
@@ -229,6 +229,7 @@ export async function GET(request: NextRequest) {
           first_visit: v.first_visit,
           last_visit: v.last_visit,
           days_active: daysActive,
+          referrer: v.referrer ?? null,
         };
       });
 

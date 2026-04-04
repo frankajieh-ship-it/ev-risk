@@ -338,7 +338,7 @@ interface SummaryData {
   recent_events: Array<{
     source: string;
     event_name: string;
-    details: any;
+    details: Record<string, unknown>;
     visitor_id: string;
     session_id: string | null;
     user_agent: string | null;
@@ -1074,6 +1074,7 @@ export default function AdminDashboard() {
                         <th className="px-3 py-2 text-right font-medium text-gray-700">Sessions</th>
                         <th className="px-3 py-2 text-right font-medium text-gray-700">Days Active</th>
                         <th className="px-3 py-2 text-right font-medium text-gray-700">Last Visit</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-700">Referrer</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1096,6 +1097,20 @@ export default function AdminDashboard() {
                             </td>
                             <td className="px-3 py-2 text-right text-gray-600 text-xs">
                               {daysAgo === 0 ? "today" : daysAgo === 1 ? "1 day ago" : `${daysAgo} days ago`}
+                            </td>
+                            <td className="px-3 py-2 text-xs text-gray-500 max-w-[180px]">
+                              {user.referrer ? (
+                                (() => {
+                                  try {
+                                    const h = new URL(user.referrer).hostname.replace(/^www\./, "");
+                                    return <span title={user.referrer}>{h}</span>;
+                                  } catch {
+                                    return <span className="truncate block" title={user.referrer}>{user.referrer}</span>;
+                                  }
+                                })()
+                              ) : (
+                                <span className="text-gray-300">direct</span>
+                              )}
                             </td>
                           </tr>
                         );
