@@ -1847,6 +1847,64 @@ export async function GET(request: NextRequest) {
       signup_completed: countEvents(filteredUserEvents, "dealer_signup_completed"),
     };
 
+    // -----------------------------------------------------------------------
+    // AI cost spike alerting (fire-and-forget, never blocks the response)
+    // -----------------------------------------------------------------------
+    void (async () => {
+      try {
+        const resendKey = process.env.RESEND_API_KEY;
+        const opsEmail = process.env.OPS_ALERT_EMAIL || "hello@offolab.com";
+        if (!resendKey) return;
+
+        const now = new Date();
+        const oneHourAgo = new Date(now.getTime() - 3600_000).toISOString();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 86400_000).toISOString();
+
+        const [{ data: hourlyEvents }, { data: weeklyEvents }] = await Promise.all([
+          supabase
+            .from("user_events")
+            .select("event_data")
+            .eq("event_name", "receipt_cost_estimate")
+            .gte("timestamp", oneHourAgo),
+          supabase
+            .from("user_events")
+            .select("event_data")
+            .eq("event_name", "receipt_cost_estimate")
+            .gte("timestamp", sevenDaysAgo)
+            .lt("timestamp", oneHourAgo),
+        ]);
+
+        const sumCost = (rows: Array<{ event_data: unknown }> | null): number =>
+          (rows ?? []).reduce((acc, r) => acc + (((r.event_data as Record<string, number> | null)?.total_cost_usd) ?? 0), 0);
+
+        const currentHourSpend = sumCost(hourlyEvents);
+        // 7-day trailing hourly average (168 hours minus the current hour = 167)
+        const trailingHours = 167;
+        const trailingAvgPerHour = sumCost(weeklyEvents) / trailingHours;
+
+        // Only alert if there's meaningful baseline data and current hour > 2x average
+        if (trailingAvgPerHour > 0.001 && currentHourSpend > trailingAvgPerHour * 2) {
+          const { Resend } = await import("resend");
+          const resend = new Resend(resendKey);
+          await resend.emails.send({
+            from: "OFFO Alerts <noreply@offolab.com>",
+            to: opsEmail,
+            subject: `⚠️ AI cost spike: $${currentHourSpend.toFixed(4)} this hour (avg $${trailingAvgPerHour.toFixed(4)}/hr)`,
+            html: `
+              <h2>AI Cost Spike Detected</h2>
+              <p><strong>Current hour spend:</strong> $${currentHourSpend.toFixed(4)}</p>
+              <p><strong>7-day trailing average:</strong> $${trailingAvgPerHour.toFixed(4)}/hr</p>
+              <p><strong>Multiplier:</strong> ${(currentHourSpend / trailingAvgPerHour).toFixed(1)}x</p>
+              <p><small>Detected at ${now.toISOString()} via GET /api/admin/summary</small></p>
+            `,
+          });
+        }
+      } catch {
+        // Best-effort — never throw from alerting code
+      }
+    })();
+
+    // -----------------------------------------------------------------------
     // Response
     // -----------------------------------------------------------------------
 

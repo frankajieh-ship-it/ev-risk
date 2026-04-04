@@ -4,6 +4,7 @@ import Script from "next/script";
 import JsonLd from "@/components/seo/JsonLd";
 import { HumanSignalCollector } from "@/components/HumanSignalCollector";
 import CookieConsent from "@/components/CookieConsent";
+import { VitalsReporter } from "@/components/VitalsReporter";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -85,6 +86,7 @@ export default function RootLayout({
         />
         <HumanSignalCollector />
         <CookieConsent />
+        <VitalsReporter />
         <Script
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
           strategy="afterInteractive"

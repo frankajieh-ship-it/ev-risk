@@ -64,10 +64,11 @@ export async function POST(request: NextRequest) {
       sig,
       process.env.STRIPE_WEBHOOK_SECRET as string
     );
-  } catch (err: any) {
-    console.error("⚠️ Webhook signature verification failed:", err.message);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("⚠️ Webhook signature verification failed:", message);
     return NextResponse.json(
-      { error: `Webhook signature verification failed: ${err.message}` },
+      { error: `Webhook signature verification failed: ${message}` },
       { status: 400 }
     );
   }
@@ -169,6 +170,98 @@ export async function POST(request: NextRequest) {
             .eq("status", "paid");
           console.log(`💸 Refund processed for payment_intent ${paymentIntentId}`);
         }
+        break;
+      }
+
+      // Subscription lifecycle events
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
+        const subscriptionId = typeof invoice.subscription === "string" ? invoice.subscription : null;
+        const periodEnd = (invoice as { period_end?: number }).period_end;
+
+        if (customerId && subscriptionId) {
+          // Extend the user's pro access to the end of the billing period
+          const expiresAt = periodEnd
+            ? new Date(periodEnd * 1000).toISOString()
+            : new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString();
+
+          try {
+            // Find user by stripe_customer_id stored in user_roles or purchases
+            const { data: roleRow } = await supabase
+              .from("user_roles")
+              .select("user_id")
+              .eq("stripe_customer_id", customerId)
+              .maybeSingle();
+
+            if (roleRow?.user_id) {
+              await supabase
+                .from("user_roles")
+                .upsert(
+                  {
+                    user_id: roleRow.user_id,
+                    role: "pro",
+                    stripe_customer_id: customerId,
+                    stripe_subscription_id: subscriptionId,
+                    expires_at: expiresAt,
+                    updated_at: new Date().toISOString(),
+                  },
+                  { onConflict: "user_id" }
+                );
+              console.log(`✅ Subscription renewed for user ${roleRow.user_id} until ${expiresAt}`);
+            }
+          } catch (err) {
+            console.error("[Webhook] invoice.payment_succeeded error:", err);
+          }
+
+          audit({
+            actor_type: "webhook",
+            action: "subscription.renewed",
+            result: "ok",
+            metadata: { stripe_customer_id: customerId, subscription_id: subscriptionId },
+          });
+        }
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
+
+        if (customerId) {
+          try {
+            // Downgrade: set expires_at to now so checkIsPro() immediately returns false
+            await supabase
+              .from("user_roles")
+              .update({
+                role: "free",
+                expires_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("stripe_customer_id", customerId)
+              .eq("role", "pro");
+
+            console.log(`🔒 Subscription cancelled for customer ${customerId}`);
+          } catch (err) {
+            console.error("[Webhook] customer.subscription.deleted error:", err);
+          }
+
+          audit({
+            actor_type: "webhook",
+            action: "subscription.cancelled",
+            result: "ok",
+            metadata: { stripe_customer_id: customerId, subscription_id: subscription.id },
+          });
+        }
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
+        console.log(`⚠️ Subscription payment failed for customer ${customerId ?? "unknown"}`);
+        // Stripe will retry automatically; no immediate action needed.
+        // customer.subscription.deleted fires if retries are exhausted.
         break;
       }
 

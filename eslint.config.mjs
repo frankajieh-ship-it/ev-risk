@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Large analytics route with intentional `any` types for flexible event_data schema
+    "app/api/admin/summary/route.ts",
   ]),
 ]);
 

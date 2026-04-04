@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Check, LogOut, User, Zap, Bell, AlertTriangle, CreditCard } from "lucide-react";
+import { Loader2, Check, LogOut, User, Zap, Bell, AlertTriangle, CreditCard, Download } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface Profile {
@@ -44,6 +44,29 @@ export default function SettingsPage() {
   const [prefSaved, setPrefSaved] = useState(false);
   const [notifSaving, setNotifSaving] = useState(false);
   const [notifSaved, setNotifSaved] = useState(false);
+
+  const [billingLoading, setBillingLoading] = useState(false);
+
+  const openBillingPortal = async () => {
+    if (!session?.access_token) return;
+    setBillingLoading(true);
+    try {
+      const res = await fetch("/api/user/billing-portal", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setError(data.error ?? "Could not open billing portal.");
+      }
+    } catch {
+      setError("Network error — please try again.");
+    } finally {
+      setBillingLoading(false);
+    }
+  };
 
   const [purchases, setPurchases] = useState<Array<{
     purchase_id: string;
@@ -282,6 +305,14 @@ export default function SettingsPage() {
             <CreditCard className="w-4 h-4 text-gray-400" />
             <h2 className="font-semibold text-gray-800">Payment History</h2>
           </div>
+          <button
+            onClick={openBillingPortal}
+            disabled={billingLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 disabled:opacity-50 transition-colors mb-4"
+          >
+            {billingLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+            Manage billing
+          </button>
           {purchases.length === 0 ? (
             <p className="text-sm text-gray-500">No purchases yet.</p>
           ) : (
@@ -331,6 +362,48 @@ export default function SettingsPage() {
           )}
         </section>
       )}
+
+      {/* Data Export */}
+      <section className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="flex items-center gap-2 mb-2">
+          <Download className="w-4 h-4 text-gray-400" />
+          <h2 className="font-semibold text-gray-800">Your Data</h2>
+        </div>
+        <p className="text-xs text-gray-500 mb-4">
+          Download a copy of all your OFFO data — receipts, garage vehicles, routine runs, and purchases.
+        </p>
+        <a
+          href="/api/user/export"
+          download
+          onClick={(e) => {
+            if (!session?.access_token) { e.preventDefault(); return; }
+            // Attach auth token via fetch and trigger download manually
+            e.preventDefault();
+            fetch("/api/user/export", {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            })
+              .then(async (res) => {
+                if (!res.ok) {
+                  const d = await res.json().catch(() => ({}));
+                  alert(d.error ?? "Export failed. Please try again.");
+                  return;
+                }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `offo-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              })
+              .catch(() => alert("Export failed. Please try again."));
+          }}
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Download my data
+        </a>
+      </section>
 
       {/* Danger Zone */}
       <section className="bg-white rounded-xl border border-red-100 p-5">
