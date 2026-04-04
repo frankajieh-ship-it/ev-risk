@@ -4,6 +4,12 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
+  // Correlation ID — propagate an existing one or generate a new one.
+  // Included in every API response so logs are traceable end-to-end.
+  const requestId =
+    request.headers.get("x-request-id") ?? crypto.randomUUID();
+  response.headers.set("x-request-id", requestId);
+
   // Security Headers
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");

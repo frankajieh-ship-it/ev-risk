@@ -2,40 +2,52 @@
  * Health Check Endpoint
  *
  * GET /api/health
- * Returns system health status
+ * Used by uptime monitors (BetterStack, Uptime Robot, etc.)
+ * Returns 200 when the service is healthy, 503 when degraded.
  */
 
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export async function GET() {
-  const health = {
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
-    version: '1.0.0',
-    services: {
-      database: await checkDatabase(),
-      api: 'ok',
-    },
+  const checks: Record<string, "ok" | "error" | "not_configured"> = {
+    api: "ok",
+    database: "not_configured",
   };
 
-  return NextResponse.json(health, {
-    status: 200,
-    headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-    },
-  });
-}
-
-async function checkDatabase(): Promise<string> {
-  try {
-    // Simple check - we could ping the database here
-    if (process.env.POSTGRES_URL) {
-      return 'ok';
+  // Ping Supabase with a lightweight query
+  if (isSupabaseConfigured()) {
+    try {
+      const { error } = await supabase
+        .from("receipts")
+        .select("id")
+        .limit(1)
+        .maybeSingle();
+      checks.database = error ? "error" : "ok";
+    } catch {
+      checks.database = "error";
     }
-    return 'not_configured';
-  } catch (error) {
-    return 'error';
   }
+
+  const isHealthy = Object.values(checks).every(
+    (v) => v === "ok" || v === "not_configured"
+  );
+  const hasDegraded = Object.values(checks).some((v) => v === "error");
+
+  const status = hasDegraded ? 503 : 200;
+
+  return NextResponse.json(
+    {
+      status: hasDegraded ? "degraded" : "ok",
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV ?? "development",
+      checks,
+    },
+    {
+      status,
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    }
+  );
 }

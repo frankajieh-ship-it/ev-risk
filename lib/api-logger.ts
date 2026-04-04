@@ -7,6 +7,7 @@
 
 interface LogContext {
   endpoint: string;
+  request_id?: string;
   anon_id?: string;
   receipt_id?: string;
   scenario_id?: string;
@@ -14,6 +15,15 @@ interface LogContext {
   elapsed_ms?: number;
   status?: number;
   [key: string]: unknown;
+}
+
+/**
+ * Extract the correlation ID from a Request or Headers object.
+ * Pass this to logApi as `request_id` so all logs for a request are traceable.
+ */
+export function getRequestId(req: Request | Headers): string | undefined {
+  const headers = req instanceof Headers ? req : req.headers;
+  return headers.get("x-request-id") ?? undefined;
 }
 
 export function logApi(
