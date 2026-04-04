@@ -196,8 +196,13 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Fulfill $39 Full Risk Report purchase from Stripe Payment Link.
- * Logs the event + sends confirmation email to the buyer.
+ * Fulfill $39 Full Risk Report purchase.
+ *
+ * Fetches the existing receipt from Supabase, triggers the background AI
+ * upgrade function (same pipeline as the free lite→ai_upgraded path), and
+ * marks the receipt as "paid_full_risk". Sends confirmation email immediately
+ * so the user knows it's processing; a second email fires when the upgrade
+ * completes (handled inside the background function).
  */
 async function fulfillFullRiskReport(session: Stripe.Checkout.Session) {
   const receiptId = session.client_reference_id;
@@ -235,19 +240,74 @@ async function fulfillFullRiskReport(session: Stripe.Checkout.Session) {
     amount: "$39",
   });
 
-  // Send confirmation email to buyer
+  // --- Automated AI upgrade ---
+  if (receiptId) {
+    try {
+      // Fetch the stored receipt so we can reconstruct the upgrade payload
+      const { data: receipt, error: fetchErr } = await supabase
+        .from("receipts")
+        .select("id, session_id, input_json, generation_status, is_pro")
+        .eq("id", receiptId)
+        .single();
+
+      if (fetchErr || !receipt) {
+        console.error("[FRR] Receipt not found for upgrade:", receiptId, fetchErr?.message);
+      } else {
+        // Mark as paid so the UI can show appropriate state
+        await supabase
+          .from("receipts")
+          .update({ generation_status: "paid_full_risk" })
+          .eq("id", receiptId);
+
+        // Trigger the background function — fire-and-forget
+        const upgradeUrl = `${process.env.NETLIFY_URL ?? "http://localhost:8888"}/.netlify/functions/upgrade-receipt-background`;
+        const upgradePayload = {
+          receipt_id: receipt.id,
+          // session_id doubles as receipt_token (set at generation time)
+          receipt_token: receipt.session_id ?? receiptId,
+          input: receipt.input_json,
+          rule_signals: [],   // will be re-derived inside background function
+          rule_scoring: { verdict: "unknown", fit_score: 0 },
+          rule_classification: { category: "unknown" },
+          features: { full_risk_report: true },
+          client_ip: "webhook",
+          ip_hash: null,
+          is_pro: true, // paid full risk = pro-level generation
+          t0: Date.now(),
+        };
+
+        fetch(upgradeUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Upgrade-Secret": process.env.UPGRADE_SECRET ?? "",
+          },
+          body: JSON.stringify(upgradePayload),
+        }).catch((err) => {
+          console.error("[FRR] Failed to enqueue background upgrade:", err.message);
+        });
+
+        console.log("[FRR] Background upgrade enqueued for receipt:", receiptId);
+      }
+    } catch (err) {
+      console.error("[FRR] Error during automated upgrade:", err);
+    }
+  }
+
+  // Send immediate confirmation email
   if (customerEmail && isResendConfigured()) {
     const html = `
-      <h2>We received your Full Risk Report order!</h2>
+      <h2>Your Full Risk Report is being generated!</h2>
       <p>Hi there,</p>
       <p>
-        Thank you for your purchase. Our team will review your vehicle details and
-        deliver your <strong>Full Risk Report</strong> (battery · accident · recall history
-        + Fair/Good/Great deal rating) to this email address within <strong>48 hours</strong>.
+        Payment confirmed. Your <strong>Full Risk Report</strong> (battery · accident ·
+        recall history + Fair/Good/Great deal rating) is being generated now and will
+        be ready within a few minutes.
       </p>
+      <p>Refresh your report page to see it when it's ready.</p>
       ${receiptId ? `<p style="font-size:13px;color:#888;">Reference: ${receiptId}</p>` : ""}
       <p>
-        If you have any questions, reply to this email or contact us at
+        Questions? Contact us at
         <a href="mailto:support@offolabs.com">support@offolabs.com</a>.
       </p>
       <p>— The OFFO Team</p>
@@ -255,7 +315,7 @@ async function fulfillFullRiskReport(session: Stripe.Checkout.Session) {
     try {
       await sendChecklistEmail(
         customerEmail,
-        "Your OFFO Full Risk Report — we'll deliver within 48h",
+        "Your OFFO Full Risk Report is generating now",
         html
       );
     } catch {

@@ -39,6 +39,14 @@ export default function Home() {
   }, []);
 
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [totalReceipts, setTotalReceipts] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/homepage/stats")
+      .then((r) => r.json())
+      .then((d) => { if (d.success && d.total_receipts > 0) setTotalReceipts(d.total_receipts); })
+      .catch(() => {}); // non-critical, fall back to static text
+  }, []);
 
   // Track visitor on homepage
   useVisitorTracking({
@@ -251,7 +259,11 @@ export default function Home() {
 
         {/* Testimonial cards — photo + stars + Google badge style */}
         <div className="max-w-5xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">5.0 stars from 200+ reviews</h2>
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
+            {totalReceipts !== null
+              ? `${totalReceipts.toLocaleString()}+ vehicles analyzed`
+              : "5.0 stars from 200+ reviews"}
+          </h2>
           <p className="text-sm text-gray-500 text-center mb-8">Real OFFO users, real decisions.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[

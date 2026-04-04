@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { getAllChecklistSlugs } from "@/content/checklists";
 import { getAllGuideSlugs } from "@/content/guides";
 import { getAllCitySlugs } from "@/content/cities";
+import { getSortedPosts } from "@/lib/blog";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
 
@@ -44,24 +45,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.6,
     },
-    {
-      url: `${SITE_URL}/blog/ev-regret-routine`,
-      lastModified: "2025-05-01",
-      changeFrequency: "monthly",
+    ...getSortedPosts().map((post) => ({
+      url: `${SITE_URL}/blog/${post.slug}`,
+      lastModified: post.dateModified ?? post.datePublished,
+      changeFrequency: "monthly" as const,
       priority: 0.7,
-    },
-    {
-      url: `${SITE_URL}/blog/used-ev-buying-checklist`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
-    {
-      url: `${SITE_URL}/blog/used-tesla-model-3-worth-it`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
+    })),
   ];
 
   const localPages = getAllCitySlugs().map((slug) => ({

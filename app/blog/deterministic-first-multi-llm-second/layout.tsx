@@ -1,17 +1,77 @@
 import type { Metadata } from "next";
+import { getPostBySlug } from "@/lib/blog";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? process.env.URL ?? "https://www.offolab.com";
+
+const post = getPostBySlug("deterministic-first-multi-llm-second")!;
+const ogTitle = post.title;
+const ogSubtitle = "A two-layer EV deal intelligence pipeline: deterministic rules + multi-LLM.";
 
 export const metadata: Metadata = {
-  title: "Why We Use Deterministic Rules First + Multi-LLM Second | OFFO Engineering",
-  description:
-    "How OFFO built a two-layer EV deal intelligence pipeline: a deterministic rule engine that responds in under 500ms, upgraded asynchronously by a three-model AI chain.",
-  openGraph: {
-    title: "Deterministic First, Multi-LLM Second",
-    description:
-      "How OFFO built a two-layer EV deal intelligence pipeline that returns results in under 500ms then upgrades with AI.",
-    type: "article",
+  title: post.title,
+  description: post.description,
+  alternates: {
+    canonical: `${SITE_URL}/blog/${post.slug}`,
   },
+  openGraph: {
+    title: ogTitle,
+    description: post.description,
+    url: `${SITE_URL}/blog/${post.slug}`,
+    type: "article",
+    siteName: "OFFO",
+    images: [
+      {
+        url: `${APP_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subtitle=${encodeURIComponent(ogSubtitle)}`,
+        width: 1200,
+        height: 630,
+        alt: ogTitle,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: ogTitle,
+    description: post.description,
+    images: [
+      `${APP_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subtitle=${encodeURIComponent(ogSubtitle)}`,
+    ],
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            headline: post.title,
+            description: post.description,
+            url: `${SITE_URL}/blog/${post.slug}`,
+            datePublished: post.datePublished,
+            dateModified: post.dateModified ?? post.datePublished,
+            author: {
+              "@type": "Organization",
+              name: "OFFO Lab",
+              url: SITE_URL,
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "OFFO Lab",
+              url: SITE_URL,
+            },
+            mainEntityOfPage: {
+              "@type": "WebPage",
+              "@id": `${SITE_URL}/blog/${post.slug}`,
+            },
+          }),
+        }}
+      />
+      {children}
+    </>
+  );
 }

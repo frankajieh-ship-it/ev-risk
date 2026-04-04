@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Check, LogOut, User, Zap, Bell, AlertTriangle } from "lucide-react";
+import { Loader2, Check, LogOut, User, Zap, Bell, AlertTriangle, CreditCard } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface Profile {
@@ -45,6 +45,15 @@ export default function SettingsPage() {
   const [notifSaving, setNotifSaving] = useState(false);
   const [notifSaved, setNotifSaved] = useState(false);
 
+  const [purchases, setPurchases] = useState<Array<{
+    purchase_id: string;
+    created_at: string;
+    status: string;
+    scenario_type: string | null;
+    amount: number | null;
+    currency: string | null;
+  }> | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -61,6 +70,13 @@ export default function SettingsPage() {
       })
       .catch(() => setError("Failed to load profile"))
       .finally(() => setLoading(false));
+
+    fetch("/api/user/purchases", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => { if (data.success) setPurchases(data.purchases); })
+      .catch(() => {}); // non-critical
   }, [session?.access_token]);
 
   const patch = async (fields: Partial<Profile>, setSaving: (v: boolean) => void, setSaved: (v: boolean) => void) => {
@@ -258,6 +274,63 @@ export default function SettingsPage() {
           <SaveButton saving={notifSaving} saved={notifSaved} />
         </form>
       </section>
+
+      {/* Payment History */}
+      {purchases !== null && (
+        <section className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <CreditCard className="w-4 h-4 text-gray-400" />
+            <h2 className="font-semibold text-gray-800">Payment History</h2>
+          </div>
+          {purchases.length === 0 ? (
+            <p className="text-sm text-gray-500">No purchases yet.</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {purchases.map((p) => (
+                <div key={p.purchase_id} className="py-3 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">
+                      {p.scenario_type === "evroutine"
+                        ? "EV Routine Report"
+                        : p.scenario_type === "receipt"
+                        ? "Receipt Analysis"
+                        : p.scenario_type ?? "Purchase"}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {new Date(p.created_at).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {p.amount != null && (
+                      <span className="text-sm font-medium text-gray-700">
+                        {(p.currency ?? "usd").toUpperCase() === "USD" ? "$" : ""}
+                        {(p.amount / 100).toFixed(2)}
+                      </span>
+                    )}
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        p.status === "paid"
+                          ? "bg-green-100 text-green-700"
+                          : p.status === "refunded"
+                          ? "bg-gray-100 text-gray-600"
+                          : p.status === "failed"
+                          ? "bg-red-100 text-red-600"
+                          : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {p.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Danger Zone */}
       <section className="bg-white rounded-xl border border-red-100 p-5">
