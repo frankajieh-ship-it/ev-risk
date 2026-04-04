@@ -1,6 +1,8 @@
 /**
- * Text-based vehicle listing field extraction via GPT-4o-mini.
- * Used when the user pastes listing text instead of a URL.
+ * Text-based vehicle listing field extraction.
+ * Fast path: regex parser handles structured copy-paste text (FB Marketplace,
+ * CarGurus, AutoTrader etc.) without an AI call.
+ * Slow path: GPT-4o-mini for unstructured or ambiguous text.
  * Server-side only (used in API routes).
  */
 
@@ -22,9 +24,124 @@ export interface TextExtractionResult {
   confidence: "high" | "medium" | "low";
 }
 
+/**
+ * Regex-based fast extractor for structured listing copy-paste text.
+ * Handles FB Marketplace, CarGurus, AutoTrader, and generic formats.
+ * Returns null if fewer than 3 fields found (falls through to GPT).
+ */
+function extractFieldsWithRegex(text: string): Partial<FetchedListingFields> | null {
+  const fields: Partial<FetchedListingFields> = {};
+  const t = text.trim();
+
+  // --- Year + Make + Model from first non-empty line ---
+  // e.g. "2018 Tesla model 3 performance awd sedan"
+  //      "2021 Ford Mustang Mach-E Premium"
+  const firstLine = t.split(/\n/).map((l) => l.trim()).find((l) => l.length > 0) ?? "";
+  const titleMatch = firstLine.match(
+    /^(\d{4})\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(.+?)(?:\s*-\s*.+)?$/
+  );
+  if (titleMatch) {
+    const year = parseInt(titleMatch[1]);
+    if (year >= 1980 && year <= 2030) {
+      fields.year = year;
+      // Split make from model: first word is make, rest is model+trim
+      const makeModel = titleMatch[2] + " " + titleMatch[3];
+      const parts = makeModel.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        fields.make = parts[0];
+        // Remaining words — strip common body-style suffixes to get model, keep trim
+        const modelParts = parts.slice(1);
+        const bodySuffixes = /^(sedan|suv|truck|hatchback|coupe|wagon|convertible|van|minivan|pickup|crossover)$/i;
+        const modelWords: string[] = [];
+        for (const p of modelParts) {
+          if (bodySuffixes.test(p)) break;
+          modelWords.push(p);
+        }
+        if (modelWords.length > 0) {
+          // First word is model, rest is trim
+          fields.model = modelWords[0];
+          if (modelWords.length > 1) {
+            fields.trim = modelWords.slice(1).join(" ");
+          }
+        }
+      }
+    }
+  }
+
+  // --- Price ---
+  // "$13,980" or "Price: $13,980" or "13980"
+  const priceMatch = t.match(/\$\s*([\d,]+)(?:\s|$|\/)/);
+  if (priceMatch) {
+    const p = parseInt(priceMatch[1].replace(/,/g, ""));
+    if (p >= 500 && p <= 500000) fields.price = p;
+  }
+
+  // --- Mileage ---
+  // "Driven 156,320 miles" / "156,320 miles" / "156K miles" / "Mileage: 45,000"
+  const miMatch =
+    t.match(/[Dd]riven\s+([\d,]+)\s+miles?/) ||
+    t.match(/[Mm]ileage[:\s]+([\d,]+)/) ||
+    t.match(/([\d,]+)\s+miles?\b/) ||
+    t.match(/\b([\d]+)[Kk]\s+miles?/);
+  if (miMatch) {
+    const raw = miMatch[1].replace(/,/g, "");
+    const mi = miMatch[0].toLowerCase().includes("k")
+      ? parseInt(raw) * 1000
+      : parseInt(raw);
+    if (mi >= 0 && mi <= 999999) fields.mileage = mi;
+  }
+
+  // --- Location ---
+  // "Listed 18 hours ago in West Dundee, IL"
+  // "Location: Chicago, IL"
+  // "West Dundee, IL"
+  const locMatch =
+    t.match(/(?:ago|hours?|days?|minutes?)\s+in\s+([A-Za-z\s]+,\s*[A-Z]{2})\b/) ||
+    t.match(/[Ll]ocation[:\s]+([A-Za-z\s]+,\s*[A-Z]{2})\b/) ||
+    t.match(/\b([A-Za-z\s]+,\s*[A-Z]{2})\b/);
+  if (locMatch) {
+    fields.location = locMatch[1].trim();
+  }
+
+  // --- VIN (17 chars, standard format) ---
+  const vinMatch = t.match(/\b([A-HJ-NPR-Z0-9]{17})\b/);
+  if (vinMatch) fields.vin = vinMatch[1].toUpperCase();
+
+  // --- EV: Fuel type → category hint (not a FetchedListingFields field, but useful) ---
+  // We don't store this directly, but range/battery may appear
+  const rangeMatch = t.match(
+    /(?:range|est(?:imated)?\s+range)[:\s]+([\d]+)\s*mi/i
+  );
+  if (rangeMatch) {
+    const v = parseInt(rangeMatch[1]);
+    if (v >= 50 && v <= 600) fields.range_mi = v;
+  }
+
+  // Count extracted
+  const extracted = Object.keys(fields).filter(
+    (k) => fields[k as keyof typeof fields] !== undefined
+  );
+
+  // Only trust this result if we got at least 3 core fields
+  if (extracted.length < 3) return null;
+
+  return fields;
+}
+
 export async function extractFieldsFromText(
   text: string
 ): Promise<TextExtractionResult> {
+  // --- Fast path: regex extractor (no AI cost, handles structured paste) ---
+  const regexResult = extractFieldsWithRegex(text);
+  if (regexResult) {
+    const allKeys = ["year", "make", "model", "trim", "mileage", "price", "vin", "location", "range_mi", "battery_kwh", "dc_fast_kw", "efficiency_mi_per_kwh"];
+    const extractedFields = allKeys.filter((k) => regexResult[k as keyof typeof regexResult] !== undefined);
+    const missingFields = allKeys.filter((k) => regexResult[k as keyof typeof regexResult] === undefined);
+    const confidence: TextExtractionResult["confidence"] = extractedFields.length >= 4 ? "high" : extractedFields.length >= 2 ? "medium" : "low";
+    return { fields: regexResult as FetchedListingFields, extractedFields, missingFields, confidence };
+  }
+
+  // --- Slow path: GPT-4o-mini for unstructured / ambiguous text ---
   const response = await getOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
