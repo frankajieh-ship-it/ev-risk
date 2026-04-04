@@ -63,6 +63,10 @@ export default function DealerProfilePage() {
   const [dealer, setDealer] = useState<DealerProfile | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [invPage, setInvPage] = useState(1);
+  const [invTotal, setInvTotal] = useState(0);
+  const [invLoadingMore, setInvLoadingMore] = useState(false);
+  const INV_LIMIT = 12;
 
   // Inquiry modal
   const [showInquiry, setShowInquiry] = useState(false);
@@ -77,7 +81,7 @@ export default function DealerProfilePage() {
 
     Promise.all([
       fetch(`/api/dealers/${params.slug}`).then((r) => r.json()),
-      fetch(`/api/dealers/${params.slug}/inventory?limit=6`).then((r) => r.json()),
+      fetch(`/api/dealers/${params.slug}/inventory?limit=${INV_LIMIT}&page=1`).then((r) => r.json()),
     ])
       .then(([dealerRes, invRes]) => {
         if (dealerRes.success) {
@@ -90,7 +94,10 @@ export default function DealerProfilePage() {
             session_id: sid,
           });
         }
-        if (invRes.success) setInventory(invRes.inventory);
+        if (invRes.success) {
+          setInventory(invRes.inventory);
+          setInvTotal(invRes.total ?? invRes.inventory?.length ?? 0);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -129,6 +136,22 @@ export default function DealerProfilePage() {
       }
     } catch {} finally {
       setInquirySubmitting(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (!params.slug || invLoadingMore) return;
+    setInvLoadingMore(true);
+    try {
+      const nextPage = invPage + 1;
+      const res = await fetch(`/api/dealers/${params.slug}/inventory?limit=${INV_LIMIT}&page=${nextPage}`);
+      const data = await res.json();
+      if (data.success && data.inventory?.length > 0) {
+        setInventory((prev) => [...prev, ...data.inventory]);
+        setInvPage(nextPage);
+      }
+    } catch {} finally {
+      setInvLoadingMore(false);
     }
   };
 
@@ -248,35 +271,49 @@ export default function DealerProfilePage() {
               <p className="text-sm">No inventory listed yet</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
-              {inventory.map((item) => (
-                <div key={item.id} className="border border-gray-100 rounded-lg p-3">
-                  <p className="font-medium text-sm text-gray-800">
-                    {item.year || ""} {item.make} {item.model}
-                  </p>
-                  {item.trim && <p className="text-xs text-gray-400">{item.trim}</p>}
-                  <div className="flex items-center gap-3 mt-2">
-                    {item.price_cents != null && (
-                      <span className="text-sm font-semibold text-gray-900">
-                        ${(item.price_cents / 100).toLocaleString()}
-                      </span>
-                    )}
-                    {item.mileage != null && (
-                      <span className="text-xs text-gray-400">{item.mileage.toLocaleString()} mi</span>
-                    )}
-                    {item.classification?.category && (
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${
-                        item.classification.category === "EV" ? "bg-green-50 text-green-700" :
-                        item.classification.category === "PHEV" ? "bg-yellow-50 text-yellow-700" :
-                        "bg-gray-50 text-gray-500"
-                      }`}>
-                        {item.classification.category}
-                      </span>
-                    )}
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+                {inventory.map((item) => (
+                  <div key={item.id} className="border border-gray-100 rounded-lg p-3">
+                    <p className="font-medium text-sm text-gray-800">
+                      {item.year || ""} {item.make} {item.model}
+                    </p>
+                    {item.trim && <p className="text-xs text-gray-400">{item.trim}</p>}
+                    <div className="flex items-center gap-3 mt-2">
+                      {item.price_cents != null && (
+                        <span className="text-sm font-semibold text-gray-900">
+                          ${(item.price_cents / 100).toLocaleString()}
+                        </span>
+                      )}
+                      {item.mileage != null && (
+                        <span className="text-xs text-gray-400">{item.mileage.toLocaleString()} mi</span>
+                      )}
+                      {item.classification?.category && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded ${
+                          item.classification.category === "EV" ? "bg-green-50 text-green-700" :
+                          item.classification.category === "PHEV" ? "bg-yellow-50 text-yellow-700" :
+                          "bg-gray-50 text-gray-500"
+                        }`}>
+                          {item.classification.category}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                ))}
+              </div>
+              {inventory.length < invTotal && (
+                <div className="p-4 border-t border-gray-100 text-center">
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={invLoadingMore}
+                    className="px-5 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2 mx-auto"
+                  >
+                    {invLoadingMore && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    {invLoadingMore ? "Loading..." : `Show more (${invTotal - inventory.length} remaining)`}
+                  </button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
 

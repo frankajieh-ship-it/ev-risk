@@ -23,6 +23,7 @@ import {
   Copy,
   CheckCircle,
   Mail,
+  BookmarkPlus,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -48,6 +49,7 @@ import type { OffoScore } from "@/types/v2";
 import type { ArbitrageResult } from "@/lib/copart-arbitrage-engine";
 import { detectVehicleType, isElectric } from "@/lib/auction/vehicle-type";
 import OFfoChat from "@/components/chat/OFfoChat";
+import { useAuth } from "@/hooks/useAuth";
 
 type PageState = "idle" | "fetching" | "done" | "error";
 
@@ -84,6 +86,61 @@ function AuctionShareButton({ resultId }: { resultId: string }) {
       }`}
     >
       {copied ? <><CheckCircle className="w-3.5 h-3.5" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy link</>}
+    </button>
+  );
+}
+
+function SaveToGarageButton({ resultId, accessToken }: { resultId: string; accessToken: string | null }) {
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  if (!accessToken) {
+    return (
+      <Link
+        href={`/auth/login?redirect=/copart`}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 transition-all whitespace-nowrap"
+      >
+        <BookmarkPlus className="w-3.5 h-3.5" />
+        Sign in to save
+      </Link>
+    );
+  }
+
+  const handleSave = async () => {
+    if (status !== "idle") return;
+    setStatus("saving");
+    try {
+      const res = await fetch(`/api/auction/save/${resultId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await res.json();
+      setStatus(data.success ? "saved" : "error");
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  return (
+    <button
+      onClick={handleSave}
+      disabled={status !== "idle"}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border whitespace-nowrap ${
+        status === "saved"
+          ? "bg-green-50 border-green-200 text-green-700"
+          : status === "error"
+          ? "bg-red-50 border-red-200 text-red-600"
+          : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900"
+      }`}
+    >
+      {status === "saving" ? (
+        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...</>
+      ) : status === "saved" ? (
+        <><CheckCircle className="w-3.5 h-3.5" /> Saved to Garage</>
+      ) : status === "error" ? (
+        <>Failed — retry</>
+      ) : (
+        <><BookmarkPlus className="w-3.5 h-3.5" /> Save to Garage</>
+      )}
     </button>
   );
 }
@@ -385,6 +442,7 @@ function RecallsCard({ recalls }: { recalls: NhtsaRecallSummary[] }) {
 
 export default function CopartPage() {
   const { trackEvent } = useEventTracking();
+  const { session } = useAuth();
   const [input, setInput] = useState("");
   const [pageState, setPageState] = useState<PageState>("idle");
   const [statusMsg, setStatusMsg] = useState("");
@@ -411,6 +469,7 @@ export default function CopartPage() {
       setInput(urlParam);
       window.history.replaceState({}, "", window.location.pathname);
       // Pass URL directly to handleAnalyze so it doesn't depend on state settling
+      // eslint-disable-next-line react-hooks/immutability
       setTimeout(() => handleAnalyze(urlParam), 400);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -764,14 +823,17 @@ export default function CopartPage() {
             {/* Email capture */}
             {resultId && <AuctionEmailCapture resultId={resultId} />}
 
-            {/* Share nudge */}
+            {/* Share + Save nudge */}
             {resultId && (
-              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between gap-4">
+              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between gap-4 flex-wrap">
                 <div>
-                  <p className="text-sm font-semibold text-blue-900">Share this report</p>
+                  <p className="text-sm font-semibold text-blue-900">Share or save this report</p>
                   <p className="text-xs text-blue-600 mt-0.5">Send the link to your mechanic, partner, or bidding group.</p>
                 </div>
-                <AuctionShareButton resultId={resultId} />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <SaveToGarageButton resultId={resultId} accessToken={session?.access_token ?? null} />
+                  <AuctionShareButton resultId={resultId} />
+                </div>
               </div>
             )}
 

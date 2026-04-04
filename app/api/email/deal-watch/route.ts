@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { sendChecklistEmail, isResendConfigured } from "@/lib/resend";
+import { sendChecklistEmail, isResendConfigured, buildDealWatchAlertHtml } from "@/lib/resend";
 
 export async function POST(request: NextRequest) {
   // Auth check
@@ -59,60 +59,24 @@ export async function POST(request: NextRequest) {
         if (!toEmail) continue;
 
         // Find results that had a price drop and haven't had an alert sent yet
+        type DealWatchResult = { id: string; vehicle_label: string; last_price: number | null; price_drop_amount: number | null; last_verdict: "GREEN" | "YELLOW" | "RED" | null; alert_sent_at: string | null; is_active: boolean };
         const pendingAlerts = (search.deal_watch_results ?? []).filter(
-          (r: any) => r.price_drop_amount && r.price_drop_amount > 0 && !r.alert_sent_at && r.is_active
+          (r: DealWatchResult) => r.price_drop_amount && r.price_drop_amount > 0 && !r.alert_sent_at && r.is_active
         );
 
         if (pendingAlerts.length === 0) continue;
 
-        // Build email
-        const alertRows = pendingAlerts
-          .map((r: any) => {
-            const drop = r.price_drop_amount ? `$${Math.round(r.price_drop_amount / 100).toLocaleString()}` : null;
-            const price = r.last_price ? `$${Math.round(r.last_price / 100).toLocaleString()}` : "—";
-            const verdictColor = r.last_verdict === "GREEN" ? "#16a34a" : r.last_verdict === "RED" ? "#dc2626" : "#ca8a04";
-            return `
-              <tr style="border-bottom:1px solid #f3f4f6">
-                <td style="padding:10px 12px;font-size:14px;color:#111">${r.vehicle_label}</td>
-                <td style="padding:10px 12px;font-size:14px;text-align:right">${price}</td>
-                ${drop ? `<td style="padding:10px 12px;font-size:14px;color:#16a34a;text-align:right">↓ ${drop}</td>` : '<td></td>'}
-                ${r.last_verdict ? `<td style="padding:10px 12px;font-size:13px;font-weight:600;color:${verdictColor};text-align:center">${r.last_verdict}</td>` : '<td></td>'}
-              </tr>`;
-          })
-          .join("");
-
-        const html = `
-          <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-            <div style="background:#0a0a0a;padding:20px 24px;border-radius:8px 8px 0 0">
-              <span style="color:white;font-size:22px;font-weight:700">OFFO</span>
-              <span style="color:#22c55e;margin-left:8px;font-size:13px">Deal Watch Alert</span>
-            </div>
-            <div style="background:#fff;border:1px solid #e5e7eb;border-top:none;padding:24px;border-radius:0 0 8px 8px">
-              <h2 style="margin:0 0 4px;font-size:18px;color:#111">Price drops on your saved search</h2>
-              <p style="margin:0 0 20px;font-size:14px;color:#6b7280">${search.label}</p>
-              <table style="width:100%;border-collapse:collapse;background:#f9fafb;border-radius:8px;overflow:hidden">
-                <thead>
-                  <tr style="background:#f3f4f6">
-                    <th style="padding:10px 12px;font-size:12px;text-align:left;color:#6b7280;font-weight:600;text-transform:uppercase">Vehicle</th>
-                    <th style="padding:10px 12px;font-size:12px;text-align:right;color:#6b7280;font-weight:600;text-transform:uppercase">Price</th>
-                    <th style="padding:10px 12px;font-size:12px;text-align:right;color:#6b7280;font-weight:600;text-transform:uppercase">Drop</th>
-                    <th style="padding:10px 12px;font-size:12px;text-align:center;color:#6b7280;font-weight:600;text-transform:uppercase">Verdict</th>
-                  </tr>
-                </thead>
-                <tbody>${alertRows}</tbody>
-              </table>
-              <div style="margin-top:24px;text-align:center">
-                <a href="${siteUrl}/receipt"
-                   style="display:inline-block;padding:12px 24px;background:#2563eb;color:white;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600">
-                  Analyze a listing →
-                </a>
-              </div>
-              <p style="margin-top:24px;font-size:12px;color:#9ca3af;text-align:center">
-                You're receiving this because you set up a Deal Watch alert on OFFO.<br>
-                <a href="${siteUrl}/workspace/garage" style="color:#9ca3af">Manage alerts</a>
-              </p>
-            </div>
-          </div>`;
+        // Build branded email
+        const html = buildDealWatchAlertHtml(
+          pendingAlerts.map((r: DealWatchResult) => ({
+            vehicle_label: r.vehicle_label,
+            last_price: r.last_price,
+            price_drop_amount: r.price_drop_amount,
+            last_verdict: r.last_verdict,
+          })),
+          search.label,
+          siteUrl
+        );
 
         const sent = await sendChecklistEmail(
           toEmail,
@@ -123,7 +87,7 @@ export async function POST(request: NextRequest) {
         if (sent.success) {
           results.alerts_sent++;
           // Mark all pending alerts as sent
-          const ids = pendingAlerts.map((r: any) => r.id);
+          const ids = pendingAlerts.map((r: DealWatchResult) => r.id);
           await supabase
             .from("deal_watch_results")
             .update({ alert_sent_at: new Date().toISOString() })

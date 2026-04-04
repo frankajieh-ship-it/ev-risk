@@ -580,7 +580,7 @@ export default function ReceiptPage() {
     setTimeout(() => {
       resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
-  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps // eslint-disable-line react-hooks/exhaustive-deps
+  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Post-receipt popup: show 5s after a new receipt arrives
   useEffect(() => {
@@ -593,7 +593,7 @@ export default function ReceiptPage() {
     return () => {
       if (postReceiptTimerRef.current) clearTimeout(postReceiptTimerRef.current);
     };
-  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [receipt?.receipt_id]);  
 
   // Track Buyer Pass teaser impression
   useEffect(() => {
@@ -1079,7 +1079,7 @@ export default function ReceiptPage() {
           </p>
           <p className="text-xs text-gray-400">
             Save time:{" "}
-            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            { }
             <a
               href="javascript:(function(){var u=encodeURIComponent(window.location.href);window.open('https://offolab.com/receipt?url='+u+'&ext=true','_blank');})();"
               onClick={(e) => e.preventDefault()}
@@ -1257,13 +1257,11 @@ export default function ReceiptPage() {
                   <QrCode className="w-4 h-4" />
                   Share
                 </button>
-                {process.env.NEXT_PUBLIC_PDF_DOWNLOAD_ENABLED === "true" && (
-                  <PdfDownloadButton
-                    receiptId={receipt.receipt_id}
-                    receiptToken={receiptToken}
-                    compact
-                  />
-                )}
+                <PdfDownloadButton
+                  receiptId={receipt.receipt_id}
+                  receiptToken={receiptToken}
+                  compact
+                />
               </div>
 
               {/* Extension nudge — shown after receipt loads */}
