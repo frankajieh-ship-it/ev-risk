@@ -8,7 +8,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, MapPin, Shield, Loader2, Building, ArrowLeft, ChevronRight } from "lucide-react";
+import { Search, MapPin, Shield, Loader2, Building, ArrowLeft, ChevronRight, Car } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface DealerListing {
@@ -90,6 +90,21 @@ export default function DealerDirectoryPage() {
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
+        </div>
+
+        {/* Browse vehicles CTA */}
+        <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-blue-800">Looking to buy?</p>
+            <p className="text-xs text-blue-700 mt-0.5">Browse EV inventory across all listed dealers.</p>
+          </div>
+          <Link
+            href="/vehicles/browse"
+            className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+          >
+            <Car className="w-4 h-4" />
+            Browse all vehicles →
+          </Link>
         </div>
 
         {/* Dealer CTA */}

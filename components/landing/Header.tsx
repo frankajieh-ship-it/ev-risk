@@ -16,9 +16,10 @@ interface HeaderProps {
 }
 
 const navLinks = [
-  { label: "Analyze a Car", href: "/receipt", isScroll: false },
-  { label: "Compare",       href: "/compare", isScroll: false },
-  { label: "Blog",          href: "/blog",    isScroll: false },
+  { label: "Analyze a Car",    href: "/receipt",         isScroll: false },
+  { label: "Browse Vehicles",  href: "/vehicles/browse", isScroll: false },
+  { label: "Compare",          href: "/compare",         isScroll: false },
+  { label: "Blog",             href: "/blog",            isScroll: false },
 ];
 
 export default function Header({ variant = "receipt", historyCount, onHistoryClick, regionSelector }: HeaderProps) {
@@ -29,7 +30,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
 
   // Read garage count from localStorage on mount (client-only)
   useEffect(() => {
-    setGarageCount(totalGarageCount());
+    setGarageCount(totalGarageCount()); // eslint-disable-line react-hooks/set-state-in-effect
   }, []);
 
   const handleScrollClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
@@ -39,6 +40,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
     setMobileOpen(false);
   };
 
+   
   const GarageBadge = () => (
     <Link
       href={isAuthenticated ? "/workspace/garage" : "/shortlist"}
@@ -88,6 +90,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                     )
                   )}
 
+                  {/* eslint-disable-next-line react-hooks/static-components */}
                   <GarageBadge />
 
                   {isAuthenticated && (
@@ -155,6 +158,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                     Deal Watch
                   </span>
                 )}
+                {/* eslint-disable-next-line react-hooks/static-components */}
                 <GarageBadge />
                 {onHistoryClick && (
                   <button
