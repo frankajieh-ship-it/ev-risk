@@ -24,6 +24,7 @@ import {
   CheckCircle,
   Mail,
   BookmarkPlus,
+  Layers,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -635,6 +636,17 @@ export default function CopartPage() {
               <p className="text-sm text-gray-500 max-w-md mx-auto lg:mx-0">
                 Paste a Copart lot URL or lot number. Get a salvage risk score, ARV estimate, repair cost breakdown, and max safe bid — free.
               </p>
+
+              {/* Batch analysis link */}
+              <div className="mt-4 mb-1">
+                <Link
+                  href="/copart/batch"
+                  className="inline-flex items-center gap-1.5 text-sm text-green-700 font-medium hover:text-green-800 transition-colors"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  Analyzing multiple lots? Try Batch Analysis →
+                </Link>
+              </div>
 
               {/* Feature pills */}
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 mt-4">

@@ -8,7 +8,8 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Plus, Pencil, Trash2, Loader2, Package, X, Search, ImagePlus, Camera, BarChart2, TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Package, X, Search, ImagePlus, Camera, BarChart2, TrendingDown, TrendingUp, Minus, Upload } from "lucide-react";
+import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 
 interface InventoryItem {
@@ -551,13 +552,22 @@ export default function DealerInventoryPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-gray-900">Inventory</h1>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
-        >
-          <Plus className="w-4 h-4" />
-          Add Vehicle
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dealer/inventory/import"
+            className="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+          >
+            <Upload className="w-4 h-4" />
+            Import CSV
+          </Link>
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+          >
+            <Plus className="w-4 h-4" />
+            Add Vehicle
+          </button>
+        </div>
       </div>
 
       {/* Pricing Intelligence Panel */}
