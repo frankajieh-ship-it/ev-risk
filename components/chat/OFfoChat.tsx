@@ -26,6 +26,19 @@ export interface ChatContext {
   comparison_label_a?: string;
   comparison_label_b?: string;
   winner_signal?: string;
+  // Auction-specific
+  lot_number?: string;
+  title_status?: string;
+  primary_damage?: string;
+  secondary_damage?: string;
+  salvage_score?: number;
+  salvage_grade?: string;
+  arv?: number;
+  max_safe_bid?: number;
+  repair_cost_low?: number;
+  repair_cost_high?: number;
+  auction_source?: string;
+  run_and_drive?: string;
 }
 
 interface Message {
@@ -36,7 +49,7 @@ interface Message {
 }
 
 interface OFfoChatProps {
-  scenarioType: "receipt" | "compare";
+  scenarioType: "receipt" | "compare" | "auction";
   scenarioId: string;
   sessionId: string;
   context: ChatContext;
@@ -50,7 +63,7 @@ interface OFfoChatProps {
 // Quick questions per scenario type
 // ---------------------------------------------------------------------------
 
-const QUICK_QUESTIONS: Record<"receipt" | "compare", string[]> = {
+const QUICK_QUESTIONS: Record<"receipt" | "compare" | "auction", string[]> = {
   receipt: [
     "Is this price fair?",
     "What should I watch out for?",
@@ -60,6 +73,11 @@ const QUICK_QUESTIONS: Record<"receipt" | "compare", string[]> = {
     "Which is the better buy?",
     "What's the key difference I should care about?",
     "Which fits a typical commute better?",
+  ],
+  auction: [
+    "Is this worth bidding on?",
+    "What will this cost to repair?",
+    "What does a salvage title mean for insurance?",
   ],
 };
 
@@ -422,6 +440,8 @@ export default function OFfoChat({
                     Ask me anything about{" "}
                     {scenarioType === "receipt"
                       ? context.vehicle ?? "this vehicle"
+                      : scenarioType === "auction"
+                      ? context.vehicle ?? "this auction lot"
                       : `${context.comparison_label_a ?? "Option A"} vs ${context.comparison_label_b ?? "Option B"}`}
                   </p>
                   <div className="flex flex-col gap-2">

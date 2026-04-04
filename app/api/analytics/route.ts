@@ -10,7 +10,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { securityLogger } from "@/lib/security-logger";
 
 // Simple authentication - check for admin key in Authorization header
-const ADMIN_KEY = process.env.ADMIN_API_KEY || "your-secret-admin-key";
+const ADMIN_KEY = process.env.ADMIN_API_KEY;
 
 function getClientIP(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const authHeader = request.headers.get("authorization");
     const providedKey = authHeader?.replace("Bearer ", "");
 
-    if (providedKey !== ADMIN_KEY) {
+    if (!ADMIN_KEY || providedKey !== ADMIN_KEY) {
       securityLogger.logAdminLoginFailed(clientIP, "Invalid admin API key");
       return NextResponse.json(
         { error: "Unauthorized - invalid admin key" },

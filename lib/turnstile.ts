@@ -69,8 +69,8 @@ export async function verifyTurnstileToken(
     };
   } catch (err) {
     console.error("[Turnstile] Verification request failed:", err);
-    // Fail open on network error — rate limiter is the backstop
-    return { passed: true, errorCodes: ["network_error"] };
+    // Fail closed on network error — do not allow unknown requests through
+    return { passed: false, errorCodes: ["network_error"] };
   }
 }
 

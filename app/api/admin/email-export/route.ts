@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
-const ADMIN_KEY = process.env.ADMIN_API_KEY || "your-secret-admin-key";
+const ADMIN_KEY = process.env.ADMIN_API_KEY;
 const MAX_LIMIT = 5000;
 const DEFAULT_LIMIT = 1000;
 

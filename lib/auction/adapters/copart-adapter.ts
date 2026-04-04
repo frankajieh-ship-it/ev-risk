@@ -348,12 +348,15 @@ async function fetchFromApify(lotNumber: string): Promise<NormalizedAuctionLot |
 // ── Adapter implementation ────────────────────────────────────────────────────
 
 async function fetchByLot(lotNumber: string): Promise<NormalizedAuctionLot> {
-  let lot = await fetchFromCopartApi(lotNumber);
-
-  if (!lot) {
-    console.log(`[CopartAdapter] Trying Apify fallback for lot ${lotNumber}`);
-    lot = await fetchFromApify(lotNumber);
-  }
+  // Race Copart API and Apify in parallel — use first non-null result.
+  // Copart API is faster when available (~2s); Apify is the reliable fallback (~8s).
+  // Both are fired simultaneously so the total wait is max(api, apify) not api+apify.
+  const [apiResult, apifyResult] = await Promise.all([
+    fetchFromCopartApi(lotNumber),
+    fetchFromApify(lotNumber),
+  ]);
+  let lot = apiResult ?? apifyResult;
+  console.log(`[CopartAdapter] parallel fetch: api=${apiResult ? "ok" : "null"} apify=${apifyResult ? "ok" : "null"}`);
 
   if (!lot) {
     // No URL slug available for bare lot number — return minimal shell so
@@ -395,13 +398,13 @@ async function fetchByUrl(url: string): Promise<NormalizedAuctionLot> {
     throw new Error(`Could not extract lot number from URL: ${url}`);
   }
 
-  // Try standard fetch path first
-  let lot = await fetchFromCopartApi(lotNumber);
-
-  if (!lot) {
-    console.log(`[CopartAdapter] Trying Apify fallback for lot ${lotNumber}`);
-    lot = await fetchFromApify(lotNumber);
-  }
+  // Race Copart API and Apify in parallel — same strategy as fetchByLot
+  const [apiResult, apifyResult] = await Promise.all([
+    fetchFromCopartApi(lotNumber),
+    fetchFromApify(lotNumber),
+  ]);
+  let lot = apiResult ?? apifyResult;
+  console.log(`[CopartAdapter] parallel fetch (url): api=${apiResult ? "ok" : "null"} apify=${apifyResult ? "ok" : "null"}`);
 
   // If both API sources fail but we have a URL with a slug, extract partial data from it
   if (!lot) {

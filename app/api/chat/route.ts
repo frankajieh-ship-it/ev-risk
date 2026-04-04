@@ -117,8 +117,27 @@ const synthSchema = {
 
 function buildContextSummary(
   ctx: ChatContext,
-  scenarioType: "receipt" | "compare"
+  scenarioType: "receipt" | "compare" | "auction"
 ): string {
+  if (scenarioType === "auction") {
+    const parts: string[] = [];
+    if (ctx.lot_number)       parts.push(`Lot #: ${ctx.lot_number}`);
+    if (ctx.vehicle)          parts.push(`Vehicle: ${ctx.vehicle}`);
+    if (ctx.vin)              parts.push(`VIN: ${ctx.vin}`);
+    if (ctx.mileage)          parts.push(`Odometer: ${ctx.mileage.toLocaleString()} mi`);
+    if (ctx.title_status)     parts.push(`Title: ${ctx.title_status}`);
+    if (ctx.primary_damage)   parts.push(`Primary damage: ${ctx.primary_damage}`);
+    if (ctx.secondary_damage) parts.push(`Secondary damage: ${ctx.secondary_damage}`);
+    if (ctx.salvage_grade)    parts.push(`OFFO salvage grade: ${ctx.salvage_grade.toUpperCase()} (score ${ctx.salvage_score}/100)`);
+    if (ctx.arv)              parts.push(`After-repair value (ARV): $${ctx.arv.toLocaleString()}`);
+    if (ctx.max_safe_bid)     parts.push(`OFFO max safe bid: $${ctx.max_safe_bid.toLocaleString()}`);
+    if (ctx.repair_cost_low && ctx.repair_cost_high)
+      parts.push(`Estimated repair range: $${ctx.repair_cost_low.toLocaleString()}–$${ctx.repair_cost_high.toLocaleString()}`);
+    if (ctx.run_and_drive)    parts.push(`Run & drive: ${ctx.run_and_drive}`);
+    if (ctx.price)            parts.push(`Current bid: $${ctx.price.toLocaleString()}`);
+    if (ctx.auction_source)   parts.push(`Auction: ${ctx.auction_source}`);
+    return parts.filter(Boolean).join("\n");
+  }
   if (scenarioType === "receipt") {
     const parts: string[] = [];
     if (ctx.vehicle) parts.push(`Vehicle: ${ctx.vehicle}`);
@@ -149,6 +168,19 @@ interface ChatContext {
   comparison_label_a?: string;
   comparison_label_b?: string;
   winner_signal?: string;
+  // Auction-specific
+  lot_number?: string;
+  title_status?: string;
+  primary_damage?: string;
+  secondary_damage?: string;
+  salvage_score?: number;
+  salvage_grade?: string;
+  arv?: number;
+  max_safe_bid?: number;
+  repair_cost_low?: number;
+  repair_cost_high?: number;
+  auction_source?: string;
+  run_and_drive?: string;
 }
 
 interface ClassifyResult {
@@ -188,7 +220,7 @@ export async function POST(request: NextRequest) {
   if (!sessionId || sessionId.length < 5) {
     return NextResponse.json({ error: "Missing session_id" }, { status: 400 });
   }
-  if (!["receipt", "compare"].includes(scenarioType)) {
+  if (!["receipt", "compare", "auction"].includes(scenarioType)) {
     return NextResponse.json({ error: "Invalid scenario_type" }, { status: 400 });
   }
   if (!scenarioId) {
@@ -223,8 +255,11 @@ export async function POST(request: NextRequest) {
   let fallback = false;
 
   try {
-    const contextSummary = buildContextSummary(ctx, scenarioType as "receipt" | "compare");
-    const offoContext = `You are OFFO — an honest, direct EV buying advisor. Be concise, specific, and helpful. Use bullet points when listing multiple items. Never be vague.\n\nCurrent context:\n${contextSummary}`;
+    const contextSummary = buildContextSummary(ctx, scenarioType as "receipt" | "compare" | "auction");
+    const auctionPersonaLine = scenarioType === "auction"
+      ? "\nYou are advising a buyer at a salvage/auction. Focus on: bid risk, repair cost realism, salvage title implications, insurance/resale friction, and whether the numbers work. Be direct about risks."
+      : "";
+    const offoContext = `You are OFFO — an honest, direct EV buying advisor. Be concise, specific, and helpful. Use bullet points when listing multiple items. Never be vague.${auctionPersonaLine}\n\nCurrent context:\n${contextSummary}`;
 
     // -------------------------------------------------------------------
     // Stage 1: Grok classifier

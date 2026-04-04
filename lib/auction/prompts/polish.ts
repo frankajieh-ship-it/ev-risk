@@ -62,6 +62,12 @@ export function buildPolishPrompt(
     ? `TAX CREDIT: Salvage title — NOT eligible for federal EV tax credit (§30D). Original buyer may have claimed $${incentiveStatus.federal_new_amount.toLocaleString()} new vehicle credit.`
     : "";
 
+  const titleStatus = (lot.title_status ?? "").toLowerCase();
+  const insuranceFrictionLine =
+    titleStatus === "salvage" || titleStatus === "rebuilt"
+      ? `INSURANCE/RESALE NOTE: ${titleStatus === "salvage" ? "Salvage" : "Rebuilt"} title — many standard insurers decline or require inspection. Resale market is significantly narrower (dealers often won't take trade-ins). Factor this into exit strategy.`
+      : "";
+
   return `VEHICLE: ${vehicleLabel(lot)}
 RISK LEVEL: ${classification?.bid_risk_level ?? "unknown"}
 DAMAGE: ${classification?.damage_tone ?? lot.damage_type ?? "unspecified"}
@@ -70,7 +76,7 @@ ARV: ${arvStr}
 MAX SAFE BID HINT: ${maxBidHint}
 OWNER SUMMARY: ${routineImpact?.owner_summary ?? "not available"}
 REPAIR CONFIDENCE: ${repairCost?.confidence ?? "unknown"}
-TOP RED FLAGS: ${(classification?.red_flags ?? []).slice(0, 3).join("; ") || "none"}${incentiveLine ? `\n${incentiveLine}` : ""}
+TOP RED FLAGS: ${(classification?.red_flags ?? []).slice(0, 3).join("; ") || "none"}${incentiveLine ? `\n${incentiveLine}` : ""}${insuranceFrictionLine ? `\n${insuranceFrictionLine}` : ""}
 
 Write the final buyer verdict. The headline must include the vehicle name and either a bid range or a clear "avoid" signal. Be direct — buyers use this to decide whether to bid.`;
 }

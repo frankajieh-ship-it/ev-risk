@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
-const ADMIN_KEY = process.env.ADMIN_API_KEY || "your-secret-admin-key";
+const ADMIN_KEY = process.env.ADMIN_API_KEY;
 const TIMEZONE = "America/Indiana/Indianapolis";
 
 /**
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const providedKey = authHeader?.replace("Bearer ", "");
 
-  if (providedKey !== ADMIN_KEY) {
+  if (!ADMIN_KEY || providedKey !== ADMIN_KEY) {
     return NextResponse.json(
       { success: false, error: "Unauthorized" },
       { status: 401 }

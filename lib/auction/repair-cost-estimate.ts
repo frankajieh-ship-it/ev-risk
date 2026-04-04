@@ -40,6 +40,8 @@ export interface RepairCostInput {
   has_secondary_damage?: boolean;
   /** Auction source affects parts pricing (Manheim wholesale vs retail market) */
   auction_source?: "copart" | "iaai" | "manheim";
+  /** Whether vehicle is an EV — triggers structural complexity uplift for HV-adjacent damage */
+  is_ev?: boolean;
 }
 
 // ── Multiplier table ──────────────────────────────────────────────────────────
@@ -66,10 +68,14 @@ const SECONDARY_DAMAGE_SURCHARGE = 0.08;
 // Manheim wholesale discount — dealer/fleet buyers pay less for parts
 const MANHEIM_DISCOUNT = 0.92;
 
+// EV structural complexity uplift — HV system proximity, BTMS risk, specialized labor
+const EV_STRUCTURAL_UPLIFT = 0.15;
+const EV_STRUCTURAL_CATEGORIES = new Set<DamageCategory>(["structural", "rollover", "battery"]);
+
 // ── Main function ─────────────────────────────────────────────────────────────
 
 export function estimateRepairCost(input: RepairCostInput): RepairCostEstimate {
-  const { damage_category, arv, has_secondary_damage = false, auction_source } = input;
+  const { damage_category, arv, has_secondary_damage = false, auction_source, is_ev = false } = input;
 
   if (arv <= 0) {
     return {
@@ -87,11 +93,16 @@ export function estimateRepairCost(input: RepairCostInput): RepairCostEstimate {
   const lowPct  = baseLow  + (has_secondary_damage ? SECONDARY_DAMAGE_SURCHARGE * 0.5 : 0);
   const highPct = baseHigh + (has_secondary_damage ? SECONDARY_DAMAGE_SURCHARGE : 0);
 
+  // EV structural complexity uplift — HV systems, BTMS proximity, specialized labor
+  const evUplift = is_ev && EV_STRUCTURAL_CATEGORIES.has(damage_category) ? (1 + EV_STRUCTURAL_UPLIFT) : 1;
+  const effectiveLowPct  = lowPct  * evUplift;
+  const effectiveHighPct = highPct * evUplift;
+
   // Source discount
   const sourceMultiplier = auction_source === "manheim" ? MANHEIM_DISCOUNT : 1.0;
 
-  const low      = Math.round(arv * lowPct  * sourceMultiplier / 100) * 100;
-  const high     = Math.round(arv * highPct * sourceMultiplier / 100) * 100;
+  const low      = Math.round(arv * effectiveLowPct  * sourceMultiplier / 100) * 100;
+  const high     = Math.round(arv * effectiveHighPct * sourceMultiplier / 100) * 100;
   const midpoint = Math.round((low + high) / 2 / 100) * 100;
 
   // Confidence: known category with ARV = high; unknown category = low
@@ -100,15 +111,15 @@ export function estimateRepairCost(input: RepairCostInput): RepairCostEstimate {
     : arv > 0                     ? "high"
     :                               "medium";
 
-  const likely_total_loss = highPct >= 0.85;
+  const likely_total_loss = effectiveHighPct >= 0.85;
 
   return {
     low,
     high,
     midpoint,
     damage_category,
-    low_pct: Math.round(lowPct * 100),
-    high_pct: Math.round(highPct * 100),
+    low_pct: Math.round(effectiveLowPct * 100),
+    high_pct: Math.round(effectiveHighPct * 100),
     confidence,
     likely_total_loss,
   };

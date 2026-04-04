@@ -13,6 +13,16 @@ const PERSISTENT_SESSION_KEY = "offo_persistent_session";
 const RECEIPT_TOKEN_KEY = "offo_receipt_token";
 
 /**
+ * Generate a cryptographically secure random hex string of the given byte length.
+ * Uses Web Crypto API (available in all modern browsers and Node 19+).
+ */
+function secureRandomHex(bytes: number): string {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
  * Get or create a persistent session ID (client-side only)
  * This ID persists across browser sessions via localStorage
  * Use this for analytics to track unique customers
@@ -24,8 +34,8 @@ export function getOrCreatePersistentSessionId(): string | null {
   let sessionId = localStorage.getItem(PERSISTENT_SESSION_KEY);
 
   if (!sessionId) {
-    // Generate a new persistent session ID
-    sessionId = `psess_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    // Generate a new persistent session ID (96 bits of entropy)
+    sessionId = `psess_${Date.now()}_${secureRandomHex(12)}`;
     localStorage.setItem(PERSISTENT_SESSION_KEY, sessionId);
   }
 
@@ -48,7 +58,8 @@ export function getOrCreateReceiptToken(): string {
   if (typeof window === "undefined") return "";
   const existing = localStorage.getItem(RECEIPT_TOKEN_KEY);
   if (existing && isValidReceiptToken(existing)) return existing;
-  const token = `rt_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+  // 12 random bytes = 96 bits of entropy (hex-encoded = 24 chars)
+  const token = `rt_${Date.now()}_${secureRandomHex(12)}`;
   localStorage.setItem(RECEIPT_TOKEN_KEY, token);
   return token;
 }
@@ -70,7 +81,8 @@ export function getReceiptToken(): string | null {
  */
 export function isValidReceiptToken(token: string | null, maxAgeDays = 30): boolean {
   if (!token || token.length < 10) return false;
-  const match = token.match(/^rt_(\d{13})_[a-z0-9]+$/);
+  // Accept both legacy base-36 tokens and new hex tokens (24 hex chars = 96 bits)
+  const match = token.match(/^rt_(\d{13})_[a-f0-9]{24}$/) || token.match(/^rt_(\d{13})_[a-z0-9]{8}$/);
   if (!match) return false;
   const ts = parseInt(match[1], 10);
   const now = Date.now();
@@ -85,7 +97,8 @@ export function isValidReceiptToken(token: string | null, maxAgeDays = 30): bool
  */
 export function isValidPersistentSessionId(id: string | null, maxAgeDays = 365): boolean {
   if (!id || id.length < 10) return false;
-  const match = id.match(/^psess_(\d{13})_[a-z0-9]+$/);
+  // Accept both legacy base-36 tokens and new hex tokens (24 hex chars = 96 bits)
+  const match = id.match(/^psess_(\d{13})_[a-f0-9]{24}$/) || id.match(/^psess_(\d{13})_[a-z0-9]{9}$/);
   if (!match) return false;
   const ts = parseInt(match[1], 10);
   const now = Date.now();

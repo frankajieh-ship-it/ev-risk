@@ -5,22 +5,14 @@ import { useRouter } from "next/navigation";
 
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { useEventTracking } from "@/hooks/useEventTracking";
-import { useSessionTracking } from "@/hooks/useSessionTracking";
-import { useTurnstile } from "@/hooks/useTurnstile";
-import { useAuth } from "@/hooks/useAuth";
-import { ArrowRight, Route, Gavel, Star, ChevronDown, ChevronUp, Mail } from "lucide-react";
+import { ArrowRight, Star, ChevronDown, ChevronUp, Mail } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
 import LoginModal from "@/components/LoginModal";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 
-import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
-import type { MinimumViableRoutine } from "@/types/v2";
-
-type WizardStep = "routine" | "recommendations" | "vehicle_manual" | "generating";
 
 export default function Home() {
   const router = useRouter();
@@ -46,8 +38,6 @@ export default function Home() {
     }
   }, []);
 
-  // Auth state for saved scenarios
-  const { isAuthenticated } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Track visitor on homepage
@@ -57,13 +47,7 @@ export default function Home() {
     trackSessionDuration: true,
   });
 
-  const { trackButtonClick, trackUrlAutofillAttempt, trackEvent, trackCTAClick, trackLandingView, trackIntakeStarted } = useEventTracking();
-  const { startSession, completeSession } = useSessionTracking();
-
-  const { execute: executeTurnstile } = useTurnstile({
-    containerId: "turnstile-score",
-    action: "score-submit",
-  });
+  const { trackEvent, trackLandingView } = useEventTracking();
 
   // Fire landing_view on mount
   useEffect(() => {
@@ -73,250 +57,50 @@ export default function Home() {
   // Homepage inline URL input
   const [listingUrl, setListingUrl] = useState("");
   const [detectedDomain, setDetectedDomain] = useState<string | null>(null);
+  const [detectedType, setDetectedType] = useState<"auction" | "listing" | null>(null);
 
-  // Paste detection — normalize URL and show detected source label
+  // Paste detection — normalize URL and show detected source label + type
   useEffect(() => {
-    if (!listingUrl.trim()) { setDetectedDomain(null); return; }
+    if (!listingUrl.trim()) { setDetectedDomain(null); setDetectedType(null); return; }
     try {
       const url = new URL(listingUrl.trim());
       const host = url.hostname.replace(/^www\./, "");
       const path = url.pathname.toLowerCase();
 
-      // Strip UTM params + tracking suffixes
-      const clean = new URL(listingUrl.trim());
-      ["utm_source","utm_medium","utm_campaign","utm_term","utm_content","fbclid","gclid"].forEach(p => clean.searchParams.delete(p));
-
       let label: string | null = null;
-      if (host.includes("cargurus.com")) label = "CarGurus listing detected ✓";
-      else if (host.includes("cars.com")) label = "Cars.com listing detected ✓";
-      else if (host.includes("autotrader.com")) label = "AutoTrader listing detected ✓";
-      else if (host.includes("facebook.com") && path.includes("marketplace")) label = "Facebook Marketplace listing detected ✓";
-      else if (path.includes("/inventory/") || path.includes("/used/") || path.includes("/vehicle/")) label = "Dealer listing detected ✓";
+      let type: "auction" | "listing" | null = null;
+
+      // Auction sources
+      if (host.includes("copart.com")) { label = "Copart auction detected ✓"; type = "auction"; }
+      else if (host.includes("iaai.com") || host.includes("iaaiservices.com")) { label = "IAAI auction detected ✓"; type = "auction"; }
+      else if (host.includes("manheim.com")) { label = "Manheim auction detected ✓"; type = "auction"; }
+      // Listing sources
+      else if (host.includes("cargurus.com")) { label = "CarGurus listing detected ✓"; type = "listing"; }
+      else if (host.includes("cars.com")) { label = "Cars.com listing detected ✓"; type = "listing"; }
+      else if (host.includes("autotrader.com")) { label = "AutoTrader listing detected ✓"; type = "listing"; }
+      else if (host.includes("facebook.com") && path.includes("marketplace")) { label = "Facebook Marketplace listing detected ✓"; type = "listing"; }
+      else if (path.includes("/inventory/") || path.includes("/used/") || path.includes("/vehicle/")) { label = "Dealer listing detected ✓"; type = "listing"; }
 
       setDetectedDomain(label);
+      setDetectedType(type);
     } catch {
       setDetectedDomain(null);
+      setDetectedType(null);
     }
   }, [listingUrl]);
 
   const handleHomePasteSubmit = () => {
     const trimmed = listingUrl.trim();
     if (!trimmed) return;
-    trackEvent("listing_paste_submitted", { page_source: "homepage", text_length: trimmed.length });
-    router.push(`/receipt?url=${encodeURIComponent(trimmed)}&src=homepage`);
-  };
-
-  // V2 Wizard state
-  const [currentStep, setCurrentStep] = useState<WizardStep>("routine");
-  const [routineData, setRoutineData] = useState<MinimumViableRoutine | null>(null);
-
-  // Manual Entry Modal (for URL parse failures)
-  const [manualEntryOpen, setManualEntryOpen] = useState(false);
-  const [manualEntryMissingFields, setManualEntryMissingFields] = useState<string[]>([]);
-
-  // URL Extraction
-  const [extracting, setExtracting] = useState(false);
-  const [extractError, setExtractError] = useState<string | null>(null);
-  const [extractWarnings, setExtractWarnings] = useState<string[]>([]);
-  const [extractedVehicleData, setExtractedVehicleData] = useState<any>(null);
-  const [showExtractedData, setShowExtractedData] = useState(false);
-
-  // Generating state
-  const [generateError, setGenerateError] = useState<string | null>(null);
-
-  // Call /api/score with v2 schema and navigate to report
-  const generateV2Report = async (
-    routine: MinimumViableRoutine,
-    vehicleData?: { model: string; year: number; currentMileage?: number }
-  ) => {
-    setCurrentStep("generating");
-    setGenerateError(null);
-
-    trackEvent("v2_score_submit", {
-      has_vehicle: !!vehicleData,
-      charging_access: routine.charging_access,
-      climate: routine.climate,
-    });
-    trackEvent("report_generation_started", {
-      has_vehicle: !!vehicleData,
-      schema_version: "v2",
-    });
-
-    try {
-      // Turnstile bot protection
-      const turnstileToken = await executeTurnstile();
-
-      const response = await fetch("/api/score", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          schema_version: "v2",
-          routine,
-          turnstileToken: turnstileToken || undefined,
-          leave_this_empty: "",
-          ...(vehicleData ? {
-            model: vehicleData.model,
-            year: vehicleData.year,
-            currentMileage: vehicleData.currentMileage ?? 0,
-          } : {}),
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        // Turnstile rejection
-        if (response.status === 403 && result.captcha_required) {
-          throw new Error("Verification failed. Please refresh and try again.");
-        }
-        throw new Error(result.error || result.details?.join(", ") || "Scoring failed");
-      }
-
-      // Auto-persist report to database (non-blocking)
-      try {
-        const persistRes = await fetch("/api/report/free", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reportData: result }),
-        });
-        if (persistRes.ok) {
-          const { reportId } = await persistRes.json();
-          result._persisted_report_id = reportId;
-        }
-      } catch (persistErr) {
-        console.warn("[Report] DB persist failed:", persistErr);
-      }
-
-      // Navigate to report page with v2 data
-      const params = new URLSearchParams({
-        data: JSON.stringify(result),
-      });
-      router.push(`/report?${params.toString()}`);
-    } catch (err) {
-      console.warn("[Frontend] V2 score error:", err);
-      trackEvent("report_generation_failed", {
-        error: err instanceof Error ? err.message : "unknown",
-        schema_version: "v2",
-      });
-      setGenerateError(err instanceof Error ? err.message : "An error occurred");
-      // Go back to recommendations so user can retry
-      setCurrentStep("recommendations");
+    trackEvent("listing_paste_submitted", { page_source: "homepage", detected_type: detectedType, text_length: trimmed.length });
+    // Route auction URLs directly to the auction bidder, all others to receipt
+    if (detectedType === "auction") {
+      router.push(`/copart?url=${encodeURIComponent(trimmed)}&src=homepage`);
+    } else {
+      router.push(`/receipt?url=${encodeURIComponent(trimmed)}&src=homepage`);
     }
   };
 
-  // Routine step handlers
-  const handleRoutineComplete = (routine: MinimumViableRoutine) => {
-    setRoutineData(routine);
-    setCurrentStep("recommendations");
-    try { sessionStorage.setItem("offo_routine_context", JSON.stringify(routine)); } catch {}
-    trackButtonClick("routine_step_complete", "homepage");
-    trackIntakeStarted();
-
-    // Session tracking: start session + complete with routine inputs
-    startSession({ source: "homepage" }).then((sid) => {
-      if (sid) {
-        completeSession(
-          {
-            chargingAccess: routine.charging_access,
-            weeklyMiles: routine.weekly_miles,
-            climate: routine.climate,
-            longestDayPattern: routine.longest_day_pattern,
-          },
-          {}
-        ).catch(() => {});
-      }
-    }).catch(() => {});
-  };
-
-
-  // Vehicle step: URL extraction
-  const handleExtractListing = async (url: string) => {
-    trackButtonClick("home_scan_submit", "homepage");
-    setExtracting(true);
-    setExtractError(null);
-    setExtractWarnings([]);
-
-    try {
-      const response = await fetch("/api/extract-listing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        if (result.needsMoreInfo && result.missing) {
-          setManualEntryMissingFields(result.missing);
-          setManualEntryOpen(true);
-          trackUrlAutofillAttempt(url, false, null, "Parse failure - manual entry required");
-        } else {
-          setExtractError(result.error || "Failed to extract listing data");
-          setExtractWarnings(result.warnings || []);
-          trackUrlAutofillAttempt(url, false, null, result.error);
-        }
-        return;
-      }
-
-      trackUrlAutofillAttempt(url, true, result.data);
-
-      const mileage = result.data.mileage || 0;
-      setExtractedVehicleData({
-        model: result.data.model || "",
-        year: result.data.year || new Date().getFullYear(),
-        currentMileage: mileage,
-        price: result.data.price || 0,
-        vin: result.data.vin || "",
-      });
-      setShowExtractedData(true);
-      trackButtonClick("url_scan_success", "homepage");
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "An error occurred";
-      setExtractError(errorMsg);
-      trackUrlAutofillAttempt(url, false, null, errorMsg);
-    } finally {
-      setExtracting(false);
-    }
-  };
-
-  // Vehicle step: manual entry from modal (URL parse failure fallback)
-  const handleManualEntry = async (manualData: ManualVehicleData) => {
-    const vehicleData = {
-      model: `${manualData.make} ${manualData.model}`,
-      year: manualData.year,
-      currentMileage: manualData.mileage || 0,
-    };
-    setManualEntryOpen(false);
-    trackButtonClick("manual_entry_success", "homepage");
-    generateV2Report(routineData!, vehicleData);
-  };
-
-  // Vehicle step: inline manual entry
-  const handleManualEntryInline = async (manualData: ManualEntryData) => {
-    trackEvent("manual_entry_submit", {
-      context: "homepage",
-      has_mileage: !!manualData.mileage,
-      has_battery_info: manualData.batteryInfoAvailable,
-      missing_fields_count: manualData.missingFields.length,
-    });
-
-    const vehicleData = {
-      model: `${manualData.make} ${manualData.model}`,
-      year: manualData.year,
-      currentMileage: manualData.mileage || 0,
-    };
-    generateV2Report(routineData!, vehicleData);
-  };
-
-  // Vehicle step: confirm extracted data → generate report
-  const handleConfirmExtracted = () => {
-    setShowExtractedData(false);
-    generateV2Report(routineData!, {
-      model: extractedVehicleData.model,
-      year: extractedVehicleData.year,
-      currentMileage: extractedVehicleData.currentMileage,
-    });
-  };
 
   const scrollToPaste = () => {
     document.getElementById("paste-box")?.scrollIntoView({ behavior: "smooth" });
@@ -400,75 +184,45 @@ export default function Home() {
       <section id="paste-box" className="py-10 md:py-16 bg-gray-50">
         <div className="max-w-2xl mx-auto px-4">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-1">Analyze a listing</h2>
-            <p className="text-sm text-gray-500 mb-4">Paste any used car or auction URL below.</p>
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Analyze any car listing or auction</h2>
+            <p className="text-sm text-gray-500 mb-4">Paste a CarGurus, Copart, AutoTrader, or any dealer URL — we'll route it automatically.</p>
             <input
               id="listing-input"
               type="url"
               value={listingUrl}
               onChange={(e) => setListingUrl(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleHomePasteSubmit(); }}
-              placeholder="Paste any used car or auction link here…"
+              placeholder="Paste any listing or auction link here…"
               className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-900 placeholder-gray-400 mb-3"
             />
             {detectedDomain && (
-              <p className="text-xs text-green-600 font-medium mb-3">{detectedDomain}</p>
+              <p className={`text-xs font-medium mb-3 ${detectedType === "auction" ? "text-orange-600" : "text-green-600"}`}>
+                {detectedDomain}
+                {detectedType === "auction" && " — Auction Bidder analysis"}
+                {detectedType === "listing" && " — Listing analysis"}
+              </p>
             )}
             <button
               onClick={handleHomePasteSubmit}
               disabled={!listingUrl.trim()}
               className={`w-full px-5 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
                 listingUrl.trim()
-                  ? "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
+                  ? detectedType === "auction"
+                    ? "bg-orange-500 text-white hover:bg-orange-600 shadow-md"
+                    : "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
                   : "bg-gray-100 text-gray-400 cursor-not-allowed"
               }`}
             >
-              Analyze Listing — It&apos;s Free
+              {detectedType === "auction" ? "Analyze Auction Lot — It's Free" : "Analyze Listing — It's Free"}
               <ArrowRight className="w-4 h-4" />
             </button>
             <p className="text-xs text-gray-400 text-center mt-3">
-              Instant verdict + routine risks. No account needed.
+              CarGurus · Copart · AutoTrader · Cars.com · Dealers · and more
             </p>
           </div>
         </div>
       </section>
 
-      {/* ── Section 5: Feature Highlights ───────────────────────────── */}
-      <section className="py-10 md:py-16">
-        <div className="max-w-4xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* EV Routine Fit */}
-          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-6">
-            <div className="w-10 h-10 rounded-xl bg-green-100 text-green-600 flex items-center justify-center mb-4">
-              <Route className="w-5 h-5" />
-            </div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">
-              Buying an EV? Check if it actually fits your real life.
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Daily commute, apartment charging, winter range, hardest day.
-            </p>
-            <Link href="/receipt" className="text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors">
-              Run EV Routine Check →
-            </Link>
-          </div>
-
-          {/* Copart & Salvage */}
-          <div className="rounded-2xl border border-orange-100 bg-orange-50 p-6">
-            <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center mb-4">
-              <Gavel className="w-5 h-5" />
-            </div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">
-              Evaluating a salvage or auction vehicle?
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Repair estimates, after-repair value, max safe bid, post-repair routine impact.
-            </p>
-            <Link href="/copart" className="text-sm font-semibold text-orange-600 hover:text-orange-700 transition-colors">
-              Try Auction Bidder →
-            </Link>
-          </div>
-        </div>
-      </section>
 
       {/* ── Section 6: Social Proof ──────────────────────────────────── */}
       <section className="py-10 md:py-16 bg-gray-50">
@@ -660,12 +414,6 @@ export default function Home() {
       <Footer />
 
       {/* Modals */}
-      <ManualEntryModal
-        isOpen={manualEntryOpen}
-        onClose={() => setManualEntryOpen(false)}
-        onSubmit={handleManualEntry}
-        missingFields={manualEntryMissingFields}
-      />
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}

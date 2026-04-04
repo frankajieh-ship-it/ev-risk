@@ -45,6 +45,8 @@ export type ListingSignalId =
   | "fees_disclosed"
   | "tire_condition_visible"
   | "recall_status_clear"
+  | "frame_photo_present"
+  | "underhood_photo_present"
   // Evidence penalties (subtract from 50)
   | "battery_proof_missing"
   | "battery_warranty_unclear"
@@ -54,7 +56,8 @@ export type ListingSignalId =
   | "fees_unclear"
   | "tire_condition_unclear"
   | "title_status_unclear"
-  | "vin_missing";
+  | "vin_missing"
+  | "structural_claim_no_photo";
 
 export type ScoringCategory = "routine_friction" | "listing_risk" | "missing_proof";
 
@@ -119,6 +122,8 @@ export const EVIDENCE_BONUSES: ReceiptRule[] = [
   { id: "fees_disclosed", type: "evidence_bonus", category: "listing_risk", points: 8, label: "Dealer fees and add-ons disclosed", risk_v2: 0, confidence_v2: 1, evidence_type: "present" },
   { id: "tire_condition_visible", type: "evidence_bonus", category: "missing_proof", points: 4, label: "Tire condition shown or mentioned", risk_v2: 0, confidence_v2: 0, evidence_type: "present" },
   { id: "recall_status_clear", type: "evidence_bonus", category: "missing_proof", points: 5, label: "Recall status checked or documented", risk_v2: 0, confidence_v2: 0, evidence_type: "present" },
+  { id: "frame_photo_present", type: "evidence_bonus", category: "missing_proof", points: 8, label: "Frame or underbody photo shown", risk_v2: 0, confidence_v2: 1, evidence_type: "present" },
+  { id: "underhood_photo_present", type: "evidence_bonus", category: "missing_proof", points: 5, label: "Engine/underhood photo shown", risk_v2: 0, confidence_v2: 1, evidence_type: "present" },
 ];
 
 // --- Evidence Penalties (subtract from 50) ---
@@ -133,6 +138,7 @@ export const EVIDENCE_PENALTIES: ReceiptRule[] = [
   { id: "tire_condition_unclear", type: "evidence_penalty", category: "missing_proof", points: -4, label: "Tire condition not visible or mentioned", risk_v2: 0, confidence_v2: 0, evidence_type: "absent" },
   { id: "title_status_unclear", type: "evidence_penalty", category: "missing_proof", points: -12, label: "Title status not explicitly stated", risk_v2: 0, confidence_v2: -1, evidence_type: "absent" },
   { id: "vin_missing", type: "evidence_penalty", category: "missing_proof", points: -6, label: "VIN not provided", risk_v2: 0, confidence_v2: 0, evidence_type: "absent" },
+  { id: "structural_claim_no_photo", type: "evidence_penalty", category: "listing_risk", points: -15, label: "Structural damage claimed but no frame/underbody photo", risk_v2: 2, confidence_v2: -1, evidence_type: "absent" },
 ];
 
 // --- Aggregates ---

@@ -242,7 +242,7 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
         schemaName: AUCTION_SCHEMA_NAMES.auction_routine_impact,
         temperature: 0.2,
         maxTokens: 500,
-        timeoutMs: 18_000,
+        timeoutMs: 14_000,
       },
       isRoutineImpact,
       logs
@@ -261,7 +261,7 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
             schemaName: AUCTION_SCHEMA_NAMES[repairCostKey],
             temperature: 0.2,
             maxTokens: 1500,
-            timeoutMs: 25_000,
+            timeoutMs: 18_000,
           },
           isRepairCost,
           logs

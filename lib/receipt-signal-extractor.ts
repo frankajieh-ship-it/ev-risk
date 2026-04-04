@@ -124,6 +124,18 @@ const EVIDENCE_BONUS_PATTERNS: SignalPattern[] = [
       /\b(no\s+(open\s+)?recalls?|recalls?\s+(completed|resolved|clear|done)|recall[\s-]+free)\b/,
     ],
   },
+  {
+    signalId: "frame_photo_present",
+    positive: [
+      /\b(frame\s+photo|underbody\s+photo|chassis\s+photo|underbody\s+pic|frame\s+pic|frame\s+pictures?)\b/i,
+    ],
+  },
+  {
+    signalId: "underhood_photo_present",
+    positive: [
+      /\b(underhood\s+photo|engine\s+bay\s+photo|engine\s+photo|engine\s+bay\s+pic|under\s*hood\s+pic)\b/i,
+    ],
+  },
 ];
 
 const FIT_PENALTY_PATTERNS: SignalPattern[] = [
@@ -325,6 +337,15 @@ export function extractSignalsFromText(
   // VIN penalty (not part of inverse evidence loop)
   if (!fields.vin && !signals.has("vin_decoded")) {
     signals.add("vin_missing");
+  }
+
+  // Signal mismatch: structural damage claimed but no frame/underbody photo evidence
+  if (hasText) {
+    const hasStructuralClaim = /\b(structural\s+damage|frame\s+damage|unibody|chassis\s+damage|front[\s-]end\s+(damage|collision|impact)|rear[\s-]end\s+(damage|collision)|major\s+(damage|collision))\b/.test(text);
+    const hasFramePhoto = signals.has("frame_photo_present") || signals.has("underhood_photo_present");
+    if (hasStructuralClaim && !hasFramePhoto) {
+      signals.add("structural_claim_no_photo");
+    }
   }
 
   return Array.from(signals);

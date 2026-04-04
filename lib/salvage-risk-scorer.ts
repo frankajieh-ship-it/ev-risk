@@ -41,6 +41,7 @@ export interface SalvageRiskFactors {
   recall_overlap: number;
   repair_cost_risk: number;
   mileage_penalty: number;
+  thermal_integrity_risk: boolean;
 }
 
 export type SalvageGrade = "green" | "yellow" | "red";
@@ -66,6 +67,18 @@ export interface SalvageRiskResult {
   profit_margin: ProfitMargin | null;
   /** Inferred primary damage category — used for display and downstream filtering */
   primary_damage_category: DamageCategory;
+}
+
+// ── Cold-climate state detection ──────────────────────────────────────────────
+// EV Battery Thermal Management Systems are stress-tested by cold climates.
+// Front-end / structural damage in these states increases BTMS integrity risk.
+
+const COLD_CLIMATE_STATES = new Set([
+  "MN","WI","MI","IL","OH","PA","NY","VT","NH","ME","ND","SD","MT","WY","CO","IA","NE","KS","IN",
+]);
+
+function isColdClimateState(state?: string | null): boolean {
+  return Boolean(state && COLD_CLIMATE_STATES.has(state.toUpperCase()));
 }
 
 // ── Title risk table ──────────────────────────────────────────────────────────
@@ -171,6 +184,10 @@ interface MinimalReceiptInput {
   secondary_damage?: string | null;
   loss_type?: string | null;
   zip_or_postcode?: string | null;
+  /** Two-letter US state code — used for cold-climate thermal penalty */
+  state?: string | null;
+  /** Whether vehicle is an EV — enables thermal integrity risk check */
+  is_ev?: boolean | null;
   recalls?: NhtsaRecallSummary[];
   // legacy compat — receipt wrapper
   receipt?: {
@@ -279,7 +296,15 @@ export function computeSalvageRisk(input: MinimalReceiptInput): SalvageRiskResul
 
   console.log(`[SalvageScorer] rawRisk=${rawRisk.toFixed(2)} risk_probability=${risk_probability.toFixed(3)} score=${score}`);
 
-  const grade: SalvageGrade = score >= 65 ? "green" : score >= 40 ? "yellow" : "red";
+  // ── Thermal integrity penalty (EV + front-end/structural + cold climate) ──
+  // Front-end damage in cold climates compromises BTMS proximity and integrity.
+  const thermalIntegrityRisk =
+    input.is_ev === true &&
+    (primaryDamageCategory === "front_end" || primaryDamageCategory === "structural") &&
+    isColdClimateState(input.state);
+  const adjustedScore = thermalIntegrityRisk ? Math.round(score * 0.88) : score;
+
+  const grade: SalvageGrade = adjustedScore >= 65 ? "green" : adjustedScore >= 40 ? "yellow" : "red";
 
   // ── Bid discount ──────────────────────────────────────────────────────────
   let suggested_bid_discount = 0;
@@ -320,16 +345,17 @@ export function computeSalvageRisk(input: MinimalReceiptInput): SalvageRiskResul
       : null;
 
   return {
-    score,
+    score: adjustedScore,
     risk_probability: Math.round(risk_probability * 1000) / 1000,
     grade,
     factors: {
-      battery_risk:     Math.round(batteryRisk),
-      structural_risk:  Math.round(structuralRisk),
-      title_impact:     Math.round(titleImpact),
-      recall_overlap:   Math.round(recallOverlap),
-      repair_cost_risk: Math.round(repairCostRisk),
-      mileage_penalty:  milagePenalty,
+      battery_risk:          Math.round(batteryRisk),
+      structural_risk:       Math.round(structuralRisk),
+      title_impact:          Math.round(titleImpact),
+      recall_overlap:        Math.round(recallOverlap),
+      repair_cost_risk:      Math.round(repairCostRisk),
+      mileage_penalty:       milagePenalty,
+      thermal_integrity_risk: thermalIntegrityRisk,
     },
     routine_impact_summary,
     suggested_bid_discount,

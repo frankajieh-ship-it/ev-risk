@@ -47,6 +47,7 @@ import type {
 import type { OffoScore } from "@/types/v2";
 import type { ArbitrageResult } from "@/lib/copart-arbitrage-engine";
 import { detectVehicleType, isElectric } from "@/lib/auction/vehicle-type";
+import OFfoChat from "@/components/chat/OFfoChat";
 
 type PageState = "idle" | "fetching" | "done" | "error";
 
@@ -399,6 +400,21 @@ export default function CopartPage() {
   const receiptToken = typeof window !== "undefined" ? getOrCreateReceiptToken() : "";
   const listingTextRef = useRef("");
 
+  // Pre-fill from ?url= param (e.g. pasted on homepage, then routed here)
+  const urlParamHandled = useRef(false);
+  useEffect(() => {
+    if (urlParamHandled.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const urlParam = params.get("url");
+    if (urlParam) {
+      urlParamHandled.current = true;
+      setInput(urlParam);
+      window.history.replaceState({}, "", window.location.pathname);
+      // Pass URL directly to handleAnalyze so it doesn't depend on state settling
+      setTimeout(() => handleAnalyze(urlParam), 400);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Restore session after Stripe redirect (kept for backward compat, no longer used for paywall)
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -416,8 +432,8 @@ export default function CopartPage() {
     window.history.replaceState({}, "", window.location.pathname);
   }, []);
 
-  const handleAnalyze = useCallback(async () => {
-    const trimmed = input.trim();
+  const handleAnalyze = useCallback(async (inputOverride?: string) => {
+    const trimmed = (inputOverride ?? input).trim();
     if (!trimmed) return;
 
     setPageState("idle");
@@ -758,6 +774,38 @@ export default function CopartPage() {
                 <AuctionShareButton resultId={resultId} />
               </div>
             )}
+
+            {/* Ask OFFO chat */}
+            <OFfoChat
+              scenarioType="auction"
+              scenarioId={report.report_id}
+              sessionId={receiptToken}
+              context={{
+                vehicle: [report.lot.year, report.lot.make, report.lot.model, report.lot.trim]
+                  .filter(Boolean).join(" ") || undefined,
+                vin:              report.lot.vin ?? undefined,
+                price:            report.lot.current_bid ?? undefined,
+                mileage:          report.lot.odometer ?? undefined,
+                lot_number:       report.lot.lot_number,
+                title_status:     report.lot.title_status ?? undefined,
+                primary_damage:   report.lot.primary_damage ?? undefined,
+                secondary_damage: report.lot.secondary_damage ?? undefined,
+                salvage_score:    report.salvage_risk.score,
+                salvage_grade:    report.salvage_risk.grade,
+                arv:              report.arbitrage?.arv ?? undefined,
+                max_safe_bid:     report.arbitrage?.max_safe_bid ?? undefined,
+                repair_cost_low:  report.arbitrage?.repair_cost_low ?? undefined,
+                repair_cost_high: report.arbitrage?.repair_cost_high ?? undefined,
+                run_and_drive:    report.lot.run_and_drive_status ?? undefined,
+                auction_source:   report.lot.auction_source,
+                top_concerns:     report.salvage_risk.grade === "red"
+                  ? (["high salvage risk", report.lot.primary_damage].filter(Boolean) as string[])
+                  : undefined,
+              }}
+              freeMode={true}
+              paymentsEnabled={false}
+              trackEvent={trackEvent}
+            />
 
             {/* Cross-link to retail receipt tool */}
             <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between gap-4">

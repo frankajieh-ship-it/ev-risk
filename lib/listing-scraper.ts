@@ -431,6 +431,20 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
     }
   }
 
+  // Extract VIN if not found in __NEXT_DATA__ — CarGurus embeds it several ways
+  if (!data.vin) {
+    const vinPatterns = [
+      /["']vin["']\s*:\s*["']([A-HJ-NPR-Z0-9]{17})["']/i,
+      /VIN["']?\s*[:\-]\s*["']?([A-HJ-NPR-Z0-9]{17})/i,
+      /vehicleIdentificationNumber["']?\s*:\s*["']?([A-HJ-NPR-Z0-9]{17})/i,
+      /\b([A-HJ-NPR-Z0-9]{17})\b/,  // bare 17-char VIN anywhere in page
+    ];
+    for (const pattern of vinPatterns) {
+      const m = html.match(pattern);
+      if (m) { data.vin = m[1].toUpperCase(); break; }
+    }
+  }
+
   // Extract price if not found
   if (!data.price) {
     const priceMatch = html.match(/\$(\d+(?:,\d{3})*)/);

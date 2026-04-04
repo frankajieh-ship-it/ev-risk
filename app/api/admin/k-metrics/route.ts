@@ -15,7 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
-const ADMIN_KEY = process.env.ADMIN_API_KEY || "your-secret-admin-key";
+const ADMIN_KEY = process.env.ADMIN_API_KEY;
 
 function getWindowStart(period: string): string {
   const now = new Date();

@@ -205,15 +205,16 @@ export default function ReceiptInputCard({
     }
   }, [prefillText]);
 
-  // Prefill from extension (?url=...&ext=true)
+  // Prefill from ?url= param (extension, homepage paste, or any source)
   const prefillUrlHandled = useRef(false);
   useEffect(() => {
     if (prefillUrl && !prefillUrlHandled.current) {
       prefillUrlHandled.current = true;
       setInputMode("url");
       setListingUrl(prefillUrl);
-      // Auto-trigger extraction after a short delay for UI to settle
-      setTimeout(() => handleExtract(prefillUrl), 200);
+      // Use a ref so the timer can be cancelled on unmount, and give React
+      // enough time to fully mount before calling handleExtract
+      autoExtractTimerRef.current = setTimeout(() => handleExtract(prefillUrl), 300);
     }
   }, [prefillUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -311,7 +312,9 @@ export default function ReceiptInputCard({
 
     try {
       const bodyPayload: Record<string, string> = {};
-      if (inputMode === "url") {
+      // When urlOverride is passed (auto-extract on prefill), always treat as URL
+      // regardless of inputMode state which may not have settled yet
+      if (urlOverride || inputMode === "url") {
         bodyPayload.url = urlOverride ?? listingUrl.trim();
       } else {
         bodyPayload.text = listingText.trim();
