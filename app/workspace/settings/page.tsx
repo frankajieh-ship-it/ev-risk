@@ -47,6 +47,8 @@ export default function SettingsPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session?.access_token) return;
@@ -273,18 +275,50 @@ export default function SettingsPage() {
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-gray-700">
-              To delete your account, email us at{" "}
-              <a href="mailto:hello@offo.app?subject=Account deletion request" className="text-blue-600 underline">
-                hello@offo.app
-              </a>{" "}
-              with the subject "Account deletion request". We&apos;ll process it within 48 hours.
+              This will permanently delete your account and all associated data — receipts, garage vehicles,
+              saved analyses, and preferences. <strong>This cannot be undone.</strong>
             </p>
-            <button
-              onClick={() => setDeleteConfirm(false)}
-              className="text-xs text-gray-400 hover:text-gray-600"
-            >
-              Cancel
-            </button>
+            {deleteError && (
+              <p className="text-sm text-red-600">{deleteError}</p>
+            )}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={async () => {
+                  if (!session?.access_token) return;
+                  setDeleting(true);
+                  setDeleteError(null);
+                  try {
+                    const res = await fetch("/api/user/account", {
+                      method: "DELETE",
+                      headers: { Authorization: `Bearer ${session.access_token}` },
+                    });
+                    if (res.ok) {
+                      // Auth user deleted — log out and redirect
+                      await logout();
+                      window.location.href = "/?deleted=1";
+                    } else {
+                      const data = await res.json().catch(() => ({}));
+                      setDeleteError(data.error ?? "Failed to delete account. Please try again.");
+                    }
+                  } catch {
+                    setDeleteError("Network error — please try again.");
+                  } finally {
+                    setDeleting(false);
+                  }
+                }}
+                disabled={deleting}
+                className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                {deleting ? "Deleting…" : "Yes, permanently delete my account"}
+              </button>
+              <button
+                onClick={() => { setDeleteConfirm(false); setDeleteError(null); }}
+                className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         )}
       </section>
