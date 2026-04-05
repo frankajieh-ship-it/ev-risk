@@ -140,8 +140,8 @@ export async function POST(request: NextRequest) {
 
   // Sort by OFFO score descending — errors and nulls go to the bottom
   results.sort((a, b) => {
-    const scoreA = a.report?.offo_score?.overall_score ?? -1;
-    const scoreB = b.report?.offo_score?.overall_score ?? -1;
+    const scoreA = a.report?.offo_score?.offo_score ?? -1;
+    const scoreB = b.report?.offo_score?.offo_score ?? -1;
     return scoreB - scoreA;
   });
 
