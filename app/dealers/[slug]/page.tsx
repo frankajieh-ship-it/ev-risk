@@ -177,7 +177,7 @@ export default function DealerProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-white">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <Link href="/dealers" className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-6">
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -185,7 +185,7 @@ export default function DealerProfilePage() {
         </Link>
 
         {/* Header */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-2xl border border-green-100 p-6 mb-6 shadow-xl">
           <div className="flex items-start gap-4">
             <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
               {dealer.logo_url ? (

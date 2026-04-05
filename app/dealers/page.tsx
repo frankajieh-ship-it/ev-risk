@@ -8,7 +8,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, MapPin, Shield, Loader2, Building, ArrowLeft, ChevronRight, Car } from "lucide-react";
+import { Search, MapPin, Shield, Loader2, Building, ArrowLeft, ChevronRight, Car, Sparkles } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface DealerListing {
@@ -57,14 +57,18 @@ export default function DealerDirectoryPage() {
   }, [search, state]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-white">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="mb-6">
           <Link href="/" className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-4">
             <ArrowLeft className="w-3.5 h-3.5" />
             Back to OFFO
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Dealer Directory</h1>
+          <div className="inline-flex items-center gap-2 mb-3 px-3 py-1.5 bg-green-50 rounded-full border border-green-100">
+            <Sparkles className="w-3.5 h-3.5 text-green-600" />
+            <span className="text-xs font-semibold text-green-600 uppercase tracking-wider">EV-Friendly Dealers</span>
+          </div>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">Dealer Directory</h1>
           <p className="text-sm text-gray-500 mt-1">Find EV-friendly dealers near you</p>
         </div>
 

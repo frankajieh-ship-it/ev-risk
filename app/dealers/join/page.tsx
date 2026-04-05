@@ -4,13 +4,11 @@
  * Dealer Sign-Up Page — /dealers/join
  *
  * Step 1 of 2: collect dealership details + email, then send magic link.
- * Signup data is stashed in localStorage so the confirm page can provision
- * the dealership after the user clicks the link in their email.
  */
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Building, Check, Loader2, Mail } from "lucide-react";
+import { ArrowLeft, Building, Check, Loader2, Mail, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useEventTracking } from "@/hooks/useEventTracking";
@@ -65,18 +63,9 @@ export default function DealerJoinPage() {
     e.preventDefault();
     setError("");
 
-    if (!form.dealership_name.trim()) {
-      setError("Dealership name is required.");
-      return;
-    }
-    if (!form.contact_name.trim()) {
-      setError("Your name is required.");
-      return;
-    }
-    if (!form.email.trim()) {
-      setError("Email is required.");
-      return;
-    }
+    if (!form.dealership_name.trim()) { setError("Dealership name is required."); return; }
+    if (!form.contact_name.trim()) { setError("Your name is required."); return; }
+    if (!form.email.trim()) { setError("Email is required."); return; }
 
     setSubmitting(true);
 
@@ -85,36 +74,25 @@ export default function DealerJoinPage() {
       has_location: !!(form.city.trim() || form.zip.trim()),
     });
 
-    // Stash signup data so the confirm page can provision after email click
     try {
-      localStorage.setItem(
-        "dealer_signup_pending",
-        JSON.stringify({
-          dealership_name: form.dealership_name.trim(),
-          contact_name: form.contact_name.trim(),
-          phone: form.phone.trim(),
-          city: form.city.trim(),
-          state: form.state,
-          zip: form.zip.trim(),
-        })
-      );
-      // Point auth callback → provisioning page
+      localStorage.setItem("dealer_signup_pending", JSON.stringify({
+        dealership_name: form.dealership_name.trim(),
+        contact_name: form.contact_name.trim(),
+        phone: form.phone.trim(),
+        city: form.city.trim(),
+        state: form.state,
+        zip: form.zip.trim(),
+      }));
       localStorage.setItem("auth_redirect", "/dealers/join/confirm");
-    } catch {
-      // localStorage unavailable — proceed anyway; confirm page will handle gracefully
-    }
+    } catch { /* localStorage unavailable */ }
 
-    // Send via server route (Resend) for proper deliverability — not Supabase's shared mail
     let success = false;
     let errorMsg = "";
     try {
       const res = await fetch("/api/dealer/send-magic-link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: form.email.trim(),
-          dealership_name: form.dealership_name.trim(),
-        }),
+        body: JSON.stringify({ email: form.email.trim(), dealership_name: form.dealership_name.trim() }),
       });
       const data = await res.json();
       success = data.success;
@@ -126,10 +104,7 @@ export default function DealerJoinPage() {
     setSubmitting(false);
 
     if (success) {
-      trackEvent("dealer_signup_email_sent", {
-        has_phone: !!form.phone.trim(),
-        has_location: !!(form.city.trim() || form.zip.trim()),
-      });
+      trackEvent("dealer_signup_email_sent", { has_phone: !!form.phone.trim(), has_location: !!(form.city.trim() || form.zip.trim()) });
       setSent(true);
     } else {
       trackEvent("dealer_signup_email_failed");
@@ -139,21 +114,18 @@ export default function DealerJoinPage() {
 
   if (sent) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-white flex items-center justify-center px-4">
         <div className="max-w-sm w-full">
-          <div className="bg-white rounded-xl border border-gray-200 p-8 text-center shadow-sm">
+          <div className="bg-white rounded-2xl border border-green-100 p-8 text-center shadow-xl">
             <div className="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-4">
               <Mail className="w-7 h-7 text-green-600" />
             </div>
             <h2 className="text-lg font-semibold text-gray-900 mb-2">Check your inbox</h2>
             <p className="text-sm text-gray-500">
               We sent a confirmation link to <strong>{form.email}</strong>.
-              <br />
-              Click it to finish setting up your dealer account.
+              <br />Click it to finish setting up your dealer account.
             </p>
-            <p className="text-xs text-gray-400 mt-4">
-              Don&apos;t see it? Check your spam folder.
-            </p>
+            <p className="text-xs text-gray-400 mt-4">Don&apos;t see it? Check your spam folder.</p>
           </div>
         </div>
       </div>
@@ -161,46 +133,49 @@ export default function DealerJoinPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-start justify-center px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-white flex items-start justify-center px-4 py-12">
       <div className="max-w-lg w-full">
-        <Link
-          href="/dealers"
-          className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-8"
-        >
+        <Link href="/dealers" className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-8">
           <ArrowLeft className="w-3.5 h-3.5" />
           Back to Dealer Directory
         </Link>
 
         {/* Header */}
         <div className="mb-8">
+          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 bg-green-50 rounded-full border border-green-100">
+            <Sparkles className="w-3.5 h-3.5 text-green-600" />
+            <span className="text-xs font-semibold text-green-600 uppercase tracking-wider">Free to list · No credit card</span>
+          </div>
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center shadow-md">
               <Building className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">List Your Dealership</h1>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
+              List Your Dealership
+            </h1>
           </div>
           <p className="text-sm text-gray-500">
-            Join OFFO&apos;s dealer network to reach high-intent EV buyers. Free to list —
-            no credit card required.
+            Join OFFO&apos;s dealer network to reach high-intent EV buyers.
           </p>
         </div>
 
         {/* Value props */}
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
           {[
-            "Appear in the OFFO dealer directory",
-            "Match your inventory to buyers researching those vehicles",
-            "Access buyer demand analytics for your market",
-          ].map((point) => (
-            <div key={point} className="flex items-start gap-2 text-sm text-green-800">
-              <Check className="w-4 h-4 shrink-0 mt-0.5 text-green-600" />
-              {point}
+            { icon: "🔍", title: "Get discovered", desc: "Appear in the OFFO dealer directory" },
+            { icon: "🎯", title: "Matched leads", desc: "Match inventory to buyers researching those models" },
+            { icon: "📊", title: "Analytics", desc: "See buyer demand data for your market" },
+          ].map((p) => (
+            <div key={p.title} className="bg-white border border-green-100 rounded-xl p-3 shadow-sm text-center">
+              <div className="text-xl mb-1">{p.icon}</div>
+              <p className="text-xs font-semibold text-gray-800">{p.title}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{p.desc}</p>
             </div>
           ))}
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-green-100 p-6 shadow-xl">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -211,7 +186,7 @@ export default function DealerJoinPage() {
                 onChange={(e) => update("dealership_name", e.target.value)}
                 placeholder="Green Motors EV"
                 required
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
               />
             </div>
 
@@ -224,7 +199,7 @@ export default function DealerJoinPage() {
                 onChange={(e) => update("contact_name", e.target.value)}
                 placeholder="Jane Smith"
                 required
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
               />
             </div>
 
@@ -238,20 +213,18 @@ export default function DealerJoinPage() {
                 onChange={(e) => update("email", e.target.value)}
                 placeholder="jane@greenmotors.com"
                 required
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Phone
-              </label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
               <input
                 type="tel"
                 value={form.phone}
                 onChange={(e) => update("phone", e.target.value)}
                 placeholder="(555) 123-4567"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
               />
             </div>
 
@@ -262,7 +235,7 @@ export default function DealerJoinPage() {
                   value={form.city}
                   onChange={(e) => update("city", e.target.value)}
                   placeholder="Chicago"
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
                 />
               </div>
               <div>
@@ -270,12 +243,10 @@ export default function DealerJoinPage() {
                 <select
                   value={form.state}
                   onChange={(e) => update("state", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white"
                 >
                   <option value="">—</option>
-                  {US_STATES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
+                  {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
             </div>
@@ -287,18 +258,16 @@ export default function DealerJoinPage() {
                 onChange={(e) => update("zip", e.target.value)}
                 placeholder="60601"
                 maxLength={10}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
               />
             </div>
 
-            {error && (
-              <p className="text-sm text-red-600">{error}</p>
-            )}
+            {error && <p className="text-sm text-red-600">{error}</p>}
 
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+              className="w-full py-3 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors shadow-md"
             >
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
               {submitting ? "Sending confirmation..." : "Get Started — Send Confirmation Email"}
@@ -311,6 +280,19 @@ export default function DealerJoinPage() {
               </Link>
             </p>
           </form>
+        </div>
+
+        {/* Trust bar */}
+        <div className="flex items-center justify-center gap-4 mt-6">
+          {[
+            { icon: <Check className="w-3.5 h-3.5" />, text: "Free to list" },
+            { icon: <Check className="w-3.5 h-3.5" />, text: "No credit card" },
+            { icon: <Check className="w-3.5 h-3.5" />, text: "Cancel anytime" },
+          ].map((t) => (
+            <div key={t.text} className="flex items-center gap-1 text-xs text-green-700">
+              {t.icon}{t.text}
+            </div>
+          ))}
         </div>
       </div>
     </div>

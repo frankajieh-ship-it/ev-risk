@@ -1,14 +1,15 @@
 /**
  * Dealership Profile Page
  *
- * Edit dealership info: name, phone, address, description, etc.
+ * Edit dealership info: name, phone, address, description, logo, etc.
  */
 
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Loader2, Save, Check } from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Loader2, Save, Check, Building, Upload, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import Image from "next/image";
 
 interface DealershipProfile {
   id: string;
@@ -23,6 +24,7 @@ interface DealershipProfile {
   zip: string;
   country: string;
   ev_specialties: string[];
+  logo_url: string | null;
 }
 
 const EMPTY_PROFILE: DealershipProfile = {
@@ -38,6 +40,7 @@ const EMPTY_PROFILE: DealershipProfile = {
   zip: "",
   country: "US",
   ev_specialties: [],
+  logo_url: null,
 };
 
 export default function DealerProfilePage() {
@@ -47,6 +50,12 @@ export default function DealerProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+
+  // Logo upload state
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState("");
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const authHeaders = useCallback(() => ({
     "Content-Type": "application/json",
@@ -62,6 +71,7 @@ export default function DealerProfilePage() {
         if (res.ok) {
           const data = await res.json();
           setProfile({ ...EMPTY_PROFILE, ...data.dealership });
+          setLogoPreview(data.dealership.logo_url ?? null);
         }
       } catch (err) {
         console.error("Failed to load profile:", err);
@@ -110,6 +120,57 @@ export default function DealerProfilePage() {
     }
   };
 
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !session?.access_token) return;
+
+    setLogoError("");
+    setLogoUploading(true);
+
+    // Show local preview immediately
+    const reader = new FileReader();
+    reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/dealer/logo", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setProfile((prev) => ({ ...prev, logo_url: data.logo_url }));
+        setLogoPreview(data.logo_url);
+      } else {
+        setLogoError(data.error || "Upload failed");
+        setLogoPreview(profile.logo_url);
+      }
+    } catch {
+      setLogoError("Upload failed — please try again");
+      setLogoPreview(profile.logo_url);
+    } finally {
+      setLogoUploading(false);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!session?.access_token) return;
+    setLogoPreview(null);
+    setProfile((prev) => ({ ...prev, logo_url: null }));
+    // Persist the removal via PATCH
+    await fetch("/api/dealer/profile", {
+      method: "PATCH",
+      headers: authHeaders(),
+      body: JSON.stringify({ logo_url: null }),
+    });
+  };
+
   const updateField = (field: keyof DealershipProfile, value: string) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
   };
@@ -131,103 +192,143 @@ export default function DealerProfilePage() {
           disabled={saving}
           className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
         >
-          {saving ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : saved ? (
-            <Check className="w-4 h-4" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
           {saved ? "Saved" : "Save Changes"}
         </button>
       </div>
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
-        {/* Basic Info */}
-        <div>
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Basic Information</h2>
-          <div className="space-y-3">
+      <div className="space-y-4">
+        {/* Logo Upload */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h2 className="text-sm font-semibold text-gray-700 mb-4">Dealership Logo</h2>
+          <div className="flex items-center gap-5">
+            {/* Preview */}
+            <div className="w-20 h-20 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 overflow-hidden relative">
+              {logoPreview ? (
+                <>
+                  <Image src={logoPreview} alt="Logo" fill className="object-cover" unoptimized />
+                  <button
+                    onClick={handleRemoveLogo}
+                    className="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full border border-gray-200 flex items-center justify-center shadow-sm hover:bg-red-50"
+                  >
+                    <X className="w-3 h-3 text-gray-500" />
+                  </button>
+                </>
+              ) : (
+                <Building className="w-8 h-8 text-gray-300" />
+              )}
+            </div>
+
+            {/* Upload button + hints */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Dealership Name</label>
               <input
-                value={profile.name}
-                onChange={(e) => updateField("name", e.target.value)}
+                ref={logoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleLogoChange}
+              />
+              <button
+                onClick={() => logoInputRef.current?.click()}
+                disabled={logoUploading}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                {logoUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                {logoUploading ? "Uploading…" : logoPreview ? "Change Logo" : "Upload Logo"}
+              </button>
+              <p className="text-xs text-gray-400 mt-1.5">JPEG, PNG, or WebP · Max 2MB</p>
+              {logoError && <p className="text-xs text-red-500 mt-1">{logoError}</p>}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+          {/* Basic Info */}
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">Basic Information</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Dealership Name</label>
+                <input
+                  value={profile.name}
+                  onChange={(e) => updateField("name", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Phone</label>
+                  <input
+                    value={profile.phone}
+                    onChange={(e) => updateField("phone", e.target.value)}
+                    placeholder="(555) 123-4567"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Website</label>
+                  <input
+                    value={profile.website}
+                    onChange={(e) => updateField("website", e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
+                <textarea
+                  value={profile.description}
+                  onChange={(e) => updateField("description", e.target.value)}
+                  rows={3}
+                  placeholder="Tell buyers about your dealership..."
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Address */}
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">Address</h2>
+            <div className="space-y-3">
+              <input
+                value={profile.address_line1}
+                onChange={(e) => updateField("address_line1", e.target.value)}
+                placeholder="Street address"
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
               />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Phone</label>
+              <div className="grid grid-cols-3 gap-3">
                 <input
-                  value={profile.phone}
-                  onChange={(e) => updateField("phone", e.target.value)}
-                  placeholder="(555) 123-4567"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  value={profile.city}
+                  onChange={(e) => updateField("city", e.target.value)}
+                  placeholder="City"
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                />
+                <input
+                  value={profile.state}
+                  onChange={(e) => updateField("state", e.target.value)}
+                  placeholder="State"
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                />
+                <input
+                  value={profile.zip}
+                  onChange={(e) => updateField("zip", e.target.value)}
+                  placeholder="ZIP"
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Website</label>
-                <input
-                  value={profile.website}
-                  onChange={(e) => updateField("website", e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
-              <textarea
-                value={profile.description}
-                onChange={(e) => updateField("description", e.target.value)}
-                rows={3}
-                placeholder="Tell buyers about your dealership..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none"
-              />
             </div>
           </div>
-        </div>
 
-        {/* Address */}
-        <div>
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Address</h2>
-          <div className="space-y-3">
-            <input
-              value={profile.address_line1}
-              onChange={(e) => updateField("address_line1", e.target.value)}
-              placeholder="Street address"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-            />
-            <div className="grid grid-cols-3 gap-3">
-              <input
-                value={profile.city}
-                onChange={(e) => updateField("city", e.target.value)}
-                placeholder="City"
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
-              />
-              <input
-                value={profile.state}
-                onChange={(e) => updateField("state", e.target.value)}
-                placeholder="State"
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
-              />
-              <input
-                value={profile.zip}
-                onChange={(e) => updateField("zip", e.target.value)}
-                placeholder="ZIP"
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
-              />
+          {/* Slug (read-only) */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Profile URL Slug</label>
+            <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500">
+              /dealers/{profile.slug}
             </div>
-          </div>
-        </div>
-
-        {/* Slug (read-only) */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Profile URL Slug</label>
-          <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500">
-            /dealers/{profile.slug}
           </div>
         </div>
       </div>

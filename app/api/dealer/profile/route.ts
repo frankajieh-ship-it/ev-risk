@@ -47,7 +47,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   // Only allow updating specific fields (not slug, id, etc.)
-  const allowed = ["name", "phone", "website", "description", "address_line1", "city", "state", "zip", "country", "ev_specialties"];
+  const allowed = ["name", "phone", "website", "description", "address_line1", "city", "state", "zip", "country", "ev_specialties", "logo_url"];
   const updates: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) updates[key] = body[key];
