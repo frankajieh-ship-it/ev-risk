@@ -275,11 +275,11 @@ export default function BatchAnalysisPage() {
                       }
 
                       const r = item.report!;
-                      const score = r.offo_score?.overall_score;
+                      const score = r.offo_score?.offo_score;
                       const lot = r.lot;
                       const arb = r.arbitrage;
                       const vehicle = [lot.year, lot.make, lot.model].filter(Boolean).join(" ") || "Unknown";
-                      const maxSafeBid = arb?.max_bid_guidance?.max_safe_bid_usd;
+                      const maxSafeBid = arb?.max_safe_bid;
                       const currentBid = lot.current_bid;
 
                       return (
