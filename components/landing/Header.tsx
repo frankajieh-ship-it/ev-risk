@@ -22,6 +22,17 @@ const navLinks = [
   { label: "Blog",             href: "/blog",            isScroll: false },
 ];
 
+// Coming-soon nav item rendered separately (blurred, non-clickable)
+const MechanicNavItem = () => (
+  <span
+    className="relative text-sm font-medium text-gray-500 cursor-default select-none"
+    title="EV Mechanic Finder — coming soon"
+  >
+    <span className="blur-[2px]">Find a Mechanic</span>
+    <span className="absolute -top-1 -right-6 text-[9px] font-bold text-orange-600 bg-orange-50 border border-orange-200 px-1 py-0.5 rounded-full leading-none">Soon</span>
+  </span>
+);
+
 export default function Header({ variant = "receipt", historyCount, onHistoryClick, regionSelector }: HeaderProps) {
   const { isAuthenticated, isDealer, logout } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
@@ -89,6 +100,8 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                       </Link>
                     )
                   )}
+
+                  <MechanicNavItem />
 
                   {/* eslint-disable-next-line react-hooks/static-components */}
                   <GarageBadge />
@@ -219,6 +232,10 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                   </Link>
                 )
               )}
+
+              <div className="py-2">
+                <MechanicNavItem />
+              </div>
 
               <Link
                 href={isAuthenticated ? "/workspace/garage" : "/shortlist"}

@@ -151,7 +151,7 @@ export default function Home() {
               Instantly see routine fit, real risks, and what to ask the seller.
             </p>
             <p className="text-xs text-gray-400">
-              Works with CarGurus, AutoTrader, Craigslist, Facebook Marketplace, Copart &amp; IAAI
+              Works with CarGurus and Copart listings
             </p>
           </div>
 
@@ -306,6 +306,49 @@ export default function Home() {
                 </div>
               </Link>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Coming Soon: EV Mechanic Finder ─────────────────────────── */}
+      <section className="py-10 md:py-14">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="relative rounded-2xl border border-orange-100 bg-gradient-to-br from-orange-50 to-amber-50 p-8 overflow-hidden">
+            {/* Coming soon badge */}
+            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 bg-orange-100 rounded-full border border-orange-200">
+              <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+              <span className="text-xs font-semibold text-orange-700 uppercase tracking-wider">Coming Soon</span>
+            </div>
+
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+              <div className="flex-1">
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">Find a Trusted EV Mechanic Near You</h2>
+                <p className="text-sm text-gray-600 leading-relaxed max-w-lg">
+                  We&apos;re building a verified network of EV-specialist mechanics. Get pre-purchase inspections, battery health checks, and ongoing maintenance from shops that know EVs.
+                </p>
+              </div>
+              {/* Blurred preview cards */}
+              <div className="flex gap-2 shrink-0 select-none pointer-events-none" aria-hidden>
+                {["EV Specialist · Austin, TX", "Battery Expert · Denver, CO", "Tesla Certified · Seattle, WA"].map((label) => (
+                  <div key={label} className="blur-sm bg-white rounded-xl border border-gray-200 p-3 w-36 shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-orange-100 mb-2" />
+                    <div className="h-2 bg-gray-200 rounded mb-1 w-3/4" />
+                    <div className="h-2 bg-gray-100 rounded w-full mb-2" />
+                    <p className="text-xs text-gray-400">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center gap-3">
+              <button
+                disabled
+                className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-semibold opacity-60 cursor-not-allowed"
+              >
+                Find a Mechanic — Coming Soon
+              </button>
+              <p className="text-xs text-orange-700">Launching soon — mechanics can join the waitlist at <span className="font-medium">/mechanics/join</span></p>
+            </div>
           </div>
         </div>
       </section>
