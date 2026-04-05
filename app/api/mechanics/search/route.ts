@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
 
   type MechanicRow = { zip: string | null; avg_rating: number | null; [key: string]: unknown };
   // Sort by ZIP proximity: exact match first, then 3-digit prefix, then rest
-  const rows = (Array.isArray(data) ? data : []) as MechanicRow[];
+  const rows = (Array.isArray(data) ? data : []) as unknown as MechanicRow[];
   const sorted = rows.sort((a, b) => {
     const aExact = a.zip === zip ? 0 : a.zip?.startsWith(zipPrefix) ? 1 : 2;
     const bExact = b.zip === zip ? 0 : b.zip?.startsWith(zipPrefix) ? 1 : 2;
