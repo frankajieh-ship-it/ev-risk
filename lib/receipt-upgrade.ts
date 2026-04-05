@@ -14,6 +14,7 @@ import { applyRenderer } from "@/lib/receipt-renderer";
 import { detectListingSource } from "@/lib/listing-scraper";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
 import type { ReceiptScoringResult } from "@/lib/receipt-scoring";
+import type { FeatureFlags } from "@/lib/feature-flags";
 
 export interface UpgradePayload {
   receipt_id: string;
@@ -21,7 +22,7 @@ export interface UpgradePayload {
   input: ReceiptGenerateRequest;
   rule_signals: string[];
   rule_scoring: ReceiptScoringResult;
-  features: Record<string, boolean>;
+  features: FeatureFlags;
   client_ip: string;
   ip_hash: string | null;
   is_pro: boolean;
