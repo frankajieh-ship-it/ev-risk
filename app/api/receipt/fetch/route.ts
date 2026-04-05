@@ -73,7 +73,7 @@ function parseEvSpecsFromText(text: string): Pick<FetchedListingFields, 'range_m
   return specs;
 }
 
-export const maxDuration = 30;
+export const maxDuration = 45;
 
 /**
  * SSRF protection: block private IPs, localhost, reserved ranges.

@@ -268,7 +268,7 @@ function validateVehicleData(data: Partial<VehicleData>): Partial<VehicleData> {
  */
 async function extractFromAutoTrader(html: string): Promise<Partial<VehicleData>> {
   // Try structured data first
-  let data = extractStructuredData(html);
+  const data = extractStructuredData(html);
 
   // If we didn't get enough data, try AutoTrader-specific patterns
   if (!data.year || !data.make || !data.model) {
@@ -330,7 +330,7 @@ async function extractFromAutoTrader(html: string): Promise<Partial<VehicleData>
  */
 async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> {
   // Try structured data first
-  let data = extractStructuredData(html);
+  const data = extractStructuredData(html);
 
   // CarGurus-specific: Try __NEXT_DATA__ extraction
   const nextDataMatch = html.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
@@ -473,7 +473,7 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
 
 async function extractFromCars(html: string): Promise<Partial<VehicleData>> {
   // Try structured data first (uses the common extractStructuredData function)
-  let data = extractStructuredData(html);
+  const data = extractStructuredData(html);
 
   // Extract from title tag if needed
   if (!data.year || !data.make || !data.model) {
@@ -528,8 +528,8 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
   const warnings: string[] = [];
   const startTime = Date.now();
 
-  // Hard budget: 25s total across all fetch attempts (Netlify maxDuration=30s, function timeout=60s)
-  const EXTRACTION_BUDGET_MS = 25000;
+  // Hard budget: 40s total — ScrapingBee JS rendering can take 20-30s (maxDuration=45s)
+  const EXTRACTION_BUDGET_MS = 40000;
   const remainingBudget = () => Math.max(0, EXTRACTION_BUDGET_MS - (Date.now() - startTime));
 
   // Initialize diagnostics
@@ -583,10 +583,10 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     // --- Proxy fetch phase ---
     let html: string | null = null;
 
-    // Per-source proxy timeout cap: CarGurus hangs connections silently,
-    // so give it 8s max then fail fast to direct/text fallback.
+    // Per-source proxy timeout cap. CarGurus previously hung silently on direct fetch
+    // (hence 8s cap), but with ScrapingBee JS rendering we need more time.
     const SOURCE_PROXY_TIMEOUT: Partial<Record<string, number>> = {
-      cargurus: 8000,
+      cargurus: 30000,
     };
     const sourceProxyCap = SOURCE_PROXY_TIMEOUT[dataSource] ?? 20000;
 

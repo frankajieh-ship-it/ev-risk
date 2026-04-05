@@ -353,7 +353,7 @@ export default function ReceiptInputCard({
     setShowCgPasteHint(false);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 35000);
 
     try {
       const bodyPayload: Record<string, string> = {};
