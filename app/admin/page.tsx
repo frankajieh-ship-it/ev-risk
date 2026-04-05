@@ -43,6 +43,7 @@ interface RetentionData {
       first_visit: string;
       last_visit: string;
       days_active: number;
+      referrer?: string | null;
     }>;
   };
   active_users: {
