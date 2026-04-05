@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { useEventTracking } from "@/hooks/useEventTracking";
-import { ArrowRight, Star, ChevronDown, ChevronUp, Mail } from "lucide-react";
+import { ArrowRight, Star, ChevronDown, ChevronUp, Mail, Sparkles } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import LoginModal from "@/components/LoginModal";
@@ -130,7 +130,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-white">
       <div id="turnstile-score" className="hidden" />
       <Header variant="homepage" />
 
@@ -139,10 +139,11 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           {/* Left: copy */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
-              Free · No sign-up required
-            </p>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 leading-tight">
+            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 bg-blue-50 rounded-full border border-blue-100">
+              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+              <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">Free · No sign-up required</span>
+            </div>
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-blue-700 to-green-600 bg-clip-text text-transparent mb-4 leading-tight">
               Get the second opinion that actually matters.
             </h1>
             <p className="text-base md:text-lg text-gray-600 mb-6 leading-relaxed">
@@ -155,7 +156,7 @@ export default function Home() {
           </div>
 
           {/* Right: inline paste box — the "aha moment" above the fold */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-6">
+          <div className="bg-white rounded-2xl border border-blue-100 shadow-xl p-6">
             <h2 className="text-base font-bold text-gray-900 mb-1">Analyze any listing or auction</h2>
             <p className="text-sm text-gray-500 mb-4">Paste a URL and get an instant AI deal rating — free, no account needed.</p>
             <input
@@ -205,7 +206,7 @@ export default function Home() {
       <HowItWorksSection variant="homepage" />
 
       {/* ── Section 4: Repeat Paste Box (for scrollers) ──────────────── */}
-      <section id="paste-box" className="py-10 md:py-16 bg-gray-50">
+      <section id="paste-box" className="py-10 md:py-16 bg-blue-50/50">
         <div className="max-w-2xl mx-auto px-4">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-1">Analyze any car listing or auction</h2>
@@ -353,7 +354,7 @@ export default function Home() {
       </section>
 
       {/* ── Section 8: FAQ + Contact ──────────────────────────────────── */}
-      <section className="py-10 md:py-16 bg-gray-50">
+      <section className="py-10 md:py-16 bg-blue-50/30">
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex flex-col lg:flex-row gap-12">
             {/* Left */}
@@ -395,13 +396,13 @@ export default function Home() {
       </section>
 
       {/* ── Section 9: Final CTA ─────────────────────────────────────── */}
-      <section className="py-16 md:py-24 text-center">
+      <section className="py-16 md:py-24 text-center bg-gradient-to-br from-blue-600 to-green-500">
         <div className="max-w-lg mx-auto px-4">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Ready to check a listing?</h2>
-          <p className="text-sm text-gray-500 mb-6">Takes under 30 seconds. Free, no account needed.</p>
+          <h2 className="text-2xl font-bold text-white mb-2">Ready to check a listing?</h2>
+          <p className="text-sm text-white/70 mb-6">Takes under 30 seconds. Free, no account needed.</p>
           <button
             onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); document.getElementById("listing-input")?.focus(); }}
-            className="px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-md"
+            className="px-6 py-3 bg-white text-blue-700 text-sm font-semibold rounded-xl hover:bg-blue-50 transition-colors shadow-md"
           >
             Paste it here →
           </button>
