@@ -831,10 +831,16 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Export */}
+          {/* Export + Tools */}
           <div className="mt-4 pt-4 border-t border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <p className="text-sm text-gray-500">Export current view — data matches what you see on screen</p>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <a href="/admin/reddit" className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium">
+                ⚡ Reddit Operator
+              </a>
+              <a href="/admin/news" className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium">
+                📰 News
+              </a>
               <button onClick={() => exportData("csv")} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
                 Export CSV
               </button>
