@@ -400,7 +400,7 @@ export default function Home() {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Ready to check a listing?</h2>
           <p className="text-sm text-gray-500 mb-6">Takes under 30 seconds. Free, no account needed.</p>
           <button
-            onClick={scrollToPaste}
+            onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); document.getElementById("listing-input")?.focus(); }}
             className="px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-md"
           >
             Paste it here →
