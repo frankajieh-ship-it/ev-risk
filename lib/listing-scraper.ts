@@ -712,6 +712,60 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
       }
     }
 
+    // --- Direct fetch fallback (if ScrapingBee didn't get HTML) ---
+    if (!html && remainingBudget() > 1000) {
+      const directStart = Date.now();
+      const directTimeout = Math.min(remainingBudget() - 200, 15000);
+      const directController = new AbortController();
+      const directTimeoutId = setTimeout(() => directController.abort(), directTimeout);
+
+      try {
+        console.log('[Listing Scraper] Falling back to direct fetch:', url.substring(0, 80));
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': 'https://www.google.com/',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'cross-site',
+            'Upgrade-Insecure-Requests': '1',
+            'Cache-Control': 'max-age=0',
+          },
+          redirect: 'follow',
+          signal: directController.signal,
+        });
+        clearTimeout(directTimeoutId);
+
+        diagnostics.directStatusCode = response.status;
+        diagnostics.directDurationMs = Date.now() - directStart;
+
+        if (response.ok) {
+          html = await response.text();
+          diagnostics.fetchMethod = 'direct';
+          diagnostics.htmlLength = html.length;
+          console.log('[Listing Scraper] Direct fetch succeeded, length:', html.length);
+        } else {
+          diagnostics.errorMessage = `direct_${response.status}`;
+          console.warn('[Listing Scraper] Direct fetch HTTP', response.status);
+        }
+      } catch (directErr) {
+        clearTimeout(directTimeoutId);
+        diagnostics.directDurationMs = Date.now() - directStart;
+        const msg = directErr instanceof Error ? directErr.message : String(directErr);
+        console.warn('[Listing Scraper] Direct fetch threw:', msg);
+        if (directErr instanceof Error && directErr.name === 'AbortError') {
+          diagnostics.failureReason = 'timeout';
+          diagnostics.errorMessage = 'direct_timeout';
+        } else {
+          diagnostics.failureReason = 'network_error';
+          diagnostics.errorMessage = msg;
+        }
+      }
+    }
+
     // --- No HTML obtained ---
     if (!html) {
       if (!diagnostics.failureReason) {
