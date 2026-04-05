@@ -1062,7 +1062,7 @@ export default function ReceiptPage() {
           }}
           isGenerating={isGenerating}
           generatingStep={generatingStep}
-          remainingFree={freeMode ? null : remainingFree}
+          remainingFree={null}
           error={error}
           isPro={isPro}
           prefillText={prefillText}
