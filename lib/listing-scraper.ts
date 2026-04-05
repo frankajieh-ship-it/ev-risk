@@ -680,7 +680,8 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
 
           const lowerSbHtml = sbHtml.toLowerCase();
           const sbBlocked =
-            lowerSbHtml.includes('captcha') ||
+            lowerSbHtml.includes('id="captcha"') ||
+            lowerSbHtml.includes('class="captcha') ||
             lowerSbHtml.includes('just a moment') ||
             lowerSbHtml.includes('challenge-platform') ||
             sbHtml.length < 2000;
@@ -738,7 +739,8 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
 
     // --- Bot detection in HTML ---
     const lowerHtml = html.toLowerCase();
-    const isBlocked = lowerHtml.includes('captcha') ||
+    const isBlocked = lowerHtml.includes('id="captcha"') ||
+                      lowerHtml.includes('class="captcha') ||
                       lowerHtml.includes('bot detection') ||
                       lowerHtml.includes('just a moment') ||
                       lowerHtml.includes('challenge-platform') ||
