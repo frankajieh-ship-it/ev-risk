@@ -37,6 +37,7 @@ import { isInternalTester } from "@/lib/rollout-flags";
 import { guardTurnstile } from "@/lib/turnstile";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
 import { logApi } from "@/lib/api-logger";
+import { runReceiptUpgrade } from "@/lib/receipt-upgrade";
 import { detectListingSource } from "@/lib/listing-scraper";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { createTrace, finalizeTrace } from "@/lib/debug-trace";
@@ -445,55 +446,65 @@ export async function POST(request: NextRequest) {
     t0,
   };
 
-  // In development, Netlify background functions don't work reliably (even with netlify dev).
-  // Instead, route to a regular Next.js API route that runs the upgrade inline (max 90s).
+  // In development, call upgrade directly to avoid unreliable self-HTTP fetch in dev server.
+  // In production, enqueue as Netlify Background Function (15-min timeout).
   const isDev = process.env.NODE_ENV === "development";
-  const devPort = process.env.PORT || "3000";
-  const upgradeUrl = isDev
-    ? `http://localhost:${devPort}/api/receipt/upgrade-dev`
-    : (process.env.NEXT_PUBLIC_SITE_URL || process.env.URL || process.env.DEPLOY_URL)
+
+  if (isDev) {
+    // Run upgrade in background — don't await so we return lite payload immediately
+    runReceiptUpgrade(upgradePayload).catch((err) => {
+      console.error("[Receipt] Dev upgrade failed:", err instanceof Error ? err.message : err);
+      if (isSupabaseConfigured()) {
+        supabase.from("receipts")
+          .update({ generation_status: "failed" })
+          .eq("id", liteReceipt.receipt_id)
+          .then(() => {});
+      }
+    });
+  } else {
+    const upgradeUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.URL || process.env.DEPLOY_URL)
       ? `${process.env.NEXT_PUBLIC_SITE_URL || process.env.URL || process.env.DEPLOY_URL}/.netlify/functions/upgrade-receipt-background`
       : null;
 
-  if (!upgradeUrl) {
-    console.error("[Receipt API] No upgrade URL configured — skipping upgrade");
-    if (isSupabaseConfigured()) {
-      supabase.from("receipts").update({ generation_status: "failed" }).eq("id", liteReceipt.receipt_id).then(() => {});
+    if (!upgradeUrl) {
+      console.error("[Receipt API] No upgrade URL configured — skipping upgrade");
+      if (isSupabaseConfigured()) {
+        supabase.from("receipts").update({ generation_status: "failed" }).eq("id", liteReceipt.receipt_id).then(() => {});
+      }
+      return NextResponse.json({ ...litePayload, recalls, has_active_recalls: recalls.length > 0 });
     }
-    return NextResponse.json({ ...litePayload, recalls, has_active_recalls: recalls.length > 0 });
+
+    fetch(upgradeUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Upgrade-Secret": process.env.UPGRADE_SECRET ?? "",
+      },
+      body: JSON.stringify(upgradePayload),
+    }).catch((err) => {
+      console.error("[Receipt] Failed to enqueue background upgrade:", err instanceof Error ? err.message : err);
+
+      if (isSupabaseConfigured()) {
+        supabase.from("receipts")
+          .update({ generation_status: "failed" })
+          .eq("id", liteReceipt.receipt_id)
+          .then(() => {});
+
+        supabase.from("receipt_events").insert({
+          receipt_id: liteReceipt.receipt_id,
+          session_id: receiptToken as string,
+          event_type: "upgrade_exception",
+        }).then(() => {}, () => {});
+
+        logApi("error", "Failed to enqueue background upgrade", {
+          endpoint: "/api/receipt",
+          anon_id: receiptToken as string,
+          error_code: "upgrade_enqueue_fail",
+          error_message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
   }
-
-  fetch(upgradeUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Upgrade-Secret": process.env.UPGRADE_SECRET ?? "",
-    },
-    body: JSON.stringify(upgradePayload),
-  }).catch((err) => {
-    console.error("[Receipt] Failed to enqueue background upgrade:", err instanceof Error ? err.message : err);
-
-    // If enqueue fails, mark as failed so the client stops polling
-    if (isSupabaseConfigured()) {
-      supabase.from("receipts")
-        .update({ generation_status: "failed" })
-        .eq("id", liteReceipt.receipt_id)
-        .then(() => {});
-
-      supabase.from("receipt_events").insert({
-        receipt_id: liteReceipt.receipt_id,
-        session_id: receiptToken as string,
-        event_type: "upgrade_exception",
-      }).then(() => {}, () => {});
-
-      logApi("error", "Failed to enqueue background upgrade", {
-        endpoint: "/api/receipt",
-        anon_id: receiptToken as string,
-        error_code: "upgrade_enqueue_fail",
-        error_message: err instanceof Error ? err.message : String(err),
-      });
-    }
-  });
 
   if (trace) {
     finalizeTrace(trace, {
