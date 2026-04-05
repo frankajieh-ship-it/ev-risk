@@ -269,7 +269,7 @@ export default function AuctionResultPage() {
 
   useEffect(() => {
     if (!resultId) return;
-    const anonId = getOrCreatePersistentSessionId();
+    const anonId = getOrCreatePersistentSessionId() ?? "";
     fetch(`/api/auction/result/${resultId}?anon_id=${encodeURIComponent(anonId)}`)
       .then((r) => r.json())
       .then((json: AuctionResultApiResponse) => {
