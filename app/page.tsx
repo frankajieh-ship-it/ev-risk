@@ -112,11 +112,6 @@ export default function Home() {
   };
 
 
-  const scrollToPaste = () => {
-    document.getElementById("paste-box")?.scrollIntoView({ behavior: "smooth" });
-    setTimeout(() => document.getElementById("listing-input")?.focus(), 400);
-  };
-
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const faqs = [
@@ -140,7 +135,7 @@ export default function Home() {
       <Header variant="homepage" />
 
       {/* ── Section 1: Hero ─────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 py-16 md:py-24">
+      <section className="max-w-7xl mx-auto px-4 py-12 md:py-20">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           {/* Left: copy */}
           <div>
@@ -154,28 +149,47 @@ export default function Home() {
               Paste any used car or Copart listing.<br />
               Instantly see routine fit, real risks, and what to ask the seller.
             </p>
-            <button
-              onClick={scrollToPaste}
-              className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-md flex items-center gap-2"
-            >
-              Paste Listing → Get Free Report
-              <ArrowRight className="w-4 h-4" />
-            </button>
-            <p className="text-xs text-gray-400 mt-3">
+            <p className="text-xs text-gray-400">
               Works with CarGurus, AutoTrader, Craigslist, Facebook Marketplace, Copart &amp; IAAI
             </p>
           </div>
 
-          {/* Right: hero phone mockup */}
-          <div className="flex justify-center lg:justify-end">
-            <Image
-              src="/hero-phone-mockup.webp"
-              alt="OFFO — One paste. Instant deal rating."
-              width={540}
-              height={540}
-              className="w-full max-w-sm lg:max-w-md rounded-2xl shadow-xl object-cover"
-              priority
+          {/* Right: inline paste box — the "aha moment" above the fold */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-6">
+            <h2 className="text-base font-bold text-gray-900 mb-1">Analyze any listing or auction</h2>
+            <p className="text-sm text-gray-500 mb-4">Paste a URL and get an instant AI deal rating — free, no account needed.</p>
+            <input
+              id="listing-input"
+              type="url"
+              value={listingUrl}
+              onChange={(e) => setListingUrl(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleHomePasteSubmit(); }}
+              placeholder="Paste any listing or auction link here…"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-900 placeholder-gray-400 mb-3"
+              autoFocus
             />
+            {detectedDomain && (
+              <p className={`text-xs font-medium mb-3 ${detectedType === "auction" ? "text-orange-600" : "text-green-600"}`}>
+                {detectedDomain}
+                {detectedType === "auction" && " — Auction Bidder analysis"}
+                {detectedType === "listing" && " — Listing analysis"}
+              </p>
+            )}
+            <button
+              onClick={handleHomePasteSubmit}
+              disabled={!listingUrl.trim()}
+              className={`w-full px-5 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
+                listingUrl.trim()
+                  ? detectedType === "auction"
+                    ? "bg-orange-500 text-white hover:bg-orange-600 shadow-md"
+                    : "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              {detectedType === "auction" ? "Analyze Auction Lot — It's Free" : "Analyze Listing — It's Free"}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <p className="text-xs text-gray-400 text-center mt-3">No account required · Results in ~15 seconds</p>
           </div>
         </div>
       </section>
@@ -190,14 +204,13 @@ export default function Home() {
       {/* ── Section 3: How It Works ──────────────────────────────────── */}
       <HowItWorksSection variant="homepage" />
 
-      {/* ── Section 4: Main Paste Box ────────────────────────────────── */}
+      {/* ── Section 4: Repeat Paste Box (for scrollers) ──────────────── */}
       <section id="paste-box" className="py-10 md:py-16 bg-gray-50">
         <div className="max-w-2xl mx-auto px-4">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-1">Analyze any car listing or auction</h2>
             <p className="text-sm text-gray-500 mb-4">Paste a CarGurus, Copart, AutoTrader, or any dealer URL — we&apos;ll route it automatically.</p>
             <input
-              id="listing-input"
               type="url"
               value={listingUrl}
               onChange={(e) => setListingUrl(e.target.value)}
