@@ -98,9 +98,71 @@ export async function POST(request: NextRequest) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+    // Sites that need JS rendering (client-side rendered, bot-protected)
+    const needsJsRender = ['cargurus.com', 'autotrader.com', 'cars.com'].some(
+      d => parsedUrl.hostname.includes(d)
+    );
+
     try {
+      // --- ScrapingBee path (when API key is configured) ---
+      const SCRAPINGBEE_KEY = process.env.SCRAPINGBEE_API_KEY;
+      if (SCRAPINGBEE_KEY) {
+        try {
+          const sbUrl = new URL('https://app.scrapingbee.com/api/v1/');
+          sbUrl.searchParams.set('api_key', SCRAPINGBEE_KEY);
+          sbUrl.searchParams.set('url', url);
+          sbUrl.searchParams.set('render_js', needsJsRender ? 'true' : 'false');
+          sbUrl.searchParams.set('premium_proxy', 'true');
+          sbUrl.searchParams.set('country_code', 'us');
+          if (needsJsRender) {
+            // Wait for network idle so JS-rendered content is fully loaded
+            sbUrl.searchParams.set('wait_for', 'networkidle2');
+            sbUrl.searchParams.set('timeout', String(Math.min(timeout, 30000)));
+          }
+
+          console.log('[Proxy Fetch] Trying ScrapingBee:', { url: url.substring(0, 80), needsJsRender });
+          const sbResponse = await fetch(sbUrl.toString(), { signal: controller.signal });
+          clearTimeout(timeoutId);
+
+          if (sbResponse.ok) {
+            const html = await sbResponse.text();
+            const creditsUsed = sbResponse.headers.get('spb-cost');
+            console.log('[Proxy Fetch] ScrapingBee success, credits used:', creditsUsed, 'html length:', html.length);
+
+            const lowerHtml = html.toLowerCase();
+            const isBlocked =
+              html.includes('captcha') ||
+              html.includes('Just a moment') ||
+              html.includes('challenge-platform') ||
+              html.length < 2000;
+
+            if (!isBlocked) {
+              return NextResponse.json({
+                success: true,
+                html,
+                contentLength: html.length,
+                status: 200,
+                fetchMethod: 'scrapingbee',
+                headers: { 'content-type': 'text/html' },
+              });
+            }
+            console.warn('[Proxy Fetch] ScrapingBee returned blocked page, falling back to direct fetch');
+          } else {
+            const errText = await sbResponse.text().catch(() => '');
+            console.warn('[Proxy Fetch] ScrapingBee error', sbResponse.status, errText.substring(0, 200));
+          }
+        } catch (sbErr) {
+          console.warn('[Proxy Fetch] ScrapingBee threw, falling back:', sbErr instanceof Error ? sbErr.message : sbErr);
+        }
+      }
+
+      // --- Direct fetch fallback ---
+      clearTimeout(timeoutId); // ensure outer timer is cleared regardless of ScrapingBee path
+      const directController = new AbortController();
+      const directTimeoutId = setTimeout(() => directController.abort(), timeout);
+
       const response = await fetch(url, {
-        signal: controller.signal,
+        signal: directController.signal,
         headers: {
           'User-Agent': getRandomUserAgent(),
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -117,15 +179,11 @@ export async function POST(request: NextRequest) {
           'Connection': 'keep-alive',
         },
         redirect: 'follow',
-        // Add a small delay to appear more human-like
-        ...(Math.random() > 0.5 && {
-          // Randomly include cookies to appear more legitimate
-        }),
       });
 
-      clearTimeout(timeoutId);
+      clearTimeout(directTimeoutId);
 
-      console.log('[Proxy Fetch] Response status:', response.status, response.statusText);
+      console.log('[Proxy Fetch] Direct response status:', response.status, response.statusText);
 
       if (!response.ok) {
         return NextResponse.json(
