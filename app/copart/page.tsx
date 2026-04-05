@@ -51,6 +51,7 @@ import type { ArbitrageResult } from "@/lib/copart-arbitrage-engine";
 import { detectVehicleType, isElectric } from "@/lib/auction/vehicle-type";
 import OFfoChat from "@/components/chat/OFfoChat";
 import { useAuth } from "@/hooks/useAuth";
+import NearbyMechanicsStrip from "@/components/mechanic/NearbyMechanicsStrip";
 
 type PageState = "idle" | "fetching" | "done" | "error";
 
@@ -302,7 +303,7 @@ function RangeProjectionCard({ range }: { range: RangeProjection }) {
       {range.climate_note && (
         <p className="text-xs text-gray-400 pt-1">{range.climate_note}</p>
       )}
-      <p className="text-[10px] text-gray-300">Source: AAA + Recurrent fleet data</p>
+      <p className="text-xs text-gray-300">Source: AAA + Recurrent fleet data</p>
     </div>
   );
 }
@@ -377,7 +378,7 @@ function ElectricityContextCard({ electricity }: { electricity: ElectricityConte
           <p className="text-xs text-green-700 mt-0.5">TOU rate ~{electricity.ev_tou_kwh_cents}¢/kWh may reduce monthly cost significantly.</p>
         </div>
       )}
-      <p className="text-[10px] text-gray-300">At 12,000 mi/yr · {electricity.state} state average rate · EIA data</p>
+      <p className="text-xs text-gray-300">At 12,000 mi/yr · {electricity.state} state average rate · EIA data</p>
     </div>
   );
 }
@@ -422,14 +423,14 @@ function RecallsCard({ recalls }: { recalls: NhtsaRecallSummary[] }) {
             <div key={r.NHTSACampaignNumber} className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-1.5">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-xs font-semibold text-gray-800 leading-snug">{r.Component}</p>
-                <span className="text-[10px] text-gray-400 font-mono flex-shrink-0 mt-0.5">
+                <span className="text-xs text-gray-400 font-mono flex-shrink-0 mt-0.5">
                   #{r.NHTSACampaignNumber}
                 </span>
               </div>
               <p className="text-xs text-gray-600 leading-relaxed">{r.Summary}</p>
               {r.Remedy && (
                 <div className="flex items-start gap-1.5 pt-0.5">
-                  <span className="text-[10px] font-semibold text-green-700 uppercase tracking-wide flex-shrink-0 mt-0.5">Remedy</span>
+                  <span className="text-xs font-semibold text-green-700 uppercase tracking-wide flex-shrink-0 mt-0.5">Remedy</span>
                   <p className="text-xs text-green-800 leading-relaxed">{r.Remedy}</p>
                 </div>
               )}
@@ -459,17 +460,17 @@ export default function CopartPage() {
   const receiptToken = typeof window !== "undefined" ? getOrCreateReceiptToken() : "";
   const listingTextRef = useRef("");
 
-  // Pre-fill from ?url= param (e.g. pasted on homepage, then routed here)
+  // Pre-fill from ?url= or ?lot= param (e.g. pasted on homepage, then routed here)
   const urlParamHandled = useRef(false);
   useEffect(() => {
     if (urlParamHandled.current) return;
     const params = new URLSearchParams(window.location.search);
-    const urlParam = params.get("url");
+    const urlParam = params.get("url") ?? params.get("lot");
     if (urlParam) {
       urlParamHandled.current = true;
       setInput(urlParam);
       window.history.replaceState({}, "", window.location.pathname);
-      // Pass URL directly to handleAnalyze so it doesn't depend on state settling
+      // Pass value directly to handleAnalyze so it doesn't depend on state settling
       // eslint-disable-next-line react-hooks/immutability
       setTimeout(() => handleAnalyze(urlParam), 400);
     }
@@ -809,6 +810,20 @@ export default function CopartPage() {
                 onResult={setArbitrageResult}
               />
             )}
+
+            {/* Nearby mechanics — shown after arbitrage so repair cost context is fresh */}
+            <NearbyMechanicsStrip
+              zip={lot.location?.match(/\b\d{5}\b/)?.[0]}
+              serviceType={isEv ? "ev_inspection" : "salvage_assessment"}
+              vehicle={{
+                vin:   lot.vin   ?? undefined,
+                year:  lot.year  ?? undefined,
+                make:  lot.make  ?? undefined,
+                model: lot.model ?? undefined,
+                auction_result_id: resultId ?? undefined,
+              }}
+              heading="Find a mechanic near this lot"
+            />
 
             {/* Title flags — always shown */}
             <TitleFlagsCard zip={lot.location ?? null} />

@@ -77,15 +77,14 @@ const FIELD_LABELS: Record<string, string> = {
 const LABEL_CLASS = "text-xs font-medium text-gray-600 mb-1";
 
 function getInputClass(confidence?: string, isDirty?: boolean): string {
-  const base =
-    "w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-1 disabled:bg-gray-50 disabled:text-gray-400";
+  const base = "form-input-sm";
   if (isDirty) {
     return `${base} border-blue-300 focus:border-blue-600 focus:ring-blue-600`;
   }
   if (confidence === "extracted") {
     return `${base} border-green-300 focus:border-green-600 focus:ring-green-600`;
   }
-  return `${base} border-gray-200 focus:border-blue-600 focus:ring-blue-600`;
+  return base;
 }
 
 // Extraction loading step labels
@@ -705,7 +704,7 @@ export default function ReceiptInputCard({
                 }}
                 onPaste={handleUrlPaste}
                 placeholder="https://www.cargurus.com/Cars/..."
-                className="flex-1 px-4 py-3 rounded-lg border border-gray-200 text-sm focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                className="form-input flex-1"
                 disabled={isGenerating || isExtracting}
               />
               <button

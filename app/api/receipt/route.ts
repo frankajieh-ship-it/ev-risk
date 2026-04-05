@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
   if (blocked) return blocked;
 
   const { isPro } = authResult;
-  let { userId } = authResult;
+  const { userId } = authResult;
   const features = getFeatureFlags(isPro);
   timings.auth = Date.now() - t0;
 
@@ -445,12 +445,23 @@ export async function POST(request: NextRequest) {
     t0,
   };
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.URL ||          // Netlify production URL (auto-set)
-    process.env.DEPLOY_URL ||   // Netlify preview deploy URL (auto-set)
-    "http://localhost:8888";
-  const upgradeUrl = `${siteUrl}/.netlify/functions/upgrade-receipt-background`;
+  // In development, Netlify background functions don't work reliably (even with netlify dev).
+  // Instead, route to a regular Next.js API route that runs the upgrade inline (max 90s).
+  const isDev = process.env.NODE_ENV === "development";
+  const devPort = process.env.PORT || "3000";
+  const upgradeUrl = isDev
+    ? `http://localhost:${devPort}/api/receipt/upgrade-dev`
+    : (process.env.NEXT_PUBLIC_SITE_URL || process.env.URL || process.env.DEPLOY_URL)
+      ? `${process.env.NEXT_PUBLIC_SITE_URL || process.env.URL || process.env.DEPLOY_URL}/.netlify/functions/upgrade-receipt-background`
+      : null;
+
+  if (!upgradeUrl) {
+    console.error("[Receipt API] No upgrade URL configured — skipping upgrade");
+    if (isSupabaseConfigured()) {
+      supabase.from("receipts").update({ generation_status: "failed" }).eq("id", liteReceipt.receipt_id).then(() => {});
+    }
+    return NextResponse.json({ ...litePayload, recalls, has_active_recalls: recalls.length > 0 });
+  }
 
   fetch(upgradeUrl, {
     method: "POST",

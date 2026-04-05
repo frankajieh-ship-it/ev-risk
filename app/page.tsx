@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
@@ -64,36 +64,34 @@ export default function Home() {
 
   // Homepage inline URL input
   const [listingUrl, setListingUrl] = useState("");
-  const [detectedDomain, setDetectedDomain] = useState<string | null>(null);
-  const [detectedType, setDetectedType] = useState<"auction" | "listing" | null>(null);
 
-  // Paste detection — normalize URL and show detected source label + type
-  useEffect(() => {
-    if (!listingUrl.trim()) { setDetectedDomain(null); setDetectedType(null); return; }
+  // Derived paste detection — computed inline, no useEffect needed
+  const { detectedDomain, detectedType } = useMemo(() => {
+    const trimmed = listingUrl.trim();
+    if (!trimmed) return { detectedDomain: null, detectedType: null };
+
+    // Bare Copart lot number (6–12 digits, no spaces)
+    if (/^\d{6,12}$/.test(trimmed)) {
+      return { detectedDomain: "Copart lot number detected ✓", detectedType: "auction" as const };
+    }
+
     try {
-      const url = new URL(listingUrl.trim());
+      const url = new URL(trimmed);
       const host = url.hostname.replace(/^www\./, "");
       const path = url.pathname.toLowerCase();
 
-      let label: string | null = null;
-      let type: "auction" | "listing" | null = null;
+      if (host.includes("copart.com")) return { detectedDomain: "Copart auction detected ✓", detectedType: "auction" as const };
+      if (host.includes("iaai.com") || host.includes("iaaiservices.com")) return { detectedDomain: "IAAI auction detected ✓", detectedType: "auction" as const };
+      if (host.includes("manheim.com")) return { detectedDomain: "Manheim auction detected ✓", detectedType: "auction" as const };
+      if (host.includes("cargurus.com")) return { detectedDomain: "CarGurus listing detected ✓", detectedType: "listing" as const };
+      if (host.includes("cars.com")) return { detectedDomain: "Cars.com listing detected ✓", detectedType: "listing" as const };
+      if (host.includes("autotrader.com")) return { detectedDomain: "AutoTrader listing detected ✓", detectedType: "listing" as const };
+      if (host.includes("facebook.com") && path.includes("marketplace")) return { detectedDomain: "Facebook Marketplace listing detected ✓", detectedType: "listing" as const };
+      if (path.includes("/inventory/") || path.includes("/used/") || path.includes("/vehicle/")) return { detectedDomain: "Dealer listing detected ✓", detectedType: "listing" as const };
 
-      // Auction sources
-      if (host.includes("copart.com")) { label = "Copart auction detected ✓"; type = "auction"; }
-      else if (host.includes("iaai.com") || host.includes("iaaiservices.com")) { label = "IAAI auction detected ✓"; type = "auction"; }
-      else if (host.includes("manheim.com")) { label = "Manheim auction detected ✓"; type = "auction"; }
-      // Listing sources
-      else if (host.includes("cargurus.com")) { label = "CarGurus listing detected ✓"; type = "listing"; }
-      else if (host.includes("cars.com")) { label = "Cars.com listing detected ✓"; type = "listing"; }
-      else if (host.includes("autotrader.com")) { label = "AutoTrader listing detected ✓"; type = "listing"; }
-      else if (host.includes("facebook.com") && path.includes("marketplace")) { label = "Facebook Marketplace listing detected ✓"; type = "listing"; }
-      else if (path.includes("/inventory/") || path.includes("/used/") || path.includes("/vehicle/")) { label = "Dealer listing detected ✓"; type = "listing"; }
-
-      setDetectedDomain(label);
-      setDetectedType(type);
+      return { detectedDomain: null, detectedType: null };
     } catch {
-      setDetectedDomain(null);
-      setDetectedType(null);
+      return { detectedDomain: null, detectedType: null };
     }
   }, [listingUrl]);
 
@@ -103,7 +101,11 @@ export default function Home() {
     trackEvent("listing_paste_submitted", { page_source: "homepage", detected_type: detectedType, text_length: trimmed.length });
     // Route auction URLs directly to the auction bidder, all others to receipt
     if (detectedType === "auction") {
-      router.push(`/copart?url=${encodeURIComponent(trimmed)}&src=homepage`);
+      const isBareLot = /^\d{6,12}$/.test(trimmed);
+      router.push(isBareLot
+        ? `/copart?lot=${encodeURIComponent(trimmed)}&src=homepage`
+        : `/copart?url=${encodeURIComponent(trimmed)}&src=homepage`
+      );
     } else {
       router.push(`/receipt?url=${encodeURIComponent(trimmed)}&src=homepage`);
     }
@@ -154,7 +156,7 @@ export default function Home() {
             </p>
             <button
               onClick={scrollToPaste}
-              className="w-full sm:w-auto px-6 py-3.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-md flex items-center gap-2"
+              className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-md flex items-center gap-2"
             >
               Paste Listing → Get Free Report
               <ArrowRight className="w-4 h-4" />
@@ -193,7 +195,7 @@ export default function Home() {
         <div className="max-w-2xl mx-auto px-4">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-lg p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-1">Analyze any car listing or auction</h2>
-            <p className="text-sm text-gray-500 mb-4">Paste a CarGurus, Copart, AutoTrader, or any dealer URL — we'll route it automatically.</p>
+            <p className="text-sm text-gray-500 mb-4">Paste a CarGurus, Copart, AutoTrader, or any dealer URL — we&apos;ll route it automatically.</p>
             <input
               id="listing-input"
               type="url"
@@ -281,11 +283,11 @@ export default function Home() {
                     <div className="flex gap-0.5">
                       {[1,2,3,4,5].map(s => <Star key={s} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />)}
                     </div>
-                    <span className="text-[10px] font-bold text-gray-400 tracking-wide">G</span>
+                    <span className="text-xs font-bold text-gray-400 tracking-wide">G</span>
                   </div>
                   <p className="text-xs font-semibold text-gray-900 underline mb-1">{name}</p>
                   <p className="text-xs text-gray-600 leading-relaxed flex-1">{quote}</p>
-                  <p className="text-[10px] text-gray-400 mt-2">{tag} · {location}</p>
+                  <p className="text-xs text-gray-400 mt-2">{tag} · {location}</p>
                 </div>
               </div>
             ))}
@@ -308,7 +310,7 @@ export default function Home() {
                 <div className="relative h-36 overflow-hidden bg-gray-50">
                   <Image src={img} alt={`${year} ${make} ${model}`} width={300} height={144} className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300" />
                   {badge && (
-                    <div className="absolute top-0 left-0 bg-black text-white text-[9px] font-bold px-2 py-1 rounded-br-lg">
+                    <div className="absolute top-0 left-0 bg-black text-white text-xs font-bold px-2 py-1 rounded-br-lg">
                       {badge}
                     </div>
                   )}
@@ -326,8 +328,8 @@ export default function Home() {
                     <span className="text-xs font-semibold text-gray-700">{score}/100</span>
                   </div>
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-[10px] text-gray-400">OFFO Fit Score</p>
-                    <p className="text-[10px] text-blue-500 font-medium">{people.toLocaleString()} fits this</p>
+                    <p className="text-xs text-gray-400">OFFO Fit Score</p>
+                    <p className="text-xs text-blue-500 font-medium">{people.toLocaleString()} fits this</p>
                   </div>
                   <p className="text-sm font-bold text-gray-900 border-t border-gray-100 pt-3">{price}</p>
                 </div>
@@ -348,7 +350,7 @@ export default function Home() {
               <p className="text-sm text-gray-500 mb-5">Check out our <Link href="/receipt" className="underline text-gray-700 hover:text-gray-900">Analyze tool</Link> or reach out.</p>
               <a
                 href="mailto:hello@offo.app"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-xl transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition-colors"
               >
                 <Mail className="w-4 h-4" />
                 Contact us

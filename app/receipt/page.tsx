@@ -511,7 +511,7 @@ export default function ReceiptPage() {
 
     setIsUpgrading(true);
     let attempts = 0;
-    const maxAttempts = 20;
+    const maxAttempts = 40;
 
     const poll = setInterval(async () => {
       attempts++;
@@ -557,6 +557,7 @@ export default function ReceiptPage() {
         clearInterval(poll);
         upgradePollingRef.current = null;
         setIsUpgrading(false);
+        setUpgradeFailed(true);
 
         trackEvent("receipt_upgrade_failed", {
           receipt_id: receiptId,

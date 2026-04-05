@@ -8,7 +8,9 @@
  */
 
 import { useState, useEffect } from "react";
+import { Loader2, Archive } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { EmptyState } from "@/components/ui";
 import type { SavedScenarioPreview } from "@/app/api/user/scenario/list/route";
 
 interface SavedScenariosListProps {
@@ -136,7 +138,7 @@ export default function SavedScenariosList({
 
       {loading && (
         <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-200 border-t-blue-600"></div>
+          <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
         </div>
       )}
 
@@ -211,25 +213,11 @@ export default function SavedScenariosList({
       )}
 
       {!loading && !error && scenarios.length === 0 && (
-        <div className="text-center py-6">
-          <svg
-            className="w-12 h-12 mx-auto text-gray-300 mb-3"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-            />
-          </svg>
-          <p className="text-sm text-gray-500">No saved scenarios yet</p>
-          <p className="text-xs text-gray-400 mt-1">
-            Save scenarios from your results to compare later
-          </p>
-        </div>
+        <EmptyState
+          icon={<Archive className="w-10 h-10" />}
+          title="No saved scenarios yet"
+          description="Save scenarios from your results to compare later"
+        />
       )}
     </div>
   );

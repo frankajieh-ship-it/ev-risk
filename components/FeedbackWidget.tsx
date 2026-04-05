@@ -22,17 +22,13 @@ export default function FeedbackWidget({
   const [selected, setSelected] = useState<"helpful" | "okay" | "not_useful" | null>(null);
   const [followUpText, setFollowUpText] = useState("");
   const [followUpSent, setFollowUpSent] = useState(false);
-  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
-
   const storageKey = contextId
     ? `offo_feedback_${contextId}`
     : `offo_feedback_${contextType}`;
 
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(storageKey)) setAlreadySubmitted(true);
-    } catch { /* ignore */ }
-  }, [storageKey]);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(() => {
+    try { return !!localStorage.getItem(storageKey); } catch { return false; }
+  });
 
   // Track shown
   useEffect(() => {
@@ -126,7 +122,7 @@ export default function FeedbackWidget({
                 value={followUpText}
                 onChange={(e) => setFollowUpText(e.target.value)}
                 placeholder={selected === "not_useful" ? "What could be better? (optional)" : "Anything else to share? (optional)"}
-                className="w-full text-sm border border-gray-200 rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="form-input resize-none"
                 rows={2}
                 maxLength={500}
               />

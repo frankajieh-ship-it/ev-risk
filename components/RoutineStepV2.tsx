@@ -452,7 +452,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
                   if (e.target.value && !commuteMiles) trackField("commute_miles");
                 }
               }}
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-gray-900"
+              className="form-input text-gray-900"
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">
               {milesMode === "weekly" ? "miles/week" : "miles/day"}
@@ -523,7 +523,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
                 setBudgetMax(e.target.value);
                 if (e.target.value && !budgetMax) trackField("budget_max");
               }}
-              className="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-gray-900"
+              className="form-input pl-8 text-gray-900"
             />
           </div>
           <p className="text-xs text-gray-500 mt-2">Helps filter EV recommendations to your price range.</p>
@@ -602,7 +602,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
                   const val = e.target.value.replace(/\D/g, "").slice(0, 5);
                   handleZipChange(val);
                 }}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-gray-900"
+                className="form-input text-gray-900"
               />
               <p className="text-xs text-gray-500 mt-2">
                 Enables real-time weather and nearby charger data for your area.
@@ -723,7 +723,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
                 Your EV <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               {vehiclesLoading ? (
-                <div className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-gray-400 text-sm">
+                <div className="form-input text-gray-400">
                   Loading vehicles...
                 </div>
               ) : vehicleProfiles.length > 0 ? (
@@ -733,7 +733,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
                     setSelectedVehicleId(e.target.value);
                     if (e.target.value) trackField("vehicle");
                   }}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-gray-900 bg-white"
+                  className="form-input text-gray-900 bg-white"
                 >
                   <option value="">Select your EV (optional)</option>
                   {vehicleProfiles.map((vp) => (

@@ -56,12 +56,12 @@ export default function PasteBox({
         placeholder={ctaPlaceholder}
         rows={6}
         maxLength={8000}
-        className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm resize-none focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600 mb-3"
+        className="form-input resize-none mb-3"
       />
       <button
         onClick={handleSubmit}
         disabled={listingText.trim().length < 20}
-        className={`w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
+        className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
           listingText.trim().length >= 20
             ? "bg-gradient-to-r from-blue-600 to-green-600 text-white hover:shadow-lg hover:shadow-blue-200"
             : "bg-gray-200 text-gray-400 cursor-not-allowed"

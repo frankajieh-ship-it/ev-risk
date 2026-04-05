@@ -33,6 +33,7 @@ import type { Region } from "@/lib/region";
 import { formatPrice } from "@/lib/region";
 import { humanizeFlag } from "@/lib/receipt-rules";
 import VehicleFactsBar from "@/components/receipt/VehicleFactsBar";
+import { Badge } from "@/components/ui";
 
 interface ReceiptOutputCardProps {
   receipt: ListingReceipt;
@@ -175,7 +176,7 @@ export default function ReceiptOutputCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden"
+      className="card-base overflow-hidden"
     >
       {/* Fallback banner */}
       {isFallback && (
@@ -252,9 +253,12 @@ export default function ReceiptOutputCard({
                 </>
               )}
               {!isUpgrading && receipt.evidence_label && (
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${EVIDENCE_STYLES[receipt.evidence_label]?.bg || "bg-gray-100"} ${EVIDENCE_STYLES[receipt.evidence_label]?.text || "text-gray-600"}`}>
+                <Badge variant={
+                  receipt.evidence_label === "STRONG" ? "primary" :
+                  receipt.evidence_label === "MISSING" ? "warning" : "neutral"
+                }>
                   {receipt.evidence_label} Evidence
-                </span>
+                </Badge>
               )}
             </div>
             {vehicleDesc && (
@@ -399,7 +403,7 @@ export default function ReceiptOutputCard({
                 const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
                 return (
                   <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium mt-0.5 ${catStyle.bg} ${catStyle.text}`}>
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium mt-0.5 ${catStyle.bg} ${catStyle.text}`}>
                       {catStyle.label}
                     </span>
                     <span className="flex-1">{reason.label}</span>
@@ -418,7 +422,7 @@ export default function ReceiptOutputCard({
                   const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
                   return (
                     <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium mt-0.5 ${catStyle.bg} ${catStyle.text}`}>
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium mt-0.5 ${catStyle.bg} ${catStyle.text}`}>
                         {catStyle.label}
                       </span>
                       <span className="flex-1">{reason.label}</span>
@@ -431,7 +435,7 @@ export default function ReceiptOutputCard({
                   const preview = reason.label.length > 45 ? reason.label.slice(0, 45) + "…" : reason.label;
                   return (
                     <li key={`locked-${i}`} className="text-sm flex items-start gap-2 select-none">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium mt-0.5 ${catStyle.bg} ${catStyle.text}`}>
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium mt-0.5 ${catStyle.bg} ${catStyle.text}`}>
                         {catStyle.label}
                       </span>
                       <span className="flex-1 blur-[3px] text-gray-500">{preview}</span>

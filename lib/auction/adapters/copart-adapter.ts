@@ -347,6 +347,51 @@ async function fetchFromApify(lotNumber: string): Promise<NormalizedAuctionLot |
 
 // ── Adapter implementation ────────────────────────────────────────────────────
 
+/**
+ * Fetch the Copart lot page HTML and extract the canonical URL (which contains
+ * the full slug, e.g. /lot/46234086/salvage-2018-hyundai-elantra-sel-ga-savannah).
+ * Used as a third fallback when both the Copart JSON API and Apify are unavailable.
+ */
+async function fetchSlugFromCopartHtml(lotNumber: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(`https://www.copart.com/lot/${lotNumber}`, {
+      headers: {
+        ...COPART_BROWSER_HEADERS,
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) {
+      console.warn(`[CopartAdapter][HTML] ${res.status} for lot ${lotNumber}`);
+      return null;
+    }
+    const html = await res.text();
+    // Primary: <link rel="canonical" href="..."> — most reliable, always present
+    const canonicalMatch =
+      html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i) ??
+      html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i);
+    if (canonicalMatch?.[1]) {
+      console.log(`[CopartAdapter][HTML] canonical for lot ${lotNumber}: ${canonicalMatch[1]}`);
+      return canonicalMatch[1];
+    }
+    // Fallback: og:url meta tag
+    const ogMatch = html.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["']/i);
+    if (ogMatch?.[1]) {
+      console.log(`[CopartAdapter][HTML] og:url for lot ${lotNumber}: ${ogMatch[1]}`);
+      return ogMatch[1];
+    }
+    console.warn(`[CopartAdapter][HTML] no canonical/og:url found for lot ${lotNumber}`);
+    return null;
+  } catch (err) {
+    clearTimeout(timer);
+    console.warn(`[CopartAdapter][HTML] fetch failed for lot ${lotNumber}:`, err);
+    return null;
+  }
+}
+
 async function fetchByLot(lotNumber: string): Promise<NormalizedAuctionLot> {
   // Race Copart API and Apify in parallel — use first non-null result.
   // Copart API is faster when available (~2s); Apify is the reliable fallback (~8s).
@@ -359,34 +404,24 @@ async function fetchByLot(lotNumber: string): Promise<NormalizedAuctionLot> {
   console.log(`[CopartAdapter] parallel fetch: api=${apiResult ? "ok" : "null"} apify=${apifyResult ? "ok" : "null"}`);
 
   if (!lot) {
-    // No URL slug available for bare lot number — return minimal shell so
-    // the evaluation service can still run Auto.dev enrichment by lot number
-    console.warn(`[CopartAdapter] All providers failed for lot ${lotNumber} — returning minimal shell`);
-    lot = {
-      auction_source: "copart",
-      lot_number: lotNumber,
-      vin: null,
-      year: null,
-      make: null,
-      model: null,
-      trim: null,
-      title_status: null,
-      damage_type: null,
-      primary_damage: null,
-      secondary_damage: null,
-      current_bid: null,
-      buy_now_price: null,
-      odometer: null,
-      odometer_brand: null,
-      run_and_drive_status: null,
-      loss_type: null,
-      sale_date: null,
-      location: null,
-      photos: [],
-      condition_notes: null,
-      provider_name: "copart_unavailable",
-      raw_provider_payload: null,
-    };
+    // Both fast providers failed. Fetch the Copart HTML page to extract the canonical
+    // URL slug (e.g. /salvage-2018-hyundai-elantra-sel-ga-savannah), then reuse the
+    // existing slug parser to recover year/make/model/damage as a graceful degradation.
+    console.warn(`[CopartAdapter] Both providers failed for lot ${lotNumber} — trying HTML slug fallback`);
+    const canonicalUrl = await fetchSlugFromCopartHtml(lotNumber);
+    if (canonicalUrl) {
+      lot = parseFromUrlSlug(canonicalUrl, lotNumber);
+      if (lot) {
+        console.log(`[CopartAdapter] HTML slug fallback succeeded for lot ${lotNumber}: ${lot.make} ${lot.model}`);
+      }
+    }
+  }
+
+  if (!lot) {
+    // All three paths exhausted — the lot genuinely doesn't exist or Copart is
+    // blocking all access. A clean 404 is far better than a null-data shell that
+    // produces a garbled analysis and confuses users.
+    throw new AuctionLotNotFoundError(lotNumber);
   }
 
   return lot;
