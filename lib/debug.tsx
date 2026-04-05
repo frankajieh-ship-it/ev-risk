@@ -9,6 +9,7 @@
  * Usage: Add ?debug=1 to URL in development
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
 
 /**
@@ -50,7 +51,7 @@ export function debugLog(...args: any[]) {
 
   const timestamp = new Date().toISOString().split("T")[1].slice(0, -1);
 
-  // eslint-disable-next-line no-console
+   
   console.log(
     `%c[EV-RISK DEBUG ${timestamp}]`,
     "color: #3b82f6; font-weight: bold;",
@@ -66,7 +67,7 @@ export function debugWarn(...args: any[]) {
 
   const timestamp = new Date().toISOString().split("T")[1].slice(0, -1);
 
-  // eslint-disable-next-line no-console
+   
   console.warn(
     `%c[EV-RISK WARN ${timestamp}]`,
     "color: #f59e0b; font-weight: bold;",
@@ -82,7 +83,7 @@ export function debugError(...args: any[]) {
 
   const timestamp = new Date().toISOString().split("T")[1].slice(0, -1);
 
-  // eslint-disable-next-line no-console
+   
   console.error(
     `%c[EV-RISK ERROR ${timestamp}]`,
     "color: #ef4444; font-weight: bold;",
@@ -97,7 +98,7 @@ export function debugTable(data: any) {
   if (!isDebugEnabled()) return;
 
   debugLog("Table:");
-  // eslint-disable-next-line no-console
+   
   console.table(data);
 }
 
@@ -107,10 +108,10 @@ export function debugTable(data: any) {
 export function debugGroup(label: string, callback: () => void) {
   if (!isDebugEnabled()) return;
 
-  // eslint-disable-next-line no-console
+   
   console.group(`[EV-RISK] ${label}`);
   callback();
-  // eslint-disable-next-line no-console
+   
   console.groupEnd();
 }
 
@@ -191,7 +192,7 @@ export function DebugBadge({ confidence }: { confidence: number }) {
     <div className="fixed bottom-4 right-4 z-50 bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg text-xs font-mono">
       <div className="font-bold">DEBUG MODE</div>
       <div>Confidence: {(confidence * 100).toFixed(1)}%</div>
-      <div className="text-blue-200 text-[10px]">
+      <div className="text-blue-200 text-xs">
         Add ?debug=0 to hide
       </div>
     </div>

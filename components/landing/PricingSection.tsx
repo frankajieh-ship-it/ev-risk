@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Check, Sparkles } from "lucide-react";
 import { PRICING_PLANS } from "@/lib/pricing-plans";
+import { Badge, Button, Card } from "@/components/ui";
 
 const { free, full_report, subscription } = PRICING_PLANS;
 
@@ -33,7 +34,7 @@ export default function PricingSection() {
           className="max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4"
         >
           {/* Free tier */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+          <Card elevation="base" padding="lg">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{free.label}</p>
             <p className="text-3xl font-bold text-gray-900 mb-4">Free</p>
             <ul className="space-y-2 mb-6">
@@ -44,19 +45,21 @@ export default function PricingSection() {
                 </li>
               ))}
             </ul>
-            <button
+            <Button
+              variant="ghost"
+              size="md"
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="w-full py-2.5 rounded-xl font-semibold text-sm text-blue-600 border border-blue-200 hover:bg-blue-50 transition-colors"
+              className="w-full text-blue-600 border-blue-200 hover:bg-blue-50"
             >
               Try for free
-            </button>
-          </div>
+            </Button>
+          </Card>
 
           {/* Full report tier */}
-          <div className="bg-white border-2 border-blue-600 rounded-2xl p-6 shadow-sm relative">
-            <span className="absolute top-4 right-4 text-[10px] font-semibold bg-blue-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wide">
+          <Card elevation="raised" padding="lg" className="border-2 border-blue-600 relative">
+            <Badge variant="primary" className="absolute top-4 right-4 uppercase tracking-wide">
               one-time
-            </span>
+            </Badge>
             <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">{full_report.label}</p>
             <p className="text-3xl font-bold text-gray-900 mb-4">${full_report.price_usd}</p>
             <ul className="space-y-2 mb-6">
@@ -67,18 +70,20 @@ export default function PricingSection() {
                 </li>
               ))}
             </ul>
-            <button
+            <Button
+              variant="primary"
+              size="md"
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-600/20"
+              icon={<Sparkles className="w-4 h-4" />}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-600/20"
             >
-              <Sparkles className="w-4 h-4" />
               Get full analysis
-            </button>
-          </div>
+            </Button>
+          </Card>
 
           {/* Subscription — only if enabled */}
           {subscription.enabled && (
-            <div className="sm:col-span-2 bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center justify-between gap-4">
+            <Card elevation="base" padding="md" className="sm:col-span-2 flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-gray-700">{subscription.label}</p>
                 <p className="text-xs text-gray-500">All features, unlimited reports</p>
@@ -87,7 +92,7 @@ export default function PricingSection() {
                 ${subscription.price_usd}
                 <span className="text-xs font-normal text-gray-500">/mo</span>
               </p>
-            </div>
+            </Card>
           )}
         </motion.div>
       </div>

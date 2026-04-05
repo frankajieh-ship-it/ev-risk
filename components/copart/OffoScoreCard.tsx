@@ -87,9 +87,9 @@ export default function OffoScoreCard({ offoScore }: OffoScoreCardProps) {
           };
           return (
             <div key={key} className="rounded-xl bg-white border border-gray-100 p-2 text-center">
-              <p className="text-[10px] text-gray-500 mb-0.5">{COMPONENT_LABELS[key]}</p>
+              <p className="text-xs text-gray-500 mb-0.5">{COMPONENT_LABELS[key]}</p>
               <p className="text-sm font-bold text-gray-900">{offoScore.component_scores[key]}</p>
-              <p className="text-[9px] text-gray-400">{weights[key]}</p>
+              <p className="text-xs text-gray-400">{weights[key]}</p>
             </div>
           );
         })}
@@ -129,7 +129,7 @@ export default function OffoScoreCard({ offoScore }: OffoScoreCardProps) {
       )}
 
       {/* Confidence + formula footer */}
-      <p className="text-[10px] text-gray-400 uppercase tracking-wide">
+      <p className="text-xs text-gray-400 uppercase tracking-wide">
         Confidence: {offoScore.confidence}
         {offoScore.context === "auction" && " · Financial 40% · Daily Fit 35% · Hardware 15% · Reliability 10%"}
       </p>

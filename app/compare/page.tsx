@@ -657,7 +657,7 @@ function ComparePageContent() {
         />
         {history.length > 0 && (
           <div className="mt-3">
-            <p className="text-[10px] font-medium text-gray-400 uppercase mb-1.5">Your saved listings</p>
+            <p className="text-xs font-medium text-gray-400 uppercase mb-1.5">Your saved listings</p>
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
               {history.slice(0, 5).map((entry) => {
                 const entryLabel = [entry.year, entry.make, entry.model].filter(Boolean).join(" ");
@@ -673,9 +673,9 @@ function ComparePageContent() {
                     className={`shrink-0 border rounded-xl px-3 py-2 text-left min-w-[130px] max-w-[160px] transition-shadow hover:shadow-md ${verdictColor}`}
                   >
                     <p className="text-xs font-semibold text-gray-800 truncate">{entryLabel || "Unknown"}</p>
-                    {entry.price && <p className="text-[10px] text-gray-500">${entry.price.toLocaleString()}</p>}
+                    {entry.price && <p className="text-xs text-gray-500">${entry.price.toLocaleString()}</p>}
                     {(entry.receipt as { mileage?: number })?.mileage != null && (
-                      <p className="text-[10px] text-gray-400">{(entry.receipt as { mileage?: number }).mileage!.toLocaleString()} mi</p>
+                      <p className="text-xs text-gray-400">{(entry.receipt as { mileage?: number }).mileage!.toLocaleString()} mi</p>
                     )}
                   </button>
                 );
@@ -1103,11 +1103,11 @@ function ComparePageContent() {
           );
           return (
             <div className={`rounded-2xl border-2 p-5 ${v.winner ? "border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50" : "border-gray-200 bg-gray-50"}`}>
-              <p className="text-[10px] font-semibold text-indigo-500 uppercase tracking-widest mb-1">OFFO Verdict</p>
+              <p className="text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1">OFFO Verdict</p>
               <p className="font-bold text-gray-900 text-sm leading-snug">{v.title}</p>
               {v.body && <p className="text-xs text-gray-600 mt-1.5">{v.body}</p>}
               {!routineRefined && (
-                <p className="text-[10px] text-gray-400 mt-2">Personalise to your routine above for a more accurate verdict.</p>
+                <p className="text-xs text-gray-400 mt-2">Personalise to your routine above for a more accurate verdict.</p>
               )}
             </div>
           );
@@ -1133,11 +1133,11 @@ function ComparePageContent() {
                       <td className="py-2 px-3 text-xs text-green-700 italic pl-5 w-1/3">Real-world est.</td>
                       <td className="py-2 px-3 text-xs text-center text-green-700">
                         {realWorldRangeA ? `~${realWorldRangeA} mi` : "—"}
-                        {coldRangeA && <span className="block text-[10px] text-blue-600">~{coldRangeA} mi in cold</span>}
+                        {coldRangeA && <span className="block text-xs text-blue-600">~{coldRangeA} mi in cold</span>}
                       </td>
                       <td className="py-2 px-3 text-xs text-center text-green-700">
                         {realWorldRangeB ? `~${realWorldRangeB} mi` : "—"}
-                        {coldRangeB && <span className="block text-[10px] text-blue-600">~{coldRangeB} mi in cold</span>}
+                        {coldRangeB && <span className="block text-xs text-blue-600">~{coldRangeB} mi in cold</span>}
                       </td>
                     </tr>
                   )}
@@ -1218,11 +1218,11 @@ function ComparePageContent() {
                     <td className="py-2.5 px-3 text-indigo-800">5-yr total est.</td>
                     <td className={`py-2.5 px-3 text-center ${tcoWinner === "A" ? "text-green-700" : "text-indigo-800"}`}>
                       {total5A != null ? formatCurrency(total5A) : "—"}
-                      {tcoWinner === "A" && <span className="ml-1 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">lower</span>}
+                      {tcoWinner === "A" && <span className="ml-1 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">lower</span>}
                     </td>
                     <td className={`py-2.5 px-3 text-center ${tcoWinner === "B" ? "text-green-700" : "text-indigo-800"}`}>
                       {total5B != null ? formatCurrency(total5B) : "—"}
-                      {tcoWinner === "B" && <span className="ml-1 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">lower</span>}
+                      {tcoWinner === "B" && <span className="ml-1 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">lower</span>}
                     </td>
                   </tr>
                 )}
@@ -1236,7 +1236,7 @@ function ComparePageContent() {
                 </p>
               </div>
             )}
-            <p className="text-[10px] text-gray-400 px-5 py-2">12,000 mi/yr · $0.16/kWh · AAA maintenance avg · mid-range insurance est.</p>
+            <p className="text-xs text-gray-400 px-5 py-2">12,000 mi/yr · $0.16/kWh · AAA maintenance avg · mid-range insurance est.</p>
           </div>
         )}
 
@@ -1262,11 +1262,11 @@ function ComparePageContent() {
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-semibold text-gray-700 truncate">{label}</p>
                       {isBetterResale && (
-                        <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-semibold shrink-0 ml-1">Better resale</span>
+                        <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-semibold shrink-0 ml-1">Better resale</span>
                       )}
                     </div>
                     {price != null && (
-                      <p className="text-[10px] text-gray-400">Purchase: {formatCurrency(price)}</p>
+                      <p className="text-xs text-gray-400">Purchase: {formatCurrency(price)}</p>
                     )}
                     <div className="space-y-1.5">
                       {yr3 != null && (
@@ -1293,7 +1293,7 @@ function ComparePageContent() {
                         href={searchUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block text-center text-[10px] text-indigo-600 hover:underline mt-1"
+                        className="block text-center text-xs text-indigo-600 hover:underline mt-1"
                       >
                         Search used listings →
                       </a>
@@ -1302,7 +1302,7 @@ function ComparePageContent() {
                 );
               })}
             </div>
-            <p className="text-[10px] text-gray-400 px-5 py-2 border-t border-gray-100">Depreciation rates are estimates. Actual resale value varies by trim, condition, and market.</p>
+            <p className="text-xs text-gray-400 px-5 py-2 border-t border-gray-100">Depreciation rates are estimates. Actual resale value varies by trim, condition, and market.</p>
           </div>
         )}
 
@@ -1664,7 +1664,7 @@ function ComparePageContent() {
                   {idx < currentStepIdx ? "✓" : idx + 1}
                 </div>
                 <span className="hidden sm:block">{stepLabels[idx]}</span>
-                {idx === 2 && <span className="hidden sm:block text-[10px] text-green-600 -mt-0.5">free</span>}
+                {idx === 2 && <span className="hidden sm:block text-xs text-green-600 -mt-0.5">free</span>}
               </div>
             ))}
           </div>

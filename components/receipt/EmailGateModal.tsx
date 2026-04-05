@@ -176,7 +176,7 @@ export default function EmailGateModal({
                 Skip for now
               </button>
 
-              <p className="text-[11px] text-gray-300 text-center mt-2">
+              <p className="text-xs text-gray-300 text-center mt-2">
                 No spam. Unsubscribe anytime.
               </p>
             </>

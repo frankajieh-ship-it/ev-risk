@@ -19,7 +19,7 @@ export default function HeroFeatureStrip() {
       <div className="flex flex-col sm:flex-row gap-4 sm:gap-0 sm:divide-x sm:divide-gray-200">
         {/* Free column */}
         <div className="sm:pr-6 flex-1">
-          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Free</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Free</p>
           <ul className="space-y-1.5">
             {FREE_FEATURES.map((f) => (
               <li key={f} className="flex items-center gap-2 text-sm text-gray-700">
@@ -32,7 +32,7 @@ export default function HeroFeatureStrip() {
 
         {/* Full analysis column */}
         <div className="sm:pl-6 flex-1">
-          <p className="text-[11px] font-semibold text-blue-500 uppercase tracking-wider mb-2">Full analysis — free</p>
+          <p className="text-xs font-semibold text-blue-500 uppercase tracking-wider mb-2">Full analysis — free</p>
           <ul className="space-y-1.5">
             {FULL_FEATURES.map((f) => (
               <li key={f} className="flex items-center gap-2 text-sm text-gray-700">

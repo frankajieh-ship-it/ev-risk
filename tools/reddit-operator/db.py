@@ -139,6 +139,12 @@ def save_assist_session(req: Any, resp: Any) -> str:
         ),
         "market_data": resp.market_data,  # JSONB — None if Stage 3.5 skipped/failed
         "total_latency_ms": resp.latency_ms,
+        # Scanner metadata
+        "reddit_post_id": getattr(req, "reddit_post_id", None),
+        "reddit_post_url": getattr(req, "reddit_post_url", None),
+        "qualification_score": getattr(req, "qualification_score", None),
+        # Mark scanner-sourced sessions as pending approval
+        "posted_outcome": "pending" if getattr(req, "source", "") == "reddit_scanner" else None,
     }
 
     # Add per-stage latencies if present in debug
@@ -302,6 +308,43 @@ def get_few_shot_examples(intent_tag: str, limit: int = 3) -> list[dict]:
         return rows[:limit]
     except Exception:
         return []
+
+
+def get_posted_sessions_db(limit: int = 50) -> list:
+    """
+    Sessions marked posted/edited that have a reddit_post_url set.
+    Used by outcome_tracker.py and GET /sessions/posted endpoint.
+    """
+    result = (
+        _client()
+        .table("reddit_operator_sessions")
+        .select("id, created_at, subreddit, post_title, draft_reply_short, reddit_post_id, reddit_post_url, posted_outcome, upvotes, reply_count")
+        .in_("posted_outcome", ["posted", "edited"])
+        .not_.is_("reddit_post_url", "null")
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data or []
+
+
+def get_pending_scan_sessions(limit: int = 20) -> list:
+    """
+    Get scanner-sourced sessions awaiting human approval.
+    Filters: source='reddit_scanner', posted_outcome='pending'.
+    Ordered newest first.
+    """
+    result = (
+        _client()
+        .table("reddit_operator_sessions")
+        .select("id, created_at, subreddit, post_title, post_body, draft_reply_short, qualification_score, reddit_post_url, reddit_post_id")
+        .eq("source", "reddit_scanner")
+        .eq("posted_outcome", "pending")
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data or []
 
 
 def get_funnel_stats() -> dict:

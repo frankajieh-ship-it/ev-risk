@@ -214,12 +214,15 @@ export async function GET(request: NextRequest) {
       .eq("is_internal", false);
 
     // 5. Visitors (exclude internal team)
+    // NOTE: Supabase default row cap is 1000 — must set explicit limit to avoid silently
+    // truncating unique visitor counts once the table exceeds 1000 rows for the window.
     const visitorsPromise = supabase
       .from("visitors")
       .select("visitor_id, page_path, visit_count, last_visit")
       .gte("last_visit", window.start)
       .lt("last_visit", window.end)
-      .not("visitor_id", "in", `(${INTERNAL_VISITOR_IDS_FILTER.join(",")})`);
+      .not("visitor_id", "in", `(${INTERNAL_VISITOR_IDS_FILTER.join(",")})`)
+      .limit(10000);
 
     // 6. Report feedback
     const feedbackPromise = supabase

@@ -600,7 +600,7 @@ def run_operator_pipeline(req: AssistRequest) -> AssistResponse:
     stages_used.append("gemini_empathy")
 
     # ── Tool invite decision (before Stage 3 so GPT-4o can embed it) ──────
-    tool_invite = decide_tool_invite(friction_tags, user_state, intent, combined)
+    tool_invite = decide_tool_invite(friction_tags, user_state, intent, combined, detected_vehicle)
     tool_invite_permitted = (
         tool_intro in ("offer_by_permission", "asked_directly")
         and tool_invite.should_invite

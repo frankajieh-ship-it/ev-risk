@@ -115,9 +115,11 @@ export async function POST(request: NextRequest) {
           sbUrl.searchParams.set('premium_proxy', 'true');
           sbUrl.searchParams.set('country_code', 'us');
           if (needsJsRender) {
-            // Wait for network idle so JS-rendered content is fully loaded
-            sbUrl.searchParams.set('wait_for', 'networkidle2');
-            sbUrl.searchParams.set('timeout', String(Math.min(timeout, 30000)));
+            // wait_browser tells ScrapingBee's headless browser to wait until network is idle
+            // (Puppeteer networkidle2 equivalent). ScrapingBee uses wait_browser, NOT wait_for.
+            // wait_for is for CSS selectors only — passing 'networkidle2' there causes a timeout.
+            sbUrl.searchParams.set('wait_browser', 'networkidle2');
+            sbUrl.searchParams.set('timeout', String(Math.min(timeout, 25000)));
           }
 
           console.log('[Proxy Fetch] Trying ScrapingBee:', { url: url.substring(0, 80), needsJsRender });
@@ -131,9 +133,9 @@ export async function POST(request: NextRequest) {
 
             const lowerHtml = html.toLowerCase();
             const isBlocked =
-              html.includes('captcha') ||
-              html.includes('Just a moment') ||
-              html.includes('challenge-platform') ||
+              lowerHtml.includes('captcha') ||
+              lowerHtml.includes('just a moment') ||
+              lowerHtml.includes('challenge-platform') ||
               html.length < 2000;
 
             if (!isBlocked) {

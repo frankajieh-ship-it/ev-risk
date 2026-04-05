@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import type { ArbitrageResult, CopartFeeBreakdown, MarketClosingRange } from "@/lib/copart-arbitrage-engine";
 import { computeMaxSafeBid, computeExpectedProfits, computeSafeBidRange, computeProfitScenarios } from "@/lib/copart-arbitrage-engine";
+import { Badge } from "@/components/ui";
 
 // ── Fee breakdown sub-component ──────────────────────────────────────────────
 
@@ -69,21 +70,21 @@ function OFFOvsMarket({
       </div>
       <div className="grid grid-cols-2 divide-x divide-gray-200">
         <div className="p-3">
-          <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide mb-1">OFFO Safe Bid</p>
+          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">OFFO Safe Bid</p>
           <p className="text-sm font-bold text-gray-900">{fmt(offoRange.low)} – {fmt(offoRange.high)}</p>
-          <p className="text-[10px] text-gray-400 mt-0.5">Your protected range</p>
+          <p className="text-xs text-gray-400 mt-0.5">Your protected range</p>
         </div>
         <div className="p-3">
-          <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide mb-1">Market Est. Close</p>
+          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Market Est. Close</p>
           <p className="text-sm font-bold text-gray-900">{fmt(market.low)} – {fmt(market.high)}</p>
-          <p className="text-[10px] text-gray-400 mt-0.5">~{fmt(market.midpoint)} median</p>
+          <p className="text-xs text-gray-400 mt-0.5">~{fmt(market.midpoint)} median</p>
         </div>
       </div>
       <div className={`px-4 py-2 border-t border-gray-100 text-xs font-medium ${signalClass}`}>
         {signal}
       </div>
       <div className="px-4 py-1.5 bg-white">
-        <p className="text-[10px] text-gray-400">{market.note}</p>
+        <p className="text-xs text-gray-400">{market.note}</p>
       </div>
     </div>
   );
@@ -155,6 +156,7 @@ export default function ArbitrageCalculatorCard({
   const [repairCostAdj, setRepairCostAdj] = useState<number | null>(null); // user override multiplier (null = use API value)
   const [showBidExplainer, setShowBidExplainer] = useState(false);
 
+   
   const fetchArbitrage = useCallback(async () => {
     setFetchState("loading");
     setError(null);
@@ -201,10 +203,10 @@ export default function ArbitrageCalculatorCard({
       setError(err instanceof Error ? err.message : "Connection error.");
       setFetchState("error");
     }
-  }, [receiptId, receiptToken, vin, listingText, askingPrice, make, model, year, trim, primaryDamage]);
+  }, [receiptId, receiptToken, vin, listingText, askingPrice, make, model, year, trim, primaryDamage, onResult]);  
 
   useEffect(() => {
-    if (fetchState === "idle") fetchArbitrage();
+    if (fetchState === "idle") fetchArbitrage(); // eslint-disable-line react-hooks/set-state-in-effect
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Effective ARV: custom override > API result > synthetic back-solve from market closing estimate
@@ -302,14 +304,17 @@ export default function ArbitrageCalculatorCard({
   const activeProfit = strategy === "repair" ? liveExpectedRepair : liveExpectedParts;
 
   return (
-    <div className="rounded-2xl border border-orange-200 bg-white overflow-hidden">
+    <div className="card-base overflow-hidden border-orange-200">
       {/* Header */}
       <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-4">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-white">Arbitrage Calculator</h3>
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${confidenceCfg.class}`}>
+          <Badge variant={
+            result.confidence === "high" ? "success" :
+            result.confidence === "medium" ? "warning" : "danger"
+          }>
             {confidenceCfg.label}
-          </span>
+          </Badge>
         </div>
         <p className="text-xs text-orange-100 mt-0.5">
           Damage: {displayDamage}
@@ -338,13 +343,13 @@ export default function ArbitrageCalculatorCard({
               </button>
             </div>
             {result.market_closing_estimate && (
-              <p className="text-[10px] text-gray-400">
+              <p className="text-xs text-gray-400">
                 Market closes ~{fmt(result.market_closing_estimate.midpoint)}
               </p>
             )}
           </div>
           {showBidExplainer && (
-            <div className="rounded-lg bg-gray-800 border border-gray-700 p-3 space-y-2 text-[11px] text-gray-300">
+            <div className="rounded-lg bg-gray-800 border border-gray-700 p-3 space-y-2 text-xs text-gray-300">
               <p><span className="text-orange-400 font-semibold">OFFO Safe Bid</span> — the max <em>you</em> should pay to hit your profit margin target after repair costs, auction fees, and your buffer.</p>
               <p><span className="text-gray-200 font-semibold">Market Est. Close</span> — what the auction crowd will likely bid. Salvage lots typically close at 35–45% of clean market value.</p>
               <p className="text-gray-400">If your Safe Bid is <em>above</em> market close → you have room. If it&apos;s <em>below</em> → the crowd will outbid a profitable purchase.</p>
@@ -384,7 +389,7 @@ export default function ArbitrageCalculatorCard({
                 onChange={(e) => setTargetMargin(Number(e.target.value))}
                 className="w-full accent-orange-500"
               />
-              <div className="flex justify-between text-[10px] text-gray-500">
+              <div className="flex justify-between text-xs text-gray-500">
                 {[10, 15, 20, 25, 30].map((v) => (
                   <span key={v} className={targetMargin === v ? "text-orange-400 font-bold" : ""}>{v}%</span>
                 ))}
@@ -396,11 +401,11 @@ export default function ArbitrageCalculatorCard({
           {result.market_closing_estimate && liveSafeBidRange && (
             <div className="pt-1 border-t border-white/10 flex items-center justify-between gap-4">
               <div>
-                <p className="text-[10px] text-gray-500 uppercase tracking-wide">Your range</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Your range</p>
                 <p className="text-sm font-bold text-white">{fmt(liveSafeBidRange.low)} – {fmt(liveSafeBidRange.high)}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wide">Market est. close</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Market est. close</p>
                 <p className="text-sm font-bold text-gray-300">{fmt(result.market_closing_estimate.low)} – {fmt(result.market_closing_estimate.high)}</p>
               </div>
             </div>
@@ -412,7 +417,7 @@ export default function ArbitrageCalculatorCard({
               <FeeBreakdown breakdown={result.auction_fees_breakdown} />
             </div>
           ) : (
-            <p className="text-[10px] text-gray-500">
+            <p className="text-xs text-gray-500">
               Est. auction fees: {fmt(result.auction_fees_estimate)} included
             </p>
           )}
@@ -431,7 +436,7 @@ export default function ArbitrageCalculatorCard({
             <Zap className="w-3.5 h-3.5" />
             Repair Strategy
             {result.recommended_strategy === "repair" && (
-              <span className={`ml-1 px-1 py-0.5 rounded text-[9px] font-bold ${strategy === "repair" ? "bg-white/30 text-white" : "bg-orange-100 text-orange-700"}`}>
+              <span className={`ml-1 px-1 py-0.5 rounded text-xs font-bold ${strategy === "repair" ? "bg-white/30 text-white" : "bg-orange-100 text-orange-700"}`}>
                 REC
               </span>
             )}
@@ -448,7 +453,7 @@ export default function ArbitrageCalculatorCard({
             <Package className="w-3.5 h-3.5" />
             Parts Strategy
             {result.recommended_strategy === "parts" && (
-              <span className={`ml-1 px-1 py-0.5 rounded text-[9px] font-bold ${strategy === "parts" ? "bg-white/30 text-white" : "bg-orange-100 text-orange-700"}`}>
+              <span className={`ml-1 px-1 py-0.5 rounded text-xs font-bold ${strategy === "parts" ? "bg-white/30 text-white" : "bg-orange-100 text-orange-700"}`}>
                 REC
               </span>
             )}
@@ -464,7 +469,7 @@ export default function ArbitrageCalculatorCard({
             <p className={`text-3xl font-extrabold ${activeProfit >= 0 ? "text-green-700" : "text-red-600"}`}>
               {fmtProfit(activeProfit)}
             </p>
-            <p className="text-[10px] text-gray-400 mt-1">At asking price · no margin — raw P&L</p>
+            <p className="text-xs text-gray-400 mt-1">At asking price · no margin — raw P&L</p>
           </div>
         )}
 
@@ -565,7 +570,7 @@ export default function ArbitrageCalculatorCard({
                   <p className="text-xs text-gray-500 font-medium">
                     Repair Cost Estimate
                     {repairCostAdj !== null && (
-                      <span className="ml-1.5 text-orange-500 text-[10px] font-semibold">ADJUSTED</span>
+                      <span className="ml-1.5 text-orange-500 text-xs font-semibold">ADJUSTED</span>
                     )}
                   </p>
                   <p className="text-xs text-gray-400">
@@ -582,14 +587,14 @@ export default function ArbitrageCalculatorCard({
             {/* Repair cost adjustment slider */}
             {result.repair_cost_estimate > 0 && (
               <div className="px-1 space-y-1">
-                <div className="flex items-center justify-between text-[10px] text-gray-400">
+                <div className="flex items-center justify-between text-xs text-gray-400">
                   <span>Adjust estimate</span>
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-600">{fmt(effectiveRepairMid)}</span>
                     {repairCostAdj !== null && (
                       <button
                         onClick={() => setRepairCostAdj(null)}
-                        className="text-orange-500 underline text-[10px]"
+                        className="text-orange-500 underline text-xs"
                       >reset</button>
                     )}
                   </div>
@@ -603,7 +608,7 @@ export default function ArbitrageCalculatorCard({
                   onChange={(e) => setRepairCostAdj(Number(e.target.value))}
                   className="w-full accent-orange-500"
                 />
-                <div className="flex justify-between text-[10px] text-gray-400">
+                <div className="flex justify-between text-xs text-gray-400">
                   <span>{fmt(result.repair_cost_estimate * 0.25)}</span>
                   <span className="text-gray-300">AI estimate: {fmt(result.repair_cost_estimate)}</span>
                   <span>{fmt(result.repair_cost_estimate * 2.5)}</span>
@@ -681,9 +686,12 @@ export default function ArbitrageCalculatorCard({
           <div className="rounded-xl border border-gray-200 overflow-hidden">
             <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
               <p className="text-xs font-semibold text-gray-600">Profit Scenarios — Repair</p>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${confidenceCfg.class}`}>
+              <Badge variant={
+                result.confidence === "high" ? "success" :
+                result.confidence === "medium" ? "warning" : "danger"
+              }>
                 {confidenceCfg.label}
-              </span>
+              </Badge>
             </div>
             <div className="divide-y divide-gray-100">
               {[
@@ -694,7 +702,7 @@ export default function ArbitrageCalculatorCard({
                 <div key={label} className="flex items-center justify-between px-4 py-2.5">
                   <div>
                     <span className="text-xs font-medium text-gray-700">{label}</span>
-                    <span className="text-[10px] text-gray-400 ml-1.5">{note}</span>
+                    <span className="text-xs text-gray-400 ml-1.5">{note}</span>
                   </div>
                   <span className={`text-sm font-bold ${value >= 0 ? "text-green-700" : "text-red-600"}`}>
                     {fmtProfit(value)}
@@ -703,7 +711,7 @@ export default function ArbitrageCalculatorCard({
               ))}
             </div>
             <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
-              <p className="text-[10px] text-gray-400">
+              <p className="text-xs text-gray-400">
                 Uncertainty range: {fmt(Math.abs(liveProfitScenarios.best - liveProfitScenarios.worst))} · Narrowed by getting a shop estimate first.
               </p>
             </div>

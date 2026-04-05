@@ -36,7 +36,7 @@ export default function SampleReportPreview() {
         <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
           {/* Label */}
           <div className="px-5 pt-4 pb-2">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
               Example output — your result is based on your listing
             </p>
           </div>

@@ -131,7 +131,7 @@ export default function SharePageClient({ snapshot, createdAt, slug }: SharePage
         <Link
           href="/receipt"
           onClick={() => trackEvent("share_link_to_receipt_start_click", { share_slug: slug })}
-          className="flex items-center justify-center gap-2 w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors"
+          className="flex items-center justify-center gap-2 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors"
         >
           Run your own listing check
           <ArrowRight className="w-4 h-4" />

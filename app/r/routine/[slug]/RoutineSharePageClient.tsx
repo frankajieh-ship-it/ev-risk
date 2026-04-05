@@ -187,7 +187,7 @@ export default function RoutineSharePageClient({ snapshot, createdAt, slug, invi
             source: inviteToken ? "invite_page" : "share_page",
             flow: "evfit",
           })}
-          className="flex items-center justify-center gap-2 w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors"
+          className="flex items-center justify-center gap-2 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors"
         >
           {ctaLabel}
           <ArrowRight className="w-4 h-4" />

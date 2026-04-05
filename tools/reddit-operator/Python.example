@@ -16,3 +16,8 @@ GROK_API_KEY=xai-your-grok-api-key
 REDDIT_OPERATOR_URL=http://localhost:8088
 
 AutoDeve_API=your-autodev-api-key
+
+# Reddit Scanner v3 (PRAW — create a script app at https://www.reddit.com/prefs/apps)
+REDDIT_CLIENT_ID=your_app_client_id
+REDDIT_CLIENT_SECRET=your_app_client_secret
+REDDIT_USER_AGENT=offo-ev-assistant/1.0

@@ -24,7 +24,7 @@ export default function FreePaidMatrix() {
 
       {/* Paid column */}
       <div className="rounded-xl border-2 border-blue-600 bg-blue-50 p-4 relative">
-        <span className="absolute top-3 right-3 text-[10px] font-semibold bg-blue-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wide">
+        <span className="absolute top-3 right-3 text-xs font-semibold bg-blue-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wide">
           one-time
         </span>
         <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">

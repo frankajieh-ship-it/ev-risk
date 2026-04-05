@@ -41,6 +41,44 @@ TOOL_URLS = {
     "dealer":    "https://offolab.com/workspace",
 }
 
+
+def _build_receipt_url(detected_vehicle: Optional[dict]) -> str:
+    """Build a pre-populated receipt URL from detected vehicle data."""
+    if not detected_vehicle:
+        return TOOL_URLS["receipt"]
+    import urllib.parse
+    params = {}
+    if detected_vehicle.get("year"):
+        params["year"] = str(detected_vehicle["year"])
+    if detected_vehicle.get("make"):
+        params["make"] = detected_vehicle["make"]
+    if detected_vehicle.get("model"):
+        params["model"] = detected_vehicle["model"]
+    if detected_vehicle.get("price_mentioned"):
+        params["price"] = str(detected_vehicle["price_mentioned"])
+    if detected_vehicle.get("mileage_mentioned"):
+        params["mileage"] = str(detected_vehicle["mileage_mentioned"])
+    if not params:
+        return TOOL_URLS["receipt"]
+    return f"{TOOL_URLS['receipt']}?{urllib.parse.urlencode(params)}"
+
+
+def _build_compare_url(detected_vehicle: Optional[dict]) -> str:
+    """Build a pre-populated compare URL from detected vehicle data (first vehicle)."""
+    if not detected_vehicle:
+        return TOOL_URLS["compare"]
+    import urllib.parse
+    params = {}
+    if detected_vehicle.get("year"):
+        params["y1"] = str(detected_vehicle["year"])
+    if detected_vehicle.get("make"):
+        params["m1"] = detected_vehicle["make"]
+    if detected_vehicle.get("model"):
+        params["mo1"] = detected_vehicle["model"]
+    if not params:
+        return TOOL_URLS["compare"]
+    return f"{TOOL_URLS['compare']}?{urllib.parse.urlencode(params)}"
+
 # -------------------------
 # Invite text per tool
 # -------------------------
@@ -186,6 +224,7 @@ def decide_tool_invite(
     user_state: Optional[str],
     intent: Optional[str],
     combined_text: str = "",
+    detected_vehicle: Optional[dict] = None,
 ) -> EVRoutineInviteDecision:
     """
     Decide which OFFO tool (if any) to invite the user to.
@@ -215,10 +254,14 @@ def decide_tool_invite(
 
     # Rule 1: VIN → /receipt (highest specificity)
     if "VIN_MENTIONED" in friction_tags or intent == "vin_analysis":
+        receipt_url = _build_receipt_url(detected_vehicle)
+        invite = INVITE_TEXT["vin"]
+        if detected_vehicle and receipt_url != TOOL_URLS["receipt"]:
+            invite = invite.replace("offolab.com/receipt", receipt_url)
         return EVRoutineInviteDecision(
             should_invite=True,
             tool="receipt",
-            invite_text=INVITE_TEXT["vin"],
+            invite_text=invite,
             trigger_reason="vin_mentioned",
         )
 
@@ -228,10 +271,14 @@ def decide_tool_invite(
         or intent == "compare_listings"
         or "COMPARING_TWO_OPTIONS" in friction_tags
     ):
+        compare_url = _build_compare_url(detected_vehicle)
+        invite = INVITE_TEXT["compare"]
+        if detected_vehicle and compare_url != TOOL_URLS["compare"]:
+            invite = invite.replace("offolab.com/compare", compare_url)
         return EVRoutineInviteDecision(
             should_invite=True,
             tool="compare",
-            invite_text=INVITE_TEXT["compare"],
+            invite_text=invite,
             trigger_reason="comparing_two_options",
         )
 
@@ -241,10 +288,23 @@ def decide_tool_invite(
         or intent in ("listing_rating", "pricing_deal")
         or _has_any(text, LISTING_PATTERNS)
     ):
+        receipt_url = _build_receipt_url(detected_vehicle)
+        invite = INVITE_TEXT["receipt"]
+        if detected_vehicle and receipt_url != TOOL_URLS["receipt"]:
+            # Build a vehicle label for a more personal invite
+            dv = detected_vehicle
+            label_parts = [str(dv["year"]) if dv.get("year") else None, dv.get("make"), dv.get("model")]
+            label = " ".join(p for p in label_parts if p)
+            invite = (
+                f"If you want a quick sanity-check on {'the ' + label if label else 'that listing'}, "
+                f"paste the URL at {receipt_url} — "
+                "it pulls the VIN, flags the real friction points, and gives you the dealer "
+                "follow-up questions worth asking."
+            )
         return EVRoutineInviteDecision(
             should_invite=True,
             tool="receipt",
-            invite_text=INVITE_TEXT["receipt"],
+            invite_text=invite,
             trigger_reason="specific_listing",
         )
 
@@ -302,8 +362,9 @@ def decide_evroutine_invite(
     user_state: Optional[str],
     intent: Optional[str],
     combined_text: str = "",
+    detected_vehicle: Optional[dict] = None,
 ) -> EVRoutineInviteDecision:
-    return decide_tool_invite(friction_tags, user_state, intent, combined_text)
+    return decide_tool_invite(friction_tags, user_state, intent, combined_text, detected_vehicle)
 
 
 def get_tool_blurb(tool: str) -> str:

@@ -63,7 +63,7 @@ function ArticleCard({ article, index }: { article: Article; index: number }) {
       {/* Score badge */}
       <div className={`shrink-0 w-14 h-14 rounded-xl border flex flex-col items-center justify-center ${badge}`}>
         <span className="text-xl font-bold leading-none">{article.impact_score}</span>
-        <span className="text-[10px] mt-0.5 opacity-70">score</span>
+        <span className="text-xs mt-0.5 opacity-70">score</span>
       </div>
 
       {/* Content */}

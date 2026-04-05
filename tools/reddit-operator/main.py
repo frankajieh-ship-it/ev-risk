@@ -158,21 +158,32 @@ def analyze(req: AnalyzeRequest):
 # /reddit/scan endpoint (PRAW scanner hook)
 # -------------------------
 
-@app.post("/reddit/scan", response_model=AssistResponse)
+@app.post("/reddit/scan")
 def reddit_scan(post: RedditPostInput):
     """
-    Accepts a Reddit post dict and runs the full /assist pipeline.
+    Accepts a Reddit post dict, runs server-side qualification, then the full /assist pipeline.
     Used by the PRAW scanner (scans subreddits every 5 min).
-    Currently callable manually via Streamlit or curl for testing.
+    Also callable manually via Streamlit or curl for testing.
 
-    The actual PRAW scanner is a separate process that POSTs here.
+    Returns { status: "skipped", reason } if qualification fails,
+    or { status: "queued", session_id, score } on success.
     """
+    from qualification_engine import qualify_post
+
+    # Server-side qualification check (safety net even if scanner pre-qualified)
+    score = qualify_post(post.title, post.selftext or "", post.subreddit or "")
+    if not score.should_reply:
+        return {"status": "skipped", "reason": score.disqualify_reason, "score": score.final_score}
+
     req = AssistRequest(
         mode="operator",
-        source="reddit",
+        source="reddit_scanner",
         subreddit=post.subreddit or None,
         post_title=post.title,
-        post_body=post.selftext,
+        post_body=post.selftext or "",
+        reddit_post_id=post.post_id,
+        reddit_post_url=post.url,
+        qualification_score=post.qualification_score or score.final_score,
     )
 
     resp = run_assist_pipeline(req)
@@ -183,7 +194,12 @@ def reddit_scan(post: RedditPostInput):
     except Exception:
         pass
 
-    return resp
+    return {
+        "status": "queued",
+        "session_id": resp.session_id,
+        "score": score.final_score,
+        "draft_reply_short": resp.draft_reply_short,
+    }
 
 
 # -------------------------
@@ -192,17 +208,28 @@ def reddit_scan(post: RedditPostInput):
 
 class OutcomePayload(BaseModel):
     session_id: str
-    outcome: str   # 'posted' | 'edited' | 'skipped'
+    outcome: str                    # 'posted' | 'edited' | 'skipped'
+    upvotes: Optional[int] = None   # current Reddit post score
+    reply_count: Optional[int] = None  # current comment count
 
 
 @app.post("/sessions/{session_id}/outcome")
 def record_outcome(session_id: str, body: OutcomePayload):
-    """Record the operator outcome for a session (posted / edited / skipped)."""
+    """Record the operator outcome for a session (posted / edited / skipped).
+    Optionally also saves upvotes and reply_count if provided."""
     try:
-        save_posted_outcome(session_id, body.outcome)
+        save_posted_outcome(session_id, body.outcome, body.upvotes, body.reply_count)
     except Exception:
         pass
     return {"ok": True, "session_id": session_id, "outcome": body.outcome}
+
+
+@app.get("/sessions/posted")
+def get_posted_sessions(limit: int = 50):
+    """Return sessions marked posted/edited that have a reddit_post_url.
+    Used by the outcome tracker and Streamlit upvote refresh UI."""
+    from db import get_posted_sessions_db
+    return {"sessions": get_posted_sessions_db(limit)}
 
 
 # -------------------------

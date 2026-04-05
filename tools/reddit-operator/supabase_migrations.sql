@@ -141,6 +141,22 @@ CREATE INDEX IF NOT EXISTS idx_reddit_operator_sessions_suggested_tool
 
 
 -- -------------------------
+-- Reddit Scanner v3 columns
+-- Add these if the base table already exists.
+-- -------------------------
+
+ALTER TABLE reddit_operator_sessions
+    ADD COLUMN IF NOT EXISTS reddit_post_id      TEXT,
+    ADD COLUMN IF NOT EXISTS reddit_post_url     TEXT,
+    ADD COLUMN IF NOT EXISTS qualification_score FLOAT;
+
+-- Index for Scan Feed tab: quick lookup of pending scanner sessions
+CREATE INDEX IF NOT EXISTS idx_reddit_operator_sessions_pending
+    ON reddit_operator_sessions(posted_outcome, source)
+    WHERE posted_outcome = 'pending';
+
+
+-- -------------------------
 -- Market Analytics cache
 -- Stores Auto.dev Listings API responses per VIN or YMM key for 24h.
 -- -------------------------

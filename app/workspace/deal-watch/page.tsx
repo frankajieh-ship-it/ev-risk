@@ -307,9 +307,9 @@ export default function DealWatchPage() {
                   <div className="flex items-center gap-2 mb-1">
                     <p className="text-sm font-semibold text-gray-900 truncate">{search.label}</p>
                     {search.email_alerts ? (
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">Alerts on</span>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">Alerts on</span>
                     ) : (
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">Alerts off</span>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">Alerts off</span>
                     )}
                   </div>
                   {criteria && (

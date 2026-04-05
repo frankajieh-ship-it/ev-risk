@@ -49,7 +49,7 @@ export const openaiAdapter: ProviderAdapter = {
 
     // Enforce per-call timeout via AbortSignal (client-level timeout is 55s — too long)
     const localController = new AbortController();
-    const timeoutMs = opts.timeoutMs ?? 15_000;
+    const timeoutMs = opts.timeoutMs ?? 45_000;
     const localTimeout = setTimeout(() => localController.abort(), timeoutMs);
     const signal = opts.signal
       ? AbortSignal.any([opts.signal, localController.signal])

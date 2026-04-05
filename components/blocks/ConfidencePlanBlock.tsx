@@ -7,7 +7,7 @@ import type { ConfidencePlan, ConfidenceAction } from "@/types/v2";
 interface ConfidencePlanBlockProps {
   confidencePlan: ConfidencePlan;
   vehicle?: { make: string; model: string; year: number };
-  trackEvent: (name: string, data?: Record<string, any>) => void;
+  trackEvent: (name: string, data?: Record<string, unknown>) => void;
 }
 
 const MODULE_COLORS: Record<string, { bg: string; text: string }> = {
@@ -86,7 +86,7 @@ function ModulePills({ modules }: { modules: ConfidenceAction["required_for_modu
         return (
           <span
             key={mod}
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${colors.bg} ${colors.text}`}
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}
           >
             {mod}
           </span>
@@ -172,7 +172,7 @@ function ActionCard({
             <div className="px-4 pb-4 space-y-3 border-t border-gray-100 pt-3">
               {/* Unlocks modules */}
               <div>
-                <p className="text-[10px] uppercase tracking-wide text-gray-400 font-medium mb-1">
+                <p className="text-xs uppercase tracking-wide text-gray-400 font-medium mb-1">
                   Unlocks
                 </p>
                 <ModulePills modules={action.required_for_modules} />
@@ -185,7 +185,7 @@ function ActionCard({
 
               {/* How to get */}
               <div>
-                <p className="text-[10px] uppercase tracking-wide text-gray-400 font-medium mb-1">
+                <p className="text-xs uppercase tracking-wide text-gray-400 font-medium mb-1">
                   How to get it
                 </p>
                 <ul className="space-y-1">
@@ -201,7 +201,7 @@ function ActionCard({
               {/* Seller message template */}
               <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] uppercase tracking-wide text-gray-400 font-medium">
+                  <p className="text-xs uppercase tracking-wide text-gray-400 font-medium">
                     Send to seller
                   </p>
                   <CopyButton
@@ -219,7 +219,7 @@ function ActionCard({
               {action.message_templates.dealer && (
                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-[10px] uppercase tracking-wide text-gray-400 font-medium">
+                    <p className="text-xs uppercase tracking-wide text-gray-400 font-medium">
                       Send to dealer
                     </p>
                     <CopyButton

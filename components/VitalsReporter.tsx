@@ -186,7 +186,7 @@ export function VitalsDebugOverlay() {
           );
         })}
       </div>
-      <div className="mt-2 pt-2 border-t border-gray-700 text-[10px] text-gray-500">
+      <div className="mt-2 pt-2 border-t border-gray-700 text-xs text-gray-500">
         Add ?debug=0 to hide
       </div>
     </div>

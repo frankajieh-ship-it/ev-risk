@@ -163,6 +163,11 @@ class AssistRequest(BaseModel):
     risk_flags: Optional[List[str]] = Field(default_factory=list)
     must_answer_questions: Optional[List[str]] = Field(default_factory=list)
 
+    # Scanner-sourced metadata (populated by /reddit/scan endpoint)
+    reddit_post_id: Optional[str] = None
+    reddit_post_url: Optional[str] = None
+    qualification_score: Optional[float] = None
+
     # Shared options
     skip_cache: bool = False
     debug_mode: bool = False
@@ -214,6 +219,7 @@ class RedditPostInput(BaseModel):
     post_id: Optional[str] = None
     author: Optional[str] = None
     url: Optional[str] = None
+    qualification_score: Optional[float] = None  # from scanner pre-qualification
 
 
 class TechSupportFlag(BaseModel):

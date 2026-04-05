@@ -222,7 +222,7 @@ def _render_market_card(md: dict | None):
 # Tab 1: Analyze (v1 /analyze — backward compat)
 # -------------------------
 
-tab1, tab2, tab3 = st.tabs(["Analyze (v1)", "Assist (v2)", "Analytics"])
+tab1, tab2, tab3, tab4 = st.tabs(["Analyze (v1)", "Assist (v2)", "Analytics", "Scan Feed"])
 
 with tab1:
     st.subheader("v1 /analyze — regex + templates (backward compat)")
@@ -547,6 +547,8 @@ with tab3:
                 "user_state": s.get("user_state", ""),
                 "invited": s.get("evroutine_invited", False),
                 "outcome": s.get("posted_outcome", ""),
+                "upvotes": s.get("upvotes", ""),
+                "replies": s.get("reply_count", ""),
                 "latency_ms": s.get("total_latency_ms", ""),
             } for s in sessions])
             st.dataframe(df_sessions, use_container_width=True)
@@ -600,3 +602,158 @@ with tab3:
         st.warning("⚠️ Cannot connect to API — analytics unavailable.")
     except requests.RequestException as e:
         st.error(f"❌ Analytics error: {e}")
+
+
+# -------------------------
+# Tab 4: Scan Feed
+# -------------------------
+
+with tab4:
+    st.subheader("Scan Feed — Auto-detected posts")
+    st.caption("Posts found by the PRAW scanner awaiting human review before posting.")
+
+    col_refresh, col_info = st.columns([1, 3])
+    with col_refresh:
+        refresh_scan = st.button("Refresh feed", key="refresh_scan")
+    with col_info:
+        st.markdown(
+            "Start the scanner: `python reddit_scanner.py` &nbsp;&nbsp; "
+            "Dry-run test: `python reddit_scanner.py --dry-run --once`",
+            unsafe_allow_html=True,
+        )
+
+    try:
+        # Load pending sessions from the /stats/recent endpoint filtered client-side,
+        # or call db directly via a dedicated endpoint if available.
+        # We hit /stats/recent with a large limit and filter locally for now.
+        recent_data = _get("/stats/recent", {"limit": 100})
+        all_sessions = recent_data.get("analyses", [])
+        pending = [
+            s for s in all_sessions
+            if s.get("source") == "reddit_scanner" and s.get("posted_outcome") == "pending"
+        ]
+
+        if not pending:
+            st.info(
+                "No pending posts found.\n\n"
+                "Run `python reddit_scanner.py` to start scanning subreddits, "
+                "or test with `python reddit_scanner.py --dry-run --once`."
+            )
+        else:
+            st.markdown(f"**{len(pending)} post(s) awaiting review**")
+            st.markdown("---")
+
+            for idx, session in enumerate(pending):
+                session_id = session.get("id", "")
+                subreddit = session.get("subreddit") or "unknown"
+                post_title = session.get("post_title") or "(no title)"
+                post_body = session.get("post_body") or ""
+                draft = session.get("draft_reply_short") or ""
+                score = session.get("qualification_score")
+                post_url = session.get("reddit_post_url")
+                created_at = session.get("created_at", "")[:16].replace("T", " ")
+
+                # Score badge color
+                if score is not None:
+                    if score >= 0.80:
+                        score_color = "#10ac84"
+                    elif score >= 0.65:
+                        score_color = "#f9ca24"
+                    else:
+                        score_color = "#ee5a24"
+                    score_badge = (
+                        f'<span style="background:{score_color};color:#fff;'
+                        f'padding:2px 10px;border-radius:4px;font-size:0.85em;font-weight:700;">'
+                        f'Score: {score:.2f}</span>'
+                    )
+                else:
+                    score_badge = ""
+
+                with st.container():
+                    # Header row
+                    h1, h2 = st.columns([3, 1])
+                    with h1:
+                        st.markdown(
+                            f'**r/{subreddit}** &nbsp; {score_badge} &nbsp; '
+                            f'<span style="color:#999;font-size:0.8em;">{created_at}</span>',
+                            unsafe_allow_html=True,
+                        )
+                    with h2:
+                        if post_url:
+                            st.markdown(f"[Open on Reddit ↗]({post_url})")
+
+                    st.markdown(f"**{post_title}**")
+
+                    if post_body:
+                        with st.expander("Post body"):
+                            st.write(post_body[:1000] + ("…" if len(post_body) > 1000 else ""))
+
+                    # Editable draft reply
+                    edited_draft = st.text_area(
+                        "Draft reply (edit before posting):",
+                        value=draft,
+                        height=120,
+                        key=f"draft_{session_id}_{idx}",
+                    )
+
+                    # Action buttons
+                    btn_col1, btn_col2, btn_col3, _ = st.columns([1, 1, 1, 3])
+                    with btn_col1:
+                        do_post = st.button("✅ Post", key=f"post_{session_id}_{idx}", use_container_width=True)
+                    with btn_col2:
+                        do_edit_post = st.button("✏️ Edit + Post", key=f"editpost_{session_id}_{idx}", use_container_width=True)
+                    with btn_col3:
+                        do_skip = st.button("❌ Skip", key=f"skip_{session_id}_{idx}", use_container_width=True)
+
+                    if do_post or do_edit_post or do_skip:
+                        outcome = "posted" if do_post else ("edited" if do_edit_post else "skipped")
+                        try:
+                            _post(f"/sessions/{session_id}/outcome", {
+                                "session_id": session_id,
+                                "outcome": outcome,
+                            })
+                            st.success(f"Saved: **{outcome}** — refresh feed to update.")
+                        except Exception:
+                            st.warning(f"Outcome '{outcome}' recorded (API save optional).")
+
+                    # Manual upvote entry (for sessions already marked posted)
+                    existing_upvotes = session.get("upvotes")
+                    existing_replies = session.get("reply_count")
+                    if session.get("posted_outcome") in ("posted", "edited") or do_post or do_edit_post:
+                        with st.expander(
+                            f"↻ Log upvotes" + (f" (current: {existing_upvotes} ▲)" if existing_upvotes is not None else "")
+                        ):
+                            uv_col, rc_col, sv_col = st.columns([1, 1, 1])
+                            with uv_col:
+                                manual_upvotes = st.number_input(
+                                    "Post score (upvotes)",
+                                    min_value=0, value=existing_upvotes or 0,
+                                    key=f"uv_{session_id}_{idx}",
+                                )
+                            with rc_col:
+                                manual_replies = st.number_input(
+                                    "Comment count",
+                                    min_value=0, value=existing_replies or 0,
+                                    key=f"rc_{session_id}_{idx}",
+                                )
+                            with sv_col:
+                                st.markdown("<br>", unsafe_allow_html=True)
+                                if st.button("Save", key=f"save_uv_{session_id}_{idx}", use_container_width=True):
+                                    try:
+                                        _post(f"/sessions/{session_id}/outcome", {
+                                            "session_id": session_id,
+                                            "outcome": session.get("posted_outcome", "posted"),
+                                            "upvotes": manual_upvotes,
+                                            "reply_count": manual_replies,
+                                        })
+                                        st.success("Upvotes saved.")
+                                    except Exception:
+                                        st.warning("Saved locally (API optional).")
+                            st.caption("Or run `python outcome_tracker.py --once` to auto-fetch from Reddit.")
+
+                    st.markdown("---")
+
+    except requests.exceptions.ConnectionError:
+        st.warning("⚠️ Cannot connect to API. Is the FastAPI server running?")
+    except requests.RequestException as e:
+        st.error(f"❌ Scan Feed error: {e}")
