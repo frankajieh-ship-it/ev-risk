@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
 
       // Subscription lifecycle events
       case "invoice.payment_succeeded": {
-        const invoice = event.data.object as Stripe.Invoice;
+        const invoice = event.data.object as Stripe.Invoice & { subscription?: string | null };
         const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
         const subscriptionId = typeof invoice.subscription === "string" ? invoice.subscription : null;
         const periodEnd = (invoice as { period_end?: number }).period_end;
