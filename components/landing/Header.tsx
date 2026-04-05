@@ -25,11 +25,11 @@ const navLinks = [
 // Coming-soon nav item rendered separately (blurred, non-clickable)
 const MechanicNavItem = () => (
   <span
-    className="relative inline-flex items-center gap-1.5 text-sm font-medium text-gray-400 cursor-default select-none"
+    className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-300 cursor-default select-none"
     title="EV Mechanic Finder — coming soon"
   >
     Find a Mechanic
-    <span className="text-[9px] font-bold text-orange-600 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">Soon</span>
+    <span className="text-[9px] font-bold text-orange-400 bg-orange-50 border border-orange-100 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">Soon</span>
   </span>
 );
 
