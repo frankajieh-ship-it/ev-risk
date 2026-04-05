@@ -13,13 +13,14 @@ import { scoreReceiptV2 } from "@/lib/receipt-scoring-v2";
 import { applyRenderer } from "@/lib/receipt-renderer";
 import { detectListingSource } from "@/lib/listing-scraper";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
+import type { ReceiptScoringResult } from "@/lib/receipt-scoring";
 
 export interface UpgradePayload {
   receipt_id: string;
   receipt_token: string;
   input: ReceiptGenerateRequest;
   rule_signals: string[];
-  rule_scoring: { verdict: string; fit_score: number; [key: string]: unknown };
+  rule_scoring: ReceiptScoringResult;
   features: Record<string, boolean>;
   client_ip: string;
   ip_hash: string | null;

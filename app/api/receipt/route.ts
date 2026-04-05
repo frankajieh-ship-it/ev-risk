@@ -481,6 +481,21 @@ export async function POST(request: NextRequest) {
         "X-Upgrade-Secret": process.env.UPGRADE_SECRET ?? "",
       },
       body: JSON.stringify(upgradePayload),
+    }).then((res) => {
+      // Netlify background functions return 202 immediately — non-2xx means enqueue failed
+      if (!res.ok && isSupabaseConfigured()) {
+        console.error(`[Receipt] Background function rejected upgrade: ${res.status}`);
+        supabase.from("receipts")
+          .update({ generation_status: "failed" })
+          .eq("id", liteReceipt.receipt_id)
+          .then(() => {});
+        logApi("error", "Background function rejected upgrade enqueue", {
+          endpoint: "/api/receipt",
+          anon_id: receiptToken as string,
+          error_code: "upgrade_enqueue_rejected",
+          error_message: `HTTP ${res.status}`,
+        });
+      }
     }).catch((err) => {
       console.error("[Receipt] Failed to enqueue background upgrade:", err instanceof Error ? err.message : err);
 

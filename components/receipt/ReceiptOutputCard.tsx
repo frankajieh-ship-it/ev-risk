@@ -279,7 +279,7 @@ export default function ReceiptOutputCard({
               onClick={() => setLightboxOpen(true)}
             >
               <img
-                src={photos[photoIndex]}
+                src={photos[photoIndex]?.startsWith("http") ? `/api/proxy-image?url=${encodeURIComponent(photos[photoIndex])}` : photos[photoIndex]}
                 alt={vehicleDesc ? `${vehicleDesc} — listing photo ${photoIndex + 1} of ${photos.length}` : `Listing photo ${photoIndex + 1} of ${photos.length}`}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
               />
@@ -325,7 +325,7 @@ export default function ReceiptOutputCard({
                       i === photoIndex ? "border-blue-500 opacity-100" : "border-transparent opacity-60 hover:opacity-90"
                     }`}
                   >
-                    <img src={url} alt={vehicleDesc ? `${vehicleDesc} — photo ${i + 1}` : `Photo ${i + 1}`} className="w-full h-full object-cover" />
+                    <img src={url?.startsWith("http") ? `/api/proxy-image?url=${encodeURIComponent(url)}` : url} alt={vehicleDesc ? `${vehicleDesc} — photo ${i + 1}` : `Photo ${i + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -854,7 +854,7 @@ export default function ReceiptOutputCard({
               onClick={(e) => e.stopPropagation()}
             >
               <img
-                src={photos[photoIndex]}
+                src={photos[photoIndex]?.startsWith("http") ? `/api/proxy-image?url=${encodeURIComponent(photos[photoIndex])}` : photos[photoIndex]}
                 alt={vehicleDesc ? `${vehicleDesc} — photo ${photoIndex + 1} of ${photos.length}` : `Listing photo ${photoIndex + 1} of ${photos.length}`}
                 className="w-full max-h-[75vh] object-contain rounded-xl"
               />

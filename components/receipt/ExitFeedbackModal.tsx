@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 interface ExitFeedbackModalProps {
@@ -16,21 +16,37 @@ interface ExitFeedbackModalProps {
 }
 
 const STORAGE_KEY = "offo_exit_feedback_done";
+// Only prompt once every 7 days, not on every tab-switch
+const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+// Must have had the receipt for at least 20s before we prompt
+const MIN_RECEIPT_AGE_MS = 20_000;
 
 export default function ExitFeedbackModal({ hasReceipt, receiptId }: ExitFeedbackModalProps) {
   const [visible, setVisible] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  // Use a ref so we can read it inside the event handler without adding it as a dep
+  const receiptReadyAtRef = useRef(0);
+
+  useEffect(() => {
+    receiptReadyAtRef.current = performance.now();
+  }, [hasReceipt]);
 
   useEffect(() => {
     if (!hasReceipt) return;
-    // Don't show if already submitted this session or ever
+    // Don't show if already shown within the cooldown window
     try {
-      if (localStorage.getItem(STORAGE_KEY)) return;
+      const lastShown = localStorage.getItem(STORAGE_KEY);
+      if (lastShown && Date.now() - Number(lastShown) < COOLDOWN_MS) return;
     } catch { /* ignore */ }
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
+        // Don't show if user switched away before even reading the receipt
+        if (performance.now() - receiptReadyAtRef.current < MIN_RECEIPT_AGE_MS) return;
         setVisible(true);
+        // Record shown time so the cooldown applies even if dismissed without rating
+        const now = new Date().getTime().toString();
+        try { localStorage.setItem(STORAGE_KEY, now); } catch { /* ignore */ }
         // Track shown so it counts in analytics alongside FeedbackWidget
         fetch("/api/track-event", {
           method: "POST",
@@ -49,8 +65,9 @@ export default function ExitFeedbackModal({ hasReceipt, receiptId }: ExitFeedbac
 
   const handleSelect = async (rating: "helpful" | "okay" | "not_useful") => {
     setSubmitted(true);
+    const now = new Date().getTime().toString();
     try {
-      localStorage.setItem(STORAGE_KEY, "1");
+      localStorage.setItem(STORAGE_KEY, now);
     } catch { /* ignore */ }
 
     // Track event (fire-and-forget)
