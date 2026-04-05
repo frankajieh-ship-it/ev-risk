@@ -61,7 +61,8 @@ export async function GET(req: NextRequest) {
   }
 
   // Sort by ZIP proximity: exact match first, then 3-digit prefix, then rest
-  const sorted = (data ?? []).sort((a, b) => {
+  const rows = Array.isArray(data) ? data : [];
+  const sorted = rows.sort((a, b) => {
     const aExact = a.zip === zip ? 0 : a.zip?.startsWith(zipPrefix) ? 1 : 2;
     const bExact = b.zip === zip ? 0 : b.zip?.startsWith(zipPrefix) ? 1 : 2;
     if (aExact !== bExact) return aExact - bExact;
