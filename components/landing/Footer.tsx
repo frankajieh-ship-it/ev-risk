@@ -1,10 +1,75 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Mail } from "lucide-react";
+
+function NewsletterSignup() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setStatus("loading");
+    try {
+      const res = await fetch("/api/checklist/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), source: "footer_newsletter" }),
+      });
+      setStatus(res.ok ? "done" : "error");
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="border-b border-gray-800 pb-8 mb-8">
+      <div className="max-w-xl">
+        <div className="flex items-center gap-2 mb-2">
+          <Mail className="w-4 h-4 text-blue-400" />
+          <h4 className="text-sm font-semibold text-gray-200">Weekly EV insights</h4>
+        </div>
+        <p className="text-sm text-gray-400 mb-4">
+          Get the best used EV deals, market trends, and buyer tips — free, every week.
+        </p>
+        {status === "done" ? (
+          <p className="text-sm text-green-400 font-medium">You&apos;re in! Check your inbox.</p>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              required
+              className="flex-1 min-w-0 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            />
+            <button
+              type="submit"
+              disabled={status === "loading"}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+            >
+              {status === "loading" ? "..." : "Subscribe"}
+            </button>
+          </form>
+        )}
+        {status === "error" && (
+          <p className="text-xs text-red-400 mt-1">Something went wrong — try again.</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Footer() {
   return (
     <footer className="bg-gray-900 text-gray-400">
       <div className="max-w-7xl mx-auto px-4 py-12">
+        <NewsletterSignup />
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           {/* Brand */}
           <div>
@@ -20,10 +85,10 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li><Link href="/" className="hover:text-white transition-colors">EV Fit Check</Link></li>
               <li><Link href="/receipt" className="hover:text-white transition-colors">Listing Receipt</Link></li>
+              <li><Link href="/copart" className="hover:text-white transition-colors">Auction Audit</Link></li>
+              <li><Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link></li>
               <li><Link href="/news" className="hover:text-white transition-colors">EV News Digest</Link></li>
               <li><Link href="/dealer" className="hover:text-white transition-colors">Dealer Workspace</Link></li>
-              <li><Link href="/extension" className="hover:text-white transition-colors">Browser Extension</Link></li>
-              <li><Link href="/workspace/deal-watch" className="hover:text-white transition-colors">Deal Watch</Link></li>
             </ul>
           </div>
 
@@ -32,9 +97,11 @@ export default function Footer() {
             <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Support</h4>
             <ul className="space-y-2 text-sm">
               <li><Link href="/methodology" className="hover:text-white transition-colors">How OFFO works</Link></li>
+              <li><Link href="/answers" className="hover:text-white transition-colors">EV FAQ</Link></li>
               <li><Link href="/contact" className="hover:text-white transition-colors">Contact Us</Link></li>
               <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
               <li><Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
+              <li><Link href="/dealers/join" className="hover:text-white transition-colors">For Dealers</Link></li>
             </ul>
           </div>
         </div>

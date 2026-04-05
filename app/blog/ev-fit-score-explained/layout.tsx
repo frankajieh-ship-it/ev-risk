@@ -16,8 +16,9 @@ export const metadata: Metadata = {
     url: `${SITE_URL}/blog/ev-fit-score-explained`,
     type: "article",
     siteName: "OFFO",
+    images: [{ url: `${SITE_URL}/api/og?title=${encodeURIComponent(title)}`, width: 1200, height: 630 }],
   },
-  twitter: { card: "summary_large_image", title, description },
+  twitter: { card: "summary_large_image", title, description, images: [`${SITE_URL}/api/og?title=${encodeURIComponent(title)}`] },
   robots: { index: true, follow: true },
 };
 

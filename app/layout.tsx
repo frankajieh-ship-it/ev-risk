@@ -108,6 +108,7 @@ export default function RootLayout({
             });
             gtag('js', new Date());
             gtag('config', 'AW-17983820539');
+            ${process.env.NEXT_PUBLIC_GA4_ID ? `gtag('config', '${process.env.NEXT_PUBLIC_GA4_ID}');` : ""}
           `}
         </Script>
         {children}

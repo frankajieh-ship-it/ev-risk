@@ -129,8 +129,22 @@ export default function Home() {
     { year: 2018, make: "Nissan", model: "LEAF", trim: "S", mileage: "22K mi", range: "133 mi range", score: 86, price: "$12,998", badge: null, people: 2100, img: "/car-nissan-leaf.webp" },
   ];
 
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
       <div id="turnstile-score" className="hidden" />
       <Header variant="homepage" />
 
@@ -191,6 +205,12 @@ export default function Home() {
               <ArrowRight className="w-4 h-4" />
             </button>
             <p className="text-xs text-gray-400 text-center mt-3">No account required · Results in ~15 seconds</p>
+            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-center gap-1.5">
+              <span className="text-xs text-gray-400">Buying at auction?</span>
+              <Link href="/copart" className="text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors">
+                Copart Auction Audit →
+              </Link>
+            </div>
           </div>
         </div>
       </section>

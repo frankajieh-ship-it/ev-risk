@@ -17,6 +17,7 @@ interface HeaderProps {
 
 const navLinks = [
   { label: "Browse Vehicles",  href: "/vehicles/browse", isScroll: false },
+  { label: "Pricing",          href: "/pricing",         isScroll: false },
   { label: "Blog",             href: "/blog",            isScroll: false },
 ];
 
