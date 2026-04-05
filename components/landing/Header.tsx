@@ -16,9 +16,7 @@ interface HeaderProps {
 }
 
 const navLinks = [
-  { label: "Analyze a Car",    href: "/receipt",         isScroll: false },
   { label: "Browse Vehicles",  href: "/vehicles/browse", isScroll: false },
-  { label: "Compare",          href: "/compare",         isScroll: false },
   { label: "Blog",             href: "/blog",            isScroll: false },
 ];
 
@@ -79,7 +77,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
             {variant === "homepage" ? (
               <>
                 {/* Desktop nav */}
-                <div className="hidden md:flex items-center gap-6">
+                <div className="hidden md:flex items-center gap-5">
                   {navLinks.map((link) =>
                     link.isScroll ? (
                       <a
