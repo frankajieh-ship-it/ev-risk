@@ -1833,13 +1833,18 @@ export default function AdminDashboard() {
                         ) : "—"}
                       </td>
                       <td className="px-3 py-2 text-gray-600 truncate max-w-[200px]">
-                        {event.details?.verdict && <span className="text-purple-600">{event.details.verdict}</span>}
-                        {event.details?.url_domain && !event.details?.verdict && <span className="text-blue-600">{event.details.url_domain}</span>}
-                        {event.details?.success !== undefined && (
-                          <span className={event.details.success ? "text-green-600" : "text-red-600"}>
-                            {event.details.success ? " ✓" : " ✗"}
-                          </span>
-                        )}
+                        {(() => {
+                          const d = event.details as { verdict?: string; url_domain?: string; success?: boolean } | undefined;
+                          return <>
+                            {d?.verdict && <span className="text-purple-600">{d.verdict}</span>}
+                            {d?.url_domain && !d?.verdict && <span className="text-blue-600">{d.url_domain}</span>}
+                            {d?.success !== undefined && (
+                              <span className={d.success ? "text-green-600" : "text-red-600"}>
+                                {d.success ? " ✓" : " ✗"}
+                              </span>
+                            )}
+                          </>;
+                        })()}
                       </td>
                       <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{new Date(event.timestamp).toLocaleString()}</td>
                     </tr>
