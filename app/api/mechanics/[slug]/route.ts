@@ -21,7 +21,7 @@ export async function GET(
     return NextResponse.json({ success: false, error: "Database not configured" }, { status: 503 });
   }
 
-  const { data: mechanic, error: mechError } = await supabase
+  const { data: mechanicRow, error: mechError } = await supabase
     .from("mechanic_profiles")
     .select(
       "id, slug, business_name, bio, phone, website, address_line1, city, state, zip, " +
@@ -38,9 +38,11 @@ export async function GET(
     return NextResponse.json({ success: false, error: "Lookup failed" }, { status: 500 });
   }
 
-  if (!mechanic) {
+  if (!mechanicRow || !("id" in mechanicRow)) {
     return NextResponse.json({ success: false, error: "Mechanic not found" }, { status: 404 });
   }
+
+  const mechanic = mechanicRow as typeof mechanicRow & { id: string };
 
   const { data: reviews } = await supabase
     .from("mechanic_reviews")
@@ -49,5 +51,5 @@ export async function GET(
     .order("created_at", { ascending: false })
     .limit(10);
 
-  return NextResponse.json({ success: true, mechanic, reviews: reviews ?? [] });
+  return NextResponse.json({ success: true, mechanic: mechanicRow, reviews: reviews ?? [] });
 }
