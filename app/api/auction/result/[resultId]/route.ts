@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { getClientIP, RateLimiter } from "@/lib/rate-limiter";
+import { checkPurchaseStatus } from "@/lib/payment-status";
 import type {
   NormalizedAuctionLot,
   NhtsaRecallSummary,
@@ -89,10 +90,17 @@ export async function GET(
     });
   } catch { /* non-critical */ }
 
-  // All features are free — always unlocked
-  const isPaidUnlocked = true;
+  // Check payment: arbitrage section requires copart_report purchase
+  const anonId = request.nextUrl.searchParams.get("anon_id") ?? "";
+  let isPaidUnlocked = false;
+  if (anonId) {
+    try {
+      const payStatus = await checkPurchaseStatus("copart", resultId, anonId);
+      isPaidUnlocked = payStatus.unlocked_base && payStatus.pack_tier === "copart_report";
+    } catch { /* non-critical — default to locked */ }
+  }
 
-  // Strip arbitrage from free-tier response
+  // Strip arbitrage from free-tier response; show locked placeholder
   const arbitrage = isPaidUnlocked ? (report.arbitrage ?? null) : null;
 
   return NextResponse.json({

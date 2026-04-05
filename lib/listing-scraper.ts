@@ -332,6 +332,47 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
   // Try structured data first
   const data = extractStructuredData(html);
 
+  // CarGurus VDP (2024+): data is in Open Graph meta tags
+  // og:title = "CarGurus - 2024 Dodge Charger Daytona Scat Pack AWD - $39,995"
+  // og:description = "White with 1,647 miles. Automatic. ..."
+  if (!data.year || !data.make || !data.model) {
+    const ogTitle = html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i)?.[1] ||
+                    html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:title"/i)?.[1];
+    if (ogTitle) {
+      // Strip "CarGurus - " prefix if present
+      const cleaned = ogTitle.replace(/^CarGurus\s*[-–]\s*/i, '').trim();
+      // "2024 Dodge Charger Daytona Scat Pack AWD - $39,995"
+      const vehicleMatch = cleaned.match(/^(\d{4})\s+([A-Za-z\-]+)\s+(.+?)\s*(?:-\s*\$[\d,]+)?$/);
+      if (vehicleMatch) {
+        data.year = data.year || parseInt(vehicleMatch[1]);
+        data.make = data.make || vehicleMatch[2];
+        // model is everything between make and the price suffix
+        const modelTrim = vehicleMatch[3].trim();
+        if (!data.model) {
+          // Split model from trim: first word(s) are model, rest is trim
+          const modelParts = modelTrim.split(/\s+/);
+          data.model = modelParts[0];
+          if (modelParts.length > 1 && !data.trim) data.trim = modelParts.slice(1).join(' ');
+        }
+      }
+      // Extract price from og:title
+      if (!data.price) {
+        const priceMatch = cleaned.match(/\$\s*([\d,]+)/);
+        if (priceMatch) data.price = parseInt(priceMatch[1].replace(/,/g, ''));
+      }
+    }
+  }
+
+  // og:description = "White with 1,647 miles. Automatic. ..."
+  if (!data.mileage) {
+    const ogDesc = html.match(/<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i)?.[1] ||
+                   html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:description"/i)?.[1];
+    if (ogDesc) {
+      const milesMatch = ogDesc.match(/([\d,]+)\s+miles?/i);
+      if (milesMatch) data.mileage = parseInt(milesMatch[1].replace(/,/g, ''));
+    }
+  }
+
   // CarGurus-specific: Try __NEXT_DATA__ extraction
   const nextDataMatch = html.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
   if (nextDataMatch) {
@@ -593,158 +634,89 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     if (remainingBudget() > 1000) {
       const proxyStart = Date.now();
       const proxyTimeout = Math.min(sourceProxyCap, remainingBudget() - 500);
-      const proxyController = new AbortController();
-      const proxyTimeoutId = setTimeout(() => proxyController.abort(), proxyTimeout);
 
-      try {
-        // Construct proxy URL
-        let proxyUrl: string;
-        if (typeof window === 'undefined') {
-          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
-                          process.env.URL ||
-                          process.env.DEPLOY_URL ||
-                          (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-                          'http://localhost:3000';
-          proxyUrl = `${baseUrl}/api/proxy-fetch`;
-        } else {
-          proxyUrl = '/api/proxy-fetch';
-        }
-
-        const proxyResponse = await fetch(proxyUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, timeout: Math.min(sourceProxyCap, proxyTimeout - 500) }),
-          signal: proxyController.signal,
-        });
-        clearTimeout(proxyTimeoutId);
-
-        diagnostics.proxyStatusCode = proxyResponse.status;
-        diagnostics.proxyDurationMs = Date.now() - proxyStart;
-
-        const contentType = proxyResponse.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error('Proxy returned non-JSON response');
-        }
-
-        const proxyResult = await proxyResponse.json();
-
-        if (proxyResult.success && proxyResult.html) {
-          html = proxyResult.html;
-          diagnostics.fetchMethod = "proxy";
-          diagnostics.htmlLength = html!.length;
-        } else if (proxyResult.blocked) {
-          diagnostics.failureReason = "blocked_by_bot_protection";
-          diagnostics.fetchMethod = "proxy";
-          diagnostics.botProtectionDetected = true;
-          // Detect protection type from proxy result
-          diagnostics.botProtectionType = proxyResult.error?.toLowerCase().includes('akamai') ? 'akamai'
-            : proxyResult.error?.toLowerCase().includes('cloudflare') ? 'cloudflare' : 'unknown';
-          diagnostics.errorMessage = proxyResult.error;
-          finalize();
-          return {
-            success: false,
-            data: null,
-            error: 'This site blocked auto-extraction. Paste the listing text instead.',
-            warnings: ['The marketplace has enhanced bot detection', 'Paste the listing text or enter details manually'],
-            diagnostics,
-          };
-        } else {
-          // Proxy failed, will try direct
-          diagnostics.errorMessage = proxyResult.error;
-        }
-      } catch (proxyError) {
-        clearTimeout(proxyTimeoutId);
-        diagnostics.proxyDurationMs = Date.now() - proxyStart;
-        if (proxyError instanceof Error && proxyError.name === 'AbortError') {
-          diagnostics.errorMessage = 'proxy_timeout';
-        }
-        // Will fall through to direct fetch
+      // --- ScrapingBee (isolated — no fallback while QA'ing) ---
+      const SCRAPINGBEE_KEY = process.env.SCRAPINGBEE_API_KEY;
+      if (!SCRAPINGBEE_KEY) {
+        console.error('[Listing Scraper] SCRAPINGBEE_API_KEY not set — extraction will fail');
+        diagnostics.failureReason = 'network_error';
+        diagnostics.errorMessage = 'ScrapingBee API key not configured';
+        finalize();
+        return {
+          success: false,
+          data: null,
+          error: 'Extraction service not configured.',
+          warnings: [],
+          diagnostics,
+        };
       }
-    }
 
-    // --- Direct fetch phase (if proxy didn't get HTML) ---
-    if (!html && remainingBudget() > 1000) {
-      const directStart = Date.now();
-      const directTimeout = remainingBudget() - 200;
-      const directController = new AbortController();
-      const directTimeoutId = setTimeout(() => directController.abort(), directTimeout);
-
+      const sbController = new AbortController();
+      const sbTimeoutId = setTimeout(() => sbController.abort(), proxyTimeout);
       try {
-        const response = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': 'https://www.google.com/',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'cross-site',
-            'Upgrade-Insecure-Requests': '1',
-            'Cache-Control': 'max-age=0',
-          },
-          redirect: 'follow',
-          signal: directController.signal,
-        });
-        clearTimeout(directTimeoutId);
+        const needsJsRender = ['cargurus', 'autotrader', 'cars.com'].includes(dataSource);
+        const sbUrl = new URL('https://app.scrapingbee.com/api/v1/');
+        sbUrl.searchParams.set('api_key', SCRAPINGBEE_KEY);
+        sbUrl.searchParams.set('url', url);
+        sbUrl.searchParams.set('render_js', needsJsRender ? 'true' : 'false');
+        sbUrl.searchParams.set('premium_proxy', 'true');
+        sbUrl.searchParams.set('country_code', 'us');
+        if (needsJsRender) {
+          sbUrl.searchParams.set('wait_browser', 'networkidle2');
+          sbUrl.searchParams.set('timeout', String(Math.min(proxyTimeout - 2000, 25000)));
+        }
 
-        diagnostics.directStatusCode = response.status;
-        diagnostics.directDurationMs = Date.now() - directStart;
+        console.log('[Listing Scraper] ScrapingBee:', { url: url.substring(0, 80), needsJsRender });
+        const sbResp = await fetch(sbUrl.toString(), { signal: sbController.signal });
+        clearTimeout(sbTimeoutId);
 
-        if (!response.ok) {
-          diagnostics.fetchMethod = "direct";
-          diagnostics.httpStatus = response.status;
+        diagnostics.proxyDurationMs = Date.now() - proxyStart;
+        diagnostics.proxyStatusCode = sbResp.status;
 
-          if (response.status === 403) {
-            diagnostics.failureReason = "blocked_by_bot_protection";
+        if (sbResp.ok) {
+          const sbHtml = await sbResp.text();
+          const creditsUsed = sbResp.headers.get('spb-cost');
+          console.log('[Listing Scraper] ScrapingBee success — credits:', creditsUsed, 'length:', sbHtml.length);
+
+          const lowerSbHtml = sbHtml.toLowerCase();
+          const sbBlocked =
+            lowerSbHtml.includes('captcha') ||
+            lowerSbHtml.includes('just a moment') ||
+            lowerSbHtml.includes('challenge-platform') ||
+            sbHtml.length < 2000;
+
+          if (!sbBlocked) {
+            html = sbHtml;
+            diagnostics.fetchMethod = 'proxy';
+            diagnostics.htmlLength = html.length;
+          } else {
+            console.warn('[Listing Scraper] ScrapingBee returned blocked page, length:', sbHtml.length);
             diagnostics.botProtectionDetected = true;
-            diagnostics.botProtectionType = dataSource === 'carvana' ? 'cloudflare' : 'unknown';
-            finalize();
-            return {
-              success: false,
-              data: null,
-              error: 'This site blocked auto-extraction. Paste the listing text instead.',
-              warnings: ['Site returned 403 Forbidden', 'Paste the listing text or enter details manually'],
-              diagnostics,
-            };
+            diagnostics.errorMessage = 'scrapingbee_blocked_page';
           }
-
-          diagnostics.failureReason = "http_error";
-          diagnostics.errorMessage = `HTTP ${response.status}`;
-          finalize();
-          return {
-            success: false,
-            data: null,
-            error: `Unable to access listing (Error ${response.status}). Paste the listing text instead.`,
-            warnings: ['Many car listing sites protect against automated access'],
-            diagnostics,
-          };
-        }
-
-        html = await response.text();
-        diagnostics.fetchMethod = "direct";
-        diagnostics.htmlLength = html.length;
-      } catch (directFetchError) {
-        clearTimeout(directTimeoutId);
-        diagnostics.directDurationMs = Date.now() - directStart;
-
-        if (directFetchError instanceof Error && directFetchError.name === 'AbortError') {
-          diagnostics.failureReason = "timeout";
-          diagnostics.errorMessage = 'direct_timeout';
         } else {
-          diagnostics.failureReason = "network_error";
-          diagnostics.errorMessage = directFetchError instanceof Error ? directFetchError.message : 'unknown';
+          const errBody = await sbResp.text().catch(() => '');
+          console.error('[Listing Scraper] ScrapingBee HTTP', sbResp.status, errBody.substring(0, 300));
+          diagnostics.errorMessage = `scrapingbee_${sbResp.status}`;
+        }
+      } catch (sbErr) {
+        clearTimeout(sbTimeoutId);
+        diagnostics.proxyDurationMs = Date.now() - proxyStart;
+        const msg = sbErr instanceof Error ? sbErr.message : String(sbErr);
+        console.error('[Listing Scraper] ScrapingBee threw:', msg);
+        diagnostics.errorMessage = msg;
+        if (sbErr instanceof Error && sbErr.name === 'AbortError') {
+          diagnostics.failureReason = 'timeout';
         }
       }
     }
 
-    // --- No HTML obtained from either method ---
+    // --- No HTML obtained ---
     if (!html) {
       if (!diagnostics.failureReason) {
         diagnostics.failureReason = remainingBudget() <= 1000 ? "timeout" : "network_error";
       }
-      // CarGurus blocks server-side fetches — treat timeout as bot protection
-      // so the frontend auto-switches to text mode instead of showing a generic error
+      // Treat ScrapingBee timeout on CarGurus as bot protection so frontend auto-switches to text mode
       if (diagnostics.failureReason === "timeout" && dataSource === "cargurus") {
         diagnostics.failureReason = "blocked_by_bot_protection";
         diagnostics.botProtectionDetected = true;
@@ -759,30 +731,30 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
           : diagnostics.failureReason === "timeout"
           ? 'Extraction timed out. Paste the listing text instead.'
           : 'Unable to fetch listing. Paste the listing text instead.',
-        warnings: ['Both proxy and direct fetch methods failed'],
+        warnings: ['ScrapingBee extraction failed'],
         diagnostics,
       };
     }
 
     // --- Bot detection in HTML ---
-    const isBlocked = html.includes('captcha') ||
-                      html.includes('bot detection') ||
-                      html.includes('cg-mobileHome') ||
-                      html.includes('Just a moment') ||
-                      html.includes('challenge-platform') ||
-                      html.includes('akamai-block') ||
+    const lowerHtml = html.toLowerCase();
+    const isBlocked = lowerHtml.includes('captcha') ||
+                      lowerHtml.includes('bot detection') ||
+                      lowerHtml.includes('just a moment') ||
+                      lowerHtml.includes('challenge-platform') ||
+                      lowerHtml.includes('akamai-block') ||
                       html.includes('Autotrader - page unavailable') ||
                       html.length < 2000;
 
     if (isBlocked) {
       diagnostics.botProtectionDetected = true;
-      if (html.includes('challenge-platform') || html.includes('Just a moment')) {
+      if (lowerHtml.includes('challenge-platform') || lowerHtml.includes('just a moment')) {
         diagnostics.botProtectionType = 'cloudflare';
-      } else if (html.includes('akamai-block') || html.includes('Autotrader - page unavailable')) {
+      } else if (lowerHtml.includes('akamai-block') || html.includes('Autotrader - page unavailable')) {
         diagnostics.botProtectionType = 'akamai';
       }
 
-      if (dataSource === 'carvana' || dataSource === 'autotrader' || html.length < 5000) {
+      if (dataSource === 'carvana' || html.length < 5000) {
         diagnostics.failureReason = "blocked_by_bot_protection";
         finalize();
         return {
@@ -815,6 +787,7 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
         extractedData = await extractFromAutoTrader(html);
     }
     diagnostics.parseDurationMs = Date.now() - parseStart;
+    console.log('[Listing Scraper] Parse result:', { dataSource, year: extractedData.year, make: extractedData.make, model: extractedData.model, mileage: extractedData.mileage, hasNextData: html.includes('__NEXT_DATA__') });
 
     // --- Build result ---
     const extractedFields: string[] = [];

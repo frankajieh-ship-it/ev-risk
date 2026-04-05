@@ -83,10 +83,10 @@ export async function POST(
         {
           price_data: {
             currency: "usd",
-            unit_amount: 1999,
+            unit_amount: 4900,
             product_data: {
-              name: "OFFO Full Copart Risk Report",
-              description: "Full salvage risk analysis: battery projection, repair impact, post-auction routine estimate, and AI deep-dive.",
+              name: "OFFO Auction Audit",
+              description: "Full auction arbitrage analysis: market value (ARV), repair cost range, max safe bid, confidence rating, and caveats.",
             },
           },
           quantity: 1,
@@ -105,6 +105,7 @@ export async function POST(
         result_id: resultId,
         auction_source: row.auction_source,
         lot_number: row.lot_number,
+        anon_id: (body.anon_id as string) || "",
       },
     });
 

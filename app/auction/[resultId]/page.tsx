@@ -27,6 +27,7 @@ import {
   Link2,
   Mail,
   Copy,
+  Lock,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getOrCreatePersistentSessionId } from "@/lib/session-utils";
@@ -78,6 +79,53 @@ function fmt(n: number): string {
 
 function vehicleTitle(lot: NormalizedAuctionLot): string {
   return [lot.year, lot.make, lot.model, lot.trim].filter(Boolean).join(" ") || "Unknown Vehicle";
+}
+
+// ── Auction Unlock button ─────────────────────────────────────────────────────
+
+function AuctionUnlockButton({ resultId }: { resultId: string }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleUnlock = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const anonId = getOrCreatePersistentSessionId();
+      const res = await fetch(`/api/auction/purchase/${resultId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anon_id: anonId }),
+      });
+      const json = await res.json();
+      if (json.checkout_url) {
+        window.location.href = json.checkout_url;
+      } else {
+        setError(json.error ?? "Checkout failed — try again");
+        setLoading(false);
+      }
+    } catch {
+      setError("Network error — try again");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <button
+        onClick={handleUnlock}
+        disabled={loading}
+        className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+      >
+        {loading ? (
+          <><Loader2 className="w-4 h-4 animate-spin" /> Redirecting to checkout...</>
+        ) : (
+          <><Lock className="w-4 h-4" /> Unlock Auction Audit — $49</>
+        )}
+      </button>
+      {error && <p className="text-xs text-red-500 mt-2 text-center">{error}</p>}
+    </div>
+  );
 }
 
 // ── Share button ──────────────────────────────────────────────────────────────
@@ -221,7 +269,8 @@ export default function AuctionResultPage() {
 
   useEffect(() => {
     if (!resultId) return;
-    fetch(`/api/auction/result/${resultId}`)
+    const anonId = getOrCreatePersistentSessionId();
+    fetch(`/api/auction/result/${resultId}?anon_id=${encodeURIComponent(anonId)}`)
       .then((r) => r.json())
       .then((json: AuctionResultApiResponse) => {
         if (!json.success) { setPageState("error"); return; }
@@ -355,8 +404,8 @@ export default function AuctionResultPage() {
             )}
           </div>
 
-          {/* 7. Arbitrage */}
-          {report.arbitrage && (
+          {/* 7. Arbitrage — paid feature */}
+          {data.paid_unlocked && report.arbitrage ? (
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-gray-500" />
@@ -401,7 +450,36 @@ export default function AuctionResultPage() {
                 </ul>
               )}
             </div>
-          )}
+          ) : !data.paid_unlocked ? (
+            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Lock className="w-4 h-4 text-amber-600" />
+                <h3 className="text-sm font-semibold text-gray-800">Financial Arbitrage</h3>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                  Auction Audit
+                </span>
+              </div>
+              {/* Blurred teaser */}
+              <div className="grid grid-cols-3 gap-3 mb-4 select-none">
+                <div className="text-center">
+                  <p className="text-xs text-gray-500 mb-1">Market Value (ARV)</p>
+                  <p className="text-base font-bold text-gray-300 blur-sm">$32,500</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-gray-500 mb-1">Repair Cost</p>
+                  <p className="text-base font-bold text-gray-300 blur-sm">$4,200–$6,800</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-gray-500 mb-1">Max Safe Bid</p>
+                  <p className="text-base font-bold text-gray-300 blur-sm">$21,750</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mb-3">
+                Unlock ARV, repair cost range, max safe bid, and arbitrage caveats for this lot.
+              </p>
+              <AuctionUnlockButton resultId={resultId} />
+            </div>
+          ) : null}
 
           {/* 8. Routine impact */}
           {report.routine_impact && (

@@ -44,6 +44,23 @@ export function middleware(request: NextRequest) {
     );
   }
 
+  // Geo-block: restrict AI-heavy endpoints to English-speaking markets
+  // Blocks ~67% bot traffic from China/Singapore identified in CEO report.
+  // Only applies when Netlify x-country header is present — local dev unaffected.
+  const isAiRoute =
+    request.nextUrl.pathname.startsWith("/api/receipt/") ||
+    request.nextUrl.pathname.startsWith("/api/auction/analyze");
+  if (isAiRoute) {
+    const country = request.headers.get("x-country");
+    const ALLOWED_COUNTRIES = ["US", "CA", "GB", "AU", "NZ", "IE"];
+    if (country && !ALLOWED_COUNTRIES.includes(country)) {
+      return new NextResponse(
+        JSON.stringify({ success: false, error: "Service not available in your region" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  }
+
   // Geo-detect region via Netlify x-country header (ISO 3166)
   // Sets offo_region cookie for UK visitors on first visit (not httpOnly — client reads it)
   if (!request.cookies.get("offo_region")) {

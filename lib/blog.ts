@@ -28,6 +28,78 @@ export interface BlogPost {
 
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "copart-ev-buying-guide",
+    badge: "Buyer's Guide",
+    badgeColor: "bg-orange-100 text-orange-800",
+    title: "Buying a Salvage EV at Copart: What the Auction Report Actually Tells You",
+    description:
+      "Not all salvage EVs are disasters. Hail-damaged Teslas and minor collision Bolts can be exceptional value — if you know how to read the auction report. Here's what to look for.",
+    excerpt:
+      "Not all salvage EVs are disasters. Hail-damaged Teslas and minor collision Bolts can be exceptional value — if you know how to read the auction report.",
+    readTime: "11 min read",
+    datePublished: "2026-04-04",
+  },
+  {
+    slug: "best-budget-evs-2025",
+    badge: "Buyer's Guide",
+    badgeColor: "bg-green-100 text-green-800",
+    title: "Best Used EVs Under $25K in 2025",
+    description:
+      "The used EV market has shifted dramatically. Here are the models that deliver the most range, reliability, and resale value under $25,000 — and the ones to avoid.",
+    excerpt:
+      "The used EV market has shifted dramatically. Here are the models that deliver the most range, reliability, and resale value under $25,000.",
+    readTime: "9 min read",
+    datePublished: "2026-03-28",
+  },
+  {
+    slug: "ev-winter-prep-checklist",
+    badge: "Checklist",
+    badgeColor: "bg-blue-100 text-blue-800",
+    title: "Winter EV Prep: 10 Things to Do Before the First Frost",
+    description:
+      "Cold weather cuts EV range 20–40%. These 10 steps — done once before winter — prevent most cold-weather surprises and keep your battery healthy through spring.",
+    excerpt:
+      "Cold weather cuts EV range 20–40%. These 10 steps — done once before winter — prevent most cold-weather surprises.",
+    readTime: "7 min read",
+    datePublished: "2026-03-10",
+  },
+  {
+    slug: "apartment-ev-ownership",
+    badge: "Guide",
+    badgeColor: "bg-purple-100 text-purple-800",
+    title: "Can You Own an EV Without a Garage? A Realistic Guide",
+    description:
+      "Over 40 million Americans rent without private parking. Here's an honest look at apartment EV ownership: when it works, when it doesn't, and what infrastructure you actually need.",
+    excerpt:
+      "Over 40 million Americans rent without private parking. Here's an honest look at apartment EV ownership: when it works and when it doesn't.",
+    readTime: "8 min read",
+    datePublished: "2026-02-20",
+  },
+  {
+    slug: "ev-fit-score-explained",
+    badge: "Methodology",
+    badgeColor: "bg-indigo-100 text-indigo-800",
+    title: "How OFFO Scores EV Fit: The Full Methodology",
+    description:
+      "OFFO's EV fit score combines 8 factors: commute distance, climate zone, charging access, vehicle range, driving patterns, home ownership, budget, and flexibility. Here's exactly how each is weighted.",
+    excerpt:
+      "OFFO's EV fit score combines 8 factors. Here's exactly how each is weighted and why.",
+    readTime: "6 min read",
+    datePublished: "2026-02-01",
+  },
+  {
+    slug: "ev-regret-case-studies",
+    badge: "Case Studies",
+    badgeColor: "bg-red-100 text-red-800",
+    title: "5 People Who Regretted Buying an EV — And Exactly Why",
+    description:
+      "Real stories from EV owners who didn't love the experience. Common threads: no home charging, underestimated cold weather, wrong model for the use case. What each person should have done differently.",
+    excerpt:
+      "Real stories from EV owners who didn't love the experience — and what each person should have done differently.",
+    readTime: "10 min read",
+    datePublished: "2026-01-15",
+  },
+  {
     slug: "deterministic-first-multi-llm-second",
     badge: "Engineering",
     badgeColor: "bg-indigo-100 text-indigo-800",

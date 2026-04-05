@@ -10,13 +10,13 @@
 
 import type { Region } from "@/lib/region";
 
-export type PriceVariant = "299" | "499" | "999" | "1999";
+export type PriceVariant = "299" | "499" | "999" | "1999" | "4900";
 export type PackTier = "buyer_pass" | "seller_questions" | "chat_pass" | "copart_report" | "sellers_report_pdf";
 
 export const BUYER_PASS_PRICE = "$9.99";
 export const BUYER_PASS_CREDITS = 10;
 export const CHAT_PASS_PRICE = "$9.99";
-export const COPART_REPORT_PRICE = "$19.99";
+export const COPART_REPORT_PRICE = "$49";
 export const COMPARE_PASS_PRICE = "$4.99";
 
 export const SELLER_PACK_PRICE_A = "$2.99";
@@ -27,6 +27,7 @@ const USD_DISPLAY: Record<PriceVariant, string> = {
   "499": "$4.99",
   "999": "$9.99",
   "1999": "$19.99",
+  "4900": "$49",
 };
 
 const GBP_DISPLAY: Record<PriceVariant, string> = {
@@ -34,6 +35,7 @@ const GBP_DISPLAY: Record<PriceVariant, string> = {
   "499": "\u00A33.99",
   "999": "\u00A37.99",
   "1999": "\u00A315.99",
+  "4900": "\u00A338",
 };
 
 /**
@@ -66,7 +68,7 @@ export function getVariantForTier(tier: PackTier, anonId?: string): PriceVariant
   if (tier === "seller_questions" && anonId) {
     return assignSellerPackVariant(anonId);
   }
-  if (tier === "copart_report") return "1999";
+  if (tier === "copart_report") return "4900";
   // sellers_report_pdf, chat_pass, and buyer_pass all price at $9.99
   return "999";
 }
@@ -81,6 +83,7 @@ export function getStripePriceId(variant: PriceVariant): string | null {
     case "499": return process.env.STRIPE_PRICE_USD_499 || null;
     case "999": return process.env.STRIPE_PRICE_USD_999 || null;
     case "1999": return process.env.STRIPE_PRICE_USD_1999 || null;
+    case "4900": return process.env.STRIPE_PRICE_USD_4900 || null;
   }
 }
 
@@ -113,6 +116,7 @@ export function getAmountCents(variant: PriceVariant): number {
     case "499": return 499;
     case "999": return 999;
     case "1999": return 1999;
+    case "4900": return 4900;
   }
 }
 
@@ -120,5 +124,5 @@ export function getAmountCents(variant: PriceVariant): number {
  * Validate that a string is a valid price variant.
  */
 export function isValidVariant(v: string): v is PriceVariant {
-  return v === "299" || v === "499" || v === "999" || v === "1999";
+  return v === "299" || v === "499" || v === "999" || v === "1999" || v === "4900";
 }
