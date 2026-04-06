@@ -523,7 +523,7 @@ export default function CopartLandingPage() {
                 <p className="text-sm font-semibold text-red-800 mb-1">{result.recalls.length} open NHTSA recall{result.recalls.length > 1 ? "s" : ""}</p>
                 <ul className="space-y-0.5">
                   {result.recalls.slice(0, 3).map((r, i) => (
-                    <li key={i} className="text-xs text-red-700">• {r.component}</li>
+                    <li key={i} className="text-xs text-red-700">• {r.Component}</li>
                   ))}
                 </ul>
               </div>
