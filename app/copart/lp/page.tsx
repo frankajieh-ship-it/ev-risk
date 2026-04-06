@@ -243,21 +243,24 @@ export default function CopartLandingPage() {
 
   // Photo: use lot photo if available, else fetch a stock photo by make/model/year
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const lotPhotoSrc = lot?.photos?.[0] ?? null;
+  const lotMake = lot?.make ?? null;
+  const lotModel = lot?.model ?? null;
+  const lotYear = lot?.year ?? null;
+  const lotVin = lot?.vin ?? null;
   useEffect(() => {
-    if (!lot) { setPhotoUrl(null); return; }
-    const lotPhoto = lot.photos?.[0] ?? null;
-    if (lotPhoto) { setPhotoUrl(lotPhoto); return; }
-    if (!lot.make || !lot.model) return;
+    if (lotPhotoSrc) { setPhotoUrl(lotPhotoSrc); return; }
+    if (!lotMake || !lotModel) { setPhotoUrl(null); return; }
     const params = new URLSearchParams();
-    if (lot.make) params.set("make", lot.make);
-    if (lot.model) params.set("model", lot.model);
-    if (lot.year) params.set("year", String(lot.year));
-    if (lot.vin) params.set("vin", lot.vin);
+    params.set("make", lotMake);
+    params.set("model", lotModel);
+    if (lotYear) params.set("year", String(lotYear));
+    if (lotVin) params.set("vin", lotVin);
     fetch(`/api/photos?${params}`)
       .then((r) => r.json())
       .then((d) => { if (d.photo_urls?.[0]) setPhotoUrl(d.photo_urls[0]); })
       .catch(() => {});
-  }, [lot]);
+  }, [lotPhotoSrc, lotMake, lotModel, lotYear, lotVin]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -396,11 +399,11 @@ export default function CopartLandingPage() {
 
             {/* Safe bid range */}
             {arb?.safe_bid_range != null && (
-              <div className={`border rounded-xl p-3 text-center ${arb.safe_bid_range.likely >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
-                <TrendingDown className={`w-4 h-4 mx-auto mb-1 ${arb.safe_bid_range.likely >= 0 ? "text-green-600" : "text-red-500"}`} />
+              <div className={`border rounded-xl p-3 text-center ${arb.safe_bid_range.high >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                <TrendingDown className={`w-4 h-4 mx-auto mb-1 ${arb.safe_bid_range.high >= 0 ? "text-green-600" : "text-red-500"}`} />
                 <p className="text-xs text-gray-500 font-medium">Max safe bid</p>
-                <p className={`text-xl font-black ${arb.safe_bid_range.likely >= 0 ? "text-green-700" : "text-red-700"}`}>
-                  ${Math.max(0, arb.safe_bid_range.best).toLocaleString()}
+                <p className={`text-xl font-black ${arb.safe_bid_range.high >= 0 ? "text-green-700" : "text-red-700"}`}>
+                  ${Math.max(0, arb.safe_bid_range.high).toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-400">at 20% margin</p>
               </div>
