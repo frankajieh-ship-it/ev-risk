@@ -187,6 +187,11 @@ export default function CopartLandingPage() {
   const resultsRef = useRef<HTMLDivElement>(null);
   const { trackEvent } = useEventTracking();
 
+  const isAuctionUrl = (s: string) => {
+    try { const u = new URL(s); return u.hostname.endsWith("copart.com") || u.hostname.endsWith("iaai.com"); }
+    catch { return false; }
+  };
+
   const analyze = useCallback(async (input: string) => {
     setPageState("fetching");
     setErrorMsg("");
@@ -196,12 +201,14 @@ export default function CopartLandingPage() {
     try {
       const receiptToken = getOrCreateReceiptToken();
       const sessionId = getOrCreatePersistentSessionId();
+      const isUrl = isAuctionUrl(input);
 
       const res = await fetch("/api/auction/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          lot_input: input,
+          url: isUrl ? input : undefined,
+          lot_number: !isUrl ? input : undefined,
           auction_source: "copart",
           receipt_token: receiptToken,
           session_id: sessionId,
@@ -209,19 +216,18 @@ export default function CopartLandingPage() {
         }),
       });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Analysis failed (${res.status})`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success || !data.report) {
+        throw new Error(data.error || data.message || `Analysis failed (${res.status})`);
       }
 
-      const data = await res.json();
-
+      const r = data.report;
       setResult({
-        report: data.report,
-        salvageRisk: data.salvage_risk ?? null,
-        offoScore: data.offo_score ?? null,
-        recalls: data.recalls ?? [],
-        arbitrage: data.arbitrage ?? null,
+        report: r,
+        salvageRisk: (r.salvage_risk as SalvageRiskResult) ?? null,
+        offoScore: (r.offo_score as OffoScore | undefined) ?? null,
+        recalls: (r.recalls as NhtsaRecallSummary[]) ?? [],
+        arbitrage: (r.arbitrage as ArbitrageResult | undefined) ?? null,
       });
       setPageState("done");
       trackEvent("copart_lp_analyze_done", { source: "lp" });
@@ -237,7 +243,8 @@ export default function CopartLandingPage() {
   }, [trackEvent]);
 
   const report = result?.report;
-  const vehicleType = report ? detectVehicleType(report.make, report.model, report.trim) : null;
+  const lot = report?.lot;
+  const vehicleType = lot ? detectVehicleType(lot.make, lot.model, lot.trim) : null;
 
   return (
     <div className="min-h-screen bg-white">
@@ -284,7 +291,7 @@ export default function CopartLandingPage() {
       </section>
 
       {/* ── RESULTS ── */}
-      {pageState === "done" && result && report && (
+      {pageState === "done" && result && report && lot && (
         <section ref={resultsRef} className="max-w-3xl mx-auto px-4 py-10 space-y-6">
 
           {/* Lot summary strip */}
@@ -296,13 +303,13 @@ export default function CopartLandingPage() {
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Lot Analysis</span>
             </div>
             <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-700">
-              {report.year && report.make && report.model && (
-                <span className="font-semibold">{report.year} {report.make} {report.model}{report.trim ? ` ${report.trim}` : ""}</span>
+              {lot.year && lot.make && lot.model && (
+                <span className="font-semibold">{lot.year} {lot.make} {lot.model}{lot.trim ? ` ${lot.trim}` : ""}</span>
               )}
-              {report.primary_damage && <span className="text-orange-700">⚡ {report.primary_damage}</span>}
-              {report.title_status && <span>📄 {report.title_status}</span>}
-              {report.odometer && <span>📍 {report.odometer.toLocaleString()} mi</span>}
-              {report.current_bid && <span>💰 Current bid: ${report.current_bid.toLocaleString()}</span>}
+              {lot.primary_damage && <span className="text-orange-700">⚡ {lot.primary_damage}</span>}
+              {lot.title_status && <span>📄 {lot.title_status}</span>}
+              {lot.odometer && <span>📍 {lot.odometer.toLocaleString()} mi</span>}
+              {lot.current_bid && <span>💰 Current bid: ${lot.current_bid.toLocaleString()}</span>}
             </div>
           </div>
 
@@ -312,16 +319,16 @@ export default function CopartLandingPage() {
           <AuctionBidGuidanceCard report={report} recalls={result.recalls} />
           {result.arbitrage && (
             <ArbitrageCalculatorCard
-              receiptId={report.lot_number ?? ""}
+              receiptId={lot.lot_number ?? ""}
               receiptToken={getOrCreateReceiptToken()}
-              vin={report.vin ?? undefined}
-              listingText={[report.make, report.model, report.primary_damage].filter(Boolean).join(" ")}
-              askingPrice={report.current_bid ?? undefined}
-              make={report.make ?? undefined}
-              model={report.model ?? undefined}
-              year={report.year ?? undefined}
-              trim={report.trim ?? undefined}
-              primaryDamage={report.primary_damage ?? undefined}
+              vin={lot.vin ?? undefined}
+              listingText={[lot.make, lot.model, lot.primary_damage].filter(Boolean).join(" ")}
+              askingPrice={lot.current_bid ?? undefined}
+              make={lot.make ?? undefined}
+              model={lot.model ?? undefined}
+              year={lot.year ?? undefined}
+              trim={lot.trim ?? undefined}
+              primaryDamage={lot.primary_damage ?? undefined}
             />
           )}
 
