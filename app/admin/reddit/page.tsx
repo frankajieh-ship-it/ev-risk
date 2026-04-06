@@ -472,13 +472,13 @@ function AssistOutput({ result, outcome, onOutcome }: {
         ))}
       </div>
 
-      {detectedVehicle != null && (
+      {detectedVehicle != null ? (
         <div className="text-sm bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
           <span>🚗 <strong>{[detectedVehicle.year, detectedVehicle.make, detectedVehicle.model, detectedVehicle.trim].filter(Boolean).join(" ")}</strong></span>
           {detectedVehicle.price_mentioned != null && <span>· 💰 ${detectedVehicle.price_mentioned.toLocaleString()}</span>}
           {detectedVehicle.mileage_mentioned != null && <span>· 📍 {detectedVehicle.mileage_mentioned.toLocaleString()} mi</span>}
         </div>
-      )}
+      ) : null}
 
       {result.market_data && result.market_data.average_price && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs flex items-center gap-4 flex-wrap">
