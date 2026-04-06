@@ -162,7 +162,7 @@ function LotInputForm({ onAnalyze, loading }: {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder="Paste Copart lot URL or lot number (e.g. 12345678)"
-        className="flex-1 px-4 py-3.5 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition-colors"
+        className="flex-1 px-4 py-3.5 border-2 border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 bg-white focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition-colors"
         disabled={loading}
         autoFocus
       />
