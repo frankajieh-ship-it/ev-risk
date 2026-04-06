@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const ALLOWED_HOSTS = new Set([
+  "auto.dev",
   "img.autodev.com",
   "images.autodev.com",
   "photos.autodev.com",

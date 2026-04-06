@@ -472,17 +472,13 @@ function AssistOutput({ result, outcome, onOutcome }: {
       </div>
 
       {/* Detected vehicle */}
-      {result.detected_vehicle && (() => {
-        const v = result.detected_vehicle!;
-        const parts = [v.year, v.make, v.model, v.trim].filter(Boolean).join(" ");
-        return (
-          <div className="text-sm bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
-            <span>🚗 <strong>{parts}</strong></span>
-            {v.price_mentioned && <span>· 💰 ${v.price_mentioned.toLocaleString()}</span>}
-            {v.mileage_mentioned && <span>· 📍 {v.mileage_mentioned.toLocaleString()} mi</span>}
-          </div>
-        );
-      })()}
+      {result.detected_vehicle ? (
+        <div className="text-sm bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
+          <span>🚗 <strong>{[result.detected_vehicle.year, result.detected_vehicle.make, result.detected_vehicle.model, result.detected_vehicle.trim].filter(Boolean).join(" ")}</strong></span>
+          {result.detected_vehicle.price_mentioned && <span>· 💰 ${result.detected_vehicle.price_mentioned.toLocaleString()}</span>}
+          {result.detected_vehicle.mileage_mentioned && <span>· 📍 {result.detected_vehicle.mileage_mentioned.toLocaleString()} mi</span>}
+        </div>
+      ) : null}
 
       {/* Market data */}
       {result.market_data && result.market_data.average_price && (
