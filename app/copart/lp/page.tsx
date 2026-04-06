@@ -24,6 +24,8 @@ import {
   ArrowRight,
   Gavel,
 } from "lucide-react";
+import Header from "@/components/landing/Header";
+import Footer from "@/components/landing/Footer";
 import { getOrCreateReceiptToken, getOrCreatePersistentSessionId } from "@/lib/session-utils";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import SalvageRiskCard from "@/components/copart/SalvageRiskCard";
@@ -240,19 +242,7 @@ export default function CopartLandingPage() {
   return (
     <div className="min-h-screen bg-white">
 
-      {/* ── Minimal header bar ── */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between max-w-5xl mx-auto">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-orange-500 rounded-lg flex items-center justify-center">
-            <Gavel className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-bold text-gray-900 text-sm">OFFO</span>
-          <span className="text-gray-400 text-xs hidden sm:block">Auction Analyzer</span>
-        </Link>
-        <Link href="/copart" className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1">
-          Full tool <ArrowRight className="w-3 h-3" />
-        </Link>
-      </div>
+      <Header variant="receipt" />
 
       {/* ── HERO ── */}
       <section className="bg-gradient-to-b from-gray-950 to-gray-900 text-white px-4 py-14 sm:py-20">
@@ -507,15 +497,7 @@ export default function CopartLandingPage() {
         </div>
       )}
 
-      {/* ── Minimal footer ── */}
-      <div className="bg-gray-900 px-4 py-6 text-center">
-        <p className="text-xs text-gray-600">
-          © {new Date().getFullYear()} OFFO ·{" "}
-          <Link href="/copart" className="text-gray-500 hover:text-gray-300">Full Auction Tool</Link>
-          {" · "}
-          <Link href="/privacy" className="text-gray-500 hover:text-gray-300">Privacy</Link>
-        </p>
-      </div>
+      <Footer />
     </div>
   );
 }
