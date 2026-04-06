@@ -8,7 +8,7 @@
  * Reuses existing /copart analysis components and /api/auction/analyze endpoint.
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
+import AuctionBidGuidanceCard from "@/components/copart/AuctionBidGuidanceCard";
 import { getOrCreateReceiptToken, getOrCreatePersistentSessionId } from "@/lib/session-utils";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
@@ -240,6 +241,24 @@ export default function CopartLandingPage() {
   const salvage = result?.salvageRisk;
   const arb = result?.arbitrage;
 
+  // Photo: use lot photo if available, else fetch a stock photo by make/model/year
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!lot) { setPhotoUrl(null); return; }
+    const lotPhoto = lot.photos?.[0] ?? null;
+    if (lotPhoto) { setPhotoUrl(lotPhoto); return; }
+    if (!lot.make || !lot.model) return;
+    const params = new URLSearchParams();
+    if (lot.make) params.set("make", lot.make);
+    if (lot.model) params.set("model", lot.model);
+    if (lot.year) params.set("year", String(lot.year));
+    if (lot.vin) params.set("vin", lot.vin);
+    fetch(`/api/photos?${params}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.photo_urls?.[0]) setPhotoUrl(d.photo_urls[0]); })
+      .catch(() => {});
+  }, [lot]);
+
   return (
     <div className="min-h-screen bg-white">
 
@@ -292,9 +311,9 @@ export default function CopartLandingPage() {
           <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
             {/* Photo strip */}
             <div className="relative h-48 bg-gray-100">
-              {lot.photos && lot.photos.length > 0 ? (
+              {photoUrl ? (
                 <Image
-                  src={`/api/proxy-image?url=${encodeURIComponent(lot.photos[0])}`}
+                  src={`/api/proxy-image?url=${encodeURIComponent(photoUrl)}`}
                   alt={`${lot.year ?? ""} ${lot.make ?? ""} ${lot.model ?? ""}`}
                   fill
                   className="object-cover"
@@ -387,6 +406,14 @@ export default function CopartLandingPage() {
               </div>
             )}
           </div>
+
+          {/* Bid guidance */}
+          <AuctionBidGuidanceCard
+            result={salvage}
+            askingPrice={lot.current_bid ?? null}
+            currentBid={lot.current_bid ?? null}
+            vin={lot.vin ?? null}
+          />
 
           {/* Recalls */}
           {result.recalls.length > 0 && (
