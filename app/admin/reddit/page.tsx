@@ -13,7 +13,7 @@
  *   4. Scan Feed    — auto-detected posts from PRAW scanner
  */
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
   ExternalLink, Loader2, RefreshCw, Zap,
@@ -424,6 +424,25 @@ function AssistTab({ post, tone, region, subreddit }: {
   );
 }
 
+type DetectedVehicleType = {
+  year?: number;
+  make?: string;
+  model?: string;
+  trim?: string;
+  price_mentioned?: number;
+  mileage_mentioned?: number;
+};
+
+function DetectedVehicleCard({ vehicle }: { vehicle: DetectedVehicleType }): React.ReactElement {
+  return (
+    <div className="text-sm bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
+      <span>🚗 <strong>{[vehicle.year, vehicle.make, vehicle.model, vehicle.trim].filter(Boolean).join(" ")}</strong></span>
+      {vehicle.price_mentioned != null && <span>· 💰 ${vehicle.price_mentioned.toLocaleString()}</span>}
+      {vehicle.mileage_mentioned != null && <span>· 📍 {vehicle.mileage_mentioned.toLocaleString()} mi</span>}
+    </div>
+  );
+}
+
 function AssistOutput({ result, outcome, onOutcome }: {
   result: AssistResponse;
   outcome: string | null;
@@ -432,7 +451,7 @@ function AssistOutput({ result, outcome, onOutcome }: {
   const score = result.confidence_score ?? 0;
   const isRelevant = result.is_offo_relevant !== false;
   const [editedDraft, setEditedDraft] = useState(result.draft_reply_short ?? "");
-  const detectedVehicle: AssistResponse["detected_vehicle"] = result.detected_vehicle;
+  const detectedVehicle = result.detected_vehicle as DetectedVehicleType | undefined;
 
   return (
     <div className="space-y-4">
@@ -472,13 +491,7 @@ function AssistOutput({ result, outcome, onOutcome }: {
         ))}
       </div>
 
-      {detectedVehicle != null ? (
-        <div className="text-sm bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
-          <span>🚗 <strong>{[detectedVehicle.year, detectedVehicle.make, detectedVehicle.model, detectedVehicle.trim].filter(Boolean).join(" ")}</strong></span>
-          {detectedVehicle.price_mentioned != null && <span>· 💰 ${detectedVehicle.price_mentioned.toLocaleString()}</span>}
-          {detectedVehicle.mileage_mentioned != null && <span>· 📍 {detectedVehicle.mileage_mentioned.toLocaleString()} mi</span>}
-        </div>
-      ) : null}
+      {detectedVehicle != null && <DetectedVehicleCard vehicle={detectedVehicle} />}
 
       {result.market_data && result.market_data.average_price && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs flex items-center gap-4 flex-wrap">
