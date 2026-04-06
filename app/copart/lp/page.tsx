@@ -316,7 +316,14 @@ export default function CopartLandingPage() {
           {/* Score cards */}
           {result.offoScore && <OffoScoreCard offoScore={result.offoScore} />}
           {result.salvageRisk && <SalvageRiskCard result={result.salvageRisk} vehicleType={vehicleType ?? "gas"} />}
-          <AuctionBidGuidanceCard report={report} recalls={result.recalls} />
+          {result.salvageRisk && (
+            <AuctionBidGuidanceCard
+              result={result.salvageRisk}
+              askingPrice={lot.current_bid ?? null}
+              currentBid={lot.current_bid ?? null}
+              vin={lot.vin ?? null}
+            />
+          )}
           {result.arbitrage && (
             <ArbitrageCalculatorCard
               receiptId={lot.lot_number ?? ""}
