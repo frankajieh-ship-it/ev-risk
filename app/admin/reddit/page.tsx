@@ -447,7 +447,7 @@ function AssistOutput({ result, outcome, onOutcome }: {
   result: AssistResponse;
   outcome: string | null;
   onOutcome: (o: string, editedText?: string) => void;
-}) {
+}): React.ReactElement {
   const score = result.confidence_score ?? 0;
   const isRelevant = result.is_offo_relevant !== false;
   const [editedDraft, setEditedDraft] = useState(result.draft_reply_short ?? "");
@@ -457,9 +457,9 @@ function AssistOutput({ result, outcome, onOutcome }: {
     <div className="space-y-4">
       {/* Pipeline + fit score */}
       <div className="flex items-center justify-between flex-wrap gap-2">
-        {result.pipeline_stages_used && (
+        {result.pipeline_stages_used != null ? (
           <span className="text-xs text-gray-500">{result.pipeline_stages_used.join(" → ")}</span>
-        )}
+        ) : null}
         <div className="flex items-center gap-3">
           <span className={`px-3 py-1 rounded-full text-white text-xs font-bold ${fitColor(score)}`}>
             Fit: {score}/100
@@ -491,26 +491,26 @@ function AssistOutput({ result, outcome, onOutcome }: {
         ))}
       </div>
 
-      {detectedVehicle != null && <DetectedVehicleCard vehicle={detectedVehicle} />}
+      {detectedVehicle != null ? <DetectedVehicleCard vehicle={detectedVehicle} /> : null}
 
-      {result.market_data && result.market_data.average_price && (
+      {result.market_data != null && result.market_data.average_price != null ? (
         <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs flex items-center gap-4 flex-wrap">
           <span className="font-medium text-gray-700">📊 Market</span>
           <span>Avg <strong>${result.market_data.average_price.toLocaleString()}</strong></span>
-          {result.market_data.price_spread && <span>Range {result.market_data.price_spread}</span>}
-          {result.market_data.price_percentile != null && (
+          {result.market_data.price_spread ? <span>Range {result.market_data.price_spread}</span> : null}
+          {result.market_data.price_percentile != null ? (
             <span className={`px-2 py-0.5 rounded-full text-white font-semibold ${
               result.market_data.price_percentile <= 45 ? "bg-green-500" :
               result.market_data.price_percentile <= 60 ? "bg-yellow-500" : "bg-red-500"
             }`}>{result.market_data.price_percentile}th %ile</span>
-          )}
-          {result.market_data.sample_size && <span className="text-gray-400">{result.market_data.sample_size} comps</span>}
+          ) : null}
+          {result.market_data.sample_size ? <span className="text-gray-400">{result.market_data.sample_size} comps</span> : null}
         </div>
-      )}
+      ) : null}
 
-      {result.debug && (result.debug as Record<string, unknown>).key_concern && (
+      {result.debug != null && (result.debug as Record<string, unknown>).key_concern != null ? (
         <p className="text-xs text-gray-500 italic">Key concern: {String((result.debug as Record<string, unknown>).key_concern)}</p>
-      )}
+      ) : null}
 
       <div>
         <p className="text-xs font-medium text-gray-600 mb-1.5">Friction tags</p>
@@ -518,7 +518,7 @@ function AssistOutput({ result, outcome, onOutcome }: {
       </div>
 
       {/* Reply plan */}
-      {result.reply_plan && (
+      {result.reply_plan != null ? (
         <div className="grid grid-cols-2 gap-3 text-sm">
           {[
             ["Validate", result.reply_plan.validate_line],
@@ -532,38 +532,38 @@ function AssistOutput({ result, outcome, onOutcome }: {
             </div>
           ) : null)}
         </div>
-      )}
+      ) : null}
 
       <ToolIntroFlag intro={result.reply_plan?.tool_intro} />
 
       {/* EVRoutine invite */}
-      {result.evroutine_invite?.should_invite && (
+      {result.evroutine_invite?.should_invite === true ? (
         <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
           <strong>{TOOL_LABELS[result.evroutine_invite.tool ?? "routine"]?.icon} Invite →</strong>{" "}
           {TOOL_LABELS[result.evroutine_invite.tool ?? "routine"]?.url}
-          {result.evroutine_invite.trigger_reason && (
+          {result.evroutine_invite.trigger_reason ? (
             <span className="text-green-700"> · {result.evroutine_invite.trigger_reason}</span>
-          )}
-          {result.evroutine_invite.invite_text && (
+          ) : null}
+          {result.evroutine_invite.invite_text ? (
             <DraftBox label="Invite text" value={result.evroutine_invite.invite_text} id="invite_text" />
-          )}
+          ) : null}
         </div>
-      )}
+      ) : null}
 
       {/* Draft replies */}
       <DraftBox label="Short draft (Grok polished)" value={result.draft_reply_short} id="short_v2" />
       <DraftBox label="Long draft" value={result.draft_reply_long} id="long_v2" />
 
-      {result.tool_blurb && (
+      {result.tool_blurb ? (
         <div className="p-2 bg-purple-50 border border-purple-100 rounded-lg text-xs text-purple-800">
           <strong>EVRoutine blurb</strong> (only if appropriate): {result.tool_blurb}
         </div>
-      )}
+      ) : null}
 
       <SafetyFlags flags={result.safety_flags} />
 
       {/* Approve & Post */}
-      {result.session_id && (
+      {result.session_id != null ? (
         <div className="border-t border-gray-200 pt-4 space-y-3">
           <p className="text-sm font-semibold text-gray-700">Approve &amp; Post</p>
           {outcome ? (
@@ -602,7 +602,7 @@ function AssistOutput({ result, outcome, onOutcome }: {
             </>
           )}
         </div>
-      )}
+      ) : null}
 
       <Collapsible label="Raw JSON">
         <pre className="text-xs overflow-auto max-h-64 bg-gray-50 p-2 rounded">{JSON.stringify(result, null, 2)}</pre>
