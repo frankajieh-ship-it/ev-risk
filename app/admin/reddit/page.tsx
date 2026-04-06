@@ -432,6 +432,7 @@ function AssistOutput({ result, outcome, onOutcome }: {
   const score = result.confidence_score ?? 0;
   const isRelevant = result.is_offo_relevant !== false;
   const [editedDraft, setEditedDraft] = useState(result.draft_reply_short ?? "");
+  const detectedVehicle: AssistResponse["detected_vehicle"] = result.detected_vehicle;
 
   return (
     <div className="space-y-4">
@@ -471,11 +472,11 @@ function AssistOutput({ result, outcome, onOutcome }: {
         ))}
       </div>
 
-      {result.detected_vehicle != null && (
+      {detectedVehicle != null && (
         <div className="text-sm bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
-          <span>🚗 <strong>{[result.detected_vehicle.year, result.detected_vehicle.make, result.detected_vehicle.model, result.detected_vehicle.trim].filter(Boolean).join(" ")}</strong></span>
-          {result.detected_vehicle.price_mentioned != null && <span>· 💰 ${result.detected_vehicle.price_mentioned.toLocaleString()}</span>}
-          {result.detected_vehicle.mileage_mentioned != null && <span>· 📍 {result.detected_vehicle.mileage_mentioned.toLocaleString()} mi</span>}
+          <span>🚗 <strong>{[detectedVehicle.year, detectedVehicle.make, detectedVehicle.model, detectedVehicle.trim].filter(Boolean).join(" ")}</strong></span>
+          {detectedVehicle.price_mentioned != null && <span>· 💰 ${detectedVehicle.price_mentioned.toLocaleString()}</span>}
+          {detectedVehicle.mileage_mentioned != null && <span>· 📍 {detectedVehicle.mileage_mentioned.toLocaleString()} mi</span>}
         </div>
       )}
 
