@@ -215,7 +215,7 @@ function Collapsible({ label, children }: { label: string; children: React.React
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-const TABS = ["Assist (v2)", "Analyze (v1)", "Analytics", "Scan Feed"] as const;
+const TABS = ["Assist (v2)", "Analyze (v1)", "Analytics", "Scan Feed", "Posted"] as const;
 type Tab = typeof TABS[number];
 
 const TONES = ["ultra_short", "standard", "empathetic", "technical"] as const;
@@ -333,6 +333,9 @@ export default function RedditOperatorPage() {
         {activeTab === "Scan Feed" && (
           <ScanFeedTab get={get} post={post} />
         )}
+        {activeTab === "Posted" && (
+          <PostedTab get={get} />
+        )}
       </div>
     </div>
   );
@@ -374,10 +377,14 @@ function AssistTab({ post, tone, region, subreddit }: {
     }
   };
 
-  const recordOutcome = async (o: string) => {
+  const recordOutcome = async (o: string, editedText?: string) => {
     if (!result?.session_id) return;
     try {
-      await post(`/sessions/${result.session_id}/outcome`, { session_id: result.session_id, outcome: o });
+      await post(`/sessions/${result.session_id}/outcome`, {
+        session_id: result.session_id,
+        outcome: o,
+        ...(editedText !== undefined ? { operator_edit: editedText } : {}),
+      });
       setOutcome(o);
     } catch { setOutcome(o); }
   };
@@ -420,10 +427,11 @@ function AssistTab({ post, tone, region, subreddit }: {
 function AssistOutput({ result, outcome, onOutcome }: {
   result: AssistResponse;
   outcome: string | null;
-  onOutcome: (o: string) => void;
+  onOutcome: (o: string, editedText?: string) => void;
 }) {
   const score = result.confidence_score ?? 0;
   const isRelevant = result.is_offo_relevant !== false;
+  const [editedDraft, setEditedDraft] = useState(result.draft_reply_short ?? "");
 
   return (
     <div className="space-y-4">
@@ -448,10 +456,11 @@ function AssistOutput({ result, outcome, onOutcome }: {
         </div>
       )}
 
-      {/* Classification */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* Classification — 4 cols */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
           ["Intent", result.intent],
+          ["2nd Intent", result.secondary_intent],
           ["User state", result.user_state],
           ["Phase", result.ownership_phase],
         ].map(([label, val]) => (
@@ -474,6 +483,22 @@ function AssistOutput({ result, outcome, onOutcome }: {
           </div>
         );
       })()}
+
+      {/* Market data */}
+      {result.market_data && result.market_data.average_price && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs flex items-center gap-4 flex-wrap">
+          <span className="font-medium text-gray-700">📊 Market</span>
+          <span>Avg <strong>${result.market_data.average_price.toLocaleString()}</strong></span>
+          {result.market_data.price_spread && <span>Range {result.market_data.price_spread}</span>}
+          {result.market_data.price_percentile != null && (
+            <span className={`px-2 py-0.5 rounded-full text-white font-semibold ${
+              result.market_data.price_percentile <= 45 ? "bg-green-500" :
+              result.market_data.price_percentile <= 60 ? "bg-yellow-500" : "bg-red-500"
+            }`}>{result.market_data.price_percentile}th %ile</span>
+          )}
+          {result.market_data.sample_size && <span className="text-gray-400">{result.market_data.sample_size} comps</span>}
+        </div>
+      )}
 
       {/* Key concern */}
       {result.debug && (result.debug as Record<string, unknown>).key_concern && (
@@ -533,27 +558,42 @@ function AssistOutput({ result, outcome, onOutcome }: {
 
       {/* Approve & Post */}
       {result.session_id && (
-        <div className="border-t border-gray-200 pt-4">
-          <p className="text-sm font-semibold text-gray-700 mb-2">Approve &amp; Post</p>
+        <div className="border-t border-gray-200 pt-4 space-y-3">
+          <p className="text-sm font-semibold text-gray-700">Approve &amp; Post</p>
           {outcome ? (
             <div className="p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800 font-medium">
               ✓ Outcome saved: <strong>{outcome}</strong>
             </div>
           ) : (
-            <div className="flex gap-2">
-              <button onClick={() => onOutcome("posted")}
-                className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg">
-                ✅ Mark Posted
-              </button>
-              <button onClick={() => onOutcome("edited")}
-                className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg">
-                ✏️ Edit then Post
-              </button>
-              <button onClick={() => onOutcome("skipped")}
-                className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-semibold rounded-lg">
-                ⏭️ Skip
-              </button>
-            </div>
+            <>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-gray-500">Edit before posting ({editedDraft.length} chars)</span>
+                  <button onClick={() => setEditedDraft(result.draft_reply_short ?? "")}
+                    className="text-xs text-gray-400 hover:text-gray-600">Reset</button>
+                </div>
+                <textarea
+                  value={editedDraft}
+                  onChange={(e) => setEditedDraft(e.target.value)}
+                  rows={5}
+                  className="w-full text-sm border border-gray-200 rounded-lg p-3 resize-y font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => onOutcome("posted", editedDraft)}
+                  className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg">
+                  ✅ Mark Posted
+                </button>
+                <button onClick={() => onOutcome("edited", editedDraft)}
+                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg">
+                  ✏️ Edit then Post
+                </button>
+                <button onClick={() => onOutcome("skipped")}
+                  className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-semibold rounded-lg">
+                  ⏭️ Skip
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -709,12 +749,13 @@ function AnalyticsTab({ get }: { get: (ep: string, params?: Record<string, strin
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
             ["Total sessions", stats.total_sessions ?? 0],
             ["Invites shown", stats.invites_shown ?? 0],
             ["Invites accepted", stats.invites_accepted ?? 0],
             ["Acceptance rate", `${((stats.acceptance_rate ?? 0) * 100).toFixed(1)}%`],
+            ["Replies posted", stats.posted_count ?? 0],
           ].map(([label, val]) => (
             <div key={label as string} className="bg-white border border-gray-200 rounded-xl p-4 text-center">
               <p className="text-2xl font-bold text-gray-900">{val}</p>
@@ -903,6 +944,107 @@ function ScanFeedTab({ get, post }: {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Posted Tab ───────────────────────────────────────────────────────────────
+
+interface PostedSession {
+  id?: string;
+  created_at?: string;
+  subreddit?: string;
+  post_title?: string;
+  draft_reply_short?: string;
+  reddit_post_id?: string;
+  reddit_post_url?: string;
+  posted_outcome?: string;
+  upvotes?: number;
+  reply_count?: number;
+}
+
+function PostedTab({ get }: { get: (ep: string, params?: Record<string, string | number>) => Promise<unknown> }) {
+  const [sessions, setSessions] = useState<PostedSession[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true); setError("");
+    try {
+      const data = await get("/sessions/posted", { limit: 50 }) as { sessions: PostedSession[] };
+      setSessions(data.sessions ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "API error");
+    } finally {
+      setLoading(false);
+    }
+  }, [get]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700">Posted Sessions</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Replies marked as posted or edited, with upvote tracking</p>
+        </div>
+        <button onClick={load} disabled={loading}
+          className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5">
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+        </button>
+      </div>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
+      {!loading && sessions.length === 0 && (
+        <div className="text-sm text-gray-500 text-center py-12 border border-dashed border-gray-300 rounded-xl">
+          No posted sessions yet. Mark replies as posted in the Assist tab.
+        </div>
+      )}
+
+      {sessions.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                {["Time", "Subreddit", "Post Title", "Outcome", "Upvotes", "Replies", "Draft"].map((h) => (
+                  <th key={h} className="px-3 py-2 text-left font-medium text-gray-600">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sessions.map((s, i) => (
+                <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="px-3 py-2 text-gray-400 whitespace-nowrap">{(s.created_at ?? "").slice(0, 16).replace("T", " ")}</td>
+                  <td className="px-3 py-2 text-blue-700 font-medium">{s.subreddit ? `r/${s.subreddit}` : "—"}</td>
+                  <td className="px-3 py-2 max-w-[200px]">
+                    {s.reddit_post_url ? (
+                      <a href={s.reddit_post_url} target="_blank" rel="noopener noreferrer"
+                        className="text-gray-800 hover:text-blue-700 flex items-center gap-1 truncate">
+                        <span className="truncate">{s.post_title || "(no title)"}</span>
+                        <ExternalLink className="w-3 h-3 shrink-0" />
+                      </a>
+                    ) : (
+                      <span className="truncate text-gray-700">{s.post_title || "—"}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      s.posted_outcome === "posted" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
+                    }`}>{s.posted_outcome}</span>
+                  </td>
+                  <td className="px-3 py-2 text-center font-medium">{s.upvotes ?? "—"}</td>
+                  <td className="px-3 py-2 text-center text-gray-500">{s.reply_count ?? "—"}</td>
+                  <td className="px-3 py-2 max-w-[240px]">
+                    <span className="truncate text-gray-500 block">{s.draft_reply_short ?? "—"}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
