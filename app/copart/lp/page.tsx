@@ -10,6 +10,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   AlertTriangle,
   Loader2,
@@ -23,23 +24,17 @@ import {
   ChevronUp,
   ArrowRight,
   Gavel,
+  TrendingUp,
+  Wrench,
+  TriangleAlert,
 } from "lucide-react";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import { getOrCreateReceiptToken, getOrCreatePersistentSessionId } from "@/lib/session-utils";
 import { useEventTracking } from "@/hooks/useEventTracking";
-import SalvageRiskCard from "@/components/copart/SalvageRiskCard";
-import OffoScoreCard from "@/components/copart/OffoScoreCard";
-import AuctionBidGuidanceCard from "@/components/copart/AuctionBidGuidanceCard";
-import ArbitrageCalculatorCard from "@/components/copart/ArbitrageCalculatorCard";
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
-import type {
-  AuctionEvalReport,
-  NhtsaRecallSummary,
-} from "@/lib/auction/types";
-import type { OffoScore } from "@/types/v2";
+import type { AuctionEvalReport, NhtsaRecallSummary } from "@/lib/auction/types";
 import type { ArbitrageResult } from "@/lib/copart-arbitrage-engine";
-import { detectVehicleType } from "@/lib/auction/vehicle-type";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,7 +43,6 @@ type PageState = "idle" | "fetching" | "done" | "error";
 interface AnalysisResult {
   report: AuctionEvalReport;
   salvageRisk: SalvageRiskResult | null;
-  offoScore: OffoScore | null;
   recalls: NhtsaRecallSummary[];
   arbitrage: ArbitrageResult | null;
 }
@@ -225,7 +219,6 @@ export default function CopartLandingPage() {
       setResult({
         report: r,
         salvageRisk: (r.salvage_risk as SalvageRiskResult) ?? null,
-        offoScore: (r.offo_score as OffoScore | undefined) ?? null,
         recalls: (r.recalls as NhtsaRecallSummary[]) ?? [],
         arbitrage: (r.arbitrage as ArbitrageResult | undefined) ?? null,
       });
@@ -244,7 +237,8 @@ export default function CopartLandingPage() {
 
   const report = result?.report;
   const lot = report?.lot;
-  const vehicleType = lot ? detectVehicleType(lot.make, lot.model, lot.trim) : null;
+  const salvage = result?.salvageRisk;
+  const arb = result?.arbitrage;
 
   return (
     <div className="min-h-screen bg-white">
@@ -291,70 +285,128 @@ export default function CopartLandingPage() {
       </section>
 
       {/* ── RESULTS ── */}
-      {pageState === "done" && result && report && lot && (
-        <section ref={resultsRef} className="max-w-3xl mx-auto px-4 py-10 space-y-6">
+      {pageState === "done" && result && report && lot && salvage && (
+        <section ref={resultsRef} className="max-w-3xl mx-auto px-4 py-10 space-y-5">
 
-          {/* Lot summary strip */}
-          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-5 h-5 bg-orange-100 rounded flex items-center justify-center">
-                <Gavel className="w-3 h-3 text-orange-600" />
-              </div>
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Lot Analysis</span>
-            </div>
-            <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-700">
-              {lot.year && lot.make && lot.model && (
-                <span className="font-semibold">{lot.year} {lot.make} {lot.model}{lot.trim ? ` ${lot.trim}` : ""}</span>
+          {/* Vehicle card with photo */}
+          <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+            {/* Photo strip */}
+            <div className="relative h-48 bg-gray-100">
+              {lot.photos && lot.photos.length > 0 ? (
+                <Image
+                  src={`/api/proxy-image?url=${encodeURIComponent(lot.photos[0])}`}
+                  alt={`${lot.year ?? ""} ${lot.make ?? ""} ${lot.model ?? ""}`}
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-700 flex items-center justify-center">
+                  <Gavel className="w-12 h-12 text-gray-500" />
+                </div>
               )}
-              {lot.primary_damage && <span className="text-orange-700">⚡ {lot.primary_damage}</span>}
-              {lot.title_status && <span>📄 {lot.title_status}</span>}
-              {lot.odometer && <span>📍 {lot.odometer.toLocaleString()} mi</span>}
-              {lot.current_bid && <span>💰 Current bid: ${lot.current_bid.toLocaleString()}</span>}
+              {/* Grade badge overlay */}
+              <div className="absolute top-3 right-3">
+                {salvage.grade === "green" && (
+                  <span className="px-3 py-1.5 bg-green-500 text-white text-xs font-bold rounded-full shadow">LOW RISK</span>
+                )}
+                {salvage.grade === "yellow" && (
+                  <span className="px-3 py-1.5 bg-amber-500 text-white text-xs font-bold rounded-full shadow">MODERATE RISK</span>
+                )}
+                {salvage.grade === "red" && (
+                  <span className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-full shadow">HIGH RISK</span>
+                )}
+              </div>
+            </div>
+
+            {/* Vehicle info */}
+            <div className="p-4 bg-white">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-black text-gray-900">
+                    {lot.year} {lot.make} {lot.model}{lot.trim ? ` ${lot.trim}` : ""}
+                  </h2>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
+                    {lot.primary_damage && <span className="text-orange-600 font-medium">{lot.primary_damage}</span>}
+                    {lot.title_status && <span>{lot.title_status} title</span>}
+                    {lot.odometer && <span>{lot.odometer.toLocaleString()} mi</span>}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-xs text-gray-400">Risk score</p>
+                  <p className={`text-3xl font-black ${salvage.grade === "green" ? "text-green-600" : salvage.grade === "yellow" ? "text-amber-600" : "text-red-600"}`}>
+                    {salvage.score}
+                  </p>
+                  <p className="text-xs text-gray-400">/ 100</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Score cards */}
-          {result.offoScore && <OffoScoreCard offoScore={result.offoScore} />}
-          {result.salvageRisk && <SalvageRiskCard result={result.salvageRisk} vehicleType={vehicleType ?? "gas"} />}
-          {result.salvageRisk && (
-            <AuctionBidGuidanceCard
-              result={result.salvageRisk}
-              askingPrice={lot.current_bid ?? null}
-              currentBid={lot.current_bid ?? null}
-              vin={lot.vin ?? null}
-            />
-          )}
-          {result.arbitrage && (
-            <ArbitrageCalculatorCard
-              receiptId={lot.lot_number ?? ""}
-              receiptToken={getOrCreateReceiptToken()}
-              vin={lot.vin ?? undefined}
-              listingText={[lot.make, lot.model, lot.primary_damage].filter(Boolean).join(" ")}
-              askingPrice={lot.current_bid ?? undefined}
-              make={lot.make ?? undefined}
-              model={lot.model ?? undefined}
-              year={lot.year ?? undefined}
-              trim={lot.trim ?? undefined}
-              primaryDamage={lot.primary_damage ?? undefined}
-            />
-          )}
+          {/* Key numbers grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Max safe bid */}
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
+              <Gavel className="w-4 h-4 text-orange-500 mx-auto mb-1" />
+              <p className="text-xs text-gray-500 font-medium">Bid discount</p>
+              <p className="text-xl font-black text-gray-900">{salvage.suggested_bid_discount}%</p>
+              <p className="text-xs text-gray-400">off current bid</p>
+            </div>
+
+            {/* ARV */}
+            {arb?.arv != null && (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
+                <TrendingUp className="w-4 h-4 text-blue-500 mx-auto mb-1" />
+                <p className="text-xs text-gray-500 font-medium">After-repair value</p>
+                <p className="text-xl font-black text-gray-900">${arb.arv.toLocaleString()}</p>
+                <p className="text-xs text-gray-400">{arb.arv_source === "none" ? "estimated" : "market data"}</p>
+              </div>
+            )}
+
+            {/* Repair cost */}
+            {arb?.repair_cost_estimate != null && (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
+                <Wrench className="w-4 h-4 text-gray-500 mx-auto mb-1" />
+                <p className="text-xs text-gray-500 font-medium">Est. repair cost</p>
+                <p className="text-xl font-black text-gray-900">${Math.round(arb.repair_cost_estimate / 100) * 100 >= 1000
+                  ? `${(arb.repair_cost_estimate / 1000).toFixed(1)}k`
+                  : arb.repair_cost_estimate.toLocaleString()}</p>
+                <p className="text-xs text-gray-400">${(arb.repair_cost_low / 1000).toFixed(1)}k–${(arb.repair_cost_high / 1000).toFixed(1)}k range</p>
+              </div>
+            )}
+
+            {/* Safe bid range */}
+            {arb?.safe_bid_range != null && (
+              <div className={`border rounded-xl p-3 text-center ${arb.safe_bid_range.likely >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                <TrendingDown className={`w-4 h-4 mx-auto mb-1 ${arb.safe_bid_range.likely >= 0 ? "text-green-600" : "text-red-500"}`} />
+                <p className="text-xs text-gray-500 font-medium">Max safe bid</p>
+                <p className={`text-xl font-black ${arb.safe_bid_range.likely >= 0 ? "text-green-700" : "text-red-700"}`}>
+                  ${Math.max(0, arb.safe_bid_range.best).toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-400">at 20% margin</p>
+              </div>
+            )}
+          </div>
 
           {/* Recalls */}
           {result.recalls.length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-              <p className="text-sm font-semibold text-red-800 mb-2">⚠️ {result.recalls.length} open NHTSA recall{result.recalls.length > 1 ? "s" : ""}</p>
-              <ul className="space-y-1">
-                {result.recalls.slice(0, 3).map((r, i) => (
-                  <li key={i} className="text-xs text-red-700">• {r.component} — {r.summary?.slice(0, 100)}{(r.summary?.length ?? 0) > 100 ? "…" : ""}</li>
-                ))}
-              </ul>
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
+              <TriangleAlert className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-800 mb-1">{result.recalls.length} open NHTSA recall{result.recalls.length > 1 ? "s" : ""}</p>
+                <ul className="space-y-0.5">
+                  {result.recalls.slice(0, 3).map((r, i) => (
+                    <li key={i} className="text-xs text-red-700">• {r.component}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
           )}
 
           {/* CTA after results */}
           <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-6 text-white text-center">
             <p className="text-lg font-bold mb-1">Want the full report?</p>
-            <p className="text-sm text-orange-100 mb-4">Save to Garage, get a shareable link, ask follow-up questions, and see EV-specific charging + tax credit analysis.</p>
+            <p className="text-sm text-orange-100 mb-4">Save to Garage, get a shareable link, EV battery analysis, tax credit eligibility, and more.</p>
             <Link href="/copart" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-orange-600 font-bold text-sm rounded-xl hover:bg-orange-50 transition-colors">
               Open Full Tool <ArrowRight className="w-4 h-4" />
             </Link>
