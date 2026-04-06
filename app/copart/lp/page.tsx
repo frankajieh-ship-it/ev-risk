@@ -27,10 +27,12 @@ import {
   TrendingUp,
   Wrench,
   TriangleAlert,
+  Bookmark,
 } from "lucide-react";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import AuctionBidGuidanceCard from "@/components/copart/AuctionBidGuidanceCard";
+import { computeSafeBidRange, computeMaxSafeBid } from "@/lib/copart-arbitrage-engine";
 import { getOrCreateReceiptToken, getOrCreatePersistentSessionId } from "@/lib/session-utils";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
@@ -111,7 +113,7 @@ const FAQS = [
   },
   {
     q: "How is the max safe bid calculated?",
-    a: "Max safe bid = After-Repair Value − estimated repair cost − our recommended margin buffer (15–20%). It accounts for buyer fees, transport, and title/transfer costs.",
+    a: "Max safe bid = After-Repair Value − estimated repair cost − your target margin − auction fees. Use the margin slider to see how your bid ceiling changes at different profit targets.",
   },
   {
     q: "Can I save and share results?",
@@ -167,7 +169,7 @@ function LotInputForm({ onAnalyze, loading }: {
         className="px-6 py-3.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md whitespace-nowrap"
       >
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-        {loading ? "Analyzing…" : "Get Free Risk Score"}
+        {loading ? "Analyzing…" : "Get Max Safe Bid — Free"}
       </button>
     </form>
   );
@@ -179,6 +181,7 @@ export default function CopartLandingPage() {
   const [pageState, setPageState] = useState<PageState>("idle");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [targetMargin, setTargetMargin] = useState(20);
   const resultsRef = useRef<HTMLDivElement>(null);
   const { trackEvent } = useEventTracking();
 
@@ -191,6 +194,7 @@ export default function CopartLandingPage() {
     setPageState("fetching");
     setErrorMsg("");
     setResult(null);
+    setTargetMargin(20);
     trackEvent("copart_lp_analyze_started", { source: "lp" });
 
     try {
@@ -241,26 +245,41 @@ export default function CopartLandingPage() {
   const salvage = result?.salvageRisk;
   const arb = result?.arbitrage;
 
-  // Photo: use lot photo if available, else fetch a stock photo by make/model/year
+  // Compute live safe bid from arb data + slider margin
+  const liveSafeBid = arb?.arv != null
+    ? computeSafeBidRange(arb.arv, arb.repair_cost_low, arb.repair_cost_high, arb.auction_fees_estimate, targetMargin)
+    : null;
+  const liveMaxBid = arb?.arv != null
+    ? computeMaxSafeBid(arb.arv, arb.repair_cost_estimate, arb.auction_fees_estimate, targetMargin)
+    : null;
+
+  // Photo: single stable key → no hooks-size-change error between renders
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const lotPhotoSrc = lot?.photos?.[0] ?? null;
-  const lotMake = lot?.make ?? null;
-  const lotModel = lot?.model ?? null;
-  const lotYear = lot?.year ?? null;
-  const lotVin = lot?.vin ?? null;
+  const lotKey = lot
+    ? `${lot.photos?.[0] ?? ""}|${lot.make ?? ""}|${lot.model ?? ""}|${lot.year ?? ""}|${lot.vin ?? ""}`
+    : "";
   useEffect(() => {
-    if (lotPhotoSrc) { setPhotoUrl(lotPhotoSrc); return; }
-    if (!lotMake || !lotModel) { setPhotoUrl(null); return; }
+    if (!lotKey) { setPhotoUrl(null); return; }
+    const parts = lotKey.split("|");
+    const lotPhoto = parts[0] || null;
+    const make = parts[1] || null;
+    const model = parts[2] || null;
+    const year = parts[3] || null;
+    const vin = parts[4] || null;
+
+    if (lotPhoto) { setPhotoUrl(lotPhoto); return; }
+    if (!make || !model) { setPhotoUrl(null); return; }
+
     const params = new URLSearchParams();
-    params.set("make", lotMake);
-    params.set("model", lotModel);
-    if (lotYear) params.set("year", String(lotYear));
-    if (lotVin) params.set("vin", lotVin);
+    params.set("make", make);
+    params.set("model", model);
+    if (year) params.set("year", year);
+    if (vin) params.set("vin", vin);
     fetch(`/api/photos?${params}`)
       .then((r) => r.json())
       .then((d) => { if (d.photo_urls?.[0]) setPhotoUrl(d.photo_urls[0]); })
       .catch(() => {});
-  }, [lotPhotoSrc, lotMake, lotModel, lotYear, lotVin]);
+  }, [lotKey]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -313,7 +332,7 @@ export default function CopartLandingPage() {
           {/* Vehicle card with photo */}
           <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
             {/* Photo strip */}
-            <div className="relative h-48 bg-gray-100">
+            <div className="relative h-52 bg-gray-100">
               {photoUrl ? (
                 <Image
                   src={`/api/proxy-image?url=${encodeURIComponent(photoUrl)}`}
@@ -323,8 +342,9 @@ export default function CopartLandingPage() {
                   unoptimized
                 />
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-700 flex items-center justify-center">
-                  <Gavel className="w-12 h-12 text-gray-500" />
+                <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-700 flex flex-col items-center justify-center gap-2">
+                  <Gavel className="w-10 h-10 text-gray-500" />
+                  <p className="text-xs text-gray-500">Loading photo…</p>
                 </div>
               )}
               {/* Grade badge overlay */}
@@ -344,7 +364,7 @@ export default function CopartLandingPage() {
             {/* Vehicle info */}
             <div className="p-4 bg-white">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-lg font-black text-gray-900">
                     {lot.year} {lot.make} {lot.model}{lot.trim ? ` ${lot.trim}` : ""}
                   </h2>
@@ -353,6 +373,12 @@ export default function CopartLandingPage() {
                     {lot.title_status && <span>{lot.title_status} title</span>}
                     {lot.odometer && <span>{lot.odometer.toLocaleString()} mi</span>}
                   </div>
+                  {/* Current bid pill */}
+                  {lot.current_bid && (
+                    <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 border border-orange-200 rounded-full">
+                      <span className="text-xs font-bold text-orange-700">Current bid: ${lot.current_bid.toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-xs text-gray-400">Risk score</p>
@@ -365,14 +391,25 @@ export default function CopartLandingPage() {
             </div>
           </div>
 
+          {/* Save to Garage shortcut */}
+          <div className="flex items-center justify-between px-1">
+            <p className="text-xs text-gray-400">Analyzing {lot.lot_number ? `lot #${lot.lot_number}` : "this lot"}</p>
+            <Link
+              href={`/copart${lot.lot_number ? `?lot=${lot.lot_number}` : ""}`}
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors"
+            >
+              <Bookmark className="w-3.5 h-3.5" /> Save to Garage →
+            </Link>
+          </div>
+
           {/* Key numbers grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {/* Max safe bid */}
+            {/* Bid discount */}
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
               <Gavel className="w-4 h-4 text-orange-500 mx-auto mb-1" />
               <p className="text-xs text-gray-500 font-medium">Bid discount</p>
               <p className="text-xl font-black text-gray-900">{salvage.suggested_bid_discount}%</p>
-              <p className="text-xs text-gray-400">off current bid</p>
+              <p className="text-xs text-gray-400">off KBB clean value</p>
             </div>
 
             {/* ARV */}
@@ -390,25 +427,85 @@ export default function CopartLandingPage() {
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
                 <Wrench className="w-4 h-4 text-gray-500 mx-auto mb-1" />
                 <p className="text-xs text-gray-500 font-medium">Est. repair cost</p>
-                <p className="text-xl font-black text-gray-900">${Math.round(arb.repair_cost_estimate / 100) * 100 >= 1000
-                  ? `${(arb.repair_cost_estimate / 1000).toFixed(1)}k`
-                  : arb.repair_cost_estimate.toLocaleString()}</p>
-                <p className="text-xs text-gray-400">${(arb.repair_cost_low / 1000).toFixed(1)}k–${(arb.repair_cost_high / 1000).toFixed(1)}k range</p>
+                <p className="text-xl font-black text-gray-900">
+                  {arb.repair_cost_estimate >= 1000
+                    ? `$${(arb.repair_cost_estimate / 1000).toFixed(1)}k`
+                    : `$${arb.repair_cost_estimate.toLocaleString()}`}
+                </p>
+                <p className="text-xs text-gray-400">
+                  ${(arb.repair_cost_low / 1000).toFixed(1)}k–${(arb.repair_cost_high / 1000).toFixed(1)}k range
+                </p>
+                {lot.primary_damage && (
+                  <p className="text-xs text-orange-600 mt-0.5 font-medium truncate" title={lot.primary_damage}>
+                    {lot.primary_damage}
+                  </p>
+                )}
               </div>
             )}
 
-            {/* Safe bid range */}
-            {arb?.safe_bid_range != null && (
+            {/* Max safe bid — live from slider */}
+            {liveSafeBid != null && liveMaxBid != null ? (
+              <div className={`border rounded-xl p-3 text-center ${liveMaxBid >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                <TrendingDown className={`w-4 h-4 mx-auto mb-1 ${liveMaxBid >= 0 ? "text-green-600" : "text-red-500"}`} />
+                <p className="text-xs text-gray-500 font-medium">Max safe bid</p>
+                <p className={`text-xl font-black ${liveMaxBid >= 0 ? "text-green-700" : "text-red-700"}`}>
+                  ${Math.max(0, liveMaxBid).toLocaleString()}
+                </p>
+                {arb?.auction_fees_estimate ? (
+                  <p className="text-xs text-gray-400">incl. ~${arb.auction_fees_estimate.toLocaleString()} fees</p>
+                ) : (
+                  <p className="text-xs text-gray-400">at {targetMargin}% margin</p>
+                )}
+              </div>
+            ) : arb?.safe_bid_range != null ? (
               <div className={`border rounded-xl p-3 text-center ${arb.safe_bid_range.high >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
                 <TrendingDown className={`w-4 h-4 mx-auto mb-1 ${arb.safe_bid_range.high >= 0 ? "text-green-600" : "text-red-500"}`} />
                 <p className="text-xs text-gray-500 font-medium">Max safe bid</p>
                 <p className={`text-xl font-black ${arb.safe_bid_range.high >= 0 ? "text-green-700" : "text-red-700"}`}>
                   ${Math.max(0, arb.safe_bid_range.high).toLocaleString()}
                 </p>
-                <p className="text-xs text-gray-400">at 20% margin</p>
+                <p className="text-xs text-gray-400">at {targetMargin}% margin</p>
               </div>
-            )}
+            ) : null}
           </div>
+
+          {/* Margin slider — only shown when arb data is available */}
+          {arb?.arv != null && liveSafeBid != null && (
+            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Your profit margin target</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Adjust to see how your max bid changes</p>
+                </div>
+                <span className="text-2xl font-black text-orange-500">{targetMargin}%</span>
+              </div>
+              <input
+                type="range"
+                min={10}
+                max={30}
+                step={5}
+                value={targetMargin}
+                onChange={(e) => setTargetMargin(Number(e.target.value))}
+                className="w-full accent-orange-500"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>10% (aggressive)</span>
+                <span>20% (default)</span>
+                <span>30% (conservative)</span>
+              </div>
+              {liveSafeBid && (
+                <div className="mt-3 flex items-center justify-between bg-white border border-orange-200 rounded-xl px-4 py-2.5">
+                  <span className="text-xs text-gray-500">Safe bid range at {targetMargin}%</span>
+                  <span className="text-sm font-bold text-gray-900">
+                    ${Math.max(0, liveSafeBid.low).toLocaleString()} – ${Math.max(0, liveSafeBid.high).toLocaleString()}
+                  </span>
+                </div>
+              )}
+              <p className="text-xs text-gray-400 mt-2">
+                Repair cost is an estimate — actual costs vary by region and shop. Increase margin to account for uncertainty.
+              </p>
+            </div>
+          )}
 
           {/* Bid guidance */}
           <AuctionBidGuidanceCard
