@@ -458,27 +458,27 @@ function AssistOutput({ result, outcome, onOutcome }: {
 
       {/* Classification — 4 cols */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {[
-          ["Intent", result.intent],
-          ["2nd Intent", result.secondary_intent],
-          ["User state", result.user_state],
-          ["Phase", result.ownership_phase],
-        ].map(([label, val]) => (
+        {([
+          ["Intent", result.intent ?? "—"],
+          ["2nd Intent", result.secondary_intent ?? "—"],
+          ["User state", result.user_state ?? "—"],
+          ["Phase", result.ownership_phase ?? "—"],
+        ] as [string, string][]).map(([label, val]) => (
           <div key={label} className="bg-gray-50 border border-gray-200 rounded-lg p-2 text-center">
             <p className="text-xs text-gray-500">{label}</p>
-            <p className="text-sm font-semibold text-gray-800 mt-0.5">{val || "—"}</p>
+            <p className="text-sm font-semibold text-gray-800 mt-0.5">{val}</p>
           </div>
         ))}
       </div>
 
       {/* Detected vehicle */}
-      {result.detected_vehicle ? (
+      {result.detected_vehicle != null && (
         <div className="text-sm bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
           <span>🚗 <strong>{[result.detected_vehicle.year, result.detected_vehicle.make, result.detected_vehicle.model, result.detected_vehicle.trim].filter(Boolean).join(" ")}</strong></span>
-          {result.detected_vehicle.price_mentioned && <span>· 💰 ${result.detected_vehicle.price_mentioned.toLocaleString()}</span>}
-          {result.detected_vehicle.mileage_mentioned && <span>· 📍 {result.detected_vehicle.mileage_mentioned.toLocaleString()} mi</span>}
+          {result.detected_vehicle.price_mentioned != null && <span>· 💰 ${result.detected_vehicle.price_mentioned.toLocaleString()}</span>}
+          {result.detected_vehicle.mileage_mentioned != null && <span>· 📍 {result.detected_vehicle.mileage_mentioned.toLocaleString()} mi</span>}
         </div>
-      ) : null}
+      )}
 
       {/* Market data */}
       {result.market_data && result.market_data.average_price && (
