@@ -471,7 +471,6 @@ function AssistOutput({ result, outcome, onOutcome }: {
         ))}
       </div>
 
-      {/* Detected vehicle */}
       {result.detected_vehicle != null && (
         <div className="text-sm bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
           <span>🚗 <strong>{[result.detected_vehicle.year, result.detected_vehicle.make, result.detected_vehicle.model, result.detected_vehicle.trim].filter(Boolean).join(" ")}</strong></span>
@@ -480,7 +479,6 @@ function AssistOutput({ result, outcome, onOutcome }: {
         </div>
       )}
 
-      {/* Market data */}
       {result.market_data && result.market_data.average_price && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs flex items-center gap-4 flex-wrap">
           <span className="font-medium text-gray-700">📊 Market</span>
@@ -496,12 +494,10 @@ function AssistOutput({ result, outcome, onOutcome }: {
         </div>
       )}
 
-      {/* Key concern */}
       {result.debug && (result.debug as Record<string, unknown>).key_concern && (
         <p className="text-xs text-gray-500 italic">Key concern: {String((result.debug as Record<string, unknown>).key_concern)}</p>
       )}
 
-      {/* Friction tags */}
       <div>
         <p className="text-xs font-medium text-gray-600 mb-1.5">Friction tags</p>
         <FrictionBadges tags={result.friction_tags} />
