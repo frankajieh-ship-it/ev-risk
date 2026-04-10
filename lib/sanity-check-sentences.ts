@@ -163,7 +163,7 @@ export const FRICTION_SENTENCES: FrictionSentence[] = [
   },
   {
     id: "execution_shared_public",
-    text: "Relying on shared/public charging can create 'standing at the charger' uncertainty (apps, tariffs, session starts). Low tolerance for that uncertainty tends to amplify stress.",
+    text: "Relying on shared or public charging can amplify stress.",
     triggers: [
       { executionUncertaintyTolerance: "low", dependency: "shared" },
       { executionUncertaintyTolerance: "low", dependency: "public" },
