@@ -100,7 +100,7 @@ export function detectListingSource(url: string): VehicleData['dataSource'] {
 /**
  * Type definition for data sources
  */
-type DataSource = 'autotrader' | 'cargurus' | 'cars.com' | 'carvana' | 'facebook' | 'carfax' | 'truecar' | 'edmunds' | 'kbb' | 'vroom' | 'carmax' | 'autotempest' | 'hemmings' | 'unknown';
+type DataSource = 'autotrader' | 'cargurus' | 'cars.com' | 'carvana' | 'facebook' | 'carfax' | 'truecar' | 'edmunds' | 'kbb' | 'vroom' | 'carmax' | 'autotempest' | 'hemmings' | 'unknown'; // eslint-disable-line @typescript-eslint/no-unused-vars
 
 /**
  * Checks if URL is a search/listing page vs individual vehicle page
@@ -635,80 +635,70 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
       const proxyStart = Date.now();
       const proxyTimeout = Math.min(sourceProxyCap, remainingBudget() - 500);
 
-      // --- ScrapingBee (isolated — no fallback while QA'ing) ---
+      // --- ScrapingBee (primary) — falls through to direct fetch if unavailable ---
       const SCRAPINGBEE_KEY = process.env.SCRAPINGBEE_API_KEY;
-      if (!SCRAPINGBEE_KEY) {
-        console.error('[Listing Scraper] SCRAPINGBEE_API_KEY not set — extraction will fail');
-        diagnostics.failureReason = 'network_error';
-        diagnostics.errorMessage = 'ScrapingBee API key not configured';
-        finalize();
-        return {
-          success: false,
-          data: null,
-          error: 'Extraction service not configured.',
-          warnings: [],
-          diagnostics,
-        };
-      }
-
-      const sbController = new AbortController();
-      const sbTimeoutId = setTimeout(() => sbController.abort(), proxyTimeout);
-      try {
-        const needsJsRender = ['cargurus', 'autotrader', 'cars.com'].includes(dataSource);
-        const sbUrl = new URL('https://app.scrapingbee.com/api/v1/');
-        sbUrl.searchParams.set('api_key', SCRAPINGBEE_KEY);
-        sbUrl.searchParams.set('url', url);
-        sbUrl.searchParams.set('render_js', needsJsRender ? 'true' : 'false');
-        sbUrl.searchParams.set('premium_proxy', 'true');
-        sbUrl.searchParams.set('country_code', 'us');
-        if (needsJsRender) {
-          sbUrl.searchParams.set('wait_browser', 'networkidle2');
-          sbUrl.searchParams.set('timeout', String(Math.min(proxyTimeout - 2000, 25000)));
-        }
-
-        console.log('[Listing Scraper] ScrapingBee:', { url: url.substring(0, 80), needsJsRender });
-        const sbResp = await fetch(sbUrl.toString(), { signal: sbController.signal });
-        clearTimeout(sbTimeoutId);
-
-        diagnostics.proxyDurationMs = Date.now() - proxyStart;
-        diagnostics.proxyStatusCode = sbResp.status;
-
-        if (sbResp.ok) {
-          const sbHtml = await sbResp.text();
-          const creditsUsed = sbResp.headers.get('spb-cost');
-          console.log('[Listing Scraper] ScrapingBee success — credits:', creditsUsed, 'length:', sbHtml.length);
-
-          const lowerSbHtml = sbHtml.toLowerCase();
-          const sbBlocked =
-            lowerSbHtml.includes('id="captcha"') ||
-            lowerSbHtml.includes('class="captcha') ||
-            lowerSbHtml.includes('just a moment') ||
-            lowerSbHtml.includes('challenge-platform') ||
-            sbHtml.length < 2000;
-
-          if (!sbBlocked) {
-            html = sbHtml;
-            diagnostics.fetchMethod = 'proxy';
-            diagnostics.htmlLength = html.length;
-          } else {
-            console.warn('[Listing Scraper] ScrapingBee returned blocked page, length:', sbHtml.length);
-            diagnostics.botProtectionDetected = true;
-            diagnostics.errorMessage = 'scrapingbee_blocked_page';
+      if (SCRAPINGBEE_KEY) {
+        const sbController = new AbortController();
+        const sbTimeoutId = setTimeout(() => sbController.abort(), proxyTimeout);
+        try {
+          const needsJsRender = ['cargurus', 'autotrader', 'cars.com'].includes(dataSource);
+          const sbUrl = new URL('https://app.scrapingbee.com/api/v1/');
+          sbUrl.searchParams.set('api_key', SCRAPINGBEE_KEY);
+          sbUrl.searchParams.set('url', url);
+          sbUrl.searchParams.set('render_js', needsJsRender ? 'true' : 'false');
+          sbUrl.searchParams.set('premium_proxy', 'true');
+          sbUrl.searchParams.set('country_code', 'us');
+          if (needsJsRender) {
+            sbUrl.searchParams.set('wait_browser', 'networkidle2');
+            sbUrl.searchParams.set('timeout', String(Math.min(proxyTimeout - 2000, 25000)));
           }
-        } else {
-          const errBody = await sbResp.text().catch(() => '');
-          console.error('[Listing Scraper] ScrapingBee HTTP', sbResp.status, errBody.substring(0, 300));
-          diagnostics.errorMessage = `scrapingbee_${sbResp.status}`;
+
+          console.log('[Listing Scraper] ScrapingBee:', { url: url.substring(0, 80), needsJsRender });
+          const sbResp = await fetch(sbUrl.toString(), { signal: sbController.signal });
+          clearTimeout(sbTimeoutId);
+
+          diagnostics.proxyDurationMs = Date.now() - proxyStart;
+          diagnostics.proxyStatusCode = sbResp.status;
+
+          if (sbResp.ok) {
+            const sbHtml = await sbResp.text();
+            const creditsUsed = sbResp.headers.get('spb-cost');
+            console.log('[Listing Scraper] ScrapingBee success — credits:', creditsUsed, 'length:', sbHtml.length);
+
+            const lowerSbHtml = sbHtml.toLowerCase();
+            const sbBlocked =
+              lowerSbHtml.includes('id="captcha"') ||
+              lowerSbHtml.includes('class="captcha') ||
+              lowerSbHtml.includes('just a moment') ||
+              lowerSbHtml.includes('challenge-platform') ||
+              sbHtml.length < 2000;
+
+            if (!sbBlocked) {
+              html = sbHtml;
+              diagnostics.fetchMethod = 'proxy';
+              diagnostics.htmlLength = html.length;
+            } else {
+              console.warn('[Listing Scraper] ScrapingBee returned blocked page, length:', sbHtml.length);
+              diagnostics.botProtectionDetected = true;
+              diagnostics.errorMessage = 'scrapingbee_blocked_page';
+            }
+          } else {
+            const errBody = await sbResp.text().catch(() => '');
+            console.error('[Listing Scraper] ScrapingBee HTTP', sbResp.status, errBody.substring(0, 300));
+            diagnostics.errorMessage = `scrapingbee_${sbResp.status}`;
+          }
+        } catch (sbErr) {
+          clearTimeout(sbTimeoutId);
+          diagnostics.proxyDurationMs = Date.now() - proxyStart;
+          const msg = sbErr instanceof Error ? sbErr.message : String(sbErr);
+          console.error('[Listing Scraper] ScrapingBee threw:', msg);
+          diagnostics.errorMessage = msg;
+          if (sbErr instanceof Error && sbErr.name === 'AbortError') {
+            diagnostics.failureReason = 'timeout';
+          }
         }
-      } catch (sbErr) {
-        clearTimeout(sbTimeoutId);
-        diagnostics.proxyDurationMs = Date.now() - proxyStart;
-        const msg = sbErr instanceof Error ? sbErr.message : String(sbErr);
-        console.error('[Listing Scraper] ScrapingBee threw:', msg);
-        diagnostics.errorMessage = msg;
-        if (sbErr instanceof Error && sbErr.name === 'AbortError') {
-          diagnostics.failureReason = 'timeout';
-        }
+      } else {
+        console.warn('[Listing Scraper] SCRAPINGBEE_API_KEY not set — skipping to direct fetch');
       }
     }
 
