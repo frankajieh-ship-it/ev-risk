@@ -11,11 +11,8 @@ import {
   calculateFitContext,
   mapToScoringInput
 } from "@/lib/sanity-check-logic";
-import { CLOSING_LINE, getClosingLine, type SanityCheckAnswers } from "@/lib/sanity-check-sentences";
-import {
-  inferClimateFromZip,
-  getClimateLabel,
-} from "@/lib/zip-climate-mapping";
+import { type SanityCheckAnswers } from "@/lib/sanity-check-sentences";
+import { inferClimateFromZip } from "@/lib/zip-climate-mapping";
 import type {
   ClimateSeasonality,
   WinterLongDays,
@@ -981,136 +978,132 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
   const renderOutput = () => {
     const sentences = selectFrictionSentences(sanityAnswers as SanityCheckAnswers, regionResolved);
     const fitContext = calculateFitContext(sanityAnswers as SanityCheckAnswers);
-    const closingLine = getClosingLine(regionResolved);
-    const copyText = sentences.join("\n") + "\n\n" + closingLine;
+    const copyText = sentences.join("\n");
 
-    // Get WHY framing text
-    const whyFraming = whyChoice
-      ? WHY_CHOICES.find(c => c.value === whyChoice)?.framing
-      : null;
+    const isPhev = fitContext.track === "PHEV";
+    const label = fitContext.label;
+
+    // Verdict config
+    const verdict = {
+      "Good Fit": {
+        bg: "bg-green-50 border-green-200",
+        badge: "bg-green-100 text-green-800",
+        icon: "✓",
+        iconBg: "bg-green-500",
+        headline: isPhev ? "A PHEV fits your situation well" : "An EV fits your routine well",
+        summary: isPhev
+          ? "Your setup, schedule, and driving needs are a strong match for a plug-in hybrid. The gas engine removes the main EV risks for your situation."
+          : "Your home charging setup and schedule make this a low-friction transition. Most people in your situation adapt quickly.",
+        cta: isPhev ? "Find PHEV matches for you →" : "Find EV matches for you →",
+      },
+      "Conditional": {
+        bg: "bg-amber-50 border-amber-200",
+        badge: "bg-amber-100 text-amber-800",
+        icon: "~",
+        iconBg: "bg-amber-500",
+        headline: isPhev ? "A PHEV could work — with a few caveats" : "An EV could work — with some adjustments",
+        summary: isPhev
+          ? "Your situation is workable for a PHEV, but a couple of factors are worth thinking through before you commit."
+          : "Your setup is workable, but a few things could create friction in the first few months. Worth knowing before you buy.",
+        cta: isPhev ? "See which PHEVs suit you →" : "See which EVs suit your routine →",
+      },
+      "High Friction": {
+        bg: "bg-red-50 border-red-200",
+        badge: "bg-red-100 text-red-800",
+        icon: "!",
+        iconBg: "bg-red-500",
+        headline: "Your current setup has real friction points",
+        summary: isPhev
+          ? "A standard EV would be difficult in your situation. A PHEV removes most of the risk — or you may want to wait until your charging situation changes."
+          : "Based on your answers, a full BEV would require meaningful changes to your routine. A PHEV might be a better bridge.",
+        cta: "See what would need to change →",
+      },
+    }[label];
+
+    // Top 2-3 friction points (most relevant only)
+    const topFrictions = sentences.slice(0, 3);
 
     return (
-      <div className="p-6 space-y-6">
-        {/* WHY-based framing header */}
-        {whyFraming && (
-          <p className="text-sm text-blue-600 font-medium -mb-2">{whyFraming}...</p>
-        )}
+      <div className="p-6 space-y-5">
 
-        <h3 className="text-xl font-bold text-gray-900 mb-4">In situations like yours:</h3>
-
-        {/* Friction Bullets */}
-        <ul className="space-y-3 mb-4">
-          {sentences.map((sentence, idx) => (
-            <li key={idx} className="text-gray-700 flex items-start gap-2 text-sm leading-relaxed">
-              <span className="text-blue-600 mt-1 flex-shrink-0">•</span>
-              <span>{sentence}</span>
-            </li>
-          ))}
-        </ul>
-
-        {/* Closing Line */}
-        <p className="text-sm text-gray-600 italic leading-relaxed border-t pt-4 mt-4">
-          {closingLine}
-        </p>
-
-        {/* Micro-feedback - shows after delay */}
-        {showMicroFeedback && !feedbackGiven && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <p className="text-sm text-gray-700 mb-3">Did this framing feel accurate?</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => handleMicroFeedback("up")}
-                className="flex-1 py-2 rounded-lg border-2 border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all text-lg"
-                aria-label="Yes, accurate"
-              >
-                👍
-              </button>
-              <button
-                onClick={() => handleMicroFeedback("down")}
-                className="flex-1 py-2 rounded-lg border-2 border-gray-200 hover:border-red-400 hover:bg-red-50 transition-all text-lg"
-                aria-label="No, not accurate"
-              >
-                👎
-              </button>
+        {/* ── Verdict Card ── */}
+        <div className={`rounded-xl border-2 p-4 ${verdict.bg}`}>
+          <div className="flex items-start gap-3">
+            <div className={`w-8 h-8 rounded-full ${verdict.iconBg} text-white flex items-center justify-center font-bold text-sm flex-shrink-0 mt-0.5`}>
+              {verdict.icon}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${verdict.badge}`}>
+                  {label} · {isPhev ? "PHEV" : "BEV"}
+                </span>
+              </div>
+              <h3 className="text-base font-bold text-gray-900 leading-snug">
+                {verdict.headline}
+              </h3>
+              <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+                {verdict.summary}
+              </p>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Feedback thank you */}
-        {feedbackGiven && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-            <p className="text-sm text-green-800">Thanks for the feedback!</p>
+        {/* ── What to watch for ── */}
+        {topFrictions.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">
+              {label === "Good Fit" ? "Keep in mind" : "What to watch for"}
+            </p>
+            <ul className="space-y-2">
+              {topFrictions.map((sentence, idx) => (
+                <li key={idx} className="flex items-start gap-2 text-sm text-gray-700 leading-relaxed">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gray-400 flex-shrink-0" />
+                  <span>{sentence}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
-        {/* Optional Fit Context (de-emphasized) */}
-        <p className="text-xs text-gray-500">
-          Overall fit context:{" "}
-          <span className="font-medium">{fitContext.label}</span>
-          {fitContext.track === "PHEV" && (
-            <span className="ml-1 px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs font-semibold">PHEV track</span>
-          )}
-        </p>
-
-        {/* Copy Button */}
-        <button
-          onClick={() => handleCopy(copyText)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-gray-300 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition-all"
-        >
-          {showCopySuccess ? (
-            <>
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              <span className="font-semibold text-green-600">Copied!</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-5 h-5 text-gray-600" />
-              <span className="font-semibold text-gray-700">Copy to clipboard</span>
-            </>
-          )}
-        </button>
-
-        {/* Continue to OFFO Button */}
+        {/* ── Primary CTA ── */}
         <button
           onClick={handleFinalSubmit}
           disabled={submitting}
-          className="w-full py-4 rounded-lg font-semibold bg-gradient-to-r from-blue-600 to-green-600 text-white hover:shadow-lg transition-all disabled:opacity-50"
+          className="w-full py-4 rounded-xl font-semibold bg-gradient-to-r from-blue-600 to-green-600 text-white hover:shadow-lg transition-all disabled:opacity-50 text-sm"
         >
-          {submitting ? "Loading..." : "Continue to full analysis"}
+          {submitting ? "Loading..." : verdict.cta}
         </button>
 
-        {/* Compare CTA - show after micro-feedback */}
-        {(feedbackGiven || !showMicroFeedback) && (
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <button
-              onClick={() => {
-                trackEvent("compare_cta_clicked", { from: "fit_quiz_output" });
-                router.push("/compare");
-              }}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-            >
-              Comparing two options? →
-            </button>
-            <p className="text-xs text-gray-500 mt-1">
-              See how each would fit your routine
-            </p>
+        {/* ── Micro-feedback ── */}
+        {showMicroFeedback && !feedbackGiven && (
+          <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+            <p className="text-sm text-gray-600">Does this feel right?</p>
+            <div className="flex gap-2">
+              <button onClick={() => handleMicroFeedback("up")} className="px-3 py-1 rounded-lg border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all text-base" aria-label="Yes">👍</button>
+              <button onClick={() => handleMicroFeedback("down")} className="px-3 py-1 rounded-lg border border-gray-200 hover:border-red-400 hover:bg-red-50 transition-all text-base" aria-label="No">👎</button>
+            </div>
           </div>
         )}
+        {feedbackGiven && (
+          <p className="text-xs text-center text-green-700">Thanks — that helps us improve.</p>
+        )}
 
-        {/* "Satisfied without report" soft completion */}
-        <div className="text-center pt-2 border-t border-gray-100">
+        {/* ── Secondary actions ── */}
+        <div className="flex items-center justify-between pt-1">
+          <button
+            onClick={() => handleCopy(copyText)}
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            {showCopySuccess ? <><CheckCircle className="w-4 h-4 text-green-600" /><span className="text-green-600">Copied!</span></> : <><Copy className="w-4 h-4" /><span>Copy summary</span></>}
+          </button>
           <button
             onClick={() => {
-              trackEvent("satisfied_without_report", {
-                why_choice: whyChoice,
-                region: regionResolved,
-                feedback_given: feedbackGiven,
-              });
+              trackEvent("satisfied_without_report", { why_choice: whyChoice, region: regionResolved });
               onClose();
             }}
-            className="text-sm text-gray-500 hover:text-gray-700 underline"
+            className="text-sm text-gray-400 hover:text-gray-600 underline"
           >
-            This already answered my question
+            This answered my question
           </button>
         </div>
       </div>
