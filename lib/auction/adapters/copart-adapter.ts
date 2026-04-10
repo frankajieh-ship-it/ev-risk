@@ -152,6 +152,11 @@ function parseFromUrlSlug(
     condition_notes: primaryDamage,
     provider_name: "copart_url_slug",
     raw_provider_payload: { url, slug: slugMatch[1] },
+    deal_score: null,
+    discount_percent: null,
+    days_until_auction: null,
+    damage_level: null,
+    mileage_category: null,
   };
 }
 
@@ -217,6 +222,11 @@ function normaliseFromCopartApi(
     condition_notes: conditionParts.join(". ") || null,
     provider_name: "copart_api",
     raw_provider_payload: raw,
+    deal_score: null,
+    discount_percent: null,
+    days_until_auction: null,
+    damage_level: null,
+    mileage_category: null,
   };
 }
 
@@ -257,6 +267,11 @@ function normaliseFromApify(
     condition_notes: conditionParts.join(". ") || null,
     provider_name: "apify",
     raw_provider_payload: item,
+    deal_score: num(item.dealScore),
+    discount_percent: num(item.discountPercent),
+    days_until_auction: num(item.daysUntilAuction),
+    damage_level: str(item.damageLevel),
+    mileage_category: str(item.mileageCategory),
   };
 }
 
@@ -456,7 +471,7 @@ async function fetchByUrl(url: string): Promise<NormalizedAuctionLot> {
   return lot;
 }
 
-async function fetchByVin(_vin: string): Promise<NormalizedAuctionLot> {
+async function fetchByVin(_vin: string): Promise<NormalizedAuctionLot> { // eslint-disable-line @typescript-eslint/no-unused-vars
   throw new Error(
     "CopartAdapter.fetchByVin is not supported — use fetchByUrl or fetchByLot"
   );

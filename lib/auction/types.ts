@@ -62,6 +62,16 @@ export interface NormalizedAuctionLot {
   provider_name: string;
   /** Raw response stored for debugging — never used downstream */
   raw_provider_payload: unknown;
+  /** Apify: deal quality score relative to market value */
+  deal_score: number | null;
+  /** Apify: estimated discount % vs. typical resale price */
+  discount_percent: number | null;
+  /** Apify: days remaining until auction */
+  days_until_auction: number | null;
+  /** Apify: categorized damage severity (e.g. "minor" | "moderate" | "severe") */
+  damage_level: string | null;
+  /** Apify: mileage bucket ("low" | "medium" | "high") */
+  mileage_category: string | null;
 }
 
 // ── Adapter interface ─────────────────────────────────────────────────────────
