@@ -18,10 +18,10 @@ export default function FitQuizLauncher({ onClick }: FitQuizLauncherProps) {
         </div>
         <div>
           <h3 className="text-lg md:text-xl font-bold text-gray-900">
-            7-Question Fit Check
+            Is an EV (or PHEV) Right for You?
           </h3>
           <p className="text-xs md:text-sm text-gray-600">
-            Quick assessment with vehicle details
+            60-second fit check — no email required
           </p>
         </div>
       </div>
@@ -29,7 +29,7 @@ export default function FitQuizLauncher({ onClick }: FitQuizLauncherProps) {
       {/* Trust cue */}
       <div className="mb-2 md:mb-3 px-2 md:px-3 py-1.5 md:py-2 bg-green-50 border border-green-100 rounded-lg">
         <p className="text-xs font-medium text-green-800">
-          Anonymous — no email required
+          Anonymous · Free · Works for BEV and PHEV
         </p>
       </div>
 
@@ -37,15 +37,15 @@ export default function FitQuizLauncher({ onClick }: FitQuizLauncherProps) {
       <div className="space-y-1.5 md:space-y-2 mb-3 md:mb-4">
         <div className="flex items-center gap-2 text-xs md:text-sm text-gray-700">
           <div className="w-1.5 h-1.5 bg-green-600 rounded-full"></div>
-          <span>Get a clear Fit Signal</span>
+          <span>BEV vs PHEV — see which fits your life</span>
         </div>
         <div className="flex items-center gap-2 text-xs md:text-sm text-gray-700">
           <div className="w-1.5 h-1.5 bg-blue-600 rounded-full"></div>
-          <span>See what breaks first</span>
+          <span>Know your charging risk before you buy</span>
         </div>
         <div className="flex items-center gap-2 text-xs md:text-sm text-gray-700">
           <div className="w-1.5 h-1.5 bg-purple-600 rounded-full"></div>
-          <span>Know what would make this annoying</span>
+          <span>Get your routine fit score instantly</span>
         </div>
       </div>
 
@@ -54,7 +54,7 @@ export default function FitQuizLauncher({ onClick }: FitQuizLauncherProps) {
           ~60 seconds
         </span>
         <div className="flex items-center gap-1 text-sm font-semibold text-green-600 group-hover:gap-2 transition-all">
-          Start Quiz
+          Find My Fit
           <ChevronRight className="w-4 h-4" />
         </div>
       </div>

@@ -33,6 +33,13 @@ export interface SanityCheckAnswers {
   chargingAnchorType?: ChargingAnchorType;
   backupOption?: BackupOption;
   publicAnchorReliability?: PublicAnchorReliability;
+
+  // PHEV integration (2026 hybrid pivot)
+  drivetrainOpenness?: "BEV_ONLY" | "PHEV_OK" | "PHEV_PREFERRED";
+  housingType?: "house_garage" | "house_driveway" | "apartment_assigned" | "apartment_street";
+  towingNeeds?: "yes" | "occasionally" | "no";
+  chargingPlanB?: "another_home_charger" | "nearby_public" | "work_charger" | "no_plan";
+  pluginFrequency?: "every_night" | "few_times_week" | "once_week" | "rarely";
 }
 
 export interface FrictionSentence {

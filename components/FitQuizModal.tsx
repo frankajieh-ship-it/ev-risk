@@ -85,7 +85,7 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
   // Reset state when modal opens and start session tracking
   useEffect(() => {
     if (isOpen) {
-      setPhase("questions");
+      setPhase("questions"); // eslint-disable-line react-hooks/set-state-in-effect
       setSanityAnswers({
         executionUncertaintyTolerance: "medium",
         downtimeRecoveryTolerance: "medium"
@@ -117,13 +117,13 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
     if (zipCode && zipCode.length >= 3 && !skipLocation) {
       const inferred = inferClimateFromZip(zipCode, regionResolved);
       if (inferred !== "UNKNOWN" && !climateAutoInferred) {
-        setClimateSeasonality(inferred);
+        setClimateSeasonality(inferred); // eslint-disable-line react-hooks/set-state-in-effect
         setClimateAutoInferred(true);
       }
     }
   }, [zipCode, regionResolved, skipLocation, climateAutoInferred]);
 
-  const handleAnswerChange = (field: keyof SanityCheckAnswers, value: any) => {
+  const handleAnswerChange = (field: keyof SanityCheckAnswers, value: SanityCheckAnswers[keyof SanityCheckAnswers]) => {
     setSanityAnswers(prev => ({ ...prev, [field]: value }));
   };
 
@@ -223,6 +223,9 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
       ? (regionResolved === "UK" ? "SW1A 1AA" : "00000")
       : zipCode;
 
+    // Compute fit track early so it can be used in session + report
+    const fitResult = calculateFitContext(sanityAnswers as SanityCheckAnswers);
+
     // Map sanity-check answers to ScoringInput
     const mappedInputs = mapToScoringInput(sanityAnswers as SanityCheckAnswers, effectiveZipCode);
 
@@ -287,6 +290,12 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
         winterLongDays: climateSeasonality === "COLD_WINTER" ? winterLongDays : undefined,
         chargingAnchorType,
         backupOption,
+        // PHEV integration
+        drivetrainOpenness: sanityAnswers.drivetrainOpenness,
+        housingType: sanityAnswers.housingType,
+        towingNeeds: sanityAnswers.towingNeeds,
+        pluginFrequency: sanityAnswers.pluginFrequency,
+        fitTrack: fitResult.track,
       },
       {
         // Engine outputs will be populated on report page load
@@ -300,7 +309,7 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
 
     // Navigate to report with session_id
     const queryParams = new URLSearchParams({
-      data: JSON.stringify(reportData),
+      data: JSON.stringify({ ...reportData, fitTrack: fitResult.track, fitLabel: fitResult.label }),
       ...(sessionId && { session_id: sessionId }),
     });
 
@@ -310,56 +319,50 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
   // Calculate current question number based on answered questions
   const getProgressInfo = () => {
     let answered = 0;
-    let currentGroup = "Charging setup";
-    let currentOfGroup = 1;
-    let groupTotal = 3;
+    const isPhevOpen = sanityAnswers.drivetrainOpenness && sanityAnswers.drivetrainOpenness !== "BEV_ONLY";
 
-    // Group 1: Charging setup (Q1, Q10, Q11 = chargingAccess, chargingAnchorType, backupOption)
+    // Group 0: Drivetrain (1 question)
+    if (sanityAnswers.drivetrainOpenness) answered++;
+
+    // Group 1: Charging setup (chargingAccess, housingType, chargingAnchorType, backupOption)
     if (sanityAnswers.chargingAccess) answered++;
+    if (sanityAnswers.housingType) answered++;
     if (chargingAnchorType !== null) answered++;
     if (backupOption !== null) answered++;
 
-    // Group 2: Routine stability (Q2, Q5, Q6 = schedule, executionUncertaintyTolerance, downtimeRecoveryTolerance)
+    // Group 2: Routine stability (schedule, towingNeeds, executionUncertaintyTolerance, downtimeRecoveryTolerance)
     if (sanityAnswers.schedule) answered++;
+    if (sanityAnswers.towingNeeds) answered++;
     if (sanityAnswers.executionUncertaintyTolerance) answered++;
     if (sanityAnswers.downtimeRecoveryTolerance) answered++;
 
-    // Group 3: Disruption tolerance (Q3, Q4 = backup, dependency)
+    // Group 3: Disruption tolerance (backup, chargingPlanB, dependency)
     if (sanityAnswers.backup) answered++;
+    if (sanityAnswers.chargingPlanB) answered++;
     if (sanityAnswers.dependency) answered++;
 
-    // Group 4: Location & Climate (Q7, Q8, Q9 = zip, climate, winter)
+    // Group 4: Location & Climate (zip, climate, winter)
     if (skipLocation || zipCode.trim()) answered++;
     if (climateSeasonality !== "UNKNOWN") answered++;
     if (climateSeasonality !== "COLD_WINTER" || winterLongDays !== "UNKNOWN") answered++;
 
-    // Determine current group based on progress
-    if (answered <= 3) {
-      currentGroup = "Charging setup";
-      currentOfGroup = Math.max(1, answered);
-      groupTotal = 3;
-    } else if (answered <= 6) {
-      currentGroup = "Routine stability";
-      currentOfGroup = answered - 3;
-      groupTotal = 3;
-    } else if (answered <= 8) {
-      currentGroup = "Disruption tolerance";
-      currentOfGroup = answered - 6;
-      groupTotal = 2;
-    } else {
-      currentGroup = "Location & Climate";
-      currentOfGroup = answered - 8;
-      groupTotal = 3;
-    }
+    // PHEV payoff (conditional)
+    if (isPhevOpen && sanityAnswers.pluginFrequency) answered++;
 
-    return { answered, total: 11, currentGroup, currentOfGroup, groupTotal };
+    const total = isPhevOpen ? 16 : 15;
+
+    return { answered, total, currentGroup: "Routine check", currentOfGroup: answered, groupTotal: total };
   };
 
   const renderQuestions = () => {
     const coreAnswered =
+      sanityAnswers.drivetrainOpenness &&
       sanityAnswers.chargingAccess &&
+      sanityAnswers.housingType &&
+      sanityAnswers.towingNeeds &&
       sanityAnswers.schedule &&
       sanityAnswers.backup &&
+      sanityAnswers.chargingPlanB &&
       sanityAnswers.dependency &&
       sanityAnswers.executionUncertaintyTolerance &&
       sanityAnswers.downtimeRecoveryTolerance &&
@@ -374,7 +377,12 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
     const winterAnswered =
       climateSeasonality !== "COLD_WINTER" || winterLongDays !== "UNKNOWN";
 
-    const allAnswered = coreAnswered && newInputsAnswered && winterAnswered;
+    // Plug-in frequency required only when open to PHEV
+    const pluginAnswered =
+      sanityAnswers.drivetrainOpenness === "BEV_ONLY" ||
+      sanityAnswers.pluginFrequency != null;
+
+    const allAnswered = coreAnswered && newInputsAnswered && winterAnswered && pluginAnswered;
 
     const progress = getProgressInfo();
 
@@ -383,7 +391,7 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
         <div className="mb-4">
           <h3 className="text-xl font-bold text-gray-900 mb-2">Quick routine check</h3>
           <p className="text-sm text-gray-600">
-            11 questions to understand how an EV might fit your situation
+            ~16 questions to understand how a BEV or PHEV fits your situation
           </p>
           {/* P1: Progress indicator with group label */}
           <div className="mt-3 flex items-center gap-3">
@@ -394,7 +402,7 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
               />
             </div>
             <span className="text-xs text-gray-500 whitespace-nowrap">
-              {progress.currentGroup} ({progress.answered} of {progress.total})
+              {progress.answered} of {progress.total}
             </span>
           </div>
         </div>
@@ -420,8 +428,42 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
           </div>
         </div>
 
+        {/* GROUP 0: Drivetrain Preference */}
+        <div className="border-l-4 border-indigo-500 pl-4 -ml-4">
+          <p className="text-xs font-bold text-indigo-600 uppercase tracking-wide mb-3">
+            Drivetrain Preference
+          </p>
+        </div>
+
+        {/* Question 0: Drivetrain Openness */}
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-gray-900">
+            Do you want a gas backup for long trips and unexpected days?
+          </label>
+          <div className="space-y-2">
+            {[
+              { value: "BEV_ONLY", label: "No — I want zero tailpipe emissions", sub: "Full battery electric only" },
+              { value: "PHEV_OK", label: "Maybe — open to it if it fits better", sub: "Battery electric, but PHEV works too" },
+              { value: "PHEV_PREFERRED", label: "Yes — gas safety net is important to me", sub: "I want range security on long trips" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleAnswerChange("drivetrainOpenness", option.value)}
+                className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                  sanityAnswers.drivetrainOpenness === option.value
+                    ? "border-indigo-600 bg-indigo-50 text-indigo-900"
+                    : "border-gray-200 hover:border-gray-300 text-gray-700"
+                }`}
+              >
+                <div className="font-medium">{option.label}</div>
+                <div className="text-xs text-gray-600 mt-1">{option.sub}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* GROUP 1: Charging Setup */}
-        <div className="border-l-4 border-blue-500 pl-4 -ml-4">
+        <div className="border-l-4 border-blue-500 pl-4 -ml-4 mt-6">
           <p className="text-xs font-bold text-blue-600 uppercase tracking-wide mb-3">
             Charging Setup
           </p>
@@ -430,7 +472,7 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
         {/* Question 1: Primary Charging Access */}
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-gray-900">
-            What's your primary charging access?
+            What&apos;s your primary charging access?
           </label>
           <div className="space-y-2">
             {[
@@ -449,6 +491,34 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
                 }`}
               >
                 {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Question: Housing / Parking Type */}
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-gray-900">
+            Where do you reliably park most nights?
+          </label>
+          <div className="space-y-2">
+            {[
+              { value: "house_garage", label: "House with garage", sub: "Easiest home charging setup" },
+              { value: "house_driveway", label: "House with driveway", sub: "Level 1/2 outlet accessible" },
+              { value: "apartment_assigned", label: "Apartment — assigned spot", sub: "May have charging options" },
+              { value: "apartment_street", label: "Apartment / street parking", sub: "No dedicated overnight spot" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleAnswerChange("housingType", option.value)}
+                className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                  sanityAnswers.housingType === option.value
+                    ? "border-blue-600 bg-blue-50 text-blue-900"
+                    : "border-gray-200 hover:border-gray-300 text-gray-700"
+                }`}
+              >
+                <div className="font-medium">{option.label}</div>
+                <div className="text-xs text-gray-600 mt-1">{option.sub}</div>
               </button>
             ))}
           </div>
@@ -487,6 +557,33 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
           </div>
         </div>
 
+        {/* Question: Towing Needs */}
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-gray-900">
+            Do you plan to tow a trailer or camper?
+          </label>
+          <div className="space-y-2">
+            {[
+              { value: "yes", label: "Yes, regularly", sub: "Frequent towing — significant range impact for BEV" },
+              { value: "occasionally", label: "Occasionally", sub: "A few times a year" },
+              { value: "no", label: "No", sub: "No towing needs" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleAnswerChange("towingNeeds", option.value)}
+                className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                  sanityAnswers.towingNeeds === option.value
+                    ? "border-blue-600 bg-blue-50 text-blue-900"
+                    : "border-gray-200 hover:border-gray-300 text-gray-700"
+                }`}
+              >
+                <div className="font-medium">{option.label}</div>
+                <div className="text-xs text-gray-600 mt-1">{option.sub}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* GROUP 3: Disruption Tolerance */}
         <div className="border-l-4 border-amber-500 pl-4 -ml-4 mt-6">
           <p className="text-xs font-bold text-amber-600 uppercase tracking-wide mb-3">
@@ -497,7 +594,7 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
         {/* Question 3: Backup Tolerance */}
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-gray-900">
-            What's your backup tolerance?
+            What&apos;s your backup tolerance?
           </label>
           <div className="space-y-2">
             {[
@@ -520,10 +617,38 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
           </div>
         </div>
 
+        {/* Question: Charging Plan B */}
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold text-gray-900">
+            If your primary charger is busy or down, what&apos;s your plan?
+          </label>
+          <div className="space-y-2">
+            {[
+              { value: "another_home_charger", label: "Another outlet at home", sub: "Second charger or different outlet" },
+              { value: "nearby_public", label: "Nearby public station", sub: "One I know and have used" },
+              { value: "work_charger", label: "Charge at work", sub: "Reliable workplace access" },
+              { value: "no_plan", label: "No backup plan", sub: "Haven't figured that out yet" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => handleAnswerChange("chargingPlanB", option.value)}
+                className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                  sanityAnswers.chargingPlanB === option.value
+                    ? "border-blue-600 bg-blue-50 text-blue-900"
+                    : "border-gray-200 hover:border-gray-300 text-gray-700"
+                }`}
+              >
+                <div className="font-medium">{option.label}</div>
+                <div className="text-xs text-gray-600 mt-1">{option.sub}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Question 4: Infrastructure Dependency */}
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-gray-900">
-            What's your infrastructure dependency?
+            What&apos;s your infrastructure dependency?
           </label>
           <div className="space-y-2">
             {[
@@ -549,7 +674,7 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
         {/* Question 5: Execution-time uncertainty tolerance */}
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-gray-900">
-            When something doesn't start immediately (charging/app/session), how disruptive is that for you?
+            When something doesn&apos;t start immediately (charging/app/session), how disruptive is that for you?
           </label>
           <div className="space-y-2">
             {[
@@ -610,7 +735,7 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
         {/* Question 7: ZIP/Postcode */}
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-gray-900">
-            What's your {copy.labels.zip}?
+            What&apos;s your {copy.labels.zip}?
           </label>
           <input
             type="text"
@@ -643,7 +768,7 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
         {/* P0/P1: Question 8 - Climate Seasonality */}
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-gray-900">
-            What's your area's climate like?
+            What&apos;s your area&apos;s climate like?
             {climateAutoInferred && (
               <span className="ml-2 text-xs font-normal text-blue-600">
                 (auto-detected from {copy.labels.zip})
@@ -710,7 +835,7 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
         {/* P0/P1: Question 10 - Charging Anchor */}
         <div className="space-y-3">
           <label className="block text-sm font-semibold text-gray-900">
-            What's your primary charging anchor?
+            What&apos;s your primary charging anchor?
           </label>
           <div className="space-y-2">
             {([
@@ -763,6 +888,39 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
             ))}
           </div>
         </div>
+
+        {/* Question: Plug-in Frequency (PHEV payoff — shown when open to PHEV) */}
+        {sanityAnswers.drivetrainOpenness && sanityAnswers.drivetrainOpenness !== "BEV_ONLY" && (
+          <div className="space-y-3">
+            <label className="block text-sm font-semibold text-gray-900">
+              How often will you realistically plug in?
+            </label>
+            <p className="text-xs text-gray-500 -mt-1">
+              PHEV value depends heavily on this — affects fuel savings estimate.
+            </p>
+            <div className="space-y-2">
+              {[
+                { value: "every_night", label: "Every night", sub: "Full benefit of electric miles" },
+                { value: "few_times_week", label: "A few times a week", sub: "Good but partial benefit" },
+                { value: "once_week", label: "Once a week or less", sub: "Mostly runs on gas" },
+                { value: "rarely", label: "Honestly, rarely", sub: "Would pay premium without savings" },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => handleAnswerChange("pluginFrequency", option.value)}
+                  className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                    sanityAnswers.pluginFrequency === option.value
+                      ? "border-green-600 bg-green-50 text-green-900"
+                      : "border-gray-200 hover:border-gray-300 text-gray-700"
+                  }`}
+                >
+                  <div className="font-medium">{option.label}</div>
+                  <div className="text-xs text-gray-600 mt-1">{option.sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Continue Button */}
         <button
@@ -887,7 +1045,11 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
 
         {/* Optional Fit Context (de-emphasized) */}
         <p className="text-xs text-gray-500">
-          Overall fit context: <span className="font-medium">{fitContext}</span>
+          Overall fit context:{" "}
+          <span className="font-medium">{fitContext.label}</span>
+          {fitContext.track === "PHEV" && (
+            <span className="ml-1 px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs font-semibold">PHEV track</span>
+          )}
         </p>
 
         {/* Copy Button */}
@@ -983,7 +1145,7 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
                     {phase === "questions" ? "Quick Routine Check" : phase === "why" ? "Almost done" : "Your Situation"}
                   </h2>
                   <p className="text-xs text-gray-500">
-                    {phase === "questions" ? "11 questions • ~1 minute" : phase === "why" ? "One quick question" : "Copy and share on Reddit"}
+                    {phase === "questions" ? "~2 minutes • BEV + PHEV" : phase === "why" ? "One quick question" : "Copy and share on Reddit"}
                   </p>
                 </div>
                 <button

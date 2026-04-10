@@ -12,6 +12,8 @@ import LoginModal from "@/components/LoginModal";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
+import FitQuizLauncher from "@/components/FitQuizLauncher";
+import FitQuizModal from "@/components/FitQuizModal";
 
 
 export default function Home() {
@@ -39,6 +41,7 @@ export default function Home() {
   }, []);
 
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showFitQuiz, setShowFitQuiz] = useState(false);
   const [totalReceipts, setTotalReceipts] = useState<number | null>(null);
 
   useEffect(() => {
@@ -221,6 +224,19 @@ export default function Home() {
           Used by serious EV shoppers · Powered by Auto.dev + NHTSA data · No sales pitch. Just honest analysis.
         </p>
       </div>
+
+      {/* ── Section: EV Fit Check ────────────────────────────────────── */}
+      <section className="py-10 md:py-14 bg-white">
+        <div className="max-w-2xl mx-auto px-4">
+          <p className="text-center text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+            Not sure where to start?
+          </p>
+          <FitQuizLauncher onClick={() => setShowFitQuiz(true)} />
+        </div>
+      </section>
+      {showFitQuiz && (
+        <FitQuizModal isOpen={showFitQuiz} onClose={() => setShowFitQuiz(false)} />
+      )}
 
       {/* ── Section 3: How It Works ──────────────────────────────────── */}
       <HowItWorksSection variant="homepage" />

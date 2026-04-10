@@ -48,6 +48,21 @@ export function selectFrictionSentences(answers: SanityCheckAnswers, region: Reg
   // Sentences to NEVER show for low-friction setups
   const hardExclusions: string[] = [];
 
+  // PHEV: suppress BEV-specific infrastructure and range friction
+  const isPhev =
+    answers.drivetrainOpenness === "PHEV_OK" ||
+    answers.drivetrainOpenness === "PHEV_PREFERRED";
+  if (isPhev) {
+    hardExclusions.push(
+      "no_backup_amplification",
+      "cold_recovery_risk",
+      "public_variability",
+      "no_backup_anchor",
+      "downtime_no_backup",
+      "apartment_no_backup_compound"
+    );
+  }
+
   // If home charging + full control → exclude all public/shared friction sentences
   if (hasHomeCharging && hasFullControl) {
     hardExclusions.push(
@@ -199,6 +214,13 @@ export function selectFrictionSentences(answers: SanityCheckAnswers, region: Reg
     }
   }
 
+  // PHEV plug-in frequency warning — prepend if user will rarely plug in
+  if (isPhev && answers.pluginFrequency === "rarely") {
+    selectedSentences.unshift(
+      "A PHEV rarely plugged in becomes a heavy, expensive hybrid. You'd pay a premium without the fuel savings."
+    );
+  }
+
   // Return 3-6 sentences (cap at 6)
   return selectedSentences.slice(0, 6);
 }
@@ -217,8 +239,49 @@ export function selectFrictionSentences(answers: SanityCheckAnswers, region: Reg
  * - Conditional → High Friction if low execution tolerance + shared/public
  * - Good Fit → Conditional if low downtime tolerance + no backup
  */
-export function calculateFitContext(answers: SanityCheckAnswers): "Good Fit" | "Conditional" | "High Friction" {
-  // Determine base label
+export type FitContextResult = {
+  label: "Good Fit" | "Conditional" | "High Friction";
+  track: "BEV" | "PHEV";
+};
+
+export function calculateFitContext(answers: SanityCheckAnswers): FitContextResult {
+  const isPhev =
+    answers.drivetrainOpenness === "PHEV_OK" ||
+    answers.drivetrainOpenness === "PHEV_PREFERRED";
+
+  // ── PHEV scoring path ────────────────────────────────────────────────────────
+  // Infrastructure penalty reduced 80%: hard BEV blockers become "Conditional"
+  // Gas engine handles: long days, cold range, no-backup risk, towing
+  if (isPhev) {
+    // Towing → Good Fit (PHEV handles this natively)
+    if (answers.towingNeeds === "yes") {
+      return { label: "Good Fit", track: "PHEV" };
+    }
+
+    // Apartment / street with no work charging = only remaining soft risk
+    const streetParked = answers.housingType === "apartment_street";
+    const noWorkCharge = answers.chargingAccess !== "work_shared";
+    if (streetParked && noWorkCharge) {
+      return { label: "Conditional", track: "PHEV" };
+    }
+
+    // Low execution tolerance + full public dependency = inconvenient but not high friction
+    if (
+      answers.executionUncertaintyTolerance === "low" &&
+      answers.dependency === "public"
+    ) {
+      return { label: "Conditional", track: "PHEV" };
+    }
+
+    // Plugs in rarely → PHEV payoff is low (warn in output, still "Conditional" not "High Friction")
+    if (answers.pluginFrequency === "rarely") {
+      return { label: "Conditional", track: "PHEV" };
+    }
+
+    return { label: "Good Fit", track: "PHEV" };
+  }
+
+  // ── BEV scoring path (original logic preserved) ──────────────────────────────
   let baseLabel: "Good Fit" | "Conditional" | "High Friction";
 
   // High Friction
@@ -252,7 +315,7 @@ export function calculateFitContext(answers: SanityCheckAnswers): "Good Fit" | "
     baseLabel = "Conditional";
   }
 
-  // NEW MODIFIER 1: Conditional + low execution tolerance + shared/public → High Friction
+  // MODIFIER 1: Conditional + low execution tolerance + shared/public → High Friction
   if (
     baseLabel === "Conditional" &&
     answers.executionUncertaintyTolerance === "low" &&
@@ -262,19 +325,37 @@ export function calculateFitContext(answers: SanityCheckAnswers): "Good Fit" | "
      answers.chargingAccess === "work_shared" ||
      answers.chargingAccess === "public_mixed")
   ) {
-    return "High Friction";
+    return { label: "High Friction", track: "BEV" };
   }
 
-  // NEW MODIFIER 2: Good Fit + low downtime tolerance + no backup → Conditional
+  // MODIFIER 2: Good Fit + low downtime tolerance + no backup → Conditional
   if (
     baseLabel === "Good Fit" &&
     answers.downtimeRecoveryTolerance === "low" &&
     answers.backup === "none"
   ) {
-    return "Conditional";
+    return { label: "Conditional", track: "BEV" };
   }
 
-  return baseLabel;
+  return { label: baseLabel, track: "BEV" };
+}
+
+/**
+ * Winter Tax formula for BEV practical range.
+ * EPA × 0.7 (real-world correction) × (1 - winter_penalty)
+ * Research basis: ~41% range loss at 20°F/-7°C with cabin heat.
+ */
+const WINTER_PENALTY: Record<string, number> = {
+  COLD_WINTER: 0.41,
+  HOT_SUMMER: 0.08,
+  MILD: 0,
+  MIXED: 0.15,
+  UNKNOWN: 0,
+};
+
+export function computePracticalRange(epaRange: number, climate: string): number {
+  const penalty = WINTER_PENALTY[climate] ?? 0;
+  return Math.round(epaRange * 0.7 * (1 - penalty));
 }
 
 /**
