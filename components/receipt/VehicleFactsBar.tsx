@@ -81,8 +81,11 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
   const [history, setHistory] = useState<VinAuditLiteResult | null>(null);
   const [historyStatus, setHistoryStatus] = useState<HistoryStatus>("idle");
 
-  // VinAudit history fetch
-  const vin = receipt.vin || receipt.listing_summary?.vin;
+  // VinAudit history fetch — VIN lives on the Supabase row, not in the Receipt schema type.
+  // listing_summary uses .passthrough() so extra fields exist at runtime; cast to access them.
+  const receiptAny = receipt as Record<string, unknown>;
+  const lsAny = receipt.listing_summary as Record<string, unknown> | undefined;
+  const vin = (receiptAny.vin ?? lsAny?.vin) as string | undefined;
 
   useEffect(() => {
     if (!vin) return;
