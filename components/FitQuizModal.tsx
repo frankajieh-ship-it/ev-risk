@@ -120,7 +120,8 @@ export default function FitQuizModal({ isOpen, onClose, initialData }: FitQuizMo
     }
   }, [zipCode, regionResolved, skipLocation, climateAutoInferred]);
 
-  const handleAnswerChange = (field: keyof SanityCheckAnswers, value: SanityCheckAnswers[keyof SanityCheckAnswers]) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleAnswerChange = (field: keyof SanityCheckAnswers, value: any) => {
     setSanityAnswers(prev => ({ ...prev, [field]: value }));
   };
 
