@@ -1,0 +1,393 @@
+/**
+ * CRM Eligibility Queries
+ *
+ * Centralized Supabase queries for determining which users are eligible
+ * for each CRM sequence. All queries are additive-safe (re-running produces
+ * the same result due to idempotency checks against crm_email_sends).
+ */
+
+import { getSupabaseAdmin } from "@/lib/api-auth";
+import { vehicleLabel } from "@/lib/crm-templates/shared";
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+export interface ConversionCandidate {
+  email: string;
+  userId?: string;
+  anonId?: string;
+  eventId: string;
+  receiptId?: string;
+  vehicle?: string;
+  verdict?: string;
+  triggerType: "paywall_dismissed" | "checkout_started";
+}
+
+export interface WinBackCandidate {
+  userId: string;
+  email: string;
+  lastReceiptAt: string;
+  vehicle?: string;
+  receiptsGenerated: number;
+}
+
+export interface DigestRecipient {
+  userId: string;
+  email: string;
+  dealWatchMatches: number;
+  receiptsThisWeek: number;
+}
+
+export interface MarketSnapshot {
+  avgPrice: number;
+  greenPct: number;
+  yellowPct: number;
+  redPct: number;
+  totalReceipts: number;
+}
+
+// ── Conversion candidates ─────────────────────────────────────────────────────
+
+export async function getConversionCandidates(
+  triggerType: "paywall_dismissed" | "checkout_started",
+  limit = 50
+): Promise<ConversionCandidate[]> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+
+  const now = Date.now();
+  const step = triggerType === "paywall_dismissed" ? "conv_24h" : "conv_2h";
+
+  // Time windows: paywall_dismissed → 23-48h ago; checkout_started → 1.5-3h ago
+  const windowOldMs = triggerType === "paywall_dismissed" ? 48 * 60 * 60 * 1000 : 3 * 60 * 60 * 1000;
+  const windowRecentMs = triggerType === "paywall_dismissed" ? 23 * 60 * 60 * 1000 : 90 * 60 * 1000;
+
+  const windowStart = new Date(now - windowOldMs).toISOString();
+  const windowEnd = new Date(now - windowRecentMs).toISOString();
+
+  const { data: events } = await supabase
+    .from("user_events")
+    .select("id, user_id, event_data, timestamp")
+    .eq("event_name", triggerType)
+    .gte("timestamp", windowStart)
+    .lte("timestamp", windowEnd)
+    .not("is_internal", "eq", true)
+    .limit(limit * 2); // over-fetch to account for filtering
+
+  if (!events?.length) return [];
+
+  const candidates: ConversionCandidate[] = [];
+
+  for (const ev of events) {
+    const eventData = (ev.event_data || {}) as Record<string, unknown>;
+    const receiptId = eventData.receipt_id as string | undefined;
+    const anonId = eventData.anon_id as string | undefined;
+    const userId = ev.user_id as string | undefined;
+
+    // Skip if already sent this step
+    const { count } = await supabase
+      .from("crm_email_sends")
+      .select("id", { count: "exact", head: true })
+      .eq("idempotency_key", `conv:${ev.id}:${step}`);
+    if ((count ?? 0) > 0) continue;
+
+    // Skip if user has since purchased
+    if (receiptId) {
+      const { count: purchaseCount } = await supabase
+        .from("purchases")
+        .select("id", { count: "exact", head: true })
+        .eq("base_scenario_id", receiptId)
+        .eq("status", "paid");
+      if ((purchaseCount ?? 0) > 0) continue;
+    }
+
+    // Resolve email — auth user first, then anon email capture
+    let email: string | undefined;
+    if (userId) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+      email = authUser?.user?.email;
+    }
+    if (!email && anonId) {
+      const { data: capture } = await supabase
+        .from("checklist_email_captures")
+        .select("email")
+        .eq("anon_id", anonId)
+        .maybeSingle();
+      email = capture?.email;
+    }
+    if (!email) continue;
+
+    // Check suppression
+    const { data: pref } = await supabase
+      .from("crm_email_preferences")
+      .select("all_marketing, conversion, bounced")
+      .eq("email", email)
+      .maybeSingle();
+    if (pref && (!pref.all_marketing || !pref.conversion || pref.bounced)) continue;
+
+    // Fetch vehicle label from receipt
+    let vehicle: string | undefined;
+    let verdict: string | undefined;
+    if (receiptId) {
+      const { data: receipt } = await supabase
+        .from("receipts")
+        .select("output_json")
+        .eq("id", receiptId)
+        .maybeSingle();
+      if (receipt?.output_json) {
+        const out = receipt.output_json as Record<string, unknown>;
+        const summary = out.listing_summary as Record<string, unknown> | undefined;
+        vehicle = vehicleLabel(
+          summary?.year as number | null,
+          summary?.make as string | null,
+          summary?.model as string | null
+        );
+        verdict = out.verdict as string | undefined;
+      }
+    }
+
+    candidates.push({
+      email,
+      userId,
+      anonId,
+      eventId: ev.id as string,
+      receiptId,
+      vehicle,
+      verdict,
+      triggerType,
+    });
+
+    if (candidates.length >= limit) break;
+  }
+
+  return candidates;
+}
+
+// ── Win-back candidates ───────────────────────────────────────────────────────
+
+export async function getWinBackCandidates(
+  step: "30d" | "60d",
+  limit = 100
+): Promise<WinBackCandidate[]> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+
+  const dayThreshold = step === "30d" ? 30 : 60;
+  const cutoff = new Date(Date.now() - dayThreshold * 24 * 60 * 60 * 1000).toISOString();
+  const activityCutoff = new Date(Date.now() - (dayThreshold + 1) * 24 * 60 * 60 * 1000).toISOString();
+
+  // Use Supabase rpc or raw query via .rpc — fall back to JS-side filtering
+  // Fetch auth users who have receipts, then filter in JS (Supabase JS doesn't support
+  // cross-schema JOINs directly without an rpc or view)
+  const { data: receipts } = await supabase
+    .from("receipts")
+    .select("user_id, created_at, output_json")
+    .not("user_id", "is", null)
+    .lte("created_at", cutoff)
+    .order("created_at", { ascending: false })
+    .limit(limit * 3);
+
+  if (!receipts?.length) return [];
+
+  // Group by user_id and find last receipt per user
+  const userMap = new Map<string, { lastReceiptAt: string; vehicle?: string; count: number }>();
+  for (const r of receipts) {
+    const uid = r.user_id as string;
+    const existing = userMap.get(uid);
+    if (!existing || r.created_at > existing.lastReceiptAt) {
+      const out = r.output_json as Record<string, unknown> | null;
+      const summary = out?.listing_summary as Record<string, unknown> | undefined;
+      const v = vehicleLabel(
+        summary?.year as number | null,
+        summary?.make as string | null,
+        summary?.model as string | null
+      );
+      userMap.set(uid, {
+        lastReceiptAt: r.created_at as string,
+        vehicle: v !== "your vehicle" ? v : undefined,
+        count: (existing?.count ?? 0) + 1,
+      });
+    } else {
+      const entry = userMap.get(uid)!;
+      entry.count++;
+    }
+  }
+
+  const candidates: WinBackCandidate[] = [];
+
+  for (const [userId, info] of userMap.entries()) {
+    if (candidates.length >= limit) break;
+
+    // Check recent activity
+    const { count: recentActivity } = await supabase
+      .from("user_events")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("timestamp", activityCutoff);
+    if ((recentActivity ?? 0) > 0) continue;
+
+    // Check win-back state
+    const stateField = step === "30d" ? "winback_30_sent_at" : "winback_60_sent_at";
+    const { data: wb } = await supabase
+      .from("crm_win_back_state")
+      .select("id, winback_30_sent_at, winback_60_sent_at, exited_at")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (wb?.exited_at) continue;
+    if (wb?.[stateField as keyof typeof wb]) continue;
+
+    // For 60d, must have received 30d first
+    if (step === "60d" && !wb?.winback_30_sent_at) continue;
+
+    // Resolve email
+    const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+    const email = authUser?.user?.email;
+    if (!email) continue;
+
+    // Check suppression
+    const { data: pref } = await supabase
+      .from("crm_email_preferences")
+      .select("all_marketing, win_back, bounced")
+      .eq("email", email)
+      .maybeSingle();
+    if (pref && (!pref.all_marketing || !pref.win_back || pref.bounced)) continue;
+
+    candidates.push({
+      userId,
+      email,
+      lastReceiptAt: info.lastReceiptAt,
+      vehicle: info.vehicle,
+      receiptsGenerated: info.count,
+    });
+  }
+
+  return candidates;
+}
+
+// ── Digest recipients ─────────────────────────────────────────────────────────
+
+export async function getDigestRecipients(
+  limit: number,
+  offset: number,
+  weekKey: string
+): Promise<DigestRecipient[]> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+
+  // Auth users with deal watches or saved scenarios
+  const { data: users } = await supabase
+    .from("user_profiles")
+    .select("id, email")
+    .not("email", "is", null)
+    .range(offset, offset + limit - 1);
+
+  if (!users?.length) return [];
+
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - 7);
+
+  const recipients: DigestRecipient[] = [];
+
+  for (const user of users) {
+    // Must have deal watches or saved scenarios
+    const { count: dealWatchCount } = await supabase
+      .from("deal_watch_searches")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+
+    const { count: savedCount } = await supabase
+      .from("saved_scenarios")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+
+    if ((dealWatchCount ?? 0) === 0 && (savedCount ?? 0) === 0) continue;
+
+    // Check suppression
+    const { data: pref } = await supabase
+      .from("crm_email_preferences")
+      .select("all_marketing, weekly_digest, bounced")
+      .eq("email", user.email)
+      .maybeSingle();
+    if (pref && (!pref.all_marketing || !pref.weekly_digest || pref.bounced)) continue;
+
+    // Check not already sent this week
+    const { count: alreadySent } = await supabase
+      .from("crm_email_sends")
+      .select("id", { count: "exact", head: true })
+      .eq("idempotency_key", `digest:${user.id}:week:${weekKey}`);
+    if ((alreadySent ?? 0) > 0) continue;
+
+    // Deal watch matches this week
+    const { count: matchCount } = await supabase
+      .from("deal_watch_results")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("last_seen_at", weekStart.toISOString())
+      .gt("price_drop_amount", 0);
+
+    // Receipts this week
+    const { count: receiptsThisWeek } = await supabase
+      .from("receipts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", weekStart.toISOString());
+
+    recipients.push({
+      userId: user.id,
+      email: user.email,
+      dealWatchMatches: matchCount ?? 0,
+      receiptsThisWeek: receiptsThisWeek ?? 0,
+    });
+  }
+
+  return recipients;
+}
+
+// ── Market snapshot ───────────────────────────────────────────────────────────
+
+export async function getDigestMarketSnapshot(): Promise<MarketSnapshot> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return { avgPrice: 0, greenPct: 0, yellowPct: 0, redPct: 0, totalReceipts: 0 };
+
+  const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: receipts } = await supabase
+    .from("receipts")
+    .select("output_json")
+    .gte("created_at", weekStart)
+    .not("output_json", "is", null)
+    .limit(500);
+
+  if (!receipts?.length) {
+    return { avgPrice: 0, greenPct: 0, yellowPct: 0, redPct: 0, totalReceipts: 0 };
+  }
+
+  let totalPrice = 0;
+  let priceCount = 0;
+  let green = 0, yellow = 0, red = 0;
+
+  for (const r of receipts) {
+    const out = r.output_json as Record<string, unknown>;
+    const verdict = out?.verdict as string | undefined;
+    if (verdict === "GREEN") green++;
+    else if (verdict === "YELLOW") yellow++;
+    else if (verdict === "RED") red++;
+
+    const summary = out?.listing_summary as Record<string, unknown> | undefined;
+    const price = summary?.price as number | undefined;
+    if (price && price > 0) {
+      totalPrice += price;
+      priceCount++;
+    }
+  }
+
+  const total = receipts.length;
+  return {
+    avgPrice: priceCount > 0 ? Math.round(totalPrice / priceCount) : 0,
+    greenPct: total > 0 ? Math.round((green / total) * 100) : 0,
+    yellowPct: total > 0 ? Math.round((yellow / total) * 100) : 0,
+    redPct: total > 0 ? Math.round((red / total) * 100) : 0,
+    totalReceipts: total,
+  };
+}

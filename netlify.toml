@@ -30,5 +30,21 @@
 [functions.scan-deal-watch]
   timeout = 60
 
+# Scheduled function: daily activation email sender (runs at 10:30 UTC)
+[functions.send-activation-emails]
+  timeout = 50
+
+# Scheduled function: daily win-back email sender (runs at 11:00 UTC)
+[functions.send-win-back-emails]
+  timeout = 60
+
+# Scheduled function: conversion email sender (runs every 4 hours)
+[functions.send-conversion-emails]
+  timeout = 60
+
+# Scheduled function: weekly digest sender (Mondays at 13:00 UTC)
+[functions.send-weekly-digest]
+  timeout = 60
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"

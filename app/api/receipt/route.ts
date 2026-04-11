@@ -316,6 +316,15 @@ export async function POST(request: NextRequest) {
       console.error("[Receipt API] Lite DB insert failed:", insertErr.message, insertErr.code);
     } else {
       liteDbSaved = true;
+
+      // Exit win-back sequence if user is authenticated and in the win-back state
+      if (userId) {
+        supabase.from("crm_win_back_state")
+          .update({ exited_at: new Date().toISOString() })
+          .eq("user_id", userId)
+          .is("exited_at", null)
+          .then(() => {}, () => {});
+      }
     }
 
     // Log generate event

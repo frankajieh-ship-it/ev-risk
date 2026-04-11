@@ -53,6 +53,7 @@ export async function DELETE(request: NextRequest) {
     { table: "receipts", column: "user_id" },
     { table: "saved_scenarios", column: "user_id" },
     { table: "email_sequences", column: "user_id" },
+    { table: "crm_win_back_state", column: "user_id" },
   ];
 
   for (const { table, column } of deletions) {
@@ -60,6 +61,15 @@ export async function DELETE(request: NextRequest) {
       await supabase.from(table).delete().eq(column, userId);
     } catch (err) {
       // Log but continue — auth user deletion is the critical step
+      errors.push(`${table} delete: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // CRM tables keyed by user_id (email-keyed rows are pseudonymized, not deleted)
+  for (const table of ["crm_email_sends", "crm_email_preferences"]) {
+    try {
+      await supabase.from(table).delete().eq("user_id", userId);
+    } catch (err) {
       errors.push(`${table} delete: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
