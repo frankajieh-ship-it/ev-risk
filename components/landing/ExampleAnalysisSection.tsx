@@ -19,7 +19,7 @@ const verifyItems = [
 
 export default function ExampleAnalysisSection() {
   return (
-    <section className="py-16 md:py-24 bg-gradient-to-b from-gray-50 to-white">
+    <section className="py-16 md:py-24 bg-[#0d1117]">
       <div className="max-w-7xl mx-auto px-4">
         <div className="text-center mb-10">
           <motion.div
@@ -28,13 +28,14 @@ export default function ExampleAnalysisSection() {
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#00d97e] mb-2">Example</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
               Example Analysis
             </h2>
-            <p className="text-gray-500 text-base mb-6">
+            <p className="text-white/50 text-base mb-6">
               See what OFFO reveals about a listing
             </p>
-            <p className="text-sm text-gray-600 max-w-2xl mx-auto mb-8">
+            <p className="text-sm text-white/40 max-w-2xl mx-auto mb-8">
               Every analysis gives you a clear verdict, price comparison, and an actionable
               checklist — so you know exactly what to ask before you visit.
             </p>
@@ -51,9 +52,9 @@ export default function ExampleAnalysisSection() {
             {highlights.map((item) => (
               <span
                 key={item}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-700"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.06] border border-white/10 rounded-full text-xs font-medium text-white/70"
               >
-                <Check className="w-3 h-3 text-green-500" />
+                <Check className="w-3 h-3 text-[#00d97e]" />
                 {item}
               </span>
             ))}
@@ -69,7 +70,7 @@ export default function ExampleAnalysisSection() {
           className="max-w-2xl mx-auto"
         >
           <div className="mb-3 text-left">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-[#00d97e]/60 uppercase tracking-wider">
               Analysis Result
             </span>
           </div>
@@ -78,52 +79,52 @@ export default function ExampleAnalysisSection() {
           <SampleVerdictBlock />
 
           {/* Market Comparison mock */}
-          <div className="mt-4 bg-white rounded-xl border border-gray-200 p-5">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          <div className="mt-4 bg-white/[0.05] rounded-xl border border-white/10 p-5">
+            <h4 className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-3">
               Market Comparison
             </h4>
             <div className="flex items-center gap-2 mb-2">
-              <Shield className="w-4 h-4 text-green-500" />
-              <span className="text-sm font-medium text-green-700">Below Market</span>
+              <Shield className="w-4 h-4 text-[#00d97e]" />
+              <span className="text-sm font-medium text-[#00d97e]">Below Market</span>
             </div>
             {/* Price bar */}
-            <div className="relative h-2 bg-gray-100 rounded-full mb-2">
+            <div className="relative h-2 bg-white/10 rounded-full mb-2">
               <div
-                className="absolute top-0 left-0 h-2 bg-gradient-to-r from-green-400 to-green-500 rounded-full"
+                className="absolute top-0 left-0 h-2 bg-[#00d97e] rounded-full"
                 style={{ width: "47%" }}
               />
               <div
-                className="absolute top-0 h-2 w-0.5 bg-blue-600 rounded"
+                className="absolute top-0 h-2 w-0.5 bg-white/60 rounded"
                 style={{ left: "47%" }}
                 title="$28,500"
               />
               <div
-                className="absolute top-0 h-2 w-0.5 bg-gray-400 rounded"
+                className="absolute top-0 h-2 w-0.5 bg-white/20 rounded"
                 style={{ left: "67%" }}
                 title="$30,000 avg"
               />
             </div>
-            <div className="flex justify-between text-xs text-gray-500">
-              <span className="font-medium text-blue-600">$28,500</span>
+            <div className="flex justify-between text-xs text-white/40">
+              <span className="font-medium text-[#00d97e]">$28,500</span>
               <span>$30,000 avg</span>
               <span>$36,000</span>
             </div>
           </div>
 
           {/* Verify Before Visiting mock */}
-          <div className="mt-4 bg-white rounded-xl border border-gray-200 p-5">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          <div className="mt-4 bg-white/[0.05] rounded-xl border border-white/10 p-5">
+            <h4 className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-3">
               Verify Before Visiting
             </h4>
             <ul className="space-y-2.5">
               {verifyItems.map((item) => (
                 <li key={item.label} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-gray-300" />
-                    <span className="text-sm text-gray-700">{item.label}</span>
+                    <CheckCircle className="w-4 h-4 text-white/20" />
+                    <span className="text-sm text-white/70">{item.label}</span>
                   </div>
                   {item.priority && (
-                    <span className="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                    <span className="flex items-center gap-1 text-xs font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
                       <AlertTriangle className="w-3 h-3" />
                       High Priority
                     </span>

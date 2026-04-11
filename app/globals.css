@@ -466,6 +466,27 @@ body {
   color: #9ca3af;
 }
 
+/* ── Dark form inputs (used inside dark-themed cards) ──────────────────── */
+.dark-inputs .form-input,
+.dark-inputs .form-input-sm {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.10);
+  color: #ffffff;
+}
+.dark-inputs .form-input::placeholder,
+.dark-inputs .form-input-sm::placeholder { color: rgba(255,255,255,0.25); }
+.dark-inputs .form-input:focus,
+.dark-inputs .form-input-sm:focus {
+  border-color: rgba(0,217,126,0.5);
+  box-shadow: 0 0 0 1px rgba(0,217,126,0.3);
+}
+.dark-inputs .form-input:disabled,
+.dark-inputs .form-input-sm:disabled {
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.25);
+}
+.dark-inputs select option { background: #1a1f2e; color: #ffffff; }
+
 /* ── Loading skeleton ───────────────────────────────────────────────────── */
 .skeleton {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
