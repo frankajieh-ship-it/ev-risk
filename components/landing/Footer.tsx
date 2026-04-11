@@ -66,7 +66,7 @@ function NewsletterSignup() {
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-950 text-gray-500">
+    <footer className="bg-[#0d1117] border-t border-white/[0.06] text-gray-500">
       <div className="max-w-7xl mx-auto px-4 py-12">
         <NewsletterSignup />
 

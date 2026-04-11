@@ -9,7 +9,7 @@ import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-import { ArrowRight, Star, ChevronDown, ChevronUp, Mail, Sparkles } from "lucide-react";
+import { ArrowRight, Star, ChevronDown, ChevronUp, Mail } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import LoginModal from "@/components/LoginModal";
@@ -390,7 +390,7 @@ export default function Home() {
         <nav className="sticky top-0 z-50 bg-[#0d1117]/90 backdrop-blur-md border-b border-white/[0.06]">
           <div className="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between">
             <Link href="/">
-              <Image src="/offo-logo.jpg" alt="OFFO" width={200} height={103} className="w-24 sm:w-28 h-auto brightness-0 invert" priority />
+              <Image src="/offo-logo.jpg" alt="OFFO" width={200} height={103} className="w-24 sm:w-28 h-auto" priority />
             </Link>
             <div className="hidden md:flex items-center gap-6">
               <Link href="/receipt" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Receipt Check</Link>
@@ -474,29 +474,29 @@ export default function Home() {
       <div className="hidden"><Header variant="homepage" /></div>
 
       {/* ── Section 2: Trust Bar ─────────────────────────────────────── */}
-      <div className="border-y border-[var(--border-subtle)] bg-[var(--surface-1)] py-3">
-        <p className="text-center text-xs text-gray-500">
+      <div className="bg-[#0d1117] border-t border-white/[0.06] py-3">
+        <p className="text-center text-xs text-white/40 tracking-wide">
           Used by serious EV shoppers · Powered by Auto.dev + NHTSA data · No sales pitch. Just honest analysis.
         </p>
       </div>
 
       {/* ── Section: EV Routine Wizard ───────────────────────────────── */}
       {currentStep === "routine" && (
-        <div className="max-w-2xl mx-auto px-4 py-6">
+        <div className="max-w-2xl mx-auto px-4 py-6 bg-[#0d1117]">
           <div className="flex items-center gap-4">
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-xs font-medium text-white/40 uppercase tracking-wider whitespace-nowrap">
               EV Routine Check
             </span>
-            <div className="flex-1 h-px bg-gray-200" />
+            <div className="flex-1 h-px bg-white/10" />
           </div>
-          <p className="text-center text-sm text-gray-500 mt-3">
+          <p className="text-center text-sm text-white/40 mt-3">
             Check if an EV actually fits your charging routine before you commit.
           </p>
         </div>
       )}
 
-      <section id="fit-check" className="pb-12 md:pb-20">
+      <section id="fit-check" className="pb-12 md:pb-20 bg-[#0d1117]">
         <div className="max-w-3xl mx-auto px-4">
           {/* Wizard heading — only on routine step */}
           {currentStep === "routine" && (
@@ -507,10 +507,10 @@ export default function Home() {
               transition={{ duration: 0.5 }}
               className="text-center mb-8"
             >
-              <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
+              <h2 className="text-xl md:text-2xl font-bold text-white mb-2">
                 Check if this EV fits your routine
               </h2>
-              <p className="text-gray-500 text-sm">
+              <p className="text-white/40 text-sm">
                 3 quick questions. No sign-up needed.
               </p>
             </motion.div>
@@ -520,16 +520,16 @@ export default function Home() {
           {currentStep !== "generating" && (
             <div className="mb-6">
               <div className="flex items-center justify-center gap-3">
-                <div className={`flex items-center gap-2 ${currentStep === "routine" ? "text-blue-600" : "text-gray-500"}`}>
+                <div className={`flex items-center gap-2 ${currentStep === "routine" ? "text-[#00d97e]" : "text-white/30"}`}>
                   <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                    currentStep === "routine" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
+                    currentStep === "routine" ? "bg-[#00d97e] text-[#0d1117]" : "bg-white/10 text-white/40"
                   }`}>1</span>
                   <span className="text-sm font-medium hidden sm:inline">Your Routine</span>
                 </div>
-                <div className="w-8 h-px bg-gray-300" />
-                <div className={`flex items-center gap-2 ${currentStep === "recommendations" || currentStep === "vehicle_manual" ? "text-blue-600" : "text-gray-500"}`}>
+                <div className="w-8 h-px bg-white/10" />
+                <div className={`flex items-center gap-2 ${currentStep === "recommendations" || currentStep === "vehicle_manual" ? "text-[#00d97e]" : "text-white/30"}`}>
                   <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                    currentStep === "recommendations" || currentStep === "vehicle_manual" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
+                    currentStep === "recommendations" || currentStep === "vehicle_manual" ? "bg-[#00d97e] text-[#0d1117]" : "bg-white/10 text-white/40"
                   }`}>2</span>
                   <span className="text-sm font-medium hidden sm:inline">Find Your EV</span>
                 </div>
@@ -601,14 +601,14 @@ export default function Home() {
               animate={{ opacity: 1, scale: 1 }}
               className="text-center py-16"
             >
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-6">
-                <svg className="w-8 h-8 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/10 mb-6">
+                <svg className="w-8 h-8 text-[#00d97e] animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Analyzing your routine fit...</h3>
-              <p className="text-gray-600">Building your personalized report</p>
+              <h3 className="text-xl font-semibold text-white mb-2">Analyzing your routine fit...</h3>
+              <p className="text-white/40">Building your personalized report</p>
             </motion.div>
           )}
         </div>
@@ -634,10 +634,10 @@ export default function Home() {
       )}
 
       {/* ── Section 3: How It Works ──────────────────────────────────── */}
-      <HowItWorksSection variant="homepage" />
+      <HowItWorksSection variant="homepage" dark />
 
       {/* ── Section 6: Social Proof ──────────────────────────────────── */}
-      <section className="section bg-[var(--surface-1)]">
+      <section className="section bg-[#111827]">
         <div className="max-w-5xl mx-auto px-4 mb-10">
           <div className="flex flex-col md:flex-row items-center gap-8">
             <div className="w-full md:w-1/2">
@@ -650,11 +650,11 @@ export default function Home() {
               />
             </div>
             <div className="w-full md:w-1/2">
-              <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Real results</p>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4" style={{ lineHeight: "var(--leading-snug)" }}>
+              <p className="text-xs font-semibold uppercase tracking-widest text-[#00d97e] mb-3">Real results</p>
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-4" style={{ lineHeight: "var(--leading-snug)" }}>
                 Know the risks before you commit.
               </h2>
-              <p className="text-[0.9375rem] text-gray-500" style={{ lineHeight: "var(--leading-normal)" }}>
+              <p className="text-[0.9375rem] text-white/50" style={{ lineHeight: "var(--leading-normal)" }}>
                 OFFO surfaces what listing pages hide — battery degradation, overpricing, open recalls, and missing service history — so you walk in with the right questions.
               </p>
             </div>
@@ -663,12 +663,12 @@ export default function Home() {
 
         {/* Testimonial cards */}
         <div className="max-w-5xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
+          <h2 className="text-2xl font-bold text-white text-center mb-2">
             {totalReceipts !== null
               ? `${totalReceipts.toLocaleString()}+ vehicles analyzed`
               : "5.0 stars from 200+ reviews"}
           </h2>
-          <p className="text-sm text-gray-500 text-center mb-8">Real OFFO users, real decisions.</p>
+          <p className="text-sm text-white/40 text-center mb-8">Real OFFO users, real decisions.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { name: "Marcus T.", location: "Chicago, IL", photo: "/car-bolt-ev.webp", quote: "Saved $2,400 on a used Bolt after seeing the hidden battery risk flag. Would never have caught it myself.", tag: "Used-EV buyer" },
@@ -676,20 +676,20 @@ export default function Home() {
               { name: "Jordan R.", location: "Denver, CO", photo: "/car-tesla-model3.webp", quote: "Compared 12 listings in one weekend. First time I've ever felt confident walking into a dealership...", tag: "EV switcher" },
               { name: "Alicia M.", location: "Seattle, WA", photo: "/car-hyundai-kona.webp", quote: "The apartment charging check alone was worth it. OFFO told me exactly which vehicles fit my situation.", tag: "Apartment renter" },
             ].map(({ name, location, photo, quote, tag }) => (
-              <div key={name} className="card-base overflow-hidden flex flex-col bg-white">
-                <div className="h-36 overflow-hidden bg-gray-50">
+              <div key={name} className="overflow-hidden flex flex-col rounded-xl border border-white/10 bg-white/5">
+                <div className="h-36 overflow-hidden bg-white/5">
                   <Image src={photo} alt={name} width={300} height={144} className="w-full h-full object-cover object-center" />
                 </div>
                 <div className="p-4 flex flex-col flex-1">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex gap-0.5">
-                      {[1,2,3,4,5].map(s => <Star key={s} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />)}
+                      {[1,2,3,4,5].map(s => <Star key={s} className="w-3 h-3 text-[#00d97e] fill-[#00d97e]" />)}
                     </div>
-                    <span className="text-xs font-bold text-gray-400 tracking-wide">G</span>
+                    <span className="text-[0.6875rem] font-bold text-white/20 tracking-wide">G</span>
                   </div>
-                  <p className="text-xs font-semibold text-gray-900 underline mb-1">{name}</p>
-                  <p className="text-xs text-gray-600 leading-relaxed flex-1">{quote}</p>
-                  <p className="text-xs text-gray-400 mt-2">{tag} · {location}</p>
+                  <p className="text-xs font-semibold text-white mb-1">{name}</p>
+                  <p className="text-xs text-white/50 leading-relaxed flex-1">{quote}</p>
+                  <p className="text-xs text-white/25 mt-2">{tag} · {location}</p>
                 </div>
               </div>
             ))}
@@ -698,43 +698,43 @@ export default function Home() {
       </section>
 
       {/* ── Section 7: Featured Vehicles ─────────────────────────────── */}
-      <section className="section bg-white">
+      <section className="section bg-[#0d1117]">
         <div className="max-w-5xl mx-auto px-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Popular on OFFO</p>
-          <h2 className="text-2xl font-bold text-gray-900 mb-1" style={{ lineHeight: "var(--leading-snug)" }}>Top searches this week</h2>
-          <p className="text-sm text-gray-500 mb-8">Popular vehicles analyzed by OFFO users.</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#00d97e] mb-2">Popular on OFFO</p>
+          <h2 className="text-2xl font-bold text-white mb-1" style={{ lineHeight: "var(--leading-snug)" }}>Top searches this week</h2>
+          <p className="text-sm text-white/40 mb-8">Popular vehicles analyzed by OFFO users.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {featuredVehicles.map(({ year, make, model, trim, mileage, range, score, price, badge, people, img }) => (
               <Link
                 key={`${year}-${make}-${model}`}
                 href={`/receipt?q=${encodeURIComponent(`${year} ${make} ${model}`)}`}
-                className="card-base card-interactive overflow-hidden flex flex-col group"
+                className="overflow-hidden flex flex-col rounded-xl border border-white/10 bg-white/5 hover:border-[#00d97e]/40 hover:bg-white/[0.08] transition-all group"
               >
-                <div className="relative h-36 overflow-hidden bg-gray-50">
+                <div className="relative h-36 overflow-hidden bg-white/5">
                   <Image src={img} alt={`${year} ${make} ${model}`} width={300} height={144} className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300" />
                   {badge && (
-                    <div className="absolute top-0 left-0 bg-black text-white text-xs font-bold px-2 py-1 rounded-br-lg">
+                    <div className="absolute top-0 left-0 bg-[#00d97e] text-[#0d1117] text-xs font-bold px-2 py-1 rounded-br-lg">
                       {badge}
                     </div>
                   )}
-                  <div className="absolute top-2 right-2 w-7 h-7 bg-white rounded-full border border-gray-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ArrowRight className="w-3.5 h-3.5 text-gray-500" />
+                  <div className="absolute top-2 right-2 w-7 h-7 bg-white/10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ArrowRight className="w-3.5 h-3.5 text-white" />
                   </div>
                 </div>
                 <div className="p-4">
-                  <p className="text-sm font-bold text-gray-900">{year} {make} {model}</p>
-                  <p className="text-xs text-gray-500 mb-2">{trim} · {mileage} · {range}</p>
+                  <p className="text-sm font-bold text-white">{year} {make} {model}</p>
+                  <p className="text-xs text-white/40 mb-2">{trim} · {mileage} · {range}</p>
                   <div className="flex items-center gap-2 mb-1">
-                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-green-500 rounded-full" style={{ width: `${score}%` }} />
+                    <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-full bg-[#00d97e] rounded-full" style={{ width: `${score}%` }} />
                     </div>
-                    <span className="text-xs font-semibold text-gray-700">{score}/100</span>
+                    <span className="text-xs font-semibold text-white/70">{score}/100</span>
                   </div>
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs text-gray-400">OFFO Fit Score</p>
-                    <p className="text-xs text-blue-500 font-medium">{people.toLocaleString()} fits this</p>
+                    <p className="text-xs text-white/30">OFFO Fit Score</p>
+                    <p className="text-xs text-[#00d97e]/80 font-medium">{people.toLocaleString()} fits this</p>
                   </div>
-                  <p className="text-sm font-bold text-gray-900 border-t border-gray-100 pt-3">{price}</p>
+                  <p className="text-sm font-bold text-white border-t border-white/10 pt-3">{price}</p>
                 </div>
               </Link>
             ))}
@@ -743,78 +743,73 @@ export default function Home() {
       </section>
 
       {/* ── Coming Soon: EV Mechanic Finder ─────────────────────────── */}
-      <section className="py-10 md:py-14">
+      <section className="py-10 md:py-14 bg-[#0d1117]">
         <div className="max-w-5xl mx-auto px-4">
-          <div className="relative rounded-2xl border border-orange-100 bg-gradient-to-br from-orange-50 to-amber-50 p-8 overflow-hidden">
-            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 bg-orange-100 rounded-full border border-orange-200">
-              <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-              <span className="text-xs font-semibold text-orange-700 uppercase tracking-wider">Coming Soon</span>
+          <div className="relative rounded-2xl border border-white/10 bg-white/[0.04] p-8 overflow-hidden">
+            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
+              <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+              <span className="text-xs font-semibold text-orange-400 uppercase tracking-wider">Coming Soon</span>
             </div>
-
             <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
               <div className="flex-1">
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">Find a Trusted EV Mechanic Near You</h2>
-                <p className="text-sm text-gray-600 leading-relaxed max-w-lg">
+                <h2 className="text-xl md:text-2xl font-bold text-white mb-2">Find a Trusted EV Mechanic Near You</h2>
+                <p className="text-sm text-white/40 leading-relaxed max-w-lg">
                   We&apos;re building a verified network of EV-specialist mechanics. Get pre-purchase inspections, battery health checks, and ongoing maintenance from shops that know EVs.
                 </p>
               </div>
               <div className="flex gap-2 shrink-0 select-none pointer-events-none" aria-hidden>
                 {["EV Specialist · Austin, TX", "Battery Expert · Denver, CO", "Tesla Certified · Seattle, WA"].map((label) => (
-                  <div key={label} className="blur-sm bg-white rounded-xl border border-gray-200 p-3 w-36 shadow-sm">
-                    <div className="w-8 h-8 rounded-full bg-orange-100 mb-2" />
-                    <div className="h-2 bg-gray-200 rounded mb-1 w-3/4" />
-                    <div className="h-2 bg-gray-100 rounded w-full mb-2" />
-                    <p className="text-xs text-gray-400">{label}</p>
+                  <div key={label} className="blur-sm bg-white/5 rounded-xl border border-white/10 p-3 w-36">
+                    <div className="w-8 h-8 rounded-full bg-orange-400/20 mb-2" />
+                    <div className="h-2 bg-white/10 rounded mb-1 w-3/4" />
+                    <div className="h-2 bg-white/5 rounded w-full mb-2" />
+                    <p className="text-xs text-white/20">{label}</p>
                   </div>
                 ))}
               </div>
             </div>
-
             <div className="mt-5 flex items-center gap-3">
-              <button
-                disabled
-                className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-semibold opacity-60 cursor-not-allowed"
-              >
+              <button disabled className="px-5 py-2.5 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-xl text-sm font-semibold cursor-not-allowed">
                 Find a Mechanic — Coming Soon
               </button>
-              <p className="text-xs text-orange-700">Launching soon — mechanics can join the waitlist at <span className="font-medium">/mechanics/join</span></p>
+              <p className="text-xs text-white/25">Launching soon — mechanics can join at <span className="font-medium text-white/40">/mechanics/join</span></p>
             </div>
           </div>
         </div>
       </section>
 
       {/* ── Section 8: FAQ + Contact ──────────────────────────────────── */}
-      <section className="py-10 md:py-16 bg-blue-50/30">
+      <section className="py-10 md:py-16 bg-[#111827]">
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex flex-col lg:flex-row gap-12">
             <div className="lg:w-64 shrink-0">
-              <h2 className="text-2xl font-bold text-gray-900 mb-3 leading-snug">Your questions,<br />answered</h2>
-              <p className="text-sm text-gray-500 mb-1">Can&apos;t find what you&apos;re looking for?</p>
-              <p className="text-sm text-gray-500 mb-5">Check out our <Link href="/receipt" className="underline text-gray-700 hover:text-gray-900">Analyze tool</Link> or reach out.</p>
+              <h2 className="text-2xl font-bold text-white mb-3" style={{ lineHeight: "var(--leading-snug)" }}>Your questions,<br />answered</h2>
+              <p className="text-sm text-white/40 mb-1">Can&apos;t find what you&apos;re looking for?</p>
+              <p className="text-sm text-white/40 mb-5">Check out our <Link href="/receipt" className="text-[#00d97e] hover:text-[#00f090] transition-colors">Analyze tool</Link> or reach out.</p>
               <a
                 href="mailto:hello@offo.app"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#00d97e] hover:bg-[#00f090] text-[#0d1117] text-sm font-semibold rounded-xl transition-colors"
               >
                 <Mail className="w-4 h-4" />
                 Contact us
               </a>
             </div>
 
-            <div className="flex-1 divide-y divide-gray-200">
+            <div className="flex-1 divide-y divide-white/[0.07]">
               {faqs.map((faq, i) => (
                 <div key={i} className="py-4">
                   <button
                     onClick={() => setOpenFaq(openFaq === i ? null : i)}
                     className="w-full flex items-center justify-between text-left gap-4"
                   >
-                    <span className="text-sm font-medium text-gray-800">{faq.q}</span>
+                    <span className="text-sm font-medium text-white/80">{faq.q}</span>
                     {openFaq === i
-                      ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
-                      : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                      ? <ChevronUp className="w-4 h-4 text-white/30 shrink-0" />
+                      : <ChevronDown className="w-4 h-4 text-white/30 shrink-0" />
                     }
                   </button>
                   {openFaq === i && (
-                    <p className="mt-3 text-sm text-gray-600 leading-relaxed">{faq.a}</p>
+                    <p className="mt-3 text-sm text-white/40 leading-relaxed">{faq.a}</p>
                   )}
                 </div>
               ))}
@@ -824,13 +819,13 @@ export default function Home() {
       </section>
 
       {/* ── Section 9: Final CTA ─────────────────────────────────────── */}
-      <section className="section text-center bg-gray-950">
+      <section className="section text-center bg-[#0d1117] border-t border-white/[0.06]">
         <div className="max-w-lg mx-auto px-4">
-          <h2 className="text-2xl font-bold text-white mb-2" style={{ lineHeight: "var(--leading-snug)" }}>Ready to check a listing?</h2>
-          <p className="text-[0.9375rem] text-white/50 mb-6">Takes under 30 seconds. Free, no account needed.</p>
+          <h2 className="text-3xl font-bold text-white mb-3" style={{ lineHeight: "var(--leading-snug)" }}>Ready to check a listing?</h2>
+          <p className="text-[0.9375rem] text-white/40 mb-8">Takes under 30 seconds. Free, no account needed.</p>
           <button
             onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); document.getElementById("listing-input")?.focus(); }}
-            className="px-6 py-3 bg-white text-gray-900 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors"
+            className="px-8 py-3.5 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-xl hover:bg-[#00f090] transition-colors"
           >
             Paste it here →
           </button>
@@ -838,28 +833,24 @@ export default function Home() {
       </section>
 
       {/* ── Data Sources Trust Bar ──────────────────────────────────── */}
-      <section className="bg-[#1a2332] py-8 px-4">
+      <section className="bg-[#0d1117] border-t border-white/[0.06] py-8 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="flex flex-col md:flex-row items-center gap-6 md:gap-0">
             <div className="md:pr-8 md:border-r md:border-white/10 shrink-0 text-center md:text-left">
-              <p className="text-teal-400 font-semibold text-sm leading-tight">Powered by</p>
-              <p className="text-white font-bold text-base leading-tight">trusted automotive</p>
-              <p className="text-white font-bold text-base leading-tight">data sources</p>
+              <p className="text-[#00d97e] font-semibold text-xs uppercase tracking-widest leading-tight mb-1">Powered by</p>
+              <p className="text-white/70 font-semibold text-sm leading-tight">trusted automotive data</p>
             </div>
-            <div className="flex flex-wrap justify-center md:justify-start items-center md:pl-8">
+            <div className="flex flex-wrap justify-center md:justify-start items-center md:pl-8 gap-1">
               {[
-                { name: "Auto.dev", icon: "◎" },
-                { name: "NHTSA", icon: "✦" },
-                { name: "EPA Fuel Economy", icon: "◈" },
-                { name: "NREL EV charging data", icon: "⚡" },
-                { name: "AAA EV Studies", icon: "◎" },
+                { name: "Auto.dev" },
+                { name: "NHTSA" },
+                { name: "EPA Fuel Economy" },
+                { name: "NREL EV charging" },
+                { name: "AAA EV Studies" },
               ].map((src, i) => (
                 <div key={src.name} className="flex items-center">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5">
-                    <span className="text-white/40 text-xs">{src.icon}</span>
-                    <span className="text-sm font-medium text-white/80 whitespace-nowrap">{src.name}</span>
-                  </div>
-                  {i < 4 && <span className="text-white/20 text-sm mx-1 hidden sm:inline">→</span>}
+                  <span className="text-[0.8125rem] font-medium text-white/30 whitespace-nowrap px-2 py-1">{src.name}</span>
+                  {i < 4 && <span className="text-white/10 hidden sm:inline">·</span>}
                 </div>
               ))}
             </div>
