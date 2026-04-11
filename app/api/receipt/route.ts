@@ -15,7 +15,7 @@
  * - Daily: 1 free receipt/day per receipt_token (Pro unlimited)
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getClientIP } from "@/lib/rate-limiter";
 import { receiptBurstLimiter, checkDailyLimit, incrementDailyCount, decrementReceiptCredit } from "@/lib/receipt-rate-limiter";
 import { generateReceipt, fixReceiptFormatting, buildEnhancedFallbackReceipt } from "@/lib/receipt-openai";
@@ -446,17 +446,20 @@ export async function POST(request: NextRequest) {
     t0,
   };
 
-  // Run the AI upgrade directly in this request context (fire-and-forget).
-  // maxDuration=90 gives us 90s — enough for the hedged AI call (primary wins in ~10-20s).
-  // The Netlify Background Function path is kept as an optional enhancement below,
-  // but direct execution is the reliable path that always works regardless of plan.
-  runReceiptUpgrade(upgradePayload).catch((err) => {
-    console.error("[Receipt] Upgrade failed:", err instanceof Error ? err.message : err);
-    if (isSupabaseConfigured()) {
-      supabase.from("receipts")
-        .update({ generation_status: "failed" })
-        .eq("id", liteReceipt.receipt_id)
-        .then(() => {});
+  // Schedule the AI upgrade to run after the response is sent.
+  // `after()` (Next.js 15+) guarantees the work runs even after the response flushes —
+  // this is the correct pattern for Netlify serverless where fire-and-forget after
+  // a return statement gets killed by the runtime before completing.
+  after(async () => {
+    try {
+      await runReceiptUpgrade(upgradePayload);
+    } catch (err) {
+      console.error("[Receipt] Upgrade failed:", err instanceof Error ? err.message : err);
+      if (isSupabaseConfigured()) {
+        await supabase.from("receipts")
+          .update({ generation_status: "failed" })
+          .eq("id", liteReceipt.receipt_id);
+      }
     }
   });
 
