@@ -178,9 +178,10 @@ export async function liteCheck(
   const sales = rawSales.map((s) => {
     const sAny = s as unknown as Record<string, unknown>;
     const photos = sAny.photos as { url?: string | string[] } | undefined;
+    const photoUrl = (photos?.url ?? sAny.photo_url) as string | string[] | null | undefined;
     return {
       ...s,
-      photo_urls: toArray<string>(photos?.url ?? sAny.photo_url),
+      photo_urls: toArray<string>(photoUrl),
     };
   });
 
