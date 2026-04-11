@@ -5,16 +5,34 @@ import { useRouter } from "next/navigation";
 
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { useSessionTracking } from "@/hooks/useSessionTracking";
+import { useTurnstile } from "@/hooks/useTurnstile";
+import { useAuth } from "@/hooks/useAuth";
+import { motion } from "framer-motion";
 import { ArrowRight, Star, ChevronDown, ChevronUp, Mail, Sparkles } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import LoginModal from "@/components/LoginModal";
+import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
+import VehicleInputTabs from "@/components/VehicleInputTabs";
+import VehicleRecommendations from "@/components/VehicleRecommendations";
+import SavedScenariosList from "@/components/SavedScenariosList";
+import RoutineStep from "@/components/RoutineStep";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
-import FitQuizLauncher from "@/components/FitQuizLauncher";
-import FitQuizModal from "@/components/FitQuizModal";
+import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
+import type { MinimumViableRoutine } from "@/types/v2";
 
+type WizardStep = "routine" | "recommendations" | "vehicle_manual" | "generating";
+
+interface ExtractedVehicleData {
+  model: string;
+  year: number;
+  currentMileage: number;
+  price: number;
+  vin: string;
+}
 
 export default function Home() {
   const router = useRouter();
@@ -40,8 +58,11 @@ export default function Home() {
     }
   }, []);
 
+  const { isAuthenticated } = useAuth();
+  const { executeTurnstile } = useTurnstile();
+  const { startSession, completeSession } = useSessionTracking();
+
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showFitQuiz, setShowFitQuiz] = useState(false);
   const [totalReceipts, setTotalReceipts] = useState<number | null>(null);
 
   useEffect(() => {
@@ -58,7 +79,7 @@ export default function Home() {
     trackSessionDuration: true,
   });
 
-  const { trackEvent, trackLandingView } = useEventTracking();
+  const { trackEvent, trackLandingView, trackButtonClick, trackUrlAutofillAttempt, trackIntakeStarted } = useEventTracking();
 
   // Fire landing_view on mount
   useEffect(() => {
@@ -114,6 +135,216 @@ export default function Home() {
     }
   };
 
+  // ── V2 Wizard state ──────────────────────────────────────────────────────────
+  const [currentStep, setCurrentStep] = useState<WizardStep>("routine");
+  const [routineData, setRoutineData] = useState<MinimumViableRoutine | null>(null);
+
+  // Manual Entry Modal (for URL parse failures)
+  const [manualEntryOpen, setManualEntryOpen] = useState(false);
+  const [manualEntryMissingFields, setManualEntryMissingFields] = useState<string[]>([]);
+
+  // URL Extraction
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
+  const [extractWarnings, setExtractWarnings] = useState<string[]>([]);
+  const [extractedVehicleData, setExtractedVehicleData] = useState<ExtractedVehicleData | null>(null);
+  const [showExtractedData, setShowExtractedData] = useState(false);
+
+  // Generating state
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
+  // Call /api/score with v2 schema and navigate to report
+  const generateV2Report = async (
+    routine: MinimumViableRoutine,
+    vehicleData?: { model: string; year: number; currentMileage?: number }
+  ) => {
+    setCurrentStep("generating");
+    setGenerateError(null);
+
+    trackEvent("v2_score_submit", {
+      has_vehicle: !!vehicleData,
+      charging_access: routine.charging_access,
+      climate: routine.climate,
+    });
+    trackEvent("report_generation_started", {
+      has_vehicle: !!vehicleData,
+      schema_version: "v2",
+    });
+
+    try {
+      // Turnstile bot protection
+      const turnstileToken = await executeTurnstile();
+
+      const response = await fetch("/api/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schema_version: "v2",
+          routine,
+          turnstileToken: turnstileToken || undefined,
+          leave_this_empty: "",
+          ...(vehicleData ? {
+            model: vehicleData.model,
+            year: vehicleData.year,
+            currentMileage: vehicleData.currentMileage ?? 0,
+          } : {}),
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        // Turnstile rejection
+        if (response.status === 403 && result.captcha_required) {
+          throw new Error("Verification failed. Please refresh and try again.");
+        }
+        throw new Error(result.error || result.details?.join(", ") || "Scoring failed");
+      }
+
+      // Auto-persist report to database (non-blocking)
+      try {
+        const persistRes = await fetch("/api/report/free", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reportData: result }),
+        });
+        if (persistRes.ok) {
+          const { reportId } = await persistRes.json();
+          result._persisted_report_id = reportId;
+        }
+      } catch (persistErr) {
+        console.warn("[Report] DB persist failed:", persistErr);
+      }
+
+      // Navigate to report page with v2 data
+      const params = new URLSearchParams({
+        data: JSON.stringify(result),
+      });
+      router.push(`/report?${params.toString()}`);
+    } catch (err) {
+      console.warn("[Frontend] V2 score error:", err);
+      trackEvent("report_generation_failed", {
+        error: err instanceof Error ? err.message : "unknown",
+        schema_version: "v2",
+      });
+      setGenerateError(err instanceof Error ? err.message : "An error occurred");
+      // Go back to recommendations so user can retry
+      setCurrentStep("recommendations");
+    }
+  };
+
+  // Routine step complete → advance to recommendations
+  const handleRoutineComplete = (routine: MinimumViableRoutine) => {
+    setRoutineData(routine);
+    setCurrentStep("recommendations");
+    try { sessionStorage.setItem("offo_routine_context", JSON.stringify(routine)); } catch {}
+    trackButtonClick("routine_step_complete", "homepage");
+    trackIntakeStarted();
+
+    // Session tracking: start session + complete with routine inputs
+    startSession({ source: "homepage" }).then((sid) => {
+      if (sid) {
+        completeSession(
+          {
+            chargingAccess: routine.charging_access,
+            weeklyMiles: routine.weekly_miles,
+            climate: routine.climate,
+            longestDayPattern: routine.longest_day_pattern,
+          },
+          {}
+        ).catch(() => {});
+      }
+    }).catch(() => {});
+  };
+
+  // Vehicle step: URL extraction
+  const handleExtractListing = async (url: string) => {
+    trackButtonClick("home_scan_submit", "homepage");
+    setExtracting(true);
+    setExtractError(null);
+    setExtractWarnings([]);
+
+    try {
+      const response = await fetch("/api/extract-listing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        if (result.needsMoreInfo && result.missing) {
+          setManualEntryMissingFields(result.missing);
+          setManualEntryOpen(true);
+          trackUrlAutofillAttempt(url, false, null, "Parse failure - manual entry required");
+        } else {
+          setExtractError(result.error || "Failed to extract listing data");
+          setExtractWarnings(result.warnings || []);
+          trackUrlAutofillAttempt(url, false, null, result.error);
+        }
+        return;
+      }
+
+      trackUrlAutofillAttempt(url, true, result.data);
+
+      const mileage = result.data.mileage || 0;
+      setExtractedVehicleData({
+        model: result.data.model || "",
+        year: result.data.year || new Date().getFullYear(),
+        currentMileage: mileage,
+        price: result.data.price || 0,
+        vin: result.data.vin || "",
+      });
+      setShowExtractedData(true);
+      trackButtonClick("url_scan_success", "homepage");
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "An error occurred";
+      setExtractError(errorMsg);
+      trackUrlAutofillAttempt(url, false, null, errorMsg);
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  // Vehicle step: manual entry from modal (URL parse failure fallback)
+  const handleManualEntry = async (manualData: ManualVehicleData) => {
+    const vehicleData = {
+      model: `${manualData.make} ${manualData.model}`,
+      year: manualData.year,
+      currentMileage: manualData.mileage || 0,
+    };
+    setManualEntryOpen(false);
+    trackButtonClick("manual_entry_success", "homepage");
+    generateV2Report(routineData!, vehicleData);
+  };
+
+  // Vehicle step: inline manual entry
+  const handleManualEntryInline = async (manualData: ManualEntryData) => {
+    trackEvent("manual_entry_submit", {
+      context: "homepage",
+      has_mileage: !!manualData.mileage,
+      has_battery_info: manualData.batteryInfoAvailable,
+      missing_fields_count: manualData.missingFields.length,
+    });
+
+    const vehicleData = {
+      model: `${manualData.make} ${manualData.model}`,
+      year: manualData.year,
+      currentMileage: manualData.mileage || 0,
+    };
+    generateV2Report(routineData!, vehicleData);
+  };
+
+  // Vehicle step: confirm extracted data → generate report
+  const handleConfirmExtracted = () => {
+    setShowExtractedData(false);
+    generateV2Report(routineData!, {
+      model: extractedVehicleData!.model,
+      year: extractedVehicleData!.year,
+      currentMileage: extractedVehicleData!.currentMileage,
+    });
+  };
 
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
@@ -172,7 +403,7 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Right: inline paste box — the "aha moment" above the fold */}
+          {/* Right: inline paste box */}
           <div className="bg-white rounded-2xl border border-blue-100 shadow-xl p-6">
             <h2 className="text-base font-bold text-gray-900 mb-1">Analyze any listing or auction</h2>
             <p className="text-sm text-gray-500 mb-4">Paste a URL and get an instant AI deal rating — free, no account needed.</p>
@@ -225,17 +456,157 @@ export default function Home() {
         </p>
       </div>
 
-      {/* ── Section: EV Fit Check ────────────────────────────────────── */}
-      <section className="py-10 md:py-14 bg-white">
-        <div className="max-w-2xl mx-auto px-4">
-          <p className="text-center text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
-            Not sure where to start?
+      {/* ── Section: EV Routine Wizard ───────────────────────────────── */}
+      {currentStep === "routine" && (
+        <div className="max-w-2xl mx-auto px-4 py-6">
+          <div className="flex items-center gap-4">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+              EV Routine Check
+            </span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+          <p className="text-center text-sm text-gray-500 mt-3">
+            Check if an EV actually fits your charging routine before you commit.
           </p>
-          <FitQuizLauncher onClick={() => setShowFitQuiz(true)} />
+        </div>
+      )}
+
+      <section id="fit-check" className="pb-12 md:pb-20">
+        <div className="max-w-3xl mx-auto px-4">
+          {/* Wizard heading — only on routine step */}
+          {currentStep === "routine" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="text-center mb-8"
+            >
+              <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
+                Check if this EV fits your routine
+              </h2>
+              <p className="text-gray-500 text-sm">
+                3 quick questions. No sign-up needed.
+              </p>
+            </motion.div>
+          )}
+
+          {/* Step Indicator */}
+          {currentStep !== "generating" && (
+            <div className="mb-6">
+              <div className="flex items-center justify-center gap-3">
+                <div className={`flex items-center gap-2 ${currentStep === "routine" ? "text-blue-600" : "text-gray-500"}`}>
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
+                    currentStep === "routine" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
+                  }`}>1</span>
+                  <span className="text-sm font-medium hidden sm:inline">Your Routine</span>
+                </div>
+                <div className="w-8 h-px bg-gray-300" />
+                <div className={`flex items-center gap-2 ${currentStep === "recommendations" || currentStep === "vehicle_manual" ? "text-blue-600" : "text-gray-500"}`}>
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
+                    currentStep === "recommendations" || currentStep === "vehicle_manual" ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-600"
+                  }`}>2</span>
+                  <span className="text-sm font-medium hidden sm:inline">Find Your EV</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 1: Routine */}
+          {currentStep === "routine" && (
+            <RoutineStep onComplete={handleRoutineComplete} />
+          )}
+
+          {/* Step 2a: Vehicle Recommendations */}
+          {currentStep === "recommendations" && routineData && (
+            <VehicleRecommendations
+              routine={routineData}
+              onSelectVehicle={(vehicle) => generateV2Report(routineData, vehicle)}
+              onSwitchToManual={() => setCurrentStep("vehicle_manual")}
+              onBack={() => setCurrentStep("routine")}
+            />
+          )}
+
+          {/* Step 2b: Manual Vehicle Entry (fallback) */}
+          {currentStep === "vehicle_manual" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <div className="mb-4">
+                <button
+                  onClick={() => setCurrentStep("recommendations")}
+                  className="flex items-center text-gray-500 hover:text-gray-700 transition-colors text-sm"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Back to recommendations
+                </button>
+              </div>
+
+              {generateError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                  {generateError}
+                </div>
+              )}
+
+              <VehicleInputTabs
+                onExtract={handleExtractListing}
+                extracting={extracting}
+                error={extractError}
+                warnings={extractWarnings}
+                extractedData={showExtractedData ? extractedVehicleData : null}
+                onConfirm={handleConfirmExtracted}
+                onReset={() => {
+                  setExtractedVehicleData(null);
+                  setShowExtractedData(false);
+                  setExtractError(null);
+                }}
+                onManualSubmit={handleManualEntryInline}
+              />
+            </motion.div>
+          )}
+
+          {/* Generating state */}
+          {currentStep === "generating" && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-16"
+            >
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-6">
+                <svg className="w-8 h-8 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Analyzing your routine fit...</h3>
+              <p className="text-gray-600">Building your personalized report</p>
+            </motion.div>
+          )}
         </div>
       </section>
-      {showFitQuiz && (
-        <FitQuizModal isOpen={showFitQuiz} onClose={() => setShowFitQuiz(false)} />
+
+      {/* Saved Scenarios — authenticated users only */}
+      {isAuthenticated && currentStep === "routine" && (
+        <section className="max-w-3xl mx-auto px-4 pb-12">
+          <SavedScenariosList
+            maxItems={3}
+            onSelectScenario={(scenario) => {
+              const params = new URLSearchParams({
+                data: JSON.stringify({
+                  model: scenario.vehicle_model,
+                  year: scenario.vehicle_year,
+                  ...scenario.inputs,
+                }),
+              });
+              router.push(`/report?${params.toString()}`);
+            }}
+          />
+        </section>
       )}
 
       {/* ── Section 3: How It Works ──────────────────────────────────── */}
@@ -266,7 +637,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Testimonial cards — photo + stars + Google badge style */}
+        {/* Testimonial cards */}
         <div className="max-w-5xl mx-auto px-4">
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
             {totalReceipts !== null
@@ -350,7 +721,6 @@ export default function Home() {
       <section className="py-10 md:py-14">
         <div className="max-w-5xl mx-auto px-4">
           <div className="relative rounded-2xl border border-orange-100 bg-gradient-to-br from-orange-50 to-amber-50 p-8 overflow-hidden">
-            {/* Coming soon badge */}
             <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 bg-orange-100 rounded-full border border-orange-200">
               <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
               <span className="text-xs font-semibold text-orange-700 uppercase tracking-wider">Coming Soon</span>
@@ -363,7 +733,6 @@ export default function Home() {
                   We&apos;re building a verified network of EV-specialist mechanics. Get pre-purchase inspections, battery health checks, and ongoing maintenance from shops that know EVs.
                 </p>
               </div>
-              {/* Blurred preview cards */}
               <div className="flex gap-2 shrink-0 select-none pointer-events-none" aria-hidden>
                 {["EV Specialist · Austin, TX", "Battery Expert · Denver, CO", "Tesla Certified · Seattle, WA"].map((label) => (
                   <div key={label} className="blur-sm bg-white rounded-xl border border-gray-200 p-3 w-36 shadow-sm">
@@ -393,7 +762,6 @@ export default function Home() {
       <section className="py-10 md:py-16 bg-blue-50/30">
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex flex-col lg:flex-row gap-12">
-            {/* Left */}
             <div className="lg:w-64 shrink-0">
               <h2 className="text-2xl font-bold text-gray-900 mb-3 leading-snug">Your questions,<br />answered</h2>
               <p className="text-sm text-gray-500 mb-1">Can&apos;t find what you&apos;re looking for?</p>
@@ -407,7 +775,6 @@ export default function Home() {
               </a>
             </div>
 
-            {/* Right: accordion */}
             <div className="flex-1 divide-y divide-gray-200">
               {faqs.map((faq, i) => (
                 <div key={i} className="py-4">
@@ -478,10 +845,15 @@ export default function Home() {
       <Footer />
 
       {/* Modals */}
-      <LoginModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-      />
+      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
+      {manualEntryOpen && (
+        <ManualEntryModal
+          isOpen={manualEntryOpen}
+          missingFields={manualEntryMissingFields}
+          onClose={() => setManualEntryOpen(false)}
+          onSubmit={handleManualEntry}
+        />
+      )}
     </div>
   );
 }
