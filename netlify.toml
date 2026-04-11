@@ -4,6 +4,7 @@
 
 [build.environment]
   TURBOPACK_CACHE_VERSION = "2"
+  NODE_VERSION = "20"
 
 [functions]
   directory = "netlify/functions"

@@ -23,6 +23,16 @@ function getClient(): OpenAI {
   return _client;
 }
 
+// Node 18 compatible signal combiner (AbortSignal.any() requires Node 20.3+)
+function combineAbortSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
+  const controller = new AbortController();
+  if (a.aborted) { controller.abort(a.reason); return controller.signal; }
+  if (b.aborted) { controller.abort(b.reason); return controller.signal; }
+  a.addEventListener("abort", () => controller.abort(a.reason), { once: true });
+  b.addEventListener("abort", () => controller.abort(b.reason), { once: true });
+  return controller.signal;
+}
+
 export const grokAdapter: ProviderAdapter = {
   name: "grok",
 
@@ -55,7 +65,7 @@ export const grokAdapter: ProviderAdapter = {
     const timeoutMs = opts.timeoutMs ?? 15_000;
     const localTimeout = setTimeout(() => localController.abort(), timeoutMs);
     const signal = opts.signal
-      ? AbortSignal.any([opts.signal, localController.signal])
+      ? combineAbortSignals(opts.signal, localController.signal)
       : localController.signal;
 
     try {
