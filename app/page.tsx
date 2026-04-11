@@ -464,7 +464,7 @@ export default function Home() {
           </div>
 
           {/* Headline */}
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-5 tracking-tight" style={{ lineHeight: "1.05" }}>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-5 tracking-tight" style={{ lineHeight: "1.05" }}>
             Know before you buy.<br />
             <span className="text-[#00d97e]">Paste any listing.</span>
           </h1>
