@@ -383,74 +383,95 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
       <div id="turnstile-score" className="hidden" />
-      <Header variant="homepage" />
 
-      {/* ── Section 1: Hero ─────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 py-12 md:py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-          {/* Left: copy */}
-          <div>
-            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 bg-blue-50 rounded-full border border-blue-100">
-              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-              <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">Free · No sign-up required</span>
+      {/* ── Dark hero wrapper ────────────────────────────────────────── */}
+      <div className="bg-[#0d1117]">
+        {/* Dark nav */}
+        <nav className="sticky top-0 z-50 bg-[#0d1117]/90 backdrop-blur-md border-b border-white/[0.06]">
+          <div className="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between">
+            <Link href="/">
+              <Image src="/offo-logo.jpg" alt="OFFO" width={200} height={103} className="w-24 sm:w-28 h-auto brightness-0 invert" priority />
+            </Link>
+            <div className="hidden md:flex items-center gap-6">
+              <Link href="/receipt" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Receipt Check</Link>
+              <Link href="/" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Routine Fit</Link>
+              <Link href="/copart" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Copart Arbitrage</Link>
+              <Link href="/dealers" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">For Dealers</Link>
             </div>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4" style={{ lineHeight: "var(--leading-tight)" }}>
-              Get the second opinion that actually matters.
-            </h1>
-            <p className="text-base md:text-[1.0625rem] text-gray-500 mb-6" style={{ lineHeight: "var(--leading-normal)" }}>
-              Paste any used car or Copart listing.<br />
-              Instantly see routine fit, real risks, and what to ask the seller.
-            </p>
-            <p className="text-xs text-gray-400">
-              Works with CarGurus and Copart listings
-            </p>
+            <div className="flex items-center gap-3">
+              {isAuthenticated ? (
+                <Link href="/workspace" className="text-[0.8125rem] font-medium text-white/70 hover:text-white transition-colors">Dashboard</Link>
+              ) : (
+                <button onClick={() => setShowLoginModal(true)} className="text-[0.8125rem] font-medium text-white/70 hover:text-white transition-colors">Sign in</button>
+              )}
+              <button
+                onClick={() => { document.getElementById("listing-input")?.focus(); window.scrollTo({ top: 300, behavior: "smooth" }); }}
+                className="px-4 py-1.5 rounded-full bg-[#00d97e] text-[#0d1117] text-[0.8125rem] font-semibold hover:bg-[#00f090] transition-colors whitespace-nowrap"
+              >
+                Get started free
+              </button>
+            </div>
+          </div>
+        </nav>
+
+        {/* Hero */}
+        <section className="max-w-4xl mx-auto px-5 pt-20 pb-16 text-center">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full border border-white/10 bg-white/5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e] animate-pulse" />
+            <span className="text-xs font-medium text-white/70 tracking-wide">AI-powered EV decision intelligence</span>
           </div>
 
-          {/* Right: inline paste box */}
-          <div className="bg-white rounded-2xl border border-[var(--border-subtle)] shadow-[var(--shadow-raised)] p-6">
-            <h2 className="text-base font-bold text-gray-900 mb-1">Analyze any listing or auction</h2>
-            <p className="text-sm text-gray-500 mb-4">Paste a URL and get an instant AI deal rating — free, no account needed.</p>
+          {/* Headline */}
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-5 tracking-tight" style={{ lineHeight: "1.05" }}>
+            Know before you buy.<br />
+            <span className="text-[#00d97e]">Paste any listing.</span>
+          </h1>
+
+          <p className="text-base md:text-lg text-white/50 mb-10 max-w-xl mx-auto" style={{ lineHeight: "1.6" }}>
+            OFFO analyzes used EV listings for hidden risks, verifies negotiation opportunities, and tells you if the car actually fits your life — in under 30 seconds.
+          </p>
+
+          {/* Input row */}
+          <div className="flex flex-col sm:flex-row gap-3 max-w-2xl mx-auto">
             <input
               id="listing-input"
               type="url"
               value={listingUrl}
               onChange={(e) => setListingUrl(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleHomePasteSubmit(); }}
-              placeholder="Paste any listing or auction link here…"
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-gray-900 placeholder-gray-400 mb-3"
+              placeholder="https://cargurus.com/Cars/listingDetail.action?listing=..."
+              className="flex-1 px-5 py-4 rounded-xl bg-white/[0.07] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/60 focus:ring-1 focus:ring-[#00d97e]/30 transition-colors"
               autoFocus
             />
-            {detectedDomain && (
-              <p className={`text-xs font-medium mb-3 ${detectedType === "auction" ? "text-orange-600" : "text-green-600"}`}>
-                {detectedDomain}
-                {detectedType === "auction" && " — Auction Bidder analysis"}
-                {detectedType === "listing" && " — Listing analysis"}
-              </p>
-            )}
             <button
               onClick={handleHomePasteSubmit}
               disabled={!listingUrl.trim()}
-              className={`w-full px-5 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
+              className={`px-7 py-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all whitespace-nowrap ${
                 listingUrl.trim()
-                  ? detectedType === "auction"
-                    ? "bg-orange-500 text-white hover:bg-orange-600 shadow-md"
-                    : "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
-                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  ? "bg-[#00d97e] text-[#0d1117] hover:bg-[#00f090]"
+                  : "bg-white/10 text-white/30 cursor-not-allowed"
               }`}
             >
-              {detectedType === "auction" ? "Analyze Auction Lot — It's Free" : "Analyze Listing — It's Free"}
-              <ArrowRight className="w-4 h-4" />
+              Analyze <ArrowRight className="w-4 h-4" />
             </button>
-            <p className="text-xs text-gray-400 text-center mt-3">No account required · Results in ~15 seconds</p>
-            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-center gap-1.5">
-              <span className="text-xs text-gray-400">Buying at auction?</span>
-              <Link href="/copart" className="text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors">
-                Copart Auction Audit →
-              </Link>
-            </div>
           </div>
-        </div>
-      </section>
+
+          {detectedDomain && (
+            <p className={`text-xs font-medium mt-3 ${detectedType === "auction" ? "text-orange-400" : "text-[#00d97e]"}`}>
+              {detectedDomain}
+              {detectedType === "auction" && " — Auction analysis"}
+              {detectedType === "listing" && " — Listing analysis"}
+            </p>
+          )}
+
+          <p className="text-xs text-white/30 mt-4">No account required · Results in ~15 seconds · Free forever</p>
+        </section>
+      </div>
+      {/* ── End dark hero ─────────────────────────────────────────────── */}
+
+      {/* Original Header hidden — replaced above for homepage */}
+      <div className="hidden"><Header variant="homepage" /></div>
 
       {/* ── Section 2: Trust Bar ─────────────────────────────────────── */}
       <div className="border-y border-[var(--border-subtle)] bg-[var(--surface-1)] py-3">
