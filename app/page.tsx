@@ -59,7 +59,10 @@ export default function Home() {
   }, []);
 
   const { isAuthenticated } = useAuth();
-  const { executeTurnstile } = useTurnstile();
+  const { execute: executeTurnstile } = useTurnstile({
+    containerId: "turnstile-score",
+    action: "score-submit",
+  });
   const { startSession, completeSession } = useSessionTracking();
 
   const [showLoginModal, setShowLoginModal] = useState(false);
