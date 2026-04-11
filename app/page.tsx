@@ -9,7 +9,7 @@ import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-import { ArrowRight, Star, ChevronDown, ChevronUp, Mail } from "lucide-react";
+import { ArrowRight, Star, ChevronDown, ChevronUp, Mail, Menu, X } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import LoginModal from "@/components/LoginModal";
@@ -66,6 +66,7 @@ export default function Home() {
   const { startSession, completeSession } = useSessionTracking();
 
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [totalReceipts, setTotalReceipts] = useState<number | null>(null);
 
   useEffect(() => {
@@ -399,19 +400,59 @@ export default function Home() {
               <Link href="/dealers" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">For Dealers</Link>
             </div>
             <div className="flex items-center gap-3">
-              {isAuthenticated ? (
-                <Link href="/workspace" className="text-[0.8125rem] font-medium text-white/70 hover:text-white transition-colors">Dashboard</Link>
-              ) : (
-                <button onClick={() => setShowLoginModal(true)} className="text-[0.8125rem] font-medium text-white/70 hover:text-white transition-colors">Sign in</button>
-              )}
+              <div className="hidden md:flex items-center gap-3">
+                {isAuthenticated ? (
+                  <Link href="/workspace" className="text-[0.8125rem] font-medium text-white/70 hover:text-white transition-colors">Dashboard</Link>
+                ) : (
+                  <button onClick={() => setShowLoginModal(true)} className="text-[0.8125rem] font-medium text-white/70 hover:text-white transition-colors">Sign in</button>
+                )}
+              </div>
               <button
                 onClick={() => { document.getElementById("listing-input")?.focus(); window.scrollTo({ top: 300, behavior: "smooth" }); }}
                 className="px-4 py-1.5 rounded-full bg-[#00d97e] text-[#0d1117] text-[0.8125rem] font-semibold hover:bg-[#00f090] transition-colors whitespace-nowrap"
               >
                 Get started free
               </button>
+              {/* Mobile hamburger */}
+              <button
+                onClick={() => setMobileNavOpen(!mobileNavOpen)}
+                className="md:hidden p-2 text-white/60 hover:text-white transition-colors"
+                aria-label="Toggle menu"
+              >
+                {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
             </div>
           </div>
+
+          {/* Mobile dropdown */}
+          {mobileNavOpen && (
+            <div className="md:hidden border-t border-white/[0.06] bg-[#0d1117]">
+              <div className="px-5 py-4 space-y-1">
+                {[
+                  { href: "/receipt", label: "Receipt Check" },
+                  { href: "/", label: "Routine Fit" },
+                  { href: "/copart", label: "Copart Arbitrage" },
+                  { href: "/dealers", label: "For Dealers" },
+                ].map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileNavOpen(false)}
+                    className="block py-2.5 text-sm font-medium text-white/70 hover:text-white transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+                <div className="border-t border-white/[0.06] pt-3 mt-2">
+                  {isAuthenticated ? (
+                    <Link href="/workspace" onClick={() => setMobileNavOpen(false)} className="block py-2 text-sm font-medium text-white/70 hover:text-white">Dashboard</Link>
+                  ) : (
+                    <button onClick={() => { setShowLoginModal(true); setMobileNavOpen(false); }} className="py-2 text-sm font-medium text-white/70 hover:text-white">Sign in</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* Hero */}
@@ -539,7 +580,7 @@ export default function Home() {
 
           {/* Step 1: Routine */}
           {currentStep === "routine" && (
-            <RoutineStep onComplete={handleRoutineComplete} />
+            <RoutineStep onComplete={handleRoutineComplete} dark />
           )}
 
           {/* Step 2a: Vehicle Recommendations */}
