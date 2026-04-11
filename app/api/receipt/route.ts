@@ -474,6 +474,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ...litePayload, recalls, has_active_recalls: recalls.length > 0 });
     }
 
+    // 10s timeout for the background function to respond with 202.
+    // If it doesn't respond in time, the catch() handler marks the receipt as failed.
+    const upgradeAc = new AbortController();
+    const upgradeTimeout = setTimeout(() => upgradeAc.abort(), 10_000);
+
     fetch(upgradeUrl, {
       method: "POST",
       headers: {
@@ -481,7 +486,9 @@ export async function POST(request: NextRequest) {
         "X-Upgrade-Secret": process.env.UPGRADE_SECRET ?? "",
       },
       body: JSON.stringify(upgradePayload),
+      signal: upgradeAc.signal,
     }).then((res) => {
+      clearTimeout(upgradeTimeout);
       // Netlify background functions return 202 immediately — non-2xx means enqueue failed
       if (!res.ok && isSupabaseConfigured()) {
         console.error(`[Receipt] Background function rejected upgrade: ${res.status}`);
@@ -497,6 +504,7 @@ export async function POST(request: NextRequest) {
         });
       }
     }).catch((err) => {
+      clearTimeout(upgradeTimeout);
       console.error("[Receipt] Failed to enqueue background upgrade:", err instanceof Error ? err.message : err);
 
       if (isSupabaseConfigured()) {

@@ -62,6 +62,28 @@ export async function GET(
     });
   }
 
+  // Stale timeout: if stuck in "lite" or "generating" for >3 minutes, mark as failed.
+  // Prevents the client from polling indefinitely when the background function crashes
+  // before it can update the status itself (e.g., env var missing, unhandled exception).
+  const STALE_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+  if ((status === "lite" || status === "generating") && row.updated_at) {
+    const ageMs = Date.now() - new Date(row.updated_at).getTime();
+    if (ageMs > STALE_TIMEOUT_MS) {
+      // Fire-and-forget DB update — don't block the response
+      supabase
+        .from("receipts")
+        .update({ generation_status: "failed" })
+        .eq("id", receiptId)
+        .then(() => {}, () => {});
+
+      return NextResponse.json({
+        generation_status: "failed",
+        updated_at: row.updated_at,
+        stale_timeout: true,
+      });
+    }
+  }
+
   return NextResponse.json({
     generation_status: status,
     updated_at: row.updated_at,

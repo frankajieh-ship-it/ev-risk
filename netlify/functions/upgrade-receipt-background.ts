@@ -67,6 +67,27 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     return { statusCode: 405, body: JSON.stringify({ error: "Method not allowed" }) };
   }
 
+  // Validate required env vars before doing any work — fail fast with a clear error
+  const missingEnvVars = [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+  ].filter((k) => !process.env[k]);
+
+  if (missingEnvVars.length > 0) {
+    console.error(`[Upgrade BG] Missing required env vars: ${missingEnvVars.join(", ")}`);
+    return { statusCode: 500, body: JSON.stringify({ error: "Server configuration error", missing: missingEnvVars }) };
+  }
+
+  const hasAnyAiProvider = !!(
+    process.env.OPENAI_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    process.env.GROK_API_KEY
+  );
+  if (!hasAnyAiProvider) {
+    console.error("[Upgrade BG] No AI provider API keys configured");
+    return { statusCode: 500, body: JSON.stringify({ error: "No AI providers configured" }) };
+  }
+
   let payload: UpgradePayload;
   try {
     payload = JSON.parse(event.body || "{}");
@@ -80,12 +101,23 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     return { statusCode: 400, body: JSON.stringify({ error: "Missing required fields" }) };
   }
 
-  const supabase = getSupabase();
+  let supabase: ReturnType<typeof getSupabase>;
+  try {
+    supabase = getSupabase();
+  } catch (initErr) {
+    console.error("[Upgrade BG] Supabase init failed:", initErr instanceof Error ? initErr.message : initErr);
+    return { statusCode: 500, body: JSON.stringify({ error: "Database init failed" }) };
+  }
 
-  // Mark as generating
-  await supabase.from("receipts")
+  // Mark as generating — if this fails, we return a non-2xx so route.ts marks as failed
+  const { error: markErr } = await supabase.from("receipts")
     .update({ generation_status: "generating" })
     .eq("id", receipt_id);
+
+  if (markErr) {
+    console.error("[Upgrade BG] Failed to mark generating:", markErr.message);
+    return { statusCode: 500, body: JSON.stringify({ error: "DB update failed" }) };
+  }
 
   // Track all provider results for cost logging
   const allProviderResults: import("../../lib/providers/types.js").GenerateResult[] = [];
