@@ -9,17 +9,17 @@ interface BadgeProps {
 }
 
 const VARIANT_CLASSES: Record<BadgeVariant, string> = {
-  success: "bg-green-100 text-green-800",
-  warning: "bg-yellow-100 text-yellow-800",
-  danger:  "bg-red-100 text-red-800",
-  primary: "bg-blue-100 text-blue-800",
-  neutral: "bg-gray-100 text-gray-700",
+  success: "bg-green-50 text-green-700 ring-1 ring-green-200/60",
+  warning: "bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200/60",
+  danger:  "bg-red-50 text-red-700 ring-1 ring-red-200/60",
+  primary: "bg-blue-50 text-blue-700 ring-1 ring-blue-200/60",
+  neutral: "bg-gray-50 text-gray-600 ring-1 ring-gray-200/60",
   auction: "auction-badge",
 };
 
 const SIZE_CLASSES: Record<BadgeSize, string> = {
-  sm: "px-2 py-0.5 text-xs",
-  md: "px-2.5 py-1 text-sm",
+  sm: "px-1.5 py-0.5 text-[0.6875rem] font-medium",
+  md: "px-2.5 py-0.5 text-xs font-medium",
 };
 
 export function Badge({

@@ -45,17 +45,17 @@ export function FitVerdictBlock({
   const Icon = style.Icon;
 
   return (
-    <div className={`${style.bg} border-2 ${style.border} rounded-xl p-6`}>
+    <div className={`${style.bg} border ${style.border} rounded-2xl p-6`}>
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex items-center gap-3">
-          <Icon className={`w-7 h-7 ${style.iconColor} flex-shrink-0`} />
-          <span className={`text-xl font-bold ${style.text}`}>{fitSignal}</span>
+          <Icon className={`w-6 h-6 ${style.iconColor} flex-shrink-0`} />
+          <span className={`text-lg font-semibold ${style.text}`} style={{ lineHeight: "var(--leading-snug)" }}>{fitSignal}</span>
         </div>
-        <span className="text-sm text-gray-600 bg-white/80 px-3 py-1.5 rounded-full whitespace-nowrap">
+        <span className="text-xs font-medium text-gray-500 bg-white/80 px-2.5 py-1 rounded-full whitespace-nowrap border border-white/60">
           {mentalLoad}
         </span>
       </div>
-      <p className="text-gray-800 leading-relaxed">{verdict}</p>
+      <p className="text-sm text-gray-700" style={{ lineHeight: "var(--leading-normal)" }}>{verdict}</p>
     </div>
   );
 }

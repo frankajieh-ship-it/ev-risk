@@ -148,13 +148,14 @@ export default function HowItWorksSection({ variant = "receipt-v2" }: HowItWorks
     "Three steps to confident used EV shopping";
 
   return (
-    <section id="how-it-works" className="py-16 md:py-24 bg-white">
+    <section id="how-it-works" className="section bg-white">
       <div className="max-w-7xl mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
-            How OFFO works
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">How it works</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3" style={{ lineHeight: "var(--leading-snug)" }}>
+            OFFO in three steps
           </h2>
-          <p className="text-gray-500 text-base">
+          <p className="text-[0.9375rem] text-gray-500">
             {subtitle}
           </p>
         </div>
@@ -178,15 +179,13 @@ export default function HowItWorksSection({ variant = "receipt-v2" }: HowItWorks
                 variants={itemVariants}
                 className="text-center p-6"
               >
-                <div className="flex items-center justify-center mb-5">
-                  <div className={`w-14 h-14 rounded-2xl ${step.color} flex items-center justify-center`}>
-                    <Icon className="w-6 h-6" />
+                <div className="flex items-center justify-center mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-[var(--surface-2)] border border-[var(--border-subtle)] flex items-center justify-center text-gray-500">
+                    <Icon className="w-5 h-5" />
                   </div>
                 </div>
-                <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-gray-500 text-sm font-bold mb-3">
-                  {step.number}
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-widest text-gray-400 mb-2">Step {step.number}</p>
+                <h3 className="text-base font-semibold text-gray-900 mb-1.5" style={{ lineHeight: "var(--leading-snug)" }}>
                   {step.title}
                 </h3>
                 <p className="text-sm text-gray-500 leading-relaxed">

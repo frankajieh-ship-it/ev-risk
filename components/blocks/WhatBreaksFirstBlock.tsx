@@ -10,10 +10,10 @@ export function WhatBreaksFirstBlock({ items }: WhatBreaksFirstBlockProps) {
   if (items.length === 0) return null;
 
   return (
-    <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-      <div className="flex items-center gap-2 mb-4">
-        <AlertTriangle className="w-5 h-5 text-orange-500" />
-        <h3 className="font-bold text-gray-900">What Breaks First</h3>
+    <div className="bg-[var(--surface-1)] rounded-xl p-5 border border-[var(--border-subtle)]">
+      <div className="flex items-center gap-2 mb-3">
+        <AlertTriangle className="w-4 h-4 text-gray-400" />
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">What Breaks First</h3>
       </div>
       <ul className="space-y-2">
         {items.map((item, idx) => (

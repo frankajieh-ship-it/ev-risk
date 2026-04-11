@@ -377,7 +377,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-white">
+    <div className="min-h-screen bg-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
@@ -394,10 +394,10 @@ export default function Home() {
               <Sparkles className="w-3.5 h-3.5 text-blue-600" />
               <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">Free · No sign-up required</span>
             </div>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-blue-700 to-green-600 bg-clip-text text-transparent mb-4 leading-tight">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4" style={{ lineHeight: "var(--leading-tight)" }}>
               Get the second opinion that actually matters.
             </h1>
-            <p className="text-base md:text-lg text-gray-600 mb-6 leading-relaxed">
+            <p className="text-base md:text-[1.0625rem] text-gray-500 mb-6" style={{ lineHeight: "var(--leading-normal)" }}>
               Paste any used car or Copart listing.<br />
               Instantly see routine fit, real risks, and what to ask the seller.
             </p>
@@ -407,7 +407,7 @@ export default function Home() {
           </div>
 
           {/* Right: inline paste box */}
-          <div className="bg-white rounded-2xl border border-blue-100 shadow-xl p-6">
+          <div className="bg-white rounded-2xl border border-[var(--border-subtle)] shadow-[var(--shadow-raised)] p-6">
             <h2 className="text-base font-bold text-gray-900 mb-1">Analyze any listing or auction</h2>
             <p className="text-sm text-gray-500 mb-4">Paste a URL and get an instant AI deal rating — free, no account needed.</p>
             <input
@@ -453,7 +453,7 @@ export default function Home() {
       </section>
 
       {/* ── Section 2: Trust Bar ─────────────────────────────────────── */}
-      <div className="border-y border-gray-100 bg-gray-50 py-3">
+      <div className="border-y border-[var(--border-subtle)] bg-[var(--surface-1)] py-3">
         <p className="text-center text-xs text-gray-500">
           Used by serious EV shoppers · Powered by Auto.dev + NHTSA data · No sales pitch. Just honest analysis.
         </p>
@@ -616,7 +616,7 @@ export default function Home() {
       <HowItWorksSection variant="homepage" />
 
       {/* ── Section 6: Social Proof ──────────────────────────────────── */}
-      <section className="py-10 md:py-16 bg-gray-50">
+      <section className="section bg-[var(--surface-1)]">
         <div className="max-w-5xl mx-auto px-4 mb-10">
           <div className="flex flex-col md:flex-row items-center gap-8">
             <div className="w-full md:w-1/2">
@@ -625,15 +625,15 @@ export default function Home() {
                 alt="OFFO verdict on laptop — Confident Purchase"
                 width={560}
                 height={560}
-                className="w-full rounded-2xl shadow-lg object-cover"
+                className="w-full rounded-2xl shadow-[var(--shadow-raised)] object-cover"
               />
             </div>
             <div className="w-full md:w-1/2">
               <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Real results</p>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 leading-snug">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4" style={{ lineHeight: "var(--leading-snug)" }}>
                 Know the risks before you commit.
               </h2>
-              <p className="text-base text-gray-600 leading-relaxed">
+              <p className="text-[0.9375rem] text-gray-500" style={{ lineHeight: "var(--leading-normal)" }}>
                 OFFO surfaces what listing pages hide — battery degradation, overpricing, open recalls, and missing service history — so you walk in with the right questions.
               </p>
             </div>
@@ -655,7 +655,7 @@ export default function Home() {
               { name: "Jordan R.", location: "Denver, CO", photo: "/car-tesla-model3.webp", quote: "Compared 12 listings in one weekend. First time I've ever felt confident walking into a dealership...", tag: "EV switcher" },
               { name: "Alicia M.", location: "Seattle, WA", photo: "/car-hyundai-kona.webp", quote: "The apartment charging check alone was worth it. OFFO told me exactly which vehicles fit my situation.", tag: "Apartment renter" },
             ].map(({ name, location, photo, quote, tag }) => (
-              <div key={name} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+              <div key={name} className="card-base overflow-hidden flex flex-col bg-white">
                 <div className="h-36 overflow-hidden bg-gray-50">
                   <Image src={photo} alt={name} width={300} height={144} className="w-full h-full object-cover object-center" />
                 </div>
@@ -677,16 +677,17 @@ export default function Home() {
       </section>
 
       {/* ── Section 7: Featured Vehicles ─────────────────────────────── */}
-      <section className="py-10 md:py-16">
+      <section className="section bg-white">
         <div className="max-w-5xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">Top searches on OFFO</h2>
-          <p className="text-sm text-gray-500 mb-8">Popular vehicles analyzed by OFFO users this week.</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Popular on OFFO</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1" style={{ lineHeight: "var(--leading-snug)" }}>Top searches this week</h2>
+          <p className="text-sm text-gray-500 mb-8">Popular vehicles analyzed by OFFO users.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {featuredVehicles.map(({ year, make, model, trim, mileage, range, score, price, badge, people, img }) => (
               <Link
                 key={`${year}-${make}-${model}`}
                 href={`/receipt?q=${encodeURIComponent(`${year} ${make} ${model}`)}`}
-                className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md hover:border-blue-200 transition-all group"
+                className="card-base card-interactive overflow-hidden flex flex-col group"
               >
                 <div className="relative h-36 overflow-hidden bg-gray-50">
                   <Image src={img} alt={`${year} ${make} ${model}`} width={300} height={144} className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300" />
@@ -802,13 +803,13 @@ export default function Home() {
       </section>
 
       {/* ── Section 9: Final CTA ─────────────────────────────────────── */}
-      <section className="py-16 md:py-24 text-center bg-gradient-to-br from-blue-600 to-green-500">
+      <section className="section text-center bg-gray-950">
         <div className="max-w-lg mx-auto px-4">
-          <h2 className="text-2xl font-bold text-white mb-2">Ready to check a listing?</h2>
-          <p className="text-sm text-white/70 mb-6">Takes under 30 seconds. Free, no account needed.</p>
+          <h2 className="text-2xl font-bold text-white mb-2" style={{ lineHeight: "var(--leading-snug)" }}>Ready to check a listing?</h2>
+          <p className="text-[0.9375rem] text-white/50 mb-6">Takes under 30 seconds. Free, no account needed.</p>
           <button
             onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); document.getElementById("listing-input")?.focus(); }}
-            className="px-6 py-3 bg-white text-blue-700 text-sm font-semibold rounded-xl hover:bg-blue-50 transition-colors shadow-md"
+            className="px-6 py-3 bg-white text-gray-900 text-sm font-semibold rounded-xl hover:bg-gray-100 transition-colors"
           >
             Paste it here →
           </button>

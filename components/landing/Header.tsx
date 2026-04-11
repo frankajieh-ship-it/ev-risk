@@ -68,8 +68,8 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
 
   return (
     <>
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-[var(--border-subtle)]">
+        <div className="max-w-7xl mx-auto px-4 py-2.5">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center">
               <Image src="/offo-logo.jpg" alt="OFFO" width={200} height={103} className="w-24 sm:w-28 md:w-36 lg:w-44 h-auto" priority />
@@ -85,7 +85,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                         key={link.label}
                         href={link.href}
                         onClick={(e) => handleScrollClick(e, link.href)}
-                        className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                        className="text-[0.8125rem] font-medium tracking-[-0.01em] text-gray-500 hover:text-gray-900 transition-colors"
                       >
                         {link.label}
                       </a>
@@ -93,7 +93,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                       <Link
                         key={link.label}
                         href={link.href}
-                        className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                        className="text-[0.8125rem] font-medium tracking-[-0.01em] text-gray-500 hover:text-gray-900 transition-colors"
                       >
                         {link.label}
                       </Link>
@@ -208,7 +208,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
 
         {/* Mobile dropdown — homepage variant only */}
         {variant === "homepage" && mobileOpen && (
-          <div className="md:hidden border-t border-gray-100 bg-white/95 backdrop-blur-md">
+          <div className="md:hidden border-t border-[var(--border-subtle)] bg-white/95 backdrop-blur-md">
             <div className="px-4 py-4 space-y-3">
               {navLinks.map((link) =>
                 link.isScroll ? (
@@ -250,7 +250,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                 )}
               </Link>
 
-              <div className="border-t border-gray-100 pt-3">
+              <div className="border-t border-[var(--border-subtle)] pt-3">
                 {isAuthenticated && (
                   <div className="flex flex-col gap-2 mb-3">
                     <Link

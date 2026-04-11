@@ -9,7 +9,7 @@ const { free, full_report, subscription } = PRICING_PLANS;
 
 export default function PricingSection() {
   return (
-    <section id="pricing" className="py-16 md:py-24 bg-gradient-to-b from-gray-50 to-white">
+    <section id="pricing" className="section bg-[var(--surface-1)]">
       <div className="max-w-7xl mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -18,10 +18,11 @@ export default function PricingSection() {
           transition={{ duration: 0.5 }}
           className="text-center mb-10"
         >
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Pricing</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2" style={{ lineHeight: "var(--leading-snug)" }}>
             Simple, honest pricing
           </h2>
-          <p className="text-gray-500">
+          <p className="text-[0.9375rem] text-gray-500">
             Start free. Upgrade only when you want the full picture.
           </p>
         </motion.div>
