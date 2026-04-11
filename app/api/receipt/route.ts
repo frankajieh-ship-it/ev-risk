@@ -446,88 +446,19 @@ export async function POST(request: NextRequest) {
     t0,
   };
 
-  // In development, call upgrade directly to avoid unreliable self-HTTP fetch in dev server.
-  // In production, enqueue as Netlify Background Function (15-min timeout).
-  const isDev = process.env.NODE_ENV === "development";
-
-  if (isDev) {
-    // Run upgrade in background — don't await so we return lite payload immediately
-    runReceiptUpgrade(upgradePayload).catch((err) => {
-      console.error("[Receipt] Dev upgrade failed:", err instanceof Error ? err.message : err);
-      if (isSupabaseConfigured()) {
-        supabase.from("receipts")
-          .update({ generation_status: "failed" })
-          .eq("id", liteReceipt.receipt_id)
-          .then(() => {});
-      }
-    });
-  } else {
-    const upgradeUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.URL || process.env.DEPLOY_URL)
-      ? `${process.env.NEXT_PUBLIC_SITE_URL || process.env.URL || process.env.DEPLOY_URL}/.netlify/functions/upgrade-receipt-background`
-      : null;
-
-    if (!upgradeUrl) {
-      console.error("[Receipt API] No upgrade URL configured — skipping upgrade");
-      if (isSupabaseConfigured()) {
-        supabase.from("receipts").update({ generation_status: "failed" }).eq("id", liteReceipt.receipt_id).then(() => {});
-      }
-      return NextResponse.json({ ...litePayload, recalls, has_active_recalls: recalls.length > 0 });
+  // Run the AI upgrade directly in this request context (fire-and-forget).
+  // maxDuration=90 gives us 90s — enough for the hedged AI call (primary wins in ~10-20s).
+  // The Netlify Background Function path is kept as an optional enhancement below,
+  // but direct execution is the reliable path that always works regardless of plan.
+  runReceiptUpgrade(upgradePayload).catch((err) => {
+    console.error("[Receipt] Upgrade failed:", err instanceof Error ? err.message : err);
+    if (isSupabaseConfigured()) {
+      supabase.from("receipts")
+        .update({ generation_status: "failed" })
+        .eq("id", liteReceipt.receipt_id)
+        .then(() => {});
     }
-
-    // 10s timeout for the background function to respond with 202.
-    // If it doesn't respond in time, the catch() handler marks the receipt as failed.
-    const upgradeAc = new AbortController();
-    const upgradeTimeout = setTimeout(() => upgradeAc.abort(), 10_000);
-
-    fetch(upgradeUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Upgrade-Secret": process.env.UPGRADE_SECRET ?? "",
-      },
-      body: JSON.stringify(upgradePayload),
-      signal: upgradeAc.signal,
-    }).then((res) => {
-      clearTimeout(upgradeTimeout);
-      // Netlify background functions return 202 immediately — non-2xx means enqueue failed
-      if (!res.ok && isSupabaseConfigured()) {
-        console.error(`[Receipt] Background function rejected upgrade: ${res.status}`);
-        supabase.from("receipts")
-          .update({ generation_status: "failed" })
-          .eq("id", liteReceipt.receipt_id)
-          .then(() => {});
-        logApi("error", "Background function rejected upgrade enqueue", {
-          endpoint: "/api/receipt",
-          anon_id: receiptToken as string,
-          error_code: "upgrade_enqueue_rejected",
-          error_message: `HTTP ${res.status}`,
-        });
-      }
-    }).catch((err) => {
-      clearTimeout(upgradeTimeout);
-      console.error("[Receipt] Failed to enqueue background upgrade:", err instanceof Error ? err.message : err);
-
-      if (isSupabaseConfigured()) {
-        supabase.from("receipts")
-          .update({ generation_status: "failed" })
-          .eq("id", liteReceipt.receipt_id)
-          .then(() => {});
-
-        supabase.from("receipt_events").insert({
-          receipt_id: liteReceipt.receipt_id,
-          session_id: receiptToken as string,
-          event_type: "upgrade_exception",
-        }).then(() => {}, () => {});
-
-        logApi("error", "Failed to enqueue background upgrade", {
-          endpoint: "/api/receipt",
-          anon_id: receiptToken as string,
-          error_code: "upgrade_enqueue_fail",
-          error_message: err instanceof Error ? err.message : String(err),
-        });
-      }
-    });
-  }
+  });
 
   if (trace) {
     finalizeTrace(trace, {
