@@ -1,12 +1,14 @@
 /**
  * GET /api/photos?make=Tesla&model=Model+3&year=2023&vin=...
  *
- * Fetches listing photos from Auto.dev for a given vehicle.
- * Used as a client-side fallback when extraction doesn't return photos.
+ * Fetches professional vehicle images.
+ * Primary: VinAudit Vehicle Images API (stock images, consistent quality)
+ * Fallback: Auto.dev market listings (actual listing photos)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { searchListings } from "@/lib/auto-dev-client";
+import { getVehicleImages } from "@/lib/vinaudit-client";
 
 export const maxDuration = 10;
 
@@ -140,6 +142,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ photo_urls: [] });
   }
 
+  // --- Primary: VinAudit Vehicle Images ---
+  const vinauditResult = await getVehicleImages({ vin, year, make, model: rawModel, limit: 6 });
+  if (vinauditResult.success && vinauditResult.photo_urls.length > 0) {
+    return NextResponse.json({ photo_urls: vinauditResult.photo_urls, source: "vinaudit" });
+  }
+
+  // --- Fallback: Auto.dev listing photos ---
   const { make: normalizedMake, model } = normalizeForAutodev(make, rawModel);
   const result = await searchListings({ vin, make: normalizedMake, model, year, limit: 8 });
 
@@ -153,5 +162,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ photo_urls: photoUrls });
+  return NextResponse.json({ photo_urls: photoUrls, source: "autodev" });
 }

@@ -4,19 +4,21 @@
  * VehicleFactsBar — compact inline row of key vehicle facts
  *
  * Always shown in free tier, below the verdict banner.
- * Surfaces: title status, accident history, NHTSA recalls, battery health estimate (EVs).
+ * Surfaces: title status, accident history, theft/salvage (VinAudit),
+ * NHTSA recalls, and battery health estimate (EVs).
  */
 
 import { useState, useEffect } from "react";
-import { Shield, ShieldAlert, AlertTriangle, CheckCircle, Zap, ExternalLink, Loader2 } from "lucide-react";
+import { Shield, ShieldAlert, AlertTriangle, CheckCircle, Zap, ExternalLink, Loader2, Lock } from "lucide-react";
 import type { ListingReceipt } from "@/types/receipt";
+import type { VinAuditLiteResult } from "@/lib/vinaudit-client";
+import { getOrCreateReceiptToken } from "@/lib/session-utils";
 
 interface VehicleFactsBarProps {
   receipt: ListingReceipt;
 }
 
-// EV makes that have a battery range we can estimate
-const EV_MAKES = ["tesla", "rivian", "lucid", "polestar", "hyundai", "kia", "chevrolet", "ford", "volkswagen", "bmw", "audi", "mercedes", "nio", "byd"];
+
 const EV_MODEL_KEYWORDS = ["model 3", "model s", "model x", "model y", "cybertruck", "ioniq", "ev6", "ev9", "bolt", "mach-e", "mustang mache", "id.4", "id.3", "r1t", "r1s", "air", "lightning", "hummer ev"];
 
 // Rough original range by make/model keyword (miles)
@@ -61,6 +63,7 @@ interface NhtsaRecall {
 }
 
 type RecallStatus = "idle" | "loading" | "done" | "error";
+type HistoryStatus = "idle" | "loading" | "done" | "error" | "unavailable";
 
 export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
   const ls = receipt.listing_summary;
@@ -75,10 +78,40 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
   const [recallStatus, setRecallStatus] = useState<RecallStatus>("idle");
   const [recallExpanded, setRecallExpanded] = useState(false);
 
+  const [history, setHistory] = useState<VinAuditLiteResult | null>(null);
+  const [historyStatus, setHistoryStatus] = useState<HistoryStatus>("idle");
+
+  // VinAudit history fetch
+  const vin = receipt.vin || receipt.listing_summary?.vin;
+
+  useEffect(() => {
+    if (!vin) return;
+    const receiptToken = getOrCreateReceiptToken();
+    if (!receiptToken) return;
+    setHistoryStatus("loading"); // eslint-disable-line react-hooks/set-state-in-effect
+    fetch("/api/vin/history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vin, receipt_token: receiptToken }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          setHistory(data as VinAuditLiteResult);
+          setHistoryStatus("done");
+        } else if (data.code === "not_configured") {
+          setHistoryStatus("unavailable");
+        } else {
+          setHistoryStatus("error");
+        }
+      })
+      .catch(() => setHistoryStatus("error"));
+  }, [vin]);
+
   // Live NHTSA recall fetch
   useEffect(() => {
     if (!make || !model || !year) return;
-    setRecallStatus("loading");
+    setRecallStatus("loading"); // eslint-disable-line react-hooks/set-state-in-effect
     fetch(`/api/recalls/nhtsa?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&year=${encodeURIComponent(String(year))}`)
       .then((r) => r.json())
       .then((data) => {
@@ -139,6 +172,45 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
           <AccidentIcon className="w-3 h-3" />
           {ac.label}
         </span>
+
+        {/* VinAudit history pills */}
+        {historyStatus === "loading" && (
+          <span className="inline-flex items-center gap-1 text-xs text-gray-400 px-2 py-0.5 rounded-full border border-gray-100">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Checking history…
+          </span>
+        )}
+        {historyStatus === "done" && history && (
+          <>
+            {/* Theft */}
+            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${
+              history.summary.theft_reported
+                ? "text-red-700 bg-red-50 border-red-200"
+                : "text-green-700 bg-green-50 border-green-200"
+            }`}>
+              {history.summary.theft_reported
+                ? <><Lock className="w-3 h-3" />Theft reported</>
+                : <><CheckCircle className="w-3 h-3" />No theft record</>
+              }
+            </span>
+
+            {/* Salvage (from VinAudit — more authoritative than listing scraper) */}
+            {history.summary.salvage_reported && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-red-700 bg-red-50 border-red-200">
+                <ShieldAlert className="w-3 h-3" />
+                Salvage on record
+              </span>
+            )}
+
+            {/* VinAudit accident count (more detailed than listing field) */}
+            {history.summary.accident_count > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-amber-700 bg-amber-50 border-amber-200">
+                <AlertTriangle className="w-3 h-3" />
+                {history.summary.accident_count} accident record{history.summary.accident_count !== 1 ? "s" : ""} (NMVTIS)
+              </span>
+            )}
+          </>
+        )}
 
         {/* Recalls */}
         {recallStatus === "loading" && (
