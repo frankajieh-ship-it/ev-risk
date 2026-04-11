@@ -175,13 +175,14 @@ export async function liteCheck(
 
   // Sales may include photo_urls nested under each record
   const rawSales = toArray<VinAuditSaleRecord>(data.sale?.record ?? data.sales?.record ?? data.sales);
-  const sales = rawSales.map((s) => ({
-    ...s,
-    photo_urls: toArray<string>(
-      (s as unknown as Record<string, unknown>).photos?.url ??
-      (s as unknown as Record<string, unknown>).photo_url
-    ),
-  }));
+  const sales = rawSales.map((s) => {
+    const sAny = s as unknown as Record<string, unknown>;
+    const photos = sAny.photos as { url?: string | string[] } | undefined;
+    return {
+      ...s,
+      photo_urls: toArray<string>(photos?.url ?? sAny.photo_url),
+    };
+  });
 
   return {
     success: true,
