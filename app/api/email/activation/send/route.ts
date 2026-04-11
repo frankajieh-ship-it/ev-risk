@@ -31,10 +31,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = getSupabaseAdmin();
-  if (!supabase) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  const supabaseOrNull = getSupabaseAdmin();
+  if (!supabaseOrNull) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   if (!isResendConfigured()) return NextResponse.json({ error: "Email service not configured" }, { status: 503 });
 
+  const supabase = supabaseOrNull;
   const now = new Date();
   const results = { day1: 0, day3: 0, day7: 0, skipped: 0, errors: 0 };
 
