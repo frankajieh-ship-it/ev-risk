@@ -414,6 +414,33 @@ def score_articles(articles: list[dict]) -> list[dict]:
     return scored
 
 
+def fetch_existing_article_ids() -> set[str]:
+    """Fetch article_ids already stored in Supabase (last 14 days) to skip re-scoring."""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return set()
+    try:
+        resp = requests.get(
+            f"{SUPABASE_URL}/rest/v1/daily_routine_news",
+            headers={
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Range": "0-999",
+            },
+            params={
+                "select": "article_id",
+                "scored_at": f"gte.{(datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()[:10] + 'T00:00:00Z')}",
+            },
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            ids = {row["article_id"] for row in resp.json()}
+            print(f"[news-engine] Found {len(ids)} articles already in Supabase today — will skip re-scoring")
+            return ids
+    except Exception as e:
+        print(f"[news-engine] Could not fetch existing article IDs: {e}", file=sys.stderr)
+    return set()
+
+
 def save_to_supabase(articles: list[dict]) -> int:
     """Upsert scored articles to Supabase daily_routine_news table."""
     if not SUPABASE_URL or not SUPABASE_KEY:
@@ -473,6 +500,13 @@ def run_daily_digest(dry_run: bool = False) -> None:
     before_dedup = len(articles)
     articles = deduplicate(articles)
     print(f"[news-engine] Total fetched: {before_dedup} | After dedup: {len(articles)}")
+
+    # Skip articles already stored in Supabase today (avoids re-scoring on manual re-runs)
+    if not dry_run:
+        existing_ids = fetch_existing_article_ids()
+        if existing_ids:
+            articles = [a for a in articles if a["article_id"] not in existing_ids]
+            print(f"[news-engine] After skipping already-stored: {len(articles)} to score")
 
     # Step 2: AI scoring + categorization
     scored = score_articles(articles)
