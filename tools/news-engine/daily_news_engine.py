@@ -33,6 +33,7 @@ from typing import Optional
 
 import feedparser
 import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
@@ -209,59 +210,78 @@ def fetch_rss(feed_name: str, feed_url: str, feed_category: str) -> list[dict]:
     return articles
 
 
+def _fetch_nhtsa_single(make: str, model: str, year: int) -> list[dict]:
+    """Fetch recalls for one make/model/year combination. Used by thread pool."""
+    try:
+        resp = requests.get(
+            "https://api.nhtsa.gov/recalls/recallsByVehicle",
+            params={"make": make, "model": model, "modelYear": str(year)},
+            timeout=8,
+        )
+        if resp.status_code != 200:
+            return []
+        results = resp.json().get("results") or []
+        articles = []
+        for rec in results:
+            campaign = rec.get("NHTSACampaignNumber", "")
+            if not campaign:
+                continue
+            summary = rec.get("Summary") or rec.get("Consequence") or ""
+            remedy = rec.get("Remedy") or ""
+            component = rec.get("Component") or ""
+            report_date = rec.get("ReportReceivedDate") or ""
+            title = f"{make} {model} recall: {component} (NHTSA {campaign})"
+            full_summary = f"{summary} Remedy: {remedy}".strip()
+            url = f"https://www.nhtsa.gov/vehicle-safety/recalls?nhtsaId={campaign}"
+            articles.append({
+                "article_id": _article_id(f"nhtsa-{campaign}"),
+                "title": title[:500],
+                "summary": full_summary[:1000],
+                "url": url,
+                "source": "NHTSA API",
+                "feed_category_hint": "recall",
+                "published_at": report_date[:30] if report_date else None,
+                "_campaign": campaign,  # for dedup across threads
+            })
+        return articles
+    except Exception as e:
+        print(f"[news-engine] NHTSA API error ({make} {model} {year}): {e}", file=sys.stderr)
+        return []
+
+
 def fetch_nhtsa_recalls() -> list[dict]:
     """
-    Pull recent recalls directly from the NHTSA API for all major EV makes/models.
-    Supplements the NHTSA RSS feed which only covers the most recent 20 entries.
-    Returns articles in the same shape as fetch_rss() output.
+    Pull recent recalls from the NHTSA API for all major EV makes/models.
+    Uses a thread pool for parallel fetches to stay well within the 15-min CI timeout.
+    Only queries current year + prior year (2 years) — the RSS feed covers older recalls.
     """
-    articles = []
-    seen_campaigns: set[str] = set()
     current_year = datetime.now(timezone.utc).year
+    # Build list of (make, model, year) tasks — current + prior year only
+    tasks = [
+        (make, model, year)
+        for make, models in NHTSA_EV_MAKES
+        for model in models
+        for year in [current_year, current_year - 1]
+    ]
 
-    for make, models in NHTSA_EV_MAKES:
-        for model in models:
-            try:
-                for year in [current_year, current_year - 1, current_year - 2]:
-                    resp = requests.get(
-                        "https://api.nhtsa.gov/recalls/recallsByVehicle",
-                        params={"make": make, "model": model, "modelYear": str(year)},
-                        timeout=10,
-                    )
-                    if resp.status_code != 200:
-                        continue
-                    results = resp.json().get("results") or []
-                    for rec in results:
-                        campaign = rec.get("NHTSACampaignNumber", "")
-                        if not campaign or campaign in seen_campaigns:
-                            continue
-                        seen_campaigns.add(campaign)
+    raw_articles: list[dict] = []
+    # 10 workers — NHTSA API is public, no auth, tolerates moderate concurrency
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = {pool.submit(_fetch_nhtsa_single, make, model, year): (make, model, year)
+                   for make, model, year in tasks}
+        for future in as_completed(futures):
+            raw_articles.extend(future.result())
 
-                        summary = rec.get("Summary") or rec.get("Consequence") or ""
-                        remedy = rec.get("Remedy") or ""
-                        component = rec.get("Component") or ""
-                        report_date = rec.get("ReportReceivedDate") or ""
+    # Deduplicate by campaign number (same recall may appear across model years)
+    seen_campaigns: set[str] = set()
+    articles = []
+    for a in raw_articles:
+        campaign = a.pop("_campaign", "")
+        if campaign and campaign not in seen_campaigns:
+            seen_campaigns.add(campaign)
+            articles.append(a)
 
-                        title = f"{make} {model} recall: {component} (NHTSA {campaign})"
-                        full_summary = f"{summary} Remedy: {remedy}".strip()
-                        url = f"https://www.nhtsa.gov/vehicle/{make}/{model}/{year}/0/complaints#recalls"
-                        # Make URL unique per campaign
-                        url = f"https://www.nhtsa.gov/vehicle-safety/recalls?nhtsaId={campaign}"
-
-                        articles.append({
-                            "article_id": _article_id(f"nhtsa-{campaign}"),
-                            "title": title[:500],
-                            "summary": full_summary[:1000],
-                            "url": url,
-                            "source": "NHTSA API",
-                            "feed_category_hint": "recall",
-                            "published_at": report_date[:30] if report_date else None,
-                        })
-                time.sleep(0.1)  # be polite to NHTSA API
-            except Exception as e:
-                print(f"[news-engine] NHTSA API error ({make} {model}): {e}", file=sys.stderr)
-
-    print(f"[news-engine] NHTSA API: {len(articles)} recall records fetched")
+    print(f"[news-engine] NHTSA API: {len(articles)} recall records fetched ({len(tasks)} requests parallelized)")
     return articles
 
 
