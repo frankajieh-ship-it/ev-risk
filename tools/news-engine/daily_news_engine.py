@@ -46,7 +46,7 @@ NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY")
 MIN_SCORE_BY_CATEGORY = {
     "recall": 50,           # recalls always matter even if low scored
     "routine_impact": 65,
-    "used_market": 60,
+    "used_market": 55,      # lowered — used EV content is sparse, cast wider net
     "charging_network": 60,
 }
 
@@ -65,14 +65,36 @@ RSS_FEEDS = [
     ("NHTSA Recalls",     "https://www.nhtsa.gov/rss/recalls.xml",       "recall"),
 
     # ── Used EV market ───────────────────────────────────────────────────
-    ("iSeeCars",          "https://www.iseecars.com/feed",               "used_market"),
+    # Cox Automotive / Manheim: best source for used vehicle value index,
+    # EV depreciation trends, off-lease volume, and wholesale market data
+    ("Cox Automotive",    "https://www.coxautoinc.com/market-insights/feed/", "used_market"),
+    # CarEdge: dealer-focused used car pricing and market analysis
     ("CarEdge",           "https://caredge.com/feed",                    "used_market"),
-    ("Edmunds News",      "https://www.edmunds.com/rss/news.rss",        "used_market"),
+    # Car and Driver buying advice: CPO, depreciation, best used EVs
+    ("Car and Driver",    "https://www.caranddriver.com/rss/all.xml/",   "used_market"),
+    # Electrek used EV tag: used EV deals, prices, CPO announcements
+    ("Electrek Used EV",  "https://electrek.co/tag/used-electric-vehicle/feed/", "used_market"),
+    # InsideEVs used cars tag
+    ("InsideEVs Used",    "https://insideevs.com/tag/used-cars/feed/",   "used_market"),
 
     # ── Charging network ─────────────────────────────────────────────────
     ("PlugShare Blog",    "https://blog.plugshare.com/feed/",            "charging_network"),
     ("ChargePoint",       "https://www.chargepoint.com/feed/",           "charging_network"),
     ("Electrek Charging", "https://electrek.co/tag/ev-charging/feed/",   "charging_network"),
+]
+
+# EV makes to query NHTSA API for recent recalls (supplements RSS)
+NHTSA_EV_MAKES = [
+    ("Tesla",      ["Model 3", "Model Y", "Model S", "Model X", "Cybertruck"]),
+    ("Rivian",     ["R1T", "R1S"]),
+    ("Chevrolet",  ["Bolt EV", "Bolt EUV", "Equinox EV", "Silverado EV"]),
+    ("Ford",       ["Mustang Mach-E", "F-150 Lightning"]),
+    ("Hyundai",    ["Ioniq 5", "Ioniq 6", "Kona Electric"]),
+    ("Kia",        ["EV6", "EV9", "Niro EV"]),
+    ("BMW",        ["i4", "iX", "i5"]),
+    ("Volkswagen", ["ID.4"]),
+    ("Nissan",     ["Leaf", "Ariya"]),
+    ("Audi",       ["e-tron", "Q4 e-tron"]),
 ]
 
 GROK_CLASSIFIER_SYSTEM = """You are classifying EV news articles into exactly one of four categories. Read the category rules carefully — most articles will NOT be "routine_impact".
@@ -83,7 +105,7 @@ STEP 1 — Assign a category using these STRICT rules (first match wins):
 
   "charging_network" — Use this if the article is primarily about EV charging infrastructure, networks, or stations: charger reliability studies, network expansions, new charging partnerships, charger pricing changes, outages, Tesla Supercharger access for other brands, charging success rates, off-grid chargers, number of public chargers. Examples: "BMW integrates Tesla Superchargers", "Study: Tesla Rivian networks most reliable", "California has more chargers than gas nozzles", "GM-Pilot charging network expands", "Free off-grid fast chargers".
 
-  "used_market" — Use this if the article is primarily about used/pre-owned EV pricing, depreciation, CPO programs, auction results, trade-in values, or residual value trends. Examples: "Used EV prices drop 30%", "Best CPO electric cars 2025", "EV depreciation study".
+  "used_market" — Use this if the article is primarily about used/pre-owned EV pricing, depreciation, CPO programs, auction results, trade-in values, residual value trends, off-lease EV volume, wholesale market data, Manheim index, battery health reports for used EVs, or EV resale value impacts. Examples: "Used EV prices drop 30%", "Best CPO electric cars 2025", "EV depreciation study", "Manheim Used Vehicle Value Index", "500,000 off-lease EVs hitting market", "EV sales data affecting resale".
 
   "routine_impact" — Use this ONLY if the article does not fit the above three categories AND it affects daily EV ownership: battery health/degradation, real-world range data, home charging costs, winter range, efficiency data, fuel savings comparisons, infrastructure changes not related to charging networks.
 
@@ -99,8 +121,10 @@ Score HIGH (>= 60) for:
 - Charging network outages, expansions, or reliability changes
 - Real-world range or efficiency data from actual use
 - Battery degradation findings from real-world fleet data
-- Used EV price movements or depreciation data relevant to buyers
+- Used EV price movements, depreciation data, or off-lease volume (affects buyers directly)
+- Manheim/wholesale index reports showing used EV value trends
 - Home charging or public charging infrastructure changes
+- EV sales data that directly impacts used market supply/demand
 
 STEP 3 — List key routine effects (choose from):
   charging, winter, battery_daily_use, recall, infrastructure, range, cost, software, used_pricing, depreciation, network_reliability
@@ -185,6 +209,62 @@ def fetch_rss(feed_name: str, feed_url: str, feed_category: str) -> list[dict]:
     return articles
 
 
+def fetch_nhtsa_recalls() -> list[dict]:
+    """
+    Pull recent recalls directly from the NHTSA API for all major EV makes/models.
+    Supplements the NHTSA RSS feed which only covers the most recent 20 entries.
+    Returns articles in the same shape as fetch_rss() output.
+    """
+    articles = []
+    seen_campaigns: set[str] = set()
+    current_year = datetime.now(timezone.utc).year
+
+    for make, models in NHTSA_EV_MAKES:
+        for model in models:
+            try:
+                for year in [current_year, current_year - 1, current_year - 2]:
+                    resp = requests.get(
+                        "https://api.nhtsa.gov/recalls/recallsByVehicle",
+                        params={"make": make, "model": model, "modelYear": str(year)},
+                        timeout=10,
+                    )
+                    if resp.status_code != 200:
+                        continue
+                    results = resp.json().get("results") or []
+                    for rec in results:
+                        campaign = rec.get("NHTSACampaignNumber", "")
+                        if not campaign or campaign in seen_campaigns:
+                            continue
+                        seen_campaigns.add(campaign)
+
+                        summary = rec.get("Summary") or rec.get("Consequence") or ""
+                        remedy = rec.get("Remedy") or ""
+                        component = rec.get("Component") or ""
+                        report_date = rec.get("ReportReceivedDate") or ""
+
+                        title = f"{make} {model} recall: {component} (NHTSA {campaign})"
+                        full_summary = f"{summary} Remedy: {remedy}".strip()
+                        url = f"https://www.nhtsa.gov/vehicle/{make}/{model}/{year}/0/complaints#recalls"
+                        # Make URL unique per campaign
+                        url = f"https://www.nhtsa.gov/vehicle-safety/recalls?nhtsaId={campaign}"
+
+                        articles.append({
+                            "article_id": _article_id(f"nhtsa-{campaign}"),
+                            "title": title[:500],
+                            "summary": full_summary[:1000],
+                            "url": url,
+                            "source": "NHTSA API",
+                            "feed_category_hint": "recall",
+                            "published_at": report_date[:30] if report_date else None,
+                        })
+                time.sleep(0.1)  # be polite to NHTSA API
+            except Exception as e:
+                print(f"[news-engine] NHTSA API error ({make} {model}): {e}", file=sys.stderr)
+
+    print(f"[news-engine] NHTSA API: {len(articles)} recall records fetched")
+    return articles
+
+
 def fetch_newsdata(query: str = "electric vehicle EV charging recall used market", limit: int = 10) -> list[dict]:
     """Fetch from NewsData.io API. Skips gracefully if key not set."""
     if not NEWSDATA_API_KEY:
@@ -252,6 +332,10 @@ _RECALL_KEYWORDS = [
 _USED_MARKET_KEYWORDS = [
     "used ev", "used electric", "pre-owned", "cpo ", "depreciation", "resale value",
     "trade-in value", "residual value", "auction result", "used car price",
+    "off-lease", "off lease", "wholesale", "manheim", "vehicle value index",
+    "used vehicle", "certified pre", "second-hand ev", "secondhand ev",
+    "ev prices drop", "ev prices fall", "ev price", "used market",
+    "battery health report", "recurrent", "fleet ev", "fleet electric",
 ]
 
 
@@ -363,6 +447,7 @@ def run_daily_digest(dry_run: bool = False) -> None:
     articles: list[dict] = []
     for name, url, category in RSS_FEEDS:
         articles += fetch_rss(name, url, category)
+    articles += fetch_nhtsa_recalls()
     articles += fetch_newsdata()
 
     before_dedup = len(articles)
