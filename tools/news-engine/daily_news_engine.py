@@ -75,13 +75,17 @@ RSS_FEEDS = [
     ("Electrek Charging", "https://electrek.co/tag/ev-charging/feed/",   "charging_network"),
 ]
 
-GROK_CLASSIFIER_SYSTEM = """Analyze this EV news article headline and summary.
+GROK_CLASSIFIER_SYSTEM = """You are classifying EV news articles into exactly one of four categories. Read the category rules carefully — most articles will NOT be "routine_impact".
 
-STEP 1 — Assign a category (pick the SINGLE best fit):
-  "recall"           — NHTSA recalls, safety defects, OTA updates fixing safety issues, fire risk
-  "used_market"      — used/pre-owned EV prices, depreciation trends, CPO programs, auction results, trade-in values, residual values
-  "charging_network" — charger outages, network expansions, new DCFC installs, charging reliability studies, roaming agreements, pricing changes at charging stations
-  "routine_impact"   — everything else that affects daily EV owner routines: battery health, home charging feasibility, winter range, real-world efficiency data, infrastructure changes affecting daily access
+STEP 1 — Assign a category using these STRICT rules (first match wins):
+
+  "recall" — Use this if the article mentions ANY of: NHTSA recall, safety defect, fire risk, OTA fix for a safety issue, lawsuit over vehicle defects, battery defect notice. Examples: "Nissan recalls LEAF", "GM faces lawsuit over Lyriq defects", "Tesla OTA update fixes brake issue".
+
+  "charging_network" — Use this if the article is primarily about EV charging infrastructure, networks, or stations: charger reliability studies, network expansions, new charging partnerships, charger pricing changes, outages, Tesla Supercharger access for other brands, charging success rates, off-grid chargers, number of public chargers. Examples: "BMW integrates Tesla Superchargers", "Study: Tesla Rivian networks most reliable", "California has more chargers than gas nozzles", "GM-Pilot charging network expands", "Free off-grid fast chargers".
+
+  "used_market" — Use this if the article is primarily about used/pre-owned EV pricing, depreciation, CPO programs, auction results, trade-in values, or residual value trends. Examples: "Used EV prices drop 30%", "Best CPO electric cars 2025", "EV depreciation study".
+
+  "routine_impact" — Use this ONLY if the article does not fit the above three categories AND it affects daily EV ownership: battery health/degradation, real-world range data, home charging costs, winter range, efficiency data, fuel savings comparisons, infrastructure changes not related to charging networks.
 
 STEP 2 — Score how directly it affects real EV owner daily routines (0-100):
 Score LOW (< 50) for:
