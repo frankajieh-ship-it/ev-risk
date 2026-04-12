@@ -1,0 +1,20 @@
+name: Keepalive
+
+# Prevents GitHub from disabling scheduled workflows after 60 days of repo inactivity.
+# Runs every Monday at 10:00 UTC and makes a no-op API call to keep the repo "active".
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'  # Every Monday 10:00 UTC
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: gautamkrishnar/keepalive-workflow@v2
+        with:
+          time_elapsed: 20   # trigger if no commits in last 20 days
