@@ -237,6 +237,39 @@ def deduplicate(articles: list[dict]) -> list[dict]:
     return out
 
 
+# Keyword overrides — applied after Grok scoring to correct systematic misclassification.
+# Grok-3-mini consistently calls charging infrastructure articles "routine_impact".
+_CHARGING_NETWORK_KEYWORDS = [
+    "supercharger", "charging network", "charging station", "fast charger", "dcfc",
+    "ev charger", "charging infrastructure", "charging point", "plugshare", "chargepoint",
+    "electrify america", "blink charging", "evgo", "charging reliability", "charging success",
+    "charging outage", "charger availability", "public charger", "charging expansion",
+]
+_RECALL_KEYWORDS = [
+    "recall", "nhtsa", "safety defect", "fire risk", "lawsuit over", "battery defect",
+    "ota fix", "safety issue", "safety investigation",
+]
+_USED_MARKET_KEYWORDS = [
+    "used ev", "used electric", "pre-owned", "cpo ", "depreciation", "resale value",
+    "trade-in value", "residual value", "auction result", "used car price",
+]
+
+
+def _keyword_override_category(title: str, summary: str, grok_category: str) -> str:
+    """Override Grok category when strong keyword signals are present."""
+    text = (title + " " + summary).lower()
+    # Only override if Grok returned routine_impact (Grok rarely mis-IDs recall/used_market)
+    if grok_category != "routine_impact":
+        return grok_category
+    if any(kw in text for kw in _RECALL_KEYWORDS):
+        return "recall"
+    if any(kw in text for kw in _CHARGING_NETWORK_KEYWORDS):
+        return "charging_network"
+    if any(kw in text for kw in _USED_MARKET_KEYWORDS):
+        return "used_market"
+    return grok_category
+
+
 def score_articles(articles: list[dict]) -> list[dict]:
     """
     Run Grok classifier on each article.
@@ -255,6 +288,8 @@ def score_articles(articles: list[dict]) -> list[dict]:
             valid_cats = {"routine_impact", "recall", "used_market", "charging_network"}
             if category not in valid_cats:
                 category = article.get("feed_category_hint", "routine_impact")
+            # Keyword override — corrects systematic Grok misclassification
+            category = _keyword_override_category(article["title"], article.get("summary", ""), category)
 
             min_score = MIN_SCORE_BY_CATEGORY.get(category, 65)
             if score >= min_score:
