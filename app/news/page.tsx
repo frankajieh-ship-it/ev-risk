@@ -1,8 +1,6 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { motion } from "framer-motion";
 import { Loader2, Zap, ExternalLink } from "lucide-react";
 import Link from "next/link";
@@ -23,7 +21,7 @@ const CATEGORY_TABS: { label: string; value: NewsCategory | "all"; description: 
   { label: "📡 Routine",     value: "routine_impact",  description: "Battery, range, daily ownership" },
 ];
 
-export default function NewsPage() {
+function NewsPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -258,5 +256,17 @@ export default function NewsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function NewsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-[#00d97e] border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <NewsPageInner />
+    </Suspense>
   );
 }
