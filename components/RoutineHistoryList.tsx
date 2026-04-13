@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Clock, Zap, AlertTriangle, ChevronRight } from "lucide-react";
+import { Clock, AlertTriangle, ChevronRight } from "lucide-react";
 
 export interface RoutineHistoryEntry {
   id: string;
@@ -26,10 +26,10 @@ interface RoutineHistoryListProps {
 }
 
 const FIT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  "Great Fit": { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
-  "Good Fit": { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  "Mixed Fit": { bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200" },
-  "High Friction": { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+  "Great Fit":    { bg: "bg-[#00d97e]/10", text: "text-[#00d97e]",  border: "border-[#00d97e]/20" },
+  "Good Fit":     { bg: "bg-blue-500/10",  text: "text-blue-400",   border: "border-blue-500/20" },
+  "Mixed Fit":    { bg: "bg-amber-500/10", text: "text-amber-400",  border: "border-amber-500/20" },
+  "High Friction":{ bg: "bg-red-500/10",   text: "text-red-400",    border: "border-red-500/20" },
 };
 
 function timeAgo(dateStr: string): string {
@@ -47,9 +47,6 @@ function timeAgo(dateStr: string): string {
 export default function RoutineHistoryList({
   runs,
   onSelect,
-  totalCount,
-  maxFree = 3,
-  isUnlocked,
 }: RoutineHistoryListProps) {
   if (runs.length === 0) return null;
 
@@ -60,17 +57,9 @@ export default function RoutineHistoryList({
       className="mb-8"
     >
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+        <h2 className="text-xs font-semibold text-white/40 uppercase tracking-wider">
           Your Scenarios
         </h2>
-        {!isUnlocked && (
-          <span className="text-xs text-gray-500">
-            {totalCount} of {maxFree} free used
-          </span>
-        )}
-        {isUnlocked && (
-          <span className="text-xs text-green-600 font-medium">Unlimited</span>
-        )}
       </div>
 
       <div className="space-y-2">
@@ -85,42 +74,40 @@ export default function RoutineHistoryList({
             <button
               key={run.id}
               onClick={() => onSelect(run)}
-              className="w-full flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all text-left group"
+              className="w-full flex items-center gap-3 p-3 bg-[#161b22] rounded-xl border border-white/[0.08] hover:border-white/[0.18] hover:bg-white/[0.03] transition-all text-left group"
             >
-              {/* Fit label badge */}
-              <span className={`flex-shrink-0 text-xs font-semibold px-2 py-1 rounded-full border ${colors.bg} ${colors.text} ${colors.border}`}>
+              {/* Score badge */}
+              <span className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full border ${colors.bg} ${colors.text} ${colors.border}`}>
                 {run.friction_score}
               </span>
 
               {/* Details */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-gray-900 truncate">
+                  <span className="text-sm font-medium text-white/80 truncate">
                     {run.scenario_name || run.fit_label}
                   </span>
                   {vehicleLabel && (
-                    <span className="text-xs text-gray-400 truncate hidden sm:inline">
+                    <span className="text-xs text-white/30 truncate hidden sm:inline">
                       {vehicleLabel}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  {run.break_first_reason && (
-                    <span className="flex items-center gap-1 text-xs text-gray-500">
-                      <AlertTriangle className="w-3 h-3" />
-                      <span className="truncate">{run.break_first_reason}</span>
-                    </span>
-                  )}
-                </div>
+                {run.break_first_reason && (
+                  <span className="flex items-center gap-1 text-xs text-white/40 mt-0.5">
+                    <AlertTriangle className="w-3 h-3 shrink-0" />
+                    <span className="truncate">{run.break_first_reason}</span>
+                  </span>
+                )}
               </div>
 
               {/* Time + arrow */}
               <div className="flex items-center gap-1 flex-shrink-0">
-                <span className="text-xs text-gray-400 flex items-center gap-1">
+                <span className="text-xs text-white/30 flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   {timeAgo(run.created_at)}
                 </span>
-                <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
+                <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/50 transition-colors" />
               </div>
             </button>
           );

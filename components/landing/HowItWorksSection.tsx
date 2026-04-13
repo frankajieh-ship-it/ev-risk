@@ -133,9 +133,10 @@ const itemVariants = {
 
 interface HowItWorksSectionProps {
   variant?: "receipt" | "receipt-v2" | "fit-check" | "homepage";
+  dark?: boolean;
 }
 
-export default function HowItWorksSection({ variant = "receipt-v2" }: HowItWorksSectionProps) {
+export default function HowItWorksSection({ variant = "receipt-v2", dark = false }: HowItWorksSectionProps) {
   const steps =
     variant === "homepage" ? homepageSteps :
     variant === "fit-check" ? fitCheckSteps :
@@ -148,13 +149,22 @@ export default function HowItWorksSection({ variant = "receipt-v2" }: HowItWorks
     "Three steps to confident used EV shopping";
 
   return (
-    <section id="how-it-works" className="py-16 md:py-24 bg-white">
+    <section
+      id="how-it-works"
+      className={`section ${dark ? "bg-[#0d1117]" : "bg-white"}`}
+    >
       <div className="max-w-7xl mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
-            How OFFO works
+          <p className={`text-xs font-semibold uppercase tracking-widest mb-2 ${dark ? "text-[#00d97e]" : "text-gray-400"}`}>
+            How it works
+          </p>
+          <h2
+            className={`text-2xl md:text-3xl font-bold mb-3 ${dark ? "text-white" : "text-gray-900"}`}
+            style={{ lineHeight: "var(--leading-snug)" }}
+          >
+            OFFO in three steps
           </h2>
-          <p className="text-gray-500 text-base">
+          <p className={`text-[0.9375rem] ${dark ? "text-white/50" : "text-gray-500"}`}>
             {subtitle}
           </p>
         </div>
@@ -178,18 +188,25 @@ export default function HowItWorksSection({ variant = "receipt-v2" }: HowItWorks
                 variants={itemVariants}
                 className="text-center p-6"
               >
-                <div className="flex items-center justify-center mb-5">
-                  <div className={`w-14 h-14 rounded-2xl ${step.color} flex items-center justify-center`}>
-                    <Icon className="w-6 h-6" />
+                <div className="flex items-center justify-center mb-4">
+                  <div className={`w-12 h-12 rounded-xl border flex items-center justify-center ${
+                    dark
+                      ? "bg-white/[0.06] border-white/10 text-white/60"
+                      : "bg-[var(--surface-2)] border-[var(--border-subtle)] text-gray-500"
+                  }`}>
+                    <Icon className="w-5 h-5" />
                   </div>
                 </div>
-                <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-gray-500 text-sm font-bold mb-3">
-                  {step.number}
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <p className={`text-[0.6875rem] font-semibold uppercase tracking-widest mb-2 ${dark ? "text-[#00d97e]/70" : "text-gray-400"}`}>
+                  Step {step.number}
+                </p>
+                <h3
+                  className={`text-base font-semibold mb-1.5 ${dark ? "text-white" : "text-gray-900"}`}
+                  style={{ lineHeight: "var(--leading-snug)" }}
+                >
                   {step.title}
                 </h3>
-                <p className="text-sm text-gray-500 leading-relaxed">
+                <p className={`text-sm leading-relaxed ${dark ? "text-white/50" : "text-gray-500"}`}>
                   {step.description}
                 </p>
               </motion.div>

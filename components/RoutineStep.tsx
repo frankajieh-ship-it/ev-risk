@@ -32,6 +32,7 @@ function climateLabel(cs: ClimateSeasonality): string {
 
 interface RoutineStepProps {
   onComplete: (routine: MinimumViableRoutine) => void;
+  dark?: boolean;
 }
 
 type MilesMode = "weekly" | "commute";
@@ -43,7 +44,7 @@ const PAGES = [
   { title: "Final Adjustments",    subtitle: "Almost done"                  },
 ] as const;
 
-export default function RoutineStep({ onComplete }: RoutineStepProps) {
+export default function RoutineStep({ onComplete, dark = false }: RoutineStepProps) {
   const { trackEvent } = useEventTracking();
 
   // --- Internal page index (0–3) ---
@@ -86,7 +87,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
 
   useEffect(() => {
     topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    setPageError(null);
+    setPageError(null); // eslint-disable-line react-hooks/set-state-in-effect
   }, [currentPage]);
 
   const buildRoutine = (): Partial<MinimumViableRoutine> => ({
@@ -189,18 +190,26 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
       aria-label={ariaLabel}
       aria-pressed={selected}
       className={`relative p-4 rounded-xl border-2 text-left transition-all min-h-[56px] ${
-        selected
-          ? "border-blue-600 bg-blue-100 shadow-sm"
-          : "border-gray-200 hover:border-gray-300 bg-white"
+        dark
+          ? selected
+            ? "border-[#00d97e] bg-[#00d97e]/10 shadow-sm"
+            : "border-white/10 hover:border-white/25 bg-white/[0.05]"
+          : selected
+            ? "border-blue-600 bg-blue-100 shadow-sm"
+            : "border-gray-200 hover:border-gray-300 bg-white"
       }`}
     >
       {selected && (
         <span className="absolute top-2 right-2">
-          <Check className="w-4 h-4 text-blue-600" />
+          <Check className={`w-4 h-4 ${dark ? "text-[#00d97e]" : "text-blue-600"}`} />
         </span>
       )}
-      <div className="font-semibold text-gray-900 text-sm">{label}</div>
-      <div className={`text-xs mt-1 ${selected ? "text-blue-700" : "text-gray-600"}`}>{desc}</div>
+      <div className={`font-semibold text-sm ${dark ? "text-white" : "text-gray-900"}`}>{label}</div>
+      <div className={`text-xs mt-1 ${
+        dark
+          ? selected ? "text-[#00d97e]/80" : "text-white/50"
+          : selected ? "text-blue-700" : "text-gray-600"
+      }`}>{desc}</div>
     </button>
   );
 
@@ -208,7 +217,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
   const SkipButton = ({ onSkip }: { onSkip: () => void }) => (
     <button
       onClick={onSkip}
-      className="mt-2 text-xs text-gray-400 hover:text-gray-500 underline"
+      className={`mt-2 text-xs underline ${dark ? "text-white/30 hover:text-white/50" : "text-gray-400 hover:text-gray-500"}`}
     >
       Not sure → Skip
     </button>
@@ -221,8 +230,8 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
       {/* Charging access (required) */}
       <fieldset>
         <legend className="sr-only">Where will you charge most often?</legend>
-        <label className="block text-sm font-semibold text-gray-700 mb-3">
-          Where will you charge most often? <span className="text-red-500">*</span>
+        <label className={`block text-sm font-semibold mb-3 ${dark ? "text-white/80" : "text-gray-700"}`}>
+          Where will you charge most often? <span className="text-red-400">*</span>
         </label>
         <div className="grid grid-cols-3 gap-3">
           {([
@@ -243,7 +252,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
             />
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-2">Pick where you charge most weeks.</p>
+        <p className={`text-xs mt-2 ${dark ? "text-white/40" : "text-gray-500"}`}>Pick where you charge most weeks.</p>
       </fieldset>
 
       {/* Home charging sub-questions */}
@@ -256,13 +265,13 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <div className="border-t border-gray-200 pt-6 space-y-6">
-              <p className="text-sm font-semibold text-gray-700">Home charging details</p>
+            <div className={`border-t pt-6 space-y-6 ${dark ? "border-white/10" : "border-gray-200"}`}>
+              <p className={`text-sm font-semibold ${dark ? "text-white/80" : "text-gray-700"}`}>Home charging details</p>
 
               {/* Home type */}
               <fieldset>
                 <legend className="sr-only">What type of home do you live in?</legend>
-                <label className="block text-xs font-medium text-gray-600 mb-2">
+                <label className={`block text-xs font-medium mb-2 ${dark ? "text-white/60" : "text-gray-600"}`}>
                   What type of home do you live in?
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -288,7 +297,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
               {/* Can install charger */}
               <fieldset>
                 <legend className="sr-only">Can you install a charger?</legend>
-                <label className="block text-xs font-medium text-gray-600 mb-2">
+                <label className={`block text-xs font-medium mb-2 ${dark ? "text-white/60" : "text-gray-600"}`}>
                   Can you install a home charger?
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -313,7 +322,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
               {/* Shared charger */}
               <fieldset>
                 <legend className="sr-only">Do you share this charger with a partner?</legend>
-                <label className="block text-xs font-medium text-gray-600 mb-2">
+                <label className={`block text-xs font-medium mb-2 ${dark ? "text-white/60" : "text-gray-600"}`}>
                   Share this charger with a partner?
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -331,14 +340,14 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
                     />
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Shared chargers reduce available charging windows.</p>
+                <p className={`text-xs mt-1 ${dark ? "text-white/40" : "text-gray-500"}`}>Shared chargers reduce available charging windows.</p>
                 <SkipButton onSkip={() => setSharedCharger(null)} />
               </fieldset>
 
               {/* Overnight dwell */}
               <fieldset>
                 <legend className="sr-only">How long is your car parked overnight?</legend>
-                <label className="block text-xs font-medium text-gray-600 mb-2">
+                <label className={`block text-xs font-medium mb-2 ${dark ? "text-white/60" : "text-gray-600"}`}>
                   How long is your car parked overnight?
                 </label>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -371,13 +380,13 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
     <div className="space-y-8">
       {/* Miles (required) */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-3">
+        <label className={`block text-sm font-semibold mb-3 ${dark ? "text-white/80" : "text-gray-700"}`}>
           {milesMode === "weekly"
             ? "How far do you drive in a typical week?"
             : "What\u2019s your daily roundtrip commute?"}{" "}
-          <span className="text-red-500">*</span>
+          <span className="text-red-400">*</span>
         </label>
-        <div className="flex bg-gray-100 rounded-lg p-1 mb-3">
+        <div className={`flex rounded-lg p-1 mb-3 ${dark ? "bg-white/[0.07]" : "bg-gray-100"}`}>
           {(["weekly", "commute"] as MilesMode[]).map((mode) => (
             <button
               key={mode}
@@ -389,8 +398,12 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
               }}
               className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
                 milesMode === mode
-                  ? "bg-white shadow-sm text-gray-900"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? dark
+                    ? "bg-white/10 shadow-sm text-white"
+                    : "bg-white shadow-sm text-gray-900"
+                  : dark
+                    ? "text-white/50 hover:text-white/70"
+                    : "text-gray-500 hover:text-gray-700"
               }`}
             >
               {mode === "weekly" ? "Weekly miles" : "Daily commute"}
@@ -413,13 +426,17 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
                 if (e.target.value && !commuteMiles) trackField("commute_miles");
               }
             }}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-gray-900"
+            className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none ${
+              dark
+                ? "bg-white/[0.06] border-white/10 text-white placeholder-white/30 focus:border-[#00d97e]/60"
+                : "border-gray-200 focus:border-blue-500 text-gray-900"
+            }`}
           />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+          <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-sm ${dark ? "text-white/40" : "text-gray-500"}`}>
             {milesMode === "weekly" ? "miles/week" : "miles/day"}
           </span>
         </div>
-        <p className="text-xs text-gray-500 mt-2">
+        <p className={`text-xs mt-2 ${dark ? "text-white/40" : "text-gray-500"}`}>
           {milesMode === "weekly" ? "Enter your typical weekly total." : "Enter your daily round-trip distance."}
         </p>
       </div>
@@ -427,8 +444,8 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
       {/* Longest day pattern (required) */}
       <fieldset>
         <legend className="sr-only">How often do you have a longer-than-usual driving day?</legend>
-        <label className="block text-sm font-semibold text-gray-700 mb-3">
-          How often do you have a longer-than-usual driving day? <span className="text-red-500">*</span>
+        <label className={`block text-sm font-semibold mb-3 ${dark ? "text-white/80" : "text-gray-700"}`}>
+          How often do you have a longer-than-usual driving day? <span className="text-red-400">*</span>
         </label>
         <div className="grid grid-cols-3 gap-3">
           {([
@@ -446,12 +463,12 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
             />
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-2">The day that breaks routines first.</p>
+        <p className={`text-xs mt-2 ${dark ? "text-white/40" : "text-gray-500"}`}>The day that breaks routines first.</p>
       </fieldset>
 
       {/* Longest day miles (optional) */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-3">
+        <label className={`block text-sm font-semibold mb-3 ${dark ? "text-white/80" : "text-gray-700"}`}>
           How many miles was your longest driving day recently?
         </label>
         <div className="relative">
@@ -465,18 +482,22 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
               setLongestDayMiles(e.target.value);
               if (e.target.value && !longestDayMiles) trackField("longest_day_miles");
             }}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-gray-900"
+            className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none ${
+              dark
+                ? "bg-white/[0.06] border-white/10 text-white placeholder-white/30 focus:border-[#00d97e]/60"
+                : "border-gray-200 focus:border-blue-500 text-gray-900"
+            }`}
           />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">miles</span>
+          <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-sm ${dark ? "text-white/40" : "text-gray-500"}`}>miles</span>
         </div>
-        <p className="text-xs text-gray-500 mt-2">Drives your minimum range requirement.</p>
+        <p className={`text-xs mt-2 ${dark ? "text-white/40" : "text-gray-500"}`}>Drives your minimum range requirement.</p>
         <SkipButton onSkip={() => setLongestDayMiles("")} />
       </div>
 
       {/* Parking exposure (optional) */}
       <fieldset>
         <legend className="sr-only">Where do you park overnight?</legend>
-        <label className="block text-sm font-semibold text-gray-700 mb-3">
+        <label className={`block text-sm font-semibold mb-3 ${dark ? "text-white/80" : "text-gray-700"}`}>
           Where do you park overnight?
         </label>
         <div className="grid grid-cols-3 gap-3">
@@ -495,7 +516,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
             />
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-2">Affects winter range loss and preconditioning.</p>
+        <p className={`text-xs mt-2 ${dark ? "text-white/40" : "text-gray-500"}`}>Affects winter range loss and preconditioning.</p>
         <SkipButton onSkip={() => setParkingExposure(null)} />
       </fieldset>
     </div>
@@ -506,7 +527,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
       {/* Budget (optional) */}
       <fieldset>
         <legend className="sr-only">What&apos;s your budget range?</legend>
-        <label className="block text-sm font-semibold text-gray-700 mb-3">
+        <label className={`block text-sm font-semibold mb-3 ${dark ? "text-white/80" : "text-gray-700"}`}>
           What&apos;s your budget range?
         </label>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -526,14 +547,14 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
             />
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-2">Helps filter to vehicles you&apos;d actually consider.</p>
+        <p className={`text-xs mt-2 ${dark ? "text-white/40" : "text-gray-500"}`}>Helps filter to vehicles you&apos;d actually consider.</p>
         <SkipButton onSkip={() => setBudgetMax(null)} />
       </fieldset>
 
       {/* Body style (optional) */}
       <fieldset>
         <legend className="sr-only">Preferred body style?</legend>
-        <label className="block text-sm font-semibold text-gray-700 mb-3">
+        <label className={`block text-sm font-semibold mb-3 ${dark ? "text-white/80" : "text-gray-700"}`}>
           Preferred body style?
         </label>
         <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
@@ -560,7 +581,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
       {/* Towing (optional) */}
       <fieldset>
         <legend className="sr-only">Do you tow or carry heavy loads?</legend>
-        <label className="block text-sm font-semibold text-gray-700 mb-3">
+        <label className={`block text-sm font-semibold mb-3 ${dark ? "text-white/80" : "text-gray-700"}`}>
           Do you tow or carry heavy loads?
         </label>
         <div className="grid grid-cols-3 gap-3">
@@ -585,7 +606,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
       {/* CarPlay (optional) */}
       <fieldset>
         <legend className="sr-only">Must-have: Apple CarPlay / Android Auto?</legend>
-        <label className="block text-sm font-semibold text-gray-700 mb-3">
+        <label className={`block text-sm font-semibold mb-3 ${dark ? "text-white/80" : "text-gray-700"}`}>
           Must-have: Apple CarPlay / Android Auto?
         </label>
         <div className="grid grid-cols-2 gap-3">
@@ -614,21 +635,25 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
       {/* Climate (required) */}
       <fieldset>
         <legend className="sr-only">What&apos;s your climate like?</legend>
-        <label className="block text-sm font-semibold text-gray-700 mb-3">
-          What&apos;s your climate like? <span className="text-red-500">*</span>
+        <label className={`block text-sm font-semibold mb-3 ${dark ? "text-white/80" : "text-gray-700"}`}>
+          What&apos;s your climate like? <span className="text-red-400">*</span>
         </label>
 
         {/* ZIP autofill */}
         <div className="mb-4">
           <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <MapPin className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${dark ? "text-white/40" : "text-gray-400"}`} />
             <input
               type="text"
               inputMode="numeric"
               placeholder="Enter ZIP code to auto-detect"
               value={zipCode}
               onChange={(e) => handleZipChange(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-gray-900 text-sm"
+              className={`w-full pl-9 pr-4 py-2.5 border-2 rounded-xl focus:outline-none text-sm ${
+                dark
+                  ? "bg-white/[0.06] border-white/10 text-white placeholder-white/30 focus:border-[#00d97e]/60"
+                  : "border-gray-200 focus:border-blue-500 text-gray-900"
+              }`}
             />
           </div>
           <AnimatePresence>
@@ -637,7 +662,11 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                className="mt-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 flex items-center gap-1.5"
+                className={`mt-2 text-xs rounded-lg px-3 py-1.5 flex items-center gap-1.5 ${
+                  dark
+                    ? "text-[#00d97e] bg-[#00d97e]/10 border border-[#00d97e]/20"
+                    : "text-green-700 bg-green-50 border border-green-200"
+                }`}
               >
                 <Check className="w-3.5 h-3.5 shrink-0" />
                 {zipClimateNote}
@@ -666,7 +695,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
             />
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-2">
+        <p className={`text-xs mt-2 ${dark ? "text-white/40" : "text-gray-500"}`}>
           Affects range buffer, charging speed, and routine friction.{" "}
           {zipCode.length === 5 ? "You can override the auto-detected climate above." : ""}
         </p>
@@ -675,10 +704,10 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
       {/* Minimum comfortable SOC (optional) */}
       <fieldset>
         <legend className="sr-only">What&apos;s your minimum comfortable battery level?</legend>
-        <label className="block text-sm font-semibold text-gray-700 mb-3">
+        <label className={`block text-sm font-semibold mb-3 ${dark ? "text-white/80" : "text-gray-700"}`}>
           What&apos;s your minimum comfortable battery level?
         </label>
-        <p className="text-xs text-gray-500 mb-3">
+        <p className={`text-xs mb-3 ${dark ? "text-white/40" : "text-gray-500"}`}>
           Some drivers feel anxious below 20%. This helps calibrate your effective range.
         </p>
         <div className="grid grid-cols-3 gap-3">
@@ -714,18 +743,20 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
       {/* Step progress header */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-gray-500">
+          <span className={`text-xs font-medium ${dark ? "text-white/50" : "text-gray-500"}`}>
             Step {currentPage + 1} of {PAGES.length} · {PAGES[currentPage].title}
           </span>
-          <span className="text-xs text-gray-400">{PAGES[currentPage].subtitle}</span>
+          <span className={`text-xs ${dark ? "text-white/35" : "text-gray-400"}`}>{PAGES[currentPage].subtitle}</span>
         </div>
-        {/* Dot progress */}
+        {/* Progress bar */}
         <div className="flex gap-1.5 mb-1">
           {PAGES.map((_, i) => (
             <div
               key={i}
               className={`h-1.5 flex-1 rounded-full transition-colors ${
-                i <= currentPage ? "bg-blue-500" : "bg-gray-200"
+                i <= currentPage
+                  ? dark ? "bg-[#00d97e]" : "bg-blue-500"
+                  : dark ? "bg-white/10" : "bg-gray-200"
               }`}
             />
           ))}
@@ -764,7 +795,11 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
         {currentPage > 0 && (
           <button
             onClick={handleBack}
-            className="flex items-center gap-1.5 px-4 py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all"
+            className={`flex items-center gap-1.5 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
+              dark
+                ? "border-white/10 text-white/60 hover:border-white/25 hover:bg-white/[0.05]"
+                : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+            }`}
           >
             <ArrowLeft className="w-4 h-4" />
             Back
@@ -772,7 +807,11 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
         )}
         <button
           onClick={handleNext}
-          className="flex-1 flex items-center justify-center gap-1.5 py-3 px-6 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all"
+          className={`flex-1 flex items-center justify-center gap-1.5 py-3 px-6 rounded-xl font-semibold shadow-md transition-all ${
+            dark
+              ? "bg-[#00d97e] text-[#0d1117] hover:bg-[#00f090]"
+              : "text-white bg-blue-600 hover:bg-blue-700 hover:shadow-lg"
+          }`}
         >
           {currentPage < 3 ? (
             <>Next <ArrowRight className="w-4 h-4" /></>
@@ -784,7 +823,7 @@ export default function RoutineStep({ onComplete }: RoutineStepProps) {
 
       {/* Page 2 skip-all nudge */}
       {currentPage === 2 && (
-        <p className="text-center text-xs text-gray-400 mt-3">
+        <p className={`text-center text-xs mt-3 ${dark ? "text-white/35" : "text-gray-400"}`}>
           All questions on this page are optional — skip any you&apos;re unsure about.
         </p>
       )}

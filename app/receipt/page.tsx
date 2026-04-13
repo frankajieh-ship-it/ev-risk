@@ -9,9 +9,10 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Receipt, Loader2, QrCode, ArrowLeft, AlertTriangle } from "lucide-react";
+import { Receipt, Loader2, QrCode, ArrowLeft, AlertTriangle, Menu, X } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { initAttribution } from "@/lib/attribution";
@@ -19,7 +20,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import LoginModal from "@/components/LoginModal";
-import Header from "@/components/landing/Header";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import ExampleAnalysisSection from "@/components/landing/ExampleAnalysisSection";
 import UniqueAdvantageSection from "@/components/landing/UniqueAdvantageSection";
@@ -217,6 +217,9 @@ export default function ReceiptPage() {
     is_safety_critical: boolean;
     ai_summary: string;
   }>>([]);
+
+  // Mobile nav
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Core state
   const [receipt, setReceipt] = useState<ListingReceipt | null>(null);
@@ -1011,29 +1014,102 @@ export default function ReceiptPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <Header
-        historyCount={history.length}
-        onHistoryClick={() => {
-          setHistoryOpen(true);
-          trackEvent("receipt_history_viewed");
-        }}
-        regionSelector={<RegionSelector region={region} onChange={setRegion} />}
-      />
+    <div className="min-h-screen bg-[#0d1117]">
+      {/* Dark nav — same pattern as homepage */}
+      <nav className="sticky top-0 z-50 bg-[#0d1117]/90 backdrop-blur-md border-b border-white/[0.06]">
+        <div className="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between">
+          <Link href="/">
+            <Image src="/offo-logo.jpg" alt="OFFO" width={200} height={103} className="w-24 sm:w-28 h-auto" priority />
+          </Link>
+          <div className="hidden md:flex items-center gap-6">
+            <Link href="/receipt" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Receipt Check</Link>
+            <Link href="/" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Routine Fit</Link>
+            <Link href="/copart" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Copart Arbitrage</Link>
+            <Link href="/dealers" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">For Dealers</Link>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-3">
+              <button
+                onClick={() => { setHistoryOpen(true); trackEvent("receipt_history_viewed"); }}
+                className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors"
+              >
+                History {history.length > 0 && <span className="ml-1 text-[0.7rem] bg-white/10 px-1.5 py-0.5 rounded-full">{history.length}</span>}
+              </button>
+              <RegionSelector region={region} onChange={setRegion} />
+              {isAuthenticated ? (
+                <Link href="/workspace" className="text-[0.8125rem] font-medium text-white/70 hover:text-white transition-colors">Dashboard</Link>
+              ) : (
+                <Link href="/auth/login" className="text-[0.8125rem] font-medium text-white/70 hover:text-white transition-colors">Sign in</Link>
+              )}
+            </div>
+            <Link
+              href="/"
+              className="px-4 py-1.5 rounded-full bg-[#00d97e] text-[#0d1117] text-[0.8125rem] font-semibold hover:bg-[#00f090] transition-colors whitespace-nowrap"
+            >
+              Routine Fit →
+            </Link>
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileNavOpen(!mobileNavOpen)}
+              className="md:hidden p-2 text-white/60 hover:text-white transition-colors"
+              aria-label="Toggle menu"
+            >
+              {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile dropdown */}
+        {mobileNavOpen && (
+          <div className="md:hidden border-t border-white/[0.06] bg-[#0d1117]">
+            <div className="px-5 py-4 space-y-1">
+              {[
+                { href: "/receipt", label: "Receipt Check" },
+                { href: "/", label: "Routine Fit" },
+                { href: "/copart", label: "Copart Arbitrage" },
+                { href: "/dealers", label: "For Dealers" },
+              ].map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileNavOpen(false)}
+                  className="block py-2.5 text-sm font-medium text-white/70 hover:text-white transition-colors"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <div className="border-t border-white/[0.06] pt-3 mt-2 space-y-2">
+                <button
+                  onClick={() => { setHistoryOpen(true); trackEvent("receipt_history_viewed"); setMobileNavOpen(false); }}
+                  className="block py-2 text-sm font-medium text-white/70 hover:text-white"
+                >
+                  History {history.length > 0 && `(${history.length})`}
+                </button>
+                {isAuthenticated ? (
+                  <Link href="/workspace" onClick={() => setMobileNavOpen(false)} className="block py-2 text-sm font-medium text-white/70 hover:text-white">Dashboard</Link>
+                ) : (
+                  <Link href="/auth/login" onClick={() => setMobileNavOpen(false)} className="block py-2 text-sm font-medium text-white/70 hover:text-white">Sign in</Link>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </nav>
+
       <div id="turnstile-receipt" className="hidden" />
       <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Hero */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-3">
-            <Receipt className="w-5 h-5 text-blue-600" />
-            <span className="text-xs font-medium text-blue-600 uppercase tracking-wider">
+          <div className="inline-flex items-center gap-2 mb-3 px-4 py-1.5 rounded-full border border-white/10 bg-white/5">
+            <Receipt className="w-4 h-4 text-[#00d97e]" />
+            <span className="text-xs font-medium text-white/70 uppercase tracking-wider">
               Listing Receipt
             </span>
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-700 to-green-600 bg-clip-text text-transparent mb-2">
-            Get a second opinion before the test drive
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-3 tracking-tight" style={{ lineHeight: "1.1" }}>
+            Get a second opinion<br />before the test drive
           </h1>
-          <p className="text-gray-600">
+          <p className="text-[0.9375rem] text-white/50">
             Paste a listing. Get the fair price check, key questions, and a pre-visit checklist.
           </p>
         </div>
@@ -1074,18 +1150,18 @@ export default function ReceiptPage() {
 
         {/* CarGurus pro tip + bookmarklet */}
         <div className="mt-2 space-y-1 text-center px-2">
-          <p className="text-xs text-gray-400">
-            <span className="font-medium text-gray-500">Pro tip:</span>{" "}
+          <p className="text-xs text-white/30">
+            <span className="font-medium text-white/50">Pro tip:</span>{" "}
             On CarGurus, click the car photo first — the clean listing URL appears in your address bar.
           </p>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-white/30">
             Save time:{" "}
             { }
             <a
               href="javascript:(function(){var u=encodeURIComponent(window.location.href);window.open('https://offolab.com/receipt?url='+u+'&ext=true','_blank');})();"
               onClick={(e) => e.preventDefault()}
               draggable
-              className="text-blue-500 underline cursor-grab active:cursor-grabbing font-medium"
+              className="text-[#00d97e]/70 underline cursor-grab active:cursor-grabbing font-medium"
               title="Drag this to your bookmarks bar"
             >
               ⬆ OFFO Extract
@@ -1099,14 +1175,14 @@ export default function ReceiptPage() {
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-4 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4 flex items-start gap-3"
+            className="mt-4 bg-white/[0.06] border border-white/10 rounded-2xl px-5 py-4 flex items-start gap-3"
           >
-            <Loader2 className="w-5 h-5 text-blue-500 animate-spin flex-shrink-0 mt-0.5" />
+            <Loader2 className="w-5 h-5 text-[#00d97e] animate-spin flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-blue-800">
+              <p className="text-sm font-semibold text-white">
                 Analysis in progress — this takes about 20–30 seconds
               </p>
-              <p className="text-xs text-blue-600 mt-1">
+              <p className="text-xs text-white/50 mt-1">
                 You can explore other tools while you wait — this page will update automatically when ready.
               </p>
             </div>
@@ -1118,14 +1194,14 @@ export default function ReceiptPage() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200"
+            className="mt-4 p-4 bg-[#00d97e]/10 rounded-2xl border border-[#00d97e]/20"
           >
-            <p className="text-sm font-medium text-gray-900 mb-2">
+            <p className="text-sm font-medium text-white mb-2">
               Vehicle data extracted! Return to your routine analysis to see updated results.
             </p>
             <button
               onClick={handleReturnToRoutine}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-lg hover:bg-[#00f090] transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Return to Routine with Vehicle Data
@@ -1135,8 +1211,8 @@ export default function ReceiptPage() {
 
         {/* Return to Routine hint — shown before extraction */}
         {returnToRoutine && !routineVehicleReady && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-200">
-            <p className="text-xs text-blue-700">
+          <div className="mt-4 p-3 bg-white/[0.05] rounded-xl border border-white/10">
+            <p className="text-xs text-white/50">
               Paste a listing URL above to extract vehicle data, then return to your routine analysis.
             </p>
           </div>
@@ -1224,16 +1300,16 @@ export default function ReceiptPage() {
 
               {/* Active recall banner */}
               {activeRecalls.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                    <span className="font-semibold text-red-700 text-sm">
+                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                    <span className="font-semibold text-red-400 text-sm">
                       Active Recall{activeRecalls.length > 1 ? "s" : ""} on this vehicle
                     </span>
                   </div>
                   <div className="space-y-1.5">
                     {activeRecalls.map((r) => (
-                      <div key={r.recall_id} className="text-sm text-red-700">
+                      <div key={r.recall_id} className="text-sm text-red-300">
                         <span className="font-medium">{r.component}</span>
                         {r.ai_summary ? `: ${r.ai_summary}` : ""}
                       </div>
@@ -1241,7 +1317,7 @@ export default function ReceiptPage() {
                   </div>
                   <a
                     href="/workspace/garage"
-                    className="text-xs text-red-500 hover:underline mt-2 inline-block"
+                    className="text-xs text-red-400 hover:underline mt-2 inline-block"
                   >
                     View full recall details in My Garage →
                   </a>
@@ -1253,7 +1329,7 @@ export default function ReceiptPage() {
                 <button
                   onClick={handleShareClick}
                   disabled={isSharing}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-white/10 text-white/70 hover:bg-white/[0.06] transition-colors disabled:opacity-50"
                 >
                   <QrCode className="w-4 h-4" />
                   Share
@@ -1321,8 +1397,8 @@ export default function ReceiptPage() {
 
               {/* Deep dive loading spinner */}
               {isLoadingDeepDive && !deepDive && (
-                <div className="flex items-center justify-center gap-2 py-8 text-sm text-gray-500">
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                <div className="flex items-center justify-center gap-2 py-8 text-sm text-white/40">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#00d97e]" />
                   Generating your deep dive analysis...
                 </div>
               )}
@@ -1358,7 +1434,7 @@ export default function ReceiptPage() {
               <SourcesFooter />
 
               {/* Contact/feedback link */}
-              <p className="text-center text-sm text-gray-500 pt-2">
+              <p className="text-center text-sm text-white/40 pt-2">
                 Found this helpful? Got questions?{" "}
                 <Link
                   href={`/contact?from=receipt&receiptId=${receipt.receipt_id}&verdict=${receipt.verdict}`}
@@ -1368,7 +1444,7 @@ export default function ReceiptPage() {
                       verdict: receipt.verdict,
                     })
                   }
-                  className="text-indigo-600 hover:text-indigo-700 underline"
+                  className="text-[#00d97e]/70 hover:text-[#00d97e] underline"
                 >
                   Tell us
                 </Link>
@@ -1402,7 +1478,7 @@ export default function ReceiptPage() {
       {/* Marketing sections — visible before first receipt */}
       {!receipt && (
         <>
-          <HowItWorksSection />
+          <HowItWorksSection dark />
           <ExampleAnalysisSection />
           <UniqueAdvantageSection />
           {/* One-time purchase section removed per user request */}

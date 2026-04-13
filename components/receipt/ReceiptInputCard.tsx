@@ -74,7 +74,7 @@ const FIELD_LABELS: Record<string, string> = {
   location: "Location",
 };
 
-const LABEL_CLASS = "text-xs font-medium text-gray-600 mb-1";
+const LABEL_CLASS = "text-xs font-medium text-white/60 mb-1";
 
 function getInputClass(confidence?: string, isDirty?: boolean): string {
   const base = "form-input-sm";
@@ -622,7 +622,7 @@ export default function ReceiptInputCard({
   ).length;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="dark-inputs bg-white/[0.05] rounded-2xl border border-white/10 shadow-sm overflow-hidden">
       {/* Facebook Marketplace paste modal */}
       {showFbPasteModal && (
         <FbMarketplacePasteModal
@@ -646,16 +646,16 @@ export default function ReceiptInputCard({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.25 }}
-            className="flex items-center gap-2 bg-teal-50 border-b border-teal-200 px-4 py-2 text-sm text-teal-700"
+            className="flex items-center gap-2 bg-[#00d97e]/10 border-b border-[#00d97e]/20 px-4 py-2 text-sm text-[#00d97e]"
           >
-            <Check className="h-4 w-4 text-teal-500 shrink-0" />
+            <Check className="h-4 w-4 text-[#00d97e] shrink-0" />
             <span>Cleaned &amp; extracted in {cleanToast.durationSec}s</span>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Tab toggle */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-white/[0.08]">
         <button
           onClick={() => {
             setInputMode("url");
@@ -663,8 +663,8 @@ export default function ReceiptInputCard({
           }}
           className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
             inputMode === "url"
-              ? "text-blue-700 bg-blue-50 border-b-2 border-blue-600"
-              : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+              ? "text-[#00d97e] bg-[#00d97e]/10 border-b-2 border-[#00d97e]"
+              : "text-white/50 hover:text-white/70 hover:bg-white/[0.04]"
           }`}
         >
           <Link className="w-4 h-4" /> Paste URL
@@ -676,11 +676,11 @@ export default function ReceiptInputCard({
           }}
           className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
             inputMode === "text"
-              ? "text-blue-700 bg-blue-50 border-b-2 border-blue-600"
-              : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+              ? "text-[#00d97e] bg-[#00d97e]/10 border-b-2 border-[#00d97e]"
+              : "text-white/50 hover:text-white/70 hover:bg-white/[0.04]"
           }`}
         >
-          <FileText className="w-4 h-4" /> Paste Text <span className="text-xs text-gray-400 ml-0.5 font-normal">(advanced)</span>
+          <FileText className="w-4 h-4" /> Paste Text <span className="text-xs text-white/30 ml-0.5 font-normal">(advanced)</span>
         </button>
       </div>
 
@@ -712,8 +712,8 @@ export default function ReceiptInputCard({
                 disabled={!canExtractUrl || isExtracting || isGenerating}
                 className={`px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                   !canExtractUrl || isExtracting
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-gray-900 text-white hover:bg-gray-800"
+                    ? "bg-white/[0.06] text-white/30 cursor-not-allowed"
+                    : "bg-white/10 text-white hover:bg-white/20"
                 }`}
               >
                 {isExtracting ? (
@@ -728,12 +728,12 @@ export default function ReceiptInputCard({
 
             {/* CarGurus search URL banner */}
             {showCarGurusBanner && !isExtracting && (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+              <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
                 <div className="flex-1">
                   {carGurusCleanId ? (
                     <>
-                      <span className="text-amber-800">
+                      <span className="text-amber-300">
                         Detected a search page URL. Clean it to the exact listing?
                       </span>
                       <button
@@ -746,13 +746,13 @@ export default function ReceiptInputCard({
                           cleanStartRef.current = Date.now();
                           handleExtract(cleanUrl);
                         }}
-                        className="ml-2 font-semibold text-amber-700 underline hover:text-amber-900"
+                        className="ml-2 font-semibold text-amber-400 underline hover:text-amber-300"
                       >
                         Clean &amp; Extract
                       </button>
                     </>
                   ) : (
-                    <span className="text-amber-800">
+                    <span className="text-amber-300">
                       Couldn&apos;t find a listing ID in that URL.{" "}
                       <button
                         type="button"
@@ -772,7 +772,7 @@ export default function ReceiptInputCard({
                 <button
                   type="button"
                   onClick={() => setShowCarGurusBanner(false)}
-                  className="text-amber-400 hover:text-amber-600"
+                  className="text-amber-400/70 hover:text-amber-400"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -781,7 +781,7 @@ export default function ReceiptInputCard({
 
             {/* Always-visible fallback hint */}
             {!showCarGurusBanner && (
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-white/35">
                 Site blocking extraction?{" "}
                 <button
                   type="button"
@@ -790,7 +790,7 @@ export default function ReceiptInputCard({
                     setTimeout(() => textareaRef.current?.focus(), 100);
                     trackEvent?.("helper_text_switch_to_text", { from: "url_fallback_hint" });
                   }}
-                  className="text-blue-500 underline hover:text-blue-700"
+                  className="text-[#00d97e]/70 underline hover:text-[#00d97e]"
                 >
                   Paste the full page text instead
                 </button>
@@ -801,7 +801,7 @@ export default function ReceiptInputCard({
                     setShowFbPasteModal(true);
                     trackEvent?.("fb_paste_modal_opened", { from: "url_fallback_hint" });
                   }}
-                  className="text-[#1877F2] underline hover:opacity-80"
+                  className="text-[#00d97e]/70 underline hover:text-[#00d97e]"
                 >
                   Facebook Marketplace?
                 </button>
@@ -810,11 +810,11 @@ export default function ReceiptInputCard({
 
             {/* CarGurus bot-protection hint — shown after a blocked CarGurus extraction */}
             {showCgPasteHint && !isExtracting && (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+              <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-sm">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
                 <div>
-                  <p className="text-amber-800 font-medium text-xs">CarGurus blocked auto-fetch</p>
-                  <p className="text-amber-700 text-xs mt-0.5">
+                  <p className="text-amber-300 font-medium text-xs">CarGurus blocked auto-fetch</p>
+                  <p className="text-amber-400/80 text-xs mt-0.5">
                     On the listing, copy the specs panel on the right side, then{" "}
                     <button
                       type="button"
@@ -825,7 +825,7 @@ export default function ReceiptInputCard({
                         setTimeout(() => textareaRef.current?.focus(), 100);
                         trackEvent?.("cg_paste_hint_clicked", { anon_id: receiptToken });
                       }}
-                      className="font-semibold underline text-amber-800 hover:text-amber-900"
+                      className="font-semibold underline text-amber-300 hover:text-amber-200"
                     >
                       switch to paste mode →
                     </button>
@@ -836,7 +836,7 @@ export default function ReceiptInputCard({
 
             {/* Extraction loading with step progress */}
             {isExtracting && (
-              <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
+              <div className="flex items-center gap-2 text-sm text-[#00d97e] bg-[#00d97e]/10 p-3 rounded-lg">
                 <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
                 <span>{EXTRACT_STEPS[extractStep] || EXTRACT_STEPS[0]}</span>
               </div>
@@ -845,18 +845,18 @@ export default function ReceiptInputCard({
             {/* Extract error + VIN fallback */}
             {extractError && !isExtracting && (
               <div className="space-y-2">
-                <div className="flex items-start gap-2 text-sm p-3 rounded-lg bg-red-50 text-red-600">
+                <div className="flex items-start gap-2 text-sm p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span>{extractError.message}</span>
                 </div>
 
                 {showVinFallback && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+                  <div className="bg-white/[0.05] border border-white/10 rounded-xl p-4 space-y-3">
                     <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
-                      <p className="text-sm font-semibold text-blue-900">Enter the VIN to autofill</p>
+                      <ShieldCheck className="w-4 h-4 text-[#00d97e] shrink-0" />
+                      <p className="text-sm font-semibold text-white">Enter the VIN to autofill</p>
                     </div>
-                    <p className="text-xs text-blue-700">
+                    <p className="text-xs text-white/50">
                       Found on the dashboard, door jamb, or listing page. We&apos;ll decode it and fill in the details automatically.
                     </p>
                     <div className="flex gap-2">
@@ -871,13 +871,13 @@ export default function ReceiptInputCard({
                           setVinLookupError(null);
                         }}
                         onKeyDown={(e) => { if (e.key === "Enter") handleVinLookup(); }}
-                        className="flex-1 px-3 py-2 text-sm font-mono border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none uppercase tracking-wider"
+                        className="flex-1 px-3 py-2 text-sm font-mono bg-white/[0.06] border border-white/10 text-white rounded-lg focus:ring-2 focus:ring-[#00d97e]/40 focus:border-[#00d97e]/50 outline-none uppercase tracking-wider placeholder-white/25"
                         disabled={vinLookupStatus === "loading"}
                       />
                       <button
                         onClick={handleVinLookup}
                         disabled={vinFallbackValue.length !== 17 || vinLookupStatus === "loading"}
-                        className="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                        className="px-4 py-2 text-sm font-semibold rounded-lg bg-[#00d97e] text-[#0d1117] hover:bg-[#00f090] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                       >
                         {vinLookupStatus === "loading" ? (
                           <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Looking up…</>
@@ -897,7 +897,7 @@ export default function ReceiptInputCard({
                           setTimeout(() => textareaRef.current?.focus(), 100);
                           trackEvent?.("receipt_extract_fallback_used", { input_mode: "url", trigger: "switch_to_text", anon_id: receiptToken });
                         }}
-                        className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        className="text-xs text-[#00d97e]/70 hover:text-[#00d97e] underline"
                       >
                         Paste listing text instead
                       </button>
@@ -910,7 +910,7 @@ export default function ReceiptInputCard({
                           }, 100);
                           trackEvent?.("receipt_extract_fallback_used", { input_mode: "url", trigger: "fill_manually", anon_id: receiptToken });
                         }}
-                        className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        className="text-xs text-[#00d97e]/70 hover:text-[#00d97e] underline"
                       >
                         Fill in manually
                       </button>
@@ -922,9 +922,9 @@ export default function ReceiptInputCard({
 
             {!isExtracting && !extractError && (
               <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-white/30">
                   CarGurus extraction works now —{" "}
-                  <span className="text-gray-300">AutoTrader, Cars.com & more coming soon</span>
+                  <span className="text-white/20">AutoTrader, Cars.com & more coming soon</span>
                 </p>
                 {!hasExtracted && (
                   <button
@@ -936,7 +936,7 @@ export default function ReceiptInputCard({
                       }, 100);
                       trackEvent?.("manual_entry_shortcut_clicked", { anon_id: receiptToken });
                     }}
-                    className="text-xs text-blue-500 hover:text-blue-700 underline whitespace-nowrap ml-2"
+                    className="text-xs text-[#00d97e]/70 hover:text-[#00d97e] underline whitespace-nowrap ml-2"
                   >
                     Enter manually ↓
                   </button>
@@ -959,14 +959,14 @@ export default function ReceiptInputCard({
               placeholder={`Paste the listing details here...\n\nExample:\n2021 Toyota RAV4 Prime XSE\n45,000 miles · $32,500\nDenver, CO · Clean title, 1 owner`}
               rows={6}
               maxLength={8000}
-              className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm resize-none focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600"
+              className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/10 text-white text-sm placeholder-white/25 resize-none focus:border-[#00d97e]/50 focus:outline-none focus:ring-1 focus:ring-[#00d97e]/30"
               disabled={isGenerating || isExtracting}
             />
             <div className="flex justify-between items-center">
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-white/30">
                 Paste the listing text. We&apos;ll extract year, price, mileage, location.
               </span>
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-white/30">
                 {listingText.length}/8000
               </span>
             </div>
@@ -977,8 +977,8 @@ export default function ReceiptInputCard({
               disabled={!canExtractText || isExtracting || isGenerating}
               className={`w-full py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 !canExtractText || isExtracting
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-gray-900 text-white hover:bg-gray-800"
+                  ? "bg-white/[0.05] text-white/30 cursor-not-allowed"
+                  : "bg-white/10 text-white hover:bg-white/20"
               }`}
             >
               {isExtracting ? (
@@ -997,8 +997,8 @@ export default function ReceiptInputCard({
             {extractError && !isExtracting && (
               <div className={`flex items-start gap-2 text-sm p-3 rounded-lg ${
                 extractError.isWarning
-                  ? 'bg-amber-50 border border-amber-200 text-amber-800'
-                  : 'bg-red-50 text-red-600'
+                  ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400'
+                  : 'bg-red-500/10 border border-red-500/20 text-red-400'
               }`}>
                 {extractError.isWarning ? (
                   <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -1017,7 +1017,7 @@ export default function ReceiptInputCard({
                       }, 100);
                       trackEvent?.("receipt_extract_fallback_used", { input_mode: "text", trigger: "fill_manually", anon_id: receiptToken });
                     }}
-                    className="block mt-1.5 text-blue-600 hover:text-blue-800 underline text-xs font-medium"
+                    className="block mt-1.5 text-[#00d97e]/70 hover:text-[#00d97e] underline text-xs font-medium"
                   >
                     Fill in the required fields manually
                   </button>
@@ -1034,7 +1034,7 @@ export default function ReceiptInputCard({
               {extractedFieldNames.map((f) => (
                 <span
                   key={f}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#00d97e]/10 text-[#00d97e] border border-[#00d97e]/20"
                 >
                   <Check className="w-3 h-3" />
                   {FIELD_LABELS[f] || f}
@@ -1048,7 +1048,7 @@ export default function ReceiptInputCard({
                 .map((f) => (
                   <span
                     key={f}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600 border border-red-200"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20"
                   >
                     <X className="w-3 h-3" />
                     {FIELD_LABELS[f] || f}
@@ -1059,14 +1059,14 @@ export default function ReceiptInputCard({
                 .map((f) => (
                   <span
                     key={f}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white/[0.05] text-white/40 border border-white/10"
                   >
                     {FIELD_LABELS[f] || f}
                   </span>
                 ))}
             </div>
             {listingSource && listingSource !== "text_paste" && (
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-white/30">
                 Source: {SOURCE_DISPLAY_LABELS[listingSource] ?? listingSource}
               </p>
             )}
@@ -1088,7 +1088,7 @@ export default function ReceiptInputCard({
               });
             }
           }}
-          className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors w-full"
+          className="flex items-center gap-1.5 text-xs font-medium text-white/50 hover:text-white/70 transition-colors w-full"
         >
           <ChevronDown
             className={`w-3.5 h-3.5 transition-transform ${
@@ -1103,12 +1103,12 @@ export default function ReceiptInputCard({
                 ? "Enter vehicle details"
                 : "Add details"}
           {!detailsOpen && detailFieldCount > 0 && (
-            <span className="text-xs text-green-600 ml-1">
+            <span className="text-xs text-[#00d97e]/70 ml-1">
               ({detailFieldCount} field{detailFieldCount !== 1 ? "s" : ""} filled)
             </span>
           )}
           {!detailsOpen && hasExtracted && missingRequired.length > 0 && (
-            <span className="text-xs text-amber-500 ml-1">
+            <span className="text-xs text-amber-400 ml-1">
               — {missingRequired.length} required missing
             </span>
           )}
@@ -1118,18 +1118,18 @@ export default function ReceiptInputCard({
           <div className="space-y-3">
             {/* Extraction failure banner */}
             {showManualFallbackBanner && (
-              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-800">
+              <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-300">
                   We couldn&apos;t extract the listing automatically. Please fill in the details below.
                 </p>
               </div>
             )}
             {/* VIN-fill prompt — shown after VIN autofill when price/mileage still missing */}
             {vinFilledNeedsPriceMileage && !fields.price && !fields.mileage && (
-              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                <span className="text-amber-500 text-base">✏️</span>
-                <p className="text-xs text-amber-800 font-medium">
+              <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                <span className="text-amber-400 text-base">✏️</span>
+                <p className="text-xs text-amber-300 font-medium">
                   Almost there — add the asking price and mileage from the listing to generate your receipt.
                 </p>
               </div>
@@ -1363,7 +1363,7 @@ export default function ReceiptInputCard({
             <button
               type="button"
               onClick={() => setOptionalOpen(!optionalOpen)}
-              className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+              className="flex items-center gap-1.5 text-xs font-medium text-white/50 hover:text-white/70 transition-colors"
             >
               <ChevronDown
                 className={`w-3.5 h-3.5 transition-transform ${
@@ -1484,7 +1484,7 @@ export default function ReceiptInputCard({
 
         {/* Error from API */}
         {error && (
-          <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+          <div className="flex items-start gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 p-3 rounded-lg">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
@@ -1496,8 +1496,8 @@ export default function ReceiptInputCard({
           disabled={!canGenerate}
           className={`w-full py-4 rounded-xl font-semibold text-base flex items-center justify-center gap-2 transition-all ${
             canGenerate
-              ? "bg-gradient-to-r from-blue-600 to-green-600 text-white hover:shadow-lg hover:shadow-blue-200"
-              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              ? "bg-[#00d97e] text-[#0d1117] hover:bg-[#00f090] hover:shadow-lg hover:shadow-[#00d97e]/20"
+              : "bg-white/[0.07] text-white/30 cursor-not-allowed"
           }`}
         >
           {isGenerating ? (
@@ -1525,14 +1525,14 @@ export default function ReceiptInputCard({
 
         {/* Missing required fields hint */}
         {!canGenerate && !isGenerating && !isExtracting && missingRequired.length > 0 && (
-          <p className="text-center text-xs text-amber-600">
+          <p className="text-center text-xs text-amber-400">
             Fill in: {missingRequired.map((k) => FIELD_LABELS[k] || k).join(", ")}
           </p>
         )}
 
         {/* Free limit badge */}
         {remainingFree !== null && (
-          <p className="text-center text-xs text-gray-400">
+          <p className="text-center text-xs text-white/30">
             {remainingFree > 0
               ? `${remainingFree} free receipt${remainingFree !== 1 ? "s" : ""} remaining today`
               : "Free daily limit reached — resets at midnight UTC"}

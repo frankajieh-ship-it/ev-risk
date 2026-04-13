@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Dealer Sign-Up Page — /dealers/join
+ * Dealer Sign-Up Page — /dealers/join — OFFOLab dark design
  *
  * Step 1 of 2: collect dealership details + email, then send magic link.
  */
@@ -41,6 +41,9 @@ const EMPTY: FormData = {
   zip: "",
 };
 
+const inputCls = "w-full px-3 py-2.5 bg-[#0d1117] border border-white/[0.10] rounded-xl text-sm text-white placeholder:text-white/25 focus:ring-2 focus:ring-[#00d97e]/40 focus:border-[#00d97e]/40 outline-none transition-colors";
+const labelCls = "block text-xs font-medium text-white/50 mb-1";
+
 export default function DealerJoinPage() {
   const { isAuthenticated, isDealer, isReady } = useAuth();
   const router = useRouter();
@@ -52,7 +55,6 @@ export default function DealerJoinPage() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  // Already a dealer? Go straight to workspace
   useEffect(() => {
     if (isReady && isAuthenticated && isDealer) {
       router.replace("/dealer");
@@ -126,49 +128,48 @@ export default function DealerJoinPage() {
     }
   };
 
+  // ── Success state ──────────────────────────────────────────────────────────
   if (sent) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-white flex items-center justify-center px-4">
-        <div className="max-w-sm w-full">
-          <div className="bg-white rounded-2xl border border-green-100 p-8 text-center shadow-xl">
-            <div className="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-7 h-7 text-green-600" />
-            </div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Check your inbox</h2>
-            <p className="text-sm text-gray-500">
-              We sent a confirmation link to <strong>{form.email}</strong>.
-              <br />Click it to finish setting up your dealer account.
-            </p>
-            <p className="text-xs text-gray-400 mt-4">Don&apos;t see it? Check your spam folder.</p>
+      <div className="min-h-screen bg-[#0d1117] flex items-center justify-center px-4">
+        <div className="max-w-sm w-full bg-[#161b22] rounded-2xl border border-white/[0.08] p-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-[#00d97e]/10 border border-[#00d97e]/20 flex items-center justify-center mx-auto mb-4">
+            <Mail className="w-7 h-7 text-[#00d97e]" />
           </div>
+          <h2 className="text-lg font-semibold text-white mb-2">Check your inbox</h2>
+          <p className="text-sm text-white/50 leading-relaxed">
+            We sent a confirmation link to <span className="text-white font-medium">{form.email}</span>.
+            <br />Click it to finish setting up your dealer account.
+          </p>
+          <p className="text-xs text-white/25 mt-4">Don&apos;t see it? Check your spam folder.</p>
         </div>
       </div>
     );
   }
 
+  // ── Main form ──────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 via-white to-white flex items-start justify-center px-4 py-12">
+    <div className="min-h-screen bg-[#0d1117] flex items-start justify-center px-4 py-12">
       <div className="max-w-lg w-full">
-        <Link href="/dealers" className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-8">
+
+        <Link href="/dealers" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-8 transition-colors">
           <ArrowLeft className="w-3.5 h-3.5" />
           Back to Dealer Directory
         </Link>
 
         {/* Header */}
         <div className="mb-8">
-          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 bg-green-50 rounded-full border border-green-100">
-            <Sparkles className="w-3.5 h-3.5 text-green-600" />
-            <span className="text-xs font-semibold text-green-600 uppercase tracking-wider">Free to list · No credit card</span>
+          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 bg-[#00d97e]/10 rounded-full border border-[#00d97e]/20">
+            <Sparkles className="w-3.5 h-3.5 text-[#00d97e]" />
+            <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wider">Free to list · No credit card</span>
           </div>
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center shadow-md">
-              <Building className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-[#00d97e]/15 border border-[#00d97e]/25 flex items-center justify-center">
+              <Building className="w-5 h-5 text-[#00d97e]" />
             </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-green-700 to-emerald-500 bg-clip-text text-transparent">
-              List Your Dealership
-            </h1>
+            <h1 className="text-2xl font-bold text-white">List Your Dealership</h1>
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-white/40">
             Join OFFO&apos;s dealer network to reach high-intent EV buyers.
           </p>
         </div>
@@ -180,46 +181,47 @@ export default function DealerJoinPage() {
             { icon: "🎯", title: "Matched leads", desc: "Match inventory to buyers researching those models" },
             { icon: "📊", title: "Analytics", desc: "See buyer demand data for your market" },
           ].map((p) => (
-            <div key={p.title} className="bg-white border border-green-100 rounded-xl p-3 shadow-sm text-center">
+            <div key={p.title} className="bg-[#161b22] border border-white/[0.08] rounded-xl p-3 text-center">
               <div className="text-xl mb-1">{p.icon}</div>
-              <p className="text-xs font-semibold text-gray-800">{p.title}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{p.desc}</p>
+              <p className="text-xs font-semibold text-white/80">{p.title}</p>
+              <p className="text-xs text-white/35 mt-0.5">{p.desc}</p>
             </div>
           ))}
         </div>
 
-        {/* Form */}
-        <div className="bg-white rounded-2xl border border-green-100 p-6 shadow-xl">
+        {/* Form card */}
+        <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
+
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Dealership Name <span className="text-red-500">*</span>
+              <label className={labelCls}>
+                Dealership Name <span className="text-red-400">*</span>
               </label>
               <input
                 value={form.dealership_name}
                 onChange={(e) => update("dealership_name", e.target.value)}
                 placeholder="Green Motors EV"
                 required
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                className={inputCls}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Your Name <span className="text-red-500">*</span>
+              <label className={labelCls}>
+                Your Name <span className="text-red-400">*</span>
               </label>
               <input
                 value={form.contact_name}
                 onChange={(e) => update("contact_name", e.target.value)}
                 placeholder="Jane Smith"
                 required
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                className={inputCls}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Work Email <span className="text-red-500">*</span>
+              <label className={labelCls}>
+                Work Email <span className="text-red-400">*</span>
               </label>
               <input
                 type="email"
@@ -227,37 +229,37 @@ export default function DealerJoinPage() {
                 onChange={(e) => update("email", e.target.value)}
                 placeholder="jane@greenmotors.com"
                 required
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                className={inputCls}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
+              <label className={labelCls}>Phone</label>
               <input
                 type="tel"
                 value={form.phone}
                 onChange={(e) => update("phone", e.target.value)}
                 placeholder="(555) 123-4567"
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                className={inputCls}
               />
             </div>
 
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-600 mb-1">City</label>
+                <label className={labelCls}>City</label>
                 <input
                   value={form.city}
                   onChange={(e) => update("city", e.target.value)}
                   placeholder="Chicago"
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                  className={inputCls}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">State</label>
+                <label className={labelCls}>State</label>
                 <select
                   value={form.state}
                   onChange={(e) => update("state", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none bg-white"
+                  className={inputCls}
                 >
                   <option value="">—</option>
                   {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -266,37 +268,36 @@ export default function DealerJoinPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">ZIP Code</label>
+              <label className={labelCls}>ZIP Code</label>
               <input
                 value={form.zip}
                 onChange={(e) => update("zip", e.target.value)}
                 placeholder="60601"
                 maxLength={10}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                className={inputCls}
               />
             </div>
 
-            {/* Logo upload — optional */}
+            {/* Logo upload */}
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Dealership Logo <span className="text-gray-400 font-normal">(optional)</span>
+              <label className={labelCls}>
+                Dealership Logo <span className="text-white/25 font-normal">(optional)</span>
               </label>
               <div className="flex items-center gap-3">
-                {/* Preview */}
-                <div className="w-14 h-14 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 overflow-hidden relative">
+                <div className="w-14 h-14 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0 overflow-hidden relative">
                   {logoPreview ? (
                     <>
                       <Image src={logoPreview} alt="Logo preview" fill className="object-cover" unoptimized />
                       <button
                         type="button"
                         onClick={() => { setLogoPreview(null); if (logoInputRef.current) logoInputRef.current.value = ""; }}
-                        className="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full border border-gray-200 flex items-center justify-center shadow-sm hover:bg-red-50"
+                        className="absolute top-0.5 right-0.5 w-5 h-5 bg-[#161b22] rounded-full border border-white/[0.10] flex items-center justify-center hover:bg-red-500/20 transition-colors"
                       >
-                        <X className="w-3 h-3 text-gray-500" />
+                        <X className="w-3 h-3 text-white/60" />
                       </button>
                     </>
                   ) : (
-                    <Building className="w-6 h-6 text-gray-300" />
+                    <Building className="w-6 h-6 text-white/20" />
                   )}
                 </div>
                 <div>
@@ -310,30 +311,34 @@ export default function DealerJoinPage() {
                   <button
                     type="button"
                     onClick={() => logoInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.06] hover:bg-white/[0.10] text-white/60 hover:text-white/80 text-xs font-medium rounded-lg border border-white/[0.08] transition-colors"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     {logoPreview ? "Change logo" : "Upload logo"}
                   </button>
-                  <p className="text-xs text-gray-400 mt-1">JPEG, PNG or WebP · Max 2MB</p>
+                  <p className="text-xs text-white/25 mt-1">JPEG, PNG or WebP · Max 2MB</p>
                 </div>
               </div>
             </div>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && (
+              <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                {error}
+              </p>
+            )}
 
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors shadow-md"
+              className="w-full py-3 bg-[#00d97e] text-[#0d1117] rounded-xl text-sm font-semibold hover:bg-[#00c970] disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
             >
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
               {submitting ? "Sending confirmation..." : "Get Started — Send Confirmation Email"}
             </button>
 
-            <p className="text-xs text-center text-gray-400">
+            <p className="text-xs text-center text-white/30">
               Already have an account?{" "}
-              <Link href="/auth/login?redirect=/dealer" className="text-green-600 hover:text-green-700 font-medium">
+              <Link href="/auth/login?redirect=/dealer" className="text-[#00d97e] hover:text-[#00c970] font-medium transition-colors">
                 Sign in
               </Link>
             </p>
@@ -341,17 +346,19 @@ export default function DealerJoinPage() {
         </div>
 
         {/* Trust bar */}
-        <div className="flex items-center justify-center gap-4 mt-6">
+        <div className="flex items-center justify-center gap-6 mt-6">
           {[
-            { icon: <Check className="w-3.5 h-3.5" />, text: "Free to list" },
-            { icon: <Check className="w-3.5 h-3.5" />, text: "No credit card" },
-            { icon: <Check className="w-3.5 h-3.5" />, text: "Cancel anytime" },
+            { text: "Free to list" },
+            { text: "No credit card" },
+            { text: "Cancel anytime" },
           ].map((t) => (
-            <div key={t.text} className="flex items-center gap-1 text-xs text-green-700">
-              {t.icon}{t.text}
+            <div key={t.text} className="flex items-center gap-1.5 text-xs text-[#00d97e]/70">
+              <Check className="w-3.5 h-3.5" />
+              {t.text}
             </div>
           ))}
         </div>
+
       </div>
     </div>
   );

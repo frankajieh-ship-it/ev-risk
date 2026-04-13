@@ -44,7 +44,7 @@ const itemVariants = {
 
 export default function UniqueAdvantageSection() {
   return (
-    <section className="py-16 md:py-24 bg-white">
+    <section className="py-16 md:py-24 bg-[#111827]">
       <div className="max-w-7xl mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -53,13 +53,14 @@ export default function UniqueAdvantageSection() {
           transition={{ duration: 0.5 }}
           className="text-center mb-12"
         >
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#00d97e] mb-2">Why OFFO</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
             OFFO&apos;s Unique Advantage
           </h2>
-          <p className="text-lg font-medium text-gray-700 mb-2">
+          <p className="text-lg font-medium text-white/70 mb-2">
             Will this EV fit your life?
           </p>
-          <p className="text-sm text-gray-500 max-w-xl mx-auto">
+          <p className="text-sm text-white/40 max-w-xl mx-auto">
             A good deal on paper isn&apos;t always a good fit in real life. OFFO checks if the car matches your actual driving routine.
           </p>
         </motion.div>
@@ -77,15 +78,15 @@ export default function UniqueAdvantageSection() {
               <motion.div
                 key={item.title}
                 variants={itemVariants}
-                className="bg-white border border-gray-100 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow"
+                className="bg-white/[0.05] border border-white/10 rounded-xl p-6 hover:bg-white/[0.08] transition-colors"
               >
-                <div className={`w-10 h-10 rounded-lg ${item.color} flex items-center justify-center mb-4`}>
-                  <Icon className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center mb-4">
+                  <Icon className="w-5 h-5 text-white/60" />
                 </div>
-                <h3 className="text-base font-semibold text-gray-900 mb-1.5">
+                <h3 className="text-base font-semibold text-white mb-1.5">
                   {item.title}
                 </h3>
-                <p className="text-sm text-gray-500 leading-relaxed">
+                <p className="text-sm text-white/50 leading-relaxed">
                   {item.description}
                 </p>
               </motion.div>

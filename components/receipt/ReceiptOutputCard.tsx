@@ -232,7 +232,7 @@ export default function ReceiptOutputCard({
 
       {/* Verdict banner — neutral/pending style while upgrading */}
       <div className={`${isUpgrading ? "bg-gray-50 border-gray-200" : `${verdict.bg} ${verdict.border}`} border-b px-5 py-4`}>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Overall Verdict</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Overall Verdict</p>
         <div className="flex items-center gap-3">
           {isUpgrading
             ? <HelpCircle className="w-6 h-6 text-gray-400" />
@@ -372,9 +372,9 @@ export default function ReceiptOutputCard({
 
       {/* Why not GREEN? — gated for yellow/red; unlocked users see full list */}
       {receipt.why_not_green && receipt.why_not_green.length > 0 && receipt.verdict !== "GREEN" && (
-        <div className="px-5 py-3 bg-gray-50 border-b border-gray-200">
+        <div className="px-5 py-3 bg-[var(--surface-1)] border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-1.5 mb-1.5">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
               Why not GREEN?
             </p>
             <div className="relative">
@@ -558,8 +558,8 @@ export default function ReceiptOutputCard({
       {/* What would change the verdict */}
       {receipt.operator_notes?.what_would_change_verdict &&
         receipt.operator_notes.what_would_change_verdict.length > 0 && (
-          <div className="px-5 py-3 bg-gray-50 border-b border-gray-200">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+          <div className="px-5 py-3 bg-[var(--surface-1)] border-b border-[var(--border-subtle)]">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
               This becomes a different verdict if:
             </p>
             <ul className="space-y-1">

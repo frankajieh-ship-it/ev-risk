@@ -66,7 +66,7 @@ function NewsletterSignup() {
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-900 text-gray-400">
+    <footer className="bg-[#0d1117] border-t border-white/[0.06] text-gray-500">
       <div className="max-w-7xl mx-auto px-4 py-12">
         <NewsletterSignup />
 
@@ -81,8 +81,8 @@ export default function Footer() {
 
           {/* Product */}
           <div>
-            <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Product</h4>
-            <ul className="space-y-2 text-sm">
+            <h4 className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-widest mb-3">Product</h4>
+            <ul className="space-y-2 text-[0.8125rem]">
               <li><Link href="/" className="hover:text-white transition-colors">EV Fit Check</Link></li>
               <li><Link href="/receipt" className="hover:text-white transition-colors">Listing Receipt</Link></li>
               <li><Link href="/copart" className="hover:text-white transition-colors">Auction Audit</Link></li>
@@ -94,8 +94,8 @@ export default function Footer() {
 
           {/* Support */}
           <div>
-            <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Support</h4>
-            <ul className="space-y-2 text-sm">
+            <h4 className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-widest mb-3">Support</h4>
+            <ul className="space-y-2 text-[0.8125rem]">
               <li><Link href="/methodology" className="hover:text-white transition-colors">How OFFO works</Link></li>
               <li><Link href="/answers" className="hover:text-white transition-colors">EV FAQ</Link></li>
               <li><Link href="/contact" className="hover:text-white transition-colors">Contact Us</Link></li>
@@ -106,7 +106,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 pt-6 text-center text-xs text-gray-500">
+        <div className="border-t border-gray-800 pt-6 text-center text-[0.75rem] text-gray-600">
           &copy; {new Date().getFullYear()} OFFO. All rights reserved.
         </div>
       </div>
