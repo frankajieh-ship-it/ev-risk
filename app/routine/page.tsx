@@ -14,25 +14,21 @@
  */
 
 import { useState, useEffect, useRef, Suspense, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 import RoutineStepV2 from "@/components/RoutineStepV2";
+import Header from "@/components/landing/Header";
 import RoutineHistoryList, { type RoutineHistoryEntry } from "@/components/RoutineHistoryList";
-import RoutinePaywallCard from "@/components/RoutinePaywallCard";
 import { useEventTracking } from "@/hooks/useEventTracking";
-import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { getOrCreatePersistentSessionId, getOrCreateReceiptToken } from "@/lib/session-utils";
 import type { RoutineProfile } from "@/types/routine-v2";
 import { MATCHMAKER_COPY } from "@/lib/copy/matchmaker";
 
 type ProfileData = Omit<RoutineProfile, "id" | "created_at" | "updated_at">;
 
-const FREE_LIMIT = 3;
+const FREE_LIMIT = 3; // kept for history display only — no longer enforced as paywall
 
 function RoutinePageContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { trackEvent, trackRoutineFormCompleted } = useEventTracking();
 
   // Session tokens
@@ -48,30 +44,7 @@ function RoutinePageContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Checkout return state
-  const [isPollingPayment, setIsPollingPayment] = useState(false);
-  const isUnlockedRef = useRef(false);
-
-  // Payment status — use oldest run ID as scenario anchor
-  const oldestRunId = history.length > 0 ? history[history.length - 1].id : null;
-  const shouldCheckPayment = totalRuns >= FREE_LIMIT && !!receiptToken && !!oldestRunId;
-  const {
-    isUnlocked,
-    paymentsEnabled,
-    refetch: refetchPayment,
-  } = usePaymentStatus(
-    "routine",
-    shouldCheckPayment ? oldestRunId : "skip",
-    receiptToken || "skip"
-  );
-
-  // Keep ref in sync for polling
-  useEffect(() => {
-    isUnlockedRef.current = isUnlocked;
-  }, [isUnlocked]);
-
-  // Derived
-  const isOverLimit = totalRuns >= FREE_LIMIT && !isUnlocked;
+  const [isPollingPayment] = useState(false);
 
   // Invite token from co-shopper flow (stored in sessionStorage by landing page)
   const inviteTokenRef = useRef<string | null>(null);
@@ -107,70 +80,6 @@ function RoutinePageContent() {
   }, [persistentId, fetchHistory]);
 
   // Checkout return polling
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("checkout") !== "success") return;
-
-    // Clean URL
-    const url = new URL(window.location.href);
-    url.searchParams.delete("checkout");
-    url.searchParams.delete("session_id");
-    url.searchParams.delete("scenario_type");
-    url.searchParams.delete("scenario_id");
-    window.history.replaceState({}, "", url.pathname);
-
-    trackEvent("routine_checkout_return", { status: "success" });
-
-    // Poll for payment confirmation
-    setIsPollingPayment(true);
-    let attempts = 0;
-    const maxAttempts = 15;
-    const poll = setInterval(async () => {
-      attempts++;
-      await refetchPayment();
-      if (isUnlockedRef.current || attempts >= maxAttempts) {
-        clearInterval(poll);
-        setIsPollingPayment(false);
-        if (isUnlockedRef.current && persistentId) {
-          fetchHistory(persistentId);
-        }
-      }
-    }, 2000);
-
-    return () => clearInterval(poll);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Paywall checkout handler
-  const handlePaywallCheckout = async () => {
-    if (!oldestRunId || !receiptToken) return;
-
-    trackEvent("routine_paywall_checkout_started", {
-      run_count: totalRuns,
-    });
-
-    const res = await fetch("/api/payments/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        scenario_type: "routine",
-        scenario_id: oldestRunId,
-        anon_id: receiptToken,
-        page_source: "routine_page",
-      }),
-    });
-
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else if (data.status === "paid") {
-      // Already paid — refresh
-      await refetchPayment();
-    } else {
-      throw new Error(data.error || "Checkout failed");
-    }
-  };
-
   // Track page load time for completion tracking
   const pageLoadTimeRef = useRef(Date.now());
 
@@ -285,13 +194,13 @@ function RoutinePageContent() {
   // Loading spinner
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <div className="w-12 h-12 border-4 border-[#00d97e] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-white mb-2">
             Analyzing your routine...
           </h2>
-          <p className="text-gray-500 text-sm">
+          <p className="text-white/40 text-sm">
             Finding what breaks first and building your Plan B
           </p>
         </div>
@@ -300,38 +209,32 @@ function RoutinePageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-[#0d1117]">
+      <Header variant="receipt" />
+      <div className="py-12 px-4">
       <div className="max-w-2xl mx-auto">
-        {/* Nav */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Home
-        </Link>
 
         {/* Landing Tagline */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">
+          <h1 className="text-4xl font-bold text-white mb-3">
             {MATCHMAKER_COPY.landing.h1}
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-lg text-white/50">
             {MATCHMAKER_COPY.landing.subtext}
           </p>
         </div>
 
         {/* Checkout return confirmation */}
         {isPollingPayment && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700 flex items-center gap-3">
-            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+          <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-sm text-blue-400 flex items-center gap-3">
+            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
             Confirming your payment...
           </div>
         )}
 
         {/* Error */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400">
             {error}
           </div>
         )}
@@ -343,19 +246,12 @@ function RoutinePageContent() {
             onSelect={(run) => router.push(`/routine/results?run_id=${run.id}`)}
             totalCount={totalRuns}
             maxFree={FREE_LIMIT}
-            isUnlocked={isUnlocked}
+            isUnlocked={true}
           />
         )}
 
-        {/* Form or Paywall */}
-        {isOverLimit ? (
-          <RoutinePaywallCard
-            onCheckout={handlePaywallCheckout}
-            runCount={totalRuns}
-          />
-        ) : (
-          <RoutineStepV2 onComplete={handleComplete} />
-        )}
+        <RoutineStepV2 onComplete={handleComplete} />
+      </div>
       </div>
     </div>
   );
@@ -365,8 +261,8 @@ export default function RoutinePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-[#00d97e] border-t-transparent rounded-full animate-spin" />
         </div>
       }
     >

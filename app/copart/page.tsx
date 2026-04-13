@@ -84,7 +84,7 @@ function AuctionShareButton({ resultId }: { resultId: string }) {
     <button
       onClick={handleCopy}
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border whitespace-nowrap ${
-        copied ? "bg-green-50 border-green-200 text-green-700" : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900"
+        copied ? "bg-[#00d97e]/10 border-[#00d97e]/30 text-[#00d97e]" : "bg-white/[0.06] border-white/[0.10] text-white/60 hover:border-white/20 hover:text-white/80"
       }`}
     >
       {copied ? <><CheckCircle className="w-3.5 h-3.5" /> Copied!</> : <><Copy className="w-3.5 h-3.5" /> Copy link</>}
@@ -99,7 +99,7 @@ function SaveToGarageButton({ resultId, accessToken }: { resultId: string; acces
     return (
       <Link
         href={`/auth/login?redirect=/copart`}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 transition-all whitespace-nowrap"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white/[0.06] border-white/[0.10] text-white/50 hover:border-white/20 hover:text-white/70 transition-all whitespace-nowrap"
       >
         <BookmarkPlus className="w-3.5 h-3.5" />
         Sign in to save
@@ -128,10 +128,10 @@ function SaveToGarageButton({ resultId, accessToken }: { resultId: string; acces
       disabled={status !== "idle"}
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border whitespace-nowrap ${
         status === "saved"
-          ? "bg-green-50 border-green-200 text-green-700"
+          ? "bg-[#00d97e]/10 border-[#00d97e]/30 text-[#00d97e]"
           : status === "error"
-          ? "bg-red-50 border-red-200 text-red-600"
-          : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900"
+          ? "bg-red-500/10 border-red-500/20 text-red-400"
+          : "bg-white/[0.06] border-white/[0.10] text-white/60 hover:border-white/20 hover:text-white/80"
       }`}
     >
       {status === "saving" ? (
@@ -170,22 +170,22 @@ function AuctionEmailCapture({ resultId }: { resultId: string }) {
 
   if (status === "success") {
     return (
-      <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
-        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-        <p className="text-sm font-semibold text-green-800">Report sent — check your inbox!</p>
+      <div className="bg-[#00d97e]/10 border border-[#00d97e]/25 rounded-2xl p-4 flex items-center gap-3">
+        <CheckCircle className="w-5 h-5 text-[#00d97e] flex-shrink-0" />
+        <p className="text-sm font-semibold text-[#00d97e]">Report sent — check your inbox!</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+    <div className="bg-[#161b22] border border-white/[0.08] rounded-2xl p-5">
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-          <Mail className="w-4 h-4 text-blue-600" />
+        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+          <Mail className="w-4 h-4 text-blue-400" />
         </div>
         <div>
-          <p className="text-sm font-bold text-gray-900">Save this report to your inbox</p>
-          <p className="text-xs text-gray-500">Get the full analysis + shareable link sent to you.</p>
+          <p className="text-sm font-bold text-white/80">Save this report to your inbox</p>
+          <p className="text-xs text-white/40">Get the full analysis + shareable link sent to you.</p>
         </div>
       </div>
       <form onSubmit={handleSubmit} className="flex gap-2">
@@ -194,19 +194,19 @@ function AuctionEmailCapture({ resultId }: { resultId: string }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="your@email.com"
-          className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+          className="flex-1 px-3 py-2 text-sm bg-[#0d1117] border border-white/[0.10] rounded-xl text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-[#00d97e]/40 focus:border-[#00d97e]/40"
           required
         />
         <button
           type="submit"
           disabled={status === "submitting" || !email.trim()}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl disabled:opacity-50 transition-colors whitespace-nowrap"
+          className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-[#0d1117] bg-[#00d97e] hover:bg-[#00c970] rounded-xl disabled:opacity-50 transition-colors whitespace-nowrap"
         >
           {status === "submitting" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Send report"}
         </button>
       </form>
-      {errorMsg && <p className="text-xs text-red-500 mt-2">{errorMsg}</p>}
-      <p className="text-xs text-gray-400 mt-2">No spam. One email. Unsubscribe any time.</p>
+      {errorMsg && <p className="text-xs text-red-400 mt-2">{errorMsg}</p>}
+      <p className="text-xs text-white/30 mt-2">No spam. One email. Unsubscribe any time.</p>
     </div>
   );
 }
@@ -236,35 +236,35 @@ function ChargingProfileCard({ profile }: { profile: ChargingProfileSummary }) {
     : null;
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 space-y-3">
+    <div className="rounded-2xl border border-white/[0.08] bg-[#161b22] p-5 space-y-3">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-          <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
         </div>
         <div>
-          <h3 className="text-base font-bold text-gray-900">DC Charging Profile</h3>
-          <p className="text-xs text-gray-400">{profile.source_model}</p>
+          <h3 className="text-base font-bold text-white/90">DC Charging Profile</h3>
+          <p className="text-xs text-white/35">{profile.source_model}</p>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
-          <p className="text-xs text-gray-500 mb-0.5">Peak charge rate</p>
-          <p className="text-lg font-bold text-gray-900">{profile.peak_dc_kw ?? "—"} <span className="text-sm font-normal text-gray-500">kW</span></p>
+        <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-3">
+          <p className="text-xs text-white/40 mb-0.5">Peak charge rate</p>
+          <p className="text-lg font-bold text-white">{profile.peak_dc_kw ?? "—"} <span className="text-sm font-normal text-white/40">kW</span></p>
         </div>
-        <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
-          <p className="text-xs text-gray-500 mb-0.5">10–80% charge time</p>
-          <p className="text-lg font-bold text-gray-900">{profile.time_10_to_80_min ?? "—"} <span className="text-sm font-normal text-gray-500">min</span></p>
+        <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-3">
+          <p className="text-xs text-white/40 mb-0.5">10–80% charge time</p>
+          <p className="text-lg font-bold text-white">{profile.time_10_to_80_min ?? "—"} <span className="text-sm font-normal text-white/40">min</span></p>
         </div>
       </div>
-      <div className="rounded-xl bg-amber-50 border border-amber-100 p-3 space-y-1">
-        <p className="text-xs font-semibold text-amber-800">Cold weather impact (32°F)</p>
-        <p className="text-xs text-amber-700">
+      <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 space-y-1">
+        <p className="text-xs font-semibold text-amber-400">Cold weather impact (32°F)</p>
+        <p className="text-xs text-amber-400/70">
           Peak drops ~{profile.cold_derate_percent}% — from {profile.peak_dc_kw ?? "?"} kW to ~{coldKw ?? "?"} kW
         </p>
       </div>
-      <p className="text-xs text-gray-500">{curveLabel[profile.curve_shape]}</p>
+      <p className="text-xs text-white/40">{curveLabel[profile.curve_shape]}</p>
     </div>
   );
 }
@@ -279,70 +279,70 @@ function RangeProjectionCard({ range }: { range: RangeProjection }) {
   const maxMi = Math.max(...bars.map((b) => b.mi ?? 0), 1);
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 space-y-3">
+    <div className="rounded-2xl border border-white/[0.08] bg-[#161b22] p-5 space-y-3">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
-          <Car className="w-4 h-4 text-green-600" />
+        <div className="w-8 h-8 rounded-lg bg-[#00d97e]/10 flex items-center justify-center flex-shrink-0">
+          <Car className="w-4 h-4 text-[#00d97e]" />
         </div>
-        <h3 className="text-base font-bold text-gray-900">Range Projection</h3>
+        <h3 className="text-base font-bold text-white/90">Range Projection</h3>
       </div>
       <div className="space-y-2">
         {bars.filter((b) => b.mi !== null).map((b) => (
           <div key={b.label} className="flex items-center gap-3">
-            <p className="text-xs text-gray-500 w-20 flex-shrink-0">{b.label}</p>
-            <div className="flex-1 bg-gray-100 rounded-full h-2">
+            <p className="text-xs text-white/40 w-20 flex-shrink-0">{b.label}</p>
+            <div className="flex-1 bg-white/[0.06] rounded-full h-2">
               <div
                 className={`${b.color} h-2 rounded-full transition-all`}
                 style={{ width: `${Math.round(((b.mi ?? 0) / maxMi) * 100)}%` }}
               />
             </div>
-            <p className="text-xs font-semibold text-gray-800 w-14 text-right flex-shrink-0">{b.mi} mi</p>
+            <p className="text-xs font-semibold text-white/70 w-14 text-right flex-shrink-0">{b.mi} mi</p>
           </div>
         ))}
       </div>
       {range.climate_note && (
-        <p className="text-xs text-gray-400 pt-1">{range.climate_note}</p>
+        <p className="text-xs text-white/35 pt-1">{range.climate_note}</p>
       )}
-      <p className="text-xs text-gray-300">Source: AAA + Recurrent fleet data</p>
+      <p className="text-xs text-white/20">Source: AAA + Recurrent fleet data</p>
     </div>
   );
 }
 
 function IncentiveStatusCard({ incentive }: { incentive: IncentiveStatus }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 space-y-3">
+    <div className="rounded-2xl border border-white/[0.08] bg-[#161b22] p-5 space-y-3">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
-          <Shield className="w-4 h-4 text-red-500" />
+        <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
+          <Shield className="w-4 h-4 text-red-400" />
         </div>
-        <h3 className="text-base font-bold text-gray-900">EV Tax Credit Eligibility</h3>
+        <h3 className="text-base font-bold text-white/90">EV Tax Credit Eligibility</h3>
       </div>
       <div className="space-y-2">
-        <div className="rounded-xl border border-red-100 bg-red-50 p-3">
-          <p className="text-xs font-semibold text-red-800">Federal new vehicle credit (§30D)</p>
-          <p className="text-xs text-red-700 mt-0.5">
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3">
+          <p className="text-xs font-semibold text-red-400">Federal new vehicle credit (§30D)</p>
+          <p className="text-xs text-red-400/70 mt-0.5">
             Salvage title — NOT eligible.
             {incentive.federal_new_amount > 0
               ? ` Original buyer may have claimed $${incentive.federal_new_amount.toLocaleString()} — factor this into your negotiation.`
               : ""}
           </p>
         </div>
-        <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-          <p className="text-xs font-semibold text-gray-700">Federal used vehicle credit (§25E)</p>
-          <p className="text-xs text-gray-600 mt-0.5">
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3">
+          <p className="text-xs font-semibold text-white/60">Federal used vehicle credit (§25E)</p>
+          <p className="text-xs text-white/40 mt-0.5">
             {incentive.federal_used_amount > 0
               ? `Up to $${incentive.federal_used_amount.toLocaleString()} if purchased from a licensed dealer.`
               : "Not eligible for this vehicle."}
           </p>
         </div>
         {incentive.state_amount > 0 && incentive.state && (
-          <div className="rounded-xl border border-green-100 bg-green-50 p-3">
-            <p className="text-xs font-semibold text-green-800">{incentive.state} state incentive</p>
-            <p className="text-xs text-green-700 mt-0.5">Up to ${incentive.state_amount.toLocaleString()}</p>
+          <div className="rounded-xl border border-[#00d97e]/20 bg-[#00d97e]/10 p-3">
+            <p className="text-xs font-semibold text-[#00d97e]">{incentive.state} state incentive</p>
+            <p className="text-xs text-[#00d97e]/70 mt-0.5">Up to ${incentive.state_amount.toLocaleString()}</p>
           </div>
         )}
         {incentive.notes && (
-          <p className="text-xs text-gray-400">{incentive.notes}</p>
+          <p className="text-xs text-white/30">{incentive.notes}</p>
         )}
       </div>
     </div>
@@ -351,34 +351,34 @@ function IncentiveStatusCard({ incentive }: { incentive: IncentiveStatus }) {
 
 function ElectricityContextCard({ electricity }: { electricity: ElectricityContext }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 space-y-3">
+    <div className="rounded-2xl border border-white/[0.08] bg-[#161b22] p-5 space-y-3">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-lg bg-yellow-50 flex items-center justify-center flex-shrink-0">
-          <svg className="w-4 h-4 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
         </div>
-        <h3 className="text-base font-bold text-gray-900">Charging Cost Estimate</h3>
+        <h3 className="text-base font-bold text-white/90">Charging Cost Estimate</h3>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
-          <p className="text-xs text-gray-500 mb-0.5">{electricity.state} residential rate</p>
-          <p className="text-lg font-bold text-gray-900">{electricity.residential_kwh_cents}<span className="text-sm font-normal text-gray-500">¢/kWh</span></p>
+        <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-3">
+          <p className="text-xs text-white/40 mb-0.5">{electricity.state} residential rate</p>
+          <p className="text-lg font-bold text-white">{electricity.residential_kwh_cents}<span className="text-sm font-normal text-white/40">¢/kWh</span></p>
         </div>
         {electricity.monthly_cost_estimate_usd !== null && (
-          <div className="rounded-xl bg-gray-50 border border-gray-100 p-3">
-            <p className="text-xs text-gray-500 mb-0.5">Est. monthly cost</p>
-            <p className="text-lg font-bold text-gray-900">${electricity.monthly_cost_estimate_usd}<span className="text-sm font-normal text-gray-500">/mo</span></p>
+          <div className="rounded-xl bg-white/[0.04] border border-white/[0.06] p-3">
+            <p className="text-xs text-white/40 mb-0.5">Est. monthly cost</p>
+            <p className="text-lg font-bold text-white">${electricity.monthly_cost_estimate_usd}<span className="text-sm font-normal text-white/40">/mo</span></p>
           </div>
         )}
       </div>
       {electricity.ev_tou_kwh_cents !== null && (
-        <div className="rounded-xl bg-green-50 border border-green-100 p-3">
-          <p className="text-xs font-semibold text-green-800">Off-peak EV rate available</p>
-          <p className="text-xs text-green-700 mt-0.5">TOU rate ~{electricity.ev_tou_kwh_cents}¢/kWh may reduce monthly cost significantly.</p>
+        <div className="rounded-xl bg-[#00d97e]/10 border border-[#00d97e]/20 p-3">
+          <p className="text-xs font-semibold text-[#00d97e]">Off-peak EV rate available</p>
+          <p className="text-xs text-[#00d97e]/70 mt-0.5">TOU rate ~{electricity.ev_tou_kwh_cents}¢/kWh may reduce monthly cost significantly.</p>
         </div>
       )}
-      <p className="text-xs text-gray-300">At 12,000 mi/yr · {electricity.state} state average rate · EIA data</p>
+      <p className="text-xs text-white/20">At 12,000 mi/yr · {electricity.state} state average rate · EIA data</p>
     </div>
   );
 }
@@ -386,19 +386,19 @@ function ElectricityContextCard({ electricity }: { electricity: ElectricityConte
 function RecallsCard({ recalls }: { recalls: NhtsaRecallSummary[] }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 space-y-3">
+    <div className="rounded-2xl border border-white/[0.08] bg-[#161b22] p-5 space-y-3">
       <button
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-between group"
       >
         <div className="flex items-center gap-2">
-          <Bell className="w-5 h-5 text-amber-500" />
-          <h3 className="text-base font-bold text-gray-900">Open Recalls</h3>
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+          <Bell className="w-5 h-5 text-amber-400" />
+          <h3 className="text-base font-bold text-white/90">Open Recalls</h3>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
             {recalls.length}
           </span>
         </div>
-        <div className="flex items-center gap-1 text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
+        <div className="flex items-center gap-1 text-xs text-white/30 group-hover:text-white/60 transition-colors">
           <span>{open ? "Hide" : "Show all"}</span>
           {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
         </div>
@@ -409,7 +409,7 @@ function RecallsCard({ recalls }: { recalls: NhtsaRecallSummary[] }) {
           {recalls.map((r) => (
             <span
               key={r.NHTSACampaignNumber}
-              className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100"
+              className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20"
             >
               {r.Component.split(":")[0].trim()}
             </span>
@@ -420,18 +420,18 @@ function RecallsCard({ recalls }: { recalls: NhtsaRecallSummary[] }) {
       {open && (
         <div className="space-y-2 pt-1">
           {recalls.map((r) => (
-            <div key={r.NHTSACampaignNumber} className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-1.5">
+            <div key={r.NHTSACampaignNumber} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 space-y-1.5">
               <div className="flex items-start justify-between gap-3">
-                <p className="text-xs font-semibold text-gray-800 leading-snug">{r.Component}</p>
-                <span className="text-xs text-gray-400 font-mono flex-shrink-0 mt-0.5">
+                <p className="text-xs font-semibold text-white/80 leading-snug">{r.Component}</p>
+                <span className="text-xs text-white/30 font-mono flex-shrink-0 mt-0.5">
                   #{r.NHTSACampaignNumber}
                 </span>
               </div>
-              <p className="text-xs text-gray-600 leading-relaxed">{r.Summary}</p>
+              <p className="text-xs text-white/50 leading-relaxed">{r.Summary}</p>
               {r.Remedy && (
                 <div className="flex items-start gap-1.5 pt-0.5">
-                  <span className="text-xs font-semibold text-green-700 uppercase tracking-wide flex-shrink-0 mt-0.5">Remedy</span>
-                  <p className="text-xs text-green-800 leading-relaxed">{r.Remedy}</p>
+                  <span className="text-xs font-semibold text-[#00d97e]/80 uppercase tracking-wide flex-shrink-0 mt-0.5">Remedy</span>
+                  <p className="text-xs text-white/50 leading-relaxed">{r.Remedy}</p>
                 </div>
               )}
             </div>
@@ -618,23 +618,23 @@ export default function CopartPage() {
   const lot = report?.lot ?? null;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-[#0d1117] flex flex-col">
       <Header variant="homepage" />
 
       {/* Hero */}
-      <div className="bg-white border-b border-gray-100">
+      <div className="bg-[#0d1117] border-b border-white/[0.08]">
         <div className="max-w-5xl mx-auto px-4 py-10">
           <div className="flex flex-col lg:flex-row items-center gap-8">
             {/* Left: copy */}
             <div className="flex-1 text-center lg:text-left">
-              <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-700 bg-orange-100 px-3 py-1 rounded-full mb-4">
+              <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-400 bg-orange-500/15 border border-orange-500/25 px-3 py-1 rounded-full mb-4">
                 <Gavel className="w-3.5 h-3.5" />
                 Salvage &amp; Auction Intelligence
               </div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
                 Evaluate any Copart auction before you bid
               </h1>
-              <p className="text-sm text-gray-500 max-w-md mx-auto lg:mx-0">
+              <p className="text-sm text-white/50 max-w-md mx-auto lg:mx-0">
                 Paste a Copart lot URL or lot number. Get a salvage risk score, ARV estimate, repair cost breakdown, and max safe bid — free.
               </p>
 
@@ -642,7 +642,7 @@ export default function CopartPage() {
               <div className="mt-4 mb-1">
                 <Link
                   href="/copart/batch"
-                  className="inline-flex items-center gap-1.5 text-sm text-green-700 font-medium hover:text-green-800 transition-colors"
+                  className="inline-flex items-center gap-1.5 text-sm text-[#00d97e]/70 font-medium hover:text-[#00d97e] transition-colors"
                 >
                   <Layers className="w-3.5 h-3.5" />
                   Analyzing multiple lots? Try Batch Analysis →
@@ -657,8 +657,8 @@ export default function CopartPage() {
                   { icon: Gavel, label: "Max safe bid calc" },
                   { icon: Bell, label: "Open recalls" },
                 ].map(({ icon: Icon, label }) => (
-                  <span key={label} className="inline-flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">
-                    <Icon className="w-3 h-3 text-blue-500" />
+                  <span key={label} className="inline-flex items-center gap-1 text-xs text-white/50 bg-white/[0.06] border border-white/[0.08] px-2.5 py-1 rounded-full">
+                    <Icon className="w-3 h-3 text-[#00d97e]" />
                     {label}
                   </span>
                 ))}
@@ -681,11 +681,11 @@ export default function CopartPage() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-8 space-y-5">
+      <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-8 space-y-5 bg-[#0d1117]">
 
         {/* Input card */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-          <label className="block text-sm font-semibold text-gray-800 mb-2">
+        <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] p-5">
+          <label className="block text-sm font-semibold text-white/70 mb-2">
             Copart lot URL or lot number
           </label>
           <div className="flex gap-2">
@@ -695,13 +695,13 @@ export default function CopartPage() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !isLoading && input.trim() && handleAnalyze()}
               placeholder="https://www.copart.com/lot/12345678  or  12345678"
-              className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+              className="flex-1 px-3 py-2.5 text-sm bg-[#0d1117] border border-white/[0.10] rounded-xl text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500/40 transition-colors"
               disabled={isLoading}
             />
             <button
               onClick={() => handleAnalyze()}
               disabled={isLoading || !input.trim()}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 whitespace-nowrap"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-[#0d1117] bg-orange-500 hover:bg-orange-400 transition-colors disabled:opacity-50 whitespace-nowrap"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -711,29 +711,29 @@ export default function CopartPage() {
               {isLoading ? statusMsg : "Analyze"}
             </button>
           </div>
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-xs text-white/30 mt-2">
             Works with Copart and IAAI lot URLs or bare lot numbers.
           </p>
         </div>
 
         {/* Error */}
         {pageState === "error" && errorMsg && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
             <div className="flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-              <p className="text-sm font-medium text-amber-800">{errorMsg}</p>
+              <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+              <p className="text-sm font-medium text-red-400">{errorMsg}</p>
             </div>
           </div>
         )}
 
         {/* Loading state */}
         {isLoading && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 flex flex-col items-center gap-3">
-            <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center">
-              <Loader2 className="w-7 h-7 text-blue-600 animate-spin" />
+          <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] p-8 flex flex-col items-center gap-3">
+            <div className="w-14 h-14 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+              <Loader2 className="w-7 h-7 text-orange-400 animate-spin" />
             </div>
-            <p className="text-sm font-medium text-gray-700">{statusMsg}</p>
-            <p className="text-xs text-gray-400">Fetching lot data, market comps, recalls…</p>
+            <p className="text-sm font-medium text-white/70">{statusMsg}</p>
+            <p className="text-xs text-white/30">Fetching lot data, market comps, recalls…</p>
           </div>
         )}
 
@@ -743,17 +743,17 @@ export default function CopartPage() {
 
             {/* Lot summary strip */}
             {(lot.year || lot.make || lot.model) && (
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
+              <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] px-5 py-4">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Lot {lot.lot_number}</p>
-                    <h2 className="text-lg font-bold text-gray-900">
+                    <p className="text-xs font-semibold text-white/30 uppercase tracking-wide mb-0.5">Lot {lot.lot_number}</p>
+                    <h2 className="text-lg font-bold text-white">
                       {[lot.year, lot.make, lot.model, lot.trim].filter(Boolean).join(" ")}
                     </h2>
-                    <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-500">
+                    <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-white/40">
                       {lot.primary_damage && (
-                        <span className="flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3 text-amber-400" />
+                        <span className="flex items-center gap-1 text-amber-400">
+                          <AlertTriangle className="w-3 h-3" />
                           {lot.primary_damage}
                         </span>
                       )}
@@ -773,8 +773,8 @@ export default function CopartPage() {
                   </div>
                   {lot.current_bid && (
                     <div className="text-right">
-                      <p className="text-xs text-gray-400">Current bid</p>
-                      <p className="text-xl font-bold text-gray-900">${lot.current_bid.toLocaleString()}</p>
+                      <p className="text-xs text-white/30">Current bid</p>
+                      <p className="text-xl font-bold text-white">${lot.current_bid.toLocaleString()}</p>
                     </div>
                   )}
                 </div>
@@ -852,10 +852,10 @@ export default function CopartPage() {
 
             {/* Share + Save nudge */}
             {resultId && (
-              <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between gap-4 flex-wrap">
+              <div className="bg-[#161b22] border border-white/[0.08] rounded-2xl p-4 flex items-center justify-between gap-4 flex-wrap">
                 <div>
-                  <p className="text-sm font-semibold text-blue-900">Share or save this report</p>
-                  <p className="text-xs text-blue-600 mt-0.5">Send the link to your mechanic, partner, or bidding group.</p>
+                  <p className="text-sm font-semibold text-white/80">Share or save this report</p>
+                  <p className="text-xs text-white/40 mt-0.5">Send the link to your mechanic, partner, or bidding group.</p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <SaveToGarageButton resultId={resultId} accessToken={session?.access_token ?? null} />

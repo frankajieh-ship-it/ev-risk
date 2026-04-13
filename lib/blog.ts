@@ -28,6 +28,18 @@ export interface BlogPost {
 
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "hybrid-ai-system-used-ev-buying",
+    badge: "Engineering",
+    badgeColor: "bg-indigo-100 text-indigo-800",
+    title: "We Built a Hybrid AI System That Actually Helps People Buy Used EVs Without the Regret",
+    description:
+      "How a deterministic-first scoring layer plus a hedged multi-LLM chain turned messy CarGurus listings and Copart auctions into actionable results buyers can trust.",
+    excerpt:
+      "How a deterministic-first scoring layer + hedged multi-LLM chain turned messy CarGurus listings and Copart auctions into actionable results.",
+    readTime: "4 min read",
+    datePublished: "2026-04-11",
+  },
+  {
     slug: "copart-ev-buying-guide",
     badge: "Buyer's Guide",
     badgeColor: "bg-orange-100 text-orange-800",

@@ -126,15 +126,15 @@ const FAQS = [
 function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden">
+    <div className="border border-white/[0.08] rounded-xl overflow-hidden bg-[#161b22]">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left text-sm font-semibold text-gray-900 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 text-left text-sm font-semibold text-white/80 hover:bg-white/[0.04] transition-colors"
       >
         {q}
-        {open ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0 ml-3" /> : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0 ml-3" />}
+        {open ? <ChevronUp className="w-4 h-4 text-white/30 shrink-0 ml-3" /> : <ChevronDown className="w-4 h-4 text-white/30 shrink-0 ml-3" />}
       </button>
-      {open && <div className="px-5 pb-4 text-sm text-gray-600 leading-relaxed border-t border-gray-100">{a}</div>}
+      {open && <div className="px-5 pb-4 text-sm text-white/50 leading-relaxed border-t border-white/[0.06]">{a}</div>}
     </div>
   );
 }
@@ -159,7 +159,7 @@ function LotInputForm({ onAnalyze, loading }: {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder="Paste Copart lot URL or lot number (e.g. 12345678)"
-        className="flex-1 px-4 py-3.5 border-2 border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 bg-white focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none transition-colors"
+        className="flex-1 px-4 py-3.5 border-2 border-white/[0.10] rounded-xl text-sm text-white placeholder:text-white/30 bg-[#0d1117] focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 outline-none transition-colors"
         disabled={loading}
         autoFocus
       />
@@ -282,12 +282,12 @@ export default function CopartLandingPage() {
   }, [lotKey]);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#0d1117]">
 
       <Header variant="receipt" />
 
       {/* ── HERO ── */}
-      <section className="bg-gradient-to-b from-gray-950 to-gray-900 text-white px-4 py-14 sm:py-20">
+      <section className="bg-gradient-to-b from-[#0d1117] to-[#0d1117] border-b border-white/[0.08] text-white px-4 py-14 sm:py-20">
         <div className="max-w-3xl mx-auto text-center">
 
           {/* Urgency badge */}
@@ -301,23 +301,23 @@ export default function CopartLandingPage() {
             <span className="text-orange-400">Know exactly what to bid.</span>
           </h1>
 
-          <p className="text-gray-300 text-lg sm:text-xl leading-relaxed mb-8 max-w-2xl mx-auto">
+          <p className="text-white/60 text-lg sm:text-xl leading-relaxed mb-8 max-w-2xl mx-auto">
             Paste any Copart or IAAI lot. Get your salvage risk score, repair cost estimate, after-repair value, and <strong className="text-white">max safe bid</strong> in under 60 seconds. Free.
           </p>
 
           {/* Hero CTA */}
-          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-2xl text-left">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Analyze any Copart or IAAI lot — free</p>
+          <div className="bg-[#161b22] border border-white/[0.10] rounded-2xl p-4 sm:p-6 text-left">
+            <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Analyze any Copart or IAAI lot — free</p>
             <LotInputForm onAnalyze={analyze} loading={pageState === "fetching"} />
             {pageState === "error" && (
-              <p className="mt-3 text-sm text-red-600 flex items-center gap-1.5">
+              <p className="mt-3 text-sm text-red-400 flex items-center gap-1.5">
                 <XCircle className="w-4 h-4 shrink-0" /> {errorMsg}
               </p>
             )}
             <div className="flex items-center gap-4 mt-4 flex-wrap">
               {["No account needed", "Results in ~60s", "Works on mobile"].map((t) => (
-                <span key={t} className="flex items-center gap-1 text-xs text-gray-400">
-                  <CheckCircle className="w-3.5 h-3.5 text-green-500" /> {t}
+                <span key={t} className="flex items-center gap-1 text-xs text-white/40">
+                  <CheckCircle className="w-3.5 h-3.5 text-[#00d97e]" /> {t}
                 </span>
               ))}
             </div>
@@ -325,216 +325,152 @@ export default function CopartLandingPage() {
         </div>
       </section>
 
-      {/* ── RESULTS ── */}
+
       {pageState === "done" && result && report && lot && salvage && (
         <section ref={resultsRef} className="max-w-3xl mx-auto px-4 py-10 space-y-5">
 
           {/* Vehicle card with photo */}
-          <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-            {/* Photo strip */}
-            <div className="relative h-52 bg-gray-100">
+          <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
+            <div className="relative h-52 bg-[#161b22]">
               {photoUrl ? (
                 <Image
                   src={`/api/proxy-image?url=${encodeURIComponent(photoUrl)}`}
                   alt={`${lot.year ?? ""} ${lot.make ?? ""} ${lot.model ?? ""}`}
-                  fill
-                  className="object-cover"
-                  unoptimized
+                  fill className="object-cover" unoptimized
                 />
               ) : (
-                <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-700 flex flex-col items-center justify-center gap-2">
-                  <Gavel className="w-10 h-10 text-gray-500" />
-                  <p className="text-xs text-gray-500">Loading photo…</p>
+                <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                  <Gavel className="w-10 h-10 text-white/10" />
+                  <p className="text-xs text-white/25">Loading photo…</p>
                 </div>
               )}
-              {/* Grade badge overlay */}
               <div className="absolute top-3 right-3">
-                {salvage.grade === "green" && (
-                  <span className="px-3 py-1.5 bg-green-500 text-white text-xs font-bold rounded-full shadow">LOW RISK</span>
-                )}
-                {salvage.grade === "yellow" && (
-                  <span className="px-3 py-1.5 bg-amber-500 text-white text-xs font-bold rounded-full shadow">MODERATE RISK</span>
-                )}
-                {salvage.grade === "red" && (
-                  <span className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-full shadow">HIGH RISK</span>
-                )}
+                {salvage.grade === "green" && <span className="px-3 py-1.5 bg-[#00d97e] text-[#0d1117] text-xs font-bold rounded-full">LOW RISK</span>}
+                {salvage.grade === "yellow" && <span className="px-3 py-1.5 bg-amber-500 text-[#0d1117] text-xs font-bold rounded-full">MODERATE RISK</span>}
+                {salvage.grade === "red" && <span className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-full">HIGH RISK</span>}
               </div>
             </div>
-
-            {/* Vehicle info */}
-            <div className="p-4 bg-white">
+            <div className="p-4 bg-[#161b22] border-t border-white/[0.06]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="text-lg font-black text-gray-900">
-                    {lot.year} {lot.make} {lot.model}{lot.trim ? ` ${lot.trim}` : ""}
-                  </h2>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
-                    {lot.primary_damage && <span className="text-orange-600 font-medium">{lot.primary_damage}</span>}
+                  <h2 className="text-lg font-black text-white">{lot.year} {lot.make} {lot.model}{lot.trim ? ` ${lot.trim}` : ""}</h2>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-white/40">
+                    {lot.primary_damage && <span className="text-orange-400 font-medium">{lot.primary_damage}</span>}
                     {lot.title_status && <span>{lot.title_status} title</span>}
                     {lot.odometer && <span>{lot.odometer.toLocaleString()} mi</span>}
                   </div>
-                  {/* Current bid pill */}
                   {lot.current_bid && (
-                    <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-orange-50 border border-orange-200 rounded-full">
-                      <span className="text-xs font-bold text-orange-700">Current bid: ${lot.current_bid.toLocaleString()}</span>
+                    <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-orange-500/15 border border-orange-500/25 rounded-full">
+                      <span className="text-xs font-bold text-orange-400">Current bid: ${lot.current_bid.toLocaleString()}</span>
                     </div>
                   )}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-xs text-gray-400">Risk score</p>
-                  <p className={`text-3xl font-black ${salvage.grade === "green" ? "text-green-600" : salvage.grade === "yellow" ? "text-amber-600" : "text-red-600"}`}>
-                    {salvage.score}
-                  </p>
-                  <p className="text-xs text-gray-400">/ 100</p>
+                  <p className="text-xs text-white/30">Risk score</p>
+                  <p className={`text-3xl font-black ${salvage.grade === "green" ? "text-[#00d97e]" : salvage.grade === "yellow" ? "text-amber-400" : "text-red-400"}`}>{salvage.score}</p>
+                  <p className="text-xs text-white/30">/ 100</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Save to Garage shortcut */}
+          {/* Save shortcut */}
           <div className="flex items-center justify-between px-1">
-            <p className="text-xs text-gray-400">Analyzing {lot.lot_number ? `lot #${lot.lot_number}` : "this lot"}</p>
-            <Link
-              href={`/copart${lot.lot_number ? `?lot=${lot.lot_number}` : ""}`}
-              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors"
-            >
+            <p className="text-xs text-white/30">Analyzing {lot.lot_number ? `lot #${lot.lot_number}` : "this lot"}</p>
+            <Link href={`/copart${lot.lot_number ? `?lot=${lot.lot_number}` : ""}`} className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors">
               <Bookmark className="w-3.5 h-3.5" /> Save to Garage →
             </Link>
           </div>
 
           {/* Key numbers grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {/* Bid discount */}
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
-              <Gavel className="w-4 h-4 text-orange-500 mx-auto mb-1" />
-              <p className="text-xs text-gray-500 font-medium">Bid discount</p>
-              <p className="text-xl font-black text-gray-900">{salvage.suggested_bid_discount}%</p>
-              <p className="text-xs text-gray-400">off KBB clean value</p>
+            <div className="bg-[#161b22] border border-white/[0.08] rounded-xl p-3 text-center">
+              <Gavel className="w-4 h-4 text-orange-400 mx-auto mb-1" />
+              <p className="text-xs text-white/40 font-medium">Bid discount</p>
+              <p className="text-xl font-black text-white">{salvage.suggested_bid_discount}%</p>
+              <p className="text-xs text-white/30">off KBB clean value</p>
             </div>
-
-            {/* ARV */}
             {arb?.arv != null && (
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
-                <TrendingUp className="w-4 h-4 text-blue-500 mx-auto mb-1" />
-                <p className="text-xs text-gray-500 font-medium">After-repair value</p>
-                <p className="text-xl font-black text-gray-900">${arb.arv.toLocaleString()}</p>
-                <p className="text-xs text-gray-400">{arb.arv_source === "none" ? "estimated" : "market data"}</p>
+              <div className="bg-[#161b22] border border-white/[0.08] rounded-xl p-3 text-center">
+                <TrendingUp className="w-4 h-4 text-blue-400 mx-auto mb-1" />
+                <p className="text-xs text-white/40 font-medium">After-repair value</p>
+                <p className="text-xl font-black text-white">${arb.arv.toLocaleString()}</p>
+                <p className="text-xs text-white/30">{arb.arv_source === "none" ? "estimated" : "market data"}</p>
               </div>
             )}
-
-            {/* Repair cost */}
             {arb?.repair_cost_estimate != null && (
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
-                <Wrench className="w-4 h-4 text-gray-500 mx-auto mb-1" />
-                <p className="text-xs text-gray-500 font-medium">Est. repair cost</p>
-                <p className="text-xl font-black text-gray-900">
-                  {arb.repair_cost_estimate >= 1000
-                    ? `$${(arb.repair_cost_estimate / 1000).toFixed(1)}k`
-                    : `$${arb.repair_cost_estimate.toLocaleString()}`}
+              <div className="bg-[#161b22] border border-white/[0.08] rounded-xl p-3 text-center">
+                <Wrench className="w-4 h-4 text-white/40 mx-auto mb-1" />
+                <p className="text-xs text-white/40 font-medium">Est. repair cost</p>
+                <p className="text-xl font-black text-white">
+                  {arb.repair_cost_estimate >= 1000 ? `$${(arb.repair_cost_estimate / 1000).toFixed(1)}k` : `$${arb.repair_cost_estimate.toLocaleString()}`}
                 </p>
-                <p className="text-xs text-gray-400">
-                  ${(arb.repair_cost_low / 1000).toFixed(1)}k–${(arb.repair_cost_high / 1000).toFixed(1)}k range
-                </p>
-                {lot.primary_damage && (
-                  <p className="text-xs text-orange-600 mt-0.5 font-medium truncate" title={lot.primary_damage}>
-                    {lot.primary_damage}
-                  </p>
-                )}
+                <p className="text-xs text-white/30">${(arb.repair_cost_low / 1000).toFixed(1)}k–${(arb.repair_cost_high / 1000).toFixed(1)}k range</p>
+                {lot.primary_damage && <p className="text-xs text-orange-400 mt-0.5 font-medium truncate">{lot.primary_damage}</p>}
               </div>
             )}
-
-            {/* Max safe bid — live from slider */}
             {liveSafeBid != null && liveMaxBid != null ? (
-              <div className={`border rounded-xl p-3 text-center ${liveMaxBid >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
-                <TrendingDown className={`w-4 h-4 mx-auto mb-1 ${liveMaxBid >= 0 ? "text-green-600" : "text-red-500"}`} />
-                <p className="text-xs text-gray-500 font-medium">Max safe bid</p>
-                <p className={`text-xl font-black ${liveMaxBid >= 0 ? "text-green-700" : "text-red-700"}`}>
-                  ${Math.max(0, liveMaxBid).toLocaleString()}
-                </p>
-                {arb?.auction_fees_estimate ? (
-                  <p className="text-xs text-gray-400">incl. ~${arb.auction_fees_estimate.toLocaleString()} fees</p>
-                ) : (
-                  <p className="text-xs text-gray-400">at {targetMargin}% margin</p>
-                )}
+              <div className={`border rounded-xl p-3 text-center ${liveMaxBid >= 0 ? "bg-[#00d97e]/10 border-[#00d97e]/20" : "bg-red-500/10 border-red-500/20"}`}>
+                <TrendingDown className={`w-4 h-4 mx-auto mb-1 ${liveMaxBid >= 0 ? "text-[#00d97e]" : "text-red-400"}`} />
+                <p className="text-xs text-white/40 font-medium">Max safe bid</p>
+                <p className={`text-xl font-black ${liveMaxBid >= 0 ? "text-[#00d97e]" : "text-red-400"}`}>${Math.max(0, liveMaxBid).toLocaleString()}</p>
+                <p className="text-xs text-white/30">{arb?.auction_fees_estimate ? `incl. ~$${arb.auction_fees_estimate.toLocaleString()} fees` : `at ${targetMargin}% margin`}</p>
               </div>
             ) : arb?.safe_bid_range != null ? (
-              <div className={`border rounded-xl p-3 text-center ${arb.safe_bid_range.high >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
-                <TrendingDown className={`w-4 h-4 mx-auto mb-1 ${arb.safe_bid_range.high >= 0 ? "text-green-600" : "text-red-500"}`} />
-                <p className="text-xs text-gray-500 font-medium">Max safe bid</p>
-                <p className={`text-xl font-black ${arb.safe_bid_range.high >= 0 ? "text-green-700" : "text-red-700"}`}>
-                  ${Math.max(0, arb.safe_bid_range.high).toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-400">at {targetMargin}% margin</p>
+              <div className={`border rounded-xl p-3 text-center ${arb.safe_bid_range.high >= 0 ? "bg-[#00d97e]/10 border-[#00d97e]/20" : "bg-red-500/10 border-red-500/20"}`}>
+                <TrendingDown className={`w-4 h-4 mx-auto mb-1 ${arb.safe_bid_range.high >= 0 ? "text-[#00d97e]" : "text-red-400"}`} />
+                <p className="text-xs text-white/40 font-medium">Max safe bid</p>
+                <p className={`text-xl font-black ${arb.safe_bid_range.high >= 0 ? "text-[#00d97e]" : "text-red-400"}`}>${Math.max(0, arb.safe_bid_range.high).toLocaleString()}</p>
+                <p className="text-xs text-white/30">at {targetMargin}% margin</p>
               </div>
             ) : null}
           </div>
 
-          {/* Margin slider — only shown when arb data is available */}
+          {/* Margin slider */}
           {arb?.arv != null && liveSafeBid != null && (
-            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+            <div className="bg-[#161b22] border border-white/[0.08] rounded-2xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">Your profit margin target</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Adjust to see how your max bid changes</p>
+                  <p className="text-sm font-semibold text-white/80">Your profit margin target</p>
+                  <p className="text-xs text-white/40 mt-0.5">Adjust to see how your max bid changes</p>
                 </div>
-                <span className="text-2xl font-black text-orange-500">{targetMargin}%</span>
+                <span className="text-2xl font-black text-orange-400">{targetMargin}%</span>
               </div>
-              <input
-                type="range"
-                min={10}
-                max={30}
-                step={5}
-                value={targetMargin}
-                onChange={(e) => setTargetMargin(Number(e.target.value))}
-                className="w-full accent-orange-500"
-              />
-              <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>10% (aggressive)</span>
-                <span>20% (default)</span>
-                <span>30% (conservative)</span>
+              <input type="range" min={10} max={30} step={5} value={targetMargin}
+                onChange={(e) => setTargetMargin(Number(e.target.value))} className="w-full accent-orange-500" />
+              <div className="flex justify-between text-xs text-white/30 mt-1">
+                <span>10% (aggressive)</span><span>20% (default)</span><span>30% (conservative)</span>
               </div>
               {liveSafeBid && (
-                <div className="mt-3 flex items-center justify-between bg-white border border-orange-200 rounded-xl px-4 py-2.5">
-                  <span className="text-xs text-gray-500">Safe bid range at {targetMargin}%</span>
-                  <span className="text-sm font-bold text-gray-900">
-                    ${Math.max(0, liveSafeBid.low).toLocaleString()} – ${Math.max(0, liveSafeBid.high).toLocaleString()}
-                  </span>
+                <div className="mt-3 flex items-center justify-between bg-[#0d1117] border border-orange-500/20 rounded-xl px-4 py-2.5">
+                  <span className="text-xs text-white/40">Safe bid range at {targetMargin}%</span>
+                  <span className="text-sm font-bold text-white">${Math.max(0, liveSafeBid.low).toLocaleString()} – ${Math.max(0, liveSafeBid.high).toLocaleString()}</span>
                 </div>
               )}
-              <p className="text-xs text-gray-400 mt-2">
-                Repair cost is an estimate — actual costs vary by region and shop. Increase margin to account for uncertainty.
-              </p>
+              <p className="text-xs text-white/30 mt-2">Repair cost is an estimate — actual costs vary by region and shop.</p>
             </div>
           )}
 
-          {/* Bid guidance */}
-          <AuctionBidGuidanceCard
-            result={salvage}
-            askingPrice={lot.current_bid ?? null}
-            currentBid={lot.current_bid ?? null}
-            vin={lot.vin ?? null}
-          />
+          <AuctionBidGuidanceCard result={salvage} askingPrice={lot.current_bid ?? null} currentBid={lot.current_bid ?? null} vin={lot.vin ?? null} />
 
-          {/* Recalls */}
           {result.recalls.length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
-              <TriangleAlert className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+            <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-start gap-3">
+              <TriangleAlert className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-semibold text-red-800 mb-1">{result.recalls.length} open NHTSA recall{result.recalls.length > 1 ? "s" : ""}</p>
+                <p className="text-sm font-semibold text-red-400 mb-1">{result.recalls.length} open NHTSA recall{result.recalls.length > 1 ? "s" : ""}</p>
                 <ul className="space-y-0.5">
                   {result.recalls.slice(0, 3).map((r, i) => (
-                    <li key={i} className="text-xs text-red-700">• {r.Component}</li>
+                    <li key={i} className="text-xs text-red-400/70">• {r.Component}</li>
                   ))}
                 </ul>
               </div>
             </div>
           )}
 
-          {/* CTA after results */}
-          <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-6 text-white text-center">
-            <p className="text-lg font-bold mb-1">Want the full report?</p>
-            <p className="text-sm text-orange-100 mb-4">Save to Garage, get a shareable link, EV battery analysis, tax credit eligibility, and more.</p>
-            <Link href="/copart" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-orange-600 font-bold text-sm rounded-xl hover:bg-orange-50 transition-colors">
+          <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-6 text-center">
+            <p className="text-lg font-bold text-white mb-1">Want the full report?</p>
+            <p className="text-sm text-white/50 mb-4">Save to Garage, get a shareable link, EV battery analysis, tax credit eligibility, and more.</p>
+            <Link href="/copart" className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white font-bold text-sm rounded-xl hover:bg-orange-400 transition-colors">
               Open Full Tool <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -545,22 +481,22 @@ export default function CopartLandingPage() {
       {pageState === "fetching" && (
         <section className="max-w-3xl mx-auto px-4 py-20 text-center">
           <Loader2 className="w-10 h-10 animate-spin text-orange-400 mx-auto mb-4" />
-          <p className="text-gray-700 font-semibold">Fetching lot data and running analysis…</p>
-          <p className="text-sm text-gray-400 mt-1">Usually takes 20–60 seconds</p>
+          <p className="text-white/60 font-semibold">Fetching lot data and running analysis…</p>
+          <p className="text-sm text-white/30 mt-1">Usually takes 20–60 seconds</p>
         </section>
       )}
 
       {/* ── PAIN POINTS (idle only) ── */}
       {pageState === "idle" && (
         <>
-          <section className="bg-gray-950 px-4 pt-4 pb-12">
+          <section className="bg-[#0d1117] px-4 pt-4 pb-12 border-b border-white/[0.06]">
             <div className="max-w-3xl mx-auto">
-              <p className="text-center text-sm font-semibold text-gray-400 uppercase tracking-wider mb-6">Sound familiar?</p>
+              <p className="text-center text-sm font-semibold text-white/30 uppercase tracking-wider mb-6">Sound familiar?</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {PAIN_POINTS.map((p) => (
-                  <div key={p.text} className="flex items-start gap-3 bg-gray-900 border border-gray-800 rounded-xl p-4">
+                  <div key={p.text} className="flex items-start gap-3 bg-[#161b22] border border-white/[0.08] rounded-xl p-4">
                     <span className="text-xl shrink-0">{p.icon}</span>
-                    <p className="text-sm text-gray-300 leading-relaxed">{p.text}</p>
+                    <p className="text-sm text-white/50 leading-relaxed">{p.text}</p>
                   </div>
                 ))}
               </div>
@@ -568,20 +504,20 @@ export default function CopartLandingPage() {
           </section>
 
           {/* ── WHAT YOU GET ── */}
-          <section className="bg-white px-4 py-16">
+          <section className="bg-[#0d1117] px-4 py-16 border-b border-white/[0.06]">
             <div className="max-w-3xl mx-auto">
               <div className="text-center mb-10">
-                <span className="inline-block px-3 py-1 bg-orange-50 text-orange-600 text-xs font-semibold rounded-full border border-orange-100 mb-3">What&apos;s included — free</span>
-                <h2 className="text-3xl font-black text-gray-900">Everything you need to bid with confidence</h2>
-                <p className="text-gray-500 mt-2">One paste. Eight data points. Under 60 seconds.</p>
+                <span className="inline-block px-3 py-1 bg-orange-500/15 text-orange-400 text-xs font-semibold rounded-full border border-orange-500/25 mb-3">What&apos;s included — free</span>
+                <h2 className="text-3xl font-black text-white">Everything you need to bid with confidence</h2>
+                <p className="text-white/40 mt-2">One paste. Eight data points. Under 60 seconds.</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {DELIVERABLES.map((d) => (
-                  <div key={d.label} className="flex items-start gap-3 p-4 border border-gray-100 rounded-xl hover:border-orange-200 hover:bg-orange-50/30 transition-colors">
+                  <div key={d.label} className="flex items-start gap-3 p-4 bg-[#161b22] border border-white/[0.08] rounded-xl hover:border-orange-500/30 transition-colors">
                     <span className="text-2xl shrink-0">{d.icon}</span>
                     <div>
-                      <p className="text-sm font-bold text-gray-900">{d.label}</p>
-                      <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{d.desc}</p>
+                      <p className="text-sm font-bold text-white/80">{d.label}</p>
+                      <p className="text-xs text-white/40 mt-0.5 leading-relaxed">{d.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -590,21 +526,21 @@ export default function CopartLandingPage() {
           </section>
 
           {/* ── HOW IT WORKS ── */}
-          <section className="bg-gray-50 px-4 py-16 border-y border-gray-100">
+          <section className="bg-[#0d1117] px-4 py-16 border-b border-white/[0.06]">
             <div className="max-w-3xl mx-auto">
-              <h2 className="text-2xl font-black text-gray-900 text-center mb-10">Three steps. Under 60 seconds.</h2>
+              <h2 className="text-2xl font-black text-white text-center mb-10">Three steps. Under 60 seconds.</h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 {[
-                  { n: "1", icon: <Gavel className="w-6 h-6 text-orange-500" />, title: "Paste the lot", desc: "Drop in any Copart or IAAI lot URL, or just the lot number." },
-                  { n: "2", icon: <Zap className="w-6 h-6 text-orange-500" />, title: "Get the scores", desc: "We pull damage data, title status, recalls, and market comps in real time." },
-                  { n: "3", icon: <TrendingDown className="w-6 h-6 text-orange-500" />, title: "Know your number", desc: "Max safe bid, ARV, repair cost — your ceiling, before the hammer falls." },
+                  { n: "1", icon: <Gavel className="w-6 h-6 text-orange-400" />, title: "Paste the lot", desc: "Drop in any Copart or IAAI lot URL, or just the lot number." },
+                  { n: "2", icon: <Zap className="w-6 h-6 text-orange-400" />, title: "Get the scores", desc: "We pull damage data, title status, recalls, and market comps in real time." },
+                  { n: "3", icon: <TrendingDown className="w-6 h-6 text-orange-400" />, title: "Know your number", desc: "Max safe bid, ARV, repair cost — your ceiling, before the hammer falls." },
                 ].map((step) => (
                   <div key={step.n} className="text-center">
-                    <div className="w-12 h-12 bg-white border-2 border-orange-200 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+                    <div className="w-12 h-12 bg-[#161b22] border border-orange-500/25 rounded-2xl flex items-center justify-center mx-auto mb-3">
                       {step.icon}
                     </div>
-                    <p className="font-bold text-gray-900 mb-1">{step.title}</p>
-                    <p className="text-sm text-gray-500 leading-relaxed">{step.desc}</p>
+                    <p className="font-bold text-white/80 mb-1">{step.title}</p>
+                    <p className="text-sm text-white/40 leading-relaxed">{step.desc}</p>
                   </div>
                 ))}
               </div>
@@ -612,25 +548,23 @@ export default function CopartLandingPage() {
           </section>
 
           {/* ── SOCIAL PROOF ── */}
-          <section className="bg-white px-4 py-16">
+          <section className="bg-[#0d1117] px-4 py-16 border-b border-white/[0.06]">
             <div className="max-w-3xl mx-auto">
-              <p className="text-center text-xs font-semibold text-gray-400 uppercase tracking-wider mb-8">What bidders say</p>
+              <p className="text-center text-xs font-semibold text-white/30 uppercase tracking-wider mb-8">What bidders say</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                 {TESTIMONIALS.map((t) => (
-                  <div key={t.name} className="border border-gray-100 rounded-2xl p-5 shadow-sm">
+                  <div key={t.name} className="bg-[#161b22] border border-white/[0.08] rounded-2xl p-5">
                     <div className="flex items-center gap-1 mb-3">
                       {[1, 2, 3, 4, 5].map((s) => (
                         <span key={s} className="text-amber-400 text-sm">★</span>
                       ))}
                     </div>
-                    <p className="text-sm text-gray-700 leading-relaxed mb-4">&ldquo;{t.quote}&rdquo;</p>
+                    <p className="text-sm text-white/60 leading-relaxed mb-4">&ldquo;{t.quote}&rdquo;</p>
                     <div className="flex items-center gap-2">
-                      <div className={`w-7 h-7 ${t.color} rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0`}>
-                        {t.avatar}
-                      </div>
+                      <div className={`w-7 h-7 ${t.color} rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0`}>{t.avatar}</div>
                       <div>
-                        <p className="text-xs font-semibold text-gray-900">{t.name}</p>
-                        <p className="text-xs text-gray-400">{t.handle}</p>
+                        <p className="text-xs font-semibold text-white/80">{t.name}</p>
+                        <p className="text-xs text-white/30">{t.handle}</p>
                       </div>
                     </div>
                   </div>
@@ -640,24 +574,24 @@ export default function CopartLandingPage() {
           </section>
 
           {/* ── RISK REVERSAL ── */}
-          <section className="bg-orange-500 px-4 py-12 text-white text-center">
+          <section className="bg-orange-500/10 border-y border-orange-500/20 px-4 py-12 text-center">
             <div className="max-w-2xl mx-auto">
-              <Shield className="w-10 h-10 mx-auto mb-4 text-orange-100" />
-              <h2 className="text-2xl font-black mb-3">Zero risk to try</h2>
-              <p className="text-orange-100 leading-relaxed mb-6">
+              <Shield className="w-10 h-10 mx-auto mb-4 text-orange-400" />
+              <h2 className="text-2xl font-black text-white mb-3">Zero risk to try</h2>
+              <p className="text-white/50 leading-relaxed mb-6">
                 No account. No credit card. No email required. Paste a lot number and get your full analysis in under 60 seconds — for free. If the numbers don&apos;t help you bid smarter, you&apos;ve lost nothing.
               </p>
               <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-white text-orange-600 font-bold text-sm rounded-xl hover:bg-orange-50 transition-colors shadow-md">
+                className="inline-flex items-center gap-2 px-6 py-3 bg-orange-500 text-white font-bold text-sm rounded-xl hover:bg-orange-400 transition-colors">
                 <Search className="w-4 h-4" /> Analyze a Lot Now — Free
               </a>
             </div>
           </section>
 
           {/* ── FAQ ── */}
-          <section className="bg-white px-4 py-16">
+          <section className="bg-[#0d1117] px-4 py-16 border-b border-white/[0.06]">
             <div className="max-w-2xl mx-auto">
-              <h2 className="text-2xl font-black text-gray-900 text-center mb-8">Common questions</h2>
+              <h2 className="text-2xl font-black text-white text-center mb-8">Common questions</h2>
               <div className="space-y-3">
                 {FAQS.map((f) => <FaqItem key={f.q} q={f.q} a={f.a} />)}
               </div>
@@ -665,16 +599,16 @@ export default function CopartLandingPage() {
           </section>
 
           {/* ── BOTTOM CTA ── */}
-          <section className="bg-gray-950 px-4 py-16 text-center">
+          <section className="bg-[#0d1117] px-4 py-16 text-center">
             <div className="max-w-2xl mx-auto">
               <p className="text-4xl mb-4">🔨</p>
               <h2 className="text-3xl font-black text-white mb-3">The auction doesn&apos;t wait.</h2>
-              <p className="text-gray-400 mb-8">Get your risk score and max safe bid before the lot closes.</p>
+              <p className="text-white/40 mb-8">Get your risk score and max safe bid before the lot closes.</p>
               <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                className="inline-flex items-center gap-2 px-8 py-4 bg-orange-500 hover:bg-orange-600 text-white font-bold text-base rounded-xl transition-colors shadow-lg">
+                className="inline-flex items-center gap-2 px-8 py-4 bg-orange-500 hover:bg-orange-400 text-white font-bold text-base rounded-xl transition-colors">
                 <Gavel className="w-5 h-5" /> Analyze a Lot — Free
               </a>
-              <p className="text-xs text-gray-600 mt-4">No account · No credit card · Works on mobile</p>
+              <p className="text-xs text-white/20 mt-4">No account · No credit card · Works on mobile</p>
             </div>
           </section>
         </>
@@ -682,7 +616,7 @@ export default function CopartLandingPage() {
 
       {/* ── Sticky bottom CTA (mobile, idle only) ── */}
       {pageState === "idle" && (
-        <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 z-50">
+        <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-[#0d1117] border-t border-white/[0.08] px-4 py-3 z-50">
           <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}
             className="w-full flex items-center justify-center gap-2 py-3 bg-orange-500 text-white font-bold text-sm rounded-xl">
             <Search className="w-4 h-4" /> Analyze a Copart Lot — Free
