@@ -569,8 +569,8 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
   const warnings: string[] = [];
   const startTime = Date.now();
 
-  // Hard budget: 40s total — ScrapingBee JS rendering can take 20-30s (maxDuration=45s)
-  const EXTRACTION_BUDGET_MS = 40000;
+  // Hard budget: 25s total — proxy fetch + direct fallback (maxDuration=30s on route)
+  const EXTRACTION_BUDGET_MS = 25000;
   const remainingBudget = () => Math.max(0, EXTRACTION_BUDGET_MS - (Date.now() - startTime));
 
   // Initialize diagnostics
@@ -624,88 +624,87 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     // --- Proxy fetch phase ---
     let html: string | null = null;
 
-    // Per-source proxy timeout cap. CarGurus previously hung silently on direct fetch
-    // (hence 8s cap), but with ScrapingBee JS rendering we need more time.
+    // CarGurus hangs connections silently — cap proxy at 8s then fall through
     const SOURCE_PROXY_TIMEOUT: Partial<Record<string, number>> = {
-      cargurus: 30000,
+      cargurus: 8000,
     };
     const sourceProxyCap = SOURCE_PROXY_TIMEOUT[dataSource] ?? 20000;
 
     if (remainingBudget() > 1000) {
       const proxyStart = Date.now();
       const proxyTimeout = Math.min(sourceProxyCap, remainingBudget() - 500);
+      const proxyController = new AbortController();
+      const proxyTimeoutId = setTimeout(() => proxyController.abort(), proxyTimeout);
 
-      // --- ScrapingBee (primary) — falls through to direct fetch if unavailable ---
-      const SCRAPINGBEE_KEY = process.env.SCRAPINGBEE_API_KEY;
-      if (SCRAPINGBEE_KEY) {
-        const sbController = new AbortController();
-        const sbTimeoutId = setTimeout(() => sbController.abort(), proxyTimeout);
-        try {
-          const needsJsRender = ['cargurus', 'autotrader', 'cars.com'].includes(dataSource);
-          const sbUrl = new URL('https://app.scrapingbee.com/api/v1/');
-          sbUrl.searchParams.set('api_key', SCRAPINGBEE_KEY);
-          sbUrl.searchParams.set('url', url);
-          sbUrl.searchParams.set('render_js', needsJsRender ? 'true' : 'false');
-          sbUrl.searchParams.set('premium_proxy', 'true');
-          sbUrl.searchParams.set('country_code', 'us');
-          if (needsJsRender) {
-            sbUrl.searchParams.set('wait_browser', 'networkidle2');
-            sbUrl.searchParams.set('timeout', String(Math.min(proxyTimeout - 2000, 25000)));
-          }
+      try {
+        // Internal proxy route — avoids CORS and rotates user-agents
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
+                        process.env.URL ||
+                        process.env.DEPLOY_URL ||
+                        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+                        'http://localhost:3000';
+        const proxyUrl = typeof window === 'undefined'
+          ? `${baseUrl}/api/proxy-fetch`
+          : '/api/proxy-fetch';
 
-          console.log('[Listing Scraper] ScrapingBee:', { url: url.substring(0, 80), needsJsRender });
-          const sbResp = await fetch(sbUrl.toString(), { signal: sbController.signal });
-          clearTimeout(sbTimeoutId);
+        console.log('[Listing Scraper] Proxy fetch:', { url: url.substring(0, 80), dataSource });
+        const proxyResponse = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, timeout: Math.min(sourceProxyCap, proxyTimeout - 500) }),
+          signal: proxyController.signal,
+        });
+        clearTimeout(proxyTimeoutId);
 
-          diagnostics.proxyDurationMs = Date.now() - proxyStart;
-          diagnostics.proxyStatusCode = sbResp.status;
+        diagnostics.proxyStatusCode = proxyResponse.status;
+        diagnostics.proxyDurationMs = Date.now() - proxyStart;
 
-          if (sbResp.ok) {
-            const sbHtml = await sbResp.text();
-            const creditsUsed = sbResp.headers.get('spb-cost');
-            console.log('[Listing Scraper] ScrapingBee success — credits:', creditsUsed, 'length:', sbHtml.length);
-
-            const lowerSbHtml = sbHtml.toLowerCase();
-            const sbBlocked =
-              lowerSbHtml.includes('id="captcha"') ||
-              lowerSbHtml.includes('class="captcha') ||
-              lowerSbHtml.includes('just a moment') ||
-              lowerSbHtml.includes('challenge-platform') ||
-              sbHtml.length < 2000;
-
-            if (!sbBlocked) {
-              html = sbHtml;
-              diagnostics.fetchMethod = 'proxy';
-              diagnostics.htmlLength = html.length;
-            } else {
-              console.warn('[Listing Scraper] ScrapingBee returned blocked page, length:', sbHtml.length);
-              diagnostics.botProtectionDetected = true;
-              diagnostics.errorMessage = 'scrapingbee_blocked_page';
-            }
+        const contentType = proxyResponse.headers.get('content-type');
+        if (contentType?.includes('application/json')) {
+          const proxyResult = await proxyResponse.json();
+          if (proxyResult.success && proxyResult.html) {
+            html = proxyResult.html;
+            diagnostics.fetchMethod = 'proxy';
+            diagnostics.htmlLength = html!.length;
+            console.log('[Listing Scraper] Proxy fetch succeeded, length:', html!.length);
+          } else if (proxyResult.blocked) {
+            diagnostics.failureReason = 'blocked_by_bot_protection';
+            diagnostics.botProtectionDetected = true;
+            diagnostics.botProtectionType = proxyResult.error?.toLowerCase().includes('akamai') ? 'akamai'
+              : proxyResult.error?.toLowerCase().includes('cloudflare') ? 'cloudflare' : 'unknown';
+            diagnostics.errorMessage = proxyResult.error;
+            finalize();
+            return {
+              success: false,
+              data: null,
+              error: 'This site blocked auto-extraction. Paste the listing text instead.',
+              warnings: ['The marketplace has bot detection enabled', 'Paste the listing text or enter details manually'],
+              diagnostics,
+            };
           } else {
-            const errBody = await sbResp.text().catch(() => '');
-            console.error('[Listing Scraper] ScrapingBee HTTP', sbResp.status, errBody.substring(0, 300));
-            diagnostics.errorMessage = `scrapingbee_${sbResp.status}`;
-          }
-        } catch (sbErr) {
-          clearTimeout(sbTimeoutId);
-          diagnostics.proxyDurationMs = Date.now() - proxyStart;
-          const msg = sbErr instanceof Error ? sbErr.message : String(sbErr);
-          console.error('[Listing Scraper] ScrapingBee threw:', msg);
-          diagnostics.errorMessage = msg;
-          if (sbErr instanceof Error && sbErr.name === 'AbortError') {
-            diagnostics.failureReason = 'timeout';
+            diagnostics.errorMessage = proxyResult.error;
+            console.warn('[Listing Scraper] Proxy fetch failed:', proxyResult.error);
           }
         }
-      } else {
-        console.warn('[Listing Scraper] SCRAPINGBEE_API_KEY not set — skipping to direct fetch');
+      } catch (proxyError) {
+        clearTimeout(proxyTimeoutId);
+        diagnostics.proxyDurationMs = Date.now() - proxyStart;
+        const msg = proxyError instanceof Error ? proxyError.message : String(proxyError);
+        if (proxyError instanceof Error && proxyError.name === 'AbortError') {
+          diagnostics.errorMessage = 'proxy_timeout';
+          console.warn('[Listing Scraper] Proxy fetch timed out');
+        } else {
+          diagnostics.errorMessage = msg;
+          console.warn('[Listing Scraper] Proxy fetch threw:', msg);
+        }
+        // Fall through to direct fetch
       }
     }
 
-    // --- Direct fetch fallback (if ScrapingBee didn't get HTML) ---
+    // --- Direct fetch fallback ---
     if (!html && remainingBudget() > 1000) {
       const directStart = Date.now();
-      const directTimeout = Math.min(remainingBudget() - 200, 15000);
+      const directTimeout = remainingBudget() - 200;
       const directController = new AbortController();
       const directTimeoutId = setTimeout(() => directController.abort(), directTimeout);
 
