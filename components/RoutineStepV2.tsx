@@ -357,17 +357,17 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
       aria-pressed={selected}
       className={`relative p-4 rounded-xl border-2 text-left transition-all min-h-[56px] ${
         selected
-          ? "border-blue-600 bg-blue-100 shadow-sm"
-          : "border-gray-200 hover:border-gray-300 bg-white"
+          ? "border-[#00d97e] bg-[#00d97e]/10 shadow-sm"
+          : "border-white/[0.10] hover:border-white/25 bg-[#161b22]"
       }`}
     >
       {selected && (
         <span className="absolute top-2 right-2">
-          <Check className="w-4 h-4 text-blue-600" />
+          <Check className="w-4 h-4 text-[#00d97e]" />
         </span>
       )}
-      <div className="font-semibold text-gray-900 text-sm">{label}</div>
-      <div className={`text-xs mt-1 ${selected ? "text-blue-700" : "text-gray-600"}`}>{desc}</div>
+      <div className="font-semibold text-white/90 text-sm">{label}</div>
+      <div className={`text-xs mt-1 ${selected ? "text-[#00d97e]" : "text-white/40"}`}>{desc}</div>
     </button>
   );
 
@@ -378,19 +378,19 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
       className="max-w-xl mx-auto"
     >
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Your EV Routine Profile</h2>
-        <p className="text-gray-600">We&apos;ll find what breaks first in your charging routine and build a Plan B.</p>
+        <h2 className="text-2xl font-bold text-white mb-2">Your EV Routine Profile</h2>
+        <p className="text-white/50">We&apos;ll find what breaks first in your charging routine and build a Plan B.</p>
       </div>
 
       {/* Confidence meter */}
       <div className="mb-8">
-        <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+        <div className="flex justify-between text-xs text-white/40 mb-1.5">
           <span>Analysis confidence: {confidencePct}%</span>
           <span>{getNextHint()}</span>
         </div>
-        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+        <div className="h-1.5 bg-white/[0.08] rounded-full overflow-hidden">
           <motion.div
-            className="h-full bg-blue-500 rounded-full"
+            className="h-full bg-[#00d97e] rounded-full"
             initial={{ width: "30%" }}
             animate={{ width: `${confidencePct}%` }}
             transition={{ duration: 0.3, ease: "easeOut" }}
@@ -401,10 +401,10 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
       <div className="space-y-8">
         {/* Q1: Miles — first question (most intuitive) */}
         <div ref={milesRef}>
-          <label className="block text-sm font-semibold text-gray-700 mb-3">
+          <label className="block text-sm font-semibold text-white/70 mb-3">
             {milesMode === "weekly" ? "How far do you drive in a typical week?" : "What\u2019s your daily roundtrip commute?"}
           </label>
-          <div className="flex bg-gray-100 rounded-lg p-1 mb-3">
+          <div className="flex bg-white/[0.06] rounded-lg p-1 mb-3">
             <button
               onClick={() => {
                 if (milesMode !== "weekly") {
@@ -414,8 +414,8 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
               }}
               className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
                 milesMode === "weekly"
-                  ? "bg-white shadow-sm text-gray-900"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white/[0.12] text-white"
+                  : "text-white/40 hover:text-white/70"
               }`}
             >
               Weekly miles
@@ -429,8 +429,8 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
               }}
               className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
                 milesMode === "commute"
-                  ? "bg-white shadow-sm text-gray-900"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white/[0.12] text-white"
+                  : "text-white/40 hover:text-white/70"
               }`}
             >
               Daily commute
@@ -452,9 +452,9 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
                   if (e.target.value && !commuteMiles) trackField("commute_miles");
                 }
               }}
-              className="form-input text-gray-900"
+              className="form-input text-white bg-[#161b22] border-white/[0.10]"
             />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-white/40">
               {milesMode === "weekly" ? "miles/week" : "miles/day"}
             </span>
           </div>
@@ -466,7 +466,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
 
           {/* Q2a: Home charging */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
+            <label className="block text-sm font-semibold text-white/70 mb-3">
               Do you have dedicated home charging?
             </label>
             <div className="grid grid-cols-2 gap-3">
@@ -483,15 +483,15 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
             </div>
             {/* Charger type — shown if home charging = yes */}
             {hasHomeCharging === true && (
-              <div className="mt-3 pl-4 border-l-2 border-blue-200">
-                <label className="block text-xs font-medium text-gray-700 mb-2">What type?</label>
+              <div className="mt-3 pl-4 border-l-2 border-[#00d97e]/30">
+                <label className="block text-xs font-medium text-white/50 mb-2">What type?</label>
                 <div className="flex gap-2">
                   {(["L1", "L2", "UNKNOWN"] as const).map((type) => (
                     <button
                       key={type}
                       onClick={() => { setHomeChargingType(type); trackField("home_charging_type"); }}
                       className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                        homeChargingType === type ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        homeChargingType === type ? "bg-[#00d97e] text-[#0d1117]" : "bg-white/[0.06] text-white/50 hover:bg-white/[0.10]"
                       }`}
                     >
                       {type === "UNKNOWN" ? "Not sure" : type}
@@ -506,12 +506,12 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
 
         {/* Q3: Budget */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-3">
+          <label className="block text-sm font-semibold text-white/70 mb-3">
             <DollarSign className="w-4 h-4 inline mr-1.5 -mt-0.5" />
-            What&apos;s your budget? <span className="text-gray-400 font-normal">(optional)</span>
+            What&apos;s your budget? <span className="text-white/30 font-normal">(optional)</span>
           </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 font-medium">$</span>
             <input
               type="number"
               min="5000"
@@ -523,17 +523,17 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
                 setBudgetMax(e.target.value);
                 if (e.target.value && !budgetMax) trackField("budget_max");
               }}
-              className="form-input pl-8 text-gray-900"
+              className="form-input pl-8 text-white bg-[#161b22] border-white/[0.10]"
             />
           </div>
-          <p className="text-xs text-gray-500 mt-2">Helps filter EV recommendations to your price range.</p>
+          <p className="text-xs text-white/30 mt-2">Helps filter EV recommendations to your price range.</p>
         </div>
 
         {/* More detail toggle */}
         <button
           type="button"
           onClick={() => setShowMore((v) => !v)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-gray-300 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-white/[0.12] text-sm text-white/40 hover:border-white/25 hover:text-white/60 transition-colors"
         >
           {showMore ? (
             <><ChevronUp className="w-4 h-4" /> Hide extra detail</>
@@ -546,7 +546,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
           <div className="space-y-8">
             {/* Work charging */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-white/70 mb-3">
                 Can you charge at work?
               </label>
               <div className="grid grid-cols-2 gap-3">
@@ -565,7 +565,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
 
             {/* Public charging dependency */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-white/70 mb-3">
                 How often would you rely on public charging?
               </label>
               <div className="space-y-2">
@@ -588,9 +588,9 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
 
             {/* ZIP Code (optional — enables weather + charger search) */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-white/70 mb-3">
                 <MapPin className="w-4 h-4 inline mr-1.5 -mt-0.5" />
-                Your ZIP code <span className="text-gray-400 font-normal">(optional)</span>
+                Your ZIP code <span className="text-white/30 font-normal">(optional)</span>
               </label>
               <input
                 type="text"
@@ -602,13 +602,13 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
                   const val = e.target.value.replace(/\D/g, "").slice(0, 5);
                   handleZipChange(val);
                 }}
-                className="form-input text-gray-900"
+                className="form-input text-white bg-[#161b22] border-white/[0.10]"
               />
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-white/30 mt-2">
                 Enables real-time weather and nearby charger data for your area.
               </p>
               {climateAutoDetected && climate && (
-                <p className="text-xs text-blue-600 mt-1">
+                <p className="text-xs text-[#00d97e] mt-1">
                   Climate auto-detected: {climate === "winter" ? "Cold winters" : climate === "hot" ? "Hot" : "Mild"}
                 </p>
               )}
@@ -617,9 +617,9 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
             {/* Climate */}
             <fieldset ref={climateRef}>
               <legend className="sr-only">What&apos;s your climate like?</legend>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-white/70 mb-3">
                 What&apos;s your climate like?
-                {climateAutoDetected && <span className="text-blue-500 font-normal ml-2">(auto-detected from ZIP)</span>}
+                {climateAutoDetected && <span className="text-[#00d97e]/70 font-normal ml-2">(auto-detected from ZIP)</span>}
               </label>
               <div className="grid grid-cols-3 gap-3">
                 {([
@@ -646,7 +646,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
             {/* Longest Day Pattern */}
             <fieldset ref={longestDayRef}>
               <legend className="sr-only">How often do you have a longer-than-usual driving day?</legend>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-white/70 mb-3">
                 How often do you have a longer-than-usual driving day?
               </label>
               <div className="grid grid-cols-3 gap-3">
@@ -672,7 +672,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
 
             {/* Driving pattern */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-white/70 mb-3">
                 What&apos;s your typical driving pattern?
               </label>
               <div className="space-y-2">
@@ -695,7 +695,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
 
             {/* Planning tolerance */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-white/70 mb-3">
                 How do you feel about planning charging stops?
               </label>
               <div className="space-y-2">
@@ -718,12 +718,12 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
 
             {/* Vehicle Selector (optional) */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-white/70 mb-3">
                 <Car className="w-4 h-4 inline mr-1.5 -mt-0.5" />
-                Your EV <span className="text-gray-400 font-normal">(optional)</span>
+                Your EV <span className="text-white/30 font-normal">(optional)</span>
               </label>
               {vehiclesLoading ? (
-                <div className="form-input text-gray-400">
+                <div className="form-input text-white/30 bg-[#161b22] border-white/[0.10]">
                   Loading vehicles...
                 </div>
               ) : vehicleProfiles.length > 0 ? (
@@ -733,7 +733,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
                     setSelectedVehicleId(e.target.value);
                     if (e.target.value) trackField("vehicle");
                   }}
-                  className="form-input text-gray-900 bg-white"
+                  className="form-input text-white bg-[#161b22] border-white/[0.10]"
                 >
                   <option value="">Select your EV (optional)</option>
                   {vehicleProfiles.map((vp) => (
@@ -743,16 +743,16 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
                   ))}
                 </select>
               ) : (
-                <p className="text-sm text-gray-400">No vehicle profiles available yet.</p>
+                <p className="text-sm text-white/30">No vehicle profiles available yet.</p>
               )}
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-white/30 mt-2">
                 Selecting your EV improves range and charging speed estimates.
               </p>
             </div>
 
             {/* Shared infrastructure */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-white/70 mb-3">
                 <Users className="w-4 h-4 inline mr-1.5 -mt-0.5" />
                 Would you share charging access with others?
               </label>
@@ -779,7 +779,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
         {/* Actions */}
         <div className="pt-4 space-y-3">
           {!isValid && (
-            <p className="text-sm text-gray-500 text-center">
+            <p className="text-sm text-white/40 text-center">
               {getMissingFieldHint(validation.errors)}
             </p>
           )}
@@ -788,8 +788,8 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
             onClick={handleSubmit}
             className={`w-full py-3 px-6 rounded-xl font-semibold text-white transition-all ${
               isValid
-                ? "bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg"
-                : "bg-gray-300 cursor-not-allowed"
+                ? "bg-[#00d97e] hover:bg-[#00c970] text-[#0d1117] shadow-md hover:shadow-lg"
+                : "bg-white/[0.08] text-white/30 cursor-not-allowed"
             }`}
           >
             Analyze My Routine

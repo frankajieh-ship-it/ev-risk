@@ -915,8 +915,8 @@ export default function CopartPage() {
 
         {/* Idle state — how it works */}
         {pageState === "idle" && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700">How it works</h3>
+          <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-white/70">How it works</h3>
             <div className="space-y-3">
               {[
                 {
@@ -936,12 +936,12 @@ export default function CopartPage() {
                 },
               ].map(({ step, title, desc }) => (
                 <div key={step} className="flex gap-3">
-                  <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="w-6 h-6 rounded-full bg-[#00d97e] text-[#0d1117] text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                     {step}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-800">{title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                    <p className="text-sm font-medium text-white/80">{title}</p>
+                    <p className="text-xs text-white/40 mt-0.5">{desc}</p>
                   </div>
                 </div>
               ))}

@@ -24,14 +24,14 @@ export function DataSourcesBadge({ dataSources, chargingAccess }: DataSourcesBad
   } = dataSources;
 
   return (
-    <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+    <div className="mb-4 p-3 bg-[#00d97e]/[0.08] rounded-lg border border-[#00d97e]/20">
       <div className="flex items-center gap-2 mb-1">
-        <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
-        <p className="text-sm font-semibold text-green-900">
+        <Check className="w-4 h-4 text-[#00d97e] flex-shrink-0" />
+        <p className="text-sm font-semibold text-[#00d97e]">
           Live data factored into your score
         </p>
       </div>
-      <ul className="text-xs text-green-700 space-y-0.5 ml-6">
+      <ul className="text-xs text-[#00d97e]/70 space-y-0.5 ml-6">
         {/* Weather data */}
         {weather_live && weather_temp_f && location_name ? (
           <li>

@@ -12,10 +12,10 @@ import { useEventTracking } from "@/hooks/useEventTracking";
 import VehicleImage from "./VehicleImage";
 
 const fitColors: Record<string, { bg: string; text: string; border: string }> = {
-  "Great Fit": { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
-  "Good Fit": { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  "Mixed Fit": { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
-  "High Friction": { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+  "Great Fit": { bg: "bg-green-500/10", text: "text-green-400", border: "border-green-500/20" },
+  "Good Fit": { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/20" },
+  "Mixed Fit": { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20" },
+  "High Friction": { bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/20" },
 };
 
 const scoreBadgeColors: Record<string, string> = {
@@ -121,7 +121,7 @@ export default function RecommendationCard({
   const worstDim = dimEntries.length ? dimEntries.reduce((a, b) => a.score <= b.score ? a : b) : null;
   const fitLabel = scoreToLabel(rec.fit_score);
   const colors = fitColors[fitLabel] ?? fitColors["Mixed Fit"];
-  const badgeBg = scoreBadgeColors[fitLabel] ?? "bg-gray-500";
+  const badgeBg = scoreBadgeColors[fitLabel] ?? "bg-white/20";
   const hasDealers = rec.dealer_listings.length > 0;
   const totalListings = rec.dealer_listings.reduce((sum, d) => sum + d.listing_count, 0);
 
@@ -170,7 +170,7 @@ export default function RecommendationCard({
   };
 
   return (
-    <div className={`rounded-2xl border-2 ${isSelectedForCompare ? "border-blue-500 shadow-md" : colors.border} ${muted ? "opacity-70" : ""} bg-white overflow-hidden transition-shadow hover:shadow-md`}>
+    <div className={`rounded-2xl border-2 ${isSelectedForCompare ? "border-[#00d97e] shadow-lg shadow-[#00d97e]/10" : colors.border} ${muted ? "opacity-50" : ""} bg-white/[0.05] overflow-hidden transition-shadow hover:shadow-md`}>
       {/* Vehicle photo strip */}
       <div className="relative h-36 w-full">
         <VehicleImage
@@ -195,11 +195,11 @@ export default function RecommendationCard({
           <button
             onClick={() => onToggleCompare(rec.model)}
             aria-label={isSelectedForCompare ? "Remove from compare" : "Add to compare"}
-            className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-white/90 shadow-sm hover:bg-white transition-colors"
+            className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-[#0d1117]/70 backdrop-blur-sm shadow-sm hover:bg-[#0d1117]/90 transition-colors border border-white/10"
           >
             {isSelectedForCompare
-              ? <><CheckCircle2 className="w-3.5 h-3.5 text-blue-600" /><span className="text-blue-600">Selected</span></>
-              : <><Circle className="w-3.5 h-3.5 text-gray-400" /><span className="text-gray-500">Compare</span></>
+              ? <><CheckCircle2 className="w-3.5 h-3.5 text-[#00d97e]" /><span className="text-[#00d97e]">Selected</span></>
+              : <><Circle className="w-3.5 h-3.5 text-white/40" /><span className="text-white/60">Compare</span></>
             }
           </button>
         )}
@@ -208,36 +208,36 @@ export default function RecommendationCard({
       <div className="p-5">
         {/* Vehicle name + year */}
         <div className="mb-3">
-          <h3 className="text-lg font-bold text-gray-900 leading-tight">{rec.model}</h3>
-          <span className="text-xs text-gray-500">{rec.year}</span>
+          <h3 className="text-lg font-bold text-white leading-tight">{rec.model}</h3>
+          <span className="text-xs text-white/40">{rec.year}</span>
         </div>
 
         {/* Specs row */}
         <div className="flex flex-wrap gap-2 mt-3">
-          <span className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
+          <span className="inline-flex items-center gap-1 text-xs bg-white/[0.07] text-white/70 px-2 py-1 rounded-full">
             <Zap className="w-3 h-3" />
             {rec.real_world_range_mi} mi range
           </span>
           {rangeFields && routine?.climate === "winter" && (
-            <span className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+            <span className="inline-flex items-center gap-1 text-xs bg-blue-500/10 text-blue-400 px-2 py-1 rounded-full">
               <Snowflake className="w-3 h-3" />
               ~{rangeFields.winterRange} mi winter
             </span>
           )}
-          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
+          <span className="text-xs bg-white/[0.07] text-white/70 px-2 py-1 rounded-full">
             {rec.battery_kwh} kWh
           </span>
-          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
+          <span className="text-xs bg-white/[0.07] text-white/70 px-2 py-1 rounded-full">
             {rec.chemistry}
           </span>
           {charging1080Min !== null && (
-            <span className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full">
+            <span className="inline-flex items-center gap-1 text-xs bg-white/[0.07] text-white/70 px-2 py-1 rounded-full">
               ⚡ ~{charging1080Min} min 10–80%
             </span>
           )}
           {rec.incentive_new === true && (
             <span
-              className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-1 rounded-full cursor-help"
+              className="inline-flex items-center gap-1 text-xs bg-[#00d97e]/10 text-[#00d97e] border border-[#00d97e]/20 px-2 py-1 rounded-full cursor-help"
               title="Income and dealer-point restrictions apply — verify eligibility"
             >
               $7,500 fed. credit possible
@@ -246,7 +246,7 @@ export default function RecommendationCard({
           {cost && cost.total > 0 && (
             <button
               onClick={() => setShowCostBreakdown(!showCostBreakdown)}
-              className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 px-2 py-1 rounded-full transition-colors"
+              className="inline-flex items-center gap-1 text-xs bg-white/[0.07] text-white/60 hover:bg-white/[0.10] px-2 py-1 rounded-full transition-colors"
             >
               ~${Math.round(cost.total / 1000)}k est. 5-yr cost
               {showCostBreakdown ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -256,11 +256,11 @@ export default function RecommendationCard({
 
         {/* Longest-day buffer */}
         {rangeFields && (
-          <p className="mt-2 text-xs text-gray-500">
+          <p className="mt-2 text-xs text-white/40">
             Longest-day buffer: <span className={
-              rangeFields.bufferLabel === "comfortable" ? "text-green-600 font-medium" :
-              rangeFields.bufferLabel === "adequate"    ? "text-amber-600 font-medium" :
-                                                          "text-red-600 font-medium"
+              rangeFields.bufferLabel === "comfortable" ? "text-[#00d97e] font-medium" :
+              rangeFields.bufferLabel === "adequate"    ? "text-amber-400 font-medium" :
+                                                          "text-red-400 font-medium"
             }>{rangeFields.bufferLabel}</span>
             {" "}({rangeFields.bufferPct}% margin)
           </p>
@@ -276,8 +276,8 @@ export default function RecommendationCard({
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="mt-3 p-3 bg-gray-50 rounded-xl text-xs space-y-1 text-gray-600">
-                <p className="font-semibold text-gray-700 mb-1.5">Estimated 5-year costs</p>
+              <div className="mt-3 p-3 bg-white/[0.05] border border-white/[0.08] rounded-xl text-xs space-y-1 text-white/60">
+                <p className="font-semibold text-white/80 mb-1.5">Estimated 5-year costs</p>
                 {cost.purchase_price > 0 && (
                   <div className="flex justify-between"><span>Purchase price</span><span>${cost.purchase_price.toLocaleString()}</span></div>
                 )}
@@ -287,10 +287,10 @@ export default function RecommendationCard({
                 {cost.purchase_price > 0 && (
                   <div className="flex justify-between"><span>Depreciation</span><span>−${cost.depreciation_5y.toLocaleString()}</span></div>
                 )}
-                <div className="flex justify-between font-semibold text-gray-800 border-t border-gray-200 pt-1 mt-1">
+                <div className="flex justify-between font-semibold text-white/80 border-t border-white/10 pt-1 mt-1">
                   <span>5-yr running total</span><span>${cost.total.toLocaleString()}</span>
                 </div>
-                <p className="text-gray-400 mt-1">Estimates — US avg rates, transparent assumptions.</p>
+                <p className="text-white/30 mt-1">Estimates — US avg rates, transparent assumptions.</p>
               </div>
             </motion.div>
           )}
@@ -301,7 +301,7 @@ export default function RecommendationCard({
           <div className="mt-3">
             <button
               onClick={() => setShowBreakdown(!showBreakdown)}
-              className="text-xs text-blue-500 hover:text-blue-700 underline"
+              className="text-xs text-[#00d97e]/70 hover:text-[#00d97e] underline"
             >
               Why {rec.fit_score}/100?
             </button>
@@ -317,11 +317,11 @@ export default function RecommendationCard({
                   <div className="mt-3 space-y-2">
                     {dimEntries.map(({ key, label, score }) => (
                       <div key={key}>
-                        <div className="flex justify-between text-xs text-gray-500 mb-0.5">
+                        <div className="flex justify-between text-xs text-white/40 mb-0.5">
                           <span>{label}</span>
-                          <span className="font-medium text-gray-700">{Math.round(score)}</span>
+                          <span className="font-medium text-white/70">{Math.round(score)}</span>
                         </div>
-                        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                           <div
                             className={`h-full rounded-full ${badgeBg}`}
                             style={{ width: `${Math.min(100, score)}%` }}
@@ -330,12 +330,12 @@ export default function RecommendationCard({
                       </div>
                     ))}
                     {bestDim && (
-                      <p className="text-xs text-green-700 bg-green-50 rounded-lg px-2 py-1.5 mt-2">
+                      <p className="text-xs text-[#00d97e] bg-[#00d97e]/10 rounded-lg px-2 py-1.5 mt-2">
                         ✓ {POSITIVE_NOTES[bestDim.key]}
                       </p>
                     )}
                     {worstDim && worstDim.score < 70 && (
-                      <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1.5">
+                      <p className="text-xs text-amber-400 bg-amber-500/10 rounded-lg px-2 py-1.5">
                         ↓ {LIMITING_NOTES[worstDim.key]}
                       </p>
                     )}
@@ -348,7 +348,7 @@ export default function RecommendationCard({
 
         {/* Top stress flag insight */}
         {rec.top_stress_flag && (
-          <p className="mt-3 text-sm text-gray-600 italic">
+          <p className="mt-3 text-sm text-white/50 italic">
             &ldquo;{rec.top_stress_flag}&rdquo;
           </p>
         )}
@@ -362,7 +362,7 @@ export default function RecommendationCard({
         {hasDealers && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="mt-3 flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 transition-colors"
+            className="mt-3 flex items-center gap-1.5 text-sm text-[#00d97e]/70 hover:text-[#00d97e] transition-colors"
           >
             <MapPin className="w-3.5 h-3.5" />
             Available at {rec.dealer_listings.length} OFFO dealer{rec.dealer_listings.length > 1 ? "s" : ""} ({totalListings} listing{totalListings > 1 ? "s" : ""})
@@ -374,7 +374,7 @@ export default function RecommendationCard({
         <div className="mt-4 space-y-2">
           <button
             onClick={onSelect}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white/[0.08] border border-white/[0.12] text-white rounded-xl text-sm font-semibold hover:bg-white/[0.13] transition-colors"
           >
             See Full Report
             <ArrowRight className="w-4 h-4" />
@@ -382,25 +382,25 @@ export default function RecommendationCard({
           <a
             href={carGurusUrl}
             onClick={handleCarGurusClick}
-            className="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-gray-500 hover:text-blue-600 transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-white/40 hover:text-[#00d97e]/80 transition-colors"
           >
             Search listings
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
           {searchHintVisible && (
-            <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
-              <Zap className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+            <div className="flex items-center gap-1.5 px-3 py-2 bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-lg text-xs text-[#00d97e]">
+              <Zap className="w-3.5 h-3.5 shrink-0" />
               OFFO will apply your routine automatically on CarGurus.
             </div>
           )}
           {showReceiptNudge && (
-            <div className="flex items-start gap-2 px-3 py-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
-              <ArrowRight className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-500" />
-              <p className="text-xs text-emerald-800 leading-snug">
+            <div className="flex items-start gap-2 px-3 py-2.5 bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-lg">
+              <ArrowRight className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#00d97e]" />
+              <p className="text-xs text-white/70 leading-snug">
                 Found one you like?{" "}
                 <a
                   href="/receipt"
-                  className="font-semibold underline hover:text-emerald-900"
+                  className="font-semibold text-[#00d97e] underline hover:text-[#00f090]"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -423,23 +423,23 @@ export default function RecommendationCard({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="border-t border-gray-100 px-5 py-3 bg-gray-50 space-y-2">
+            <div className="border-t border-white/[0.08] px-5 py-3 bg-white/[0.03] space-y-2">
               {rec.dealer_listings.map((dealer) => (
                 <Link
                   key={dealer.dealer_slug}
                   href={`/dealers/${dealer.dealer_slug}`}
-                  className="flex items-center justify-between p-2 rounded-lg hover:bg-white transition-colors group"
+                  className="flex items-center justify-between p-2 rounded-lg hover:bg-white/[0.05] transition-colors group"
                 >
                   <div>
-                    <p className="text-sm font-medium text-gray-900 group-hover:text-blue-600">
+                    <p className="text-sm font-medium text-white/80 group-hover:text-[#00d97e]">
                       {dealer.dealer_name}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-white/40">
                       {dealer.dealer_city}{dealer.dealer_state ? `, ${dealer.dealer_state}` : ""} &middot; {dealer.listing_count} listing{dealer.listing_count > 1 ? "s" : ""}
                     </p>
                   </div>
                   {dealer.price_range_cents && (
-                    <span className="text-xs font-medium text-gray-600">
+                    <span className="text-xs font-medium text-white/60">
                       {dealer.price_range_cents.min === dealer.price_range_cents.max
                         ? formatPrice(dealer.price_range_cents.min)
                         : `${formatPrice(dealer.price_range_cents.min)} - ${formatPrice(dealer.price_range_cents.max)}`}
