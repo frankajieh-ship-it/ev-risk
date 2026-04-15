@@ -457,11 +457,6 @@ export default function ReceiptPage() {
   // Auto-load deep dive for all users (free — no payment gate)
   useEffect(() => {
     if (!receipt?.receipt_id || !receiptToken) return;
-    // Wait until upgrade completes — output_json not yet populated during upgrade
-    if (isUpgrading) {
-      setIsLoadingDeepDive(false);
-      return;
-    }
     if (deepDive) return;
 
     let cancelled = false;
@@ -505,7 +500,7 @@ export default function ReceiptPage() {
       cancelled = true;
       setIsLoadingDeepDive(false);
     };
-  }, [isUnlocked, receipt?.receipt_id, receiptToken, isUpgrading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [receipt?.receipt_id, receiptToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Multi-step loading progress during generation
   useEffect(() => {

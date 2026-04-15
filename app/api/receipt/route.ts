@@ -456,10 +456,13 @@ export async function POST(request: NextRequest) {
   };
 
   // Enqueue AI upgrade via Netlify Background Function in production,
-  // or inline via upgrade-dev route in local dev.
+  // or inline via after() in local dev.
   const upgradeSecret = process.env.UPGRADE_SECRET;
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
   if (process.env.NODE_ENV === "production" && upgradeSecret) {
+    // Derive base URL from the incoming request — avoids env-var misconfiguration
+    const proto = request.headers.get("x-forwarded-proto") || "https";
+    const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "localhost";
+    const baseUrl = `${proto}://${host}`;
     // Fire-and-forget to Netlify Background Function (15 min timeout)
     fetch(`${baseUrl}/.netlify/functions/upgrade-receipt-background`, {
       method: "POST",
@@ -472,7 +475,7 @@ export async function POST(request: NextRequest) {
       console.error("[Receipt] Failed to enqueue background upgrade:", err instanceof Error ? err.message : err);
     });
   } else {
-    // Dev: call inline upgrade route (runs synchronously in background via after())
+    // Dev: run upgrade inline after response flushes
     after(async () => {
       try {
         await runReceiptUpgrade(upgradePayload);
