@@ -176,7 +176,7 @@ export default function ReceiptOutputCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="card-base overflow-hidden"
+      className="bg-[#161b22] border border-white/[0.08] rounded-2xl overflow-hidden"
     >
       {/* Fallback banner */}
       {isFallback && (

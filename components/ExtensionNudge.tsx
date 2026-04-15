@@ -83,18 +83,18 @@ export default function ExtensionNudge({ context = "receipt" }: ExtensionNudgePr
       </div>
 
       {/* Visual mock — what the extension overlay looks like on a listing */}
-      <div className="mx-4 mb-4 rounded-xl border border-indigo-100 bg-white overflow-hidden shadow-sm">
-        <div className="bg-gray-100 px-3 py-1.5 flex items-center gap-2 border-b border-gray-200">
+      <div className="mx-4 mb-4 rounded-xl border border-white/[0.10] bg-[#161b22] overflow-hidden">
+        <div className="bg-white/[0.05] px-3 py-1.5 flex items-center gap-2 border-b border-white/[0.08]">
           <div className="flex gap-1">
             <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
             <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
             <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
           </div>
-          <div className="flex-1 bg-white rounded text-xs text-gray-400 px-2 py-0.5 text-center">
+          <div className="flex-1 bg-white/[0.08] rounded text-xs text-white/40 px-2 py-0.5 text-center">
             cargurus.com/Cars/new/nl/…
           </div>
-          <div className="w-5 h-5 rounded bg-indigo-600 flex items-center justify-center">
-            <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+          <div className="w-5 h-5 rounded bg-[#00d97e] flex items-center justify-center">
+            <svg className="w-3 h-3 text-[#0d1117]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
           </div>
@@ -102,35 +102,35 @@ export default function ExtensionNudge({ context = "receipt" }: ExtensionNudgePr
 
         {/* Mock listing card with OFFO overlay badge */}
         <div className="p-3 flex gap-3">
-          <div className="w-20 h-14 rounded-lg bg-gray-200 flex-shrink-0 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-100" />
+          <div className="w-20 h-14 rounded-lg bg-white/[0.08] flex-shrink-0 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.10] to-white/[0.04]" />
             {/* Simulated car silhouette */}
-            <div className="absolute bottom-1 left-1 right-1 h-5 bg-gray-400 rounded-sm opacity-40" />
+            <div className="absolute bottom-1 left-1 right-1 h-5 bg-white/20 rounded-sm" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="text-xs font-semibold text-gray-800">2021 Tesla Model 3</p>
-                <p className="text-xs text-gray-500">42,500 mi · Long Range · $28,900</p>
+                <p className="text-xs font-semibold text-white">2021 Tesla Model 3</p>
+                <p className="text-xs text-white/50">42,500 mi · Long Range · $28,900</p>
               </div>
               {/* OFFO overlay badge */}
-              <div className="flex-shrink-0 flex items-center gap-1 bg-green-100 border border-green-300 rounded-full px-2 py-0.5">
-                <CheckCircle className="w-3 h-3 text-green-600" />
-                <span className="text-xs font-bold text-green-700">GREEN</span>
+              <div className="flex-shrink-0 flex items-center gap-1 bg-[#00d97e]/[0.12] border border-[#00d97e]/30 rounded-full px-2 py-0.5">
+                <CheckCircle className="w-3 h-3 text-[#00d97e]" />
+                <span className="text-xs font-bold text-[#00d97e]">GREEN</span>
               </div>
             </div>
             <div className="mt-1.5 flex items-center gap-2">
-              <div className="flex items-center gap-1 bg-blue-50 rounded px-1.5 py-0.5">
-                <span className="text-xs text-blue-700 font-medium">Fair price</span>
+              <div className="flex items-center gap-1 bg-blue-500/[0.12] rounded px-1.5 py-0.5">
+                <span className="text-xs text-blue-400 font-medium">Fair price</span>
               </div>
               <div className="flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3 text-amber-500" />
-                <span className="text-xs text-gray-600">1 watch item</span>
+                <AlertTriangle className="w-3 h-3 text-amber-400" />
+                <span className="text-xs text-white/60">1 watch item</span>
               </div>
             </div>
           </div>
         </div>
-        <p className="text-center text-xs text-indigo-500 pb-2">OFFO verdict overlaid automatically ↑</p>
+        <p className="text-center text-xs text-[#00d97e]/70 pb-2">OFFO verdict overlaid automatically ↑</p>
       </div>
     </div>
   );
