@@ -53,8 +53,8 @@ export default function ExtensionNudge({ context = "receipt" }: ExtensionNudgePr
     <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] overflow-hidden">
       <div className="px-4 pt-4 pb-3 flex items-start gap-3">
         {/* Extension icon */}
-        <div className="shrink-0 w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center mt-0.5">
-          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <div className="shrink-0 w-9 h-9 rounded-xl bg-[#00d97e]/[0.15] flex items-center justify-center mt-0.5">
+          <svg className="w-5 h-5 text-[#00d97e]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M14 10l-2 1m0 0l-2-1m2 1V7m0 4v4m-4 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4a2 2 0 00-2 2v9a2 2 0 002 2z" />
           </svg>
         </div>
@@ -66,7 +66,7 @@ export default function ExtensionNudge({ context = "receipt" }: ExtensionNudgePr
             href={extensionUrl}
             target={extensionUrl.startsWith("http") ? "_blank" : undefined}
             rel={extensionUrl.startsWith("http") ? "noopener noreferrer" : undefined}
-            className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors"
+            className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-[#0d1117] bg-[#00d97e] hover:bg-[#00c970] px-3 py-1.5 rounded-lg transition-colors"
           >
             <ExternalLink className="w-3 h-3" />
             Add to Chrome — it&apos;s free
@@ -93,8 +93,8 @@ export default function ExtensionNudge({ context = "receipt" }: ExtensionNudgePr
           <div className="flex-1 bg-white/[0.08] rounded text-xs text-white/40 px-2 py-0.5 text-center">
             cargurus.com/Cars/new/nl/…
           </div>
-          <div className="w-5 h-5 rounded bg-[#00d97e] flex items-center justify-center">
-            <svg className="w-3 h-3 text-[#0d1117]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+          <div className="w-5 h-5 rounded bg-[#00d97e]/[0.20] border border-[#00d97e]/30 flex items-center justify-center">
+            <svg className="w-3 h-3 text-[#00d97e]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
           </div>
