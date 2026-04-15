@@ -12,6 +12,7 @@ import {
   Text,
   View,
   StyleSheet,
+  Image,
 } from "@react-pdf/renderer";
 import type { ReceiptPdfData } from "./shared-types";
 
@@ -397,6 +398,36 @@ export const ReceiptPdf: React.FC<{ data: ReceiptPdfData }> = ({ data }) => {
           </>
         )}
 
+        {/* QR Code share section (shown only when no deep dive page follows) */}
+        {!data.deepDive && data.shareQrDataUri && (
+          <View
+            style={{
+              marginTop: 16,
+              padding: 12,
+              borderRadius: 6,
+              border: `1px solid ${COLORS.border}`,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <Image src={data.shareQrDataUri} style={{ width: 70, height: 70 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 10, fontWeight: "bold", color: COLORS.darkGray, marginBottom: 4 }}>
+                Share this verdict
+              </Text>
+              <Text style={{ fontSize: 8, color: COLORS.gray, lineHeight: 1.4 }}>
+                Scan to view the full interactive report at OFFO Lab.
+              </Text>
+              {data.shareUrl && (
+                <Text style={{ fontSize: 7, color: COLORS.gray, marginTop: 2, fontFamily: "Courier" }}>
+                  {data.shareUrl}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Footer */}
         <View style={styles.footer}>
           <Text>
@@ -557,6 +588,36 @@ export const ReceiptPdf: React.FC<{ data: ReceiptPdfData }> = ({ data }) => {
               vary by location and driving habits. Always obtain a pre-purchase inspection before buying.
             </Text>
           </View>
+
+          {/* QR Code share section */}
+          {data.shareQrDataUri && (
+            <View
+              style={{
+                marginTop: 16,
+                padding: 12,
+                borderRadius: 6,
+                border: `1px solid ${COLORS.border}`,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <Image src={data.shareQrDataUri} style={{ width: 70, height: 70 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 10, fontWeight: "bold", color: COLORS.darkGray, marginBottom: 4 }}>
+                  Share this verdict
+                </Text>
+                <Text style={{ fontSize: 8, color: COLORS.gray, lineHeight: 1.4 }}>
+                  Scan to view the full interactive report at OFFO Lab.
+                </Text>
+                {data.shareUrl && (
+                  <Text style={{ fontSize: 7, color: COLORS.gray, marginTop: 2, fontFamily: "Courier" }}>
+                    {data.shareUrl}
+                  </Text>
+                )}
+              </View>
+            </View>
+          )}
 
           {/* Footer */}
           <View style={styles.footer}>

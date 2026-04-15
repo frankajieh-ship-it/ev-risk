@@ -601,18 +601,23 @@ export default function ReceiptPage() {
     }, 100);
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Post-receipt popup: show 5s after a new receipt arrives
+  // Reset popup when a new receipt comes in
   useEffect(() => {
-    if (!receipt?.receipt_id) return;
-    if (postReceiptTimerRef.current) clearTimeout(postReceiptTimerRef.current);
     setShowPostReceiptPopup(false);
+    if (postReceiptTimerRef.current) clearTimeout(postReceiptTimerRef.current);
+  }, [receipt?.receipt_id]);
+
+  // Post-receipt popup: show 12s after deep dive loads so user can read it first
+  useEffect(() => {
+    if (!deepDive) return;
+    if (postReceiptTimerRef.current) clearTimeout(postReceiptTimerRef.current);
     postReceiptTimerRef.current = setTimeout(() => {
       setShowPostReceiptPopup(true);
-    }, 5000);
+    }, 12000);
     return () => {
       if (postReceiptTimerRef.current) clearTimeout(postReceiptTimerRef.current);
     };
-  }, [receipt?.receipt_id]);  
+  }, [deepDive]);
 
   // Track Buyer Pass teaser impression
   useEffect(() => {

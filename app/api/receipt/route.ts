@@ -463,17 +463,19 @@ export async function POST(request: NextRequest) {
     const proto = request.headers.get("x-forwarded-proto") || "https";
     const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "localhost";
     const baseUrl = `${proto}://${host}`;
-    // Fire-and-forget to Netlify Background Function (15 min timeout)
-    fetch(`${baseUrl}/.netlify/functions/upgrade-receipt-background`, {
+    // Enqueue Netlify Background Function (15 min timeout)
+    const bgUrl = `${baseUrl}/.netlify/functions/upgrade-receipt-background`;
+    console.log("[Receipt] Enqueuing BG upgrade →", bgUrl, "receipt_id:", liteReceipt.receipt_id);
+    fetch(bgUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-upgrade-secret": upgradeSecret,
       },
       body: JSON.stringify(upgradePayload),
-    }).catch((err) => {
-      console.error("[Receipt] Failed to enqueue background upgrade:", err instanceof Error ? err.message : err);
-    });
+    })
+      .then((r) => console.log("[Receipt] BG upgrade enqueued, HTTP status:", r.status))
+      .catch((err) => console.error("[Receipt] BG upgrade enqueue failed:", err instanceof Error ? err.message : err));
   } else {
     // Dev: run upgrade inline after response flushes
     after(async () => {

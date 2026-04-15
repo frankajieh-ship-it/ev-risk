@@ -36,11 +36,10 @@ export async function GET(
     return NextResponse.json({ success: false, error: "Service unavailable" }, { status: 503 });
   }
 
-  const { data: row } = await supabase
-    .from("receipts")
-    .select("id, output_json, created_at")
-    .eq("id", receiptId)
-    .maybeSingle();
+  const [{ data: row }, { data: deepDiveRow }] = await Promise.all([
+    supabase.from("receipts").select("id, output_json, created_at").eq("id", receiptId).maybeSingle(),
+    supabase.from("deep_dives").select("content").eq("scenario_type", "receipt").eq("scenario_id", receiptId).maybeSingle(),
+  ]);
 
   if (!row || !row.output_json) {
     return NextResponse.json({ success: false, error: "Receipt not found" }, { status: 404 });
@@ -49,6 +48,23 @@ export async function GET(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const o = row.output_json as any;
   const ls = o.listing_summary ?? {};
+
+  // Generate QR code for the shareable verdict URL
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://offolabs.com";
+  const shareUrl = `${siteUrl}/receipt?id=${receiptId}`;
+  let shareQrDataUri: string | undefined;
+  try {
+    const qrRes = await fetch(
+      `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(shareUrl)}&format=png`,
+      { signal: AbortSignal.timeout(5000) }
+    );
+    if (qrRes.ok) {
+      const qrBuf = Buffer.from(await qrRes.arrayBuffer());
+      shareQrDataUri = `data:image/png;base64,${qrBuf.toString("base64")}`;
+    }
+  } catch {
+    // QR generation is non-critical — PDF still renders without it
+  }
 
   const receiptData: ReceiptPdfData = {
     receiptId: row.id,
@@ -72,7 +88,9 @@ export async function GET(
       location: ls.location ?? "",
     },
     receiptDetails: o.receipt_details ?? null,
-    deepDive: o.deep_dive ?? null,
+    deepDive: (deepDiveRow?.content ?? null) as ReceiptPdfData["deepDive"],
+    shareUrl,
+    shareQrDataUri,
     generatedAt: new Date().toISOString(),
   };
 

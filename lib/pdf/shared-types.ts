@@ -191,6 +191,8 @@ export interface ReceiptPdfData {
   listingSummary: ReceiptPdfListingSummary;
   receiptDetails: ReceiptPdfDetails | null;
   deepDive: DeepDiveContentPdf | null;
+  shareUrl?: string;
+  shareQrDataUri?: string;
   generatedAt: string;
 }
 
