@@ -84,22 +84,22 @@ const VERDICT_STYLES = {
 };
 
 const PRICE_STYLES = {
-  UNDERPRICED: { bg: "bg-green-50", text: "text-green-700", label: "Underpriced" },
-  FAIR: { bg: "bg-blue-50", text: "text-blue-700", label: "Fair Price" },
-  OVERPRICED: { bg: "bg-red-50", text: "text-red-700", label: "Overpriced" },
-  UNKNOWN: { bg: "bg-gray-50", text: "text-gray-600", label: "Price Pending" },
+  UNDERPRICED: { bg: "bg-[#00d97e]/[0.08]",   text: "text-[#00d97e]",  label: "Underpriced" },
+  FAIR:        { bg: "bg-blue-500/[0.08]",     text: "text-blue-400",   label: "Fair Price" },
+  OVERPRICED:  { bg: "bg-red-500/[0.08]",      text: "text-red-400",    label: "Overpriced" },
+  UNKNOWN:     { bg: "bg-white/[0.06]",        text: "text-white/40",   label: "Price Pending" },
 };
 
 const EVIDENCE_STYLES: Record<string, { bg: string; text: string }> = {
-  STRONG: { bg: "bg-blue-100", text: "text-blue-700" },
-  PARTIAL: { bg: "bg-gray-100", text: "text-gray-600" },
-  MISSING: { bg: "bg-orange-100", text: "text-orange-700" },
+  STRONG:  { bg: "bg-blue-500/[0.12]",   text: "text-blue-300"   },
+  PARTIAL: { bg: "bg-white/[0.08]",      text: "text-white/50"   },
+  MISSING: { bg: "bg-orange-500/[0.10]", text: "text-orange-400" },
 };
 
 const REASON_CATEGORY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  routine_friction: { bg: "bg-blue-50", text: "text-blue-600", label: "Routine" },
-  listing_risk: { bg: "bg-red-50", text: "text-red-600", label: "Risk" },
-  missing_proof: { bg: "bg-orange-50", text: "text-orange-600", label: "Proof" },
+  routine_friction: { bg: "bg-blue-500/[0.10]",   text: "text-blue-400",   label: "Routine" },
+  listing_risk:     { bg: "bg-red-500/[0.10]",    text: "text-red-400",    label: "Risk" },
+  missing_proof:    { bg: "bg-orange-500/[0.10]", text: "text-orange-400", label: "Proof" },
 };
 
 export default function ReceiptOutputCard({
@@ -180,8 +180,8 @@ export default function ReceiptOutputCard({
     >
       {/* Fallback banner */}
       {isFallback && (
-        <div className={`${isSimilarityMatch ? "bg-blue-50 border-b border-blue-200" : "bg-amber-50 border-b border-amber-200"} px-5 py-3 flex items-center justify-between`}>
-          <p className={`text-sm ${isSimilarityMatch ? "text-blue-800" : "text-amber-800"}`}>
+        <div className={`${isSimilarityMatch ? "bg-blue-500/[0.08] border-b border-blue-500/20" : "bg-amber-500/[0.08] border-b border-amber-500/20"} px-5 py-3 flex items-center justify-between`}>
+          <p className={`text-sm ${isSimilarityMatch ? "text-blue-300" : "text-amber-300"}`}>
             {isSimilarityMatch
               ? "Based on a similar vehicle — Tap Regenerate for vehicle-specific analysis."
               : "Quick receipt — analysis timed out. Tap Regenerate for a full analysis."}
@@ -190,7 +190,7 @@ export default function ReceiptOutputCard({
             <button
               onClick={onRegenerate}
               disabled={isRegenerating}
-              className={`text-sm font-medium underline whitespace-nowrap ml-3 ${isRegenerating ? "opacity-50 cursor-not-allowed" : ""} ${isSimilarityMatch ? "text-blue-700 hover:text-blue-900" : "text-amber-700 hover:text-amber-900"}`}
+              className={`text-sm font-medium underline whitespace-nowrap ml-3 ${isRegenerating ? "opacity-50 cursor-not-allowed" : ""} ${isSimilarityMatch ? "text-blue-300 hover:text-blue-200" : "text-amber-300 hover:text-amber-200"}`}
             >
               {isRegenerating ? "Generating..." : "Regenerate"}
             </button>
@@ -222,8 +222,8 @@ export default function ReceiptOutputCard({
 
       {/* Upgrade failed - reassurance banner */}
       {upgradeFailed && !isUpgrading && (
-        <div className="bg-green-50 border-b border-green-200 px-5 py-3">
-          <p className="text-sm text-green-800">
+        <div className="bg-[#00d97e]/[0.08] border-b border-[#00d97e]/20 px-5 py-3">
+          <p className="text-sm text-[#00d97e]">
             ✓ Your receipt is complete with {receipt.listing_signals?.length || 0}+ data points analyzed.
             All key risk factors and pricing insights are included.
           </p>
@@ -231,17 +231,17 @@ export default function ReceiptOutputCard({
       )}
 
       {/* Verdict banner — neutral/pending style while upgrading */}
-      <div className={`${isUpgrading ? "bg-gray-50 border-gray-200" : `${verdict.bg} ${verdict.border}`} border-b px-5 py-4`}>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Overall Verdict</p>
+      <div className={`${isUpgrading ? "bg-[#161b22] border-white/[0.08]" : `${verdict.bg} ${verdict.border}`} border-b px-5 py-4`}>
+        <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-2">Overall Verdict</p>
         <div className="flex items-center gap-3">
           {isUpgrading
-            ? <HelpCircle className="w-6 h-6 text-gray-400" />
+            ? <HelpCircle className="w-6 h-6 text-white/40" />
             : <VerdictIcon className={`w-6 h-6 ${verdict.text}`} />
           }
           <div>
             <div className="flex items-center gap-2">
               {isUpgrading ? (
-                <span className="text-lg font-bold text-gray-400">Analyzing…</span>
+                <span className="text-lg font-bold text-white/40">Analyzing…</span>
               ) : (
                 <>
                   <span className={`text-lg font-bold ${verdict.text}`}>
@@ -262,7 +262,7 @@ export default function ReceiptOutputCard({
               )}
             </div>
             {vehicleDesc && (
-              <p className="text-sm text-gray-700 mt-0.5">
+              <p className="text-sm text-white/70 mt-0.5">
                 {vehicleDesc}
                 {priceStr && <span className="font-semibold"> · {priceStr}</span>}
               </p>
@@ -322,7 +322,7 @@ export default function ReceiptOutputCard({
                     key={i}
                     onClick={() => setPhotoIndex(i)}
                     className={`flex-shrink-0 w-14 h-10 rounded-lg overflow-hidden border-2 transition-all ${
-                      i === photoIndex ? "border-blue-500 opacity-100" : "border-transparent opacity-60 hover:opacity-90"
+                      i === photoIndex ? "border-[#00d97e] opacity-100" : "border-transparent opacity-60 hover:opacity-90"
                     }`}
                   >
                     <img src={url?.startsWith("http") ? `/api/proxy-image?url=${encodeURIComponent(url)}` : url} alt={vehicleDesc ? `${vehicleDesc} — photo ${i + 1}` : `Photo ${i + 1}`} className="w-full h-full object-cover" />
@@ -333,16 +333,16 @@ export default function ReceiptOutputCard({
           </div>
         )}
 
-        <p className={`text-sm mt-3 ${isUpgrading ? "text-gray-400 italic" : "text-gray-700"}`}>
+        <p className={`text-sm mt-3 ${isUpgrading ? "text-white/40 italic" : "text-white/70"}`}>
           {isUpgrading ? "Verdict and full reasoning will appear when analysis completes." : receipt.verdict_reason}
         </p>
         {region === "UK" && (
-          <p className="text-xs text-gray-500 mt-1.5">UK Mode (beta) — prices in pounds, UK wording</p>
+          <p className="text-xs text-white/40 mt-1.5">UK Mode (beta) — prices in pounds, UK wording</p>
         )}
         {typeof receipt.fit_score === "number" && typeof receipt.evidence_score === "number" && (
           <div className="flex gap-4 mt-3">
             <div className="flex-1">
-              <div className="flex justify-between text-xs text-gray-500 mb-0.5">
+              <div className="flex justify-between text-xs text-white/50 mb-0.5">
                 <span>Fit</span>
                 <span>{receipt.fit_score}/100</span>
               </div>
@@ -353,7 +353,7 @@ export default function ReceiptOutputCard({
               </div>
             </div>
             <div className="flex-1">
-              <div className="flex justify-between text-xs text-gray-500 mb-0.5">
+              <div className="flex justify-between text-xs text-white/50 mb-0.5">
                 <span>Evidence</span>
                 <span>{receipt.evidence_score}/100</span>
               </div>
@@ -374,7 +374,7 @@ export default function ReceiptOutputCard({
       {receipt.why_not_green && receipt.why_not_green.length > 0 && receipt.verdict !== "GREEN" && (
         <div className="px-5 py-3 bg-[var(--surface-1)] border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-1.5 mb-1.5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+            <p className="text-xs font-semibold text-white/40 uppercase tracking-widest">
               Why not GREEN?
             </p>
             <div className="relative">
@@ -386,13 +386,13 @@ export default function ReceiptOutputCard({
                 <Info className="w-3.5 h-3.5" />
               </button>
               {scoringTooltipOpen && (
-                <div className="absolute left-0 top-5 z-20 w-64 bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs text-gray-700 space-y-1.5">
-                  <p className="font-semibold text-gray-900">How verdicts are scored</p>
-                  <p><span className="font-medium text-green-700">GREEN</span> — low risk, strong evidence (price fair, history clean, no flags)</p>
-                  <p><span className="font-medium text-yellow-700">YELLOW</span> — moderate risk or missing proof (high mileage, no service records, price unclear)</p>
-                  <p><span className="font-medium text-red-700">RED</span> — hard flag present (salvage title, accident history, severely overpriced)</p>
-                  <p className="text-gray-500 pt-1 border-t border-gray-100">Categories: <span className="text-red-600">Risk</span> = confirmed concern · <span className="text-orange-600">Proof</span> = missing evidence · <span className="text-blue-600">Routine</span> = standard friction</p>
-                  <button onClick={() => setScoringTooltipOpen(false)} className="text-gray-400 hover:text-gray-600 mt-1">Close</button>
+                <div className="absolute left-0 top-5 z-20 w-64 bg-[#161b22] border border-white/[0.10] rounded-xl shadow-lg p-3 text-xs text-white/70 space-y-1.5">
+                  <p className="font-semibold text-white">How verdicts are scored</p>
+                  <p><span className="font-medium text-green-400">GREEN</span> — low risk, strong evidence (price fair, history clean, no flags)</p>
+                  <p><span className="font-medium text-yellow-400">YELLOW</span> — moderate risk or missing proof (high mileage, no service records, price unclear)</p>
+                  <p><span className="font-medium text-red-400">RED</span> — hard flag present (salvage title, accident history, severely overpriced)</p>
+                  <p className="text-white/50 pt-1 border-t border-white/[0.08]">Categories: <span className="text-red-400">Risk</span> = confirmed concern · <span className="text-orange-400">Proof</span> = missing evidence · <span className="text-blue-400">Routine</span> = standard friction</p>
+                  <button onClick={() => setScoringTooltipOpen(false)} className="text-white/40 hover:text-white/60 mt-1">Close</button>
                 </div>
               )}
             </div>
@@ -402,13 +402,13 @@ export default function ReceiptOutputCard({
               {receipt.why_not_green.map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
                 const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
                 return (
-                  <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                  <li key={i} className="text-sm text-white/70 flex items-start gap-2">
                     <span className={`text-xs px-1.5 py-0.5 rounded font-medium mt-0.5 ${catStyle.bg} ${catStyle.text}`}>
                       {catStyle.label}
                     </span>
                     <span className="flex-1">{reason.label}</span>
                     {reason.points !== 0 && (
-                      <span className="text-xs text-gray-400 whitespace-nowrap">{reason.points}</span>
+                      <span className="text-xs text-white/40 whitespace-nowrap">{reason.points}</span>
                     )}
                   </li>
                 );
@@ -470,8 +470,8 @@ export default function ReceiptOutputCard({
           }
           className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-sm transition-all ${
             copiedSection === "must-ask"
-              ? "bg-blue-100 text-blue-700 border border-blue-200"
-              : "border-2 border-blue-200 text-blue-700 hover:border-blue-400 hover:bg-blue-50"
+              ? "bg-[#00d97e]/[0.12] text-[#00d97e] border border-[#00d97e]/30"
+              : "border-2 border-[#00d97e]/30 text-[#00d97e] hover:border-[#00d97e]/60 hover:bg-[#00d97e]/[0.08]"
           }`}
         >
           {copiedSection === "must-ask" ? (
@@ -490,21 +490,21 @@ export default function ReceiptOutputCard({
 
       {/* Lint Fallback: Quick Checklist */}
       {!lintPassed && (
-        <div className="mx-5 mt-3 bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <div className="mx-5 mt-3 bg-blue-500/[0.08] border border-blue-500/20 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
-            <h3 className="text-sm font-semibold text-gray-900">
+            <AlertTriangle className="w-4 h-4 text-amber-400" />
+            <h3 className="text-sm font-semibold text-white">
               Quick Checklist
             </h3>
-            <span className="text-xs text-gray-500">(Reddit copy pending lint fix)</span>
+            <span className="text-xs text-white/50">(Reddit copy pending lint fix)</span>
           </div>
 
           {/* Risk flags (up to 3) */}
           <div className="mb-3">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Flags</p>
+            <p className="text-xs font-medium text-white/40 uppercase tracking-wider mb-1">Flags</p>
             <ul className="space-y-1">
               {receipt.risk_flags.slice(0, 3).map((flag, i) => (
-                <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                <li key={i} className="text-sm text-white/70 flex items-start gap-2">
                   <span className="text-red-400 mt-0.5">!</span>
                   <span>{humanizeFlag(flag)}</span>
                 </li>
@@ -515,9 +515,9 @@ export default function ReceiptOutputCard({
           {/* First must-ask question */}
           {receipt.must_answer_questions.length > 0 && (
             <div className="mb-3">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Ask the seller</p>
-              <p className="text-sm text-gray-700">
-                <span className="text-blue-500 font-bold">1.</span>{" "}
+              <p className="text-xs font-medium text-white/40 uppercase tracking-wider mb-1">Ask the seller</p>
+              <p className="text-sm text-white/70">
+                <span className="text-[#00d97e] font-bold">1.</span>{" "}
                 {receipt.must_answer_questions[0]}
               </p>
             </div>
@@ -536,8 +536,8 @@ export default function ReceiptOutputCard({
             }}
             className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition-all ${
               copiedSection === "quick_checklist"
-                ? "bg-blue-100 text-blue-700 border border-blue-200"
-                : "border-2 border-blue-300 text-blue-700 hover:bg-blue-100"
+                ? "bg-[#00d97e]/[0.12] text-[#00d97e] border border-[#00d97e]/30"
+                : "border-2 border-[#00d97e]/30 text-[#00d97e] hover:bg-[#00d97e]/[0.08]"
             }`}
           >
             {copiedSection === "quick_checklist" ? (
@@ -559,7 +559,7 @@ export default function ReceiptOutputCard({
       {receipt.operator_notes?.what_would_change_verdict &&
         receipt.operator_notes.what_would_change_verdict.length > 0 && (
           <div className="px-5 py-3 bg-[var(--surface-1)] border-b border-[var(--border-subtle)]">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5">
+            <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
               This becomes a different verdict if:
             </p>
             <ul className="space-y-1">
@@ -567,9 +567,9 @@ export default function ReceiptOutputCard({
                 (item: string, i: number) => (
                   <li
                     key={i}
-                    className="text-sm text-gray-700 flex items-start gap-2"
+                    className="text-sm text-white/70 flex items-start gap-2"
                   >
-                    <span className="text-gray-400 mt-0.5">→</span>
+                    <span className="text-white/40 mt-0.5">→</span>
                     <span>{item}</span>
                   </li>
                 )
@@ -588,12 +588,12 @@ export default function ReceiptOutputCard({
                 {price.label}
               </span>
               {receipt.price_sanity.confidence > 0 && (
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-white/50">
                   ({Math.round(receipt.price_sanity.confidence * 100)}% confidence)
                 </span>
               )}
             </div>
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-white/70">
               {receipt.price_sanity.rationale_short}
             </p>
             {/* Market price range — from Auto.dev enrichment via listing_summary passthrough */}
@@ -601,8 +601,8 @@ export default function ReceiptOutputCard({
               const mpr = (receipt.listing_summary as Record<string, unknown>)?.market_price_range as { low: number; high: number; count: number } | undefined;
               if (!mpr || mpr.count === 0) return null;
               return (
-                <p className="text-xs text-gray-500 mt-1.5">
-                  Market range: <span className="font-semibold text-gray-700">{formatPrice(mpr.low, region)} – {formatPrice(mpr.high, region)}</span>
+                <p className="text-xs text-white/50 mt-1.5">
+                  Market range: <span className="font-semibold text-white/70">{formatPrice(mpr.low, region)} – {formatPrice(mpr.high, region)}</span>
                   <span className="ml-1">({mpr.count} comparable listing{mpr.count !== 1 ? "s" : ""})</span>
                 </p>
               );
@@ -623,14 +623,14 @@ export default function ReceiptOutputCard({
             ? "Dealers have more room on add-ons and fees than the sticker price."
             : null;
           return (
-            <div className="flex items-start gap-2 text-xs text-gray-600 -mt-1">
+            <div className="flex items-start gap-2 text-xs text-white/60 -mt-1">
               {sellerType === "dealer"
-                ? <Store className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
-                : <User className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />}
+                ? <Store className="w-3.5 h-3.5 text-white/40 flex-shrink-0 mt-0.5" />
+                : <User className="w-3.5 h-3.5 text-white/40 flex-shrink-0 mt-0.5" />}
               <span>
-                {sellerLabel && <span className="font-medium text-gray-700">{sellerLabel}</span>}
-                {zip && <span className="text-gray-400 ml-1">· {zip}</span>}
-                {negotiationNote && <span className="text-gray-500 ml-1">— {negotiationNote}</span>}
+                {sellerLabel && <span className="font-medium text-white/70">{sellerLabel}</span>}
+                {zip && <span className="text-white/40 ml-1">· {zip}</span>}
+                {negotiationNote && <span className="text-white/50 ml-1">— {negotiationNote}</span>}
               </span>
             </div>
           );
@@ -651,13 +651,13 @@ export default function ReceiptOutputCard({
               title="Deal Watch"
             >
               {!isGreen && (
-                <p className="text-xs text-gray-500 mb-2">
+                <p className="text-xs text-white/50 mb-2">
                   Pricing can be fair but other factors can still affect your overall verdict — watch these:
                 </p>
               )}
               <ul className="space-y-2">
                 {visibleFlags.map((flag, i) => (
-                  <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                  <li key={i} className="text-sm text-white/70 flex items-start gap-2">
                     {isGreen
                       ? <span className="text-amber-400 font-bold mt-0.5">{i + 1}.</span>
                       : <span className="text-red-400 mt-0.5">!</span>}
@@ -713,8 +713,8 @@ export default function ReceiptOutputCard({
             >
               <ul className="space-y-2">
                 {visibleQuestions.map((q, i) => (
-                  <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
-                    <span className="text-blue-500 font-bold mt-0.5">{i + 1}.</span>
+                  <li key={i} className="text-sm text-white/70 flex items-start gap-2">
+                    <span className="text-[#00d97e] font-bold mt-0.5">{i + 1}.</span>
                     <span>{q}</span>
                   </li>
                 ))}
@@ -759,7 +759,7 @@ export default function ReceiptOutputCard({
             >
               <ul className="space-y-2">
                 {visibleVbv.map((item: string, i: number) => (
-                  <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                  <li key={i} className="text-sm text-white/70 flex items-start gap-2">
                     <span className="text-purple-400 font-bold mt-0.5">{i + 1}.</span>
                     <span>{item}</span>
                   </li>
@@ -794,17 +794,17 @@ export default function ReceiptOutputCard({
 
         {/* Lint errors — itemized list + auto-fix */}
         {!lintPassed && lintErrors.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="bg-amber-500/[0.08] border border-amber-500/20 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600" />
-              <span className="text-sm font-semibold text-amber-800">
+              <AlertTriangle className="w-4 h-4 text-amber-400" />
+              <span className="text-sm font-semibold text-amber-300">
                 {lintErrors.length} lint issue{lintErrors.length !== 1 ? "s" : ""}
               </span>
             </div>
             <ul className="space-y-1">
               {lintErrors.map((err, i) => (
-                <li key={i} className="text-xs text-amber-700 flex items-start gap-1.5">
-                  <span className="text-amber-400 mt-0.5">·</span>
+                <li key={i} className="text-xs text-amber-400 flex items-start gap-1.5">
+                  <span className="text-amber-500 mt-0.5">·</span>
                   <span>{err.message}</span>
                 </li>
               ))}
@@ -813,7 +813,7 @@ export default function ReceiptOutputCard({
               <button
                 onClick={onAutoFix}
                 disabled={isFixing}
-                className="mt-3 w-full py-2 text-sm font-medium rounded-lg border border-amber-300 text-amber-800 hover:bg-amber-100 transition-all disabled:opacity-50"
+                className="mt-3 w-full py-2 text-sm font-medium rounded-lg border border-amber-500/30 text-amber-300 hover:bg-amber-500/[0.08] transition-all disabled:opacity-50"
               >
                 {isFixing ? "Fixing..." : "Auto-fix lint issues"}
               </button>
@@ -827,7 +827,7 @@ export default function ReceiptOutputCard({
           <button
             onClick={onRegenerate}
             disabled={isRegenerating}
-            className="w-full py-2.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2.5 text-sm font-medium rounded-lg border border-white/[0.12] text-white/60 hover:bg-white/[0.06] hover:border-white/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isRegenerating ? "Generating fresh analysis..." : "Regenerate analysis"}
           </button>
@@ -910,11 +910,11 @@ function Section({
     <div>
       <div className="flex items-center gap-2 mb-2">
         {icon}
-        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+        <h3 className="text-sm font-semibold text-white">{title}</h3>
         {onCopy && (
           <button
             onClick={onCopy}
-            className="ml-auto text-gray-400 hover:text-gray-600 transition-colors"
+            className="ml-auto text-white/40 hover:text-white/60 transition-colors"
             title={`Copy ${title}`}
           >
             {copied ? (

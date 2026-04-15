@@ -95,24 +95,24 @@ function PaywallCard({
   loading: boolean;
 }) {
   return (
-    <div className="mx-1 my-2 rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 text-center">
+    <div className="mx-1 my-2 rounded-xl border border-white/[0.10] bg-[#161b22] p-4 text-center">
       <div className="flex justify-center mb-2">
-        <div className="bg-blue-100 rounded-full p-2">
-          <Sparkles className="w-5 h-5 text-blue-600" />
+        <div className="bg-[#00d97e]/[0.12] rounded-full p-2">
+          <Sparkles className="w-5 h-5 text-[#00d97e]" />
         </div>
       </div>
-      <p className="font-semibold text-gray-900 text-sm mb-0.5">Unlock OFFO AI Unlimited</p>
-      <p className="text-xs text-gray-500 mb-3">
+      <p className="font-semibold text-white text-sm mb-0.5">Unlock OFFO AI Unlimited</p>
+      <p className="text-xs text-white/50 mb-3">
         You&apos;ve used your {FREE_DAILY_LIMIT} free messages today.
       </p>
-      <ul className="text-xs text-gray-600 space-y-1 mb-4 text-left">
+      <ul className="text-xs text-white/60 space-y-1 mb-4 text-left">
         {[
           "Unlimited questions, forever",
           "Full multi-model reasoning",
           "Saved history across devices",
         ].map((b) => (
           <li key={b} className="flex items-center gap-1.5">
-            <CheckCircle className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+            <CheckCircle className="w-3.5 h-3.5 text-[#00d97e] flex-shrink-0" />
             {b}
           </li>
         ))}
@@ -120,11 +120,11 @@ function PaywallCard({
       <button
         onClick={onUnlock}
         disabled={loading}
-        className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
+        className="w-full bg-[#00d97e] hover:bg-[#00c970] disabled:opacity-50 text-[#0d1117] text-sm font-medium py-2.5 rounded-lg transition-colors"
       >
         {loading ? "Preparing checkout…" : "Unlock for $9.99 — one time"}
       </button>
-      <p className="text-xs text-gray-400 mt-1.5">No subscriptions. Ever.</p>
+      <p className="text-xs text-white/30 mt-1.5">No subscriptions. Ever.</p>
     </div>
   );
 }
@@ -135,13 +135,13 @@ function PaywallCard({
 
 function NudgeBanner({ onUnlock, onDismiss, loading }: { onUnlock: () => void; onDismiss: () => void; loading: boolean }) {
   return (
-    <div className="mx-1 mb-1 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 flex items-center gap-2 text-xs">
-      <Lock className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
-      <span className="text-gray-600 flex-1">Getting value? Unlock unlimited for $9.99 →</span>
-      <button onClick={onUnlock} disabled={loading} className="text-blue-600 font-medium hover:underline">
+    <div className="mx-1 mb-1 rounded-lg bg-white/[0.06] border border-white/[0.10] px-3 py-2 flex items-center gap-2 text-xs">
+      <Lock className="w-3.5 h-3.5 text-[#00d97e] flex-shrink-0" />
+      <span className="text-white/60 flex-1">Getting value? Unlock unlimited for $9.99 →</span>
+      <button onClick={onUnlock} disabled={loading} className="text-[#00d97e] font-medium hover:underline">
         {loading ? "…" : "Unlock"}
       </button>
-      <button onClick={onDismiss} className="text-gray-400 hover:text-gray-600 ml-1">
+      <button onClick={onDismiss} className="text-white/40 hover:text-white/60 ml-1">
         <X className="w-3 h-3" />
       </button>
     </div>
@@ -195,7 +195,7 @@ export default function OFfoChat({
       const stored = sessionStorage.getItem(SESSION_KEY);
       if (stored) setMessages(JSON.parse(stored));
     } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [SESSION_KEY]);
 
   useEffect(() => {
@@ -382,13 +382,13 @@ export default function OFfoChat({
 
   // Responsive layout: bottom sheet on small screens, sidebar on ≥480px
   const panelClasses = [
-    "fixed z-50 bg-white shadow-2xl flex flex-col",
+    "fixed z-50 bg-[#0d1117] shadow-2xl flex flex-col",
     // Mobile (< 480px): full-width bottom sheet
-    "inset-x-0 bottom-0 rounded-t-2xl border-t border-gray-200",
+    "inset-x-0 bottom-0 rounded-t-2xl border-t border-white/[0.10]",
     // ≥480px: right sidebar
     "min-[480px]:inset-x-auto min-[480px]:bottom-20 min-[480px]:right-4",
     "min-[480px]:w-[380px] min-[480px]:max-h-[600px]",
-    "min-[480px]:rounded-2xl min-[480px]:border min-[480px]:border-gray-200",
+    "min-[480px]:rounded-2xl min-[480px]:border min-[480px]:border-white/[0.10]",
   ].join(" ");
 
   const panelStyle: React.CSSProperties = { height: "80vh", maxHeight: "80vh" };
@@ -410,7 +410,7 @@ export default function OFfoChat({
               if (typeof window !== "undefined") localStorage.setItem("offo_chat_tooltip_seen", "1");
               trackEvent?.("chat_session_opened", { scenario_type: scenarioType });
             }}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-full shadow-lg transition-all hover:scale-105 active:scale-95"
+            className="flex items-center gap-2 bg-[#00d97e] hover:bg-[#00c970] text-[#0d1117] px-4 py-3 rounded-full shadow-lg transition-all hover:scale-105 active:scale-95"
             aria-label="Ask OFFO"
           >
             <MessageCircle className="w-5 h-5" />
@@ -429,19 +429,19 @@ export default function OFfoChat({
           <div className="fixed inset-0 z-40 bg-black/30 min-[480px]:hidden" onClick={() => setIsOpen(false)} />
           <div className={panelClasses} style={panelStyle}>
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.08] flex-shrink-0">
               <div className="flex items-center gap-2">
-                <MessageCircle className="w-5 h-5 text-blue-600" />
-                <span className="font-semibold text-gray-900">Ask OFFO</span>
+                <MessageCircle className="w-5 h-5 text-[#00d97e]" />
+                <span className="font-semibold text-white">Ask OFFO</span>
                 {chatUnlocked && !freeMode ? (
-                  <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">Unlimited</span>
+                  <span className="text-xs bg-[#00d97e]/[0.12] text-[#00d97e] px-1.5 py-0.5 rounded-full font-medium">Unlimited</span>
                 ) : (
-                  !freeMode && paymentsEnabled && <span className="text-xs text-gray-400">{Math.max(0, FREE_DAILY_LIMIT - messagesUsedToday)} free left today</span>
+                  !freeMode && paymentsEnabled && <span className="text-xs text-white/40">{Math.max(0, FREE_DAILY_LIMIT - messagesUsedToday)} free left today</span>
                 )}
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-gray-700 transition-colors p-1 rounded"
+                className="text-white/40 hover:text-white/70 transition-colors p-1 rounded"
                 aria-label="Close chat"
               >
                 <ChevronDown className="w-5 h-5 min-[480px]:hidden" />
@@ -451,9 +451,9 @@ export default function OFfoChat({
 
             {/* Just-unlocked banner */}
             {justUnlocked && (
-              <div className="bg-green-50 border-b border-green-100 px-4 py-2.5 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-green-600" />
-                <p className="text-sm text-green-800 font-medium">Welcome to OFFO AI Unlimited! 🎉</p>
+              <div className="bg-[#00d97e]/[0.08] border-b border-[#00d97e]/20 px-4 py-2.5 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#00d97e]" />
+                <p className="text-sm text-[#00d97e] font-medium">Welcome to OFFO AI Unlimited! 🎉</p>
               </div>
             )}
 
@@ -467,7 +467,7 @@ export default function OFfoChat({
               {/* Welcome / quick questions */}
               {showQuickQuestions && (
                 <div className="space-y-3">
-                  <p className="text-sm text-gray-500 text-center pt-2">
+                  <p className="text-sm text-white/50 text-center pt-2">
                     Ask me anything about{" "}
                     {scenarioType === "receipt"
                       ? context.vehicle ?? "this vehicle"
@@ -480,7 +480,7 @@ export default function OFfoChat({
                       <button
                         key={q}
                         onClick={() => sendMessage(q)}
-                        className="text-left text-sm bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-lg transition-colors border border-blue-100"
+                        className="text-left text-sm bg-white/[0.06] hover:bg-white/[0.09] text-white/70 px-3 py-2 rounded-lg transition-colors border border-white/[0.10]"
                       >
                         {q}
                       </button>
@@ -495,10 +495,10 @@ export default function OFfoChat({
                   <div
                     className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
                       msg.role === "user"
-                        ? "bg-blue-600 text-white rounded-br-sm"
+                        ? "bg-[#00d97e] text-[#0d1117] rounded-br-sm"
                         : msg.fallback
-                        ? "bg-gray-100 text-gray-500 rounded-bl-sm"
-                        : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                        ? "bg-white/[0.08] text-white/50 rounded-bl-sm"
+                        : "bg-white/[0.08] text-white rounded-bl-sm"
                     }`}
                   >
                     {msg.content}
@@ -509,11 +509,11 @@ export default function OFfoChat({
               {/* Typing indicator */}
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-4 py-3">
+                  <div className="bg-white/[0.08] rounded-2xl rounded-bl-sm px-4 py-3">
                     <span className="flex gap-1 items-center">
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                      <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                      <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:0ms]" />
+                      <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:150ms]" />
+                      <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:300ms]" />
                     </span>
                   </div>
                 </div>
@@ -538,7 +538,7 @@ export default function OFfoChat({
 
             {/* Input — disabled when limit reached and not unlocked */}
             {(!limitReached || chatUnlocked) && (
-              <div className="border-t border-gray-100 px-3 py-3 flex gap-2 items-end flex-shrink-0">
+              <div className="border-t border-white/[0.08] px-3 py-3 flex gap-2 items-end flex-shrink-0">
                 <textarea
                   ref={inputRef}
                   value={input}
@@ -547,7 +547,7 @@ export default function OFfoChat({
                   placeholder="Ask about this vehicle…"
                   rows={1}
                   disabled={isLoading}
-                  className="flex-1 resize-none text-sm rounded-xl border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 min-h-[38px] max-h-[100px] overflow-y-auto"
+                  className="flex-1 resize-none text-sm rounded-xl bg-[#161b22] border border-white/[0.10] text-white placeholder:text-white/30 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#00d97e] focus:border-transparent disabled:opacity-50 min-h-[38px] max-h-[100px] overflow-y-auto"
                   style={{ lineHeight: "1.4" }}
                 />
                 <button
@@ -555,7 +555,7 @@ export default function OFfoChat({
                   disabled={isLoading || !input.trim()}
                   aria-label="Send message"
                   aria-busy={isLoading}
-                  className="flex-shrink-0 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white p-2 rounded-xl transition-colors"
+                  className="flex-shrink-0 bg-[#00d97e] hover:bg-[#00c970] disabled:opacity-40 disabled:cursor-not-allowed text-[#0d1117] p-2 rounded-xl transition-colors"
                 >
                   <Send className="w-4 h-4" />
                 </button>
