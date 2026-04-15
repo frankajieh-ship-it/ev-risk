@@ -85,6 +85,7 @@ export default function SaveReceiptCTA({
         localStorage.getItem(LOCAL_STORAGE_KEY) || "[]"
       );
       if (existing.some((r) => r.receipt_id === receipt.receipt_id)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSaveState("saved");
       }
     } catch {
@@ -180,8 +181,8 @@ export default function SaveReceiptCTA({
     onSaveSuccess?.();
   };
 
-  const fullClass = "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-teal-600 text-white hover:bg-teal-700 active:bg-teal-800 transition-all shadow-sm";
-  const compactClass = "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition-colors";
+  const fullClass = "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-[#00d97e] text-[#0d1117] hover:bg-[#00c970] active:bg-[#00b864] transition-all";
+  const compactClass = "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-white/[0.12] text-white/70 hover:bg-white/[0.06] transition-colors";
 
   return (
     <>
@@ -197,8 +198,8 @@ export default function SaveReceiptCTA({
 
       {saveState === "saving" && (
         <div className={compact
-          ? "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-500"
-          : "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border-2 border-gray-200 text-gray-500"
+          ? "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-white/[0.10] text-white/40"
+          : "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border border-white/[0.10] text-white/40"
         }>
           <Loader2 className="w-4 h-4 animate-spin" />
           {!compact && "Saving..."}
@@ -207,8 +208,8 @@ export default function SaveReceiptCTA({
 
       {saveState === "saved" && (
         <div className={compact
-          ? "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-green-200 text-green-700 bg-green-50"
-          : "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 border-green-200 text-green-700 bg-green-50"
+          ? "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-[#00d97e]/30 text-[#00d97e] bg-[#00d97e]/10"
+          : "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border border-[#00d97e]/30 text-[#00d97e] bg-[#00d97e]/10"
         }>
           <CheckCircle className="w-4 h-4" />
           {compact ? "Saved" : "Receipt Saved!"}
@@ -218,8 +219,8 @@ export default function SaveReceiptCTA({
       {saveState === "error" && (
         <div className={compact ? "" : "w-full"}>
           <div className={compact
-            ? "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-red-200 text-red-700 bg-red-50"
-            : "flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border-2 border-red-200 text-red-700 bg-red-50"
+            ? "flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-red-500/20 text-red-400 bg-red-500/10"
+            : "flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border border-red-500/20 text-red-400 bg-red-500/10"
           }>
             <AlertCircle className="w-4 h-4" />
             {compact ? "Error" : (error || "Failed to save")}
@@ -229,7 +230,7 @@ export default function SaveReceiptCTA({
               setSaveState("idle");
               setError(null);
             }}
-            className="mt-1 text-xs text-indigo-600 hover:text-indigo-700 underline"
+            className="mt-1 text-xs text-[#00d97e]/70 hover:text-[#00d97e] underline"
           >
             Try again
           </button>

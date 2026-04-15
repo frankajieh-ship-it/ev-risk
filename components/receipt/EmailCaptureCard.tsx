@@ -85,9 +85,9 @@ export default function EmailCaptureCard({ receiptId, onSubmit }: EmailCaptureCa
 
   if (status === "success") {
     return (
-      <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-        <CheckCircle className="w-5 h-5 text-green-600 mx-auto mb-2" />
-        <p className="text-sm text-green-700 font-medium">
+      <div className="bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-xl p-4 text-center">
+        <CheckCircle className="w-5 h-5 text-[#00d97e] mx-auto mb-2" />
+        <p className="text-sm text-[#00d97e] font-medium">
           {receiptId ? "Check your inbox!" : "You are on the list."}
         </p>
       </div>
@@ -95,10 +95,10 @@ export default function EmailCaptureCard({ receiptId, onSubmit }: EmailCaptureCa
   }
 
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+    <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-4">
       <div className="flex items-center gap-2 mb-2">
-        <Mail className="w-4 h-4 text-blue-600" />
-        <p className="text-sm font-medium text-gray-700">
+        <Mail className="w-4 h-4 text-white/40" />
+        <p className="text-sm font-medium text-white/70">
           {receiptId ? "Save this receipt to your inbox" : "Get the next version of this checklist free."}
         </p>
       </div>
@@ -108,13 +108,13 @@ export default function EmailCaptureCard({ receiptId, onSubmit }: EmailCaptureCa
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="your@email.com"
-          className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 px-3 py-2 text-sm bg-white/[0.06] border border-white/10 rounded-lg text-white/80 placeholder:text-white/25 focus:outline-none focus:ring-1 focus:ring-[#00d97e]/50"
           required
         />
         <button
           type="submit"
           disabled={status === "submitting"}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          className="px-4 py-2 text-sm font-medium text-[#0d1117] bg-[#00d97e] rounded-lg hover:bg-[#00c970] disabled:opacity-50 transition-colors"
         >
           {status === "submitting" ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -123,11 +123,11 @@ export default function EmailCaptureCard({ receiptId, onSubmit }: EmailCaptureCa
           )}
         </button>
       </form>
-      <p className="text-xs text-gray-400 mt-1.5">
+      <p className="text-xs text-white/30 mt-1.5">
         {receiptId ? "Full verdict, questions to ask, and negotiation script — one tap to reference at the dealership." : "One email. No spam."}
       </p>
       {status === "error" && (
-        <p className="text-xs text-red-500 mt-1">
+        <p className="text-xs text-red-400 mt-1">
           {errorMsg || "Something went wrong. Try again."}
         </p>
       )}

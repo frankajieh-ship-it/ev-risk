@@ -22,8 +22,10 @@ export default function ExtensionNudge({ context = "receipt" }: ExtensionNudgePr
 
   useEffect(() => {
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (!localStorage.getItem(DISMISSED_KEY)) setVisible(true);
     } catch {
+       
       setVisible(true);
     }
   }, []);
@@ -48,7 +50,7 @@ export default function ExtensionNudge({ context = "receipt" }: ExtensionNudgePr
       : "The free OFFO extension analyses any EV listing the moment you open it — no URL copying needed.";
 
   return (
-    <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 overflow-hidden">
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] overflow-hidden">
       <div className="px-4 pt-4 pb-3 flex items-start gap-3">
         {/* Extension icon */}
         <div className="shrink-0 w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center mt-0.5">
@@ -58,8 +60,8 @@ export default function ExtensionNudge({ context = "receipt" }: ExtensionNudgePr
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-indigo-900 leading-snug">{headline}</p>
-          <p className="text-xs text-indigo-700 mt-0.5 leading-snug">{body}</p>
+          <p className="text-sm font-semibold text-white/80 leading-snug">{headline}</p>
+          <p className="text-xs text-white/50 mt-0.5 leading-snug">{body}</p>
           <a
             href={extensionUrl}
             target={extensionUrl.startsWith("http") ? "_blank" : undefined}
@@ -73,7 +75,7 @@ export default function ExtensionNudge({ context = "receipt" }: ExtensionNudgePr
 
         <button
           onClick={dismiss}
-          className="shrink-0 p-1 text-indigo-400 hover:text-indigo-600 transition-colors"
+          className="shrink-0 p-1 text-white/30 hover:text-white/60 transition-colors"
           aria-label="Dismiss"
         >
           <X className="w-4 h-4" />

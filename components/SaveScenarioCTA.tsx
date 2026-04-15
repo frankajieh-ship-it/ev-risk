@@ -132,10 +132,10 @@ export default function SaveScenarioCTA({
         {saveState === "idle" && (
           <button
             onClick={handleSave}
-            className="flex items-center justify-center w-full px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors group"
+            className="flex items-center justify-center w-full px-4 py-3 bg-white/[0.06] border border-white/10 rounded-lg hover:bg-white/[0.09] transition-colors group"
           >
             <svg
-              className="w-5 h-5 mr-2 text-indigo-600 group-hover:scale-110 transition-transform"
+              className="w-5 h-5 mr-2 text-white/50 group-hover:scale-110 transition-transform"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -147,42 +147,42 @@ export default function SaveScenarioCTA({
                 d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
               />
             </svg>
-            <span className="font-medium text-indigo-700">
+            <span className="font-medium text-white/70">
               {isAuthenticated ? "Save This Scenario" : "Sign in to Save This Scenario"}
             </span>
           </button>
         )}
 
         {saveState === "saving" && (
-          <div className="flex items-center justify-center w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-200 border-t-indigo-600 mr-2"></div>
-            <span className="text-gray-600">Saving...</span>
+          <div className="flex items-center justify-center w-full px-4 py-3 bg-white/[0.05] border border-white/10 rounded-lg">
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/10 border-t-[#00d97e] mr-2"></div>
+            <span className="text-white/60">Saving...</span>
           </div>
         )}
 
         {saveState === "saved" && (
-          <div className="flex items-center justify-center w-full px-4 py-3 bg-green-50 border border-green-200 rounded-lg">
-            <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex items-center justify-center w-full px-4 py-3 bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-lg">
+            <svg className="w-5 h-5 mr-2 text-[#00d97e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
-            <span className="text-green-700 font-medium">Scenario Saved!</span>
+            <span className="text-[#00d97e] font-medium">Scenario Saved!</span>
           </div>
         )}
 
         {saveState === "error" && (
           <div className="w-full">
-            <div className="flex items-center justify-center px-4 py-3 bg-red-50 border border-red-200 rounded-lg mb-2">
-              <svg className="w-5 h-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-center px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg mb-2">
+              <svg className="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              <span className="text-red-700">{error || "Failed to save"}</span>
+              <span className="text-red-400">{error || "Failed to save"}</span>
             </div>
             <button
               onClick={() => {
                 setSaveState("idle");
                 setError(null);
               }}
-              className="text-sm text-indigo-600 hover:text-indigo-700 underline"
+              className="text-sm text-[#00d97e]/70 hover:text-[#00d97e] underline"
             >
               Try again
             </button>
@@ -190,7 +190,7 @@ export default function SaveScenarioCTA({
         )}
 
         {!isAuthenticated && saveState === "idle" && (
-          <p className="mt-2 text-xs text-gray-500 text-center">
+          <p className="mt-2 text-xs text-white/30 text-center">
             Save scenarios to compare later and track your EV search
           </p>
         )}

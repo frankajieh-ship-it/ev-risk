@@ -9,10 +9,10 @@ interface FitVerdictV2BlockProps {
 }
 
 const VERDICT_CONFIG = {
-  "Great Fit": { color: "text-green-600", bg: "bg-green-50", border: "border-green-200" },
-  "Good Fit": { color: "text-green-600", bg: "bg-green-50", border: "border-green-200" },
-  "Mixed Fit": { color: "text-amber-800", bg: "bg-amber-50", border: "border-amber-200" },
-  "High Friction": { color: "text-red-600", bg: "bg-red-50", border: "border-red-200" },
+  "Great Fit":    { color: "text-green-400",  bg: "bg-green-500/10",  border: "border-green-500/20" },
+  "Good Fit":     { color: "text-green-400",  bg: "bg-green-500/10",  border: "border-green-500/20" },
+  "Mixed Fit":    { color: "text-amber-400",  bg: "bg-amber-500/10",  border: "border-amber-500/20" },
+  "High Friction":{ color: "text-red-400",    bg: "bg-red-500/10",    border: "border-red-500/20"   },
 } as const;
 
 export function FitVerdictV2Block({ fitVerdict, vehicle }: FitVerdictV2BlockProps) {
@@ -30,23 +30,23 @@ export function FitVerdictV2Block({ fitVerdict, vehicle }: FitVerdictV2BlockProp
         />
       )}
       <div className="p-6">
-      {vehicle && (
-        <p className="text-sm text-gray-500 mb-2">
-          {vehicle.year} {vehicle.model}
+        {vehicle && (
+          <p className="text-sm text-white/50 mb-2">
+            {vehicle.year} {vehicle.model}
+          </p>
+        )}
+
+        <h1 className={`text-3xl font-bold ${config.color} uppercase tracking-wide mb-3`}>
+          {fitVerdict.label}
+        </h1>
+
+        <p className="text-base text-white/80 leading-relaxed">
+          {fitVerdict.one_liner}
         </p>
-      )}
 
-      <h1 className={`text-3xl font-bold ${config.color} uppercase tracking-wide mb-3`}>
-        {fitVerdict.label}
-      </h1>
-
-      <p className="text-base text-gray-700 leading-relaxed">
-        {fitVerdict.one_liner}
-      </p>
-
-      <p className="text-xs text-gray-400 mt-4">
-        This is a routine fit — not a verdict on whether to buy. It tells you how this car would slot into your actual life.
-      </p>
+        <p className="text-xs text-white/30 mt-4">
+          This is a routine fit — not a verdict on whether to buy. It tells you how this car would slot into your actual life.
+        </p>
       </div>
     </div>
   );

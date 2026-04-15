@@ -42,8 +42,8 @@ export default function PdfDownloadButton({
 
   const base = compact ? baseCompact : baseFull;
   const className = isDownloading
-    ? `${base} bg-blue-50 text-blue-400 border border-blue-200 cursor-wait`
-    : `${base} ${compact ? "border" : "border-2"} border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300`;
+    ? `${base} bg-white/[0.04] text-white/30 border border-white/[0.08] cursor-wait`
+    : `${base} border border-white/10 text-white/70 hover:bg-white/[0.06] hover:border-white/20`;
 
   return (
     <button

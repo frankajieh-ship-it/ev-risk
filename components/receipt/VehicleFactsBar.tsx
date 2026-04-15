@@ -137,19 +137,19 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
 
   // Title status pill config
   const titleConfig = {
-    clean: { label: "Clean title", icon: CheckCircle, cls: "text-green-700 bg-green-50 border-green-200" },
-    rebuilt: { label: "Rebuilt title", icon: ShieldAlert, cls: "text-amber-700 bg-amber-50 border-amber-200" },
-    salvage: { label: "Salvage title", icon: ShieldAlert, cls: "text-red-700 bg-red-50 border-red-200" },
-    unknown: { label: "Title unknown", icon: Shield, cls: "text-gray-600 bg-gray-50 border-gray-200" },
+    clean: { label: "Clean title", icon: CheckCircle, cls: "text-green-400 bg-green-500/10 border-green-500/20" },
+    rebuilt: { label: "Rebuilt title", icon: ShieldAlert, cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+    salvage: { label: "Salvage title", icon: ShieldAlert, cls: "text-red-400 bg-red-500/10 border-red-500/20" },
+    unknown: { label: "Title unknown", icon: Shield, cls: "text-white/40 bg-white/[0.06] border-white/10" },
   };
   const tc = titleConfig[titleStatus as keyof typeof titleConfig] || titleConfig.unknown;
   const TitleIcon = tc.icon;
 
   // Accident pill config
   const accidentConfig = {
-    yes: { label: "Accidents reported", cls: "text-red-700 bg-red-50 border-red-200", icon: AlertTriangle },
-    no: { label: "No accidents reported", cls: "text-green-700 bg-green-50 border-green-200", icon: CheckCircle },
-    unknown: { label: "Accident history unknown", cls: "text-gray-600 bg-gray-50 border-gray-200", icon: AlertTriangle },
+    yes: { label: "Accidents reported", cls: "text-red-400 bg-red-500/10 border-red-500/20", icon: AlertTriangle },
+    no: { label: "No accidents reported", cls: "text-green-400 bg-green-500/10 border-green-500/20", icon: CheckCircle },
+    unknown: { label: "Accident history unknown", cls: "text-white/40 bg-white/[0.06] border-white/10", icon: AlertTriangle },
   };
   const ac = accidentConfig[accidents as keyof typeof accidentConfig] || accidentConfig.unknown;
   const AccidentIcon = ac.icon;
@@ -159,8 +159,8 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
     : "https://www.nhtsa.gov/vehicle-safety/recalls";
 
   return (
-    <div className="px-5 py-3 border-b border-gray-100 bg-white space-y-2.5">
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Vehicle Facts</p>
+    <div className="px-5 py-3 border-b border-white/[0.06] bg-white/[0.02] space-y-2.5">
+      <p className="text-xs font-semibold text-white/30 uppercase tracking-wider">Vehicle Facts</p>
 
       {/* Pill row */}
       <div className="flex flex-wrap gap-1.5">
@@ -178,7 +178,7 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
 
         {/* VinAudit history pills */}
         {historyStatus === "loading" && (
-          <span className="inline-flex items-center gap-1 text-xs text-gray-400 px-2 py-0.5 rounded-full border border-gray-100">
+          <span className="inline-flex items-center gap-1 text-xs text-white/30 px-2 py-0.5 rounded-full border border-white/[0.08]">
             <Loader2 className="w-3 h-3 animate-spin" />
             Checking history…
           </span>
@@ -188,8 +188,8 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
             {/* Theft */}
             <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${
               history.summary.theft_reported
-                ? "text-red-700 bg-red-50 border-red-200"
-                : "text-green-700 bg-green-50 border-green-200"
+                ? "text-red-400 bg-red-500/10 border-red-500/20"
+                : "text-green-400 bg-green-500/10 border-green-500/20"
             }`}>
               {history.summary.theft_reported
                 ? <><Lock className="w-3 h-3" />Theft reported</>
@@ -199,7 +199,7 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
 
             {/* Salvage (from VinAudit — more authoritative than listing scraper) */}
             {history.summary.salvage_reported && (
-              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-red-700 bg-red-50 border-red-200">
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-red-400 bg-red-500/10 border-red-500/20">
                 <ShieldAlert className="w-3 h-3" />
                 Salvage on record
               </span>
@@ -207,7 +207,7 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
 
             {/* VinAudit accident count (more detailed than listing field) */}
             {history.summary.accident_count > 0 && (
-              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-amber-700 bg-amber-50 border-amber-200">
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-amber-400 bg-amber-500/10 border-amber-500/20">
                 <AlertTriangle className="w-3 h-3" />
                 {history.summary.accident_count} accident record{history.summary.accident_count !== 1 ? "s" : ""} (NMVTIS)
               </span>
@@ -217,7 +217,7 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
 
         {/* Recalls */}
         {recallStatus === "loading" && (
-          <span className="inline-flex items-center gap-1 text-xs text-gray-400 px-2 py-0.5 rounded-full border border-gray-100">
+          <span className="inline-flex items-center gap-1 text-xs text-white/30 px-2 py-0.5 rounded-full border border-white/[0.08]">
             <Loader2 className="w-3 h-3 animate-spin" />
             Checking recalls…
           </span>
@@ -227,7 +227,7 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
             href={nhtsaUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-green-700 bg-green-50 border-green-200 hover:underline"
+            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-green-400 bg-green-500/10 border-green-500/20 hover:underline"
           >
             <CheckCircle className="w-3 h-3" />
             No open recalls
@@ -237,11 +237,11 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
         {recallStatus === "done" && recalls.length > 0 && (
           <button
             onClick={() => setRecallExpanded((o) => !o)}
-            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-red-700 bg-red-50 border-red-200"
+            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-red-400 bg-red-500/10 border-red-500/20"
           >
             <AlertTriangle className="w-3 h-3" />
             {recalls.length} open recall{recalls.length !== 1 ? "s" : ""}
-            <span className="ml-0.5 text-red-400">{recallExpanded ? "▲" : "▼"}</span>
+            <span className="ml-0.5 text-red-400/70">{recallExpanded ? "▲" : "▼"}</span>
           </button>
         )}
         {recallStatus === "error" && (
@@ -249,7 +249,7 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
             href={nhtsaUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-gray-500 px-2 py-0.5 rounded-full border border-gray-200 hover:underline"
+            className="inline-flex items-center gap-1 text-xs text-white/40 px-2 py-0.5 rounded-full border border-white/10 hover:underline"
           >
             Check NHTSA recalls
             <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
@@ -261,16 +261,16 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
       {recallExpanded && recalls.length > 0 && (
         <div className="space-y-1.5 pl-1">
           {recalls.slice(0, 4).map((r) => (
-            <div key={r.NHTSACampaignNumber} className="text-xs text-gray-700 flex items-start gap-1.5">
+            <div key={r.NHTSACampaignNumber} className="text-xs text-white/60 flex items-start gap-1.5">
               <span className="text-red-400 mt-0.5 flex-shrink-0">!</span>
               <span>
-                <span className="font-medium">{r.Component}</span>
+                <span className="font-medium text-white/80">{r.Component}</span>
                 {r.Summary ? ` — ${r.Summary.slice(0, 120)}${r.Summary.length > 120 ? "…" : ""}` : ""}
               </span>
             </div>
           ))}
           {recalls.length > 4 && (
-            <a href={nhtsaUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+            <a href={nhtsaUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-[#00d97e]/70 hover:text-[#00d97e] hover:underline flex items-center gap-1">
               +{recalls.length - 4} more on NHTSA <ExternalLink className="w-2.5 h-2.5" />
             </a>
           )}
@@ -279,12 +279,12 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
 
       {/* Battery health estimate (EVs only) */}
       {ev && degradation > 0 && estimatedRange > 0 && (
-        <div className="flex items-start gap-2 text-xs text-gray-600 pt-0.5">
-          <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2 text-xs text-white/50 pt-0.5">
+          <Zap className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
           <span>
-            <span className="font-medium text-gray-800">Battery est.</span>{" "}
+            <span className="font-medium text-white/80">Battery est.</span>{" "}
             ~{100 - degradation}% health · ~{estimatedRange} mi range
-            <span className="text-gray-400 ml-1">(mileage/age proxy · confirm with seller)</span>
+            <span className="text-white/30 ml-1">(mileage/age proxy · confirm with seller)</span>
           </span>
         </div>
       )}

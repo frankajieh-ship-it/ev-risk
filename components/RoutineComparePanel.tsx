@@ -5,10 +5,10 @@ import type { VehicleRecommendation } from "@/types/recommendations";
 import type { MinimumViableRoutine } from "@/types/v2";
 
 const FIT_COLORS: Record<string, { badge: string; bar: string; score: string }> = {
-  "Great Fit":    { badge: "bg-green-100 text-green-800 border-green-300",  bar: "bg-green-500",  score: "text-green-700" },
-  "Good Fit":     { badge: "bg-blue-100 text-blue-800 border-blue-300",    bar: "bg-blue-500",   score: "text-blue-700"  },
-  "Mixed Fit":    { badge: "bg-amber-100 text-amber-800 border-amber-300", bar: "bg-amber-500",  score: "text-amber-700" },
-  "High Friction":{ badge: "bg-red-100 text-red-800 border-red-300",       bar: "bg-red-500",    score: "text-red-700"   },
+  "Great Fit":    { badge: "bg-green-500/10 text-green-400 border-green-500/20",  bar: "bg-green-500",  score: "text-green-400" },
+  "Good Fit":     { badge: "bg-blue-500/10 text-blue-400 border-blue-500/20",     bar: "bg-blue-500",   score: "text-blue-400"  },
+  "Mixed Fit":    { badge: "bg-amber-500/10 text-amber-400 border-amber-500/20",  bar: "bg-amber-500",  score: "text-amber-400" },
+  "High Friction":{ badge: "bg-red-500/10 text-red-400 border-red-500/20",        bar: "bg-red-500",    score: "text-red-400"   },
 };
 
 const DIMENSION_LABELS: Record<string, string> = {
@@ -31,11 +31,11 @@ function getKeyDimensions(routine: MinimumViableRoutine): (keyof typeof DIMENSIO
 function DimensionBar({ label, score, barColor }: { label: string; score: number; barColor: string }) {
   return (
     <div>
-      <div className="flex justify-between text-xs text-gray-500 mb-1">
+      <div className="flex justify-between text-xs text-white/40 mb-1">
         <span>{label}</span>
-        <span className="font-medium text-gray-700">{Math.round(score)}</span>
+        <span className="font-medium text-white/70">{Math.round(score)}</span>
       </div>
-      <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+      <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full ${barColor}`}
           style={{ width: `${Math.min(100, score)}%` }}
@@ -78,8 +78,8 @@ export default function RoutineComparePanel({ vehicles, routine }: RoutineCompar
   return (
     <div className="mt-8">
       <div className="flex items-center gap-2 mb-4">
-        <h3 className="text-sm font-semibold text-gray-800">Side-by-side comparison</h3>
-        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Top {top.length}</span>
+        <h3 className="text-sm font-semibold text-white/80">Side-by-side comparison</h3>
+        <span className="text-xs text-white/40 bg-white/[0.06] px-2 py-0.5 rounded-full">Top {top.length}</span>
       </div>
 
       <div className={`grid ${cols} gap-3`}>
@@ -90,16 +90,16 @@ export default function RoutineComparePanel({ vehicles, routine }: RoutineCompar
           return (
             <div
               key={rec.model}
-              className={`rounded-2xl border bg-white p-4 flex flex-col gap-3 ${
-                idx === 0 ? "border-blue-300 shadow-md" : "border-gray-200 shadow-sm"
+              className={`rounded-2xl border bg-white/[0.05] p-4 flex flex-col gap-3 ${
+                idx === 0 ? "border-[#00d97e]/30" : "border-white/10"
               }`}
             >
               {/* Header */}
               <div>
                 {idx === 0 && (
-                  <span className="text-xs font-semibold text-blue-600 mb-1 block">#1 Pick</span>
+                  <span className="text-xs font-semibold text-[#00d97e] mb-1 block">#1 Pick</span>
                 )}
-                <p className="text-sm font-bold text-gray-900 leading-tight">{rec.year} {rec.model_short}</p>
+                <p className="text-sm font-bold text-white leading-tight">{rec.year} {rec.model_short}</p>
                 <span className={`inline-flex items-center mt-1.5 px-2 py-0.5 rounded-full border text-xs font-semibold ${colors.badge}`}>
                   {rec.fit_label}
                 </span>
@@ -108,19 +108,19 @@ export default function RoutineComparePanel({ vehicles, routine }: RoutineCompar
               {/* Fit score */}
               <div className="flex items-baseline gap-1">
                 <span className={`text-2xl font-bold ${colors.score}`}>{rec.fit_score}</span>
-                <span className="text-xs text-gray-400">/100</span>
+                <span className="text-xs text-white/40">/100</span>
               </div>
 
               {/* Key stats */}
-              <div className="space-y-1 text-xs text-gray-600">
+              <div className="space-y-1 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Real-world range</span>
-                  <span className="font-medium text-gray-800">{rec.real_world_range_mi} mi</span>
+                  <span className="text-white/50">Real-world range</span>
+                  <span className="font-medium text-white/80">{rec.real_world_range_mi} mi</span>
                 </div>
                 {routine.climate === "winter" && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Winter range</span>
-                    <span className="font-medium text-blue-700">
+                    <span className="text-white/50">Winter range</span>
+                    <span className="font-medium text-blue-400">
                       ~{Math.round(rec.real_world_range_mi * (
                         routine.parking_exposure === "street"  ? 0.80 :
                         routine.parking_exposure === "outdoor" ? 0.85 : 0.88
@@ -129,27 +129,27 @@ export default function RoutineComparePanel({ vehicles, routine }: RoutineCompar
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Battery</span>
-                  <span className="font-medium text-gray-800">{rec.battery_kwh} kWh</span>
+                  <span className="text-white/50">Battery</span>
+                  <span className="font-medium text-white/80">{rec.battery_kwh} kWh</span>
                 </div>
                 {rec.dc_fast_kw && rec.dc_fast_kw > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">10–80% charge</span>
-                    <span className="font-medium text-gray-800">
+                    <span className="text-white/50">10–80% charge</span>
+                    <span className="font-medium text-white/80">
                       ~{Math.round((0.70 * rec.battery_kwh / rec.dc_fast_kw) * 60)} min
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Fed. tax credit</span>
-                  <span className={rec.incentive_new ? "font-medium text-green-700" : "font-medium text-gray-400"}>
+                  <span className="text-white/50">Fed. tax credit</span>
+                  <span className={rec.incentive_new ? "font-medium text-[#00d97e]" : "font-medium text-white/30"}>
                     {rec.incentive_new ? "Possible" : "—"}
                   </span>
                 </div>
                 {rec.ownership_cost_5y && rec.ownership_cost_5y.total > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">5-yr cost est.</span>
-                    <span className="font-medium text-gray-800">
+                    <span className="text-white/50">5-yr cost est.</span>
+                    <span className="font-medium text-white/80">
                       ${Math.round(rec.ownership_cost_5y.total / 1000)}k
                     </span>
                   </div>
@@ -158,7 +158,7 @@ export default function RoutineComparePanel({ vehicles, routine }: RoutineCompar
 
               {/* Dimension bars */}
               {rec.dimensions && (
-                <div className="space-y-2 pt-1 border-t border-gray-100">
+                <div className="space-y-2 pt-1 border-t border-white/[0.08]">
                   {keyDims.map((dim) => {
                     const score = rec.dimensions![dim as keyof typeof rec.dimensions] ?? 75;
                     return (
@@ -174,14 +174,14 @@ export default function RoutineComparePanel({ vehicles, routine }: RoutineCompar
               )}
 
               {/* Best for */}
-              <p className="text-xs text-gray-500 italic leading-relaxed border-t border-gray-100 pt-2">
+              <p className="text-xs text-white/40 italic leading-relaxed border-t border-white/[0.08] pt-2">
                 {getBestForNote(rec, routine)}
               </p>
 
               {/* CTA */}
               <Link
                 href={analyzeUrl}
-                className="mt-auto block text-center py-2 px-3 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors border border-blue-200"
+                className="mt-auto block text-center py-2 px-3 rounded-xl text-xs font-semibold bg-[#00d97e]/10 text-[#00d97e] hover:bg-[#00d97e]/20 transition-colors border border-[#00d97e]/20"
               >
                 Analyze a listing →
               </Link>
@@ -190,7 +190,7 @@ export default function RoutineComparePanel({ vehicles, routine }: RoutineCompar
         })}
       </div>
 
-      <p className="text-xs text-gray-400 text-center mt-3">
+      <p className="text-xs text-white/30 text-center mt-3">
         Scores reflect your routine — changing inputs updates rankings.
       </p>
     </div>

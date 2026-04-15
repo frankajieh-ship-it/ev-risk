@@ -1551,15 +1551,15 @@ export default function ReceiptPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl px-5 pt-5 pb-8 max-w-lg mx-auto"
+              className="fixed bottom-0 left-0 right-0 z-50 bg-[#161b22] border border-white/[0.08] rounded-t-2xl shadow-2xl px-5 pt-5 pb-8 max-w-lg mx-auto"
             >
               {/* Drag handle */}
-              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+              <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-5" />
 
-              <h3 className="text-base font-bold text-gray-900 mb-1">
+              <h3 className="text-base font-bold text-white mb-1">
                 Save to My Garage
               </h3>
-              <p className="text-sm text-gray-500 mb-5">
+              <p className="text-sm text-white/50 mb-5">
                 Get recall alerts, AI insights, and easy comparisons — all in one place.
               </p>
 
@@ -1583,14 +1583,14 @@ export default function ReceiptPage() {
                   setShowPostReceiptPopup(false);
                   setShowCompareModal(true);
                 }}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-gray-200 text-sm font-medium text-gray-700 hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50 transition-all"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-white/[0.12] text-sm font-medium text-white/70 hover:bg-white/[0.06] hover:text-white transition-all"
               >
                 Compare with another listing
               </button>
 
               <button
                 onClick={() => setShowPostReceiptPopup(false)}
-                className="w-full mt-3 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                className="w-full mt-3 text-xs text-white/30 hover:text-white/60 transition-colors"
               >
                 Not now
               </button>

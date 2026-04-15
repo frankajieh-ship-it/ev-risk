@@ -44,20 +44,20 @@ type ViewMode = "card" | "grid" | "list";
 
 function SkeletonCard() {
   return (
-    <div className="rounded-2xl border-2 border-gray-100 bg-white p-5 animate-pulse">
+    <div className="rounded-2xl border-2 border-white/[0.08] bg-white/[0.04] p-5 animate-pulse">
       <div className="flex items-start gap-4">
-        <div className="w-12 h-12 rounded-xl bg-gray-200" />
+        <div className="w-12 h-12 rounded-xl bg-white/10" />
         <div className="flex-1">
-          <div className="h-5 w-48 bg-gray-200 rounded mb-2" />
-          <div className="h-4 w-24 bg-gray-100 rounded" />
+          <div className="h-5 w-48 bg-white/10 rounded mb-2" />
+          <div className="h-4 w-24 bg-white/[0.07] rounded" />
         </div>
       </div>
       <div className="flex gap-2 mt-3">
-        <div className="h-6 w-20 bg-gray-100 rounded-full" />
-        <div className="h-6 w-16 bg-gray-100 rounded-full" />
-        <div className="h-6 w-14 bg-gray-100 rounded-full" />
+        <div className="h-6 w-20 bg-white/[0.07] rounded-full" />
+        <div className="h-6 w-16 bg-white/[0.07] rounded-full" />
+        <div className="h-6 w-14 bg-white/[0.07] rounded-full" />
       </div>
-      <div className="h-10 w-full bg-gray-100 rounded-xl mt-4" />
+      <div className="h-10 w-full bg-white/[0.07] rounded-xl mt-4" />
     </div>
   );
 }
@@ -501,7 +501,7 @@ export default function VehicleRecommendations({
       <div className="mb-4">
         <button
           onClick={onBack}
-          className="flex items-center text-gray-500 hover:text-gray-700 transition-colors text-sm"
+          className="flex items-center text-white/50 hover:text-white/80 transition-colors text-sm"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
           Back to routine
@@ -515,14 +515,14 @@ export default function VehicleRecommendations({
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
-            className="sticky top-2 z-20 mb-4 flex items-center justify-between gap-3 bg-blue-600 text-white px-4 py-3 rounded-2xl shadow-lg"
+            className="sticky top-2 z-20 mb-4 flex items-center justify-between gap-3 bg-[#00d97e] text-[#0d1117] px-4 py-3 rounded-2xl shadow-lg"
           >
             <span className="text-sm font-medium">
               {compareSelected.size} vehicle{compareSelected.size > 1 ? "s" : ""} selected
             </span>
             <a
               href="#routine-compare-panel"
-              className="px-3 py-1.5 bg-white text-blue-600 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-colors"
+              className="px-3 py-1.5 bg-[#0d1117]/20 text-[#0d1117] rounded-xl text-sm font-semibold hover:bg-[#0d1117]/30 transition-colors"
               onClick={() => trackEvent("compare_bar_clicked", { count: compareSelected.size })}
             >
               Compare selected →
@@ -533,8 +533,8 @@ export default function VehicleRecommendations({
 
       {/* Header */}
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">EVs That Match Your Routine</h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <h2 className="text-2xl font-bold text-white">EVs That Match Your Routine</h2>
+        <p className="text-sm text-white/50 mt-1">
           Based on {chargingLabels[routine.charging_access] ?? routine.charging_access} charging, ~{weeklyMiles} mi/week, {routine.climate} climate
         </p>
       </div>
@@ -552,10 +552,10 @@ export default function VehicleRecommendations({
       {error && (
         <div className="text-center py-12">
           <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
-          <p className="text-gray-700 mb-4">{error}</p>
+          <p className="text-white/60 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-[#00d97e] text-[#0d1117] rounded-lg text-sm font-medium hover:bg-[#00f090] transition-colors"
           >
             Try Again
           </button>
@@ -573,15 +573,15 @@ export default function VehicleRecommendations({
                 return (
                   <div className="flex items-center gap-3">
                     <div className="flex-1">
-                      <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-1 bg-white/10 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-blue-400 rounded-full transition-all"
+                          className="h-full bg-[#00d97e] rounded-full transition-all"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
                     </div>
                     <span
-                      className="text-xs text-gray-400 shrink-0 cursor-help"
+                      className="text-xs text-white/40 shrink-0 cursor-help"
                       title="Reflects how complete your routine inputs are and how strongly OFFO can distinguish between vehicle fits."
                     >
                       Recommendation confidence: {pct}%
@@ -597,7 +597,7 @@ export default function VehicleRecommendations({
             <div className="mb-4">
               <button
                 onClick={() => setShowMethodology(!showMethodology)}
-                className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1"
+                className="text-xs text-white/40 hover:text-white/60 transition-colors flex items-center gap-1"
               >
                 How are these ranked?
                 {showMethodology ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -611,17 +611,17 @@ export default function VehicleRecommendations({
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden"
                   >
-                    <div className="mt-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3 text-xs text-gray-600">
+                    <div className="mt-3 p-4 bg-white/[0.04] rounded-2xl border border-white/[0.08] space-y-3 text-xs text-white/60">
                       <div>
-                        <p className="font-semibold text-gray-800 mb-1">Fit score (0–100)</p>
+                        <p className="font-semibold text-white/80 mb-1">Fit score (0–100)</p>
                         <p>Weighted average of 6 dimensions: <strong>Charging fit (30%)</strong> · Range fit (25%) · Cost fit (15%) · Climate fit (10%) · Longest-day recovery (10%) · Utility fit (10%). Score ≥ 80 = Great Fit, 65–79 = Good Fit, 45–64 = Mixed Fit.</p>
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-800 mb-1">Range estimates</p>
+                        <p className="font-semibold text-white/80 mb-1">Range estimates</p>
                         <p>EPA-certified range adjusted by the AAA real-world variance per vehicle (typically −5% to −15%). Winter climate applies an additional reduction based on your parking: garage −12%, outdoor −15%, street −20% (AAA cold-weather studies).</p>
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-800 mb-1">5-year cost estimate</p>
+                        <p className="font-semibold text-white/80 mb-1">5-year cost estimate</p>
                         <p>MSRP purchase price · Charging at $0.16/kWh (US avg 2024) · Maintenance $600/yr (EV avg, no oil changes) · Insurance $1,800/yr · Depreciation 45% of MSRP over 5 years. Estimates only — your costs will vary.</p>
                       </div>
                     </div>
@@ -636,7 +636,7 @@ export default function VehicleRecommendations({
             <div className="mb-5">
               {/* Collapsed summary line */}
               {!adjustExpanded && (
-                <div className="flex items-center justify-between gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                <div className="flex items-center justify-between gap-2 text-xs text-white/50 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2">
                   <span className="truncate">
                     Budget: {localRoutine.budget_max ? `$${Math.round(localRoutine.budget_max / 1000)}k` : "Any"}
                     {" · "}Body: {localRoutine.body_style ?? "Any"}
@@ -650,7 +650,7 @@ export default function VehicleRecommendations({
                   </span>
                   <button
                     onClick={() => setAdjustExpanded(true)}
-                    className="shrink-0 flex items-center gap-1 text-blue-600 font-medium hover:text-blue-700 transition-colors"
+                    className="shrink-0 flex items-center gap-1 text-[#00d97e] font-medium hover:text-[#00f090] transition-colors"
                   >
                     Adjust <ChevronDown className="w-3 h-3" />
                   </button>
@@ -665,11 +665,11 @@ export default function VehicleRecommendations({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ duration: 0.15 }}
-                    className="bg-white border border-blue-200 rounded-2xl p-4 space-y-4"
+                    className="bg-white/[0.05] border border-white/[0.10] rounded-2xl p-4 space-y-4"
                   >
                     {/* Budget */}
                     <div>
-                      <p className="text-xs font-semibold text-gray-700 mb-1.5">Budget</p>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Budget</p>
                       <div className="flex flex-wrap gap-1.5">
                         {[
                           { label: "No limit", value: undefined },
@@ -683,8 +683,8 @@ export default function VehicleRecommendations({
                             onClick={() => setLocalRoutine(r => ({ ...r, budget_max: value }))}
                             className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                               localRoutine.budget_max === value
-                                ? "bg-blue-600 text-white border-blue-600"
-                                : "bg-white text-gray-600 border-gray-300 hover:border-blue-400"
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
                             }`}
                           >
                             {label}
@@ -695,7 +695,7 @@ export default function VehicleRecommendations({
 
                     {/* Body style */}
                     <div>
-                      <p className="text-xs font-semibold text-gray-700 mb-1.5">Body style</p>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Body style</p>
                       <div className="flex flex-wrap gap-1.5">
                         {[
                           { label: "Any", value: undefined },
@@ -709,8 +709,8 @@ export default function VehicleRecommendations({
                             onClick={() => setLocalRoutine(r => ({ ...r, body_style: value as MinimumViableRoutine["body_style"] }))}
                             className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                               (localRoutine.body_style ?? undefined) === value
-                                ? "bg-blue-600 text-white border-blue-600"
-                                : "bg-white text-gray-600 border-gray-300 hover:border-blue-400"
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
                             }`}
                           >
                             {label}
@@ -721,7 +721,7 @@ export default function VehicleRecommendations({
 
                     {/* Weekly miles */}
                     <div>
-                      <p className="text-xs font-semibold text-gray-700 mb-1.5">Weekly driving</p>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Weekly driving</p>
                       <div className="flex flex-wrap gap-1.5">
                         {[
                           { label: "< 100 mi", value: 70 },
@@ -755,7 +755,7 @@ export default function VehicleRecommendations({
 
                     {/* Charging access */}
                     <div>
-                      <p className="text-xs font-semibold text-gray-700 mb-1.5">Charging setup</p>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Charging setup</p>
                       <div className="flex flex-wrap gap-1.5">
                         {(["home", "work", "public"] as const).map((val) => (
                           <button
@@ -763,8 +763,8 @@ export default function VehicleRecommendations({
                             onClick={() => setLocalRoutine(r => ({ ...r, charging_access: val }))}
                             className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                               localRoutine.charging_access === val
-                                ? "bg-blue-600 text-white border-blue-600"
-                                : "bg-white text-gray-600 border-gray-300 hover:border-blue-400"
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
                             }`}
                           >
                             {chargingLabels[val]}
@@ -774,7 +774,7 @@ export default function VehicleRecommendations({
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
+                    <div className="flex items-center gap-2 pt-1 border-t border-white/[0.08]">
                       <button
                         onClick={() => {
                           recomputeWithRoutine(localRoutine);
@@ -787,10 +787,10 @@ export default function VehicleRecommendations({
                           });
                         }}
                         disabled={isRecomputing}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 bg-[#00d97e] text-[#0d1117] rounded-xl text-sm font-semibold hover:bg-[#00f090] disabled:opacity-60 transition-colors"
                       >
                         {isRecomputing ? (
-                          <><span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />Updating…</>
+                          <><span className="w-3 h-3 border-2 border-[#0d1117] border-t-transparent rounded-full animate-spin" />Updating…</>
                         ) : (
                           "Update Results"
                         )}
@@ -803,14 +803,14 @@ export default function VehicleRecommendations({
                             setAdjustedLabel(false);
                             setAdjustExpanded(false);
                           }}
-                          className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                          className="text-xs text-white/40 hover:text-white/60 transition-colors"
                         >
                           Reset to original
                         </button>
                       )}
                       <button
                         onClick={() => setAdjustExpanded(false)}
-                        className="ml-auto text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                        className="ml-auto text-xs text-white/40 hover:text-white/60 transition-colors"
                       >
                         Close
                       </button>
@@ -821,8 +821,8 @@ export default function VehicleRecommendations({
 
               {/* "Updated based on your changes" pill */}
               {adjustedLabel && !adjustExpanded && (
-                <div className="mt-2 flex items-center gap-2 text-xs text-emerald-700">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <div className="mt-2 flex items-center gap-2 text-xs text-[#00d97e]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e] shrink-0" />
                   Updated based on your changes
                   <button
                     onClick={() => {
@@ -830,7 +830,7 @@ export default function VehicleRecommendations({
                       recomputeWithRoutine(routine);
                       setAdjustedLabel(false);
                     }}
-                    className="ml-1 text-gray-400 hover:text-gray-600 transition-colors underline"
+                    className="ml-1 text-white/40 hover:text-white/60 transition-colors underline"
                   >
                     Reset →
                   </button>
@@ -847,14 +847,14 @@ export default function VehicleRecommendations({
             <div className="flex gap-3 mb-5">
               <Link
                 href="/saved"
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white/[0.07] border border-white/10 text-white/80 rounded-xl text-sm font-semibold hover:bg-white/[0.10] transition-colors"
               >
                 <Bookmark className="w-4 h-4" />
                 View Saved Results
               </Link>
               <Link
                 href="/compare?from=shortlist"
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 border border-blue-300 text-blue-600 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 border border-[#00d97e]/30 text-[#00d97e] rounded-xl text-sm font-semibold hover:bg-[#00d97e]/10 transition-colors"
               >
                 <SlidersHorizontal className="w-4 h-4" />
                 Compare →
@@ -870,11 +870,11 @@ export default function VehicleRecommendations({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
-                className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-2xl"
+                className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 bg-white/[0.05] border border-white/[0.10] rounded-2xl"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-blue-900">Save this routine to your Garage</p>
-                  <p className="text-xs text-blue-700 mt-0.5">Your OFFO extension will use it automatically on CarGurus listings.</p>
+                  <p className="text-sm font-semibold text-white/80">Save this routine to your Garage</p>
+                  <p className="text-xs text-white/50 mt-0.5">Your OFFO extension will use it automatically on CarGurus listings.</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <button
@@ -892,7 +892,7 @@ export default function VehicleRecommendations({
                       setSaveConfirmed(true);
                       setTimeout(() => setShowSavePrompt(false), 2500);
                     }}
-                    className="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-xs font-semibold hover:bg-blue-700 transition-colors"
+                    className="px-3 py-1.5 bg-[#00d97e] text-[#0d1117] rounded-xl text-xs font-semibold hover:bg-[#00f090] transition-colors"
                   >
                     {saveConfirmed ? "Saved!" : "Save to Garage"}
                   </button>
@@ -901,7 +901,7 @@ export default function VehicleRecommendations({
                       try { sessionStorage.setItem("offo_routine_save_prompted", "1"); } catch { /* ignore */ }
                       setShowSavePrompt(false);
                     }}
-                    className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
+                    className="text-xs text-white/40 hover:text-white/60 transition-colors"
                   >
                     Not now
                   </button>
@@ -913,9 +913,9 @@ export default function VehicleRecommendations({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="mb-4 flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-2xl text-sm text-green-800"
+                className="mb-4 flex items-center gap-2 px-4 py-3 bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-2xl text-sm text-[#00d97e]"
               >
-                <Check className="w-4 h-4 text-green-600 shrink-0" />
+                <Check className="w-4 h-4 shrink-0" />
                 Saved! Opens automatically in extension.
               </motion.div>
             )}
@@ -935,10 +935,10 @@ export default function VehicleRecommendations({
           {refinePhase === "refined" && refinedList.length > 0 && (
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-900">Your Top 3</h3>
+                <h3 className="text-sm font-semibold text-white/80">Your Top 3</h3>
                 <button
                   onClick={() => setRefinePhase("browse")}
-                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-xs text-white/40 hover:text-white/60 transition-colors"
                 >
                   ← Show all
                 </button>
@@ -948,20 +948,20 @@ export default function VehicleRecommendations({
                   const key = `${rec.year}-${rec.model}`;
                   const isSaved = savedIds.has(key);
                   return (
-                    <div key={rec.model} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                    <div key={rec.model} className="bg-white/[0.05] border border-white/10 rounded-xl p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold text-gray-400">#{i + 1}</span>
+                            <span className="text-xs font-bold text-white/30">#{i + 1}</span>
                             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                              rec.fit_label === "Great Fit" ? "bg-green-100 text-green-700" :
-                              rec.fit_label === "Good Fit"  ? "bg-blue-100 text-blue-700" :
-                              "bg-yellow-100 text-yellow-700"
+                              rec.fit_label === "Great Fit" ? "bg-green-500/10 text-green-400" :
+                              rec.fit_label === "Good Fit"  ? "bg-blue-500/10 text-blue-400" :
+                              "bg-amber-500/10 text-amber-400"
                             }`}>{rec.fit_label}</span>
                           </div>
-                          <p className="text-sm font-semibold text-gray-900 truncate">{rec.year} {rec.make} {rec.model_short}</p>
+                          <p className="text-sm font-semibold text-white/80 truncate">{rec.year} {rec.make} {rec.model_short}</p>
                           {diffBullets[i] && (
-                            <p className="text-xs text-gray-500 mt-1 leading-snug"
+                            <p className="text-xs text-white/40 mt-1 leading-snug"
                               dangerouslySetInnerHTML={{ __html: diffBullets[i] }} />
                           )}
                         </div>
@@ -971,8 +971,8 @@ export default function VehicleRecommendations({
                             disabled={isSaved}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                               isSaved
-                                ? "bg-green-50 text-green-600 border border-green-200"
-                                : "bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
+                                ? "bg-[#00d97e]/10 text-[#00d97e] border border-[#00d97e]/20"
+                                : "bg-white/[0.07] text-white/60 border border-white/10 hover:bg-white/[0.10]"
                             }`}
                           >
                             {isSaved ? <Check className="w-3 h-3" /> : <Bookmark className="w-3 h-3" />}
@@ -980,7 +980,7 @@ export default function VehicleRecommendations({
                           </button>
                           <button
                             onClick={() => handleSelect(rec, i + 1)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.08] text-white/80 hover:bg-white/[0.12] transition-colors border border-white/10"
                           >
                             Full report →
                           </button>
@@ -1005,8 +1005,8 @@ export default function VehicleRecommendations({
                   }}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                     categoryFilter === cat.value
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      ? "bg-[#00d97e] text-[#0d1117]"
+                      : "bg-white/[0.07] text-white/60 hover:bg-white/[0.10] hover:text-white/80"
                   }`}
                 >
                   {cat.label}
@@ -1027,7 +1027,7 @@ export default function VehicleRecommendations({
                     }),
                   }).catch(() => {});
                 }}
-                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors border border-blue-200"
+                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap bg-white/[0.07] text-white/60 hover:bg-white/[0.10] transition-colors border border-white/[0.12]"
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 Narrow to Top 3
@@ -1046,8 +1046,8 @@ export default function VehicleRecommendations({
                     title={label}
                     className={`p-1.5 rounded-lg transition-colors ${
                       viewMode === mode
-                        ? "bg-blue-100 text-blue-600"
-                        : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                        ? "bg-[#00d97e]/10 text-[#00d97e]"
+                        : "text-white/40 hover:text-white/60 hover:bg-white/[0.07]"
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -1060,20 +1060,20 @@ export default function VehicleRecommendations({
           {/* Browse-phase content — hidden during refine/refined */}
           {/* Coach guidance — why #1 was chosen */}
           {refinePhase === "browse" && coachGuidance && (
-            <div className="mb-4 flex gap-3 px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl">
-              <Lightbulb className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-              <p className="text-sm text-blue-900 leading-snug">{coachGuidance}</p>
+            <div className="mb-4 flex gap-3 px-4 py-3 bg-[#00d97e]/[0.07] border border-[#00d97e]/20 rounded-xl">
+              <Lightbulb className="w-4 h-4 text-[#00d97e] shrink-0 mt-0.5" />
+              <p className="text-sm text-white/80 leading-snug">{coachGuidance}</p>
             </div>
           )}
 
           {/* "What sets them apart" diff bullets */}
           {refinePhase === "browse" && top3.length >= 2 && diffBullets.length > 0 && (
-            <div className="mb-4 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">What sets the top picks apart</p>
+            <div className="mb-4 px-4 py-3 bg-white/[0.04] rounded-xl border border-white/[0.08]">
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-2">What sets the top picks apart</p>
               <ul className="space-y-1">
                 {diffBullets.map((bullet, i) => (
-                  <li key={i} className="text-sm text-gray-600 flex gap-1.5">
-                    <span className="text-gray-400 shrink-0">•</span>
+                  <li key={i} className="text-sm text-white/70 flex gap-1.5">
+                    <span className="text-white/30 shrink-0">•</span>
                     <span dangerouslySetInnerHTML={{ __html: bullet }} />
                   </li>
                 ))}
@@ -1116,12 +1116,12 @@ export default function VehicleRecommendations({
 
           {/* "What sets them apart" diff bullets (second instance) */}
           {refinePhase === "browse" && top3.length >= 2 && diffBullets.length > 0 && (
-            <div className="mb-4 px-4 py-3 bg-gray-50 rounded-xl border border-gray-100">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">What sets them apart</p>
+            <div className="mb-4 px-4 py-3 bg-white/[0.04] rounded-xl border border-white/[0.08]">
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-2">What sets them apart</p>
               <ul className="space-y-1">
                 {diffBullets.map((bullet, i) => (
-                  <li key={i} className="text-sm text-gray-600 flex gap-1.5">
-                    <span className="text-gray-400 shrink-0">•</span>
+                  <li key={i} className="text-sm text-white/70 flex gap-1.5">
+                    <span className="text-white/30 shrink-0">•</span>
                     <span dangerouslySetInnerHTML={{ __html: bullet.replace(/^(\S+ \S+)/, "<strong>$1</strong>") }} />
                   </li>
                 ))}
@@ -1131,8 +1131,8 @@ export default function VehicleRecommendations({
 
           {/* Tie-break question — shown when top 1 vs top 2 are very close */}
           {refinePhase === "browse" && showTieBreakQuestion && top3.length >= 2 && (
-            <div className="mb-5 bg-blue-50 border border-blue-200 rounded-2xl p-4">
-              <p className="text-sm font-semibold text-blue-900 mb-3">
+            <div className="mb-5 bg-white/[0.05] border border-white/[0.10] rounded-2xl p-4">
+              <p className="text-sm font-semibold text-white/80 mb-3">
                 {top3[0].model_short} and {top3[1].model_short} are nearly identical — what matters most to you?
               </p>
               <div className="flex flex-wrap gap-2">
@@ -1147,7 +1147,7 @@ export default function VehicleRecommendations({
                       setDecisionPriority(key);
                       trackEvent("tie_break_choice_selected", { priority: key });
                     }}
-                    className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-white border border-blue-300 rounded-full hover:bg-blue-100 transition-colors"
+                    className="px-3 py-1.5 text-sm font-medium text-white/70 bg-white/[0.06] border border-white/[0.12] rounded-full hover:bg-white/[0.10] hover:text-white transition-colors"
                   >
                     {label}
                   </button>
@@ -1180,7 +1180,7 @@ export default function VehicleRecommendations({
                   setShowAlsoFits(next);
                   if (next) trackEvent("also_fits_expanded", { count: alsoFits.length });
                 }}
-                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-600 hover:bg-gray-100 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.04] rounded-xl text-sm text-white/60 hover:bg-white/[0.07] transition-colors border border-white/[0.08]"
               >
                 <span>Show {alsoFits.length} more that also fit</span>
                 {showAlsoFits ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -1218,7 +1218,7 @@ export default function VehicleRecommendations({
           )}
 
           {refinePhase === "browse" && recommended.length === 0 && lowFit.length > 0 && (
-            <p className="text-center text-gray-500 text-sm mb-4">
+            <p className="text-center text-white/50 text-sm mb-4">
               No vehicles scored Good Fit or above for this routine. Consider adjusting your charging access.
             </p>
           )}
@@ -1228,7 +1228,7 @@ export default function VehicleRecommendations({
             <div className="mb-6">
               <button
                 onClick={() => setShowLowFit(!showLowFit)}
-                className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-600 hover:bg-gray-100 transition-colors"
+                className="w-full text-left px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/60 hover:bg-white/[0.07] transition-colors"
               >
                 {showLowFit ? "Hide" : "Show"} {lowFit.length} vehicle{lowFit.length > 1 ? "s" : ""} with Mixed Fit or lower
               </button>
@@ -1251,15 +1251,15 @@ export default function VehicleRecommendations({
 
           {/* Dealer questions section */}
           {dealerQuestions.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 mb-6">
+            <div className="bg-white/[0.05] border border-white/[0.10] rounded-2xl p-5 mb-6">
               <div className="flex items-center gap-2 mb-3">
-                <MessageSquare className="w-4 h-4 text-blue-600" />
-                <h3 className="text-sm font-semibold text-gray-900">Top Questions to Ask Any Dealer</h3>
+                <MessageSquare className="w-4 h-4 text-[#00d97e]" />
+                <h3 className="text-sm font-semibold text-white/80">Top Questions to Ask Any Dealer</h3>
               </div>
               <ul className="space-y-2">
                 {dealerQuestions.map((q, i) => (
-                  <li key={i} className="flex gap-2 text-sm text-gray-700">
-                    <span className="text-blue-600 font-bold shrink-0">{i + 1}.</span>
+                  <li key={i} className="flex gap-2 text-sm text-white/70">
+                    <span className="text-[#00d97e] font-bold shrink-0">{i + 1}.</span>
                     {q}
                   </li>
                 ))}
@@ -1274,7 +1274,7 @@ export default function VehicleRecommendations({
                 trackEvent("recommendation_switch_to_manual");
                 onSwitchToManual();
               }}
-              className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-blue-600 transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-[#00d97e]/80 transition-colors"
             >
               <Search className="w-4 h-4" />
               Have a specific vehicle in mind? Enter details manually

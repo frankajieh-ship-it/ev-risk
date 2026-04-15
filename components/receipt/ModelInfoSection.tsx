@@ -73,8 +73,8 @@ export default function ModelInfoSection({
   if (resources.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-      <h3 className="text-sm font-semibold text-gray-800 mb-3">
+    <div className="bg-white/[0.04] rounded-2xl border border-white/[0.08] p-4">
+      <h3 className="text-sm font-semibold text-white/70 mb-3">
         Research this {make} {model}
       </h3>
       <div className="grid grid-cols-2 gap-2">
@@ -93,15 +93,15 @@ export default function ModelInfoSection({
                   model,
                 });
               }}
-              className="flex items-center gap-2 p-2.5 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group"
+              className="flex items-center gap-2 p-2.5 rounded-lg border border-white/[0.06] hover:border-white/20 hover:bg-white/[0.05] transition-colors group"
             >
-              <Icon className="w-4 h-4 text-gray-400 group-hover:text-blue-600 flex-shrink-0" />
+              <Icon className="w-4 h-4 text-white/30 group-hover:text-white/60 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-700 group-hover:text-blue-700 truncate">
+                <p className="text-sm font-medium text-white/60 group-hover:text-white/80 truncate">
                   {r.label}
                 </p>
               </div>
-              <ExternalLink className="w-3 h-3 text-gray-300 group-hover:text-blue-400 flex-shrink-0" />
+              <ExternalLink className="w-3 h-3 text-white/20 group-hover:text-white/40 flex-shrink-0" />
             </a>
           );
         })}

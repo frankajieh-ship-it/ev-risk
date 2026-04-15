@@ -15,19 +15,19 @@ export default function CompareFromReportCTA({ reportId, listingUrl }: CompareFr
   if (!aParam) return null;
 
   return (
-    <div className="my-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+    <div className="my-6 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-          <ArrowRightLeft className="w-4 h-4 text-blue-600" />
+        <div className="w-9 h-9 rounded-xl bg-white/[0.07] flex items-center justify-center shrink-0">
+          <ArrowRightLeft className="w-4 h-4 text-white/50" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-gray-900">Compare with another car</p>
-          <p className="text-xs text-gray-500">See how this vehicle stacks up side-by-side</p>
+          <p className="text-sm font-semibold text-white/80">Compare with another car</p>
+          <p className="text-xs text-white/40">See how this vehicle stacks up side-by-side</p>
         </div>
       </div>
       <a
         href={`/compare?a=${aParam}`}
-        className="shrink-0 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+        className="shrink-0 px-4 py-2 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-xl hover:bg-[#00c970] transition-colors"
       >
         Compare →
       </a>

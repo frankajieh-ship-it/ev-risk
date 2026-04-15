@@ -89,10 +89,10 @@ export default function FeedbackWidget({
   if (alreadySubmitted) return null;
 
   return (
-    <div className={`bg-white border border-gray-200 rounded-xl p-4 ${className}`}>
+    <div className={`bg-white/[0.04] border border-white/[0.08] rounded-xl p-4 ${className}`}>
       {!selected ? (
         <>
-          <p className="text-sm font-medium text-gray-800 mb-3 text-center">
+          <p className="text-sm font-medium text-white/70 mb-3 text-center">
             How helpful was this analysis?
           </p>
           <div className="flex gap-3">
@@ -100,10 +100,10 @@ export default function FeedbackWidget({
               <button
                 key={value}
                 onClick={() => handleSelect(value)}
-                className="flex-1 flex flex-col items-center gap-1 py-3 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 active:scale-95 transition-all"
+                className="flex-1 flex flex-col items-center gap-1 py-3 rounded-xl border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.06] active:scale-95 transition-all"
               >
                 <span className="text-xl">{emoji}</span>
-                <span className="text-xs font-medium text-gray-700">{label}</span>
+                <span className="text-xs font-medium text-white/60">{label}</span>
               </button>
             ))}
           </div>
@@ -112,7 +112,7 @@ export default function FeedbackWidget({
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <span className="text-lg">{OPTIONS.find(o => o.value === selected)?.emoji}</span>
-            <p className="text-sm font-medium text-gray-800">
+            <p className="text-sm font-medium text-white/80">
               {selected === "helpful" ? "Glad it helped!" : selected === "okay" ? "Thanks for letting us know." : "Sorry to hear that."}
             </p>
           </div>
@@ -130,20 +130,20 @@ export default function FeedbackWidget({
                 <button
                   onClick={handleFollowUp}
                   disabled={!followUpText.trim()}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium disabled:opacity-40 hover:bg-blue-700 transition-colors"
+                  className="text-xs px-3 py-1.5 rounded-lg bg-[#00d97e] text-[#0d1117] font-medium disabled:opacity-40 hover:bg-[#00c970] transition-colors"
                 >
                   Send
                 </button>
                 <button
                   onClick={() => setFollowUpSent(true)}
-                  className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+                  className="text-xs px-3 py-1.5 rounded-lg border border-white/[0.10] text-white/40 hover:bg-white/[0.05] transition-colors"
                 >
                   Skip
                 </button>
               </div>
             </>
           ) : (
-            <p className="text-xs text-gray-400">Thanks — your feedback helps us improve.</p>
+            <p className="text-xs text-white/30">Thanks — your feedback helps us improve.</p>
           )}
         </div>
       )}

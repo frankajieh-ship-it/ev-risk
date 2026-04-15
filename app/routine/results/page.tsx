@@ -11,7 +11,8 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { MapPin, Clock, Shield, Thermometer, ArrowLeft, LinkIcon, Loader2, TrendingUp, CheckCircle, AlertCircle, Zap, Radio, Car, ListPlus } from "lucide-react";
+import { MapPin, Clock, Shield, Thermometer, ArrowLeft, LinkIcon, Loader2, TrendingUp, CheckCircle, AlertCircle, Zap, Car, ListPlus } from "lucide-react";
+import Header from "@/components/landing/Header";
 import { FitVerdictV2Block } from "@/components/blocks/FitVerdictV2Block";
 import { WhatBreaksFirstV2Block } from "@/components/blocks/WhatBreaksFirstV2Block";
 import { StressFlagsV2Block } from "@/components/blocks/StressFlagsV2Block";
@@ -85,7 +86,7 @@ function computeChargingGrade(chargers: ChargerSearchResult[]): ChargingGradeRes
   };
 
   if (chargers.length === 0) {
-    return { grade: "F", label: "No Data", summary: "No charger data available for your area", color: { bg: "bg-gray-50", text: "text-gray-500", border: "border-gray-200" }, dimensions: emptyDims, risks: [] };
+    return { grade: "F", label: "No Data", summary: "No charger data available for your area", color: { bg: "bg-white/[0.04]", text: "text-white/40", border: "border-white/[0.06]" }, dimensions: emptyDims, risks: [] };
   }
 
   // Density (0–30 pts)
@@ -134,11 +135,11 @@ function computeChargingGrade(chargers: ChargerSearchResult[]): ChargingGradeRes
   const grade = totalScore >= 80 ? "A" as const : totalScore >= 60 ? "B" as const : totalScore >= 40 ? "C" as const : totalScore >= 20 ? "D" as const : "F" as const;
 
   const colors = {
-    A: { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
-    B: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-    C: { bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200" },
-    D: { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
-    F: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+    A: { bg: "bg-[#00d97e]/[0.08]",  text: "text-[#00d97e]",  border: "border-[#00d97e]/20"  },
+    B: { bg: "bg-blue-500/[0.08]",   text: "text-blue-400",   border: "border-blue-500/20"   },
+    C: { bg: "bg-amber-500/[0.08]",  text: "text-amber-400",  border: "border-amber-500/20"  },
+    D: { bg: "bg-orange-500/[0.08]", text: "text-orange-400", border: "border-orange-500/20" },
+    F: { bg: "bg-red-500/[0.08]",    text: "text-red-400",    border: "border-red-500/20"    },
   };
   const labels = { A: "Excellent", B: "Good", C: "Fair", D: "Limited", F: "Poor" };
 
@@ -212,9 +213,9 @@ function toStressFlags(fitScore: RoutineFitScore): StressFlagContract[] {
 
 // Stress label color mapping
 const STRESS_COLORS = {
-  minimal: { bg: "bg-green-50", text: "text-green-700", border: "border-green-200" },
-  moderate: { bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200" },
-  high: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200" },
+  minimal:  { bg: "bg-[#00d97e]/[0.08]",  text: "text-[#00d97e]", border: "border-[#00d97e]/20"  },
+  moderate: { bg: "bg-amber-500/[0.08]",   text: "text-amber-400", border: "border-amber-500/20"  },
+  high:     { bg: "bg-red-500/[0.08]",     text: "text-red-400",   border: "border-red-500/20"    },
 } as const;
 
 function RoutineResultsContent() {
@@ -657,7 +658,7 @@ function RoutineResultsContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-[#00d97e] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -665,15 +666,15 @@ function RoutineResultsContent() {
   if (!result) {
     return (
       <div className="text-center py-20">
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">
+        <h2 className="text-xl font-semibold text-white mb-2">
           No results found
         </h2>
-        <p className="text-gray-500 mb-6">
+        <p className="text-white/50 mb-6">
           Run an analysis first to see your routine results.
         </p>
         <a
           href="/routine"
-          className="inline-block px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all"
+          className="inline-block px-6 py-3 bg-[#00d97e] text-[#0d1117] rounded-xl font-semibold hover:bg-[#00c970] transition-all"
         >
           Start Analysis
         </a>
@@ -685,7 +686,7 @@ function RoutineResultsContent() {
   if (!paymentChecked) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-[#00d97e] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -715,9 +716,9 @@ function RoutineResultsContent() {
     >
       {/* Re-running overlay */}
       {rerunning && (
-        <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 flex items-center gap-3">
-          <Loader2 className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
-          <p className="text-sm text-blue-700 font-medium">
+        <div className="p-4 bg-[#00d97e]/[0.08] rounded-xl border border-[#00d97e]/20 flex items-center gap-3">
+          <Loader2 className="w-5 h-5 text-[#00d97e] animate-spin flex-shrink-0" />
+          <p className="text-sm text-[#00d97e] font-medium">
             Re-running analysis with {extractedVehicle?.year} {extractedVehicle?.make} {extractedVehicle?.model} data...
           </p>
         </div>
@@ -728,46 +729,46 @@ function RoutineResultsContent() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-5 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200"
+          className="p-5 bg-[#161b22] rounded-2xl border border-white/[0.08]"
         >
           <div className="flex items-center gap-2 mb-3">
-            <CheckCircle className="w-5 h-5 text-green-600" />
-            <h3 className="text-sm font-bold text-gray-900">
+            <CheckCircle className="w-5 h-5 text-[#00d97e]" />
+            <h3 className="text-sm font-bold text-white">
               Updated with {extractedVehicle?.year} {extractedVehicle?.make} {extractedVehicle?.model}
             </h3>
           </div>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-xs text-gray-500 mb-1">Score</p>
-              <p className="text-sm font-semibold text-gray-900">
+              <p className="text-xs text-white/40 mb-1">Score</p>
+              <p className="text-sm font-semibold text-white">
                 {previousResult.fit_score.score_0_100}
-                <span className="mx-1 text-gray-400">&rarr;</span>
+                <span className="mx-1 text-white/30">&rarr;</span>
                 {fit_score.score_0_100}
                 {fit_score.score_0_100 !== previousResult.fit_score.score_0_100 && (
-                  <span className={`ml-1 text-xs ${fit_score.score_0_100 > previousResult.fit_score.score_0_100 ? "text-green-600" : "text-red-600"}`}>
+                  <span className={`ml-1 text-xs ${fit_score.score_0_100 > previousResult.fit_score.score_0_100 ? "text-green-400" : "text-red-400"}`}>
                     ({fit_score.score_0_100 > previousResult.fit_score.score_0_100 ? "+" : ""}{fit_score.score_0_100 - previousResult.fit_score.score_0_100})
                   </span>
                 )}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">Fit</p>
-              <p className="text-sm font-semibold text-gray-900">
+              <p className="text-xs text-white/40 mb-1">Fit</p>
+              <p className="text-sm font-semibold text-white">
                 {previousResult.fit_score.label === fit_score.label
                   ? fit_score.label
                   : <>
-                      <span className="text-gray-400">{previousResult.fit_score.label}</span>
-                      <span className="mx-1 text-gray-400">&rarr;</span>
+                      <span className="text-white/30">{previousResult.fit_score.label}</span>
+                      <span className="mx-1 text-white/30">&rarr;</span>
                       {fit_score.label}
                     </>
                 }
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">Confidence</p>
-              <p className="text-sm font-semibold text-gray-900">
+              <p className="text-xs text-white/40 mb-1">Confidence</p>
+              <p className="text-sm font-semibold text-white">
                 {previousResult.fit_score.confidence?.level}
-                <span className="mx-1 text-gray-400">&rarr;</span>
+                <span className="mx-1 text-white/30">&rarr;</span>
                 {fit_score.confidence?.level}
               </p>
             </div>
@@ -788,17 +789,17 @@ function RoutineResultsContent() {
 
       {/* Confidence CTA — improve with listing data */}
       {showConfidenceCTA && (
-        <div className="p-5 bg-gradient-to-br from-indigo-50 via-white to-blue-50 rounded-2xl border border-indigo-200">
+        <div className="p-5 bg-[#161b22] rounded-2xl border border-white/[0.08]">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5 text-indigo-600" />
-            <h3 className="text-sm font-bold text-gray-900">Make this more accurate</h3>
+            <TrendingUp className="w-5 h-5 text-[#00d97e]" />
+            <h3 className="text-sm font-bold text-white">Make this more accurate</h3>
           </div>
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-white/60 mb-4">
             Right now we&apos;re using a generic 200 mi range estimate. Paste in the listing for the actual car you&apos;re looking at and we&apos;ll re-score it with real numbers.
           </p>
 
           {/* Mode tabs */}
-          <div className="flex gap-1 mb-4 bg-gray-100 rounded-lg p-0.5">
+          <div className="flex gap-1 mb-4 bg-white/[0.06] rounded-lg p-0.5">
             {([
               { key: "url" as const, label: "Listing URL" },
               { key: "text" as const, label: "Paste Text" },
@@ -809,8 +810,8 @@ function RoutineResultsContent() {
                 onClick={() => { setInputMode(key); setExtractError(null); }}
                 className={`flex-1 text-xs font-medium py-1.5 px-2 rounded-md transition-colors ${
                   inputMode === key
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
+                    ? "bg-white/[0.12] text-white shadow-sm"
+                    : "text-white/50 hover:text-white/70"
                 }`}
               >
                 {label}
@@ -822,21 +823,21 @@ function RoutineResultsContent() {
           {inputMode === "url" && (
             <div className="flex gap-2 mb-3">
               <div className="relative flex-1">
-                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                 <input
                   type="url"
                   value={listingUrl}
                   onChange={(e) => setListingUrl(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleExtract()}
                   placeholder="Paste listing URL (e.g. cars.com, cargurus.com)"
-                  className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full pl-9 pr-3 py-2.5 text-sm bg-[#161b22] border border-white/[0.10] text-white placeholder:text-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00d97e] focus:border-transparent"
                   disabled={extracting}
                 />
               </div>
               <button
                 onClick={handleExtract}
                 disabled={extracting || !listingUrl.trim()}
-                className="px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-1.5 flex-shrink-0"
+                className="px-4 py-2.5 bg-[#00d97e] text-[#0d1117] text-sm font-medium rounded-lg hover:bg-[#00c970] transition-colors disabled:opacity-50 flex items-center gap-1.5 flex-shrink-0"
               >
                 {extracting ? (
                   <>
@@ -858,13 +859,13 @@ function RoutineResultsContent() {
                 onChange={(e) => setListingText(e.target.value)}
                 placeholder="Paste the listing text here (year, make, model, mileage, etc.)"
                 rows={4}
-                className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                className="w-full px-3 py-2.5 text-sm bg-[#161b22] border border-white/[0.10] text-white placeholder:text-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00d97e] focus:border-transparent resize-none"
                 disabled={extracting}
               />
               <button
                 onClick={handleExtract}
                 disabled={extracting || listingText.trim().length < 20}
-                className="w-full py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 bg-[#00d97e] text-[#0d1117] text-sm font-medium rounded-lg hover:bg-[#00c970] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {extracting ? (
                   <>
@@ -883,40 +884,40 @@ function RoutineResultsContent() {
             <div className="space-y-3 mb-3">
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Year</label>
+                  <label className="block text-xs text-white/50 mb-1">Year</label>
                   <input
                     type="number"
                     value={manualYear}
                     onChange={(e) => setManualYear(e.target.value)}
                     placeholder="2023"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm bg-[#161b22] border border-white/[0.10] text-white placeholder:text-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00d97e] focus:border-transparent"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Make</label>
+                  <label className="block text-xs text-white/50 mb-1">Make</label>
                   <input
                     type="text"
                     value={manualMake}
                     onChange={(e) => setManualMake(e.target.value)}
                     placeholder="Tesla"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm bg-[#161b22] border border-white/[0.10] text-white placeholder:text-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00d97e] focus:border-transparent"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Model</label>
+                  <label className="block text-xs text-white/50 mb-1">Model</label>
                   <input
                     type="text"
                     value={manualModel}
                     onChange={(e) => setManualModel(e.target.value)}
                     placeholder="Model 3"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm bg-[#161b22] border border-white/[0.10] text-white placeholder:text-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#00d97e] focus:border-transparent"
                   />
                 </div>
               </div>
               <button
                 onClick={handleManualSubmit}
                 disabled={rerunning || (!manualYear && !manualMake)}
-                className="w-full py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 bg-[#00d97e] text-[#0d1117] text-sm font-medium rounded-lg hover:bg-[#00c970] transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {rerunning ? (
                   <>
@@ -931,13 +932,13 @@ function RoutineResultsContent() {
           )}
 
           {extractError && (
-            <div className="flex items-start gap-2 text-sm text-red-600 mb-3">
+            <div className="flex items-start gap-2 text-sm text-red-400 mb-3">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>{extractError}</span>
               {inputMode === "url" && (
                 <button
                   onClick={() => { setInputMode("text"); setExtractError(null); }}
-                  className="text-indigo-600 hover:text-indigo-700 font-medium underline flex-shrink-0"
+                  className="text-[#00d97e] hover:text-[#00f090] font-medium underline flex-shrink-0"
                 >
                   Paste text instead
                 </button>
@@ -945,7 +946,7 @@ function RoutineResultsContent() {
               {inputMode === "text" && (
                 <button
                   onClick={() => { setInputMode("manual"); setExtractError(null); }}
-                  className="text-indigo-600 hover:text-indigo-700 font-medium underline flex-shrink-0"
+                  className="text-[#00d97e] hover:text-[#00f090] font-medium underline flex-shrink-0"
                 >
                   Enter manually
                 </button>
@@ -957,24 +958,24 @@ function RoutineResultsContent() {
           {inputMode !== "manual" && (
             <div className="text-center space-y-2">
               <div>
-                <span className="text-xs text-gray-400">or</span>
+                <span className="text-xs text-white/30">or</span>
                 <Link
                   href={`/receipt?return_to=routine&run_id=${result.run_id}`}
-                  className="block mt-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
+                  className="block mt-1 text-xs text-[#00d97e] hover:text-[#00f090] font-medium transition-colors"
                 >
                   Go to Full Receipt Analysis &rarr;
                 </Link>
-                <span className="text-xs text-gray-400">(returns here with vehicle data)</span>
+                <span className="text-xs text-white/30">(returns here with vehicle data)</span>
               </div>
               {extractError && (
-                <div className="pt-2 border-t border-gray-200">
+                <div className="pt-2 border-t border-white/[0.08]">
                   <Link
                     href="/demo"
-                    className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                    className="text-xs text-[#00d97e] hover:text-[#00f090] font-medium transition-colors"
                   >
                     Try a Demo Report First &rarr;
                   </Link>
-                  <p className="text-xs text-gray-400 mt-0.5">See how OFFO works with sample scenarios</p>
+                  <p className="text-xs text-white/30 mt-0.5">See how OFFO works with sample scenarios</p>
                 </div>
               )}
             </div>
@@ -990,36 +991,36 @@ function RoutineResultsContent() {
       {/* 3. Plan B Card */}
       <div className={`p-6 rounded-2xl border-2 ${stressColor.border} ${stressColor.bg}`}>
         <div className="flex items-center gap-2 mb-4">
-          <Shield className="w-5 h-5 text-blue-600" />
-          <h2 className="text-lg font-bold text-gray-900">When things don&apos;t go to plan</h2>
+          <Shield className="w-5 h-5 text-[#00d97e]" />
+          <h2 className="text-lg font-bold text-white">When things don&apos;t go to plan</h2>
           <span className={`ml-auto text-xs font-semibold px-2.5 py-1 rounded-full ${stressColor.bg} ${stressColor.text} border ${stressColor.border}`}>
             {plan_b.stress_label === "minimal" ? "low friction" : plan_b.stress_label === "moderate" ? "some planning" : "needs attention"}
           </span>
         </div>
 
-        <p className="text-sm text-gray-700 mb-4">
+        <p className="text-sm text-white/70 mb-4">
           {plan_b.plan_summary}
         </p>
 
         {/* Charger info */}
         <div className="flex flex-wrap gap-3 mb-4">
           {plan_b.anchor_charger_name && (
-            <div className="flex items-center gap-1.5 text-xs bg-white px-3 py-1.5 rounded-full border border-gray-200">
-              <MapPin className="w-3.5 h-3.5 text-blue-500" />
-              <span className="font-medium">{plan_b.anchor_charger_name}</span>
+            <div className="flex items-center gap-1.5 text-xs bg-white/[0.05] px-3 py-1.5 rounded-full border border-white/[0.08]">
+              <MapPin className="w-3.5 h-3.5 text-[#00d97e]" />
+              <span className="font-medium text-white/80">{plan_b.anchor_charger_name}</span>
             </div>
           )}
           {plan_b.backup_charger_name && (
-            <div className="flex items-center gap-1.5 text-xs bg-white px-3 py-1.5 rounded-full border border-gray-200">
-              <MapPin className="w-3.5 h-3.5 text-gray-400" />
-              <span>Backup: {plan_b.backup_charger_name}</span>
+            <div className="flex items-center gap-1.5 text-xs bg-white/[0.05] px-3 py-1.5 rounded-full border border-white/[0.08]">
+              <MapPin className="w-3.5 h-3.5 text-white/40" />
+              <span className="text-white/60">Backup: {plan_b.backup_charger_name}</span>
             </div>
           )}
         </div>
 
         {/* Time penalty */}
         {plan_b.time_penalty_minutes > 0 && (
-          <div className="flex items-center gap-2 text-xs text-gray-600 mb-4">
+          <div className="flex items-center gap-2 text-xs text-white/60 mb-4">
             <Clock className="w-3.5 h-3.5" />
             <span>~{plan_b.time_penalty_minutes} min/week if you need to top up away from home</span>
           </div>
@@ -1028,13 +1029,13 @@ function RoutineResultsContent() {
         {/* Mitigation steps */}
         {plan_b.mitigation_steps.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-gray-900 uppercase tracking-wide mb-2">
+            <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-2">
               What to do
             </p>
             <ol className="space-y-2">
               {plan_b.mitigation_steps.map((step, i) => (
-                <li key={i} className="flex gap-2 text-sm text-gray-700">
-                  <span className="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-semibold">
+                <li key={i} className="flex gap-2 text-sm text-white/70">
+                  <span className="flex-shrink-0 w-5 h-5 bg-[#00d97e]/10 text-[#00d97e] rounded-full flex items-center justify-center text-xs font-semibold">
                     {i + 1}
                   </span>
                   {step}
@@ -1046,9 +1047,9 @@ function RoutineResultsContent() {
 
         {/* Buffer rule */}
         {plan_b.buffer_rule && (
-          <div className="mt-4 p-3 bg-white rounded-lg border border-gray-200">
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Rule of thumb</p>
-            <p className="text-sm text-gray-700">{plan_b.buffer_rule}</p>
+          <div className="mt-4 p-3 bg-white/[0.05] rounded-lg border border-white/[0.08]">
+            <p className="text-xs text-white/40 font-medium uppercase tracking-wide mb-1">Rule of thumb</p>
+            <p className="text-sm text-white/70">{plan_b.buffer_rule}</p>
           </div>
         )}
       </div>
@@ -1068,23 +1069,23 @@ function RoutineResultsContent() {
 
       {/* 5. Weather Context */}
       {weather_data && (
-        <div className="p-4 bg-white rounded-xl border border-gray-100 flex items-center gap-3">
-          <Thermometer className="w-5 h-5 text-blue-500 flex-shrink-0" />
+        <div className="p-4 bg-[#161b22] rounded-xl border border-white/[0.08] flex items-center gap-3">
+          <Thermometer className="w-5 h-5 text-[#00d97e] flex-shrink-0" />
           <div>
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-white">
               {Math.round(weather_data.current_temp_f)}&deg;F &mdash; {weather_data.current_conditions}
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-white/50">
               {weather_data.location_used}
               {weather_data.source === "manual_override" && " (estimated)"}
             </p>
           </div>
           <span className={`ml-auto text-xs font-medium px-2 py-1 rounded-full ${
             weather_data.weather_confidence_band === "high"
-              ? "bg-green-100 text-green-700"
+              ? "bg-[#00d97e]/10 text-[#00d97e]"
               : weather_data.weather_confidence_band === "medium"
-              ? "bg-yellow-100 text-yellow-700"
-              : "bg-gray-100 text-gray-500"
+              ? "bg-amber-500/10 text-amber-400"
+              : "bg-white/[0.06] text-white/40"
           }`}>
             {weather_data.weather_confidence_band === "low" ? "Estimated" : "Live"}
           </span>
@@ -1106,14 +1107,14 @@ function RoutineResultsContent() {
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                <p className="text-sm font-semibold text-gray-900">Charging in Your Area</p>
+                <Zap className="w-5 h-5 text-[#00d97e] flex-shrink-0" />
+                <p className="text-sm font-semibold text-white">Charging in Your Area</p>
               </div>
               <span className={`text-sm font-bold px-2.5 py-0.5 rounded-full border ${cg.color.border} ${cg.color.text} ${cg.color.bg}`}>
                 {cg.grade} — {cg.label}
               </span>
             </div>
-            <p className="text-xs text-gray-600 mb-4">{cg.summary}</p>
+            <p className="text-xs text-white/60 mb-4">{cg.summary}</p>
 
             {/* Dimension breakdown */}
             <div className="space-y-2.5 mb-4">
@@ -1121,17 +1122,17 @@ function RoutineResultsContent() {
                 const pct = Math.round((d.score / d.total) * 100);
                 return (
                   <div key={d.key} className="flex items-center gap-3 text-xs">
-                    <span className="w-16 text-gray-500 font-medium flex-shrink-0">{d.name}</span>
-                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                    <span className="w-16 text-white/50 font-medium flex-shrink-0">{d.name}</span>
+                    <div className="flex-1 h-1.5 bg-white/[0.08] rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all ${
-                          pct >= 70 ? "bg-green-500" : pct >= 40 ? "bg-yellow-500" : "bg-red-400"
+                          pct >= 70 ? "bg-[#00d97e]" : pct >= 40 ? "bg-amber-400" : "bg-red-400"
                         }`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
-                    <span className="w-8 text-gray-400 text-right flex-shrink-0">{d.score}/{d.total}</span>
-                    <span className="text-gray-600 min-w-0 truncate">{d.label}</span>
+                    <span className="w-8 text-white/30 text-right flex-shrink-0">{d.score}/{d.total}</span>
+                    <span className="text-white/50 min-w-0 truncate">{d.label}</span>
                   </div>
                 );
               })}
@@ -1141,9 +1142,9 @@ function RoutineResultsContent() {
             {cg.risks.length > 0 && (
               <div className="space-y-1.5 mb-4">
                 {cg.risks.map((risk, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs p-2 bg-amber-50 rounded-lg border border-amber-200">
-                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-amber-800">{risk}</span>
+                  <div key={i} className="flex items-start gap-2 text-xs p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <span className="text-amber-300">{risk}</span>
                   </div>
                 ))}
               </div>
@@ -1154,14 +1155,14 @@ function RoutineResultsContent() {
               {nearby_chargers.slice(0, 4).map((charger) => (
                 <span
                   key={charger.id}
-                  className="text-xs bg-white px-2.5 py-1 rounded-full border border-gray-200 text-gray-600"
+                  className="text-xs bg-white/[0.05] px-2.5 py-1 rounded-full border border-white/[0.08] text-white/60"
                 >
                   {charger.name}
                   {charger.distance_mi !== undefined && ` (${charger.distance_mi.toFixed(1)} mi)`}
                 </span>
               ))}
               {nearby_chargers.length > 4 && (
-                <span className="text-xs text-gray-400 px-2.5 py-1">
+                <span className="text-xs text-white/30 px-2.5 py-1">
                   +{nearby_chargers.length - 4} more
                 </span>
               )}
@@ -1172,32 +1173,32 @@ function RoutineResultsContent() {
 
       {/* 7. Data Sources — subtle indicator of what powered this analysis */}
       <div className="pt-2 pb-1">
-        <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">What powered this result</p>
+        <p className="text-xs text-white/30 uppercase tracking-wide mb-2">What powered this result</p>
         <div className="flex flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-100">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+          <span className="inline-flex items-center gap-1 text-xs text-white/50 bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/[0.06]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e]" />
             Your routine
           </span>
           {weather_data && (
-            <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-100">
-              <span className={`w-1.5 h-1.5 rounded-full ${weather_data.weather_confidence_band === "low" ? "bg-gray-300" : "bg-green-400"}`} />
+            <span className="inline-flex items-center gap-1 text-xs text-white/50 bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/[0.06]">
+              <span className={`w-1.5 h-1.5 rounded-full ${weather_data.weather_confidence_band === "low" ? "bg-white/20" : "bg-[#00d97e]"}`} />
               {weather_data.weather_confidence_band === "low" ? "Estimated weather" : `Live weather · ${weather_data.location_used}`}
             </span>
           )}
           {nearby_chargers.length > 0 && (
-            <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-100">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+            <span className="inline-flex items-center gap-1 text-xs text-white/50 bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/[0.06]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e]" />
               Real charger locations
             </span>
           )}
           {fit_score.confidence?.has_vehicle_data ? (
-            <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-100">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+            <span className="inline-flex items-center gap-1 text-xs text-white/50 bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/[0.06]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e]" />
               This vehicle&apos;s real-world range
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-100">
-              <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+            <span className="inline-flex items-center gap-1 text-xs text-white/50 bg-white/[0.04] px-2.5 py-1 rounded-full border border-white/[0.06]">
+              <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
               Generic 200 mi estimate — add your car to sharpen this
             </span>
           )}
@@ -1208,14 +1209,14 @@ function RoutineResultsContent() {
       <div className="flex gap-3 pt-4">
         <a
           href="/routine"
-          className="flex-1 py-3 px-6 border border-gray-300 rounded-xl font-medium text-gray-700 text-center hover:bg-gray-50 transition-all"
+          className="flex-1 py-3 px-6 border border-white/[0.12] rounded-xl font-medium text-white/60 text-center hover:bg-white/[0.06] transition-all"
         >
           Back to Scenarios
         </a>
         <button
           onClick={handleShare}
           disabled={sharing}
-          className="flex-1 py-3 px-6 border border-blue-300 rounded-xl font-medium text-blue-700 text-center hover:bg-blue-50 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+          className="flex-1 py-3 px-6 border border-white/[0.12] rounded-xl font-medium text-white/60 text-center hover:bg-white/[0.06] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
         >
           {sharing ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -1227,7 +1228,7 @@ function RoutineResultsContent() {
         </button>
         <a
           href="/routine"
-          className="flex-1 py-3 px-6 bg-blue-600 text-white rounded-xl font-semibold text-center hover:bg-blue-700 transition-all"
+          className="flex-1 py-3 px-6 bg-[#00d97e] text-[#0d1117] rounded-xl font-semibold text-center hover:bg-[#00c970] transition-all"
         >
           Run Another
         </a>
@@ -1238,38 +1239,38 @@ function RoutineResultsContent() {
         <button
           onClick={handleAddToShortlist}
           title="Compare up to 4 cars with the tie-breaker coach"
-          className="w-full py-2.5 px-4 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center gap-2"
+          className="w-full py-2.5 px-4 border border-white/[0.12] rounded-xl text-sm font-medium text-white/60 hover:bg-white/[0.06] hover:border-white/[0.18] transition-all flex items-center justify-center gap-2"
         >
           <ListPlus className="w-4 h-4" />
           {shortlistAdded ? "Added to shortlist ✓" : shortlistFull ? "Shortlist full (max 4)" : "Add to Shortlist"}
         </button>
         {!shortlistAdded && !shortlistFull && (
-          <p className="text-center text-xs text-gray-400 mt-1">
+          <p className="text-center text-xs text-white/30 mt-1">
             Save up to 4 cars — get a tie-breaker ranking at{" "}
-            <a href="/shortlist" className="underline hover:text-gray-600">your shortlist</a>
+            <a href="/shortlist" className="underline hover:text-white/50">your shortlist</a>
           </p>
         )}
         {shortlistAdded && (
-          <div className="mt-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-center">
-            <p className="text-xs font-semibold text-blue-800">Added ✓ — run EVFit for a second car to unlock the tie-breaker</p>
-            <a href="/shortlist" className="text-xs text-blue-600 hover:underline mt-0.5 block">View shortlist →</a>
+          <div className="mt-2 bg-[#00d97e]/[0.08] border border-[#00d97e]/20 rounded-xl px-4 py-2.5 text-center">
+            <p className="text-xs font-semibold text-[#00d97e]">Added ✓ — run EVFit for a second car to unlock the tie-breaker</p>
+            <a href="/shortlist" className="text-xs text-[#00d97e] hover:underline mt-0.5 block">View shortlist →</a>
           </div>
         )}
       </div>
 
       {/* Specs & Accessories CTA — shown when shortlist has at least 1 candidate and no specs yet */}
       {getShortlist().length > 0 && !specsPrefs && (
-        <div className="mt-3 p-4 bg-white rounded-xl border border-gray-200">
+        <div className="mt-3 p-4 bg-[#161b22] rounded-xl border border-white/[0.08]">
           <div className="flex items-center gap-2 mb-2">
-            <Car className="w-4 h-4 text-blue-600" />
-            <p className="text-sm font-semibold text-gray-900">Refine your shortlist with specs & accessories</p>
+            <Car className="w-4 h-4 text-[#00d97e]" />
+            <p className="text-sm font-semibold text-white">Refine your shortlist with specs & accessories</p>
           </div>
-          <p className="text-xs text-gray-500 mb-3">
+          <p className="text-xs text-white/50 mb-3">
             Filter by drivetrain, fast-charging speed, heat pump, and more. Takes 2 minutes.
           </p>
           <a
             href={`/routine/specs?run_id=${runId}`}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#00d97e] text-[#0d1117] text-xs font-semibold rounded-lg hover:bg-[#00c970] transition-colors"
           >
             Refine with specs &rarr;
           </a>
@@ -1278,12 +1279,12 @@ function RoutineResultsContent() {
 
       {/* Specs match results — shown after completing the questionnaire */}
       {specsPrefs && specsResults.length > 0 && (
-        <div className="mt-3 p-4 bg-white rounded-xl border border-gray-200">
+        <div className="mt-3 p-4 bg-[#161b22] rounded-xl border border-white/[0.08]">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold text-gray-900">Specs match results</p>
+            <p className="text-sm font-semibold text-white">Specs match results</p>
             <a
               href={`/routine/specs?run_id=${runId}`}
-              className="text-xs text-blue-600 hover:underline"
+              className="text-xs text-[#00d97e] hover:underline"
             >
               Update specs
             </a>
@@ -1291,17 +1292,17 @@ function RoutineResultsContent() {
           <div className="space-y-2">
             {specsResults.map((r, i) => (
               <div key={i} className="flex items-center justify-between text-sm">
-                <span className="text-gray-700 truncate mr-2">{r.candidate.vehicle_label}</span>
+                <span className="text-white/70 truncate mr-2">{r.candidate.vehicle_label}</span>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {!r.passed_hard_filters && (
-                    <span className="text-xs text-red-600 font-medium">
+                    <span className="text-xs text-red-400 font-medium">
                       {r.hard_filter_reason}
                     </span>
                   )}
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                     r.passed_hard_filters
-                      ? "bg-green-50 text-green-700 border border-green-200"
-                      : "bg-red-50 text-red-600 border border-red-200"
+                      ? "bg-[#00d97e]/10 text-[#00d97e] border border-[#00d97e]/20"
+                      : "bg-red-500/10 text-red-400 border border-red-500/20"
                   }`}>
                     {r.match_label}
                   </span>
@@ -1317,17 +1318,17 @@ function RoutineResultsContent() {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4"
+          className="mt-4 bg-amber-500/[0.08] border border-amber-500/20 rounded-2xl px-5 py-4"
         >
-          <p className="text-sm font-semibold text-amber-900">
+          <p className="text-sm font-semibold text-amber-300">
             You have similar-scoring cars in your shortlist
           </p>
-          <p className="text-xs text-amber-700 mt-1 mb-3">
+          <p className="text-xs text-amber-400 mt-1 mb-3">
             Scores are close — the tie-breaker coach can help you decide based on your actual routine.
           </p>
           <a
             href="/shortlist"
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 text-white text-xs font-semibold rounded-lg hover:bg-amber-700 transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-[#0d1117] text-xs font-semibold rounded-lg hover:bg-amber-600 transition-colors"
           >
             Open tie-breaker coach →
           </a>
@@ -1340,10 +1341,10 @@ function RoutineResultsContent() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="mt-6 bg-white border border-gray-200 rounded-2xl px-5 py-4"
+          className="mt-6 bg-[#161b22] border border-white/[0.08] rounded-2xl px-5 py-4"
         >
-          <p className="text-sm font-semibold text-gray-800 mb-0.5">Get a tip + reminder in your inbox</p>
-          <p className="text-xs text-gray-500 mb-3">We&apos;ll send your result summary + one insight tomorrow. No spam — unsubscribe anytime.</p>
+          <p className="text-sm font-semibold text-white mb-0.5">Get a tip + reminder in your inbox</p>
+          <p className="text-xs text-white/50 mb-3">We&apos;ll send your result summary + one insight tomorrow. No spam — unsubscribe anytime.</p>
           <form
             onSubmit={async (e) => {
               e.preventDefault();
@@ -1384,12 +1385,12 @@ function RoutineResultsContent() {
               onChange={(e) => setNudgeEmail(e.target.value)}
               placeholder="your@email.com"
               required
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="flex-1 px-3 py-2 text-sm bg-[#161b22] border border-white/[0.10] text-white placeholder:text-white/30 rounded-lg outline-none focus:ring-2 focus:ring-[#00d97e] focus:border-[#00d97e]"
             />
             <button
               type="submit"
               disabled={nudgeEnrolling}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-60 shrink-0"
+              className="px-4 py-2 bg-[#00d97e] text-[#0d1117] text-sm font-medium rounded-lg hover:bg-[#00c970] disabled:opacity-60 shrink-0"
             >
               {nudgeEnrolling ? "..." : "Send results"}
             </button>
@@ -1401,7 +1402,7 @@ function RoutineResultsContent() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="mt-4 flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5"
+          className="mt-4 flex items-center gap-2 text-sm text-[#00d97e] bg-[#00d97e]/[0.08] border border-[#00d97e]/20 rounded-xl px-4 py-2.5"
         >
           <CheckCircle className="w-4 h-4 shrink-0" />
           Check your inbox tomorrow for your results summary + tip.
@@ -1413,23 +1414,27 @@ function RoutineResultsContent() {
 
 export default function RoutineResultsPage() {
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="max-w-2xl mx-auto">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Home
-        </Link>
-        <Suspense fallback={
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          </div>
-        }>
-          <RoutineResultsContent />
-        </Suspense>
+    <div className="min-h-screen bg-[#0d1117]">
+      <Header variant="receipt" />
+      <div className="py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 transition-colors mb-6"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Home
+          </Link>
+          <Suspense fallback={
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="w-8 h-8 border-4 border-[#00d97e] border-t-transparent rounded-full animate-spin" />
+            </div>
+          }>
+            <RoutineResultsContent />
+          </Suspense>
+        </div>
       </div>
+      <footer className="py-8 text-center text-xs text-white/20">© 2025 OFFO</footer>
     </div>
   );
 }

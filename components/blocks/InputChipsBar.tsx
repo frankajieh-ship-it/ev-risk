@@ -35,7 +35,7 @@ export function InputChipsBar({ routine, vehicle }: InputChipsBarProps) {
       {chips.map((chip, i) => (
         <span
           key={i}
-          className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200"
+          className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-white/[0.07] text-white/60 border border-white/10"
         >
           {chip}
         </span>
