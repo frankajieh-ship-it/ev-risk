@@ -372,7 +372,7 @@ export default function ReceiptOutputCard({
 
       {/* Why not GREEN? — gated for yellow/red; unlocked users see full list */}
       {receipt.why_not_green && receipt.why_not_green.length > 0 && receipt.verdict !== "GREEN" && (
-        <div className="px-5 py-3 bg-[var(--surface-1)] border-b border-[var(--border-subtle)]">
+        <div className="px-5 py-3 bg-[#161b22] border-b border-white/[0.08]">
           <div className="flex items-center gap-1.5 mb-1.5">
             <p className="text-xs font-semibold text-white/40 uppercase tracking-widest">
               Why not GREEN?
@@ -558,7 +558,7 @@ export default function ReceiptOutputCard({
       {/* What would change the verdict */}
       {receipt.operator_notes?.what_would_change_verdict &&
         receipt.operator_notes.what_would_change_verdict.length > 0 && (
-          <div className="px-5 py-3 bg-[var(--surface-1)] border-b border-[var(--border-subtle)]">
+          <div className="px-5 py-3 bg-[#161b22] border-b border-white/[0.08]">
             <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
               This becomes a different verdict if:
             </p>
