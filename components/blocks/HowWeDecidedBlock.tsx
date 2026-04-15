@@ -63,59 +63,59 @@ export default function HowWeDecidedBlock({ routine, hasVehicleData }: HowWeDeci
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+    <div className="bg-[#161b22] rounded-xl border border-white/[0.08] p-5 mb-6">
       {/* Collapsible Trigger */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between w-full text-left group"
       >
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+          <span className="font-semibold text-white group-hover:text-[#00d97e] transition-colors">
             {MATCHMAKER_COPY.howWeDecided.title}
           </span>
         </div>
         {isOpen ? (
-          <ChevronUp className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+          <ChevronUp className="w-5 h-5 text-white/30 group-hover:text-[#00d97e] transition-colors" />
         ) : (
-          <ChevronDown className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+          <ChevronDown className="w-5 h-5 text-white/30 group-hover:text-[#00d97e] transition-colors" />
         )}
       </button>
 
       {/* Collapsible Content */}
       {isOpen && (
-        <div className="mt-5 space-y-5 pt-5 border-t border-gray-100">
+        <div className="mt-5 space-y-5 pt-5 border-t border-white/[0.08]">
           {/* Decision Rules */}
           <div>
-            <h4 className="font-medium text-gray-900 mb-3 text-sm">
+            <h4 className="font-medium text-white mb-3 text-sm">
               {MATCHMAKER_COPY.howWeDecided.subtitle}
             </h4>
-            <ul className="space-y-2 text-sm text-gray-600">
+            <ul className="space-y-2 text-sm text-white/60">
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold mt-0.5">•</span>
+                <span className="text-[#00d97e] font-bold mt-0.5">•</span>
                 <span>
-                  <strong>Daily range need:</strong> Your weekly miles ÷ 7, plus a buffer so you're never scrambling
+                  <strong>Daily range need:</strong> Your weekly miles ÷ 7, plus a buffer so you&apos;re never scrambling
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold mt-0.5">•</span>
+                <span className="text-[#00d97e] font-bold mt-0.5">•</span>
                 <span>
                   <strong>Your longest day:</strong> That one big driving day every week or two is usually the stress test
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold mt-0.5">•</span>
+                <span className="text-[#00d97e] font-bold mt-0.5">•</span>
                 <span>
                   <strong>How you charge:</strong> Home charging is the low-stress baseline — public-only takes more planning
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold mt-0.5">•</span>
+                <span className="text-[#00d97e] font-bold mt-0.5">•</span>
                 <span>
                   <strong>Weather:</strong> Cold cuts real-world range 20–40%. We score against your actual climate, not ideal conditions
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold mt-0.5">•</span>
+                <span className="text-[#00d97e] font-bold mt-0.5">•</span>
                 <span>
                   <strong>Real-world range, not EPA:</strong> We use the numbers people actually see on the road — typically 5–15% lower than the sticker
                 </span>
@@ -125,13 +125,13 @@ export default function HowWeDecidedBlock({ routine, hasVehicleData }: HowWeDeci
 
           {/* Assumptions */}
           <div>
-            <h4 className="font-medium text-gray-900 mb-3 text-sm">
+            <h4 className="font-medium text-white mb-3 text-sm">
               {MATCHMAKER_COPY.howWeDecided.assumptionsLabel}
             </h4>
-            <ul className="space-y-2 text-sm text-gray-600">
+            <ul className="space-y-2 text-sm text-white/60">
               {assumptions.map((assumption, idx) => (
                 <li key={idx} className="flex items-start gap-2">
-                  <span className="text-green-600 font-bold mt-0.5">✓</span>
+                  <span className="text-[#00d97e] font-bold mt-0.5">✓</span>
                   <span>{assumption}</span>
                 </li>
               ))}
@@ -140,19 +140,19 @@ export default function HowWeDecidedBlock({ routine, hasVehicleData }: HowWeDeci
 
           {/* Unknowns */}
           <div>
-            <h4 className="font-medium text-gray-900 mb-3 text-sm">
+            <h4 className="font-medium text-white mb-3 text-sm">
               {MATCHMAKER_COPY.howWeDecided.unknownsLabel}
             </h4>
-            <ul className="space-y-2 text-sm text-gray-400 italic">
+            <ul className="space-y-2 text-sm text-white/40 italic">
               {unknowns.map((unknown, idx) => (
                 <li key={idx} className="flex items-start gap-2">
-                  <span className="text-gray-300 font-bold mt-0.5">?</span>
+                  <span className="text-white/20 font-bold mt-0.5">?</span>
                   <span>{unknown}</span>
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-gray-400 mt-3 italic">
-              None of these are red flags — just things we can't know from your routine alone. Add more detail and the score gets sharper.
+            <p className="text-xs text-white/30 mt-3 italic">
+              None of these are red flags — just things we can&apos;t know from your routine alone. Add more detail and the score gets sharper.
             </p>
           </div>
         </div>

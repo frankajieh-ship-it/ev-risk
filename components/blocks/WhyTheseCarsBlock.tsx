@@ -22,11 +22,11 @@ interface ChipProps {
 
 function Chip({ icon: Icon, label, color = "blue" }: ChipProps) {
   const colorClasses = {
-    blue: "bg-blue-50 text-blue-700 border-blue-200",
-    green: "bg-green-50 text-green-700 border-green-200",
-    amber: "bg-amber-50 text-amber-700 border-amber-200",
-    purple: "bg-purple-50 text-purple-700 border-purple-200",
-    gray: "bg-gray-50 text-gray-700 border-gray-200",
+    blue:   "bg-blue-500/[0.12]   text-blue-300   border-blue-500/20",
+    green:  "bg-[#00d97e]/[0.10]  text-[#00d97e]  border-[#00d97e]/20",
+    amber:  "bg-amber-500/[0.10]  text-amber-300  border-amber-500/20",
+    purple: "bg-purple-500/[0.10] text-purple-300 border-purple-500/20",
+    gray:   "bg-white/[0.06]      text-white/60   border-white/[0.10]",
   };
 
   return (
@@ -75,11 +75,11 @@ export default function WhyTheseCarsBlock({ routine, zipCode }: WhyTheseCarsBloc
   const weeklyMilesLabel = `~${Math.round(weeklyMiles)} mi/week`;
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 mb-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+    <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] p-6 mb-6">
+      <h3 className="text-lg font-semibold text-white mb-2">
         {MATCHMAKER_COPY.whyTheseCars.title}
       </h3>
-      <p className="text-sm text-gray-600 mb-4">
+      <p className="text-sm text-white/60 mb-4">
         {MATCHMAKER_COPY.whyTheseCars.subtitle}
       </p>
 

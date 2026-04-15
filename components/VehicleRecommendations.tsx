@@ -742,8 +742,8 @@ export default function VehicleRecommendations({
                               onClick={() => setLocalRoutine(r => ({ ...r, weekly_miles: value, commute_miles_roundtrip: undefined }))}
                               className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                                 active
-                                  ? "bg-blue-600 text-white border-blue-600"
-                                  : "bg-white text-gray-600 border-gray-300 hover:border-blue-400"
+                                  ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                  : "bg-white/[0.06] text-white/60 border-white/[0.10] hover:border-[#00d97e]/40"
                               }`}
                             >
                               {label}

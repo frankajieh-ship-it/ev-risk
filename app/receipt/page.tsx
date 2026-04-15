@@ -160,18 +160,18 @@ function ReceiptDetailsOnDemand({
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+    <div className="rounded-xl border border-white/[0.08] bg-[#161b22] overflow-hidden">
       <div className="px-4 py-3">
         {detailStatus === "not_requested" && (
           <button
             onClick={generate}
-            className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-white/60 bg-white/[0.05] hover:bg-white/[0.09] rounded-lg border border-white/[0.10] transition-colors"
           >
             Show Fee Estimates &amp; Listing Details
           </button>
         )}
         {detailStatus === "running" && (
-          <div className="flex items-center justify-center gap-2 py-3 text-sm text-gray-500">
+          <div className="flex items-center justify-center gap-2 py-3 text-sm text-white/40">
             <Loader2 className="w-4 h-4 animate-spin" />
             Generating details...
           </div>
@@ -179,7 +179,7 @@ function ReceiptDetailsOnDemand({
         {detailStatus === "failed" && (
           <button
             onClick={generate}
-            className="w-full flex items-center justify-center gap-2 py-2.5 text-sm text-red-600 hover:text-red-800 bg-red-50 rounded-lg border border-red-200 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2.5 text-sm text-red-400 hover:text-red-300 bg-red-500/10 rounded-lg border border-red-500/20 transition-colors"
           >
             Retry — details generation failed
           </button>
