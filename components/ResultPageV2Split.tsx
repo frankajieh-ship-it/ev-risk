@@ -52,7 +52,7 @@ export function ResultPageV2Split({
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   // Resolve the report ID (from props or persisted)
-  const effectiveReportId = reportId || (contract as Record<string, unknown>)._persisted_report_id as string || null;
+  const effectiveReportId = reportId || (contract as unknown as Record<string, string>)._persisted_report_id || null;
 
   const handleDownloadPdf = async () => {
     // If payments enabled but not unlocked, redirect to checkout
