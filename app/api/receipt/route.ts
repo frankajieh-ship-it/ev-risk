@@ -466,16 +466,21 @@ export async function POST(request: NextRequest) {
     // Enqueue Netlify Background Function (15 min timeout)
     const bgUrl = `${baseUrl}/.netlify/functions/upgrade-receipt-background`;
     console.log("[Receipt] Enqueuing BG upgrade →", bgUrl, "receipt_id:", liteReceipt.receipt_id);
-    fetch(bgUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-upgrade-secret": upgradeSecret,
-      },
-      body: JSON.stringify(upgradePayload),
-    })
-      .then((r) => console.log("[Receipt] BG upgrade enqueued, HTTP status:", r.status))
-      .catch((err) => console.error("[Receipt] BG upgrade enqueue failed:", err instanceof Error ? err.message : err));
+    try {
+      const bgRes = await fetch(bgUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-upgrade-secret": upgradeSecret,
+        },
+        body: JSON.stringify(upgradePayload),
+        signal: AbortSignal.timeout(5000),
+      });
+      console.log("[Receipt] BG upgrade enqueued, HTTP status:", bgRes.status);
+    } catch (err) {
+      console.error("[Receipt] BG upgrade enqueue failed:", err instanceof Error ? err.message : err);
+      // Non-fatal: lite receipt already saved — upgrade just won't run
+    }
   } else {
     // Dev: run upgrade inline after response flushes
     after(async () => {
