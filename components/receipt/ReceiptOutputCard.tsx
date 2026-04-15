@@ -14,11 +14,9 @@ import {
   CheckCircle,
   AlertTriangle,
   Shield,
-  Search,
   DollarSign,
   AlertCircle,
   HelpCircle,
-  FileSearch,
   Lock,
   Info,
   Store,
@@ -31,7 +29,6 @@ import {
 import type { ListingReceipt, LintError } from "@/types/receipt";
 import type { Region } from "@/lib/region";
 import { formatPrice } from "@/lib/region";
-import { humanizeFlag } from "@/lib/receipt-rules";
 import VehicleFactsBar from "@/components/receipt/VehicleFactsBar";
 import { Badge } from "@/components/ui";
 
@@ -457,103 +454,6 @@ export default function ReceiptOutputCard({
         </div>
       )}
 
-      {/* Prominent Copy Checklist — above the fold, always free */}
-      <div className="px-5 pt-4">
-        <button
-          onClick={() =>
-            copySection(
-              receipt.must_answer_questions
-                .map((q, i) => `${i + 1}. ${q}`)
-                .join("\n"),
-              "must-ask"
-            )
-          }
-          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-sm transition-all ${
-            copiedSection === "must-ask"
-              ? "bg-[#00d97e]/[0.12] text-[#00d97e] border border-[#00d97e]/30"
-              : "border-2 border-[#00d97e]/30 text-[#00d97e] hover:border-[#00d97e]/60 hover:bg-[#00d97e]/[0.08]"
-          }`}
-        >
-          {copiedSection === "must-ask" ? (
-            <>
-              <CheckCircle className="w-4 h-4" />
-              Checklist copied!
-            </>
-          ) : (
-            <>
-              <Copy className="w-4 h-4" />
-              Copy Pre-Visit Checklist ({receipt.must_answer_questions.length} questions)
-            </>
-          )}
-        </button>
-      </div>
-
-      {/* Lint Fallback: Quick Checklist */}
-      {!lintPassed && (
-        <div className="mx-5 mt-3 bg-blue-500/[0.08] border border-blue-500/20 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-semibold text-white">
-              Quick Checklist
-            </h3>
-            <span className="text-xs text-white/50">(Reddit copy pending lint fix)</span>
-          </div>
-
-          {/* Risk flags (up to 3) */}
-          <div className="mb-3">
-            <p className="text-xs font-medium text-white/40 uppercase tracking-wider mb-1">Flags</p>
-            <ul className="space-y-1">
-              {receipt.risk_flags.slice(0, 3).map((flag, i) => (
-                <li key={i} className="text-sm text-white/70 flex items-start gap-2">
-                  <span className="text-red-400 mt-0.5">!</span>
-                  <span>{humanizeFlag(flag)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* First must-ask question */}
-          {receipt.must_answer_questions.length > 0 && (
-            <div className="mb-3">
-              <p className="text-xs font-medium text-white/40 uppercase tracking-wider mb-1">Ask the seller</p>
-              <p className="text-sm text-white/70">
-                <span className="text-[#00d97e] font-bold">1.</span>{" "}
-                {receipt.must_answer_questions[0]}
-              </p>
-            </div>
-          )}
-
-          {/* Copy Quick Checklist — works even when lint fails */}
-          <button
-            onClick={() => {
-              const lines: string[] = [];
-              lines.push(`Verdict: ${receipt.verdict}`);
-              receipt.risk_flags.slice(0, 3).forEach((f) => lines.push(`! ${humanizeFlag(f)}`));
-              if (receipt.must_answer_questions[0]) {
-                lines.push(`Ask: ${receipt.must_answer_questions[0]}`);
-              }
-              copySection(lines.join("\n"), "quick_checklist");
-            }}
-            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition-all ${
-              copiedSection === "quick_checklist"
-                ? "bg-[#00d97e]/[0.12] text-[#00d97e] border border-[#00d97e]/30"
-                : "border-2 border-[#00d97e]/30 text-[#00d97e] hover:bg-[#00d97e]/[0.08]"
-            }`}
-          >
-            {copiedSection === "quick_checklist" ? (
-              <>
-                <CheckCircle className="w-4 h-4" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Copy className="w-4 h-4" />
-                Copy Quick Checklist
-              </>
-            )}
-          </button>
-        </div>
-      )}
 
       {/* What would change the verdict */}
       {receipt.operator_notes?.what_would_change_verdict &&
@@ -635,162 +535,6 @@ export default function ReceiptOutputCard({
             </div>
           );
         })()}
-
-        {/* Deal Watch (formerly Risk Flags) — first 1 free, rest locked */}
-        {receipt.risk_flags.length > 0 && (() => {
-          const isGreen = receipt.verdict === "GREEN";
-          const showAll = isGreen || isUnlocked || !paymentsEnabled;
-          const visibleFlags = showAll ? receipt.risk_flags : receipt.risk_flags.slice(0, 1);
-          const lockedCount = showAll ? 0 : receipt.risk_flags.length - 1;
-
-          return (
-            <Section
-              icon={isGreen
-                ? <Search className="w-4 h-4 text-amber-500" />
-                : <AlertTriangle className="w-4 h-4 text-red-500" />}
-              title="Deal Watch"
-            >
-              {!isGreen && (
-                <p className="text-xs text-white/50 mb-2">
-                  Pricing can be fair but other factors can still affect your overall verdict — watch these:
-                </p>
-              )}
-              <ul className="space-y-2">
-                {visibleFlags.map((flag, i) => (
-                  <li key={i} className="text-sm text-white/70 flex items-start gap-2">
-                    {isGreen
-                      ? <span className="text-amber-400 font-bold mt-0.5">{i + 1}.</span>
-                      : <span className="text-red-400 mt-0.5">!</span>}
-                    <span>{humanizeFlag(flag)}</span>
-                  </li>
-                ))}
-                {lockedCount > 0 && (
-                  <>
-                    {receipt.risk_flags.slice(1).map((flag, i) => {
-                      const preview = humanizeFlag(flag);
-                      const truncated = preview.length > 40 ? preview.slice(0, 40) + "…" : preview;
-                      return (
-                        <li key={`locked-flag-${i}`} className="text-sm flex items-start gap-2 select-none">
-                          <span className="text-red-300 mt-0.5">!</span>
-                          <span className="text-gray-400 blur-[3px]">{truncated}</span>
-                        </li>
-                      );
-                    })}
-                    <li>
-                      <button
-                        onClick={onPaywallClick}
-                        className="flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 transition-colors mt-1"
-                      >
-                        <Lock className="w-3.5 h-3.5" />
-                        See all {receipt.risk_flags.length} deal watch items
-                      </button>
-                    </li>
-                  </>
-                )}
-              </ul>
-            </Section>
-          );
-        })()}
-
-        {/* Must Answer Questions */}
-        {(() => {
-          const questions = receipt.must_answer_questions;
-          const showAll = sellerPackUnlocked !== false || questions.length <= 2;
-          const visibleQuestions = showAll ? questions : questions.slice(0, 2);
-          const lockedCount = showAll ? 0 : questions.length - 2;
-
-          return (
-            <Section
-              icon={<HelpCircle className="w-4 h-4 text-blue-500" />}
-              title="Must-Ask Questions"
-              onCopy={showAll ? () =>
-                copySection(
-                  questions.map((q, i) => `${i + 1}. ${q}`).join("\n"),
-                  "must-ask"
-                ) : undefined
-              }
-              copied={copiedSection === "must-ask"}
-            >
-              <ul className="space-y-2">
-                {visibleQuestions.map((q, i) => (
-                  <li key={i} className="text-sm text-white/70 flex items-start gap-2">
-                    <span className="text-[#00d97e] font-bold mt-0.5">{i + 1}.</span>
-                    <span>{q}</span>
-                  </li>
-                ))}
-                {lockedCount > 0 && (
-                  <>
-                    {questions.slice(2).map((q, i) => {
-                      const preview = q.length > 50 ? q.slice(0, 50) + "…" : q;
-                      return (
-                        <li key={`locked-${i}`} className="text-sm flex items-start gap-2 select-none">
-                          <span className="text-gray-300 font-bold mt-0.5">{i + 3}.</span>
-                          <span className="text-gray-400 blur-[3px]">{preview}</span>
-                        </li>
-                      );
-                    })}
-                    <li>
-                      <button
-                        onClick={onSellerPackUpgrade}
-                        className="flex items-center gap-1.5 text-xs font-medium text-green-600 hover:text-green-700 transition-colors mt-1"
-                      >
-                        <Lock className="w-3.5 h-3.5" />
-                        See all {questions.length} questions
-                      </button>
-                    </li>
-                  </>
-                )}
-              </ul>
-            </Section>
-          );
-        })()}
-
-        {/* Verify Before Visit — first 2 free, rest locked */}
-        {(() => {
-          const vbvItems = receipt.verify_before_visit || [];
-          if (vbvItems.length === 0) return null;
-          const showAllVbv = sellerPackUnlocked !== false || vbvItems.length <= 2;
-          const visibleVbv = showAllVbv ? vbvItems : vbvItems.slice(0, 2);
-          const lockedVbvCount = showAllVbv ? 0 : vbvItems.length - 2;
-          return (
-            <Section
-              icon={<FileSearch className="w-4 h-4 text-purple-500" />}
-              title="Verify Before Visit"
-            >
-              <ul className="space-y-2">
-                {visibleVbv.map((item: string, i: number) => (
-                  <li key={i} className="text-sm text-white/70 flex items-start gap-2">
-                    <span className="text-purple-400 font-bold mt-0.5">{i + 1}.</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-                {lockedVbvCount > 0 && (
-                  <>
-                    {vbvItems.slice(2).map((item: string, i: number) => {
-                      const preview = item.length > 50 ? item.slice(0, 50) + "…" : item;
-                      return (
-                        <li key={`locked-vbv-${i}`} className="text-sm flex items-start gap-2 select-none">
-                          <span className="text-gray-300 font-bold mt-0.5">{i + 3}.</span>
-                          <span className="text-gray-400 blur-[3px]">{preview}</span>
-                        </li>
-                      );
-                    })}
-                    <li>
-                      <button
-                        onClick={onSellerPackUpgrade}
-                        className="flex items-center gap-1.5 text-xs font-medium text-purple-600 hover:text-purple-700 transition-colors mt-1"
-                      >
-                        <Lock className="w-3.5 h-3.5" />
-                        See all {vbvItems.length} items
-                      </button>
-                    </li>
-                  </>
-                )}
-              </ul>
-            </Section>
-          );
-        })()}
-
 
         {/* Lint errors — itemized list + auto-fix */}
         {!lintPassed && lintErrors.length > 0 && (

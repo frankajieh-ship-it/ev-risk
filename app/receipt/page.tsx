@@ -1253,6 +1253,21 @@ export default function ReceiptPage() {
                 photos={listingPhotos}
               />
 
+              {/* Deep dive — moved to top as primary result section */}
+              {deepDive && (
+                <DeepDiveSection
+                  deepDive={deepDive}
+                  receiptId={receipt.receipt_id}
+                  region={region}
+                />
+              )}
+              {isLoadingDeepDive && !deepDive && (
+                <div className="flex items-center justify-center gap-2 py-8 text-sm text-white/40">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#00d97e]" />
+                  Generating your deep dive analysis...
+                </div>
+              )}
+
               {/* ── Routine context banner — shown when routine was provided ── */}
               {routineContextUsed && routineFitLabel && (
                 <RoutineContextBanner
@@ -1386,22 +1401,6 @@ export default function ReceiptPage() {
                 model={receipt.listing_summary?.model}
               />
 
-              {/* Deep dive content — free for all users */}
-              {deepDive && (
-                <DeepDiveSection
-                  deepDive={deepDive}
-                  receiptId={receipt.receipt_id}
-                  region={region}
-                />
-              )}
-
-              {/* Deep dive loading spinner */}
-              {isLoadingDeepDive && !deepDive && (
-                <div className="flex items-center justify-center gap-2 py-8 text-sm text-white/40">
-                  <Loader2 className="w-4 h-4 animate-spin text-[#00d97e]" />
-                  Generating your deep dive analysis...
-                </div>
-              )}
 
               {/* Compare view (when bound and visible) */}
               {showCompareView && compareReceipt && receipt && (
