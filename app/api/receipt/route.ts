@@ -455,22 +455,37 @@ export async function POST(request: NextRequest) {
     t0,
   };
 
-  // Schedule the AI upgrade to run after the response is sent.
-  // `after()` (Next.js 15+) guarantees the work runs even after the response flushes —
-  // this is the correct pattern for Netlify serverless where fire-and-forget after
-  // a return statement gets killed by the runtime before completing.
-  after(async () => {
-    try {
-      await runReceiptUpgrade(upgradePayload);
-    } catch (err) {
-      console.error("[Receipt] Upgrade failed:", err instanceof Error ? err.message : err);
-      if (isSupabaseConfigured()) {
-        await supabase.from("receipts")
-          .update({ generation_status: "failed" })
-          .eq("id", liteReceipt.receipt_id);
+  // Enqueue AI upgrade via Netlify Background Function in production,
+  // or inline via upgrade-dev route in local dev.
+  const upgradeSecret = process.env.UPGRADE_SECRET;
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+  if (process.env.NODE_ENV === "production" && upgradeSecret) {
+    // Fire-and-forget to Netlify Background Function (15 min timeout)
+    fetch(`${baseUrl}/.netlify/functions/upgrade-receipt-background`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-upgrade-secret": upgradeSecret,
+      },
+      body: JSON.stringify(upgradePayload),
+    }).catch((err) => {
+      console.error("[Receipt] Failed to enqueue background upgrade:", err instanceof Error ? err.message : err);
+    });
+  } else {
+    // Dev: call inline upgrade route (runs synchronously in background via after())
+    after(async () => {
+      try {
+        await runReceiptUpgrade(upgradePayload);
+      } catch (err) {
+        console.error("[Receipt] Upgrade failed:", err instanceof Error ? err.message : err);
+        if (isSupabaseConfigured()) {
+          await supabase.from("receipts")
+            .update({ generation_status: "failed" })
+            .eq("id", liteReceipt.receipt_id);
+        }
       }
-    }
-  });
+    });
+  }
 
   if (trace) {
     finalizeTrace(trace, {

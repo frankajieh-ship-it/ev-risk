@@ -1288,15 +1288,6 @@ export default function ReceiptPage() {
                 </div>
               )}
 
-              {/* ── Routine context banner — shown when routine was provided ── */}
-              {routineContextUsed && routineFitLabel && (
-                <RoutineContextBanner
-                  label={routineFitLabel}
-                  score={routineFitScore ?? 0}
-                  summary={routineFitSummary ?? ""}
-                />
-              )}
-
               {/* ── Compare CTA — shown after result, surfaces compare flow ── */}
               {!compareBoundTo && (
                 <CompareFromReportCTA

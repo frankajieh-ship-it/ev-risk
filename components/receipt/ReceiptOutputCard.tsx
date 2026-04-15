@@ -197,21 +197,21 @@ export default function ReceiptOutputCard({
 
       {/* Full analysis in progress — prominent banner with animated bar */}
       {isUpgrading && (
-        <div className="bg-gray-900 border-b border-gray-800 px-5 py-3.5">
+        <div className="bg-[#161b22] border-b border-white/[0.08] px-5 py-3.5">
           <div className="flex items-center gap-3 mb-2">
             <div className="flex gap-1">
-              <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-              <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-              <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+              <span className="w-2 h-2 rounded-full bg-[#00d97e] animate-bounce" style={{ animationDelay: "0ms" }} />
+              <span className="w-2 h-2 rounded-full bg-[#00d97e] animate-bounce" style={{ animationDelay: "150ms" }} />
+              <span className="w-2 h-2 rounded-full bg-[#00d97e] animate-bounce" style={{ animationDelay: "300ms" }} />
             </div>
             <p className="text-sm font-semibold text-white">
               Full analysis running — verdict loading
             </p>
           </div>
-          <div className="h-1 w-full bg-gray-700 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-500 rounded-full animate-pulse w-2/3" />
+          <div className="h-1 w-full bg-white/[0.08] rounded-full overflow-hidden">
+            <div className="h-full bg-[#00d97e] rounded-full animate-pulse w-2/3" />
           </div>
-          <p className="text-xs text-gray-400 mt-1.5">
+          <p className="text-xs text-white/40 mt-1.5">
             Initial signals shown below. Full verdict replaces this in ~15–30 seconds.
           </p>
         </div>
