@@ -336,32 +336,6 @@ export default function ReceiptOutputCard({
         {region === "UK" && (
           <p className="text-xs text-white/40 mt-1.5">UK Mode (beta) — prices in pounds, UK wording</p>
         )}
-        {typeof receipt.fit_score === "number" && typeof receipt.evidence_score === "number" && (
-          <div className="flex gap-4 mt-3">
-            <div className="flex-1">
-              <div className="flex justify-between text-xs text-white/50 mb-0.5">
-                <span>Fit</span>
-                <span>{receipt.fit_score}/100</span>
-              </div>
-              <div className="h-1.5 bg-white/50 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full ${
-                  receipt.fit_score >= 75 ? "bg-green-500" : receipt.fit_score >= 45 ? "bg-yellow-500" : "bg-red-500"
-                }`} style={{ width: `${receipt.fit_score}%` }} />
-              </div>
-            </div>
-            <div className="flex-1">
-              <div className="flex justify-between text-xs text-white/50 mb-0.5">
-                <span>Evidence</span>
-                <span>{receipt.evidence_score}/100</span>
-              </div>
-              <div className="h-1.5 bg-white/50 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full ${
-                  receipt.evidence_score >= 75 ? "bg-blue-500" : receipt.evidence_score >= 45 ? "bg-gray-400" : "bg-orange-500"
-                }`} style={{ width: `${receipt.evidence_score}%` }} />
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Vehicle Facts Bar — title status, accidents, live NHTSA recalls, battery estimate */}

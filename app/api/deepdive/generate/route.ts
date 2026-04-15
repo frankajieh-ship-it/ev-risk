@@ -99,7 +99,13 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (scenarioError || !scenario) {
+    console.error("[DeepDive] Scenario not found:", { scenarioType, scenarioId, error: scenarioError?.message });
     return NextResponse.json({ error: "Scenario not found" }, { status: 404 });
+  }
+
+  if (scenarioType === "receipt" && !scenario.output_json) {
+    console.error("[DeepDive] Receipt output_json is null — still generating?", { scenarioId, generation_status: scenario.generation_status });
+    return NextResponse.json({ error: "Receipt output not ready — try again in a moment" }, { status: 202 });
   }
 
   // 4. Build a ListingReceipt-like object for the deep dive prompt

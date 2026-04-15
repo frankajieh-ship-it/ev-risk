@@ -457,7 +457,12 @@ export default function ReceiptPage() {
   // Auto-load deep dive for all users (free — no payment gate)
   useEffect(() => {
     if (!receipt?.receipt_id || !receiptToken) return;
-    if (deepDive || isLoadingDeepDive) return;
+    // Wait until upgrade completes — output_json not yet populated during upgrade
+    if (isUpgrading) {
+      setIsLoadingDeepDive(false);
+      return;
+    }
+    if (deepDive) return;
 
     let cancelled = false;
     setIsLoadingDeepDive(true);
@@ -474,18 +479,33 @@ export default function ReceiptPage() {
           }),
         });
         const data = await res.json();
-        if (!cancelled && data.success && data.deep_dive) {
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[DeepDive] API response:", res.status, data.success, data.error || "");
+        }
+        if (cancelled) return;
+        if (res.status === 202) {
+          // Receipt output_json not yet populated — retry after delay
+          await new Promise((r) => setTimeout(r, 5000));
+          if (!cancelled) setIsLoadingDeepDive(false); // reset so effect can retry
+          return;
+        }
+        if (data.success && data.deep_dive) {
           setDeepDive(data.deep_dive);
         }
-      } catch {
-        // Silently fail — deep dive section just won't render
-      } finally {
+        setIsLoadingDeepDive(false);
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[DeepDive] Fetch error:", err);
+        }
         if (!cancelled) setIsLoadingDeepDive(false);
       }
     })();
 
-    return () => { cancelled = true; };
-  }, [isUnlocked, receipt?.receipt_id, receiptToken]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true;
+      setIsLoadingDeepDive(false);
+    };
+  }, [isUnlocked, receipt?.receipt_id, receiptToken, isUpgrading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Multi-step loading progress during generation
   useEffect(() => {

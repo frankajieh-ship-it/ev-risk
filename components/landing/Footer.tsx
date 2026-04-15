@@ -26,13 +26,13 @@ function NewsletterSignup() {
   };
 
   return (
-    <div className="border-b border-gray-800 pb-8 mb-8">
+    <div className="border-b border-white/[0.08] pb-8 mb-8">
       <div className="max-w-xl">
         <div className="flex items-center gap-2 mb-2">
-          <Mail className="w-4 h-4 text-blue-400" />
-          <h4 className="text-sm font-semibold text-gray-200">Weekly EV insights</h4>
+          <Mail className="w-4 h-4 text-[#00d97e]" />
+          <h4 className="text-sm font-semibold text-white">Weekly EV insights</h4>
         </div>
-        <p className="text-sm text-gray-400 mb-4">
+        <p className="text-sm text-white/50 mb-4">
           Get the best used EV deals, market trends, and buyer tips — free, every week.
         </p>
         {status === "done" ? (
@@ -45,12 +45,12 @@ function NewsletterSignup() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="your@email.com"
               required
-              className="flex-1 min-w-0 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              className="flex-1 min-w-0 px-3 py-2 bg-[#161b22] border border-white/[0.10] rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#00d97e]"
             />
             <button
               type="submit"
               disabled={status === "loading"}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+              className="px-4 py-2 bg-[#00d97e] hover:bg-[#00c970] text-[#0d1117] text-sm font-semibold rounded-lg disabled:opacity-50 transition-colors whitespace-nowrap"
             >
               {status === "loading" ? "..." : "Subscribe"}
             </button>
