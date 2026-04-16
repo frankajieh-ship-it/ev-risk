@@ -23,6 +23,7 @@ import type { FetchedListingFields } from "@/types/receipt";
 import type { FieldConfidence } from "@/types/receipt";
 import { logApi, startTimer } from "@/lib/api-logger";
 import { hashIP } from "@/lib/session-utils";
+import { isInternalTester } from "@/lib/rollout-flags";
 
 /** Extract EV-specific specs from raw listing page text using regex */
 function parseEvSpecsFromText(text: string): Pick<FetchedListingFields, 'range_mi' | 'battery_kwh' | 'dc_fast_kw' | 'efficiency_mi_per_kwh'> {
@@ -177,7 +178,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Log event
-      if (isSupabaseConfigured() && sessionId) {
+      if (isSupabaseConfigured() && sessionId && !isInternalTester(sessionId)) {
         try {
           await supabase.from("receipt_events").insert({
             session_id: sessionId,
@@ -190,7 +191,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Log extraction attempt
-      if (isSupabaseConfigured()) {
+      if (isSupabaseConfigured() && !isInternalTester(sessionId ?? "")) {
         try {
           await supabase.from("extraction_attempts").insert({
             session_id: sessionId,
@@ -219,7 +220,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       logApi("error", "Text extraction failed", { endpoint: "/api/receipt/fetch", error_code: "text_extract_fail", elapsed_ms: elapsed() });
 
-      if (isSupabaseConfigured() && sessionId) {
+      if (isSupabaseConfigured() && sessionId && !isInternalTester(sessionId)) {
         try {
           await supabase.from("receipt_events").insert({
             session_id: sessionId,
@@ -232,7 +233,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Log failed extraction attempt
-      if (isSupabaseConfigured()) {
+      if (isSupabaseConfigured() && !isInternalTester(sessionId ?? "")) {
         try {
           await supabase.from("extraction_attempts").insert({
             session_id: sessionId,
@@ -296,7 +297,7 @@ export async function POST(request: NextRequest) {
 
     if (!result.success || !result.data) {
       // Log fetch_fail event
-      if (isSupabaseConfigured() && sessionId) {
+      if (isSupabaseConfigured() && sessionId && !isInternalTester(sessionId)) {
         try {
           await supabase.from("receipt_events").insert({
             session_id: sessionId,
@@ -309,7 +310,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Log extraction attempt (failure)
-      if (isSupabaseConfigured()) {
+      if (isSupabaseConfigured() && !isInternalTester(sessionId ?? "")) {
         try {
           await supabase.from("extraction_attempts").insert({
             session_id: sessionId,
@@ -419,7 +420,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Log fetch_success event
-    if (isSupabaseConfigured() && sessionId) {
+    if (isSupabaseConfigured() && sessionId && !isInternalTester(sessionId)) {
       try {
         await supabase.from("receipt_events").insert({
           session_id: sessionId,
@@ -432,7 +433,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Log extraction attempt (success)
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured() && !isInternalTester(sessionId ?? "")) {
       try {
         await supabase.from("extraction_attempts").insert({
           session_id: sessionId,
@@ -479,7 +480,7 @@ export async function POST(request: NextRequest) {
     logApi("error", "URL fetch failed", { endpoint: "/api/receipt/fetch", error_code: "url_fetch_fail", elapsed_ms: elapsed() });
 
     // Log extraction attempt (unhandled error)
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured() && !isInternalTester(sessionId ?? "")) {
       try {
         await supabase.from("extraction_attempts").insert({
           session_id: sessionId,

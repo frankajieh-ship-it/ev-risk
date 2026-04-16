@@ -14,9 +14,10 @@ import { analyticsRateLimiter } from "@/lib/rate-limiter";
 import { logApi } from "@/lib/api-logger";
 import { getEventTags } from "@/lib/event-tags";
 import { enrichGeo } from "@/lib/geo-enrichment";
+import { isInternalTester } from "@/lib/rollout-flags";
 
 // Internal team identifiers — events from these are flagged is_internal=true
-const INTERNAL_VISITOR_IDS = new Set(["fp-uwi6gg", "fp-24bewu", "fp-airyss"]);
+const INTERNAL_VISITOR_IDS = new Set(["fp-uwi6gg", "fp-24bewu", "fp-airyss", "fp-kuhpy6"]);
 const INTERNAL_USER_IDS = new Set([
   "a9e65037-00b3-443b-afba-5631e42b0505",
   "71ccca48-add0-4a47-b7b4-14985c923a78",
@@ -274,6 +275,7 @@ const DEDUPE_BY_REPORT_ID_EVENTS = [
 // IP_RELEVANT_EVENTS and ENTERPRISE_READY_EVENTS are in lib/event-tags.ts
 
 // Validate event payload
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function validateEventPayload(eventName: string, eventData: any, sessionId: string | null): { valid: boolean; error?: string } {
   // Check event name
   if (!eventName) {
@@ -281,7 +283,7 @@ function validateEventPayload(eventName: string, eventData: any, sessionId: stri
   }
 
   // Allow any event name for flexibility, but log warning for unknown events
-  if (!VALID_EVENT_NAMES.includes(eventName as any)) {
+  if (!VALID_EVENT_NAMES.includes(eventName as string)) {
     console.warn(`[EventTracking] Unknown event name: ${eventName}`);
   }
 
@@ -338,6 +340,11 @@ export async function POST(req: NextRequest) {
         { success: false, error: validation.error },
         { status: 400 }
       );
+    }
+
+    // Skip tracking entirely for internal testers — don't pollute analytics
+    if (isInternalTester(visitorId ?? "") || isInternalTester(sessionId ?? "")) {
+      return NextResponse.json({ success: true, message: "Event tracked successfully" });
     }
 
     // Get visitor metadata
@@ -443,10 +450,10 @@ export async function POST(req: NextRequest) {
       success: true,
       message: "Event tracked successfully",
     });
-  } catch (error: any) {
+  } catch (error) {
     logApi("error", "Event tracking error", { endpoint: "/api/track-event", error_code: "unhandled" });
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }
@@ -638,10 +645,10 @@ export async function GET(req: NextRequest) {
         extractedDataSummary,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     logApi("error", "Event stats query failed", { endpoint: "/api/track-event", error_code: "stats_query" });
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

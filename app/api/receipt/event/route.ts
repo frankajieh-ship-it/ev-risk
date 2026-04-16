@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { isInternalTester } from "@/lib/rollout-flags";
 
 const VALID_EVENT_TYPES = [
   "copy",
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Insert into receipt_events
-  if (isSupabaseConfigured()) {
+  if (isSupabaseConfigured() && !isInternalTester(receiptToken as string)) {
     try {
       const { error } = await supabase.from("receipt_events").insert({
         receipt_id: receiptId,

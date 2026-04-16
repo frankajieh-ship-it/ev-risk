@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { generateDeepDive } from "@/lib/receipt-openai";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
+import { isInternalTester } from "@/lib/rollout-flags";
 import type { ListingReceipt } from "@/types/receipt";
 
 const VALID_SCENARIO_TYPES = ["receipt", "evroutine"];
@@ -178,7 +179,10 @@ export async function POST(request: NextRequest) {
   try {
     const deepDive = await generateDeepDive(baseReceipt, packTier);
 
-    // 6. Cache in deep_dives table (upsert)
+    // 6. Cache in deep_dives table (upsert) — skip for internal testers
+    if (isInternalTester(anonId)) {
+      return NextResponse.json({ success: true, deep_dive: deepDive, pack_tier: packTier, cached: false });
+    }
     await supabase
       .from("deep_dives")
       .upsert(

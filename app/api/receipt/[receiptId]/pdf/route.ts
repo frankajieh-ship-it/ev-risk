@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { getClientIP, RateLimiter } from "@/lib/rate-limiter";
+import { isInternalTester } from "@/lib/rollout-flags";
 import type { ReceiptPdfData } from "@/lib/pdf/shared-types";
 
 export const maxDuration = 30;
@@ -121,9 +122,9 @@ export async function GET(
     .toLowerCase()
     .replace(/\s+/g, "-");
 
-  // Track PDF download (fire-and-forget)
-  try {
-    const anonId = request.nextUrl.searchParams.get("anon_id") ?? null;
+  // Track PDF download (fire-and-forget, skip for internal testers)
+  const anonId = request.nextUrl.searchParams.get("anon_id") ?? null;
+  if (!isInternalTester(anonId ?? "")) try {
     await supabase.from("user_events").insert({
       event_name: "receipt_pdf_downloaded",
       event_data: { receipt_id: receiptId },
