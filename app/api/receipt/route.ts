@@ -293,7 +293,7 @@ export async function POST(request: NextRequest) {
 
   // Save lite receipt to DB
   let liteDbSaved = false;
-  if (isSupabaseConfigured()) {
+  if (!tokenIsInternal && isSupabaseConfigured()) {
     const urlDomain = input.listing_url
       ? (() => { try { return new URL(input.listing_url!).hostname.replace("www.", ""); } catch { return null; } })()
       : null;
@@ -371,8 +371,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  incrementDailyCount(receiptToken as string);
-  decrementReceiptCredit(receiptToken as string).catch(() => {});
+  if (!tokenIsInternal) {
+    incrementDailyCount(receiptToken as string);
+    decrementReceiptCredit(receiptToken as string).catch(() => {});
+  }
 
   timings.total = Date.now() - t0;
   console.log(`[Receipt API] Returning Receipt Lite in ${timings.total}ms (signals=${ruleSignals.length} verdict=${ruleScoring.verdict} fit=${ruleScoring.fit_score})`);
@@ -456,9 +458,9 @@ export async function POST(request: NextRequest) {
   };
 
   // Enqueue AI upgrade via Netlify Background Function in production,
-  // or inline via after() in local dev.
+  // or inline via after() in local dev. Skip for internal testers (no DB row saved).
   const upgradeSecret = process.env.UPGRADE_SECRET;
-  if (process.env.NODE_ENV === "production" && upgradeSecret) {
+  if (!tokenIsInternal && process.env.NODE_ENV === "production" && upgradeSecret) {
     // Derive base URL from the incoming request — avoids env-var misconfiguration
     const proto = request.headers.get("x-forwarded-proto") || "https";
     const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "localhost";
@@ -481,7 +483,7 @@ export async function POST(request: NextRequest) {
       console.error("[Receipt] BG upgrade enqueue failed:", err instanceof Error ? err.message : err);
       // Non-fatal: lite receipt already saved — upgrade just won't run
     }
-  } else {
+  } else if (!tokenIsInternal) {
     // Dev: run upgrade inline after response flushes
     after(async () => {
       try {
