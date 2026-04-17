@@ -10,18 +10,19 @@ import type { Config } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
 
 // ---------------------------------------------------------------------------
-// CarGurus search pages — one per popular EV model (used/new mixed)
+// Cars.com search pages — server-rendered HTML, no JS required, works without
+// ScrapingBee. One search per popular EV model, sorted by best match.
 // ---------------------------------------------------------------------------
 const SEARCH_PAGES = [
-  "https://www.cargurus.com/Cars/new/nl_Tesla-Model-3_d2388",
-  "https://www.cargurus.com/Cars/new/nl_Tesla-Model-Y_d2403",
-  "https://www.cargurus.com/Cars/new/nl_Chevrolet-Bolt-EV_d2360",
-  "https://www.cargurus.com/Cars/new/nl_Hyundai-IONIQ-5_d2441",
-  "https://www.cargurus.com/Cars/new/nl_Hyundai-IONIQ-6_d2479",
-  "https://www.cargurus.com/Cars/new/nl_Volkswagen-ID.4_d2432",
-  "https://www.cargurus.com/Cars/new/nl_Ford-Mustang-Mach-E_d2419",
-  "https://www.cargurus.com/Cars/new/nl_Kia-EV6_d2452",
-  "https://www.cargurus.com/Cars/new/nl_Nissan-LEAF_d1921",
+  "https://www.cars.com/shopping/results/?makes[]=tesla&models[]=tesla-model_3&stock_type=used&sort=best_match_desc",
+  "https://www.cars.com/shopping/results/?makes[]=tesla&models[]=tesla-model_y&stock_type=used&sort=best_match_desc",
+  "https://www.cars.com/shopping/results/?makes[]=chevrolet&models[]=chevrolet-bolt_ev&stock_type=used&sort=best_match_desc",
+  "https://www.cars.com/shopping/results/?makes[]=hyundai&models[]=hyundai-ioniq_5&stock_type=used&sort=best_match_desc",
+  "https://www.cars.com/shopping/results/?makes[]=hyundai&models[]=hyundai-ioniq_6&stock_type=used&sort=best_match_desc",
+  "https://www.cars.com/shopping/results/?makes[]=volkswagen&models[]=volkswagen-id_4&stock_type=used&sort=best_match_desc",
+  "https://www.cars.com/shopping/results/?makes[]=ford&models[]=ford-mustang_mach-e&stock_type=used&sort=best_match_desc",
+  "https://www.cars.com/shopping/results/?makes[]=kia&models[]=kia-ev6&stock_type=used&sort=best_match_desc",
+  "https://www.cars.com/shopping/results/?makes[]=nissan&models[]=nissan-leaf&stock_type=used&sort=best_match_desc",
 ];
 
 const MAX_LISTINGS_PER_SEARCH_PAGE = 10;
@@ -69,52 +70,19 @@ async function discoverListingUrls(searchPageUrl: string, siteUrl: string): Prom
 
     const urls = new Set<string>();
 
-    // --- Strategy 1: Parse __NEXT_DATA__ JSON ---
-    const nextDataMatch = html.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
-    if (nextDataMatch) {
-      try {
-        const nextData = JSON.parse(nextDataMatch[1]);
-        // CarGurus search pages store listings in various paths depending on version
-        const candidates = [
-          nextData?.props?.pageProps?.listings,
-          nextData?.props?.pageProps?.searchResults?.listings,
-          nextData?.props?.pageProps?.initialListings,
-          nextData?.props?.pageProps?.data?.listings,
-        ];
-        for (const list of candidates) {
-          if (Array.isArray(list)) {
-            for (const item of list) {
-              const id = item?.listingId || item?.id || item?.listing?.listingId;
-              if (id) {
-                urls.add(`https://www.cargurus.com/Cars/listingDetail.action?listingId=l_${id}`);
-              }
-              // Some versions include a canonical URL directly
-              const canonical = item?.vdpUrl || item?.listing?.vdpUrl || item?.url;
-              if (canonical && canonical.includes("cargurus.com")) {
-                urls.add(canonical.startsWith("http") ? canonical : `https://www.cargurus.com${canonical}`);
-              }
-            }
-            if (urls.size > 0) break;
-          }
-        }
-      } catch {
-        // JSON parse failed — fall through to regex
-      }
+    // Cars.com: individual listings are at /vehicledetail/{id}/
+    // These appear as href="/vehicledetail/12345678abc/" in server-rendered HTML
+    const vehicleDetailMatches = html.matchAll(/href="(\/vehicledetail\/[a-z0-9\-]+\/)"/gi);
+    for (const m of vehicleDetailMatches) {
+      urls.add(`https://www.cars.com${m[1]}`);
+      if (urls.size >= MAX_LISTINGS_PER_SEARCH_PAGE) break;
     }
 
-    // --- Strategy 2: Regex scan HTML for listing href patterns ---
+    // Fallback: full cars.com URLs in case of absolute hrefs
     if (urls.size === 0) {
-      // Pattern: /Cars/listingDetail.action?listingId=l_12345678
-      const detailMatches = html.matchAll(/href="(\/Cars\/listingDetail\.action\?listingId=[^"]+)"/gi);
-      for (const m of detailMatches) {
-        urls.add(`https://www.cargurus.com${m[1]}`);
-        if (urls.size >= MAX_LISTINGS_PER_SEARCH_PAGE) break;
-      }
-
-      // Pattern: /Cars/new/nl_Tesla-Model-3_d2388#listing=12345678
-      const hashMatches = html.matchAll(/href="(\/Cars\/[^"]+#listing=\d+)"/gi);
-      for (const m of hashMatches) {
-        urls.add(`https://www.cargurus.com${m[1]}`);
+      const absMatches = html.matchAll(/href="(https:\/\/www\.cars\.com\/vehicledetail\/[^"]+)"/gi);
+      for (const m of absMatches) {
+        urls.add(m[1]);
         if (urls.size >= MAX_LISTINGS_PER_SEARCH_PAGE) break;
       }
     }
@@ -327,6 +295,9 @@ export default async function handler() {
 }
 
 function buildVehicleLabelFromUrl(url: string): string {
+  // Cars.com vehicledetail URLs don't encode the model name — return generic label
+  // The receipt API will populate the real label from the scraped listing page
+  if (url.includes("cars.com/vehicledetail")) return "Used Electric Vehicle";
   const lower = url.toLowerCase();
   if (lower.includes("tesla-model-3")) return "Tesla Model 3";
   if (lower.includes("tesla-model-y")) return "Tesla Model Y";
