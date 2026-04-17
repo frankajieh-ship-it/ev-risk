@@ -283,7 +283,9 @@ function validateEventPayload(eventName: string, eventData: any, sessionId: stri
   }
 
   // Allow any event name for flexibility, but log warning for unknown events
-  if (!VALID_EVENT_NAMES.includes(eventName as string)) {
+  type EventName = typeof VALID_EVENT_NAMES[number];
+  const isValidEventName = (v: string): v is EventName => VALID_EVENT_NAMES.includes(v as EventName);
+  if (!isValidEventName(eventName)) {
     console.warn(`[EventTracking] Unknown event name: ${eventName}`);
   }
 
