@@ -2,49 +2,35 @@
  * Curated Deals Ingestion
  *
  * Runs 3× daily (07:00, 13:00, 19:00 UTC) via Netlify scheduled functions.
- * Scrapes a seed list of individual EV listing URLs, runs OFFO receipt analysis
- * on each one, and upserts results into the `curated_deals` table.
- *
- * Phase 1: seed list of hardcoded CarGurus + Cars.com individual listing URLs.
- * Future phases: automated search-page scraping to discover new listings.
+ * Auto-discovers individual EV listing URLs from CarGurus search pages,
+ * runs OFFO receipt analysis on each, and upserts results into `curated_deals`.
  */
 
 import type { Config } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
 
 // ---------------------------------------------------------------------------
-// Seed list — individual EV listing URLs to analyze each run.
-// Keep to ~30 URLs; stale/sold listings will naturally score low or 404.
-// Replace URLs periodically as listings sell.
+// CarGurus search pages — one per popular EV model (used/new mixed)
 // ---------------------------------------------------------------------------
-const SEED_URLS: string[] = [
-  // Tesla Model 3
+const SEARCH_PAGES = [
   "https://www.cargurus.com/Cars/new/nl_Tesla-Model-3_d2388",
-  "https://www.cars.com/research/tesla-model_3/",
-  // Tesla Model Y
   "https://www.cargurus.com/Cars/new/nl_Tesla-Model-Y_d2403",
-  // Chevrolet Bolt EV
   "https://www.cargurus.com/Cars/new/nl_Chevrolet-Bolt-EV_d2360",
-  "https://www.cars.com/research/chevrolet-bolt_ev/",
-  // Hyundai Ioniq 5
   "https://www.cargurus.com/Cars/new/nl_Hyundai-IONIQ-5_d2441",
-  // Hyundai Ioniq 6
   "https://www.cargurus.com/Cars/new/nl_Hyundai-IONIQ-6_d2479",
-  // Volkswagen ID.4
   "https://www.cargurus.com/Cars/new/nl_Volkswagen-ID.4_d2432",
-  // Ford Mustang Mach-E
   "https://www.cargurus.com/Cars/new/nl_Ford-Mustang-Mach-E_d2419",
-  // Kia EV6
   "https://www.cargurus.com/Cars/new/nl_Kia-EV6_d2452",
-  // Nissan Leaf
   "https://www.cargurus.com/Cars/new/nl_Nissan-LEAF_d1921",
-  // BMW i4
-  "https://www.cargurus.com/Cars/new/nl_BMW-i4_d2467",
-  // Rivian R1T
-  "https://www.cargurus.com/Cars/new/nl_Rivian-R1T_d2430",
 ];
 
-// Deal quality scoring formula (mirrors plan spec)
+const MAX_LISTINGS_PER_SEARCH_PAGE = 10;
+const MAX_TOTAL_PER_RUN = 40;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function computeDealQualityScore(
   evidenceScore: number | null,
   riskPoints: number | null,
@@ -53,10 +39,99 @@ function computeDealQualityScore(
   const evidence = evidenceScore ?? 50;
   const risk = riskPoints ?? 5;
   const fit = fitScore ?? 50;
-  return Math.round(
-    evidence * 0.35 + (10 - risk) * 5 * 0.4 + fit * 0.25
-  );
+  return Math.round(evidence * 0.35 + (10 - risk) * 5 * 0.4 + fit * 0.25);
 }
+
+/**
+ * Fetch a CarGurus search page via the proxy-fetch endpoint and extract
+ * individual listing URLs from the HTML.
+ */
+async function discoverListingUrls(searchPageUrl: string, siteUrl: string): Promise<string[]> {
+  try {
+    const proxyRes = await fetch(`${siteUrl}/api/proxy-fetch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: searchPageUrl, timeout: 20000 }),
+      signal: AbortSignal.timeout(25000),
+    });
+
+    if (!proxyRes.ok) {
+      console.warn(`[discover] proxy-fetch ${proxyRes.status} for ${searchPageUrl}`);
+      return [];
+    }
+
+    const proxyData = (await proxyRes.json()) as { success?: boolean; html?: string };
+    const html = proxyData?.html;
+    if (!html || html.length < 1000) {
+      console.warn(`[discover] Empty or short HTML for ${searchPageUrl} (${html?.length ?? 0} chars)`);
+      return [];
+    }
+
+    const urls = new Set<string>();
+
+    // --- Strategy 1: Parse __NEXT_DATA__ JSON ---
+    const nextDataMatch = html.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+    if (nextDataMatch) {
+      try {
+        const nextData = JSON.parse(nextDataMatch[1]);
+        // CarGurus search pages store listings in various paths depending on version
+        const candidates = [
+          nextData?.props?.pageProps?.listings,
+          nextData?.props?.pageProps?.searchResults?.listings,
+          nextData?.props?.pageProps?.initialListings,
+          nextData?.props?.pageProps?.data?.listings,
+        ];
+        for (const list of candidates) {
+          if (Array.isArray(list)) {
+            for (const item of list) {
+              const id = item?.listingId || item?.id || item?.listing?.listingId;
+              if (id) {
+                urls.add(`https://www.cargurus.com/Cars/listingDetail.action?listingId=l_${id}`);
+              }
+              // Some versions include a canonical URL directly
+              const canonical = item?.vdpUrl || item?.listing?.vdpUrl || item?.url;
+              if (canonical && canonical.includes("cargurus.com")) {
+                urls.add(canonical.startsWith("http") ? canonical : `https://www.cargurus.com${canonical}`);
+              }
+            }
+            if (urls.size > 0) break;
+          }
+        }
+      } catch {
+        // JSON parse failed — fall through to regex
+      }
+    }
+
+    // --- Strategy 2: Regex scan HTML for listing href patterns ---
+    if (urls.size === 0) {
+      // Pattern: /Cars/listingDetail.action?listingId=l_12345678
+      const detailMatches = html.matchAll(/href="(\/Cars\/listingDetail\.action\?listingId=[^"]+)"/gi);
+      for (const m of detailMatches) {
+        urls.add(`https://www.cargurus.com${m[1]}`);
+        if (urls.size >= MAX_LISTINGS_PER_SEARCH_PAGE) break;
+      }
+
+      // Pattern: /Cars/new/nl_Tesla-Model-3_d2388#listing=12345678
+      const hashMatches = html.matchAll(/href="(\/Cars\/[^"]+#listing=\d+)"/gi);
+      for (const m of hashMatches) {
+        urls.add(`https://www.cargurus.com${m[1]}`);
+        if (urls.size >= MAX_LISTINGS_PER_SEARCH_PAGE) break;
+      }
+    }
+
+    const result = Array.from(urls).slice(0, MAX_LISTINGS_PER_SEARCH_PAGE);
+    console.log(`[discover] Found ${result.length} listing URLs from ${searchPageUrl}`);
+    return result;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[discover] Error fetching ${searchPageUrl}: ${msg}`);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface LiteReceiptResponse {
   success: boolean;
@@ -65,12 +140,23 @@ interface LiteReceiptResponse {
     verdict?: string;
     evidence_score?: number;
     fit_score?: number;
-    // V2 scoring stores risk_points in why_not_green or scoring_reasons
     why_not_green?: Array<{ points?: number }>;
     photo_url?: string;
+    vehicle_label?: string;
+    year?: number;
+    make?: string;
+    model?: string;
+    trim?: string;
+    price?: number;
+    mileage?: number;
+    location?: string;
+    risk_flags?: string[];
   };
-  generation_status?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Main handler
+// ---------------------------------------------------------------------------
 
 export default async function handler() {
   const siteUrl = process.env.URL || process.env.DEPLOY_URL || "https://offolab.com";
@@ -91,186 +177,170 @@ export default async function handler() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // --- Check which URLs were recently analyzed (< 6h) so we skip them ---
   const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
-  const { data: recentRows } = await supabase
-    .from("curated_deals")
-    .select("listing_url, last_analyzed_at")
-    .in("listing_url", SEED_URLS)
-    .gte("last_analyzed_at", sixHoursAgo);
 
-  const recentUrls = new Set((recentRows ?? []).map((r: { listing_url: string }) => r.listing_url));
+  let totalProcessed = 0;
+  let totalFailed = 0;
+  let totalSkipped = 0;
+  let totalDiscovered = 0;
 
-  const urlsToProcess = SEED_URLS.filter((url) => !recentUrls.has(url));
-  console.log(
-    `[ingest-curated-deals] ${urlsToProcess.length} URLs to process (${recentUrls.size} skipped as recently analyzed)`
-  );
-
-  if (urlsToProcess.length === 0) {
-    console.log("[ingest-curated-deals] Nothing to do this run");
-    return;
-  }
-
-  let inserted = 0;
-  let updated = 0;
-  let failed = 0;
-
-  for (const listingUrl of urlsToProcess) {
-    try {
-      // 1. Extract URL domain for display
-      let urlDomain: string | null = null;
-      try {
-        urlDomain = new URL(listingUrl).hostname.replace("www.", "");
-      } catch {
-        // ignore
-      }
-
-      // 2. Call the receipt API (autofill + rule-based analysis)
-      //    Using DEAL_WATCH_TOKEN which is an internal tester — no DB writes, no rate limiting
-      const receiptRes = await fetch(`${siteUrl}/api/receipt`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          listing_url: listingUrl,
-          receipt_token: dealWatchToken,
-          mode: "single",
-          region: "US",
-        }),
-        signal: AbortSignal.timeout(30000),
-      });
-
-      if (!receiptRes.ok) {
-        console.warn(
-          `[ingest-curated-deals] Receipt API ${receiptRes.status} for ${listingUrl}`
-        );
-        failed++;
-        continue;
-      }
-
-      const receiptData = (await receiptRes.json()) as LiteReceiptResponse;
-      if (!receiptData.success || !receiptData.receipt) {
-        console.warn(`[ingest-curated-deals] No receipt returned for ${listingUrl}`);
-        failed++;
-        continue;
-      }
-
-      const r = receiptData.receipt;
-      const verdict = r.verdict ?? null;
-
-      // Skip RED verdicts — don't surface actively bad listings
-      if (verdict === "RED") {
-        console.log(`[ingest-curated-deals] Skipping RED verdict: ${listingUrl}`);
-        continue;
-      }
-
-      // 3. Compute risk_points from why_not_green sum if present
-      const riskPoints =
-        r.why_not_green && r.why_not_green.length > 0
-          ? r.why_not_green.reduce((sum: number, f) => sum + (f.points ?? 0), 0)
-          : null;
-
-      const dealQualityScore = computeDealQualityScore(
-        r.evidence_score ?? null,
-        riskPoints,
-        r.fit_score ?? null
-      );
-
-      // 4. Upsert into curated_deals
-      //    We don't have structured vehicle fields from the lite receipt API response
-      //    (those live in the receipt output_json). For Phase 1, use the URL domain
-      //    and a placeholder vehicle_label until the fetch route is integrated.
-      //    The receipt_id links to the full receipt if saved.
-      const vehicleLabel = buildVehicleLabel(listingUrl);
-
-      const upsertPayload = {
-        listing_url: listingUrl,
-        url_domain: urlDomain,
-        vehicle_label: vehicleLabel,
-        verdict: verdict as "GREEN" | "YELLOW" | "RED" | null,
-        evidence_score: r.evidence_score ?? null,
-        fit_score: r.fit_score ?? null,
-        risk_points: riskPoints,
-        deal_quality_score: dealQualityScore,
-        photo_url: r.photo_url ?? null,
-        receipt_id: receiptData.receipt_id ?? null,
-        last_analyzed_at: new Date().toISOString(),
-        last_seen_at: new Date().toISOString(),
-        is_active: true,
-      };
-
-      const { error: upsertErr, data: upsertData } = await supabase
-        .from("curated_deals")
-        .upsert(upsertPayload, {
-          onConflict: "listing_url",
-          ignoreDuplicates: false,
-        })
-        .select("id")
-        .single();
-
-      if (upsertErr) {
-        console.error(
-          `[ingest-curated-deals] Upsert failed for ${listingUrl}:`,
-          upsertErr.message
-        );
-        failed++;
-      } else {
-        console.log(
-          `[ingest-curated-deals] Upserted ${listingUrl} → verdict=${verdict} dqs=${dealQualityScore} id=${upsertData?.id}`
-        );
-        // Distinguish insert vs update (Supabase doesn't expose this directly)
-        inserted++;
-      }
-
-      // Small delay between requests to avoid hammering the receipt API
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[ingest-curated-deals] Error processing ${listingUrl}: ${msg}`);
-      failed++;
+  for (const searchPageUrl of SEARCH_PAGES) {
+    if (totalProcessed >= MAX_TOTAL_PER_RUN) {
+      console.log(`[ingest-curated-deals] Hit cap of ${MAX_TOTAL_PER_RUN} — stopping`);
+      break;
     }
+
+    console.log(`[ingest-curated-deals] Discovering listings from: ${searchPageUrl}`);
+    const listingUrls = await discoverListingUrls(searchPageUrl, siteUrl);
+    totalDiscovered += listingUrls.length;
+
+    if (listingUrls.length === 0) {
+      console.warn(`[ingest-curated-deals] No listings found for ${searchPageUrl}`);
+      continue;
+    }
+
+    // Check which of these URLs were recently analyzed
+    const { data: recentRows } = await supabase
+      .from("curated_deals")
+      .select("listing_url")
+      .in("listing_url", listingUrls)
+      .gte("last_analyzed_at", sixHoursAgo);
+
+    const recentUrls = new Set((recentRows ?? []).map((r: { listing_url: string }) => r.listing_url));
+
+    for (const listingUrl of listingUrls) {
+      if (totalProcessed >= MAX_TOTAL_PER_RUN) break;
+
+      if (recentUrls.has(listingUrl)) {
+        totalSkipped++;
+        continue;
+      }
+
+      try {
+        let urlDomain: string | null = null;
+        try { urlDomain = new URL(listingUrl).hostname.replace("www.", ""); } catch { /* ignore */ }
+
+        // Call receipt API — DEAL_WATCH_TOKEN is internal, no rate limiting or DB receipt writes
+        const receiptRes = await fetch(`${siteUrl}/api/receipt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            listing_url: listingUrl,
+            receipt_token: dealWatchToken,
+            mode: "single",
+            region: "US",
+          }),
+          signal: AbortSignal.timeout(30000),
+        });
+
+        if (!receiptRes.ok) {
+          console.warn(`[ingest-curated-deals] Receipt API ${receiptRes.status} for ${listingUrl}`);
+          totalFailed++;
+          continue;
+        }
+
+        const receiptData = (await receiptRes.json()) as LiteReceiptResponse;
+        if (!receiptData.success || !receiptData.receipt) {
+          console.warn(`[ingest-curated-deals] No receipt for ${listingUrl}`);
+          totalFailed++;
+          continue;
+        }
+
+        const r = receiptData.receipt;
+        const verdict = r.verdict ?? null;
+
+        // Don't surface RED listings
+        if (verdict === "RED") {
+          console.log(`[ingest-curated-deals] Skipping RED: ${listingUrl}`);
+          continue;
+        }
+
+        const riskPoints =
+          r.why_not_green && r.why_not_green.length > 0
+            ? r.why_not_green.reduce((sum: number, f) => sum + (f.points ?? 0), 0)
+            : null;
+
+        const dealQualityScore = computeDealQualityScore(
+          r.evidence_score ?? null,
+          riskPoints,
+          r.fit_score ?? null
+        );
+
+        // Build vehicle label from structured receipt fields or URL fallback
+        const vehicleLabel =
+          r.vehicle_label ||
+          [r.year, r.make, r.model, r.trim].filter(Boolean).join(" ") ||
+          buildVehicleLabelFromUrl(listingUrl);
+
+        const upsertPayload = {
+          listing_url: listingUrl,
+          url_domain: urlDomain,
+          vehicle_label: vehicleLabel,
+          year: r.year ?? null,
+          make: r.make ?? null,
+          model: r.model ?? null,
+          trim: r.trim ?? null,
+          price: r.price ?? null,
+          mileage: r.mileage ?? null,
+          location: r.location ?? null,
+          verdict: verdict as "GREEN" | "YELLOW" | "RED" | null,
+          evidence_score: r.evidence_score ?? null,
+          fit_score: r.fit_score ?? null,
+          risk_points: riskPoints,
+          deal_quality_score: dealQualityScore,
+          risk_flags: r.risk_flags ?? null,
+          photo_url: r.photo_url ?? null,
+          receipt_id: receiptData.receipt_id ?? null,
+          last_analyzed_at: new Date().toISOString(),
+          last_seen_at: new Date().toISOString(),
+          is_active: true,
+        };
+
+        const { error: upsertErr } = await supabase
+          .from("curated_deals")
+          .upsert(upsertPayload, { onConflict: "listing_url", ignoreDuplicates: false });
+
+        if (upsertErr) {
+          console.error(`[ingest-curated-deals] Upsert failed for ${listingUrl}: ${upsertErr.message}`);
+          totalFailed++;
+        } else {
+          console.log(`[ingest-curated-deals] ✓ ${vehicleLabel} → verdict=${verdict} dqs=${dealQualityScore}`);
+          totalProcessed++;
+        }
+
+        // Brief delay between receipt API calls
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[ingest-curated-deals] Error processing ${listingUrl}: ${msg}`);
+        totalFailed++;
+      }
+    }
+
+    // Delay between search pages
+    await new Promise((resolve) => setTimeout(resolve, 3000));
   }
 
   console.log(
-    `[ingest-curated-deals] Run complete — processed: ${inserted + updated}, failed: ${failed}, skipped: ${recentUrls.size}`
+    `[ingest-curated-deals] Done — discovered: ${totalDiscovered}, processed: ${totalProcessed}, failed: ${totalFailed}, skipped: ${totalSkipped}`
   );
 }
 
-/**
- * Derive a human-readable vehicle label from the listing URL for Phase 1.
- * Phase 2 will populate this from scraped vehicle data.
- */
-function buildVehicleLabel(url: string): string {
+function buildVehicleLabelFromUrl(url: string): string {
   const lower = url.toLowerCase();
-
-  if (lower.includes("tesla-model-3") || lower.includes("tesla_model-3")) return "Tesla Model 3";
-  if (lower.includes("tesla-model-y") || lower.includes("tesla_model-y")) return "Tesla Model Y";
-  if (lower.includes("tesla-model-s") || lower.includes("tesla_model-s")) return "Tesla Model S";
-  if (lower.includes("tesla-model-x") || lower.includes("tesla_model-x")) return "Tesla Model X";
+  if (lower.includes("tesla-model-3")) return "Tesla Model 3";
+  if (lower.includes("tesla-model-y")) return "Tesla Model Y";
+  if (lower.includes("tesla-model-s")) return "Tesla Model S";
+  if (lower.includes("tesla-model-x")) return "Tesla Model X";
   if (lower.includes("bolt-ev") || lower.includes("bolt_ev")) return "Chevrolet Bolt EV";
-  if (lower.includes("ioniq-5") || lower.includes("ioniq_5") || lower.includes("ioniq5")) return "Hyundai IONIQ 5";
-  if (lower.includes("ioniq-6") || lower.includes("ioniq_6") || lower.includes("ioniq6")) return "Hyundai IONIQ 6";
+  if (lower.includes("ioniq-5") || lower.includes("ioniq5")) return "Hyundai IONIQ 5";
+  if (lower.includes("ioniq-6") || lower.includes("ioniq6")) return "Hyundai IONIQ 6";
   if (lower.includes("id.4") || lower.includes("id4")) return "Volkswagen ID.4";
-  if (lower.includes("mach-e") || lower.includes("mach_e") || lower.includes("mustang")) return "Ford Mustang Mach-E";
+  if (lower.includes("mach-e") || lower.includes("mustang")) return "Ford Mustang Mach-E";
   if (lower.includes("ev6")) return "Kia EV6";
   if (lower.includes("leaf")) return "Nissan LEAF";
-  if (lower.includes("i4")) return "BMW i4";
-  if (lower.includes("r1t")) return "Rivian R1T";
-  if (lower.includes("r1s")) return "Rivian R1S";
-
-  // Fallback: extract from URL path
-  try {
-    const path = new URL(url).pathname;
-    const segments = path.split("/").filter(Boolean);
-    if (segments.length > 0) {
-      return segments[segments.length - 1]
-        .replace(/[-_]/g, " ")
-        .replace(/\b\w/g, (c) => c.toUpperCase())
-        .slice(0, 60);
-    }
-  } catch {
-    // ignore
-  }
-
+  if (lower.includes("rivian-r1t") || lower.includes("r1t")) return "Rivian R1T";
+  if (lower.includes("bmw-i4") || lower.includes("_i4")) return "BMW i4";
   return "Electric Vehicle";
 }
 
