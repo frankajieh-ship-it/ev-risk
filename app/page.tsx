@@ -21,6 +21,7 @@ import RoutineStep from "@/components/RoutineStep";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
+import FeaturedDeals from "@/components/landing/FeaturedDeals";
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 import type { MinimumViableRoutine } from "@/types/v2";
 
@@ -676,6 +677,9 @@ export default function Home() {
 
       {/* ── Section 3: How It Works ──────────────────────────────────── */}
       <HowItWorksSection variant="homepage" dark />
+
+      {/* ── Section: Featured Deals ──────────────────────────────────── */}
+      <FeaturedDeals />
 
       {/* ── Section 6: Social Proof ──────────────────────────────────── */}
       <section className="section bg-[#111827]">

@@ -274,6 +274,10 @@ const DEDUPE_BY_REPORT_ID_EVENTS = [
 
 // IP_RELEVANT_EVENTS and ENTERPRISE_READY_EVENTS are in lib/event-tags.ts
 
+type EventName = (typeof VALID_EVENT_NAMES)[number];
+const isValidEventName = (v: string): v is EventName =>
+  (VALID_EVENT_NAMES as readonly string[]).includes(v);
+
 // Validate event payload
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function validateEventPayload(eventName: string, eventData: any, sessionId: string | null): { valid: boolean; error?: string } {
@@ -283,8 +287,6 @@ function validateEventPayload(eventName: string, eventData: any, sessionId: stri
   }
 
   // Allow any event name for flexibility, but log warning for unknown events
-  type EventName = typeof VALID_EVENT_NAMES[number];
-  const isValidEventName = (v: string): v is EventName => VALID_EVENT_NAMES.includes(v as EventName);
   if (!isValidEventName(eventName)) {
     console.warn(`[EventTracking] Unknown event name: ${eventName}`);
   }

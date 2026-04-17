@@ -83,9 +83,9 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                 <>
                   {regionSelector}
                   {variant !== "compare" && (
-                    <span className="text-sm font-medium text-white/25 cursor-default hidden sm:inline" title="Coming soon">
+                    <Link href="/deals" className={`${navLinkCls} hidden sm:inline`}>
                       Deal Watch
-                    </span>
+                    </Link>
                   )}
                   {onHistoryClick && (
                     <button
