@@ -92,11 +92,30 @@ export default async function handler() {
     return;
   }
 
-  // Deduplicate by listing_url, keep most recent
+  // Clean and deduplicate URLs:
+  // - Strip query params (tracking noise like srpc=, resultSetId= etc) — the listing ID is in the path
+  // - Fix duplicated URLs (some rows store "https://...https://..." due to a sharing bug)
+  // - Keep only /details/ paths (individual listings)
+  function cleanCarGurusUrl(raw: string): string | null {
+    // Fix doubled URLs: "https://x.comhttps://x.com" → take the last valid URL
+    const doubled = raw.match(/(https:\/\/[^\s]+)$/);
+    const cleaned = doubled ? doubled[1] : raw;
+    try {
+      const u = new URL(cleaned);
+      // Only accept individual listing pages (/details/NNNN)
+      if (!u.pathname.match(/^\/details\/\d+/)) return null;
+      // Return clean URL with no query params
+      return `${u.origin}${u.pathname}`;
+    } catch {
+      return null;
+    }
+  }
+
   const seenUrls = new Map<string, typeof receiptRows[0]>();
   for (const row of receiptRows) {
-    if (row.listing_url && !seenUrls.has(row.listing_url)) {
-      seenUrls.set(row.listing_url, row);
+    const clean = row.listing_url ? cleanCarGurusUrl(row.listing_url) : null;
+    if (clean && !seenUrls.has(clean)) {
+      seenUrls.set(clean, row);
     }
   }
 
