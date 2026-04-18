@@ -63,6 +63,10 @@ const MODEL_EXACT_MAP: Record<string, string> = {
   "cybertruck": "Cybertruck",
   "cybertruck crew cab": "Cybertruck",
   "cybertruck foundation series": "Cybertruck",
+  // BMW
+  "i3": "i3", "i4": "i4", "i5": "i5", "i7": "i7", "ix": "iX", "ix3": "iX3",
+  "i4 edrive40": "i4", "i4 m50": "i4", "i5 xdrive40": "i5", "i5 edrive40": "i5",
+  "i7 xdrive60": "i7", "ix xdrive40": "iX", "ix xdrive50": "iX", "ix m60": "iX",
   // Mercedes (make comes in as "Mercedes" or "Mercedes-Benz")
   "eqs 450+": "EQS", "eqs 580 4matic": "EQS", "eqs": "EQS",
   "eqb 300 4matic": "EQB", "eqb": "EQB",
@@ -194,6 +198,12 @@ export async function GET(request: NextRequest) {
   const photoUrls: string[] = [];
   if (result?.records) {
     for (const record of result.records) {
+      // Filter by make to prevent wrong-car images (e.g. Auto.dev returning Genesis when searching BMW i5)
+      if (normalizedMake && record.make) {
+        const recordMake = record.make.toLowerCase();
+        const expectedMake = normalizedMake.toLowerCase();
+        if (!recordMake.includes(expectedMake) && !expectedMake.includes(recordMake)) continue;
+      }
       if (record.primaryPhotoUrl && !photoUrls.includes(record.primaryPhotoUrl)) {
         photoUrls.push(record.primaryPhotoUrl);
       }
