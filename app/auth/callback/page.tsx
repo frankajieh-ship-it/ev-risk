@@ -11,6 +11,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseAuthClient } from "@/lib/supabase-auth";
 import { Suspense } from "react";
+import Link from "next/link";
+import Image from "next/image";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { getAnonGarage, clearAnonGarage } from "@/lib/anon-garage";
 import type { Session } from "@supabase/supabase-js";
@@ -24,7 +26,7 @@ function getPostAuthRedirect(session: Session | null): string {
   }
   const role = session?.user?.user_metadata?.role;
   if (!role) return "/onboarding";
-  if (role === "dealer_admin" || role === "dealer_user") return "/dealer";
+  // dealer workspace not yet launched — send all roles to workspace
   return "/workspace";
 }
 
@@ -198,43 +200,46 @@ function AuthCallbackContent() {
   }, [router, searchParams, trackAuthSuccess]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full mx-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#0d1117] px-4">
+      <Link href="/" className="mb-8">
+        <Image src="/offo-logo.png" alt="OFFO" width={120} height={48} className="h-8 w-auto" />
+      </Link>
+      <div className="max-w-sm w-full">
+        <div className="bg-[#161b22] border border-white/[0.08] rounded-2xl p-8 text-center">
           {status === "loading" && (
             <>
-              <div className="w-16 h-16 mx-auto mb-6">
-                <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
+              <div className="w-14 h-14 mx-auto mb-5">
+                <div className="animate-spin rounded-full h-14 w-14 border-4 border-white/[0.08] border-t-[#00d97e]" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Signing you in...</h1>
-              <p className="text-gray-600">Please wait while we verify your login.</p>
+              <h1 className="text-lg font-semibold text-white mb-1">Signing you in…</h1>
+              <p className="text-sm text-white/40">Please wait while we verify your login.</p>
             </>
           )}
 
           {status === "success" && (
             <>
-              <div className="w-16 h-16 mx-auto mb-6 bg-green-100 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-14 h-14 mx-auto mb-5 bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-full flex items-center justify-center">
+                <svg className="w-7 h-7 text-[#00d97e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome back!</h1>
-              <p className="text-gray-600">You&apos;re signed in. Redirecting...</p>
+              <h1 className="text-lg font-semibold text-white mb-1">Welcome back!</h1>
+              <p className="text-sm text-white/40">You&apos;re signed in. Redirecting…</p>
             </>
           )}
 
           {status === "error" && (
             <>
-              <div className="w-16 h-16 mx-auto mb-6 bg-red-100 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-14 h-14 mx-auto mb-5 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center">
+                <svg className="w-7 h-7 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Sign in failed</h1>
-              <p className="text-gray-600 mb-6">{error || "Something went wrong. Please try again."}</p>
+              <h1 className="text-lg font-semibold text-white mb-1">Sign in failed</h1>
+              <p className="text-sm text-white/40 mb-5">{error || "Something went wrong. Please try again."}</p>
               <button
                 onClick={() => router.push("/")}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-6 py-2.5 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-xl hover:bg-[#00c970] transition-colors"
               >
                 Go to Home
               </button>
@@ -250,8 +255,8 @@ export default function AuthCallbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
+        <div className="min-h-screen flex items-center justify-center bg-[#0d1117]">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/[0.08] border-t-[#00d97e]" />
         </div>
       }
     >
