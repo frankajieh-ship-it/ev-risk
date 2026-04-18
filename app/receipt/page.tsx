@@ -604,13 +604,12 @@ export default function ReceiptPage() {
   // Fetch photos when a receipt loads but we have none (e.g. loaded via ?id= param)
   useEffect(() => {
     if (!receipt || listingPhotos.length > 0) return;
-    const { make, model, year, vin } = receipt;
-    if (!make && !model && !year && !vin) return;
+    const { make, model, year } = receipt.listing_summary ?? {};
+    if (!make && !model && !year) return;
     const params = new URLSearchParams({
       ...(make ? { make } : {}),
       ...(model ? { model } : {}),
       ...(year ? { year: String(year) } : {}),
-      ...(vin ? { vin } : {}),
     });
     fetch(`/api/photos?${params}`)
       .then((r) => r.json())
