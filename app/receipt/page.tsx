@@ -609,8 +609,8 @@ export default function ReceiptPage() {
   // Fetch matching deals for this vehicle when a receipt loads
   useEffect(() => {
     if (!receipt) { setMatchingDeals([]); return; }
-    const make = receipt.listing_summary?.make ?? receipt.fields?.make;
-    const model = receipt.listing_summary?.model ?? receipt.fields?.model;
+    const make = receipt.listing_summary?.make;
+    const model = receipt.listing_summary?.model;
     if (!make) return;
     const params = new URLSearchParams({ verdict: "GREEN,YELLOW", per_page: "3" });
     params.set("make", make);
