@@ -37,6 +37,7 @@ interface LiteReceiptResponse {
     fit_score?: number;
     why_not_green?: Array<{ points?: number }>;
     vehicle_label?: string;
+    vehicle_category?: string;
     year?: number;
     make?: string;
     model?: string;
@@ -179,6 +180,21 @@ export default async function handler() {
 
       const r = receiptData.receipt;
       const verdict = r.verdict ?? null;
+
+      // Detect sold/gone listings — scraper returned a page with no vehicle data
+      if (!r.make && !r.model && !r.price && !r.year) {
+        console.log(`[ingest-curated-deals] Listing gone (no vehicle data): ${listingUrl}`);
+        await supabase.from("curated_deals").update({ is_active: false }).eq("listing_url", listingUrl);
+        continue;
+      }
+
+      // Only surface EVs — skip ICE/hybrid vehicles
+      const category = r.vehicle_category ?? "";
+      if (category && category !== "EV" && category !== "PHEV") {
+        console.log(`[ingest-curated-deals] Skipping non-EV (${category}): ${listingUrl}`);
+        await supabase.from("curated_deals").update({ is_active: false }).eq("listing_url", listingUrl);
+        continue;
+      }
 
       // Don't surface RED listings
       if (verdict === "RED") {
