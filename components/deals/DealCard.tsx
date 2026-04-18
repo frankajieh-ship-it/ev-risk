@@ -126,6 +126,7 @@ export default function DealCard({ deal, compact = false, showDebug = false, ran
   const mileageStr = deal.mileage ? `${deal.mileage.toLocaleString()} mi` : null;
 
   // Photo — client-side fetch when DB has no photo_url
+  // rank-based delay staggers concurrent requests so mobile doesn't drop them
   const [photoUrl, setPhotoUrl] = useState<string | null>(deal.photo_url);
   useEffect(() => {
     if (photoUrl || !deal.make) return;
@@ -142,10 +143,14 @@ export default function DealCard({ deal, compact = false, showDebug = false, ran
       ...(model ? { model } : {}),
       ...(deal.year ? { year: String(deal.year) } : {}),
     });
-    fetch(`/api/photos?${params}`)
-      .then((r) => r.json())
-      .then((d: { photo_urls?: string[] }) => { if (d.photo_urls?.[0]) setPhotoUrl(d.photo_urls[0]); })
-      .catch(() => {});
+    const delay = (rank ?? 1) * 200; // stagger: card 1 = 200ms, card 2 = 400ms, etc.
+    const t = setTimeout(() => {
+      fetch(`/api/photos?${params}`)
+        .then((r) => r.json())
+        .then((d: { photo_urls?: string[] }) => { if (d.photo_urls?.[0]) setPhotoUrl(d.photo_urls[0]); })
+        .catch(() => {});
+    }, delay);
+    return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Save to garage state
@@ -231,9 +236,9 @@ export default function DealCard({ deal, compact = false, showDebug = false, ran
             src={photoUrl}
             alt={deal.vehicle_label}
             fill
-            unoptimized
             className="object-cover group-hover:scale-105 transition-transform duration-500"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            priority={rank === 1}
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-[#0d1117]">
