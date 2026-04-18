@@ -290,17 +290,17 @@ export default function DealCard({ deal, compact = false, showDebug = false, ran
       </div>
 
       {/* Content */}
-      <div className="flex flex-col flex-1 p-4 gap-3">
+      <div className={`flex flex-col flex-1 gap-3 ${compact ? "p-3" : "p-4"}`}>
         {/* Vehicle + price */}
         <div>
-          <Link href={`/deals/${deal.id}`} className="text-sm font-semibold text-white leading-snug hover:text-white/80 transition-colors">
+          <Link href={`/deals/${deal.id}`} className={`font-semibold text-white leading-snug hover:text-white/80 transition-colors ${compact ? "text-xs" : "text-sm"}`}>
             {deal.vehicle_label}
           </Link>
           {deal.verdict === "YELLOW" && deal.risk_flags?.[0] && (
-            <p className="text-[11px] text-white/35 italic mt-0.5">{deal.risk_flags[0]}</p>
+            <p className="text-[10px] text-white/35 italic mt-0.5 line-clamp-1">{deal.risk_flags[0]}</p>
           )}
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-lg font-bold text-white">{priceStr}</span>
+            <span className={`font-bold text-white ${compact ? "text-base" : "text-lg"}`}>{priceStr}</span>
             {mileageStr && (
               <span className="text-xs text-white/40">· {mileageStr}</span>
             )}

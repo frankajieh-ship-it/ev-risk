@@ -51,14 +51,14 @@ export default function FeaturedDeals() {
 
       {/* Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {Array.from({ length: 3 }).map((_, i) => (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
               className="bg-[#161b22] border border-white/[0.06] rounded-xl overflow-hidden animate-pulse"
             >
               <div className="aspect-[16/9] bg-white/[0.04]" />
-              <div className="p-4 space-y-3">
+              <div className="p-3 space-y-3">
                 <div className="h-4 bg-white/[0.04] rounded w-3/4" />
                 <div className="h-5 bg-white/[0.04] rounded w-1/2" />
                 <div className="h-9 bg-white/[0.04] rounded" />
@@ -68,7 +68,7 @@ export default function FeaturedDeals() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {deals.map((deal, i) => (
               <DealCard key={deal.id} deal={deal} compact rank={i + 1} />
             ))}

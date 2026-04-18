@@ -3,28 +3,44 @@
 import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
+import { Mail, Loader2, Check, AlertCircle } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
 
 const FEEDBACK_TYPES = [
+  { value: "general", label: "General Question" },
   { value: "bug", label: "Bug Report" },
-  { value: "question", label: "Question" },
+  { value: "question", label: "Question about a Vehicle" },
   { value: "feature", label: "Feature Request" },
-  { value: "general", label: "General Feedback" },
   { value: "success_story", label: "Success Story" },
 ] as const;
 
 export default function ContactPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-sm text-gray-400">Loading...</div>
+    <div className="min-h-screen bg-[#0d1117]">
+      {/* Nav */}
+      <nav className="sticky top-0 z-50 bg-[#0d1117]/90 backdrop-blur-md border-b border-white/[0.08]">
+        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between">
+          <Link href="/">
+            <Image src="/offo-logo.png" alt="OFFO" width={120} height={48} className="h-7 w-auto" />
+          </Link>
+          <Link href="/" className="text-sm text-white/40 hover:text-white/70 transition-colors">
+            ← Back to OFFO
+          </Link>
         </div>
-      }
-    >
-      <ContactForm />
-    </Suspense>
+      </nav>
+
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center py-32">
+            <Loader2 className="w-6 h-6 animate-spin text-[#00d97e]" />
+          </div>
+        }
+      >
+        <ContactForm />
+      </Suspense>
+    </div>
   );
 }
 
@@ -76,11 +92,7 @@ function ContactForm() {
       };
 
       if (isFromReceipt) {
-        body.helpful = JSON.stringify({
-          from,
-          receiptId,
-          verdict,
-        });
+        body.helpful = JSON.stringify({ from, receiptId, verdict });
       }
 
       const response = await fetch("/api/feedback", {
@@ -103,9 +115,7 @@ function ContactForm() {
 
       setSubmitted(true);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Something went wrong. Please try again."
-      );
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -113,32 +123,18 @@ function ContactForm() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
-          <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg
-              className="w-7 h-7 text-green-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
+      <div className="flex items-center justify-center px-4 py-24">
+        <div className="max-w-sm w-full text-center">
+          <div className="w-14 h-14 bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-full flex items-center justify-center mx-auto mb-5">
+            <Check className="w-7 h-7 text-[#00d97e]" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">
-            Thanks for reaching out
-          </h1>
-          <p className="text-sm text-gray-600 mb-6">
-            We&apos;ll get back to you within 24-48 hours.
+          <h1 className="text-xl font-bold text-white mb-2">Thanks for reaching out</h1>
+          <p className="text-sm text-white/40 mb-6">
+            We&apos;ll get back to you within 24–48 hours at <span className="text-white/60">{email}</span>.
           </p>
           <Link
-            href="/receipt"
-            className="inline-block px-5 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+            href="/"
+            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-xl hover:bg-[#00c970] transition-colors"
           >
             Back to OFFO
           </Link>
@@ -148,134 +144,154 @@ function ContactForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="max-w-5xl mx-auto px-4 py-12">
       <div id="turnstile-contact" className="hidden" />
-      <div className="max-w-lg mx-auto">
-        <div className="mb-6">
-          <Link
-            href="/receipt"
-            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            &larr; Back to OFFO
-          </Link>
-        </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">
-            Contact / Feedback
-          </h1>
-          <p className="text-sm text-gray-500 mb-6">
-            Questions, bugs, feedback, or success stories — we read everything.
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
+        {/* Left — info */}
+        <div className="lg:col-span-2">
+          <h1 className="text-2xl font-bold text-white mb-2">Contact Us</h1>
+          <p className="text-sm text-white/40 mb-8 leading-relaxed">
+            Questions, bugs, feedback, or success stories — we read everything and reply within 24 hours.
           </p>
 
-          {isFromReceipt && (
-            <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 mb-6">
-              <p className="text-xs text-indigo-700">
-                You&apos;re sending feedback about a receipt result
-                {verdict && (
-                  <span className="ml-1 font-medium">({verdict})</span>
-                )}
-              </p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Type */}
-            <div>
-              <label
-                htmlFor="feedbackType"
-                className="block text-sm font-medium text-gray-700 mb-1.5"
-              >
-                Type <span className="text-red-400">*</span>
-              </label>
-              <select
-                id="feedbackType"
-                value={feedbackType}
-                onChange={(e) => setFeedbackType(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
-              >
-                {FEEDBACK_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
+          <div className="space-y-6">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#00d97e]/10 border border-[#00d97e]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Mail className="w-4 h-4 text-[#00d97e]" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white/80">Email us directly</p>
+                <a href="mailto:support@offolab.com" className="text-sm text-[#00d97e] hover:text-[#00c970] transition-colors">
+                  support@offolab.com
+                </a>
+              </div>
             </div>
 
-            {/* Email */}
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700 mb-1.5"
-              >
-                Email <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="you@example.com"
-              />
+            <div className="flex flex-col gap-3 pt-2">
+              {[
+                { icon: "💬", label: "General questions & advice" },
+                { icon: "🐛", label: "Bug or unexpected result" },
+                { icon: "💡", label: "Feature requests & ideas" },
+                { icon: "⭐", label: "Share a success story" },
+                { icon: "🔒", label: "Privacy — privacy@offolab.com" },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-2.5 text-sm text-white/40">
+                  <span>{item.icon}</span>
+                  <span>{item.label}</span>
+                </div>
+              ))}
             </div>
+          </div>
+        </div>
 
-            {/* Message */}
-            <div>
-              <label
-                htmlFor="message"
-                className="block text-sm font-medium text-gray-700 mb-1.5"
-              >
-                Message <span className="text-red-400">*</span>
-              </label>
-              <textarea
-                id="message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                required
-                rows={5}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y"
-                placeholder="Tell us what's on your mind..."
-              />
-            </div>
-
-            {/* Name (optional) */}
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700 mb-1.5"
-              >
-                Name <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <input
-                type="text"
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Your name"
-              />
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                <p className="text-sm text-red-700">{error}</p>
+        {/* Right — form */}
+        <div className="lg:col-span-3">
+          <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] p-6">
+            {isFromReceipt && (
+              <div className="bg-[#00d97e]/5 border border-[#00d97e]/15 rounded-lg px-3 py-2 mb-5">
+                <p className="text-xs text-[#00d97e]/70">
+                  Sending feedback about a receipt result
+                  {verdict && <span className="ml-1 font-medium">({verdict})</span>}
+                </p>
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? "Sending..." : "Send Message"}
-            </button>
-          </form>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Type */}
+              <div>
+                <label htmlFor="feedbackType" className="block text-xs font-medium text-white/50 mb-1.5 uppercase tracking-wider">
+                  Type
+                </label>
+                <select
+                  id="feedbackType"
+                  value={feedbackType}
+                  onChange={(e) => setFeedbackType(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white focus:outline-none focus:border-[#00d97e]/40 transition-colors"
+                >
+                  {FEEDBACK_TYPES.map((t) => (
+                    <option key={t.value} value={t.value} className="bg-[#161b22]">
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <p className="text-xs text-gray-400 mt-5 text-center">
-            We usually reply within 24-48 hours.
-          </p>
+              {/* Name + Email row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="name" className="block text-xs font-medium text-white/50 mb-1.5 uppercase tracking-wider">
+                    Name <span className="text-white/20 normal-case font-normal">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Your name"
+                    className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#00d97e]/40 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="email" className="block text-xs font-medium text-white/50 mb-1.5 uppercase tracking-wider">
+                    Email <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder="you@example.com"
+                    className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#00d97e]/40 transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Message */}
+              <div>
+                <label htmlFor="message" className="block text-xs font-medium text-white/50 mb-1.5 uppercase tracking-wider">
+                  Message <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  id="message"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  required
+                  rows={6}
+                  placeholder="Tell us what's on your mind..."
+                  className="w-full px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#00d97e]/40 transition-colors resize-y"
+                />
+              </div>
+
+              {error && (
+                <div className="flex items-start gap-2 px-3 py-2.5 bg-red-500/10 border border-red-500/20 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-400">{error}</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-xl hover:bg-[#00c970] transition-colors disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending…
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4" />
+                    Send Message
+                  </>
+                )}
+              </button>
+
+              <p className="text-xs text-white/20 text-center">We usually reply within 24 hours.</p>
+            </form>
+          </div>
         </div>
       </div>
     </div>

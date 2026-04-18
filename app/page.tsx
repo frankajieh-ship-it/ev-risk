@@ -738,37 +738,73 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Coming Soon: EV Mechanic Finder ─────────────────────────── */}
+      {/* ── OFFO EV Advisor + Contact ──────────────────────────────── */}
       <section className="py-10 md:py-14 bg-[#0d1117]">
         <div className="max-w-5xl mx-auto px-4">
-          <div className="relative rounded-2xl border border-white/10 bg-white/[0.04] p-8 overflow-hidden">
-            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 bg-white/5 rounded-full border border-white/10">
-              <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
-              <span className="text-xs font-semibold text-orange-400 uppercase tracking-wider">Coming Soon</span>
-            </div>
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-              <div className="flex-1">
-                <h2 className="text-xl md:text-2xl font-bold text-white mb-2">Find a Trusted EV Mechanic Near You</h2>
-                <p className="text-sm text-white/40 leading-relaxed max-w-lg">
-                  We&apos;re building a verified network of EV-specialist mechanics. Get pre-purchase inspections, battery health checks, and ongoing maintenance from shops that know EVs.
-                </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* EV Advisor card */}
+            <div className="relative rounded-2xl border border-[#00d97e]/20 bg-[#00d97e]/[0.04] p-8 overflow-hidden">
+              <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 bg-[#00d97e]/10 rounded-full border border-[#00d97e]/20">
+                <span className="w-2 h-2 rounded-full bg-[#00d97e] animate-pulse" />
+                <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wider">Coming Soon</span>
               </div>
-              <div className="flex gap-2 shrink-0 select-none pointer-events-none" aria-hidden>
-                {["EV Specialist · Austin, TX", "Battery Expert · Denver, CO", "Tesla Certified · Seattle, WA"].map((label) => (
-                  <div key={label} className="blur-sm bg-white/5 rounded-xl border border-white/10 p-3 w-36">
-                    <div className="w-8 h-8 rounded-full bg-orange-400/20 mb-2" />
-                    <div className="h-2 bg-white/10 rounded mb-1 w-3/4" />
-                    <div className="h-2 bg-white/5 rounded w-full mb-2" />
-                    <p className="text-xs text-white/20">{label}</p>
+              <h2 className="text-xl md:text-2xl font-bold text-white mb-2">OFFO EV Advisor</h2>
+              <p className="text-sm text-white/40 leading-relaxed mb-6">
+                Get personalized EV guidance from our AI advisor. Ask anything — charging setup, range for your commute, battery health, trade-in value, or which model fits your life.
+              </p>
+              <div className="flex flex-col gap-2 mb-6 select-none pointer-events-none" aria-hidden>
+                {[
+                  "Will a 2022 Model 3 work for my 80-mile daily commute?",
+                  "How do I check battery health before buying?",
+                  "What's the best EV under $30k for cold climates?",
+                ].map((q) => (
+                  <div key={q} className="flex items-start gap-2 px-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-lg">
+                    <span className="text-[#00d97e]/50 text-xs mt-0.5 flex-shrink-0">›</span>
+                    <p className="text-xs text-white/30 italic">{q}</p>
                   </div>
                 ))}
               </div>
-            </div>
-            <div className="mt-5 flex items-center gap-3">
-              <button disabled className="px-5 py-2.5 bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-xl text-sm font-semibold cursor-not-allowed">
-                Find a Mechanic — Coming Soon
+              <button disabled className="px-5 py-2.5 bg-[#00d97e]/10 text-[#00d97e]/60 border border-[#00d97e]/20 rounded-xl text-sm font-semibold cursor-not-allowed">
+                Ask OFFO Advisor — Coming Soon
               </button>
-              <p className="text-xs text-white/25">Launching soon — mechanics can join at <span className="font-medium text-white/40">/mechanics/join</span></p>
+            </div>
+
+            {/* Contact card */}
+            <div className="relative rounded-2xl border border-white/[0.08] bg-white/[0.02] p-8 overflow-hidden flex flex-col">
+              <h2 className="text-xl md:text-2xl font-bold text-white mb-2">Talk to a Human</h2>
+              <p className="text-sm text-white/40 leading-relaxed mb-6">
+                Have a question about a specific vehicle? Unsure about a listing? Reach out — our team reviews every message and responds within 24 hours.
+              </p>
+              <div className="flex flex-col gap-3 mb-6">
+                {[
+                  { icon: "💬", title: "General questions", desc: "EV buying advice, how OFFO works, feature requests" },
+                  { icon: "🐛", title: "Something broken?", desc: "Report a bug or unexpected result" },
+                  { icon: "⭐", title: "Success story?", desc: "Used OFFO to find a great deal — tell us about it" },
+                ].map((item) => (
+                  <div key={item.title} className="flex items-start gap-3">
+                    <span className="text-base leading-none mt-0.5">{item.icon}</span>
+                    <div>
+                      <p className="text-sm font-medium text-white/70">{item.title}</p>
+                      <p className="text-xs text-white/30">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-auto flex flex-col sm:flex-row gap-3">
+                <Link
+                  href="/contact"
+                  className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] text-white/70 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  Open Contact Form
+                </Link>
+                <a
+                  href="mailto:support@offolab.com"
+                  className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-[#00d97e] hover:bg-[#00c970] text-[#0d1117] rounded-xl text-sm font-semibold transition-colors"
+                >
+                  <Mail className="w-4 h-4" />
+                  Email Us
+                </a>
+              </div>
             </div>
           </div>
         </div>
