@@ -8,7 +8,7 @@
  * GBP display prices are approximate (display-only, Stripe charges USD).
  */
 
-import type { Region } from "@/lib/region";
+import type { Region } from "./region";
 
 export type PriceVariant = "299" | "499" | "999" | "1999" | "4900";
 export type PackTier = "buyer_pass" | "seller_questions" | "chat_pass" | "copart_report" | "sellers_report_pdf";

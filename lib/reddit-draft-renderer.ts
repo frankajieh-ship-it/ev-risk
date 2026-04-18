@@ -6,7 +6,7 @@
  * Safe to use in both server and client components.
  */
 
-import type { RedditDraft } from "@/lib/receipt-schema-validator";
+import type { RedditDraft } from "./receipt-schema-validator";
 
 export type RedditDraftStyle = "short_paragraph" | "standard" | "bullets";
 

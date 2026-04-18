@@ -5,7 +5,7 @@
  * Used to inject relevant context into the OpenAI prompt.
  */
 
-import type { VehicleCategory, VehicleClassification } from "@/lib/vehicle-classifier";
+import type { VehicleCategory, VehicleClassification } from "./vehicle-classifier";
 
 export interface CategoryTemplatePack {
   category: VehicleCategory;

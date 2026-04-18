@@ -13,8 +13,8 @@
  *   - Neutral framing — states facts, doesn't advise
  */
 
-import type { ListingReceipt } from "@/types/receipt";
-import { RULES_BY_ID, type ListingSignalId } from "@/lib/receipt-rules";
+import type { ListingReceipt } from "../types/receipt";
+import { RULES_BY_ID, type ListingSignalId } from "./receipt-rules";
 
 // ---------------------------------------------------------------------------
 // Verdict reason renderer

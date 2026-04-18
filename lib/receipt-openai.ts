@@ -7,14 +7,14 @@
 
 import OpenAI from "openai";
 import { v4 as uuidv4 } from "uuid";
-import type { ListingReceipt, ReceiptGenerateRequest, DeepDiveContent } from "@/types/receipt";
-import type { LintError } from "@/lib/receipt-schema-validator";
-import { validateReceiptSchema, sanitizeTextField } from "@/lib/receipt-schema-validator";
-import { classifyVehicle } from "@/lib/vehicle-classifier";
-import { getTemplatePack } from "@/lib/vehicle-category-templates";
-import { scoreFallbackReceipt } from "@/lib/receipt-scoring";
-import type { ReceiptScoringResult } from "@/lib/receipt-scoring";
-import { RULES_BY_ID, type ListingSignalId } from "@/lib/receipt-rules";
+import type { ListingReceipt, ReceiptGenerateRequest, DeepDiveContent } from "../types/receipt";
+import type { LintError } from "./receipt-schema-validator";
+import { validateReceiptSchema, sanitizeTextField } from "./receipt-schema-validator";
+import { classifyVehicle } from "./vehicle-classifier";
+import { getTemplatePack } from "./vehicle-category-templates";
+import { scoreFallbackReceipt } from "./receipt-scoring";
+import type { ReceiptScoringResult } from "./receipt-scoring";
+import { RULES_BY_ID, type ListingSignalId } from "./receipt-rules";
 
 let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI {
@@ -885,7 +885,7 @@ Return ONLY the JSON object.`;
 
 // --- Deep Dive Generation (Paid pack content) ---
 
-import type { PackTier } from "@/lib/price-assignment";
+import type { PackTier } from "./price-assignment";
 
 const DEEP_DIVE_MODEL = "gpt-4o";
 
@@ -902,7 +902,7 @@ Given a base receipt (the free-tier analysis), produce an EXPANDED deep dive ana
 OUTPUT: Return ONLY a valid JSON object matching this schema:
 {
   "market_comparison": [
-    { "title": "<year make model trim>", "price": <number>, "mileage": <number>, "source": "<marketplace name>", "delta_pct": <number, percent difference from listing> }
+    { "title": "<year make model trim>", "price": <number, full dollar amount e.g. 54999 not 54>, "mileage": <number>, "source": "<marketplace name>", "delta_pct": <number, percent difference from listing> }
   ],
   "extended_inspection": ["<specific check item, 10-160 chars>", ...],
   "negotiation_scripts": [
@@ -920,7 +920,7 @@ OUTPUT: Return ONLY a valid JSON object matching this schema:
 }
 
 CONSTRAINTS:
-- market_comparison: 3-5 items. Use realistic comparable listings. delta_pct is (comp_price - listing_price) / listing_price * 100.
+- market_comparison: 3-5 items. Use realistic comparable listings. price MUST be the full dollar amount (e.g. 54999, never 54 or 54.9). delta_pct is (comp_price - listing_price) / listing_price * 100.
 - extended_inspection: EXACTLY 10 items. Specific to this vehicle's make/model/drivetrain.
 - negotiation_scripts: EXACTLY 3 scenarios (e.g., "Cash offer", "Trade-in leverage", "Found issues").
 - cost_of_ownership: Realistic annual estimates in USD for the specific vehicle.

@@ -8,8 +8,8 @@
  * Max score = 100. Minimum threshold = 0.40 (40%).
  */
 
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import type { ListingReceipt, ReceiptGenerateRequest } from "@/types/receipt";
+import { supabase, isSupabaseConfigured } from "./supabase";
+import type { ListingReceipt, ReceiptGenerateRequest } from "../types/receipt";
 
 const MIN_CONFIDENCE = 0.40;
 const MAX_CANDIDATES = 50;
