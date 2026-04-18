@@ -3,6 +3,15 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactCompiler: true,
   output: "standalone",
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "auto.dev" },
+      { protocol: "https", hostname: "*.cargurus.com" },
+      { protocol: "https", hostname: "*.cars.com" },
+      { protocol: "https", hostname: "*.carmax.com" },
+      { protocol: "https", hostname: "images.autotrader.com" },
+    ],
+  },
   async redirects() {
     return [
       {

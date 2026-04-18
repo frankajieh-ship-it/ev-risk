@@ -27,6 +27,30 @@ const MODEL_EXACT_MAP: Record<string, string> = {
   "mustang mach-e premium": "Mustang Mach-E",
   "mustang mach-e gt awd": "Mustang Mach-E",
   "mustang mach-e gt": "Mustang Mach-E",
+  "mustang mach-e california route 1 awd": "Mustang Mach-E",
+  "mustang mach-e california route 1 rwd": "Mustang Mach-E",
+  "mustang mach-e california route 1": "Mustang Mach-E",
+  // Volvo — Auto.dev uses "C40" / "XC40" (not "C40 Recharge")
+  "c40 recharge twin ultimate eawd": "C40",
+  "c40 recharge twin ultimate": "C40",
+  "c40 recharge twin": "C40",
+  "c40 recharge single": "C40",
+  "c40 recharge": "C40",
+  "c40": "C40",
+  "xc40 recharge twin ultimate": "XC40",
+  "xc40 recharge twin": "XC40",
+  "xc40 recharge single": "XC40",
+  "xc40 recharge": "XC40",
+  "xc40": "XC40",
+  // Genesis
+  "gv60 performance": "GV60",
+  "gv60 advanced": "GV60",
+  "gv60 standard": "GV60",
+  "gv70 electrified": "GV70 Electrified",
+  "gv70 gt-line": "GV70",
+  "gv70": "GV70",
+  "gv80 electrified": "GV80 Electrified",
+  "g80 electrified": "G80 Electrified",
   // Hyundai — Auto.dev uses title case, NOT all-caps
   "ioniq 5": "Ioniq 5", "ioniq 6": "Ioniq 6",
   // Kia
@@ -71,7 +95,18 @@ const TRIM_SUFFIXES = [
   " awd", " rwd", " fwd", " 4wd",
   " 450+", " 580", " 350+",
   " e-4wd",
-  " select", " premium", " pro", " plus",
+  " select", " premium", " pro s", " pro", " plus", " s",
+  // Volvo sub-model descriptors
+  " twin ultimate eawd", " twin ultimate", " twin", " single motor eawd", " single motor",
+  " recharge",
+  // Genesis / Hyundai trim words
+  " electrified", " performance", " advanced",
+  // Ford Mach-E variants
+  " california route 1", " california route",
+  // Body styles
+  " hatchback", " sedan", " suv", " crossover", " coupe", " convertible", " wagon",
+  // Electric-specific descriptors
+  " electric", " ev",
 ];
 
 // Make aliases — Auto.dev uses specific make strings
@@ -150,7 +185,11 @@ export async function GET(request: NextRequest) {
 
   // --- Fallback: Auto.dev listing photos ---
   const { make: normalizedMake, model } = normalizeForAutodev(make, rawModel);
-  const result = await searchListings({ vin, make: normalizedMake, model, year, limit: 8 });
+  // Try with year first; if no results, retry without year (Auto.dev inventory varies by year)
+  let result = await searchListings({ vin, make: normalizedMake, model, year, limit: 8 });
+  if ((!result?.records || result.records.length === 0) && year) {
+    result = await searchListings({ vin, make: normalizedMake, model, limit: 8 });
+  }
 
   const photoUrls: string[] = [];
   if (result?.records) {

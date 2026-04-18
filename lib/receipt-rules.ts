@@ -33,6 +33,7 @@ export type ListingSignalId =
   | "battery_replaced_unverified"
   | "dealer_addon_pressure"
   | "model_known_limit_vs_routine"
+  | "battery_no_proof_risk"
   // Evidence bonuses (add to 50)
   | "clean_title_explicit"
   | "battery_report_recent"
@@ -47,6 +48,7 @@ export type ListingSignalId =
   | "recall_status_clear"
   | "frame_photo_present"
   | "underhood_photo_present"
+  | "battery_health_estimated"
   // Evidence penalties (subtract from 50)
   | "battery_proof_missing"
   | "battery_warranty_unclear"
@@ -91,13 +93,13 @@ export const HARD_BLOCKERS: ReceiptRule[] = [
 
 export const FIT_PENALTIES: ReceiptRule[] = [
   // Routine / charging friction
-  { id: "no_home_charging", type: "fit_penalty", category: "routine_friction", points: -10, label: "No home charging adds weekly planning overhead", risk_v2: 2, confidence_v2: 0, evidence_type: "friction" },
-  { id: "single_site_dependency", type: "fit_penalty", category: "routine_friction", points: -12, label: "Routine depends on a single charging location", risk_v2: 2, confidence_v2: 0, evidence_type: "friction" },
-  { id: "plan_b_weak", type: "fit_penalty", category: "routine_friction", points: -10, label: "Backup charging plan unclear or inconvenient", risk_v2: 2, confidence_v2: 0, evidence_type: "friction" },
-  { id: "winter_high_exposure", type: "fit_penalty", category: "routine_friction", points: -8, label: "Cold climate likely reduces range and charging speed", risk_v2: 1, confidence_v2: 0, evidence_type: "friction" },
-  { id: "longest_day_tight_buffer", type: "fit_penalty", category: "routine_friction", points: -12, label: "Longest driving day close to practical range buffer", risk_v2: 2, confidence_v2: 0, evidence_type: "friction" },
-  { id: "public_charging_cost_risk", type: "fit_penalty", category: "routine_friction", points: -6, label: "No home charging plus frequent paid charging expected", risk_v2: 1, confidence_v2: 0, evidence_type: "friction" },
-  { id: "multi_driver_one_charger", type: "fit_penalty", category: "routine_friction", points: -8, label: "Two-driver, one-charger friction not addressed", risk_v2: 1, confidence_v2: 0, evidence_type: "friction" },
+  { id: "no_home_charging", type: "fit_penalty", category: "routine_friction", points: -7, label: "No home charging adds weekly planning overhead", risk_v2: 2, confidence_v2: 0, evidence_type: "friction" },
+  { id: "single_site_dependency", type: "fit_penalty", category: "routine_friction", points: -8, label: "Routine depends on a single charging location", risk_v2: 2, confidence_v2: 0, evidence_type: "friction" },
+  { id: "plan_b_weak", type: "fit_penalty", category: "routine_friction", points: -7, label: "Backup charging plan unclear or inconvenient", risk_v2: 2, confidence_v2: 0, evidence_type: "friction" },
+  { id: "winter_high_exposure", type: "fit_penalty", category: "routine_friction", points: -6, label: "Cold climate likely reduces range and charging speed", risk_v2: 1, confidence_v2: 0, evidence_type: "friction" },
+  { id: "longest_day_tight_buffer", type: "fit_penalty", category: "routine_friction", points: -10, label: "Longest driving day close to practical range buffer", risk_v2: 2, confidence_v2: 0, evidence_type: "friction" },
+  { id: "public_charging_cost_risk", type: "fit_penalty", category: "routine_friction", points: -5, label: "No home charging plus frequent paid charging expected", risk_v2: 1, confidence_v2: 0, evidence_type: "friction" },
+  { id: "multi_driver_one_charger", type: "fit_penalty", category: "routine_friction", points: -6, label: "Two-driver, one-charger friction not addressed", risk_v2: 1, confidence_v2: 0, evidence_type: "friction" },
   // Listing / pricing risk
   { id: "price_over_market_10_15", type: "fit_penalty", category: "listing_risk", points: -8, label: "Price estimated 10-15% above market", risk_v2: 1, confidence_v2: 0, evidence_type: "negative" },
   { id: "price_over_market_15_plus", type: "fit_penalty", category: "listing_risk", points: -15, label: "Price estimated more than 15% above market", risk_v2: 3, confidence_v2: 0, evidence_type: "negative" },
@@ -106,6 +108,7 @@ export const FIT_PENALTIES: ReceiptRule[] = [
   { id: "battery_replaced_unverified", type: "fit_penalty", category: "listing_risk", points: -12, label: "Battery replacement mentioned but proof or source unclear", risk_v2: 2, confidence_v2: 0, evidence_type: "negative" },
   { id: "dealer_addon_pressure", type: "fit_penalty", category: "listing_risk", points: -10, label: "Dealer add-ons or fees likely inflate out-the-door cost", risk_v2: 2, confidence_v2: 0, evidence_type: "negative" },
   { id: "model_known_limit_vs_routine", type: "fit_penalty", category: "listing_risk", points: -12, label: "Known model limitation conflicts with expected usage", risk_v2: 2, confidence_v2: 0, evidence_type: "friction" },
+  { id: "battery_no_proof_risk", type: "fit_penalty", category: "listing_risk", points: -5, label: "No battery health proof — condition unverified", risk_v2: 2, confidence_v2: 0, evidence_type: "negative" },
 ];
 
 // --- Evidence Bonuses (add to 50) ---
@@ -124,6 +127,7 @@ export const EVIDENCE_BONUSES: ReceiptRule[] = [
   { id: "recall_status_clear", type: "evidence_bonus", category: "missing_proof", points: 5, label: "Recall status checked or documented", risk_v2: 0, confidence_v2: 0, evidence_type: "present" },
   { id: "frame_photo_present", type: "evidence_bonus", category: "missing_proof", points: 8, label: "Frame or underbody photo shown", risk_v2: 0, confidence_v2: 1, evidence_type: "present" },
   { id: "underhood_photo_present", type: "evidence_bonus", category: "missing_proof", points: 5, label: "Engine/underhood photo shown", risk_v2: 0, confidence_v2: 1, evidence_type: "present" },
+  { id: "battery_health_estimated", type: "evidence_bonus", category: "missing_proof", points: 5, label: "Battery health estimated from mileage and age data", risk_v2: 0, confidence_v2: 1, evidence_type: "present" },
 ];
 
 // --- Evidence Penalties (subtract from 50) ---

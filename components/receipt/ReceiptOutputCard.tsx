@@ -58,23 +58,23 @@ interface ReceiptOutputCardProps {
 
 const VERDICT_STYLES = {
   GREEN: {
-    bg: "bg-green-100",
-    text: "text-green-800",
-    border: "border-green-200",
+    bg: "bg-green-950/60",
+    text: "text-green-400",
+    border: "border-green-500/30",
     label: "Good Deal",
     icon: Shield,
   },
   YELLOW: {
-    bg: "bg-yellow-100",
-    text: "text-yellow-800",
-    border: "border-yellow-200",
+    bg: "bg-amber-950/60",
+    text: "text-amber-300",
+    border: "border-amber-500/30",
     label: "Proceed with Caution",
     icon: AlertTriangle,
   },
   RED: {
-    bg: "bg-red-100",
-    text: "text-red-800",
-    border: "border-red-200",
+    bg: "bg-red-950/60",
+    text: "text-red-400",
+    border: "border-red-500/30",
     label: "High Risk",
     icon: AlertCircle,
   },

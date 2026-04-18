@@ -23,6 +23,8 @@ interface StructuredFields {
   owners?: number | null;
   vin?: string;
   carfax_available?: string;
+  mileage?: number | null;
+  year?: number | null;
 }
 
 interface SignalPattern {
@@ -184,6 +186,7 @@ const INVERSE_EVIDENCE: {
       !!f.title_status && f.title_status !== "unknown",
   },
   { bonusId: "battery_report_recent", penaltyId: "battery_proof_missing" },
+  { bonusId: "battery_report_recent", penaltyId: "battery_no_proof_risk", onlyForEV: true },
   { bonusId: "battery_warranty_info", penaltyId: "battery_warranty_unclear" },
   {
     bonusId: "service_records_shown",
@@ -308,6 +311,25 @@ export function extractSignalsFromText(
   if (classification.category === "EV") {
     if (classification.dcfcSupport === "yes") {
       signals.add("dcfc_confirmed");
+    }
+  }
+
+  // --- Phase 3b: Battery health estimation proxy ---
+  // When no battery report is present but we have year + mileage, we can
+  // estimate SOH from age/mileage degradation. Award a small evidence bonus
+  // to avoid double-penalizing listings that simply don't mention battery health.
+  if (
+    !signals.has("battery_report_recent") &&
+    fields.year &&
+    fields.mileage != null &&
+    fields.mileage > 0 &&
+    classification.category === "EV"
+  ) {
+    const vehicleAge = new Date().getFullYear() - fields.year;
+    const expectedMileage = vehicleAge * 12000;
+    // Credible proxy when age ≥ 1yr, mileage ≤ 150k, and not massively over-driven
+    if (vehicleAge >= 1 && fields.mileage <= 150000 && fields.mileage <= expectedMileage * 2.5) {
+      signals.add("battery_health_estimated");
     }
   }
 

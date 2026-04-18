@@ -278,6 +278,8 @@ export async function POST(request: NextRequest) {
       owners: input.owners,
       vin: input.vin,
       carfax_available: input.carfax_available,
+      mileage: input.mileage,
+      year: input.year,
     },
     ruleClassification
   );
@@ -411,6 +413,7 @@ export async function POST(request: NextRequest) {
     routine_fit_label: routineFit?.label ?? null,
     routine_fit_score: routineFit?.score_0_100 ?? null,
     routine_fit_summary: routineFit && routineCtx ? buildRoutineSummary(routineFit, routineCtx) : null,
+    photo_urls: input.photo_urls ?? [],
   };
 
   // Cache for idempotency

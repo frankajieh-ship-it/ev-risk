@@ -5,6 +5,14 @@ import { SlidersHorizontal, RefreshCw, Zap } from "lucide-react";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import DealCard, { type CuratedDeal } from "@/components/deals/DealCard";
+import { useAuth } from "@/hooks/useAuth";
+
+const DEBUG_USER_IDS = new Set([
+  "e2c20b6d-ff51-46d0-b696-a5a29a8c282f",
+  "a9e65037-00b3-443b-afba-5631e42b0505",
+  "cb99b83d-552f-4f94-9497-ac4a81160bca",
+  "0f183ae8-38a6-491d-b400-a37de25c8606",
+]);
 
 type VerdictFilter = "ALL" | "GREEN" | "YELLOW";
 
@@ -18,6 +26,9 @@ const PRICE_OPTIONS = [
 ];
 
 export default function DealsPage() {
+  const { user } = useAuth();
+  const isDebugUser = user?.id ? DEBUG_USER_IDS.has(user.id) : false;
+
   const [deals, setDeals] = useState<CuratedDeal[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -162,7 +173,7 @@ export default function DealsPage() {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {deals.map((deal) => (
-                <DealCard key={deal.id} deal={deal} />
+                <DealCard key={deal.id} deal={deal} showDebug={isDebugUser} />
               ))}
             </div>
 

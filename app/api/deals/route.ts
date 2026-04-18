@@ -52,7 +52,10 @@ export async function GET(request: NextRequest) {
     .from("curated_deals")
     .select("id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, verdict, evidence_score, fit_score, risk_points, deal_quality_score, risk_flags, receipt_id, photo_url, last_analyzed_at", { count: "exact" })
     .eq("is_active", true)
-    .order("deal_quality_score", { ascending: false })
+    .not("vehicle_label", "is", null)
+    .not("make", "is", null)
+    .not("price", "is", null)
+    .order("deal_quality_score", { ascending: false, nullsFirst: false })
     .range(offset, offset + perPage - 1);
 
   if (verdicts.length > 0) {
@@ -78,10 +81,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch deals" }, { status: 500 });
   }
 
+  // Deduplicate by (vehicle_label, price, mileage) — keep highest deal_quality_score
+  const seen = new Map<string, (typeof deals)[0]>();
+  for (const deal of deals ?? []) {
+    const key = `${deal.vehicle_label}|${deal.price}|${deal.mileage}`;
+    const existing = seen.get(key);
+    if (!existing || (deal.deal_quality_score ?? 0) > (existing.deal_quality_score ?? 0)) {
+      seen.set(key, deal);
+    }
+  }
+  const deduped = Array.from(seen.values());
+
   return NextResponse.json(
     {
       success: true,
-      deals: deals ?? [],
+      deals: deduped,
       total: count ?? 0,
       page,
       per_page: perPage,

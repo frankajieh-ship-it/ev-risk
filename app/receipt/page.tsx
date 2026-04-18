@@ -385,7 +385,7 @@ export default function ReceiptPage() {
     }
 
     // Resume saved receipt from /saved dashboard
-    const resumeId = params.get("resume");
+    const resumeId = params.get("resume") || params.get("id");
 
     // Also check for receipt stored before auth redirect
     const activeReceiptId = resumeId || consumeActiveReceipt();
@@ -599,6 +599,23 @@ export default function ReceiptPage() {
     setTimeout(() => {
       resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
+  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch photos when a receipt loads but we have none (e.g. loaded via ?id= param)
+  useEffect(() => {
+    if (!receipt || listingPhotos.length > 0) return;
+    const { make, model, year, vin } = receipt;
+    if (!make && !model && !year && !vin) return;
+    const params = new URLSearchParams({
+      ...(make ? { make } : {}),
+      ...(model ? { model } : {}),
+      ...(year ? { year: String(year) } : {}),
+      ...(vin ? { vin } : {}),
+    });
+    fetch(`/api/photos?${params}`)
+      .then((r) => r.json())
+      .then((d: { photo_urls?: string[] }) => { if (d.photo_urls?.length) setListingPhotos(d.photo_urls); })
+      .catch(() => {});
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset popup when a new receipt comes in

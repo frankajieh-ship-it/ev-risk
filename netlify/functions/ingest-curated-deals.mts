@@ -30,12 +30,12 @@ function computeDealQualityScore(
 interface LiteReceiptResponse {
   success: boolean;
   receipt_id?: string;
+  photo_urls?: string[];
   receipt?: {
     verdict?: string;
     evidence_score?: number;
     fit_score?: number;
     why_not_green?: Array<{ points?: number }>;
-    photo_url?: string;
     vehicle_label?: string;
     year?: number;
     make?: string;
@@ -221,7 +221,7 @@ export default async function handler() {
           risk_points: riskPoints,
           deal_quality_score: dealQualityScore,
           risk_flags: r.risk_flags ?? null,
-          photo_url: r.photo_url ?? null,
+          photo_url: receiptData.photo_urls?.[0] ?? null,
           receipt_id: receiptData.receipt_id ?? null,
           last_analyzed_at: new Date().toISOString(),
           last_seen_at: new Date().toISOString(),

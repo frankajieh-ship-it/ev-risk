@@ -361,12 +361,6 @@ export default function Home() {
     { q: "What does OFFO's OFFO Score actually mean?", a: "The OFFO Score is a 0–100 composite of routine fit (does this vehicle work for your daily life?), value assessment (is the price fair for the condition?), and risk flags (recalls, battery health, title issues). Higher is better — 80+ is a confident buy." },
   ];
 
-  const featuredVehicles = [
-    { year: 2024, make: "Ford", model: "F-150 Lightning", trim: "LARIAT", mileage: "17K mi", range: "320 mi range", score: 98, price: "$51,998", badge: "Ext Range Battery", people: 1240, img: "/car-f150-lightning.webp" },
-    { year: 2025, make: "Tesla", model: "Model 3", trim: "Long Range", mileage: "18K mi", range: "330 mi range", score: 96, price: "$39,997", badge: null, people: 3820, img: "/car-tesla-model3.webp" },
-    { year: 2024, make: "Tesla", model: "Model X", trim: "Base", mileage: "16K mi", range: "293 mi range", score: 92, price: "$73,997", badge: null, people: 890, img: "/car-tesla-modelx.webp" },
-    { year: 2018, make: "Nissan", model: "LEAF", trim: "S", mileage: "22K mi", range: "133 mi range", score: 86, price: "$12,998", badge: null, people: 2100, img: "/car-nissan-leaf.webp" },
-  ];
 
   const faqSchema = {
     "@context": "https://schema.org",
@@ -742,50 +736,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Section 7: Featured Vehicles ─────────────────────────────── */}
-      <section className="section bg-[#0d1117]">
-        <div className="max-w-5xl mx-auto px-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#00d97e] mb-2">Popular on OFFO</p>
-          <h2 className="text-2xl font-bold text-white mb-1" style={{ lineHeight: "var(--leading-snug)" }}>Top searches this week</h2>
-          <p className="text-sm text-white/40 mb-8">Popular vehicles analyzed by OFFO users.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {featuredVehicles.map(({ year, make, model, trim, mileage, range, score, price, badge, people, img }) => (
-              <Link
-                key={`${year}-${make}-${model}`}
-                href={`/receipt?q=${encodeURIComponent(`${year} ${make} ${model}`)}`}
-                className="overflow-hidden flex flex-col rounded-xl border border-white/10 bg-white/5 hover:border-[#00d97e]/40 hover:bg-white/[0.08] transition-all group"
-              >
-                <div className="relative h-36 overflow-hidden bg-white/5">
-                  <Image src={img} alt={`${year} ${make} ${model}`} width={300} height={144} className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300" />
-                  {badge && (
-                    <div className="absolute top-0 left-0 bg-[#00d97e] text-[#0d1117] text-xs font-bold px-2 py-1 rounded-br-lg">
-                      {badge}
-                    </div>
-                  )}
-                  <div className="absolute top-2 right-2 w-7 h-7 bg-white/10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ArrowRight className="w-3.5 h-3.5 text-white" />
-                  </div>
-                </div>
-                <div className="p-4">
-                  <p className="text-sm font-bold text-white">{year} {make} {model}</p>
-                  <p className="text-xs text-white/40 mb-2">{trim} · {mileage} · {range}</p>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-[#00d97e] rounded-full" style={{ width: `${score}%` }} />
-                    </div>
-                    <span className="text-xs font-semibold text-white/70">{score}/100</span>
-                  </div>
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs text-white/30">OFFO Fit Score</p>
-                    <p className="text-xs text-[#00d97e]/80 font-medium">{people.toLocaleString()} fits this</p>
-                  </div>
-                  <p className="text-sm font-bold text-white border-t border-white/10 pt-3">{price}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* ── Coming Soon: EV Mechanic Finder ─────────────────────────── */}
       <section className="py-10 md:py-14 bg-[#0d1117]">

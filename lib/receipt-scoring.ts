@@ -97,7 +97,7 @@ export function scoreReceipt(signals: string[]): ReceiptScoringResult {
   let verdict: "GREEN" | "YELLOW" | "RED";
   if (hardBlockerHit || fitScore < 45) {
     verdict = "RED";
-  } else if (fitScore >= 75) {
+  } else if (fitScore >= 72) {
     verdict = "GREEN";
   } else {
     verdict = "YELLOW";

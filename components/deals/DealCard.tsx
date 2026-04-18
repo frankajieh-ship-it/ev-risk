@@ -1,8 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ExternalLink, ShieldCheck, AlertTriangle, XCircle, TrendingUp } from "lucide-react";
+import { ExternalLink, ShieldCheck, AlertTriangle, XCircle, TrendingUp, Bookmark, BookmarkCheck } from "lucide-react";
+import { addToAnonGarage } from "@/lib/anon-garage";
+import { useAuth } from "@/hooks/useAuth";
 
 export interface CuratedDeal {
   id: string;
@@ -54,17 +57,113 @@ const VERDICT_CONFIG = {
   },
 };
 
+const SAVED_DEALS_KEY = "offo_saved_deals";
+
+function isSavedLocally(dealId: string): boolean {
+  try {
+    const saved: string[] = JSON.parse(localStorage.getItem(SAVED_DEALS_KEY) || "[]");
+    return saved.includes(dealId);
+  } catch { return false; }
+}
+
+function saveLocally(dealId: string): void {
+  try {
+    const saved: string[] = JSON.parse(localStorage.getItem(SAVED_DEALS_KEY) || "[]");
+    if (!saved.includes(dealId)) {
+      localStorage.setItem(SAVED_DEALS_KEY, JSON.stringify([dealId, ...saved]));
+    }
+  } catch { /* ignore */ }
+}
+
 interface DealCardProps {
   deal: CuratedDeal;
   compact?: boolean;
+  showDebug?: boolean;
 }
 
-export default function DealCard({ deal, compact = false }: DealCardProps) {
+export default function DealCard({ deal, compact = false, showDebug = false }: DealCardProps) {
   const vc = deal.verdict ? VERDICT_CONFIG[deal.verdict] : VERDICT_CONFIG.YELLOW;
   const VerdictIcon = vc.icon;
+  const { isAuthenticated, session } = useAuth();
 
   const priceStr = deal.price ? `$${deal.price.toLocaleString()}` : "Price unlisted";
   const mileageStr = deal.mileage ? `${deal.mileage.toLocaleString()} mi` : null;
+
+  // Photo — client-side fetch when DB has no photo_url
+  const [photoUrl, setPhotoUrl] = useState<string | null>(deal.photo_url);
+  useEffect(() => {
+    if (photoUrl || !deal.make) return;
+    // Use vehicle_label to extract full model name when deal.model is truncated (e.g. "Model" instead of "Model 3")
+    let model = deal.model ?? "";
+    if (deal.vehicle_label && deal.make) {
+      // Strip "YYYY Make " prefix from vehicle_label to get full model+trim
+      const prefix = [deal.year, deal.make].filter(Boolean).join(" ") + " ";
+      const fromLabel = deal.vehicle_label.startsWith(prefix)
+        ? deal.vehicle_label.slice(prefix.length).trim()
+        : null;
+      // Use label-derived model if it's longer/more specific than deal.model
+      if (fromLabel && fromLabel.length > model.length) model = fromLabel;
+    }
+    const params = new URLSearchParams({
+      make: deal.make,
+      ...(model ? { model } : {}),
+      ...(deal.year ? { year: String(deal.year) } : {}),
+    });
+    fetch(`/api/photos?${params}`)
+      .then((r) => r.json())
+      .then((d: { photo_urls?: string[] }) => { if (d.photo_urls?.[0]) setPhotoUrl(d.photo_urls[0]); })
+      .catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save to garage state — lazy initializer reads localStorage once on mount
+  const [saved, setSaved] = useState(() => isSavedLocally(deal.id));
+
+  const handleSave = async () => {
+    if (saved) return;
+    setSaved(true);
+    saveLocally(deal.id);
+
+    const label = deal.vehicle_label || [deal.year, deal.make, deal.model].filter(Boolean).join(" ") || "EV Listing";
+
+    // Anonymous: save to anon garage (shows in nav badge + garage page)
+    if (!isAuthenticated) {
+      addToAnonGarage({
+        type: "shortlist",
+        label,
+        data: {
+          deal_id: deal.id,
+          listing_url: deal.listing_url,
+          receipt_id: deal.receipt_id,
+          verdict: deal.verdict,
+          price: deal.price,
+          mileage: deal.mileage,
+          make: deal.make,
+          model: deal.model,
+          year: deal.year,
+        },
+      });
+      return;
+    }
+
+    // Authenticated: save to garage_vehicles
+    if (session?.access_token && deal.make && deal.model) {
+      fetch("/api/workspace/garage", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          make: deal.make,
+          model: deal.model,
+          year: deal.year,
+          trim: deal.trim,
+          receipt_id: deal.receipt_id,
+          notes: `Saved from OFFO Deals — ${deal.listing_url}`,
+        }),
+      }).catch(() => {});
+    }
+  };
 
   const topFlags = (deal.risk_flags ?? []).slice(0, 2);
 
@@ -72,11 +171,12 @@ export default function DealCard({ deal, compact = false }: DealCardProps) {
     <div className={`relative flex flex-col bg-[#161b22] border border-white/[0.08] rounded-xl overflow-hidden hover:border-white/[0.16] transition-all group ${compact ? "h-full" : ""}`}>
       {/* Photo */}
       <div className="relative w-full aspect-[16/9] bg-[#0d1117] overflow-hidden flex-shrink-0">
-        {deal.photo_url ? (
+        {photoUrl ? (
           <Image
-            src={deal.photo_url}
+            src={photoUrl}
             alt={deal.vehicle_label}
             fill
+            unoptimized
             className="object-cover group-hover:scale-105 transition-transform duration-500"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
@@ -100,6 +200,22 @@ export default function DealCard({ deal, compact = false }: DealCardProps) {
             <span className="text-xs text-white/50">{deal.url_domain}</span>
           </div>
         )}
+
+        {/* Save button — top-right when no domain badge, overlaid on photo */}
+        <button
+          onClick={handleSave}
+          title={saved ? "Saved to Garage" : "Save to Garage"}
+          className={`absolute bottom-2.5 right-2.5 flex items-center justify-center w-8 h-8 rounded-full backdrop-blur-sm border transition-all ${
+            saved
+              ? "bg-[#00d97e]/20 border-[#00d97e]/40 text-[#00d97e]"
+              : "bg-black/50 border-white/20 text-white/60 hover:text-white hover:bg-black/70"
+          }`}
+        >
+          {saved
+            ? <BookmarkCheck className="w-4 h-4" />
+            : <Bookmark className="w-4 h-4" />
+          }
+        </button>
       </div>
 
       {/* Content */}
@@ -145,6 +261,22 @@ export default function DealCard({ deal, compact = false }: DealCardProps) {
                 <span>{flag}</span>
               </p>
             ))}
+          </div>
+        )}
+
+        {/* Debug strip — internal only */}
+        {showDebug && (
+          <div className="border-t border-white/[0.06] -mx-4 px-4 pt-2 pb-1 bg-black/30 font-mono text-[10px] text-white/40 space-y-1">
+            <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+              <span>fit: <span className="text-white/70">{deal.fit_score ?? "—"}</span></span>
+              <span>evidence: <span className="text-white/70">{deal.evidence_score ?? "—"}</span></span>
+              <span>quality: <span className="text-white/70">{deal.deal_quality_score ?? "—"}</span></span>
+              <span>risk_pts: <span className="text-white/70">{deal.risk_points ?? "—"}</span></span>
+              <span>verdict: <span className={deal.verdict === "GREEN" ? "text-[#00d97e]" : deal.verdict === "YELLOW" ? "text-yellow-400" : deal.verdict === "RED" ? "text-red-400" : "text-white/40"}>{deal.verdict ?? "—"}</span></span>
+            </div>
+            {deal.risk_flags && deal.risk_flags.length > 0 && (
+              <div className="text-white/30 line-clamp-2">{deal.risk_flags.join(", ")}</div>
+            )}
           </div>
         )}
 
