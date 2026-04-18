@@ -75,6 +75,14 @@ function saveLocally(dealId: string): void {
   } catch { /* ignore */ }
 }
 
+function FreshnessLabel({ timestamp }: { timestamp: string }) {
+  const diffMs = new Date().getTime() - new Date(timestamp).getTime();
+  const h = Math.floor(diffMs / 3600000);
+  const d = Math.floor(diffMs / 86400000);
+  const label = h < 1 ? "just now" : h < 24 ? `${h}h ago` : `${d}d ago`;
+  return <p className="text-[10px] text-white/20">Checked {label}</p>;
+}
+
 interface DealCardProps {
   deal: CuratedDeal;
   compact?: boolean;
@@ -262,6 +270,11 @@ export default function DealCard({ deal, compact = false, showDebug = false }: D
               </p>
             ))}
           </div>
+        )}
+
+        {/* Freshness */}
+        {deal.last_analyzed_at && (
+          <FreshnessLabel timestamp={deal.last_analyzed_at} />
         )}
 
         {/* Debug strip — internal only */}

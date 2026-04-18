@@ -15,14 +15,30 @@ const DEBUG_USER_IDS = new Set([
 ]);
 
 type VerdictFilter = "ALL" | "GREEN" | "YELLOW";
+type SortOption = "quality" | "price_asc" | "price_desc" | "mileage" | "newest";
 
 const MAKES = ["All Makes", "Tesla", "Chevrolet", "Hyundai", "Volkswagen", "Ford", "Kia", "Nissan", "BMW", "Rivian"];
 const PRICE_OPTIONS = [
   { label: "Any Price", value: null },
+  { label: "Under $20k", value: 20000 },
   { label: "Under $25k", value: 25000 },
   { label: "Under $35k", value: 35000 },
   { label: "Under $45k", value: 45000 },
   { label: "Under $60k", value: 60000 },
+];
+const MILEAGE_OPTIONS = [
+  { label: "Any Mileage", value: null },
+  { label: "Under 20k mi", value: 20000 },
+  { label: "Under 40k mi", value: 40000 },
+  { label: "Under 60k mi", value: 60000 },
+  { label: "Under 80k mi", value: 80000 },
+];
+const SORT_OPTIONS: { label: string; value: SortOption }[] = [
+  { label: "Best Match", value: "quality" },
+  { label: "Price: Low → High", value: "price_asc" },
+  { label: "Price: High → Low", value: "price_desc" },
+  { label: "Lowest Mileage", value: "mileage" },
+  { label: "Newest Year", value: "newest" },
 ];
 
 export default function DealsPage() {
@@ -39,14 +55,17 @@ export default function DealsPage() {
   const [verdict, setVerdict] = useState<VerdictFilter>("ALL");
   const [make, setMake] = useState("All Makes");
   const [priceMax, setPriceMax] = useState<number | null>(null);
+  const [mileageMax, setMileageMax] = useState<number | null>(null);
+  const [sort, setSort] = useState<SortOption>("quality");
 
   const fetchDeals = useCallback(async (p = 1) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(p), per_page: "18" });
+      const params = new URLSearchParams({ page: String(p), per_page: "18", sort });
       if (verdict !== "ALL") params.set("verdict", verdict);
       if (make !== "All Makes") params.set("make", make);
       if (priceMax) params.set("price_max", String(priceMax));
+      if (mileageMax) params.set("mileage_max", String(mileageMax));
 
       const res = await fetch(`/api/deals?${params}`);
       if (!res.ok) throw new Error("Failed to fetch");
@@ -60,7 +79,7 @@ export default function DealsPage() {
     } finally {
       setLoading(false);
     }
-  }, [verdict, make, priceMax]);
+  }, [verdict, make, priceMax, mileageMax, sort]);
 
   useEffect(() => {
     fetchDeals(1);
@@ -138,6 +157,28 @@ export default function DealsPage() {
             ))}
           </select>
 
+          {/* Mileage select */}
+          <select
+            value={mileageMax ?? ""}
+            onChange={(e) => setMileageMax(e.target.value ? parseInt(e.target.value) : null)}
+            className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-[#00d97e]/40"
+          >
+            {MILEAGE_OPTIONS.map((o) => (
+              <option key={o.label} value={o.value ?? ""}>{o.label}</option>
+            ))}
+          </select>
+
+          {/* Sort select */}
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortOption)}
+            className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-[#00d97e]/40"
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+
           <button
             onClick={() => fetchDeals(1)}
             disabled={loading}
@@ -167,7 +208,7 @@ export default function DealsPage() {
           <div className="text-center py-24">
             <Zap className="w-10 h-10 text-white/10 mx-auto mb-4" />
             <p className="text-white/40 text-base font-medium mb-2">No deals found</p>
-            <p className="text-white/25 text-sm">Try adjusting your filters or check back soon — deals are refreshed throughout the day.</p>
+            <p className="text-white/25 text-sm">Try adjusting your filters or check back soon — deals refresh 3× daily.</p>
           </div>
         ) : (
           <>

@@ -189,10 +189,8 @@ export function scoreFallbackReceipt(fields: {
     signals.push("vin_missing");
   }
 
-  // Always missing for fallback (AI didn't analyze the listing)
-  signals.push("battery_proof_missing");
-  signals.push("battery_warranty_unclear");
-  signals.push("dcfc_unclear");
+  // Evidence gaps for fallback — only non-EV-specific ones apply universally
+  // (battery/DCFC penalties are added by extractSignalsFromText for EVs specifically)
   signals.push("fees_unclear");
   signals.push("tire_condition_unclear");
 
