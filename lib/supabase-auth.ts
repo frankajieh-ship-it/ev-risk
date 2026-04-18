@@ -147,6 +147,85 @@ export async function signInWithGoogle(redirectAfter?: string): Promise<{ succes
 }
 
 /**
+ * Sign up with email + password (new account)
+ */
+export async function signUpWithEmailPassword(
+  email: string,
+  password: string,
+  displayName?: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabaseAuthClient) {
+    return { success: false, error: "Auth not configured" };
+  }
+
+  const { error } = await supabaseAuthClient.auth.signUp({
+    email,
+    password,
+    options: {
+      data: displayName ? { display_name: displayName } : undefined,
+    },
+  });
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+/**
+ * Sign in with email + password
+ */
+export async function signInWithEmailPassword(
+  email: string,
+  password: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabaseAuthClient) {
+    return { success: false, error: "Auth not configured" };
+  }
+
+  const { error } = await supabaseAuthClient.auth.signInWithPassword({ email, password });
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+/**
+ * Send password reset email
+ */
+export async function sendPasswordReset(
+  email: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabaseAuthClient) {
+    return { success: false, error: "Auth not configured" };
+  }
+
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "");
+
+  const { error } = await supabaseAuthClient.auth.resetPasswordForEmail(email, {
+    redirectTo: siteUrl ? `${siteUrl}/auth/update-password` : undefined,
+  });
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+/**
+ * Update password for currently authenticated user
+ */
+export async function updatePassword(
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabaseAuthClient) {
+    return { success: false, error: "Auth not configured" };
+  }
+
+  const { error } = await supabaseAuthClient.auth.updateUser({ password: newPassword });
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+/**
  * Sign out
  */
 export async function signOut(): Promise<{ success: boolean; error?: string }> {

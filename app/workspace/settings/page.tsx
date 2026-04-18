@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Check, LogOut, User, Zap, Bell, Mail, AlertTriangle, CreditCard, Download } from "lucide-react";
+import { Loader2, Check, LogOut, User, Zap, Bell, Mail, AlertTriangle, CreditCard, Download, Lock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { updatePassword } from "@/lib/supabase-auth";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
+
+type Climate = "mild" | "winter" | "hot";
 
 interface Profile {
   email: string | undefined;
@@ -12,6 +15,7 @@ interface Profile {
   charging_access: string | null;
   weekly_miles: number | null;
   notifications_enabled: boolean;
+  climate: Climate | null;
 }
 
 interface EmailPrefs {
@@ -21,10 +25,16 @@ interface EmailPrefs {
 }
 
 const CHARGING_OPTIONS = [
-  { value: "home_l2",   label: "Home Level 2 charger" },
-  { value: "shared_l2", label: "Shared / apartment L2" },
-  { value: "workplace", label: "Workplace charging" },
-  { value: "public_only", label: "Public chargers only" },
+  { value: "home_l2", label: "Home Level 2", desc: "240V charger in garage or driveway" },
+  { value: "home_l1", label: "Home Level 1", desc: "Standard 120V outlet at home" },
+  { value: "shared",  label: "Shared / Apartment", desc: "Workplace, lot, or building charger" },
+  { value: "none",    label: "No home charging", desc: "Public DC fast charging only" },
+];
+
+const CLIMATE_OPTIONS: { value: Climate; label: string }[] = [
+  { value: "mild",    label: "Mild" },
+  { value: "winter",  label: "Cold winters" },
+  { value: "hot",     label: "Hot summers" },
 ];
 
 function SaveButton({ saving, saved }: { saving: boolean; saved: boolean }) {
@@ -70,10 +80,13 @@ function Toggle({ checked, onChange, label, description }: {
 }
 
 export default function SettingsPage() {
-  const { session, logout } = useAuth();
+  const { session, user, logout } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Climate controlled state (not a form field)
+  const [climate, setClimate] = useState<Climate | null>(null);
 
   // Per-section saving state
   const [accountSaving, setAccountSaving] = useState(false);
@@ -86,6 +99,13 @@ export default function SettingsPage() {
   // Email preferences
   const [emailPrefs, setEmailPrefs] = useState<EmailPrefs | null>(null);
   const [emailPrefsSaving, setEmailPrefsSaving] = useState(false);
+
+  // Change password
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordSaved, setPasswordSaved] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   // Billing
   const [billingLoading, setBillingLoading] = useState(false);
@@ -103,13 +123,21 @@ export default function SettingsPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Detect if user has email/password identity
+  const isEmailUser = user?.identities?.some((i) => i.provider === "email") ?? false;
+
   useEffect(() => {
     if (!session?.access_token) return;
     const headers = { Authorization: `Bearer ${session.access_token}` };
 
     fetch("/api/workspace/profile", { headers })
       .then((r) => r.json())
-      .then((data) => { if (data.success) setProfile(data.profile); })
+      .then((data) => {
+        if (data.success) {
+          setProfile(data.profile);
+          setClimate(data.profile.climate ?? null);
+        }
+      })
       .catch(() => setError("Failed to load profile"))
       .finally(() => setLoading(false));
 
@@ -125,7 +153,7 @@ export default function SettingsPage() {
   }, [session?.access_token]);
 
   const patch = async (
-    fields: Partial<Profile>,
+    fields: Partial<Profile & { climate: string | null }>,
     setSaving: (v: boolean) => void,
     setSaved: (v: boolean) => void
   ) => {
@@ -141,6 +169,7 @@ export default function SettingsPage() {
       const data = await res.json();
       if (data.success) {
         setProfile(data.profile);
+        if (data.profile.climate !== undefined) setClimate(data.profile.climate);
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
       } else {
@@ -166,6 +195,24 @@ export default function SettingsPage() {
       });
     } catch { /* non-critical */ } finally {
       setEmailPrefsSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    if (newPassword.length < 8) { setPasswordError("Password must be at least 8 characters"); return; }
+    if (newPassword !== confirmPassword) { setPasswordError("Passwords don't match"); return; }
+    setPasswordSaving(true);
+    const result = await updatePassword(newPassword);
+    setPasswordSaving(false);
+    if (!result.success) {
+      setPasswordError(result.error ?? "Failed to update password");
+    } else {
+      setPasswordSaved(true);
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => setPasswordSaved(false), 3000);
     }
   };
 
@@ -203,6 +250,10 @@ export default function SettingsPage() {
     );
   }
 
+  const displayName = profile.display_name || profile.email?.split("@")[0] || "User";
+  const initial = displayName.charAt(0).toUpperCase();
+  const email = profile.email ?? "";
+
   return (
     <div className="min-h-screen bg-[#0d1117]">
       <Header variant="homepage" />
@@ -216,6 +267,18 @@ export default function SettingsPage() {
         {error && (
           <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-sm text-red-400">{error}</div>
         )}
+
+        {/* Profile header */}
+        <div className="flex items-center gap-4 p-5 bg-[#161b22] border border-white/[0.08] rounded-2xl">
+          <div className="w-14 h-14 rounded-full bg-[#00d97e]/20 flex items-center justify-center flex-shrink-0">
+            <span className="text-[#00d97e] text-xl font-bold">{initial}</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-base font-semibold text-white truncate">{displayName}</p>
+            <p className="text-sm text-white/40 truncate">{email}</p>
+            <span className="text-xs text-white/25 capitalize">{user?.user_metadata?.role ?? "buyer"}</span>
+          </div>
+        </div>
 
         {/* Account */}
         <section className="bg-[#161b22] rounded-xl border border-white/[0.08] p-5">
@@ -265,6 +328,44 @@ export default function SettingsPage() {
           </form>
         </section>
 
+        {/* Change Password — only for email/password users */}
+        {isEmailUser && (
+          <section className="bg-[#161b22] rounded-xl border border-white/[0.08] p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Lock className="w-4 h-4 text-white/40" />
+              <h2 className="font-semibold text-white">Change Password</h2>
+            </div>
+            <form onSubmit={handlePasswordChange} className="space-y-3">
+              <input
+                type="password"
+                placeholder="New password (min 8 characters)"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={8}
+                className="w-full px-3 py-2 text-sm bg-white/[0.04] border border-white/[0.08] rounded-lg text-white placeholder:text-white/20 focus:outline-none focus:border-[#00d97e]/40 transition-colors"
+              />
+              <input
+                type="password"
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="w-full px-3 py-2 text-sm bg-white/[0.04] border border-white/[0.08] rounded-lg text-white placeholder:text-white/20 focus:outline-none focus:border-[#00d97e]/40 transition-colors"
+              />
+              {passwordError && <p className="text-sm text-red-400">{passwordError}</p>}
+              <button
+                type="submit"
+                disabled={passwordSaving || !newPassword || !confirmPassword}
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#00d97e]/10 hover:bg-[#00d97e]/20 border border-[#00d97e]/20 text-[#00d97e] text-sm font-semibold rounded-lg disabled:opacity-50 transition-colors"
+              >
+                {passwordSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : passwordSaved ? <Check className="w-3.5 h-3.5" /> : null}
+                {passwordSaved ? "Password updated" : passwordSaving ? "Updating…" : "Update password"}
+              </button>
+            </form>
+          </section>
+        )}
+
         {/* EV Preferences */}
         <section className="bg-[#161b22] rounded-xl border border-white/[0.08] p-5">
           <div className="flex items-center gap-2 mb-1">
@@ -281,30 +382,37 @@ export default function SettingsPage() {
                 {
                   charging_access: (fd.get("charging_access") as string) || null,
                   weekly_miles: miles ? parseInt(miles as string, 10) : null,
+                  climate: climate,
                 },
                 setPrefSaving,
                 setPrefSaved
               );
             }}
-            className="space-y-4"
+            className="space-y-5"
           >
+            {/* Charging access */}
             <div>
               <label className="block text-xs font-medium text-white/50 mb-2">Charging access</label>
               <div className="space-y-2">
                 {CHARGING_OPTIONS.map((opt) => (
-                  <label key={opt.value} className="flex items-center gap-2.5 cursor-pointer">
+                  <label key={opt.value} className="flex items-start gap-2.5 cursor-pointer">
                     <input
                       type="radio"
                       name="charging_access"
                       value={opt.value}
                       defaultChecked={profile.charging_access === opt.value}
-                      className="accent-[#00d97e]"
+                      className="accent-[#00d97e] mt-0.5"
                     />
-                    <span className="text-sm text-white/70">{opt.label}</span>
+                    <div>
+                      <span className="text-sm text-white/70">{opt.label}</span>
+                      <span className="text-xs text-white/30 block">{opt.desc}</span>
+                    </div>
                   </label>
                 ))}
               </div>
             </div>
+
+            {/* Weekly miles */}
             <div>
               <label htmlFor="weekly_miles" className="block text-xs font-medium text-white/50 mb-1">
                 Typical weekly miles
@@ -320,15 +428,37 @@ export default function SettingsPage() {
                 className="w-36 px-3 py-2 text-sm bg-white/[0.04] border border-white/[0.08] rounded-lg text-white placeholder:text-white/20 focus:outline-none focus:border-[#00d97e]/40 transition-colors"
               />
             </div>
+
+            {/* Climate */}
+            <div>
+              <label className="block text-xs font-medium text-white/50 mb-2">Climate</label>
+              <div className="flex gap-2">
+                {CLIMATE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setClimate(opt.value)}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm border transition-colors ${
+                      climate === opt.value
+                        ? "bg-[#00d97e]/10 border-[#00d97e]/30 text-[#00d97e]"
+                        : "border-white/[0.08] text-white/50 hover:border-white/20 hover:text-white/70"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <SaveButton saving={prefSaving} saved={prefSaved} />
           </form>
         </section>
 
-        {/* Notifications */}
+        {/* Price Alerts */}
         <section className="bg-[#161b22] rounded-xl border border-white/[0.08] p-5">
           <div className="flex items-center gap-2 mb-4">
             <Bell className="w-4 h-4 text-white/40" />
-            <h2 className="font-semibold text-white">Notifications</h2>
+            <h2 className="font-semibold text-white">Price Alerts</h2>
           </div>
           <form
             onSubmit={(e) => {
@@ -434,7 +564,7 @@ export default function SettingsPage() {
                         </span>
                       )}
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        p.status === "paid"     ? "bg-[#00d97e]/10 text-[#00d97e]"
+                        p.status === "paid"       ? "bg-[#00d97e]/10 text-[#00d97e]"
                         : p.status === "refunded" ? "bg-white/[0.06] text-white/40"
                         : p.status === "failed"   ? "bg-red-500/10 text-red-400"
                         : "bg-yellow-500/10 text-yellow-400"
