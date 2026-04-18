@@ -413,7 +413,7 @@ export async function POST(request: NextRequest) {
     routine_fit_label: routineFit?.label ?? null,
     routine_fit_score: routineFit?.score_0_100 ?? null,
     routine_fit_summary: routineFit && routineCtx ? buildRoutineSummary(routineFit, routineCtx) : null,
-    photo_urls: input.photo_urls ?? [],
+    photo_urls: (body.photo_urls as string[] | undefined) ?? [],
   };
 
   // Cache for idempotency
