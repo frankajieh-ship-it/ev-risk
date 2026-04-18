@@ -24,6 +24,7 @@ import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import FeaturedDeals from "@/components/landing/FeaturedDeals";
 import DealCard, { type CuratedDeal } from "@/components/deals/DealCard";
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
+import { getReceiptHistory } from "@/lib/receipt-history";
 import type { MinimumViableRoutine } from "@/types/v2";
 
 type WizardStep = "routine" | "recommendations" | "vehicle_manual" | "generating";
@@ -71,6 +72,7 @@ export default function Home() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [totalReceipts, setTotalReceipts] = useState<number | null>(null);
   const [featuredDeals, setFeaturedDeals] = useState<CuratedDeal[]>([]);
+  const [localReceiptCount, setLocalReceiptCount] = useState(0);
 
   useEffect(() => {
     fetch("/api/homepage/stats")
@@ -84,6 +86,11 @@ export default function Home() {
       .then((r) => r.json())
       .then((d) => { if (d.deals?.length) setFeaturedDeals(d.deals); })
       .catch(() => {});
+  }, []);
+
+  // Read local receipt history for return-visitor nudge
+  useEffect(() => {
+    setLocalReceiptCount(getReceiptHistory().length);
   }, []);
 
   // Track visitor on homepage
@@ -401,6 +408,7 @@ export default function Home() {
               <Link href="/receipt" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Receipt Check</Link>
               <Link href="/" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Routine Fit</Link>
               <Link href="/copart" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Copart Arbitrage</Link>
+              <Link href="/blog" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Blog</Link>
               <Link href="/dealers" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">For Dealers</Link>
             </div>
             <div className="flex items-center gap-3">
@@ -436,6 +444,7 @@ export default function Home() {
                   { href: "/receipt", label: "Receipt Check" },
                   { href: "/", label: "Routine Fit" },
                   { href: "/copart", label: "Copart Arbitrage" },
+                  { href: "/blog", label: "Blog" },
                   { href: "/dealers", label: "For Dealers" },
                 ].map((link) => (
                   <Link
@@ -510,8 +519,22 @@ export default function Home() {
             </p>
           )}
 
-          <p className="text-xs text-white/30 mt-4">No account required · Results in ~15 seconds · Free forever</p>
+          <p className="text-xs text-white/30 mt-4">Free analysis · Save to your garage · Track deals over time</p>
         </section>
+
+        {/* Return visitor nudge — shown when local receipt history exists but not signed in */}
+        {!isAuthenticated && localReceiptCount > 0 && (
+          <div className="max-w-2xl mx-auto px-4 pb-4">
+            <div className="bg-[#161b22] border border-white/[0.08] rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+              <p className="text-sm text-white/60">
+                You have <span className="text-white/80 font-medium">{localReceiptCount} saved report{localReceiptCount !== 1 ? "s" : ""}</span> — sign in to access from any device
+              </p>
+              <Link href="/auth/login?redirect=/workspace" className="text-xs font-semibold text-[#00d97e] hover:text-[#00c970] whitespace-nowrap transition-colors">
+                Sign in free →
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
       {/* ── End dark hero ─────────────────────────────────────────────── */}
 

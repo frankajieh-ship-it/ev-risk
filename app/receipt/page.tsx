@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import LoginModal from "@/components/LoginModal";
+import AuthLoginModal from "@/components/auth/LoginModal";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import ExampleAnalysisSection from "@/components/landing/ExampleAnalysisSection";
 import UniqueAdvantageSection from "@/components/landing/UniqueAdvantageSection";
@@ -303,6 +304,7 @@ export default function ReceiptPage() {
   // Retention capture state
   const [hasSaved, setHasSaved] = useState(false);
   const [hasEmailed, setHasEmailed] = useState(false);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
   // Post-receipt popup (save + compare) — shown 5s after result
   const [showPostReceiptPopup, setShowPostReceiptPopup] = useState(false);
@@ -1399,6 +1401,22 @@ export default function ReceiptPage() {
                 />
               </div>
 
+              {/* Workspace save nudge — shown to unauthenticated users after receipt loads */}
+              {!isAuthenticated && (
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-white/70">Track this deal over time</p>
+                    <p className="text-xs text-white/30 mt-0.5">Create a free account to save receipts, compare EVs, and get deal alerts.</p>
+                  </div>
+                  <button
+                    onClick={() => setShowAuthPrompt(true)}
+                    className="shrink-0 px-3 py-1.5 text-xs font-semibold bg-[#00d97e] text-[#0d1117] rounded-lg hover:bg-[#00c970] transition-colors"
+                  >
+                    Save free
+                  </button>
+                </div>
+              )}
+
 
               {/* On-demand: extended negotiation scripts */}
               {!isUpgrading && receipt.receipt_id && (
@@ -1553,6 +1571,16 @@ export default function ReceiptPage() {
             ? window.location.pathname + window.location.search
             : undefined
         }
+      />
+
+      {/* Auth prompt modal — triggered by workspace save nudge */}
+      <AuthLoginModal
+        key={showAuthPrompt ? 1 : 0}
+        open={showAuthPrompt}
+        onClose={() => setShowAuthPrompt(false)}
+        redirectAfter={`/workspace?from_receipt=${receipt?.receipt_id ?? ""}`}
+        headline="Save this report to your workspace"
+        subtext="Free account — track deals, compare EVs, and get price alerts."
       />
 
       {/* Email gate modal removed — 100% skip rate, inline capture card is better */}

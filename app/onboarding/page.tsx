@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ShoppingCart, Building, Loader2, ArrowRight, Zap, Thermometer, MapPin } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useEventTracking } from "@/hooks/useEventTracking";
 import { getSupabaseAuthClient } from "@/lib/supabase-auth";
 
 type ChargingAccess = "home_l2" | "home_l1" | "shared" | "none";
@@ -37,6 +38,7 @@ const CLIMATE_OPTIONS: { value: Climate; label: string; icon: React.ReactNode }[
 export default function OnboardingPage() {
   const { isAuthenticated, isLoading, isReady, role, isDealer, session } = useAuth();
   const router = useRouter();
+  const { trackEvent } = useEventTracking();
 
   const [step, setStep] = useState<1 | 2>(1);
   const [selected, setSelected] = useState<"buyer" | "dealer" | null>(null);
@@ -100,9 +102,11 @@ export default function OnboardingPage() {
       if (supabase) await supabase.auth.refreshSession();
 
       if (selected === "dealer") {
+        trackEvent("onboarding_completed", { role: "dealer" });
         router.push(data.redirect);
       } else {
         // Buyer → show Step 2
+        trackEvent("onboarding_step_completed", { step: 1, role: "buyer" });
         setSubmitting(false);
         setStep(2);
       }
@@ -136,6 +140,11 @@ export default function OnboardingPage() {
       // non-critical — proceed to workspace regardless
     }
 
+    trackEvent("onboarding_completed", { role: "buyer", has_ev_prefs: Object.keys({
+      ...(chargingAccess ? { charging_access: chargingAccess } : {}),
+      ...(weeklyMiles && !isNaN(Number(weeklyMiles)) ? { weekly_miles: true } : {}),
+      ...(climate ? { climate } : {}),
+    }).length > 0 });
     router.push("/workspace");
   };
 
