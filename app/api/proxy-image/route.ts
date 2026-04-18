@@ -31,6 +31,7 @@ const ALLOWED_HOSTS = new Set([
   "cs.copart.com",
   "img.iaai.com",
   "images.iaai.com",
+  "upload.wikimedia.org",
 ]);
 
 function isAllowedHost(url: string): boolean {
