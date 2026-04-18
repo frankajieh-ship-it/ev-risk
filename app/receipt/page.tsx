@@ -58,6 +58,7 @@ import { getOrCreateReceiptToken } from "@/lib/session-utils";
 import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent } from "@/types/receipt";
 import type { MinimumViableRoutine } from "@/types/v2";
 import RoutineContextBanner from "@/components/receipt/RoutineContextBanner";
+import DealCard from "@/components/deals/DealCard";
 // Persist/retrieve current receipt ID across auth redirects
 const ACTIVE_RECEIPT_KEY = "offo_active_receipt_id";
 
@@ -311,6 +312,9 @@ export default function ReceiptPage() {
 
   // Listing photos from Auto.dev enrichment
   const [listingPhotos, setListingPhotos] = useState<string[]>([]);
+
+  // Matching deals for this vehicle
+  const [matchingDeals, setMatchingDeals] = useState<import("@/components/deals/DealCard").CuratedDeal[]>([]);
 
   // Prefill from SEO page or extension
   const [prefillText, setPrefillText] = useState<string | null>(null);
@@ -600,6 +604,23 @@ export default function ReceiptPage() {
     setTimeout(() => {
       resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
+  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch matching deals for this vehicle when a receipt loads
+  useEffect(() => {
+    if (!receipt) { setMatchingDeals([]); return; }
+    const make = receipt.listing_summary?.make ?? receipt.fields?.make;
+    const model = receipt.listing_summary?.model ?? receipt.fields?.model;
+    if (!make) return;
+    const params = new URLSearchParams({ verdict: "GREEN,YELLOW", per_page: "3" });
+    params.set("make", make);
+    if (model) params.set("model", model);
+    fetch(`/api/deals?${params}`)
+      .then((r) => r.json())
+      .then((d: { deals?: import("@/components/deals/DealCard").CuratedDeal[] }) => {
+        setMatchingDeals(d.deals ?? []);
+      })
+      .catch(() => {});
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch photos when a receipt loads but we have none (e.g. loaded via ?id= param)
@@ -1289,6 +1310,26 @@ export default function ReceiptPage() {
                 onPaywallClick={() => {}}
                 photos={listingPhotos}
               />
+
+              {/* ── Matching Deals Strip ─────────────────────────────── */}
+              {matchingDeals.length > 0 && (
+                <div className="rounded-xl border border-white/[0.08] bg-[#161b22] p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-[#00d97e]">Deal Watch</p>
+                      <h3 className="text-sm font-semibold text-white mt-0.5">
+                        Other {receipt?.listing_summary?.make} {receipt?.listing_summary?.model} listings we&apos;ve analyzed
+                      </h3>
+                    </div>
+                    <Link href="/deals" className="text-xs text-white/40 hover:text-white/70 transition-colors">See all →</Link>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {matchingDeals.map((deal, i) => (
+                      <DealCard key={deal.id} deal={deal} compact rank={i + 1} />
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Deep dive — moved to top as primary result section */}
               {deepDive && (

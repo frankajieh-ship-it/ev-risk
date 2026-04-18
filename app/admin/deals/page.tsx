@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { RefreshCw, ArrowUpDown, ExternalLink } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { RefreshCw, ArrowUpDown, ExternalLink, Upload, Download } from "lucide-react";
 
 interface DealRow {
   id: string;
@@ -33,6 +33,8 @@ const VERDICT_COLOR: Record<string, string> = {
   RED: "text-red-400",
 };
 
+const ADMIN_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY ?? "";
+
 export default function AdminDealsPage() {
   const [deals, setDeals] = useState<DealRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,12 +42,19 @@ export default function AdminDealsPage() {
   const [sortKey, setSortKey] = useState<SortKey>("deal_quality_score");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [filter, setFilter] = useState("");
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Prompt for admin key if not in env
+  const [adminKey, setAdminKey] = useState(ADMIN_KEY);
+  const authHeader = adminKey ? `Bearer ${adminKey}` : "";
 
   const fetchDeals = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/deals-debug");
+      const res = await fetch("/api/admin/deals-debug", { headers: { Authorization: authHeader } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setDeals(data.deals ?? []);
@@ -54,7 +63,43 @@ export default function AdminDealsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authHeader]);
+
+  const handleExport = async (format: "csv" | "template") => {
+    const res = await fetch(`/api/admin/deals-export?format=${format}`, { headers: { Authorization: authHeader } });
+    if (!res.ok) { alert("Export failed"); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = format === "template" ? "deals-import-template.csv" : `deals-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportStatus(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/admin/deals-import", { method: "POST", headers: { Authorization: authHeader }, body: formData });
+      const data = await res.json();
+      if (data.success) {
+        setImportStatus(`✓ Imported ${data.imported} deals (${data.skipped} skipped)`);
+        fetchDeals();
+      } else {
+        setImportStatus(`✗ ${data.error}`);
+      }
+    } catch {
+      setImportStatus("✗ Import failed");
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   useEffect(() => { fetchDeals(); }, [fetchDeals]);
 
@@ -107,24 +152,51 @@ export default function AdminDealsPage() {
             <h1 className="text-xl font-bold text-white">Deals Debug</h1>
             <p className="text-xs text-white/40 mt-0.5">{sorted.length} of {deals.length} listings</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            {!ADMIN_KEY && (
+              <input
+                type="password"
+                placeholder="Admin API key..."
+                value={adminKey}
+                onChange={(e) => setAdminKey(e.target.value)}
+                className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 w-44 focus:outline-none focus:border-[#00d97e]/40"
+              />
+            )}
             <input
               type="text"
               placeholder="Filter by make, model, verdict..."
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 w-64 focus:outline-none focus:border-[#00d97e]/40"
+              className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 w-56 focus:outline-none focus:border-[#00d97e]/40"
             />
-            <button
-              onClick={fetchDeals}
-              disabled={loading}
-              className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 border border-white/[0.08] rounded-lg px-3 py-2 transition-colors"
-            >
+            <button onClick={() => handleExport("template")}
+              className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#00d97e] border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
+              <Download className="w-3.5 h-3.5" />
+              Template
+            </button>
+            <button onClick={() => handleExport("csv")}
+              className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#00d97e] border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
+              <Download className="w-3.5 h-3.5" />
+              Export CSV
+            </button>
+            <label className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 cursor-pointer transition-colors ${importing ? "text-white/20 border-white/[0.04]" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}>
+              <Upload className="w-3.5 h-3.5" />
+              {importing ? "Importing..." : "Import CSV"}
+              <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleImport} disabled={importing} />
+            </label>
+            <button onClick={fetchDeals} disabled={loading}
+              className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </button>
           </div>
         </div>
+
+        {importStatus && (
+          <div className={`mb-4 px-4 py-3 rounded-lg text-sm border ${importStatus.startsWith("✓") ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}>
+            {importStatus}
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">

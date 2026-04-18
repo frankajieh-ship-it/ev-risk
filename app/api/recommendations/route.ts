@@ -187,6 +187,39 @@ export async function POST(request: NextRequest) {
     // 6. Randomize within score tiers to avoid brand bias
     const recommendations = randomizeWithinScoreTiers(withDealers);
 
+    // 6b. Attach matching curated deals for top recommendations (fit_score >= 70)
+    const supabaseForDeals = getSupabaseAdmin();
+    if (supabaseForDeals) {
+      const topMakes = [...new Set(
+        recommendations.filter((r) => r.fit_score >= 70).map((r) => r.make)
+      )];
+      if (topMakes.length > 0) {
+        const { data: dealRows } = await supabaseForDeals
+          .from("curated_deals")
+          .select("id, listing_url, vehicle_label, make, model, year, price, mileage, verdict, risk_flags, deal_quality_score, receipt_id, photo_url, url_domain, last_analyzed_at")
+          .in("make", topMakes)
+          .eq("is_active", true)
+          .neq("verdict", "RED")
+          .order("deal_quality_score", { ascending: false })
+          .limit(topMakes.length * 3);
+
+        if (dealRows && dealRows.length > 0) {
+          const dealsByMake = new Map<string, typeof dealRows>();
+          for (const deal of dealRows) {
+            const m = (deal.make ?? "").toLowerCase();
+            if (!dealsByMake.has(m)) dealsByMake.set(m, []);
+            dealsByMake.get(m)!.push(deal);
+          }
+          for (const rec of recommendations) {
+            if (rec.fit_score >= 70) {
+              (rec as VehicleRecommendation & { matched_deals?: typeof dealRows }).matched_deals =
+                dealsByMake.get(rec.make.toLowerCase())?.slice(0, 2) ?? [];
+            }
+          }
+        }
+      }
+    }
+
     // Emit evfit_completed — list-level completion event (server source of truth)
     const topScore = recommendations[0]?.fit_score ?? null;
     const tieClusterCount = topScore !== null

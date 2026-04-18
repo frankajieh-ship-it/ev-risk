@@ -13,19 +13,9 @@
 
 import type { Config } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
+import { computeDealQualityScore } from "../../lib/deal-quality-score.js";
 
 const MAX_TOTAL_PER_RUN = 40;
-
-function computeDealQualityScore(
-  evidenceScore: number | null,
-  riskPoints: number | null,
-  fitScore: number | null
-): number {
-  const evidence = evidenceScore ?? 50;
-  const risk = riskPoints ?? 5;
-  const fit = fitScore ?? 50;
-  return Math.round(evidence * 0.35 + (10 - risk) * 5 * 0.4 + fit * 0.25);
-}
 
 interface LiteReceiptResponse {
   success: boolean;
