@@ -1083,7 +1083,6 @@ export default function ReceiptPage() {
             <Link href="/receipt" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Receipt Check</Link>
             <Link href="/" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Routine Fit</Link>
             <Link href="/copart" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Copart Arbitrage</Link>
-            <Link href="/dealers" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">For Dealers</Link>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-3">
@@ -1125,7 +1124,6 @@ export default function ReceiptPage() {
                 { href: "/receipt", label: "Receipt Check" },
                 { href: "/", label: "Routine Fit" },
                 { href: "/copart", label: "Copart Arbitrage" },
-                { href: "/dealers", label: "For Dealers" },
               ].map((link) => (
                 <Link
                   key={link.href}

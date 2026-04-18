@@ -399,8 +399,9 @@ export default function Home() {
               <Link href="/receipt" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Receipt Check</Link>
               <Link href="/" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Routine Fit</Link>
               <Link href="/copart" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Copart Arbitrage</Link>
+              <Link href="/pricing" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Pricing</Link>
               <Link href="/blog" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Blog</Link>
-              <Link href="/dealers" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">For Dealers</Link>
+              <Link href="/workspace/garage" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Garage</Link>
             </div>
             <div className="flex items-center gap-3">
               <div className="hidden md:flex items-center gap-3">
@@ -435,8 +436,9 @@ export default function Home() {
                   { href: "/receipt", label: "Receipt Check" },
                   { href: "/", label: "Routine Fit" },
                   { href: "/copart", label: "Copart Arbitrage" },
+                  { href: "/pricing", label: "Pricing" },
                   { href: "/blog", label: "Blog" },
-                  { href: "/dealers", label: "For Dealers" },
+                  { href: "/workspace/garage", label: "Garage" },
                 ].map((link) => (
                   <Link
                     key={link.href}

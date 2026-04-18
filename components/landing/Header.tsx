@@ -20,7 +20,6 @@ const homepageNavLinks = [
   { label: "Browse Vehicles", href: "/vehicles/browse" },
   { label: "Pricing",         href: "/pricing" },
   { label: "Blog",            href: "/blog" },
-  { label: "For Dealers",     href: "/dealers" },
 ];
 
 // Tool-focused nav (copart, receipt, auction pages)
@@ -28,7 +27,6 @@ const toolNavLinks = [
   { label: "Receipt Check",      href: "/receipt" },
   { label: "Routine Fit",        href: "/routine" },
   { label: "Copart Arbitrage",   href: "/copart" },
-  { label: "For Dealers",        href: "/dealers" },
 ];
 
 const navLinkCls = "text-[0.8125rem] font-medium tracking-[-0.01em] text-white/50 hover:text-white/90 transition-colors";
