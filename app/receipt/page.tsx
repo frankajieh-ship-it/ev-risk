@@ -58,7 +58,6 @@ import { getOrCreateReceiptToken } from "@/lib/session-utils";
 import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent } from "@/types/receipt";
 import type { MinimumViableRoutine } from "@/types/v2";
 import RoutineContextBanner from "@/components/receipt/RoutineContextBanner";
-import CompareFromReportCTA from "@/components/receipt/CompareFromReportCTA";
 // Persist/retrieve current receipt ID across auth redirects
 const ACTIVE_RECEIPT_KEY = "offo_active_receipt_id";
 
@@ -1306,12 +1305,6 @@ export default function ReceiptPage() {
                 </div>
               )}
 
-              {/* ── Compare CTA — shown after result, surfaces compare flow ── */}
-              {!compareBoundTo && (
-                <CompareFromReportCTA
-                  reportId={receipt.receipt_id}
-                />
-              )}
 
               {/* ── Save + Compare — immediately after verdict, max visibility ── */}
               <div className="flex gap-2">
