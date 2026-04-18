@@ -70,16 +70,14 @@ export function anonGarageCount(): number {
   return read().length;
 }
 
-/** Total saved items visible to the user in nav badge (anon garage + shortlist). */
+/** Total saved items visible to the user in nav badge (anon garage + saved deals). */
 export function totalGarageCount(): number {
   const anon = anonGarageCount();
-  // Also count shortlist items that may not be in anon garage yet
   try {
-    const shortlist = localStorage.getItem("offo_shortlist");
-    const shortlistCount = shortlist ? (JSON.parse(shortlist) as unknown[]).length : 0;
-    // Avoid double-counting: shortlist items added via addToAnonGarage are in anon garage
-    // Use anon garage count as source of truth for nav badge
-    return Math.max(anon, shortlistCount);
+    const saved = localStorage.getItem("offo_saved_deals");
+    const savedCount = saved ? (JSON.parse(saved) as unknown[]).length : 0;
+    // saved_deals stores deal IDs; anon garage stores full items — use max to avoid double-counting
+    return Math.max(anon, savedCount);
   } catch {
     return anon;
   }

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Car, Plus, X, Loader2, Trash2, Search, GitCompare, Zap, LogIn,
   ShieldCheck, ExternalLink, Star, Bookmark, Key,
-  DollarSign, Link2, AlertCircle,
+  DollarSign, Link2, AlertCircle, AlertTriangle,
   BarChart2, FileText, HelpCircle, Clock, MapPin,
 } from "lucide-react";
 import Link from "next/link";
@@ -308,6 +308,24 @@ export default function GaragePage() {
           Add Vehicle
         </button>
       </div>
+
+      {/* ── Anon persistence nudge ──────────────────────────── */}
+      {!isAuthenticated && anonItems.length > 0 && (
+        <div className="flex items-center justify-between gap-4 px-4 py-3 mb-5 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-sm">
+          <div className="flex items-center gap-2 text-yellow-400">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span>
+              {anonItems.length} saved item{anonItems.length !== 1 ? "s" : ""} — sign in to keep them permanently
+            </span>
+          </div>
+          <Link
+            href="/auth/login?redirect=/workspace/garage"
+            className="text-xs font-semibold text-yellow-400 underline whitespace-nowrap"
+          >
+            Sign in free
+          </Link>
+        </div>
+      )}
 
       {/* ── Stat cards ──────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

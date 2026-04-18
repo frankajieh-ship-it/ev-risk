@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
       charging_access: meta.charging_access ?? null,
       weekly_miles: meta.weekly_miles ?? null,
       notifications_enabled: meta.notifications_enabled ?? false,
+      climate: meta.climate ?? null,
     },
   });
 }
@@ -39,7 +40,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   // Only allow known profile fields
-  const allowed = ["display_name", "charging_access", "weekly_miles", "notifications_enabled"];
+  const allowed = ["display_name", "charging_access", "weekly_miles", "notifications_enabled", "climate"];
   const patch: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) patch[key] = body[key];
@@ -68,6 +69,7 @@ export async function PATCH(req: NextRequest) {
       charging_access: meta.charging_access ?? null,
       weekly_miles: meta.weekly_miles ?? null,
       notifications_enabled: meta.notifications_enabled ?? false,
+      climate: meta.climate ?? null,
     },
   });
 }
