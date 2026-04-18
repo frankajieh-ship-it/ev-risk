@@ -695,6 +695,9 @@ export default function Home() {
       {/* ── Section 3: How It Works ──────────────────────────────────── */}
       <HowItWorksSection variant="homepage" dark />
 
+      {/* ── Section: Featured Deals ──────────────────────────────────── */}
+      <FeaturedDeals />
+
       {/* ── Section 6: Social Proof ──────────────────────────────────── */}
       <section className="section bg-[#111827]">
         {/* Testimonial cards */}
@@ -732,9 +735,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* ── Section: Featured Deals ──────────────────────────────────── */}
-      <FeaturedDeals />
 
       {/* ── Coming Soon: EV Mechanic Finder ─────────────────────────── */}
       <section className="py-10 md:py-14 bg-[#0d1117]">
