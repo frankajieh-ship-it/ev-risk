@@ -42,7 +42,7 @@ export async function GET(
 
   const { data: row, error } = await supabase
     .from("receipts")
-    .select("generation_status, output_json, sections, updated_at")
+    .select("generation_status, output_json, sections, created_at")
     .eq("id", receiptId)
     .maybeSingle();
 
@@ -58,7 +58,7 @@ export async function GET(
       generation_status: status,
       receipt: row.output_json,
       sections: row.sections ?? null,
-      updated_at: row.updated_at,
+      created_at: row.created_at,
     });
   }
 
@@ -66,8 +66,8 @@ export async function GET(
   // Prevents the client from polling indefinitely when the background function crashes
   // before it can update the status itself (e.g., env var missing, unhandled exception).
   const STALE_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
-  if ((status === "lite" || status === "generating") && row.updated_at) {
-    const ageMs = Date.now() - new Date(row.updated_at).getTime();
+  if ((status === "lite" || status === "generating") && row.created_at) {
+    const ageMs = Date.now() - new Date(row.created_at).getTime();
     if (ageMs > STALE_TIMEOUT_MS) {
       // Fire-and-forget DB update — don't block the response
       supabase
@@ -78,7 +78,7 @@ export async function GET(
 
       return NextResponse.json({
         generation_status: "failed",
-        updated_at: row.updated_at,
+        created_at: row.created_at,
         stale_timeout: true,
       });
     }
@@ -86,6 +86,6 @@ export async function GET(
 
   return NextResponse.json({
     generation_status: status,
-    updated_at: row.updated_at,
+    created_at: row.created_at,
   });
 }
