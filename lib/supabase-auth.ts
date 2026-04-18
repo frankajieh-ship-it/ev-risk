@@ -120,6 +120,33 @@ export async function getUser(): Promise<User | null> {
 }
 
 /**
+ * Sign in with Google OAuth
+ */
+export async function signInWithGoogle(redirectAfter?: string): Promise<{ success: boolean; error?: string }> {
+  if (!supabaseAuthClient) {
+    return { success: false, error: "Auth not configured" };
+  }
+
+  // Store redirect so callback page knows where to go
+  if (typeof window !== "undefined" && redirectAfter) {
+    localStorage.setItem("auth_redirect", redirectAfter);
+  }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "");
+  const { error } = await supabaseAuthClient.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: siteUrl ? `${siteUrl}/auth/callback` : undefined },
+  });
+
+  if (error) {
+    console.error("Google OAuth error:", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
  * Sign out
  */
 export async function signOut(): Promise<{ success: boolean; error?: string }> {

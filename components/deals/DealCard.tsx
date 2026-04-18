@@ -6,6 +6,7 @@ import Image from "next/image";
 import { ExternalLink, ShieldCheck, AlertTriangle, XCircle, MapPin, Bookmark, BookmarkCheck, ChevronDown } from "lucide-react";
 import { addToAnonGarage } from "@/lib/anon-garage";
 import { useAuth } from "@/hooks/useAuth";
+import LoginModal from "@/components/auth/LoginModal";
 
 export interface CuratedDeal {
   id: string;
@@ -153,6 +154,9 @@ export default function DealCard({ deal, compact = false, showDebug = false, ran
   // Verdict expand state
   const [expandedVerdict, setExpandedVerdict] = useState(false);
 
+  // Login modal (shown after anon save)
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+
   const handleSave = async () => {
     if (saved) return;
     setSaved(true);
@@ -176,6 +180,8 @@ export default function DealCard({ deal, compact = false, showDebug = false, ran
           year: deal.year,
         },
       });
+      // Prompt guest to sign in so their saved item persists
+      setLoginModalOpen(true);
       return;
     }
 
@@ -208,6 +214,15 @@ export default function DealCard({ deal, compact = false, showDebug = false, ran
     : EVIDENCE_BADGES.verified;
 
   return (
+    <>
+    <LoginModal
+      key={loginModalOpen ? 1 : 0}
+      open={loginModalOpen}
+      onClose={() => setLoginModalOpen(false)}
+      redirectAfter="/workspace/garage"
+      headline="Saved! Sign in to keep it permanently"
+      subtext="Your garage is saved locally. Create a free account to sync across devices."
+    />
     <div className={`relative flex flex-col bg-[#161b22] border border-white/[0.08] rounded-xl overflow-hidden hover:border-white/[0.16] transition-all group ${compact ? "h-full" : ""}`}>
       {/* Photo */}
       <div className="relative w-full aspect-[16/9] bg-[#0d1117] overflow-hidden flex-shrink-0">
@@ -392,5 +407,6 @@ export default function DealCard({ deal, compact = false, showDebug = false, ran
         </div>
       </div>
     </div>
+    </>
   );
 }

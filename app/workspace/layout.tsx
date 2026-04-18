@@ -12,12 +12,10 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   Car,
-  MessageSquare,
   Settings,
   Loader2,
   Eye,
   Zap,
-  TrendingUp,
   GitCompare,
   Gavel,
   LayoutDashboard,
@@ -31,8 +29,7 @@ const NAV_ITEMS = [
   { href: "/workspace/garage",     label: "My Garage",     icon: Car,             exact: false },
   { href: "/workspace/deal-watch", label: "Deal Watch",    icon: Eye,             exact: false },
   { href: "/workspace/ev-fit",     label: "EV Fit Score",  icon: Zap,             exact: false },
-  { href: "/workspace/market",     label: "Market Pulse",  icon: TrendingUp,      exact: false },
-  { href: "/workspace/compare",    label: "Comparisons",   icon: GitCompare,      exact: false },
+  { href: "/compare",              label: "Comparisons",   icon: GitCompare,      exact: false },
   { href: "/workspace/auction",    label: "Auction Tool",  icon: Gavel,           exact: false },
 ];
 
