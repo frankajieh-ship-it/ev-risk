@@ -33,8 +33,6 @@ const VERDICT_COLOR: Record<string, string> = {
   RED: "text-red-400",
 };
 
-const ADMIN_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY ?? "";
-
 export default function AdminDealsPage() {
   const [deals, setDeals] = useState<DealRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,9 +43,7 @@ export default function AdminDealsPage() {
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Prompt for admin key if not in env
-  const [adminKey, setAdminKey] = useState(ADMIN_KEY);
+  const [adminKey, setAdminKey] = useState("");
   const authHeader = adminKey ? `Bearer ${adminKey}` : "";
 
   const fetchDeals = useCallback(async () => {
@@ -153,15 +149,13 @@ export default function AdminDealsPage() {
             <p className="text-xs text-white/40 mt-0.5">{sorted.length} of {deals.length} listings</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap justify-end">
-            {!ADMIN_KEY && (
-              <input
-                type="password"
-                placeholder="Admin API key..."
-                value={adminKey}
-                onChange={(e) => setAdminKey(e.target.value)}
-                className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 w-44 focus:outline-none focus:border-[#00d97e]/40"
-              />
-            )}
+            <input
+              type="password"
+              placeholder="Admin API key..."
+              value={adminKey}
+              onChange={(e) => setAdminKey(e.target.value)}
+              className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 w-44 focus:outline-none focus:border-[#00d97e]/40"
+            />
             <input
               type="text"
               placeholder="Filter by make, model, verdict..."
