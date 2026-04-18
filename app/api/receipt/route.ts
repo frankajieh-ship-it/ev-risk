@@ -477,10 +477,9 @@ export async function POST(request: NextRequest) {
   // or inline via after() in local dev. Skip for internal testers (no DB row saved).
   const upgradeSecret = process.env.UPGRADE_SECRET;
   if (!tokenIsInternal && process.env.NODE_ENV === "production" && upgradeSecret) {
-    // Derive base URL from the incoming request — avoids env-var misconfiguration
-    const proto = request.headers.get("x-forwarded-proto") || "https";
-    const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "localhost";
-    const baseUrl = `${proto}://${host}`;
+    // Use NEXT_PUBLIC_BASE_URL env var for reliable base URL — header-derived host
+    // is an internal Netlify hostname that can't reach /.netlify/functions/
+    const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || "https://offolab.com").replace(/\/$/, "");
     // Enqueue Netlify Background Function (15 min timeout)
     const bgUrl = `${baseUrl}/.netlify/functions/upgrade-receipt-background`;
     console.log("[Receipt] Enqueuing BG upgrade →", bgUrl, "receipt_id:", liteReceipt.receipt_id);
