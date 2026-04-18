@@ -45,8 +45,11 @@ function buildCsvRow(row: Record<string, unknown>): string {
 }
 
 export async function GET(request: NextRequest) {
+  // Accept key via Authorization header OR ?key= query param (for direct browser download)
   const authHeader = request.headers.get("authorization") || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "");
+  const headerToken = authHeader.replace(/^Bearer\s+/i, "");
+  const queryToken = request.nextUrl.searchParams.get("key") ?? "";
+  const token = headerToken || queryToken;
   if (!token || token !== ADMIN_KEY) {
     return new NextResponse("Unauthorized", { status: 401 });
   }

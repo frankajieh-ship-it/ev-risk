@@ -61,16 +61,10 @@ export default function AdminDealsPage() {
     }
   }, [authHeader]);
 
-  const handleExport = async (format: "csv" | "template") => {
-    const res = await fetch(`/api/admin/deals-export?format=${format}`, { headers: { Authorization: authHeader } });
-    if (!res.ok) { alert("Export failed"); return; }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = format === "template" ? "deals-import-template.csv" : `deals-export-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExport = (format: "csv" | "template") => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    // Use direct browser navigation with key as query param — avoids fetch+blob issues
+    window.location.href = `/api/admin/deals-export?format=${format}&key=${encodeURIComponent(adminKey)}`;
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
