@@ -50,12 +50,12 @@ interface LiteReceiptResponse {
 
 export default async function handler() {
   const siteUrl = process.env.URL || process.env.DEPLOY_URL || "https://offolab.com";
-  const internalSecret = process.env.INTERNAL_API_SECRET;
+  const dealWatchToken = process.env.DEAL_WATCH_TOKEN;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!internalSecret) {
-    console.error("[ingest-curated-deals] INTERNAL_API_SECRET not set — aborting");
+  if (!dealWatchToken) {
+    console.error("[ingest-curated-deals] DEAL_WATCH_TOKEN not set — aborting");
     return;
   }
   if (!supabaseUrl || !supabaseKey) {
@@ -154,12 +154,10 @@ export default async function handler() {
       // rate limits, and DB writes without needing FLAG_TESTER_ANON_IDS
       const receiptRes = await fetch(`${siteUrl}/api/receipt`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-internal-secret": internalSecret,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           listing_url: listingUrl,
+          receipt_token: dealWatchToken,
           mode: "single",
           region: "US",
         }),

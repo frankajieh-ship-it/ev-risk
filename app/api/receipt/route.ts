@@ -70,11 +70,15 @@ export async function POST(request: NextRequest) {
   }
 
   // 2. Validate receipt_token (format + age check)
-  // Server-to-server calls (e.g. ingest-curated-deals) may pass x-internal-secret
-  // instead of a user receipt_token — treat these as fully internal.
+  // Server-to-server calls (e.g. ingest-curated-deals) pass DEAL_WATCH_TOKEN or
+  // x-internal-secret — treat these as fully internal (no rate limits, no DB writes).
+  const dealWatchToken = process.env.DEAL_WATCH_TOKEN;
   const internalSecret = process.env.INTERNAL_API_SECRET;
   const requestSecret = request.headers.get("x-internal-secret");
-  const isServerInternal = !!(internalSecret && requestSecret === internalSecret);
+  const isServerInternal = !!(
+    (internalSecret && requestSecret === internalSecret) ||
+    (dealWatchToken && body.receipt_token === dealWatchToken)
+  );
 
   let receiptToken = body.receipt_token;
   if (isServerInternal && !receiptToken) {
