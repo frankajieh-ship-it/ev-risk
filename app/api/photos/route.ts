@@ -215,27 +215,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ photo_urls: photoUrls, source: "autodev" });
   }
 
-  // --- Third fallback: CarAPI.app stock images ---
-  const carapiToken = process.env.CARAPI_TOKEN;
-  if (carapiToken && (make || rawModel)) {
+  // --- Third fallback: Wikipedia/Wikimedia Commons stock image ---
+  if (make || rawModel) {
     try {
-      const carApiUrl = new URL("https://carapi.app/api/images");
-      if (year) carApiUrl.searchParams.set("year", String(year));
-      if (make) carApiUrl.searchParams.set("make", make);
-      if (rawModel) {
-        // Use base model name (first 2 words) — CarAPI doesn't understand trim levels
-        const baseModel = rawModel.split(" ").slice(0, 2).join(" ");
-        carApiUrl.searchParams.set("model", baseModel);
-      }
-      carApiUrl.searchParams.set("api_token", carapiToken);
-      const res = await fetch(carApiUrl.toString(), { signal: AbortSignal.timeout(5000) });
+      // Build a Wikipedia article title to look up: e.g. "Tesla Model 3" or "Ford Mustang Mach-E"
+      const { model: normModel } = normalizeForAutodev(make, rawModel);
+      const wikiTitle = [make, normModel].filter(Boolean).join(" ").replace(/\s+/g, "_");
+      const wikiUrl = new URL("https://en.wikipedia.org/w/api.php");
+      wikiUrl.searchParams.set("action", "query");
+      wikiUrl.searchParams.set("titles", wikiTitle);
+      wikiUrl.searchParams.set("prop", "pageimages");
+      wikiUrl.searchParams.set("piprop", "original");
+      wikiUrl.searchParams.set("pithumbsize", "800");
+      wikiUrl.searchParams.set("format", "json");
+      wikiUrl.searchParams.set("origin", "*");
+      const res = await fetch(wikiUrl.toString(), { signal: AbortSignal.timeout(5000) });
       if (res.ok) {
         const data = await res.json();
-        const images: string[] = Array.isArray(data)
-          ? data.map((i: { url?: string }) => i.url).filter((u): u is string => Boolean(u))
-          : [];
-        if (images.length > 0) {
-          return NextResponse.json({ photo_urls: images.slice(0, 6), source: "carapi" });
+        const pages = data?.query?.pages ?? {};
+        for (const page of Object.values(pages) as Record<string, unknown>[]) {
+          const src = (page as { original?: { source?: string } }).original?.source;
+          if (src && /\.(jpe?g|png|webp)/i.test(src)) {
+            return NextResponse.json({ photo_urls: [src], source: "wikipedia" });
+          }
         }
       }
     } catch { /* ignore — fall through to empty */ }

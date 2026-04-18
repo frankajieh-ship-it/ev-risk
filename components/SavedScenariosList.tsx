@@ -43,13 +43,13 @@ function formatDate(dateString: string): string {
 function getFitSignalStyles(signal: string | null): { bg: string; text: string; label: string } {
   switch (signal) {
     case "GOOD":
-      return { bg: "bg-green-100", text: "text-green-800", label: "Good Fit" };
+      return { bg: "bg-green-900/40", text: "text-green-400", label: "Good Fit" };
     case "CONDITIONAL":
-      return { bg: "bg-yellow-100", text: "text-yellow-800", label: "Conditional" };
+      return { bg: "bg-yellow-900/40", text: "text-yellow-400", label: "Conditional" };
     case "HIGH_FRICTION":
-      return { bg: "bg-red-100", text: "text-red-800", label: "High Friction" };
+      return { bg: "bg-red-900/40", text: "text-red-400", label: "High Friction" };
     default:
-      return { bg: "bg-gray-100", text: "text-gray-800", label: "—" };
+      return { bg: "bg-white/[0.08]", text: "text-white/60", label: "—" };
   }
 }
 
@@ -124,13 +124,13 @@ export default function SavedScenariosList({
   }
 
   return (
-    <div className={compact ? "" : "bg-white rounded-xl shadow-lg p-6 border border-gray-100"}>
+    <div className={compact ? "" : "bg-[#161b22] rounded-xl p-6 border border-white/[0.08]"}>
       <div className="flex items-center justify-between mb-4">
-        <h3 className={`font-semibold text-gray-900 ${compact ? "text-base" : "text-lg"}`}>
+        <h3 className={`font-semibold text-white ${compact ? "text-base" : "text-lg"}`}>
           Your Saved Scenarios
         </h3>
         {hasMore && !compact && (
-          <button className="text-sm text-blue-600 hover:text-blue-700">
+          <button className="text-sm text-[#00d97e] hover:text-[#00d97e]/80">
             View all
           </button>
         )}
@@ -138,13 +138,13 @@ export default function SavedScenariosList({
 
       {loading && (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+          <Loader2 className="w-5 h-5 animate-spin text-[#00d97e]" />
         </div>
       )}
 
       {error && (
         <div className="text-center py-4">
-          <p className="text-sm text-red-600">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
@@ -158,30 +158,30 @@ export default function SavedScenariosList({
                 key={scenario.id}
                 onClick={() => onSelectScenario?.(scenario)}
                 className={`
-                  p-4 border border-gray-200 rounded-lg transition-all
-                  ${onSelectScenario ? "cursor-pointer hover:border-blue-300 hover:bg-blue-50" : ""}
+                  p-4 border border-white/[0.08] rounded-lg transition-all
+                  ${onSelectScenario ? "cursor-pointer hover:border-white/20 hover:bg-white/[0.04]" : ""}
                 `}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium text-gray-900 truncate">
+                      <h4 className="font-medium text-white truncate">
                         {scenario.vehicle_year} {scenario.vehicle_model}
                       </h4>
                       {scenario.is_comparison && (
-                        <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
+                        <span className="text-xs px-2 py-0.5 bg-purple-900/40 text-purple-300 rounded-full">
                           Comparison
                         </span>
                       )}
                     </div>
 
                     {scenario.one_sentence_verdict && !compact && (
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                      <p className="text-sm text-white/70 line-clamp-2 mb-2">
                         {scenario.one_sentence_verdict}
                       </p>
                     )}
 
-                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <div className="flex items-center gap-3 text-xs text-white/50">
                       <span>{formatDate(scenario.saved_at)}</span>
                       {scenario.inputs.dailyMiles && (
                         <span>{scenario.inputs.dailyMiles} mi/day</span>
@@ -200,8 +200,8 @@ export default function SavedScenariosList({
                 </div>
 
                 {scenario.notes && !compact && (
-                  <div className="mt-2 pt-2 border-t border-gray-100">
-                    <p className="text-xs text-gray-500 italic line-clamp-1">
+                  <div className="mt-2 pt-2 border-t border-white/[0.08]">
+                    <p className="text-xs text-white/40 italic line-clamp-1">
                       Note: {scenario.notes}
                     </p>
                   </div>

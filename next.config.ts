@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.cars.com" },
       { protocol: "https", hostname: "*.carmax.com" },
       { protocol: "https", hostname: "images.autotrader.com" },
+      { protocol: "https", hostname: "upload.wikimedia.org" },
     ],
   },
   async redirects() {
