@@ -18,6 +18,7 @@ type VerdictFilter = "ALL" | "GREEN" | "YELLOW";
 type SortOption = "quality" | "price_asc" | "price_desc" | "mileage" | "newest";
 
 const MAKES = ["All Makes", "Tesla", "Chevrolet", "Hyundai", "Volkswagen", "Ford", "Kia", "Nissan", "BMW", "Rivian"];
+const US_STATES = ["Any State","AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"];
 const PRICE_OPTIONS = [
   { label: "Any Price", value: null },
   { label: "Under $20k", value: 20000 },
@@ -56,6 +57,7 @@ export default function DealsPage() {
   const [make, setMake] = useState("All Makes");
   const [priceMax, setPriceMax] = useState<number | null>(null);
   const [mileageMax, setMileageMax] = useState<number | null>(null);
+  const [locationState, setLocationState] = useState("Any State");
   const [sort, setSort] = useState<SortOption>("quality");
 
   const fetchDeals = useCallback(async (p = 1) => {
@@ -66,6 +68,7 @@ export default function DealsPage() {
       if (make !== "All Makes") params.set("make", make);
       if (priceMax) params.set("price_max", String(priceMax));
       if (mileageMax) params.set("mileage_max", String(mileageMax));
+      if (locationState !== "Any State") params.set("location", locationState);
 
       const res = await fetch(`/api/deals?${params}`);
       if (!res.ok) throw new Error("Failed to fetch");
@@ -79,7 +82,7 @@ export default function DealsPage() {
     } finally {
       setLoading(false);
     }
-  }, [verdict, make, priceMax, mileageMax, sort]);
+  }, [verdict, make, priceMax, mileageMax, locationState, sort]);
 
   useEffect(() => {
     fetchDeals(1);
@@ -168,6 +171,17 @@ export default function DealsPage() {
             ))}
           </select>
 
+          {/* State select */}
+          <select
+            value={locationState}
+            onChange={(e) => setLocationState(e.target.value)}
+            className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-[#00d97e]/40"
+          >
+            {US_STATES.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+
           {/* Sort select */}
           <select
             value={sort}
@@ -213,8 +227,14 @@ export default function DealsPage() {
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {deals.map((deal) => (
-                <DealCard key={deal.id} deal={deal} showDebug={isDebugUser} />
+              {deals.map((deal, index) => (
+                <DealCard
+                  key={deal.id}
+                  deal={deal}
+                  showDebug={isDebugUser}
+                  rank={index + 1 + (page - 1) * 18}
+                  totalDeals={total}
+                />
               ))}
             </div>
 

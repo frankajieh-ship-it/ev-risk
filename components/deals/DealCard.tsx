@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ExternalLink, ShieldCheck, AlertTriangle, XCircle, TrendingUp, Bookmark, BookmarkCheck } from "lucide-react";
+import { ExternalLink, ShieldCheck, AlertTriangle, XCircle, MapPin, Bookmark, BookmarkCheck, ChevronDown } from "lucide-react";
 import { addToAnonGarage } from "@/lib/anon-garage";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -57,6 +57,24 @@ const VERDICT_CONFIG = {
   },
 };
 
+const EVIDENCE_BADGES = {
+  verified: {
+    label: "Verified",
+    cls: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
+    tooltip: "Strong listing documentation — title, service history, or battery report shown.",
+  },
+  partial: {
+    label: "Partial",
+    cls: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20",
+    tooltip: "Some documentation present, but key details are missing.",
+  },
+  limited: {
+    label: "Limited",
+    cls: "text-white/40 bg-white/[0.05] border-white/10",
+    tooltip: "Little or no supporting documentation found in this listing.",
+  },
+};
+
 const SAVED_DEALS_KEY = "offo_saved_deals";
 
 function isSavedLocally(dealId: string): boolean {
@@ -75,6 +93,13 @@ function saveLocally(dealId: string): void {
   } catch { /* ignore */ }
 }
 
+function formatLocation(loc: string | null): string | null {
+  if (!loc) return null;
+  const parts = loc.split(",").map((s) => s.trim());
+  if (parts.length >= 2) return `${parts[0]}, ${parts[1].slice(0, 2).toUpperCase()}`;
+  return parts[0];
+}
+
 function FreshnessLabel({ timestamp }: { timestamp: string }) {
   const diffMs = new Date().getTime() - new Date(timestamp).getTime();
   const h = Math.floor(diffMs / 3600000);
@@ -87,9 +112,11 @@ interface DealCardProps {
   deal: CuratedDeal;
   compact?: boolean;
   showDebug?: boolean;
+  rank?: number;
+  totalDeals?: number;
 }
 
-export default function DealCard({ deal, compact = false, showDebug = false }: DealCardProps) {
+export default function DealCard({ deal, compact = false, showDebug = false, rank, totalDeals }: DealCardProps) {
   const vc = deal.verdict ? VERDICT_CONFIG[deal.verdict] : VERDICT_CONFIG.YELLOW;
   const VerdictIcon = vc.icon;
   const { isAuthenticated, session } = useAuth();
@@ -101,15 +128,12 @@ export default function DealCard({ deal, compact = false, showDebug = false }: D
   const [photoUrl, setPhotoUrl] = useState<string | null>(deal.photo_url);
   useEffect(() => {
     if (photoUrl || !deal.make) return;
-    // Use vehicle_label to extract full model name when deal.model is truncated (e.g. "Model" instead of "Model 3")
     let model = deal.model ?? "";
     if (deal.vehicle_label && deal.make) {
-      // Strip "YYYY Make " prefix from vehicle_label to get full model+trim
       const prefix = [deal.year, deal.make].filter(Boolean).join(" ") + " ";
       const fromLabel = deal.vehicle_label.startsWith(prefix)
         ? deal.vehicle_label.slice(prefix.length).trim()
         : null;
-      // Use label-derived model if it's longer/more specific than deal.model
       if (fromLabel && fromLabel.length > model.length) model = fromLabel;
     }
     const params = new URLSearchParams({
@@ -123,8 +147,11 @@ export default function DealCard({ deal, compact = false, showDebug = false }: D
       .catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Save to garage state — lazy initializer reads localStorage once on mount
+  // Save to garage state
   const [saved, setSaved] = useState(() => isSavedLocally(deal.id));
+
+  // Verdict expand state
+  const [expandedVerdict, setExpandedVerdict] = useState(false);
 
   const handleSave = async () => {
     if (saved) return;
@@ -133,7 +160,6 @@ export default function DealCard({ deal, compact = false, showDebug = false }: D
 
     const label = deal.vehicle_label || [deal.year, deal.make, deal.model].filter(Boolean).join(" ") || "EV Listing";
 
-    // Anonymous: save to anon garage (shows in nav badge + garage page)
     if (!isAuthenticated) {
       addToAnonGarage({
         type: "shortlist",
@@ -153,7 +179,6 @@ export default function DealCard({ deal, compact = false, showDebug = false }: D
       return;
     }
 
-    // Authenticated: save to garage_vehicles
     if (session?.access_token && deal.make && deal.model) {
       fetch("/api/workspace/garage", {
         method: "POST",
@@ -175,6 +200,13 @@ export default function DealCard({ deal, compact = false, showDebug = false }: D
 
   const topFlags = (deal.risk_flags ?? []).slice(0, 2);
 
+  // Evidence badge config
+  const es = deal.evidence_score;
+  const evidenceBadge =
+    es == null || es < 40 ? EVIDENCE_BADGES.limited
+    : es < 65 ? EVIDENCE_BADGES.partial
+    : EVIDENCE_BADGES.verified;
+
   return (
     <div className={`relative flex flex-col bg-[#161b22] border border-white/[0.08] rounded-xl overflow-hidden hover:border-white/[0.16] transition-all group ${compact ? "h-full" : ""}`}>
       {/* Photo */}
@@ -189,27 +221,38 @@ export default function DealCard({ deal, compact = false, showDebug = false }: D
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <svg className="w-12 h-12 text-white/10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 21H5a2 2 0 01-2-2V7l3-4h10l3 4v12a2 2 0 01-2 2zM7 10h10M9 14l2 2 4-4" />
-            </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-[#0d1117]">
+            <span className="text-3xl font-bold text-white/10 tracking-tight">
+              {deal.make?.slice(0, 2).toUpperCase() ?? "EV"}
+            </span>
+            <span className="text-[10px] text-white/20 uppercase tracking-widest">
+              {deal.make ?? "Electric Vehicle"}
+            </span>
           </div>
         )}
 
-        {/* Verdict badge overlay */}
-        <div className={`absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-full ${vc.bg} ${vc.border} border backdrop-blur-sm`}>
+        {/* Verdict badge — clickable to expand breakdown */}
+        <button
+          onClick={() => setExpandedVerdict((v) => !v)}
+          className={`absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-full ${vc.bg} ${vc.border} border backdrop-blur-sm transition-opacity hover:opacity-80`}
+        >
           <span className={`w-1.5 h-1.5 rounded-full ${vc.dot}`} />
           <span className={`text-xs font-semibold ${vc.text}`}>{vc.label}</span>
-        </div>
+          <ChevronDown className={`w-3 h-3 ${vc.text} transition-transform ${expandedVerdict ? "rotate-180" : ""}`} />
+        </button>
 
-        {/* Domain badge */}
-        {deal.url_domain && (
+        {/* Rank badge or domain badge */}
+        {rank && totalDeals ? (
+          <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-sm">
+            <span className="text-xs text-white/50">#{rank} of {totalDeals}</span>
+          </div>
+        ) : deal.url_domain ? (
           <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-sm">
             <span className="text-xs text-white/50">{deal.url_domain}</span>
           </div>
-        )}
+        ) : null}
 
-        {/* Save button — top-right when no domain badge, overlaid on photo */}
+        {/* Save button */}
         <button
           onClick={handleSave}
           title={saved ? "Saved to Garage" : "Save to Garage"}
@@ -230,27 +273,54 @@ export default function DealCard({ deal, compact = false, showDebug = false }: D
       <div className="flex flex-col flex-1 p-4 gap-3">
         {/* Vehicle + price */}
         <div>
-          <p className="text-sm font-semibold text-white leading-snug">{deal.vehicle_label}</p>
+          <Link href={`/deals/${deal.id}`} className="text-sm font-semibold text-white leading-snug hover:text-white/80 transition-colors">
+            {deal.vehicle_label}
+          </Link>
+          {deal.verdict === "YELLOW" && deal.risk_flags?.[0] && (
+            <p className="text-[11px] text-white/35 italic mt-0.5">{deal.risk_flags[0]}</p>
+          )}
           <div className="flex items-center gap-2 mt-1">
             <span className="text-lg font-bold text-white">{priceStr}</span>
             {mileageStr && (
               <span className="text-xs text-white/40">· {mileageStr}</span>
             )}
             {deal.location && (
-              <span className="text-xs text-white/40 truncate">· {deal.location}</span>
+              <span className="flex items-center gap-0.5 text-xs text-white/40 max-w-[120px] truncate flex-shrink-0">
+                <MapPin className="w-3 h-3 flex-shrink-0" />
+                {formatLocation(deal.location)}
+              </span>
             )}
           </div>
         </div>
 
+        {/* Verdict expand panel */}
+        {expandedVerdict && (
+          <div className={`rounded-lg border p-3 text-xs space-y-1.5 ${vc.bg} ${vc.border}`}>
+            {deal.verdict === "GREEN" || !topFlags.length ? (
+              <p className="text-[#00d97e]/70">No major risk flags detected.</p>
+            ) : (
+              topFlags.map((f, i) => (
+                <p key={i} className="text-white/50 flex gap-1.5">
+                  <span className={`${vc.text} flex-shrink-0`}>›</span>
+                  {f}
+                </p>
+              ))
+            )}
+          </div>
+        )}
+
         {/* Scores row */}
-        <div className="flex items-center gap-3">
-          {deal.evidence_score != null && (
-            <div className="flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-white/30" />
-              <span className="text-xs text-white/50">Evidence</span>
-              <span className="text-xs font-semibold text-white/80">{deal.evidence_score}</span>
+        <div className="flex items-center gap-2">
+          {/* Evidence badge with tooltip */}
+          <div className="relative group/ev">
+            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border cursor-help ${evidenceBadge.cls}`}>
+              {evidenceBadge.label}
+            </span>
+            <div className="absolute bottom-full left-0 mb-1.5 w-52 p-2 rounded-lg bg-[#1c2128] border border-white/10 text-[10px] text-white/50 leading-relaxed opacity-0 group-hover/ev:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl">
+              {evidenceBadge.tooltip}
             </div>
-          )}
+          </div>
+
           {deal.risk_points != null && (
             <div className="flex items-center gap-1.5">
               <VerdictIcon className={`w-3.5 h-3.5 ${vc.text}`} />
@@ -261,7 +331,7 @@ export default function DealCard({ deal, compact = false, showDebug = false }: D
         </div>
 
         {/* Risk flags */}
-        {topFlags.length > 0 && (
+        {topFlags.length > 0 && !expandedVerdict && (
           <div className="flex flex-col gap-1">
             {topFlags.map((flag, i) => (
               <p key={i} className="text-xs text-white/40 flex items-start gap-1.5">

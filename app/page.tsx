@@ -9,7 +9,7 @@ import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-import { ArrowRight, Star, ChevronDown, ChevronUp, Mail, Menu, X } from "lucide-react";
+import { ArrowRight, Star, ChevronDown, ChevronUp, Mail, Menu, X, Zap } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import LoginModal from "@/components/LoginModal";
@@ -22,6 +22,7 @@ import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import FeaturedDeals from "@/components/landing/FeaturedDeals";
+import DealCard, { type CuratedDeal } from "@/components/deals/DealCard";
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 import type { MinimumViableRoutine } from "@/types/v2";
 
@@ -69,12 +70,20 @@ export default function Home() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [totalReceipts, setTotalReceipts] = useState<number | null>(null);
+  const [featuredDeals, setFeaturedDeals] = useState<CuratedDeal[]>([]);
 
   useEffect(() => {
     fetch("/api/homepage/stats")
       .then((r) => r.json())
       .then((d) => { if (d.success && d.total_receipts > 0) setTotalReceipts(d.total_receipts); })
       .catch(() => {}); // non-critical, fall back to static text
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/deals?per_page=3&verdict=GREEN&sort=quality")
+      .then((r) => r.json())
+      .then((d) => { if (d.deals?.length) setFeaturedDeals(d.deals); })
+      .catch(() => {});
   }, []);
 
   // Track visitor on homepage
@@ -736,6 +745,32 @@ export default function Home() {
         </div>
       </section>
 
+
+      {/* ── Deal Watch ───────────────────────────────────────────────── */}
+      {featuredDeals.length > 0 && (
+        <section className="py-16 border-t border-white/[0.06] bg-[#0d1117]">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="w-4 h-4 text-[#00d97e]" />
+                  <span className="text-xs font-semibold uppercase tracking-widest text-[#00d97e]">Deal Watch</span>
+                </div>
+                <h2 className="text-2xl font-bold text-white">Today&apos;s Best EV Deals</h2>
+                <p className="text-white/40 text-sm mt-1">Pre-analyzed by OFFO — verdict and risk flags included.</p>
+              </div>
+              <Link href="/deals" className="text-sm text-white/40 hover:text-white/70 flex items-center gap-1.5 transition-colors">
+                See all deals <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {featuredDeals.map((deal) => (
+                <DealCard key={deal.id} deal={deal} compact />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── Coming Soon: EV Mechanic Finder ─────────────────────────── */}
       <section className="py-10 md:py-14 bg-[#0d1117]">

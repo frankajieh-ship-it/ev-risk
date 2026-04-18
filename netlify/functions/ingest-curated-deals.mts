@@ -4,11 +4,11 @@
  * Runs 3× daily (07:00, 13:00, 19:00 UTC) via Netlify scheduled functions.
  *
  * Discovery strategy:
- *   1. Pull recent CarGurus listing URLs from the receipts table (users already
- *      submitted and analyzed these — no scraping needed, no bot walls)
- *   2. Re-analyze any that haven't been seen in 6h, upsert into curated_deals
- *
- * This avoids all scraping complexity while seeding from real, verified listings.
+ *   1. Pull recent CarGurus, Cars.com, and AutoTrader URLs from the receipts table
+ *      (users already submitted and analyzed these — no scraping, no bot walls)
+ *   2. Supplemental: use Auto.dev to find EVs by VIN, cross-reference against
+ *      existing receipts to discover listing URLs not yet in curated_deals
+ *   3. Re-analyze any that haven't been seen in 6h, upsert into curated_deals
  */
 
 import type { Config } from "@netlify/functions";
@@ -69,59 +69,86 @@ export default async function handler() {
   });
 
   // --- Step 1: Discover listing URLs from the receipts table ---
-  // Pull recently analyzed CarGurus listings that had a full receipt generated.
-  // These are real URLs that were successfully scraped already.
+  // Pull recently analyzed listings from CarGurus, Cars.com, and AutoTrader.
+  // These are real URLs already successfully scraped by users — no bot walls.
   const since7Days = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const { data: receiptRows, error: receiptErr } = await supabase
-    .from("receipts")
-    .select("listing_url, output_json, created_at")
-    .eq("generation_status", "full")
-    .ilike("listing_url", "%cargurus.com%")
-    .not("listing_url", "is", null)
-    .gte("created_at", since7Days)
-    .order("created_at", { ascending: false })
-    .limit(MAX_TOTAL_PER_RUN * 3); // fetch extras since some will be skipped
-
-  if (receiptErr) {
-    console.error("[ingest-curated-deals] Failed to query receipts:", receiptErr.message);
-    return;
+  async function fetchReceiptUrls(domainPattern: string) {
+    const { data, error } = await supabase
+      .from("receipts")
+      .select("listing_url, output_json, created_at")
+      .eq("generation_status", "full")
+      .ilike("listing_url", `%${domainPattern}%`)
+      .not("listing_url", "is", null)
+      .gte("created_at", since7Days)
+      .order("created_at", { ascending: false })
+      .limit(MAX_TOTAL_PER_RUN * 3);
+    if (error) console.warn(`[ingest-curated-deals] Failed to query receipts for ${domainPattern}:`, error.message);
+    return data ?? [];
   }
 
-  if (!receiptRows?.length) {
-    console.log("[ingest-curated-deals] No recent CarGurus receipts found — nothing to ingest");
-    return;
-  }
-
-  // Clean and deduplicate URLs:
-  // - Strip query params (tracking noise like srpc=, resultSetId= etc) — the listing ID is in the path
-  // - Fix duplicated URLs (some rows store "https://...https://..." due to a sharing bug)
-  // - Keep only /details/ paths (individual listings)
+  // URL cleaners — each enforces individual listing page format
   function cleanCarGurusUrl(raw: string): string | null {
     // Fix doubled URLs: "https://x.comhttps://x.com" → take the last valid URL
     const doubled = raw.match(/(https:\/\/[^\s]+)$/);
     const cleaned = doubled ? doubled[1] : raw;
     try {
       const u = new URL(cleaned);
-      // Only accept individual listing pages (/details/NNNN)
       if (!u.pathname.match(/^\/details\/\d+/)) return null;
-      // Return clean URL with no query params
       return `${u.origin}${u.pathname}`;
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   }
 
-  const seenUrls = new Map<string, typeof receiptRows[0]>();
-  for (const row of receiptRows) {
-    const clean = row.listing_url ? cleanCarGurusUrl(row.listing_url) : null;
-    if (clean && !seenUrls.has(clean)) {
-      seenUrls.set(clean, row);
-    }
+  function cleanCarsDotComUrl(raw: string): string | null {
+    try {
+      const u = new URL(raw);
+      if (!u.hostname.includes("cars.com")) return null;
+      if (!u.pathname.match(/^\/vehicledetail\/\d+/)) return null;
+      return `${u.origin}${u.pathname}`;
+    } catch { return null; }
   }
+
+  function cleanAutoTraderUrl(raw: string): string | null {
+    try {
+      const u = new URL(raw);
+      if (!u.hostname.includes("autotrader.com")) return null;
+      if (!u.pathname.includes("vehicledetails")) return null;
+      const listingId = u.searchParams.get("listingId");
+      if (!listingId) return null;
+      return `${u.origin}${u.pathname}?listingId=${listingId}`;
+    } catch { return null; }
+  }
+
+  const [carGurusRows, carsDotComRows, autoTraderRows] = await Promise.all([
+    fetchReceiptUrls("cargurus.com"),
+    fetchReceiptUrls("cars.com"),
+    fetchReceiptUrls("autotrader.com"),
+  ]);
+
+  // Merge and deduplicate across all sources
+  const seenUrls = new Map<string, (typeof carGurusRows)[0]>();
+
+  const addRows = (rows: typeof carGurusRows, cleaner: (url: string) => string | null) => {
+    for (const row of rows) {
+      const clean = row.listing_url ? cleaner(row.listing_url) : null;
+      if (clean && !seenUrls.has(clean)) seenUrls.set(clean, row);
+    }
+  };
+
+  addRows(carGurusRows, cleanCarGurusUrl);
+  addRows(carsDotComRows, cleanCarsDotComUrl);
+  addRows(autoTraderRows, cleanAutoTraderUrl);
 
   const candidateUrls = Array.from(seenUrls.keys());
-  console.log(`[ingest-curated-deals] Found ${candidateUrls.length} unique CarGurus URLs from receipts`);
+  console.log(
+    `[ingest-curated-deals] Found ${candidateUrls.length} unique URLs ` +
+    `(CarGurus: ${carGurusRows.length}, Cars.com: ${carsDotComRows.length}, AutoTrader: ${autoTraderRows.length})`
+  );
+
+  if (!candidateUrls.length) {
+    console.log("[ingest-curated-deals] No recent receipts found — nothing to ingest");
+    return;
+  }
 
   // --- Step 2: Skip URLs already recently ingested ---
   const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
@@ -263,6 +290,95 @@ export default async function handler() {
   console.log(
     `[ingest-curated-deals] Done — processed: ${totalProcessed}, failed: ${totalFailed}, skipped: ${recentUrls.size}`
   );
+
+  // --- Supplemental: Auto.dev proactive EV discovery ---
+  // Search Auto.dev for recent used EV listings by popular makes.
+  // For each listing that has a VIN also present in our receipts table,
+  // trigger a fresh re-analysis so the deal surfaces on the next ingest cycle.
+  const autoDevKey = process.env.AUTODEV_API;
+  if (!autoDevKey) return;
+
+  const EV_MAKES = ["Tesla", "Chevrolet", "Hyundai", "Kia", "Ford", "Volkswagen", "Nissan", "BMW", "Rivian"];
+  const supplementalUrls: string[] = [];
+
+  for (const evMake of EV_MAKES) {
+    try {
+      const qs = new URLSearchParams({ make: evMake, limit: "15" });
+      const res = await fetch(`https://auto.dev/api/listings?${qs}`, {
+        headers: { Authorization: `Bearer ${autoDevKey}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) continue;
+      const data = await res.json() as { records?: Array<{ vin?: string }> };
+      const vins = (data.records ?? []).map((r) => r.vin).filter((v): v is string => !!v);
+      if (!vins.length) continue;
+
+      // Find receipts for these VINs with a usable listing URL not already ingested
+      const { data: vinReceipts } = await supabase
+        .from("receipts")
+        .select("listing_url")
+        .eq("generation_status", "full")
+        .in("vin", vins)
+        .not("listing_url", "is", null)
+        .limit(10);
+
+      for (const row of vinReceipts ?? []) {
+        if (!row.listing_url) continue;
+        const clean =
+          cleanCarGurusUrl(row.listing_url) ??
+          cleanCarsDotComUrl(row.listing_url) ??
+          cleanAutoTraderUrl(row.listing_url);
+        if (!clean || recentUrls.has(clean) || candidateUrls.includes(clean)) continue;
+        supplementalUrls.push(clean);
+      }
+    } catch { /* non-critical */ }
+  }
+
+  console.log(`[ingest-curated-deals] Auto.dev supplemental: ${supplementalUrls.length} new listing URLs discovered`);
+
+  // Process supplemental URLs (up to 10 extra per run, with same delay)
+  for (const listingUrl of supplementalUrls.slice(0, 10)) {
+    try {
+      let urlDomain: string | null = null;
+      try { urlDomain = new URL(listingUrl).hostname.replace("www.", ""); } catch { /* ignore */ }
+
+      const receiptRes = await fetch(`${siteUrl}/api/receipt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listing_url: listingUrl, receipt_token: dealWatchToken, mode: "single", region: "US" }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!receiptRes.ok) continue;
+      const receiptData = (await receiptRes.json()) as LiteReceiptResponse;
+      if (!receiptData.success || !receiptData.receipt) continue;
+
+      const r = receiptData.receipt;
+      if (!r.make && !r.model && !r.price && !r.year) continue;
+      const category = r.vehicle_category ?? "";
+      if (category && category !== "EV" && category !== "PHEV") continue;
+      if (r.verdict === "RED") continue;
+
+      const riskPoints = r.why_not_green?.length
+        ? r.why_not_green.reduce((sum: number, f) => sum + (f.points ?? 0), 0)
+        : null;
+      const dealQualityScore = computeDealQualityScore(r.evidence_score ?? null, riskPoints, r.fit_score ?? null);
+      const vehicleLabel = r.vehicle_label || [r.year, r.make, r.model, r.trim].filter(Boolean).join(" ") || "Electric Vehicle";
+
+      await supabase.from("curated_deals").upsert({
+        listing_url: listingUrl, url_domain: urlDomain, vehicle_label: vehicleLabel,
+        year: r.year ?? null, make: r.make ?? null, model: r.model ?? null, trim: r.trim ?? null,
+        price: r.price ?? null, mileage: r.mileage ?? null, location: r.location ?? null,
+        verdict: r.verdict as "GREEN" | "YELLOW" | "RED" | null,
+        evidence_score: r.evidence_score ?? null, fit_score: r.fit_score ?? null,
+        risk_points: riskPoints, deal_quality_score: dealQualityScore,
+        risk_flags: r.risk_flags ?? null, photo_url: receiptData.photo_urls?.[0] ?? null,
+        receipt_id: receiptData.receipt_id ?? null,
+        last_analyzed_at: new Date().toISOString(), last_seen_at: new Date().toISOString(), is_active: true,
+      }, { onConflict: "listing_url", ignoreDuplicates: false });
+
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    } catch { /* non-critical */ }
+  }
 }
 
 export const config: Config = {

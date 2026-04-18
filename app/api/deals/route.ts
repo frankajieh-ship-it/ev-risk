@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
   const priceMax = params.get("price_max") ? parseInt(params.get("price_max")!) : null;
   const mileageMax = params.get("mileage_max") ? parseInt(params.get("mileage_max")!) : null;
   const yearMin = params.get("year_min") ? parseInt(params.get("year_min")!) : null;
+  const location = params.get("location")?.trim() ?? null;
   const sort = params.get("sort") ?? "quality";
 
   // Pagination
@@ -89,6 +90,9 @@ export async function GET(request: NextRequest) {
   }
   if (yearMin && !isNaN(yearMin)) {
     query = query.gte("year", yearMin);
+  }
+  if (location) {
+    query = query.ilike("location", `%${location}%`);
   }
 
   const { data: deals, count, error } = await query;
