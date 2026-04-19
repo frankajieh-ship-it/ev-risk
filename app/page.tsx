@@ -16,7 +16,6 @@ import LoginModal from "@/components/LoginModal";
 import ManualEntryModal, { type ManualVehicleData } from "@/components/ManualEntryModal";
 import VehicleInputTabs from "@/components/VehicleInputTabs";
 import VehicleRecommendations from "@/components/VehicleRecommendations";
-import SavedScenariosList from "@/components/SavedScenariosList";
 import RoutineStep from "@/components/RoutineStep";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
@@ -674,25 +673,6 @@ export default function Home() {
           )}
         </div>
       </section>
-
-      {/* Saved Scenarios — authenticated users only */}
-      {isAuthenticated && currentStep === "routine" && (
-        <section className="max-w-3xl mx-auto px-4 pb-12">
-          <SavedScenariosList
-            maxItems={3}
-            onSelectScenario={(scenario) => {
-              const params = new URLSearchParams({
-                data: JSON.stringify({
-                  model: scenario.vehicle_model,
-                  year: scenario.vehicle_year,
-                  ...scenario.inputs,
-                }),
-              });
-              router.push(`/report?${params.toString()}`);
-            }}
-          />
-        </section>
-      )}
 
       {/* ── Section 3: How It Works ──────────────────────────────────── */}
       <HowItWorksSection variant="homepage" dark />

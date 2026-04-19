@@ -48,10 +48,10 @@ export async function GET(request: NextRequest) {
   const location = params.get("location")?.trim() ?? null;
   const sort = params.get("sort") ?? "quality";
 
-  // Pagination
+  // Pagination applied AFTER dedup — fetch all matching rows first, dedup, then slice.
+  // Fetching paginated rows then deduping causes every page to show the same vehicles.
   const page = Math.max(1, parseInt(params.get("page") ?? "1"));
   const perPage = Math.min(50, Math.max(1, parseInt(params.get("per_page") ?? "20")));
-  const offset = (page - 1) * perPage;
 
   // Determine sort column + direction
   const sortMap: Record<string, { col: string; asc: boolean }> = {
@@ -65,13 +65,13 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("curated_deals")
-    .select("id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, verdict, evidence_score, fit_score, risk_points, deal_quality_score, risk_flags, receipt_id, photo_url, last_analyzed_at", { count: "exact" })
+    .select("id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, verdict, evidence_score, fit_score, risk_points, deal_quality_score, risk_flags, receipt_id, photo_url, last_analyzed_at")
     .eq("is_active", true)
     .not("vehicle_label", "is", null)
     .not("make", "is", null)
     .not("price", "is", null)
     .order(sortCol, { ascending: sortAsc, nullsFirst: false })
-    .range(offset, offset + perPage - 1);
+    .limit(500); // cap at 500 — more than enough for dedup+pagination
 
   if (verdicts.length > 0) {
     query = query.in("verdict", verdicts);
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     query = query.ilike("location", `%${location}%`);
   }
 
-  const { data: deals, count, error } = await query;
+  const { data: allDeals, error } = await query;
 
   if (error) {
     console.error("[/api/deals] Query failed:", error.message);
@@ -103,9 +103,9 @@ export async function GET(request: NextRequest) {
   }
 
   // Deduplicate by (make, model, year, trim) — keep highest deal_quality_score per spec.
-  // This prevents near-identical listings of the same vehicle from flooding results.
-  const seen = new Map<string, (typeof deals)[0]>();
-  for (const deal of deals ?? []) {
+  // Must happen before pagination so every page shows different vehicles.
+  const seen = new Map<string, (typeof allDeals)[0]>();
+  for (const deal of allDeals ?? []) {
     const key = [
       (deal.make ?? "").toLowerCase().trim(),
       (deal.model ?? "").toLowerCase().trim(),
@@ -118,15 +118,18 @@ export async function GET(request: NextRequest) {
     }
   }
   const deduped = Array.from(seen.values());
+  const total = deduped.length;
+  const offset = (page - 1) * perPage;
+  const pageDeals = deduped.slice(offset, offset + perPage);
 
   return NextResponse.json(
     {
       success: true,
-      deals: deduped,
-      total: count ?? 0,
+      deals: pageDeals,
+      total,
       page,
       per_page: perPage,
-      total_pages: Math.ceil((count ?? 0) / perPage),
+      total_pages: Math.ceil(total / perPage),
     },
     {
       headers: {

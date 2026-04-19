@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ExternalLink, ShieldCheck, AlertTriangle, XCircle, MapPin, Bookmark, BookmarkCheck, ChevronDown } from "lucide-react";
+import { ExternalLink, ShieldCheck, AlertTriangle, XCircle, Bookmark, BookmarkCheck, ChevronDown } from "lucide-react";
 import { addToAnonGarage } from "@/lib/anon-garage";
 import { useAuth } from "@/hooks/useAuth";
 import LoginModal from "@/components/auth/LoginModal";
@@ -113,12 +113,11 @@ interface DealCardProps {
   deal: CuratedDeal;
   compact?: boolean;
   preview?: boolean; // minimal card for landing page 5-col grid
-  showDebug?: boolean;
   rank?: number;
   totalDeals?: number;
 }
 
-export default function DealCard({ deal, compact = false, preview = false, showDebug = false, rank, totalDeals }: DealCardProps) {
+export default function DealCard({ deal, compact = false, preview = false, rank, totalDeals }: DealCardProps) {
   const vc = deal.verdict ? VERDICT_CONFIG[deal.verdict] : VERDICT_CONFIG.YELLOW;
   const VerdictIcon = vc.icon;
   const { isAuthenticated, session } = useAuth();
@@ -305,12 +304,6 @@ export default function DealCard({ deal, compact = false, preview = false, showD
             {mileageStr && (
               <span className="text-xs text-white/40">· {mileageStr}</span>
             )}
-            {!preview && deal.location && (
-              <span className="flex items-center gap-0.5 text-xs text-white/40 max-w-[120px] truncate flex-shrink-0">
-                <MapPin className="w-3 h-3 flex-shrink-0" />
-                {formatLocation(deal.location)}
-              </span>
-            )}
           </div>
         </div>
 
@@ -368,21 +361,6 @@ export default function DealCard({ deal, compact = false, preview = false, showD
           <FreshnessLabel timestamp={deal.last_analyzed_at} />
         )}
 
-        {/* Debug strip — internal only */}
-        {!preview && showDebug && (
-          <div className="border-t border-white/[0.06] -mx-4 px-4 pt-2 pb-1 bg-black/30 font-mono text-[10px] text-white/40 space-y-1">
-            <div className="flex flex-wrap gap-x-4 gap-y-0.5">
-              <span>fit: <span className="text-white/70">{deal.fit_score ?? "—"}</span></span>
-              <span>evidence: <span className="text-white/70">{deal.evidence_score ?? "—"}</span></span>
-              <span>quality: <span className="text-white/70">{deal.deal_quality_score ?? "—"}</span></span>
-              <span>risk_pts: <span className="text-white/70">{deal.risk_points ?? "—"}</span></span>
-              <span>verdict: <span className={deal.verdict === "GREEN" ? "text-[#00d97e]" : deal.verdict === "YELLOW" ? "text-yellow-400" : deal.verdict === "RED" ? "text-red-400" : "text-white/40"}>{deal.verdict ?? "—"}</span></span>
-            </div>
-            {deal.risk_flags && deal.risk_flags.length > 0 && (
-              <div className="text-white/30 line-clamp-2">{deal.risk_flags.join(", ")}</div>
-            )}
-          </div>
-        )}
 
         {/* Actions */}
         <div className="mt-auto flex gap-2 pt-1">
