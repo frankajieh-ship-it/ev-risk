@@ -2,8 +2,9 @@
  * GET /api/photos?make=Tesla&model=Model+3&year=2023&vin=...
  *
  * Fetches professional vehicle images.
- * Primary: VinAudit Vehicle Images API (stock images, consistent quality)
- * Fallback: Auto.dev market listings (actual listing photos)
+ * Primary:    VinAudit Vehicle Images API (stock images, consistent quality)
+ * Fallback 1: Auto.dev market listings (actual listing photos)
+ * Fallback 2: Imagin Studios CDN renders (free, no API key required)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -183,6 +184,125 @@ function normalizeForAutodev(
   return { make: normalizedMake, model: m };
 }
 
+// ---------------------------------------------------------------------------
+// Imagin Studios CDN — free car renders, no API key required.
+// Maps our normalized model names (lowercase) to Imagin's modelFamily slug.
+// ---------------------------------------------------------------------------
+
+const IMAGIN_MODEL_MAP: Record<string, string> = {
+  // Tesla
+  "model 3": "model-3",
+  "model y": "model-y",
+  "model s": "model-s",
+  "model x": "model-x",
+  "cybertruck": "cybertruck",
+  // Hyundai
+  "ioniq 5": "ioniq-5",
+  "ioniq 6": "ioniq-6",
+  "ioniq 9": "ioniq-9",
+  "kona electric": "kona-electric",
+  // Kia
+  "ev6": "ev6",
+  "ev9": "ev9",
+  "niro ev": "niro-ev",
+  // Ford
+  "mustang mach-e": "mustang-mach-e",
+  "f-150 lightning": "f-150-lightning",
+  // Chevrolet
+  "bolt ev": "bolt-ev",
+  "bolt euv": "bolt-euv",
+  "equinox ev": "equinox-ev",
+  "blazer ev": "blazer-ev",
+  "silverado ev": "silverado-ev",
+  // Volkswagen
+  "id.4": "id-4",
+  "id4": "id-4",
+  "id.3": "id-3",
+  // BMW
+  "i3": "i3",
+  "i4": "i4",
+  "i5": "i5",
+  "i7": "i7",
+  "ix": "ix",
+  "ix3": "ix3",
+  // Rivian
+  "r1t": "r1t",
+  "r1s": "r1s",
+  // Volvo
+  "c40": "c40-recharge",
+  "c40 recharge": "c40-recharge",
+  "xc40 recharge": "xc40-recharge",
+  "xc40": "xc40-recharge",
+  // Nissan
+  "leaf": "leaf",
+  // Polestar
+  "2": "2",
+  "polestar 2": "2",
+  "3": "3",
+  "polestar 3": "3",
+  // Genesis
+  "gv60": "gv60",
+  "gv70 electrified": "gv70-electrified",
+  "gv80 electrified": "gv80-electrified",
+  "g80 electrified": "g80-electrified",
+  // Mercedes
+  "eqs": "eqs",
+  "eqb": "eqb",
+  "eqe": "eqe",
+  // Lucid
+  "air": "air",
+  // Cadillac
+  "lyriq": "lyriq",
+  "optiq": "optiq",
+};
+
+/**
+ * Try Imagin Studios CDN for a car render.
+ * Returns a URL if the make/model is in our map, otherwise null.
+ */
+function getImaginUrl(make: string | undefined, model: string | undefined): string | null {
+  if (!make || !model) return null;
+
+  // Strip make prefix from model (e.g. "Hyundai Ioniq 5" → "Ioniq 5")
+  let m = model.trim();
+  if (m.toLowerCase().startsWith(make.toLowerCase() + " ")) {
+    m = m.slice(make.length + 1).trim();
+  }
+
+  // Strip common trim suffixes to get base model
+  const trimSuffixes = [
+    " sel long range", " se standard", " se long range", " long range", " standard range",
+    " extended range", " performance", " premium awd", " premium rwd", " premium",
+    " select rwd", " select", " gt awd", " gt", " pro s", " pro", " plus", " s",
+    " large pack", " max pack", " adventure", " light long range", " light",
+    " awd", " rwd", " fwd", " 4wd", " xdrive50", " xdrive40", " edrive40", " m50",
+    " twin ultimate", " twin", " single motor", " recharge",
+  ];
+  let stripped = true;
+  while (stripped) {
+    stripped = false;
+    const mLow = m.toLowerCase();
+    for (const suf of trimSuffixes) {
+      if (mLow.endsWith(suf)) {
+        m = m.slice(0, m.length - suf.length).trim();
+        stripped = true;
+        break;
+      }
+    }
+  }
+
+  const key = m.toLowerCase();
+  const modelFamily = IMAGIN_MODEL_MAP[key];
+  if (!modelFamily) return null;
+
+  const makeLower = make.toLowerCase()
+    .replace("mercedes-benz", "mercedes")
+    .replace("genesis", "genesis")
+    .replace("chevrolet", "chevrolet");
+
+  return `https://cdn.imagin.studio/getimage?customer=imgstudio&make=${encodeURIComponent(makeLower)}&modelFamily=${encodeURIComponent(modelFamily)}&angle=29&width=800`;
+}
+
 export async function GET(request: NextRequest) {
   const p = request.nextUrl.searchParams;
   const vin = p.get("vin") || undefined;
@@ -233,6 +353,12 @@ export async function GET(request: NextRequest) {
 
   if (photoUrls.length > 0) {
     return NextResponse.json({ photo_urls: photoUrls, source: "autodev" });
+  }
+
+  // --- Final fallback: Imagin Studios CDN renders (free, no key) ---
+  const imaginUrl = getImaginUrl(make, rawModel);
+  if (imaginUrl) {
+    return NextResponse.json({ photo_urls: [imaginUrl], source: "imagin" });
   }
 
   return NextResponse.json({ photo_urls: [], source: "none" });
