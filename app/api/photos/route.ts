@@ -185,85 +185,55 @@ function normalizeForAutodev(
 }
 
 // ---------------------------------------------------------------------------
-// Imagin Studios CDN — free car renders, no API key required.
-// Maps our normalized model names (lowercase) to Imagin's modelFamily slug.
+// Static Wikipedia Commons fallback — curated photo URLs for EV catalog.
+// Keys are lowercase normalized model names (make prefix stripped, trim stripped).
+// All URLs are stable Wikimedia CDN thumb URLs (Creative Commons licensed).
 // ---------------------------------------------------------------------------
 
-const IMAGIN_MODEL_MAP: Record<string, string> = {
-  // Tesla
-  "model 3": "model-3",
-  "model y": "model-y",
-  "model s": "model-s",
-  "model x": "model-x",
-  "cybertruck": "cybertruck",
+const STATIC_PHOTO_MAP: Record<string, string> = {
   // Hyundai
-  "ioniq 5": "ioniq-5",
-  "ioniq 6": "ioniq-6",
-  "ioniq 9": "ioniq-9",
-  "kona electric": "kona-electric",
+  "ioniq 5": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Hyundai_Ioniq_5_1X7A7085.jpg/960px-Hyundai_Ioniq_5_1X7A7085.jpg",
+  "ioniq 6": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Hyundai_Ioniq_6_1X7A7258.jpg/960px-Hyundai_Ioniq_6_1X7A7258.jpg",
   // Kia
-  "ev6": "ev6",
-  "ev9": "ev9",
-  "niro ev": "niro-ev",
-  // Ford
-  "mustang mach-e": "mustang-mach-e",
-  "f-150 lightning": "f-150-lightning",
+  "ev6": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Kia_EV6_GT_IMG_8171.jpg/960px-Kia_EV6_GT_IMG_8171.jpg",
+  // Tesla
+  "model 3": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Tesla_Model_3_%282023%29_IMG_9488_%28cropped%29.jpg/960px-Tesla_Model_3_%282023%29_IMG_9488_%28cropped%29.jpg",
+  "model y": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Tesla_Model_in_M%C3%BCnchen.jpg/960px-Tesla_Model_in_M%C3%BCnchen.jpg",
+  "model s": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Tesla_Model_S_%282023%29_Motorworld_Munich_1X7A0025.jpg/960px-Tesla_Model_S_%282023%29_Motorworld_Munich_1X7A0025.jpg",
+  "model x": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Tesla_Model_X_100D_1X7A6736.jpg/960px-Tesla_Model_X_100D_1X7A6736.jpg",
+  "cybertruck": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/2024_Tesla_Cybertruck_Foundation_Series_IMG_0634_%28cropped%29.jpg/960px-2024_Tesla_Cybertruck_Foundation_Series_IMG_0634_%28cropped%29.jpg",
   // Chevrolet
-  "bolt ev": "bolt-ev",
-  "bolt euv": "bolt-euv",
-  "equinox ev": "equinox-ev",
-  "blazer ev": "blazer-ev",
-  "silverado ev": "silverado-ev",
-  // Volkswagen
-  "id.4": "id-4",
-  "id4": "id-4",
-  "id.3": "id-3",
-  // BMW
-  "i3": "i3",
-  "i4": "i4",
-  "i5": "i5",
-  "i7": "i7",
-  "ix": "ix",
-  "ix3": "ix3",
-  // Rivian
-  "r1t": "r1t",
-  "r1s": "r1s",
-  // Volvo
-  "c40": "c40-recharge",
-  "c40 recharge": "c40-recharge",
-  "xc40 recharge": "xc40-recharge",
-  "xc40": "xc40-recharge",
+  "bolt ev": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Chevrolet_Bolt_EV_Black.jpg/960px-Chevrolet_Bolt_EV_Black.jpg",
+  "bolt euv": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/2022-2024_Chevrolet_Bolt_EUV_%C3%89nergir.JPG/960px-2022-2024_Chevrolet_Bolt_EUV_%C3%89nergir.JPG",
   // Nissan
-  "leaf": "leaf",
+  "leaf": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/2023_Nissan_Leaf_Tekna.jpg/960px-2023_Nissan_Leaf_Tekna.jpg",
+  // Ford
+  "mustang mach-e": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/Ford_Mustang_Mach-E_Rally_Auto_Zuerich_2023_1X7A1182.jpg/960px-Ford_Mustang_Mach-E_Rally_Auto_Zuerich_2023_1X7A1182.jpg",
+  "f-150 lightning": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Ford_F-150_Lightning_IAA_2023_1X7A0596.jpg/960px-Ford_F-150_Lightning_IAA_2023_1X7A0596.jpg",
+  // Rivian
+  "r1t": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Rivian_R1T_-_2nd_Row_07.png/960px-Rivian_R1T_-_2nd_Row_07.png",
+  "r1s": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Rivian_R1S_-_3.jpg/960px-Rivian_R1S_-_3.jpg",
+  // Volkswagen
+  "id.4": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/VW_ID4_CRI_03_2023_2386.jpg/960px-VW_ID4_CRI_03_2023_2386.jpg",
+  "id4": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/VW_ID4_CRI_03_2023_2386.jpg/960px-VW_ID4_CRI_03_2023_2386.jpg",
+  // BMW
+  "ix": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/2023_BMW_iX_12_2022_CRI_0831.jpg/960px-2023_BMW_iX_12_2022_CRI_0831.jpg",
   // Polestar
-  "2": "2",
-  "polestar 2": "2",
-  "3": "3",
-  "polestar 3": "3",
-  // Genesis
-  "gv60": "gv60",
-  "gv70 electrified": "gv70-electrified",
-  "gv80 electrified": "gv80-electrified",
-  "g80 electrified": "g80-electrified",
-  // Mercedes
-  "eqs": "eqs",
-  "eqb": "eqb",
-  "eqe": "eqe",
+  "polestar 2": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Polestar_2_BST_Edition_230_Auto_Zuerich_2023_1X7A1303.jpg/960px-Polestar_2_BST_Edition_230_Auto_Zuerich_2023_1X7A1303.jpg",
   // Lucid
-  "air": "air",
-  // Cadillac
-  "lyriq": "lyriq",
-  "optiq": "optiq",
+  "air": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Lucid_Air_Dream_edition%2C_IAA_Open_Space_2023%2C_Munich_%28P1120054%29.jpg/960px-Lucid_Air_Dream_edition%2C_IAA_Open_Space_2023%2C_Munich_%28P1120054%29.jpg",
+  // Mercedes
+  "eqs": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/Mercedes-Benz_EQS_450%2B%2C_IAA_Open_Space_2023%2C_Munich_%28P1120197%29.jpg/960px-Mercedes-Benz_EQS_450%2B%2C_IAA_Open_Space_2023%2C_Munich_%28P1120197%29.jpg",
 };
 
 /**
- * Try Imagin Studios CDN for a car render.
- * Returns a URL if the make/model is in our map, otherwise null.
+ * Look up a curated Wikipedia Commons photo for a make/model.
+ * Returns a URL if matched, otherwise null.
  */
-function getImaginUrl(make: string | undefined, model: string | undefined): string | null {
+function getStaticPhotoUrl(make: string | undefined, model: string | undefined): string | null {
   if (!make || !model) return null;
 
-  // Strip make prefix from model (e.g. "Hyundai Ioniq 5" → "Ioniq 5")
+  // Strip make prefix from model (e.g. "Hyundai Ioniq 5 SEL Long Range" → "Ioniq 5 SEL Long Range")
   let m = model.trim();
   if (m.toLowerCase().startsWith(make.toLowerCase() + " ")) {
     m = m.slice(make.length + 1).trim();
@@ -271,12 +241,13 @@ function getImaginUrl(make: string | undefined, model: string | undefined): stri
 
   // Strip common trim suffixes to get base model
   const trimSuffixes = [
-    " sel long range", " se standard", " se long range", " long range", " standard range",
-    " extended range", " performance", " premium awd", " premium rwd", " premium",
-    " select rwd", " select", " gt awd", " gt", " pro s", " pro", " plus", " s",
+    " sel long range", " se standard", " se long range", " long range", " standard range plus",
+    " standard range", " extended range", " performance", " premium awd", " premium rwd", " premium",
+    " select rwd", " select", " gt awd", " gt", " pro s", " pro", " plus s", " plus",
     " large pack", " max pack", " adventure", " light long range", " light",
     " awd", " rwd", " fwd", " 4wd", " xdrive50", " xdrive40", " edrive40", " m50",
     " twin ultimate", " twin", " single motor", " recharge",
+    " 450+", " 580", " pure",
   ];
   let stripped = true;
   while (stripped) {
@@ -291,16 +262,7 @@ function getImaginUrl(make: string | undefined, model: string | undefined): stri
     }
   }
 
-  const key = m.toLowerCase();
-  const modelFamily = IMAGIN_MODEL_MAP[key];
-  if (!modelFamily) return null;
-
-  const makeLower = make.toLowerCase()
-    .replace("mercedes-benz", "mercedes")
-    .replace("genesis", "genesis")
-    .replace("chevrolet", "chevrolet");
-
-  return `https://cdn.imagin.studio/getimage?customer=imgstudio&make=${encodeURIComponent(makeLower)}&modelFamily=${encodeURIComponent(modelFamily)}&angle=29&width=800`;
+  return STATIC_PHOTO_MAP[m.toLowerCase()] ?? null;
 }
 
 export async function GET(request: NextRequest) {
@@ -355,10 +317,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ photo_urls: photoUrls, source: "autodev" });
   }
 
-  // --- Final fallback: Imagin Studios CDN renders (free, no key) ---
-  const imaginUrl = getImaginUrl(make, rawModel);
-  if (imaginUrl) {
-    return NextResponse.json({ photo_urls: [imaginUrl], source: "imagin" });
+  // --- Final fallback: curated Wikipedia Commons static photos ---
+  const staticUrl = getStaticPhotoUrl(make, rawModel);
+  if (staticUrl) {
+    return NextResponse.json({ photo_urls: [staticUrl], source: "static" });
   }
 
   return NextResponse.json({ photo_urls: [], source: "none" });
