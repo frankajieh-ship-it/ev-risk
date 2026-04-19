@@ -34,22 +34,22 @@ function CarSilhouette({ className }: { className?: string }) {
       xmlns="http://www.w3.org/2000/svg"
       className={className}
     >
-      <rect width="120" height="60" rx="4" fill="#F3F4F6" />
+      <rect width="120" height="60" rx="4" fill="transparent" />
       {/* Car body */}
       <path
         d="M15 38 Q18 28 32 24 L52 22 Q62 21 72 24 L88 26 Q100 28 105 35 L106 38 Q100 42 85 43 Q70 44 35 43 Q20 42 15 38Z"
-        fill="#D1D5DB"
+        fill="#2a2f38"
       />
       {/* Windows */}
       <path
         d="M35 24 Q38 22 52 22 L62 22 Q70 22 72 25 L68 30 L38 30Z"
-        fill="#9CA3AF"
+        fill="#3a4049"
       />
       {/* Wheels */}
-      <circle cx="37" cy="43" r="7" fill="#6B7280" />
-      <circle cx="37" cy="43" r="3.5" fill="#D1D5DB" />
-      <circle cx="83" cy="43" r="7" fill="#6B7280" />
-      <circle cx="83" cy="43" r="3.5" fill="#D1D5DB" />
+      <circle cx="37" cy="43" r="7" fill="#4b5563" />
+      <circle cx="37" cy="43" r="3.5" fill="#2a2f38" />
+      <circle cx="83" cy="43" r="7" fill="#4b5563" />
+      <circle cx="83" cy="43" r="3.5" fill="#2a2f38" />
     </svg>
   );
 }
@@ -69,7 +69,7 @@ export default function VehicleImage({
   useEffect(() => {
     if (!make && !vin) return;
 
-    setStatus("loading");
+    setStatus("loading"); // eslint-disable-line react-hooks/set-state-in-effect
     const params = new URLSearchParams();
     if (vin) params.set("vin", vin);
     if (make) params.set("make", make);
@@ -100,16 +100,16 @@ export default function VehicleImage({
 
   // No photo found — show car silhouette so the image slot has a clear affordance
   if (status === "error") return (
-    <div className={`relative overflow-hidden bg-gray-100 flex items-center justify-center ${className}`}>
+    <div className={`relative overflow-hidden bg-[#161b22] flex items-center justify-center ${className}`}>
       <CarSilhouette className="w-2/3 max-w-[160px] opacity-40" />
     </div>
   );
 
   return (
-    <div className={`relative overflow-hidden bg-gray-100 ${className}`}>
+    <div className={`relative overflow-hidden bg-[#161b22] ${className}`}>
       {/* Shimmer while loading */}
       {status !== "loaded" && (
-        <div className="absolute inset-0 bg-gray-100 animate-pulse" />
+        <div className="absolute inset-0 bg-[#161b22] animate-pulse" />
       )}
 
       {/* Actual photo */}

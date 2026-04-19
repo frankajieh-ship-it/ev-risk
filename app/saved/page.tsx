@@ -48,7 +48,7 @@ function localToPreview(local: LocalSavedReceipt): SavedScenarioPreview {
     receipt_id: local.receipt_id,
     scenario_hash: `receipt_${local.receipt_id}`,
     vehicle_model: local.vehicle || "Unknown Vehicle",
-    vehicle_year: 0,
+    vehicle_year: null,
     fit_signal: local.verdict,
     one_sentence_verdict: local.verdict_reason,
     title: local.vehicle

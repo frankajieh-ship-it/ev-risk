@@ -95,6 +95,9 @@ const TRIM_SUFFIXES = [
   " xdrive50", " xdrive40", " edrive40", " edrive35", " m50",
   " 4s", " turbo", " turbo s", " cross turismo", " sport turismo",
   " pure", " grand touring", " grand touring+",
+  // Tesla battery/powertrain designators (e.g. "Model S 90D AWD" → "Model S")
+  " p100d", " p90d", " p85d", " p85+", " p85",
+  " 100d", " 90d", " 85d", " 75d", " 70d", " 60d",
   // Drivetrain short forms
   " awd", " rwd", " fwd", " 4wd",
   " 450+", " 580", " 350+",

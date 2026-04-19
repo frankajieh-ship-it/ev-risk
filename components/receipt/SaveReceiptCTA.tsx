@@ -108,7 +108,7 @@ export default function SaveReceiptCTA({
           receipt_id: receipt.receipt_id,
           scenario_hash: scenarioHash,
           vehicle_model: vehicle || "Unknown Vehicle",
-          vehicle_year: summary?.year || 0,
+          vehicle_year: summary?.year || null,
           fit_signal: receipt.verdict,
           one_sentence_verdict: receipt.verdict_reason || null,
           title: vehicle ? `${vehicle} — ${receipt.verdict}` : null,

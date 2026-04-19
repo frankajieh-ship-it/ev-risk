@@ -170,6 +170,13 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
           {tc.label}
         </span>
 
+        {/* Mileage */}
+        {mileage > 0 && (
+          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-white/50 bg-white/[0.04] border-white/[0.08]">
+            {mileage.toLocaleString()} mi
+          </span>
+        )}
+
         {/* Accidents */}
         <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${ac.cls}`}>
           <AccidentIcon className="w-3 h-3" />
@@ -284,7 +291,7 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
           <span>
             <span className="font-medium text-white/80">Battery est.</span>{" "}
             ~{100 - degradation}% health · ~{estimatedRange} mi range
-            <span className="text-white/30 ml-1">(mileage/age proxy · confirm with seller)</span>
+            <span className="text-white/30 ml-1">(listed {mileage.toLocaleString()} mi · confirm with seller)</span>
           </span>
         </div>
       )}

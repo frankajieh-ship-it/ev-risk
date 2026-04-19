@@ -177,7 +177,7 @@ export default function SavedScenariosList({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-medium text-white truncate">
-                        {scenario.vehicle_year} {scenario.vehicle_model}
+                        {scenario.vehicle_year && scenario.vehicle_year > 0 ? `${scenario.vehicle_year} ` : ""}{scenario.vehicle_model}
                       </h4>
                       {scenario.is_comparison && (
                         <span className="text-xs px-2 py-0.5 bg-purple-900/40 text-purple-300 rounded-full">
