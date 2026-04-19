@@ -146,7 +146,23 @@ export async function GET(req: NextRequest) {
     }
 
     // Format response
-    const formattedScenarios: SavedScenarioPreview[] = (scenarios || []).map((s: Record<string, unknown>) => ({
+    type ScenarioRow = {
+      id: string;
+      scenario_type: string | null;
+      scenario_hash: string;
+      receipt_id: string | null;
+      vehicle_model: string;
+      vehicle_year: number | null;
+      fit_signal: string | null;
+      one_sentence_verdict: string | null;
+      title: string | null;
+      saved_at: string;
+      last_viewed_at: string | null;
+      is_comparison: boolean;
+      notes: string | null;
+      inputs: { zipCode?: string; dailyMiles?: number; homeCharging?: boolean; riskTolerance?: string } | null;
+    };
+    const formattedScenarios: SavedScenarioPreview[] = ((scenarios || []) as ScenarioRow[]).map((s) => ({
       id: s.id,
       scenario_type: s.scenario_type || "evroutine",
       scenario_hash: s.scenario_hash,
@@ -161,10 +177,10 @@ export async function GET(req: NextRequest) {
       is_comparison: s.is_comparison,
       notes: s.notes,
       inputs: {
-        zipCode: (s.inputs as Record<string, unknown>)?.zipCode as string | undefined,
-        dailyMiles: (s.inputs as Record<string, unknown>)?.dailyMiles as number | undefined,
-        homeCharging: (s.inputs as Record<string, unknown>)?.homeCharging as boolean | undefined,
-        riskTolerance: (s.inputs as Record<string, unknown>)?.riskTolerance as string | undefined,
+        zipCode: s.inputs?.zipCode,
+        dailyMiles: s.inputs?.dailyMiles,
+        homeCharging: s.inputs?.homeCharging,
+        riskTolerance: s.inputs?.riskTolerance,
       },
     }));
 
