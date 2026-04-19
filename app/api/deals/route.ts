@@ -38,8 +38,10 @@ export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
 
   // Parse filters
-  const verdictParam = params.get("verdict") ?? "GREEN,YELLOW";
-  const verdicts = verdictParam.split(",").map((v) => v.trim().toUpperCase()).filter((v) => VALID_VERDICTS.has(v));
+  const verdictParam = params.get("verdict") ?? null;
+  const verdicts = verdictParam
+    ? verdictParam.split(",").map((v) => v.trim().toUpperCase()).filter((v) => VALID_VERDICTS.has(v))
+    : [];
   const make = params.get("make")?.trim() ?? null;
   const model = params.get("model")?.trim() ?? null;
   const priceMax = params.get("price_max") ? parseInt(params.get("price_max")!) : null;

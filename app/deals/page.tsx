@@ -5,7 +5,7 @@ import { SlidersHorizontal, RefreshCw, Zap } from "lucide-react";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import DealCard, { type CuratedDeal } from "@/components/deals/DealCard";
-type VerdictFilter = "ALL" | "GREEN" | "YELLOW";
+type VerdictFilter = "ALL" | "GREEN" | "YELLOW" | "RED";
 type SortOption = "quality" | "price_asc" | "price_desc" | "mileage" | "newest";
 
 const MAKES = ["All Makes", "Tesla", "Chevrolet", "Hyundai", "Volkswagen", "Ford", "Kia", "Nissan", "BMW", "Rivian"];
@@ -107,7 +107,7 @@ export default function DealsPage() {
 
           {/* Verdict toggle */}
           <div className="flex items-center gap-1 bg-[#161b22] border border-white/[0.08] rounded-lg p-1">
-            {(["ALL", "GREEN", "YELLOW"] as VerdictFilter[]).map((v) => (
+            {(["ALL", "GREEN", "YELLOW", "RED"] as VerdictFilter[]).map((v) => (
               <button
                 key={v}
                 onClick={() => setVerdict(v)}
@@ -117,11 +117,13 @@ export default function DealsPage() {
                       ? "bg-[#00d97e]/15 text-[#00d97e]"
                       : v === "YELLOW"
                       ? "bg-yellow-500/15 text-yellow-400"
+                      : v === "RED"
+                      ? "bg-red-500/15 text-red-400"
                       : "bg-white/[0.10] text-white"
                     : "text-white/40 hover:text-white/70"
                 }`}
               >
-                {v === "ALL" ? "All" : v === "GREEN" ? "Good Deals" : "Caution"}
+                {v === "ALL" ? "All" : v === "GREEN" ? "Good Deals" : v === "YELLOW" ? "Caution" : "Avoid"}
               </button>
             ))}
           </div>
