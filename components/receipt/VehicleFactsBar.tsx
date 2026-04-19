@@ -115,7 +115,12 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
   useEffect(() => {
     if (!make || !model || !year) return;
     setRecallStatus("loading"); // eslint-disable-line react-hooks/set-state-in-effect
-    fetch(`/api/recalls/nhtsa?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&year=${encodeURIComponent(String(year))}`)
+    // NHTSA needs the base model name — strip battery/trim suffixes (e.g. "Model S 90D AWD" → "Model S")
+    const nhtsaModel = model
+      .replace(/\s+(p100d|p90d|p85d\+?|p85|100d|90d|85d|75d|70d|60d)\b.*/i, "")
+      .replace(/\s+(long range|standard range plus|standard range|performance|plaid\+?|dual motor|tri motor|awd|rwd|fwd|4wd)\b.*/i, "")
+      .trim();
+    fetch(`/api/recalls/nhtsa?make=${encodeURIComponent(make)}&model=${encodeURIComponent(nhtsaModel)}&year=${encodeURIComponent(String(year))}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.success) {

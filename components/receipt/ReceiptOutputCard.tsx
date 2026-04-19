@@ -392,7 +392,7 @@ export default function ReceiptOutputCard({
                 {receipt.why_not_green.slice(0, 1).map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
                   const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
                   return (
-                    <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+                    <li key={i} className="text-sm text-white/70 flex items-start gap-2">
                       <span className={`text-xs px-1.5 py-0.5 rounded font-medium mt-0.5 ${catStyle.bg} ${catStyle.text}`}>
                         {catStyle.label}
                       </span>
