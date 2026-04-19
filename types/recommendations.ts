@@ -88,6 +88,25 @@ export interface VehicleRecommendation {
   incentive_new?: boolean;
   /** Unified OFFO score for this vehicle in retail context */
   offo_score?: OffoScore;
+
+  /** Closest matching curated deals from the DB (populated server-side for fit_score >= 70) */
+  matched_deals?: Array<{
+    id: string;
+    listing_url: string;
+    vehicle_label: string;
+    make: string | null;
+    model: string | null;
+    year: number | null;
+    price: number | null;
+    mileage: number | null;
+    verdict: "GREEN" | "YELLOW" | "RED" | null;
+    risk_flags: string[] | null;
+    deal_quality_score: number | null;
+    receipt_id: string | null;
+    photo_url: string | null;
+    url_domain: string | null;
+    last_analyzed_at: string | null;
+  }>;
 }
 
 export interface DataSources {

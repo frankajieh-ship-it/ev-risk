@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Zap, MapPin, ArrowRight, ExternalLink, Snowflake, CheckCircle2, Circle, ChevronUp } from "lucide-react";
@@ -24,6 +24,90 @@ const scoreBadgeColors: Record<string, string> = {
   "Mixed Fit": "bg-amber-500",
   "High Friction": "bg-red-500",
 };
+
+// ---- Matched Deal Strip ----
+
+const SAVED_DEALS_KEY = "offo_saved_deals";
+
+function MatchedDealStrip({ deal }: { deal: NonNullable<VehicleRecommendation["matched_deals"]>[0] }) {
+  const [saved, setSaved] = useState(() => {
+    try {
+      return (JSON.parse(localStorage.getItem(SAVED_DEALS_KEY) || "[]") as string[]).includes(deal.id);
+    } catch { return false; }
+  });
+
+  const toggleSave = useCallback(() => {
+    try {
+      const existing: string[] = JSON.parse(localStorage.getItem(SAVED_DEALS_KEY) || "[]");
+      if (saved) {
+        localStorage.setItem(SAVED_DEALS_KEY, JSON.stringify(existing.filter((id) => id !== deal.id)));
+      } else {
+        localStorage.setItem(SAVED_DEALS_KEY, JSON.stringify([deal.id, ...existing]));
+      }
+      setSaved(!saved);
+    } catch { /* ignore */ }
+  }, [saved, deal.id]);
+
+  const verdictGreen = deal.verdict === "GREEN";
+
+  return (
+    <div className="border-t border-white/[0.08] px-5 py-3 bg-white/[0.02]">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30 mb-2">Best Listed Deal</p>
+      <div className="rounded-xl border border-white/[0.08] bg-[#161b22] overflow-hidden">
+        {deal.photo_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={deal.photo_url} alt={deal.vehicle_label} className="w-full h-24 object-cover" />
+        )}
+        <div className="p-3">
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <p className="text-xs font-semibold text-white/90 leading-tight">{deal.vehicle_label}</p>
+            <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${verdictGreen ? "bg-[#00d97e]/15 text-[#00d97e]" : "bg-yellow-500/15 text-yellow-400"}`}>
+              {verdictGreen ? "Good Deal" : "Caution"}
+            </span>
+          </div>
+          <div className="text-sm font-bold text-white">
+            {deal.price ? `$${deal.price.toLocaleString()}` : "—"}
+            {deal.mileage ? <span className="text-white/40 text-xs font-normal ml-1.5">· {deal.mileage.toLocaleString()} mi</span> : null}
+          </div>
+          {deal.risk_flags?.[0] && (
+            <p className="text-[10px] text-white/35 mt-1 truncate">{deal.risk_flags[0]}</p>
+          )}
+          <div className="flex gap-2 mt-2.5">
+            <button
+              onClick={toggleSave}
+              title={saved ? "Remove from garage" : "Save to garage"}
+              className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-colors shrink-0 ${saved ? "border-[#00d97e]/40 text-[#00d97e] bg-[#00d97e]/10" : "border-white/[0.10] text-white/40 hover:text-white/70 hover:border-white/20"}`}
+            >
+              <svg className="w-3.5 h-3.5" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+            </button>
+            <a
+              href={deal.listing_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 text-center text-xs py-1.5 rounded-lg border border-white/[0.10] text-white/60 hover:text-white hover:border-white/20 transition-colors"
+            >
+              View Listing →
+            </a>
+            {deal.receipt_id && (
+              <a
+                href={`/receipt?id=${deal.receipt_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 text-center text-xs py-1.5 rounded-lg bg-[#00d97e]/10 text-[#00d97e] hover:bg-[#00d97e]/20 transition-colors"
+              >
+                Full Report →
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- End Matched Deal Strip ----
 
 interface RecommendationCardProps {
   recommendation: VehicleRecommendation;
@@ -412,6 +496,14 @@ export default function RecommendationCard({
           )}
         </div>
       </div>
+
+      {/* Best Available Deal from curated_deals DB */}
+      {rec.matched_deals && rec.matched_deals.length > 0 && (() => {
+        const deal = rec.matched_deals[0];
+        return (
+          <MatchedDealStrip deal={deal} />
+        );
+      })()}
 
       {/* Expanded dealer listings */}
       <AnimatePresence>

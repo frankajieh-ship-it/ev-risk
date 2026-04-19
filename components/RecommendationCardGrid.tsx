@@ -16,10 +16,10 @@ const badgeColors: Record<string, string> = {
 };
 
 const fitColors: Record<string, { bg: string; text: string }> = {
-  "Great Fit": { bg: "bg-green-50", text: "text-green-700" },
-  "Good Fit": { bg: "bg-blue-50", text: "text-blue-700" },
-  "Mixed Fit": { bg: "bg-amber-50", text: "text-amber-700" },
-  "High Friction": { bg: "bg-red-50", text: "text-red-700" },
+  "Great Fit": { bg: "bg-[#00d97e]/15", text: "text-[#00d97e]" },
+  "Good Fit": { bg: "bg-blue-500/15", text: "text-blue-400" },
+  "Mixed Fit": { bg: "bg-amber-500/15", text: "text-amber-400" },
+  "High Friction": { bg: "bg-red-500/15", text: "text-red-400" },
 };
 
 export default function RecommendationCardGrid({ recommendation: rec, onSelect }: Props) {
@@ -28,7 +28,7 @@ export default function RecommendationCardGrid({ recommendation: rec, onSelect }
 
   return (
     <div
-      className="rounded-2xl border border-gray-200 bg-white overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+      className="rounded-2xl border border-white/[0.08] bg-[#161b22] overflow-hidden hover:border-white/[0.16] transition-colors cursor-pointer"
       onClick={onSelect}
     >
       {/* Photo */}
@@ -47,18 +47,18 @@ export default function RecommendationCardGrid({ recommendation: rec, onSelect }
 
       {/* Info */}
       <div className="p-3">
-        <p className="text-sm font-semibold text-gray-900 truncate">{rec.make} {rec.model_short}</p>
-        <p className="text-xs text-gray-400 mb-2">{rec.year}</p>
+        <p className="text-sm font-semibold text-white truncate">{rec.make} {rec.model_short}</p>
+        <p className="text-xs text-white/40 mb-2">{rec.year}</p>
         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${colors.bg} ${colors.text}`}>
           {rec.fit_label}
         </span>
-        <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-gray-500">
+        <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-white/50">
           <span>⚡ {rec.real_world_range_mi ?? rec.epa_range_mi ?? "—"} mi</span>
-          {rec.incentive_new && <span className="text-green-600 font-medium">$7.5k credit</span>}
+          {rec.incentive_new && <span className="text-[#00d97e] font-medium">$7.5k credit</span>}
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onSelect(); }}
-          className="mt-3 w-full py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+          className="mt-3 w-full py-1.5 text-xs font-semibold text-[#00d97e] border border-[#00d97e]/30 rounded-lg hover:bg-[#00d97e]/10 transition-colors"
         >
           See Full Report →
         </button>

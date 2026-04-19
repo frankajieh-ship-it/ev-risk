@@ -212,8 +212,7 @@ export async function POST(request: NextRequest) {
           }
           for (const rec of recommendations) {
             if (rec.fit_score >= 70) {
-              (rec as VehicleRecommendation & { matched_deals?: typeof dealRows }).matched_deals =
-                dealsByMake.get(rec.make.toLowerCase())?.slice(0, 2) ?? [];
+              rec.matched_deals = dealsByMake.get(rec.make.toLowerCase())?.slice(0, 2) ?? [];
             }
           }
         }
