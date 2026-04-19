@@ -249,13 +249,8 @@ export default function ReceiptOutputCard({
                   </span>
                 </>
               )}
-              {!isUpgrading && receipt.evidence_label && (
-                <Badge variant={
-                  receipt.evidence_label === "STRONG" ? "primary" :
-                  receipt.evidence_label === "MISSING" ? "warning" : "neutral"
-                }>
-                  {receipt.evidence_label} Evidence
-                </Badge>
+              {!isUpgrading && receipt.evidence_label === "STRONG" && (
+                <Badge variant="primary">Strong Evidence</Badge>
               )}
             </div>
             {vehicleDesc && (

@@ -19,19 +19,39 @@ import {
   Copy,
   ChevronDown,
   Sparkles,
+  ExternalLink,
 } from "lucide-react";
 import { formatPrice, type Region } from "@/lib/region";
 import type { DeepDiveContent } from "@/types/receipt";
 
 interface DeepDiveSectionProps {
   deepDive: DeepDiveContent;
-  receiptId: string;
+  receiptId?: string;
   region?: Region;
+}
+
+/** Build a search URL for a comparable listing given source name + vehicle title. */
+function buildSourceUrl(source: string, title: string, price: number): string | null {
+  const q = encodeURIComponent(title);
+  const s = source.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (s.includes("cargurus")) return `https://www.cargurus.com/Cars/new/nl_cars_d0#listing=searchResults;zip=;kw=${q}`;
+  if (s.includes("autotrader")) return `https://www.autotrader.com/cars-for-sale/all-cars?searchRadius=0&keywords=${q}`;
+  if (s.includes("carcom") || s === "carscom") return `https://www.cars.com/shopping/results/?keyword=${q}`;
+  if (s.includes("edmunds")) return `https://www.edmunds.com/used-cars/search/?q=${q}`;
+  if (s.includes("carmax")) return `https://www.carmax.com/cars/all?search=${q}`;
+  if (s.includes("kbb") || s.includes("kelley")) return `https://www.kbb.com/cars-for-sale/all/?search=${q}`;
+  if (s.includes("truecar")) return `https://www.truecar.com/used-cars-for-sale/listings/?search%5Bkeyword%5D=${q}`;
+  if (s.includes("facebook") || s.includes("marketplace")) return `https://www.facebook.com/marketplace/search?query=${q}`;
+  if (s.includes("craigslist")) return `https://craigslist.org/search/cta?query=${q}`;
+  if (s.includes("vroom")) return `https://www.vroom.com/cars?search=${q}`;
+  if (s.includes("carvana")) return `https://www.carvana.com/cars?search=${q}`;
+  // Fallback: Google search scoped to source
+  const domain = source.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9.]/g, "") + ".com";
+  return `https://www.google.com/search?q=${encodeURIComponent(`${title} $${price} site:${domain}`)}`;
 }
 
 export default function DeepDiveSection({
   deepDive,
-  receiptId,
   region = "US",
 }: DeepDiveSectionProps) {
   const [copiedScript, setCopiedScript] = useState<number | null>(null);
@@ -128,7 +148,19 @@ export default function DeepDiveSection({
                         {comp.delta_pct > 0 ? "+" : ""}
                         {comp.delta_pct.toFixed(1)}%
                       </td>
-                      <td className="px-4 py-2.5 text-white/50 text-xs">{comp.source}</td>
+                      <td className="px-4 py-2.5 text-xs">
+                        {(() => {
+                          const url = comp.source_url ?? buildSourceUrl(comp.source, comp.title, comp.price);
+                          return url ? (
+                            <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-white/50 hover:text-[#00d97e] transition-colors">
+                              {comp.source}
+                              <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                            </a>
+                          ) : (
+                            <span className="text-white/50">{comp.source}</span>
+                          );
+                        })()}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

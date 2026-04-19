@@ -1312,7 +1312,7 @@ export default function ReceiptPage() {
                 isUnlocked={true}
                 paymentsEnabled={false}
                 onPaywallClick={() => {}}
-                photos={listingPhotos}
+                photos={isSimilarityMatch ? [] : listingPhotos}
               />
 
               {/* ── Matching Deals Strip ─────────────────────────────── */}

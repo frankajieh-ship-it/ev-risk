@@ -178,6 +178,7 @@ export interface DeepDiveMarketComp {
   mileage: number;
   source: string;
   delta_pct: number;
+  source_url?: string;
 }
 
 export interface DeepDiveNegotiationScript {
