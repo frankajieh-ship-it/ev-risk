@@ -228,28 +228,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ photo_urls: photoUrls, source: "autodev" });
   }
 
-  // --- Third fallback: Wikipedia REST API summary (more reliable than w/api.php) ---
-  if (make || rawModel) {
-    try {
-      const { model: normModel } = normalizeForAutodev(make, rawModel);
-      // Title-case the model (LEAF → Leaf, MODEL 3 → Model 3) for Wikipedia
-      const titleCasedModel = normModel
-        ? normModel.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("_")
-        : "";
-      const wikiTitle = [make, titleCasedModel].filter(Boolean).join("_");
-      const res = await fetch(
-        `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(wikiTitle)}`,
-        { signal: AbortSignal.timeout(5000), headers: { Accept: "application/json" } }
-      );
-      if (res.ok) {
-        const data = await res.json() as { originalimage?: { source?: string }; thumbnail?: { source?: string } };
-        const src = data.originalimage?.source ?? data.thumbnail?.source;
-        if (src && /\.(jpe?g|png|webp)/i.test(src)) {
-          return NextResponse.json({ photo_urls: [src], source: "wikipedia" });
-        }
-      }
-    } catch { /* ignore — fall through to empty */ }
-  }
-
   return NextResponse.json({ photo_urls: [], source: "none" });
 }

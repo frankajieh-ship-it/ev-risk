@@ -321,6 +321,32 @@ export default function ReceiptPage() {
   // Listing photos from Auto.dev enrichment
   const [listingPhotos, setListingPhotos] = useState<string[]>([]);
 
+  // When receipt is loaded by ?id= (not via extraction), populate photos from stored data
+  useEffect(() => {
+    if (!receipt) return;
+    if (listingPhotos.length > 0) return;
+    if (receipt.photo_urls?.length) {
+      setListingPhotos(receipt.photo_urls);
+      return;
+    }
+    const make = receipt.listing_summary?.make;
+    const model = receipt.listing_summary?.model;
+    const year = receipt.listing_summary?.year;
+    const vin = receipt.vin;
+    if (!make && !vin) return;
+    const photoParams = new URLSearchParams();
+    if (make) photoParams.set("make", make);
+    if (model) photoParams.set("model", model);
+    if (year) photoParams.set("year", String(year));
+    if (vin) photoParams.set("vin", vin);
+    fetch(`/api/photos?${photoParams}`)
+      .then((r) => r.json())
+      .then((d: { photo_urls?: string[] }) => {
+        if (d.photo_urls?.length) setListingPhotos(d.photo_urls);
+      })
+      .catch(() => {});
+  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Matching deals for this vehicle
   const [matchingDeals, setMatchingDeals] = useState<import("@/components/deals/DealCard").CuratedDeal[]>([]);
 
@@ -600,6 +626,12 @@ export default function ReceiptPage() {
 
     upgradePollingRef.current = poll;
   }, [trackEvent, addReceipt]);
+
+  // Ensure any receipt (including those loaded by ?id=) is in history so compare works
+  useEffect(() => {
+    if (!receipt?.receipt_id) return;
+    addReceipt(receipt);
+  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track receipt result viewed + scroll into view
   useEffect(() => {

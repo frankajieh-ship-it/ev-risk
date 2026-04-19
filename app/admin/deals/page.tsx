@@ -86,6 +86,27 @@ export default function AdminDealsPage() {
     }
   };
 
+  const handleBackfillPhotos = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    if (!confirm("Fetch photos for all active deals with missing images? This may take a while.")) return;
+    setImportStatus("Backfilling photos...");
+    try {
+      const res = await fetch("/api/admin/deals-backfill-photos", {
+        method: "POST",
+        headers: { Authorization: authHeader },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setImportStatus(`✓ Backfilled photos: ${data.updated} updated, ${data.failed} failed (${data.total} rows processed)`);
+        fetchDeals();
+      } else {
+        setImportStatus(`✗ ${data.error}`);
+      }
+    } catch {
+      setImportStatus("✗ Backfill failed");
+    }
+  };
+
   const handleActivateAll = async () => {
     if (!adminKey) { alert("Enter your admin API key first"); return; }
     const inactive = deals.filter((d) => !d.is_active);
@@ -202,6 +223,10 @@ export default function AdminDealsPage() {
             <button onClick={handleActivateAll}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-emerald-400 border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
               Activate All
+            </button>
+            <button onClick={handleBackfillPhotos}
+              className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#00d97e] border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
+              Backfill Photos
             </button>
             <button onClick={() => handleExport("template")}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#00d97e] border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">

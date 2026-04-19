@@ -243,7 +243,7 @@ export default function ReceiptInputCard({
       setListingUrl(prefillUrl);
       // Use a ref so the timer can be cancelled on unmount, and give React
       // enough time to fully mount before calling handleExtract
-      autoExtractTimerRef.current = setTimeout(() => handleExtract(prefillUrl), 300);
+      autoExtractTimerRef.current = setTimeout(() => handleExtract(prefillUrl), 800);
     }
   }, [prefillUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
