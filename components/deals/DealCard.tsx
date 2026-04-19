@@ -94,12 +94,6 @@ function saveLocally(dealId: string): void {
   } catch { /* ignore */ }
 }
 
-function formatLocation(loc: string | null): string | null {
-  if (!loc) return null;
-  const parts = loc.split(",").map((s) => s.trim());
-  if (parts.length >= 2) return `${parts[0]}, ${parts[1].slice(0, 2).toUpperCase()}`;
-  return parts[0];
-}
 
 function FreshnessLabel({ timestamp }: { timestamp: string }) {
   const diffMs = new Date().getTime() - new Date(timestamp).getTime();
@@ -143,11 +137,22 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
       ...(model ? { model } : {}),
       ...(deal.year ? { year: String(deal.year) } : {}),
     });
-    const delay = (rank ?? 1) * 200; // stagger: card 1 = 200ms, card 2 = 400ms, etc.
+    const delay = Math.min((rank ?? 1) * 100, 1500); // stagger: 100ms per rank, cap at 1.5s
     const t = setTimeout(() => {
       fetch(`/api/photos?${params}`)
         .then((r) => r.json())
-        .then((d: { photo_urls?: string[] }) => { if (d.photo_urls?.[0]) setPhotoUrl(d.photo_urls[0]); })
+        .then((d: { photo_urls?: string[] }) => {
+          const url = d.photo_urls?.[0];
+          if (url) {
+            setPhotoUrl(url);
+            // Persist back to DB so future loads skip this external call
+            fetch("/api/deals/backfill-photo", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: deal.id, photo_url: url }),
+            }).catch(() => {});
+          }
+        })
         .catch(() => {});
     }, delay);
     return () => clearTimeout(t);
