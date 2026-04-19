@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import WorkspaceLayout from "@/app/workspace/layout";
 
 export const metadata: Metadata = {
   title: "Compare Deals",
@@ -16,5 +17,5 @@ export default function CompareLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return <WorkspaceLayout>{children}</WorkspaceLayout>;
 }

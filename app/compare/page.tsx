@@ -8,8 +8,6 @@ import { ArrowLeft, ArrowRight, Copy, CheckCircle, GitCompareArrows, History, Ch
 import VehicleImage from "@/components/VehicleImage";
 import ListingExtractMini from "@/components/compare/ListingExtractMini";
 import ReceiptHistoryDrawer from "@/components/receipt/ReceiptHistoryDrawer";
-import Header from "@/components/landing/Header";
-import Footer from "@/components/landing/Footer";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { useReceiptHistory } from "@/hooks/useReceiptHistory";
 import { getOrCreateReceiptToken } from "@/lib/session-utils";
@@ -623,11 +621,11 @@ function ComparePageContent() {
     title: string,
     isA: boolean
   ) => (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-      <h3 className="font-bold text-gray-900 text-base">{title}</h3>
+    <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] p-5 space-y-4">
+      <h3 className="font-bold text-white text-base">{title}</h3>
 
       <div>
-        <p className="text-xs font-medium text-gray-500 mb-1.5">Paste a listing URL or description to auto-fill</p>
+        <p className="text-xs font-medium text-white/40 mb-1.5">Paste a listing URL or description to auto-fill</p>
         <ListingExtractMini
           onExtracted={(extracted) => {
             const newSpec: typeof spec = { ...spec };
@@ -1629,51 +1627,43 @@ function ComparePageContent() {
   const currentStepIdx = stepPhases.indexOf(phase);
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <Header variant="homepage" />
-
-      {/* Hero banner */}
-      <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white">
-        <div className="max-w-4xl mx-auto px-4 py-10 md:py-14 text-center">
-          <div className="inline-flex items-center gap-2 bg-white/15 rounded-full px-4 py-1.5 text-sm font-medium mb-4">
-            <GitCompareArrows className="w-4 h-4" />
-            Side-by-side EV comparison
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-3">Compare Two EVs</h1>
-          <p className="text-blue-100 text-base md:text-lg max-w-xl mx-auto">
-            Enter two options, get an instant comparison. Personalise free to your routine — unlock the full analysis for deeper insight.
-          </p>
+    <div className="min-h-screen bg-[#0d1117] flex flex-col">
+      {/* Page header */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-1">
+          <GitCompareArrows className="w-4 h-4 text-[#00d97e]" />
+          <span className="text-xs font-semibold uppercase tracking-widest text-[#00d97e]">Compare</span>
         </div>
+        <h1 className="text-2xl font-bold text-white">Compare Two EVs</h1>
+        <p className="text-sm text-white/40 mt-1">Side-by-side analysis — enter two options for an instant verdict.</p>
       </div>
 
       {/* Step indicator */}
-      <div className="border-b border-gray-100 bg-white sticky top-16 z-30">
-        <div className="max-w-2xl mx-auto px-4">
-          <div className="flex">
-            {stepPhases.map((p, idx) => (
-              <div key={p} className={`flex-1 flex flex-col items-center py-3 text-xs font-medium transition-colors border-b-2 ${
-                phase === p
-                  ? "border-blue-600 text-blue-600"
-                  : idx < currentStepIdx
-                  ? "border-green-500 text-green-600"
-                  : "border-transparent text-gray-400"
+      <div className="border-b border-white/[0.08] mb-6">
+        <div className="max-w-2xl flex">
+          {stepPhases.map((p, idx) => (
+            <div key={p} className={`flex-1 flex flex-col items-center pb-3 text-xs font-medium transition-colors border-b-2 ${
+              phase === p
+                ? "border-[#00d97e] text-[#00d97e]"
+                : idx < currentStepIdx
+                ? "border-[#00d97e]/40 text-[#00d97e]/60"
+                : "border-transparent text-white/30"
+            }`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 text-xs font-bold ${
+                phase === p ? "bg-[#00d97e] text-[#0d1117]" : idx < currentStepIdx ? "bg-[#00d97e]/20 text-[#00d97e]" : "bg-white/[0.06] text-white/30"
               }`}>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 text-xs font-bold ${
-                  phase === p ? "bg-blue-600 text-white" : idx < currentStepIdx ? "bg-green-500 text-white" : "bg-gray-200 text-gray-400"
-                }`}>
-                  {idx < currentStepIdx ? "✓" : idx + 1}
-                </div>
-                <span className="hidden sm:block">{stepLabels[idx]}</span>
-                {idx === 2 && <span className="hidden sm:block text-xs text-green-600 -mt-0.5">free</span>}
+                {idx < currentStepIdx ? "✓" : idx + 1}
               </div>
-            ))}
-          </div>
+              <span className="hidden sm:block">{stepLabels[idx]}</span>
+              {idx === 2 && <span className="hidden sm:block text-[10px] text-[#00d97e]/60 -mt-0.5">free</span>}
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Main content */}
-      <div className="flex-1 bg-gray-50">
-        <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="flex-1">
+        <div className="max-w-2xl px-0">
           <AnimatePresence mode="wait">
             <motion.div key={phase} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
               {phase === "options" && renderOptionsPhase()}
@@ -1683,8 +1673,6 @@ function ComparePageContent() {
           </AnimatePresence>
         </div>
       </div>
-
-      <Footer />
 
       {/* OFFO Chat — collapsible AI assistant, appears 8s after results load */}
       {result && compareSessionId && receiptToken && (
@@ -1727,7 +1715,7 @@ function ComparePageContent() {
 
 export default function ComparePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="w-6 h-6 border-2 border-white/[0.08] border-t-[#00d97e] rounded-full animate-spin" /></div>}>
       <ComparePageContent />
     </Suspense>
   );

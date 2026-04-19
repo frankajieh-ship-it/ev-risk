@@ -172,7 +172,7 @@ export default function EvFitPage() {
             )}
           </div>
           <div className="ml-auto text-right">
-            <p className="text-2xl font-bold text-white">{Math.round((1 - latestRun.friction_score / 10) * 100)}</p>
+            <p className="text-2xl font-bold text-white">{Math.max(0, Math.min(100, Math.round(latestRun.friction_score)))}</p>
             <p className="text-xs text-white/30">/ 100</p>
           </div>
         </div>
