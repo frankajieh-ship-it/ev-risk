@@ -99,12 +99,12 @@ function SpecRow({
       : false;
 
   return (
-    <tr className={rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-      <td className="py-2.5 px-3 text-xs font-medium text-gray-500 w-1/3">{label}</td>
-      <td className={`py-2.5 px-3 text-sm text-center ${aWins ? "text-green-700 font-semibold" : "text-gray-700"}`}>
+    <tr className={rowIndex % 2 === 0 ? "bg-[#161b22]" : "bg-[#0d1117]"}>
+      <td className="py-2.5 px-3 text-xs font-medium text-white/50 w-1/3">{label}</td>
+      <td className={`py-2.5 px-3 text-sm text-center ${aWins ? "text-[#00d97e] font-semibold" : "text-white/70"}`}>
         {valA}
       </td>
-      <td className={`py-2.5 px-3 text-sm text-center ${bWins ? "text-green-700 font-semibold" : "text-gray-700"}`}>
+      <td className={`py-2.5 px-3 text-sm text-center ${bWins ? "text-[#00d97e] font-semibold" : "text-white/70"}`}>
         {valB}
       </td>
     </tr>
@@ -655,25 +655,25 @@ function ComparePageContent() {
         />
         {history.length > 0 && (
           <div className="mt-3">
-            <p className="text-xs font-medium text-gray-400 uppercase mb-1.5">Your saved listings</p>
+            <p className="text-xs font-medium text-white/40 uppercase mb-1.5">Your saved listings</p>
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
               {history.slice(0, 5).map((entry) => {
                 const entryLabel = [entry.year, entry.make, entry.model].filter(Boolean).join(" ");
                 const verdictColor = entry.verdict === "GREEN"
-                  ? "border-green-300 bg-green-50 hover:bg-green-100"
+                  ? "border-[#00d97e]/30 bg-[#00d97e]/[0.06] hover:bg-[#00d97e]/[0.10]"
                   : entry.verdict === "YELLOW"
-                  ? "border-yellow-300 bg-yellow-50 hover:bg-yellow-100"
-                  : "border-red-300 bg-red-50 hover:bg-red-100";
+                  ? "border-yellow-500/30 bg-yellow-500/[0.06] hover:bg-yellow-500/10"
+                  : "border-red-500/30 bg-red-500/[0.06]0/[0.06] hover:bg-red-500/[0.06]0/10";
                 return (
                   <button
                     key={entry.receipt_id}
                     onClick={() => handleHistorySelect(entry, isA)}
                     className={`shrink-0 border rounded-xl px-3 py-2 text-left min-w-[130px] max-w-[160px] transition-shadow hover:shadow-md ${verdictColor}`}
                   >
-                    <p className="text-xs font-semibold text-gray-800 truncate">{entryLabel || "Unknown"}</p>
-                    {entry.price && <p className="text-xs text-gray-500">${entry.price.toLocaleString()}</p>}
+                    <p className="text-xs font-semibold text-white/80 truncate">{entryLabel || "Unknown"}</p>
+                    {entry.price && <p className="text-xs text-white/50">${entry.price.toLocaleString()}</p>}
                     {(entry.receipt as { mileage?: number })?.mileage != null && (
-                      <p className="text-xs text-gray-400">{(entry.receipt as { mileage?: number }).mileage!.toLocaleString()} mi</p>
+                      <p className="text-xs text-white/40">{(entry.receipt as { mileage?: number }).mileage!.toLocaleString()} mi</p>
                     )}
                   </button>
                 );
@@ -684,20 +684,20 @@ function ComparePageContent() {
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">Name (optional)</label>
+        <label className="block text-xs font-medium text-white/70 mb-1">Name (optional)</label>
         <input
           type="text"
           value={option.label || ""}
           onChange={(e) => setOption({ ...option, label: e.target.value })}
           placeholder="e.g., Polestar 2"
           maxLength={30}
-          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-blue-600 focus:outline-none"
+          className="w-full px-3 py-2 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white text-sm focus:border-[#00d97e]/50 focus:outline-none"
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">Body type</label>
-        <select value={option.body_type_bucket} onChange={(e) => setOption({ ...option, body_type_bucket: e.target.value as BodyTypeBucket })} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-blue-600 focus:outline-none">
+        <label className="block text-xs font-medium text-white/70 mb-1">Body type</label>
+        <select value={option.body_type_bucket} onChange={(e) => setOption({ ...option, body_type_bucket: e.target.value as BodyTypeBucket })} className="w-full px-3 py-2 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white text-sm focus:border-[#00d97e]/50 focus:outline-none">
           {(Object.keys(BODY_TYPE_LABELS) as BodyTypeBucket[]).map((key) => (
             <option key={key} value={key}>{BODY_TYPE_LABELS[key]}</option>
           ))}
@@ -705,62 +705,62 @@ function ComparePageContent() {
       </div>
 
       {includeSpecs && (
-        <div className="space-y-3 pt-2 border-t border-gray-100">
-          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Specs</p>
+        <div className="space-y-3 pt-2 border-t border-white/[0.06]">
+          <p className="text-xs font-semibold text-white/60 uppercase tracking-wide">Specs</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Est. range (mi)</label>
+              <label className="block text-xs font-medium text-white/70 mb-1">Est. range (mi)</label>
               <input type="number" min={0} max={600} placeholder="e.g. 280"
                 value={spec.range_mi ?? ""}
                 onChange={(e) => setSpec({ ...spec, range_mi: e.target.value ? Number(e.target.value) : undefined })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-blue-600 focus:outline-none"
+                className="w-full px-3 py-2 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white text-sm focus:border-[#00d97e]/50 focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Battery (kWh)</label>
+              <label className="block text-xs font-medium text-white/70 mb-1">Battery (kWh)</label>
               <input type="number" min={0} max={200} placeholder="e.g. 82"
                 value={spec.battery_kwh ?? ""}
                 onChange={(e) => setSpec({ ...spec, battery_kwh: e.target.value ? Number(e.target.value) : undefined })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-blue-600 focus:outline-none"
+                className="w-full px-3 py-2 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white text-sm focus:border-[#00d97e]/50 focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">DC fast peak (kW)</label>
+              <label className="block text-xs font-medium text-white/70 mb-1">DC fast peak (kW)</label>
               <input type="number" min={0} max={400} placeholder="e.g. 150"
                 value={spec.dc_fast_kw ?? ""}
                 onChange={(e) => setSpec({ ...spec, dc_fast_kw: e.target.value ? Number(e.target.value) : undefined })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-blue-600 focus:outline-none"
+                className="w-full px-3 py-2 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white text-sm focus:border-[#00d97e]/50 focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Efficiency (mi/kWh)</label>
+              <label className="block text-xs font-medium text-white/70 mb-1">Efficiency (mi/kWh)</label>
               <input type="number" min={0} max={10} step={0.1} placeholder="e.g. 3.9"
                 value={spec.efficiency_mi_per_kwh ?? ""}
                 onChange={(e) => setSpec({ ...spec, efficiency_mi_per_kwh: e.target.value ? Number(e.target.value) : undefined })}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-blue-600 focus:outline-none"
+                className="w-full px-3 py-2 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white text-sm focus:border-[#00d97e]/50 focus:outline-none"
               />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">Drivetrain</label>
+            <label className="block text-xs font-medium text-white/70 mb-1.5">Drivetrain</label>
             <div className="flex gap-2">
               {(["FWD", "RWD", "AWD", "UNKNOWN"] as const).map((dt) => (
                 <button key={dt} onClick={() => setSpec({ ...spec, drivetrain: dt })}
-                  className={`px-3 py-1.5 rounded text-xs transition-colors ${spec.drivetrain === dt ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+                  className={`px-3 py-1.5 rounded text-xs transition-colors ${spec.drivetrain === dt ? "bg-[#00d97e] text-[#0d1117]" : "bg-white/[0.04] text-white/70 hover:bg-white/[0.08]"}`}>
                   {dt === "UNKNOWN" ? "Not sure" : dt}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Listing price ($)</label>
+            <label className="block text-xs font-medium text-white/70 mb-1">Listing price ($)</label>
             <input type="number" min={0} placeholder="e.g. 38500"
               value={spec.price ?? ""}
               onChange={(e) => setSpec({ ...spec, price: e.target.value ? Number(e.target.value) : undefined })}
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-blue-600 focus:outline-none"
+              className="w-full px-3 py-2 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white text-sm focus:border-[#00d97e]/50 focus:outline-none"
             />
           </div>
-          <div className="bg-blue-50 rounded-xl p-3 text-xs text-blue-700 space-y-0.5">
+          <div className="bg-[#00d97e]/[0.06] rounded-xl p-3 text-xs text-[#00d97e]/80 space-y-0.5">
             <p className="font-medium mb-1">Auto-derived for engine:</p>
             <p>Battery: <span className="font-semibold">{option.battery_bucket}</span></p>
             <p>Efficiency: <span className="font-semibold">{option.efficiency_bucket}</span></p>
@@ -770,26 +770,26 @@ function ComparePageContent() {
       )}
 
       {!includeSpecs && (
-        <div className="space-y-3 pt-2 border-t border-gray-100">
+        <div className="space-y-3 pt-2 border-t border-white/[0.06]">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Battery size</label>
-            <select value={option.battery_bucket} onChange={(e) => setOption({ ...option, battery_bucket: e.target.value as BatteryBucket })} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-blue-600 focus:outline-none">
+            <label className="block text-xs font-medium text-white/70 mb-1">Battery size</label>
+            <select value={option.battery_bucket} onChange={(e) => setOption({ ...option, battery_bucket: e.target.value as BatteryBucket })} className="w-full px-3 py-2 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white text-sm focus:border-[#00d97e]/50 focus:outline-none">
               {(Object.keys(BATTERY_LABELS) as BatteryBucket[]).map((key) => (
                 <option key={key} value={key}>{BATTERY_LABELS[key]}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Efficiency</label>
-            <select value={option.efficiency_bucket} onChange={(e) => setOption({ ...option, efficiency_bucket: e.target.value as EfficiencyBucket })} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-blue-600 focus:outline-none">
+            <label className="block text-xs font-medium text-white/70 mb-1">Efficiency</label>
+            <select value={option.efficiency_bucket} onChange={(e) => setOption({ ...option, efficiency_bucket: e.target.value as EfficiencyBucket })} className="w-full px-3 py-2 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white text-sm focus:border-[#00d97e]/50 focus:outline-none">
               {(Object.keys(EFFICIENCY_LABELS) as EfficiencyBucket[]).map((key) => (
                 <option key={key} value={key}>{EFFICIENCY_LABELS[key]}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">DC charging speed</label>
-            <select value={option.charging_curve_bucket} onChange={(e) => setOption({ ...option, charging_curve_bucket: e.target.value as ChargingCurveBucket })} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-blue-600 focus:outline-none">
+            <label className="block text-xs font-medium text-white/70 mb-1">DC charging speed</label>
+            <select value={option.charging_curve_bucket} onChange={(e) => setOption({ ...option, charging_curve_bucket: e.target.value as ChargingCurveBucket })} className="w-full px-3 py-2 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white text-sm focus:border-[#00d97e]/50 focus:outline-none">
               {(Object.keys(CHARGING_CURVE_LABELS) as ChargingCurveBucket[]).map((key) => (
                 <option key={key} value={key}>{CHARGING_CURVE_LABELS[key]}</option>
               ))}
@@ -804,8 +804,8 @@ function ComparePageContent() {
   const renderOptionsPhase = () => (
     <div className="space-y-5">
       <div className="mb-4">
-        <h2 className="text-2xl font-bold text-gray-900 mb-1">Your Two Options</h2>
-        <p className="text-gray-500">Paste a listing or enter each EV. Specs are optional but sharpen the results.</p>
+        <h2 className="text-2xl font-bold text-white mb-1">Your Two Options</h2>
+        <p className="text-white/50">Paste a listing or enter each EV. Specs are optional but sharpen the results.</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
@@ -813,7 +813,7 @@ function ComparePageContent() {
         {renderOptionCard(optionB, setOptionB, specB, setSpecB, "Option B", false)}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-[#161b22] rounded-2xl border border-white/[0.06] p-5">
         <label className="flex items-start gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -822,8 +822,8 @@ function ComparePageContent() {
             className="mt-0.5 w-4 h-4 accent-blue-600 flex-shrink-0"
           />
           <div>
-            <p className="text-sm font-semibold text-gray-900">Include spec comparison</p>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <p className="text-sm font-semibold text-white">Include spec comparison</p>
+            <p className="text-sm text-white/50 mt-0.5">
               Add range, battery, DC charging speed, and efficiency. Specs auto-set engine buckets and appear as a side-by-side table in results.
             </p>
           </div>
@@ -839,7 +839,7 @@ function ComparePageContent() {
       <button
         onClick={handleOptionsSubmit}
         disabled={!optionA.label?.trim() || !optionB.label?.trim()}
-        className="w-full py-4 rounded-xl font-semibold bg-gradient-to-r from-blue-600 to-green-600 text-white hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none"
+        className="w-full py-4 rounded-xl font-semibold bg-[#00d97e] text-[#0d1117] hover:bg-[#00c970] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none"
       >
         Compare <ArrowRight className="w-4 h-4" />
       </button>
@@ -869,14 +869,14 @@ function ComparePageContent() {
     const label = fitResult.label || fallbackLabel;
     const { year, make, model } = parseLabelForImage(label);
     const signalStyles = {
-      GOOD: { badge: "bg-green-100 text-green-800 border-green-200", border: "border-green-200", top: "bg-green-50" },
-      CONDITIONAL: { badge: "bg-yellow-100 text-yellow-800 border-yellow-200", border: "border-yellow-200", top: "bg-yellow-50" },
-      HIGH_FRICTION: { badge: "bg-red-100 text-red-800 border-red-200", border: "border-red-200", top: "bg-red-50" },
+      GOOD: { badge: "bg-[#00d97e]/10 text-[#00d97e] border-[#00d97e]/20", border: "border-[#00d97e]/20", top: "bg-[#00d97e]/[0.06]" },
+      CONDITIONAL: { badge: "bg-yellow-500/[0.06]0/10 text-yellow-400 border-yellow-500/20", border: "border-yellow-500/20", top: "bg-yellow-500/[0.06]" },
+      HIGH_FRICTION: { badge: "bg-red-500/[0.06]0/10 text-red-400 border-red-500/20", border: "border-red-500/20", top: "bg-red-500/[0.06]" },
     }[fitResult.fit_signal];
 
     return (
-      <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${signalStyles.border}`}>
-        <div className="relative h-32 bg-gray-100">
+      <div className={`bg-[#161b22] rounded-2xl border overflow-hidden ${signalStyles.border}`}>
+        <div className="relative h-32 bg-white/[0.04]">
           <VehicleImage make={make} model={model} year={year} className="w-full h-full" imgClassName="w-full h-full object-cover" />
           <div className="absolute bottom-2 right-2">
             <div className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${signalStyles.badge}`}>
@@ -885,17 +885,17 @@ function ComparePageContent() {
           </div>
         </div>
         <div className={`px-5 py-3 ${signalStyles.top}`}>
-          <h3 className="font-bold text-gray-900 text-base">{label}</h3>
+          <h3 className="font-bold text-white text-base">{label}</h3>
         </div>
         <div className="px-5 py-4 space-y-4">
-          <p className="text-sm text-gray-500 italic">{FADE_LABEL_DISPLAY[fitResult.fade_label]}</p>
+          <p className="text-sm text-white/50 italic">{FADE_LABEL_DISPLAY[fitResult.fade_label]}</p>
 
           {fitResult.strengths.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-green-700 uppercase mb-2">Works well for your routine</p>
+              <p className="text-xs font-medium text-[#00d97e] uppercase mb-2">Works well for your routine</p>
               <ul className="space-y-2">
                 {fitResult.strengths.map((s, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                  <li key={idx} className="text-sm text-white/70 flex items-start gap-2">
                     <span className="text-green-500 mt-0.5 font-bold">✓</span>
                     <span>{s}</span>
                   </li>
@@ -906,11 +906,11 @@ function ComparePageContent() {
 
           {fitResult.friction_bullets.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase mb-2">Key considerations</p>
+              <p className="text-xs font-medium text-white/50 uppercase mb-2">Key considerations</p>
               <ul className="space-y-2">
                 {fitResult.friction_bullets.map((bullet, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
-                    <span className="text-blue-600 mt-0.5">•</span>
+                  <li key={idx} className="text-sm text-white/70 flex items-start gap-2">
+                    <span className="text-[#00d97e] mt-0.5">•</span>
                     <span>{bullet}</span>
                   </li>
                 ))}
@@ -919,11 +919,11 @@ function ComparePageContent() {
           )}
 
           {fitResult.why_not_100.length > 0 && (
-            <div className="pt-3 border-t border-gray-100">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Why not 100%?</p>
+            <div className="pt-3 border-t border-white/[0.06]">
+              <p className="text-xs font-medium text-white/50 uppercase tracking-wide mb-2">Why not 100%?</p>
               <ul className="space-y-1">
                 {fitResult.why_not_100.map((reason, idx) => (
-                  <li key={idx} className="text-xs text-gray-500">• {reason}</li>
+                  <li key={idx} className="text-xs text-white/50">• {reason}</li>
                 ))}
               </ul>
             </div>
@@ -982,16 +982,16 @@ function ComparePageContent() {
       : null;
 
     const signalBadge = (signal: string) => {
-      if (signal === "GOOD") return "bg-green-100 text-green-800 border-green-200";
-      if (signal === "CONDITIONAL") return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      return "bg-red-100 text-red-800 border-red-200";
+      if (signal === "GOOD") return "bg-[#00d97e]/10 text-[#00d97e] border-[#00d97e]/20";
+      if (signal === "CONDITIONAL") return "bg-yellow-500/[0.06]0/10 text-yellow-400 border-yellow-500/20";
+      return "bg-red-500/[0.06]0/10 text-red-400 border-red-500/20";
     };
 
     return (
       <div className="space-y-5">
         <div className="mb-4">
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">Comparison Results</h2>
-          <p className="text-gray-500">
+          <h2 className="text-2xl font-bold text-white mb-1">Comparison Results</h2>
+          <p className="text-white/50">
             {routineRefined
               ? "Personalised to your driving routine."
               : "Based on typical usage."}
@@ -1009,10 +1009,10 @@ function ComparePageContent() {
             <div className="px-4 py-4 space-y-4">
               {fitResult.strengths.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-green-700 uppercase mb-2">Works well</p>
+                  <p className="text-xs font-medium text-[#00d97e] uppercase mb-2">Works well</p>
                   <ul className="space-y-2">
                     {fitResult.strengths.map((s, idx) => (
-                      <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
+                      <li key={idx} className="text-sm text-white/70 flex items-start gap-2">
                         <span className="text-green-500 mt-0.5 font-bold flex-shrink-0">✓</span>
                         <span>{s}</span>
                       </li>
@@ -1022,11 +1022,11 @@ function ComparePageContent() {
               )}
               {fitResult.friction_bullets.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase mb-2">Considerations</p>
+                  <p className="text-xs font-medium text-white/50 uppercase mb-2">Considerations</p>
                   <ul className="space-y-2">
                     {fitResult.friction_bullets.map((b, idx) => (
-                      <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
-                        <span className="text-blue-500 mt-0.5 flex-shrink-0">•</span>
+                      <li key={idx} className="text-sm text-white/70 flex items-start gap-2">
+                        <span className="text-[#00d97e]/70 mt-0.5 flex-shrink-0">•</span>
                         <span>{b}</span>
                       </li>
                     ))}
@@ -1034,11 +1034,11 @@ function ComparePageContent() {
                 </div>
               )}
               {fitResult.why_not_100.length > 0 && (
-                <div className="pt-3 border-t border-gray-100">
-                  <p className="text-xs font-medium text-gray-400 uppercase mb-2">Why not perfect?</p>
+                <div className="pt-3 border-t border-white/[0.06]">
+                  <p className="text-xs font-medium text-white/40 uppercase mb-2">Why not perfect?</p>
                   <ul className="space-y-1">
                     {fitResult.why_not_100.map((r, idx) => (
-                      <li key={idx} className="text-xs text-gray-500">• {r}</li>
+                      <li key={idx} className="text-xs text-white/50">• {r}</li>
                     ))}
                   </ul>
                 </div>
@@ -1047,21 +1047,21 @@ function ComparePageContent() {
           );
 
           return (
-            <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm bg-white">
+            <div className="rounded-2xl border border-white/[0.08] overflow-hidden bg-[#161b22]">
               {/* Photos row */}
               <div className="grid sm:grid-cols-2 grid-cols-1">
-                <div className="relative h-48 bg-gray-100 sm:border-r border-b sm:border-b-0 border-gray-200">
+                <div className="relative h-48 bg-white/[0.04] sm:border-r border-b sm:border-b-0 border-white/[0.08]">
                   <VehicleImage {...imgA} className="w-full h-full" imgClassName="w-full h-full object-cover" />
                   <div className="absolute bottom-2 left-2">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border shadow-sm ${signalBadge(result.optionA.fit_signal)}`}>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${signalBadge(result.optionA.fit_signal)}`}>
                       {FIT_SIGNAL_LABELS[result.optionA.fit_signal]}
                     </span>
                   </div>
                 </div>
-                <div className="relative h-48 bg-gray-100">
+                <div className="relative h-48 bg-white/[0.04]">
                   <VehicleImage {...imgB} className="w-full h-full" imgClassName="w-full h-full object-cover" />
                   <div className="absolute bottom-2 left-2">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border shadow-sm ${signalBadge(result.optionB.fit_signal)}`}>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${signalBadge(result.optionB.fit_signal)}`}>
                       {FIT_SIGNAL_LABELS[result.optionB.fit_signal]}
                     </span>
                   </div>
@@ -1069,22 +1069,22 @@ function ComparePageContent() {
               </div>
 
               {/* Labels row */}
-              <div className="grid sm:grid-cols-2 grid-cols-1 border-t border-gray-200">
-                <div className="px-4 py-3 sm:border-r border-b sm:border-b-0 border-gray-200">
-                  <p className="font-bold text-gray-900 text-sm">{labelA}</p>
-                  {unlocked && <p className="text-xs text-gray-500 mt-0.5 italic">{FADE_LABEL_DISPLAY[result.optionA.fade_label]}</p>}
+              <div className="grid sm:grid-cols-2 grid-cols-1 border-t border-white/[0.08]">
+                <div className="px-4 py-3 sm:border-r border-b sm:border-b-0 border-white/[0.08]">
+                  <p className="font-bold text-white text-sm">{labelA}</p>
+                  {unlocked && <p className="text-xs text-white/50 mt-0.5 italic">{FADE_LABEL_DISPLAY[result.optionA.fade_label]}</p>}
                 </div>
                 <div className="px-4 py-3">
-                  <p className="font-bold text-gray-900 text-sm">{labelB}</p>
-                  {unlocked && <p className="text-xs text-gray-500 mt-0.5 italic">{FADE_LABEL_DISPLAY[result.optionB.fade_label]}</p>}
+                  <p className="font-bold text-white text-sm">{labelB}</p>
+                  {unlocked && <p className="text-xs text-white/50 mt-0.5 italic">{FADE_LABEL_DISPLAY[result.optionB.fade_label]}</p>}
                 </div>
               </div>
 
               {/* Detail columns — unlocked only */}
               {unlocked && (
-                <div className="grid sm:grid-cols-2 grid-cols-1 border-t border-gray-200 sm:divide-x divide-gray-200">
+                <div className="grid sm:grid-cols-2 grid-cols-1 border-t border-white/[0.08] sm:divide-x divide-white/[0.08]">
                   {renderDetails(result.optionA)}
-                  <div className="sm:hidden border-t border-gray-200" />
+                  <div className="sm:hidden border-t border-white/[0.08]" />
                   {renderDetails(result.optionB)}
                 </div>
               )}
@@ -1100,12 +1100,12 @@ function ComparePageContent() {
             routineRefined, routinePattern, longDayFrequency
           );
           return (
-            <div className={`rounded-2xl border-2 p-5 ${v.winner ? "border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50" : "border-gray-200 bg-gray-50"}`}>
-              <p className="text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-1">OFFO Verdict</p>
-              <p className="font-bold text-gray-900 text-sm leading-snug">{v.title}</p>
-              {v.body && <p className="text-xs text-gray-600 mt-1.5">{v.body}</p>}
+            <div className={`rounded-2xl border-2 p-5 ${v.winner ? "border-[#00d97e]/30 bg-gradient-to-r bg-[#00d97e]/[0.06]" : "border-white/[0.08] bg-[#0d1117]"}`}>
+              <p className="text-xs font-semibold text-[#00d97e]/60 uppercase tracking-widest mb-1">OFFO Verdict</p>
+              <p className="font-bold text-white text-sm leading-snug">{v.title}</p>
+              {v.body && <p className="text-xs text-white/60 mt-1.5">{v.body}</p>}
               {!routineRefined && (
-                <p className="text-xs text-gray-400 mt-2">Personalise to your routine above for a more accurate verdict.</p>
+                <p className="text-xs text-white/40 mt-2">Personalise to your routine above for a more accurate verdict.</p>
               )}
             </div>
           );
@@ -1113,29 +1113,29 @@ function ComparePageContent() {
 
         {/* Spec table — always visible if user added specs */}
         {includeSpecs && hasAnySpec && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <h3 className="font-bold text-gray-900 mb-4">Spec Comparison</h3>
+          <div className="bg-[#161b22] rounded-2xl border border-white/[0.06] p-5">
+            <h3 className="font-bold text-white mb-4">Spec Comparison</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="py-2.5 px-3 text-left text-xs font-medium text-gray-500 w-1/3">Spec</th>
-                    <th className="py-2.5 px-3 text-center text-sm font-semibold text-gray-900">{labelA}</th>
-                    <th className="py-2.5 px-3 text-center text-sm font-semibold text-gray-900">{labelB}</th>
+                  <tr className="border-b border-white/[0.08]">
+                    <th className="py-2.5 px-3 text-left text-xs font-medium text-white/50 w-1/3">Spec</th>
+                    <th className="py-2.5 px-3 text-center text-sm font-semibold text-white">{labelA}</th>
+                    <th className="py-2.5 px-3 text-center text-sm font-semibold text-white">{labelB}</th>
                   </tr>
                 </thead>
                 <tbody>
                   <SpecRow rowIndex={0} label="Est. Range (EPA)" valA={specA.range_mi ? `~${specA.range_mi} mi` : "—"} valB={specB.range_mi ? `~${specB.range_mi} mi` : "—"} numA={specA.range_mi} numB={specB.range_mi} better="higher" />
                   {(realWorldRangeA || realWorldRangeB) && (
-                    <tr className="bg-green-50">
-                      <td className="py-2 px-3 text-xs text-green-700 italic pl-5 w-1/3">Real-world est.</td>
-                      <td className="py-2 px-3 text-xs text-center text-green-700">
+                    <tr className="bg-[#00d97e]/[0.06]">
+                      <td className="py-2 px-3 text-xs text-[#00d97e] italic pl-5 w-1/3">Real-world est.</td>
+                      <td className="py-2 px-3 text-xs text-center text-[#00d97e]">
                         {realWorldRangeA ? `~${realWorldRangeA} mi` : "—"}
-                        {coldRangeA && <span className="block text-xs text-blue-600">~{coldRangeA} mi in cold</span>}
+                        {coldRangeA && <span className="block text-xs text-[#00d97e]">~{coldRangeA} mi in cold</span>}
                       </td>
-                      <td className="py-2 px-3 text-xs text-center text-green-700">
+                      <td className="py-2 px-3 text-xs text-center text-[#00d97e]">
                         {realWorldRangeB ? `~${realWorldRangeB} mi` : "—"}
-                        {coldRangeB && <span className="block text-xs text-blue-600">~{coldRangeB} mi in cold</span>}
+                        {coldRangeB && <span className="block text-xs text-[#00d97e]">~{coldRangeB} mi in cold</span>}
                       </td>
                     </tr>
                   )}
@@ -1162,88 +1162,88 @@ function ComparePageContent() {
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-gray-400 mt-3">Real-world range est. applies ~13% reduction from EPA. Cold weather est. assumes ~30% additional reduction. Charge time is a peak-rate ceiling; actual varies. Verify before purchasing.</p>
+            <p className="text-xs text-white/40 mt-3">Real-world range est. applies ~13% reduction from EPA. Cold weather est. assumes ~30% additional reduction. Charge time is a peak-rate ceiling; actual varies. Verify before purchasing.</p>
           </div>
         )}
 
         {/* ── 5-YEAR COST OF OWNERSHIP ─────────────────────────── */}
         {showTco && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-5 pt-4 pb-3 border-b border-gray-100">
-              <h3 className="font-bold text-gray-900 text-sm">5-Year Cost of Ownership</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Estimates based on US averages. Verify before purchasing.</p>
+          <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] overflow-hidden">
+            <div className="px-5 pt-4 pb-3 border-b border-white/[0.06]">
+              <h3 className="font-bold text-white text-sm">5-Year Cost of Ownership</h3>
+              <p className="text-xs text-white/50 mt-0.5">Estimates based on US averages. Verify before purchasing.</p>
             </div>
             <table className="w-full text-xs">
               <thead>
-                <tr className="bg-gray-50">
-                  <th className="py-2 px-3 text-left text-gray-500 font-medium w-2/5"></th>
-                  <th className="py-2 px-3 text-center text-gray-700 font-semibold">{labelA}</th>
-                  <th className="py-2 px-3 text-center text-gray-700 font-semibold">{labelB}</th>
+                <tr className="bg-[#0d1117]">
+                  <th className="py-2 px-3 text-left text-white/50 font-medium w-2/5"></th>
+                  <th className="py-2 px-3 text-center text-white/70 font-semibold">{labelA}</th>
+                  <th className="py-2 px-3 text-center text-white/70 font-semibold">{labelB}</th>
                 </tr>
               </thead>
               <tbody>
                 {(priceA != null || priceB != null) && (
-                  <tr className="bg-white">
-                    <td className="py-2 px-3 text-gray-500">Purchase price</td>
-                    <td className="py-2 px-3 text-center text-gray-800">{priceA != null ? formatCurrency(priceA) : "—"}</td>
-                    <td className="py-2 px-3 text-center text-gray-800">{priceB != null ? formatCurrency(priceB) : "—"}</td>
+                  <tr className="bg-[#161b22]">
+                    <td className="py-2 px-3 text-white/50">Purchase price</td>
+                    <td className="py-2 px-3 text-center text-white/80">{priceA != null ? formatCurrency(priceA) : "—"}</td>
+                    <td className="py-2 px-3 text-center text-white/80">{priceB != null ? formatCurrency(priceB) : "—"}</td>
                   </tr>
                 )}
                 {(taxCreditA > 0 || taxCreditB > 0) && (
-                  <tr className="bg-green-50">
-                    <td className="py-2 px-3 text-green-700">Fed. tax credit</td>
-                    <td className="py-2 px-3 text-center text-green-700">{taxCreditA > 0 ? `−${formatCurrency(taxCreditA)}` : "—"}</td>
-                    <td className="py-2 px-3 text-center text-green-700">{taxCreditB > 0 ? `−${formatCurrency(taxCreditB)}` : "—"}</td>
+                  <tr className="bg-[#00d97e]/[0.06]">
+                    <td className="py-2 px-3 text-[#00d97e]">Fed. tax credit</td>
+                    <td className="py-2 px-3 text-center text-[#00d97e]">{taxCreditA > 0 ? `−${formatCurrency(taxCreditA)}` : "—"}</td>
+                    <td className="py-2 px-3 text-center text-[#00d97e]">{taxCreditB > 0 ? `−${formatCurrency(taxCreditB)}` : "—"}</td>
                   </tr>
                 )}
-                <tr className="bg-gray-50">
-                  <td className="py-2 px-3 text-gray-500">Charging (5 yr)</td>
-                  <td className="py-2 px-3 text-center text-gray-800">{formatCurrency(annualChargeA * 5)}</td>
-                  <td className="py-2 px-3 text-center text-gray-800">{formatCurrency(annualChargeB * 5)}</td>
+                <tr className="bg-[#0d1117]">
+                  <td className="py-2 px-3 text-white/50">Charging (5 yr)</td>
+                  <td className="py-2 px-3 text-center text-white/80">{formatCurrency(annualChargeA * 5)}</td>
+                  <td className="py-2 px-3 text-center text-white/80">{formatCurrency(annualChargeB * 5)}</td>
                 </tr>
-                <tr className="bg-white">
-                  <td className="py-2 px-3 text-gray-500">Maintenance (5 yr)</td>
-                  <td className="py-2 px-3 text-center text-gray-800">{formatCurrency(annualMaint * 5)}</td>
-                  <td className="py-2 px-3 text-center text-gray-800">{formatCurrency(annualMaint * 5)}</td>
+                <tr className="bg-[#161b22]">
+                  <td className="py-2 px-3 text-white/50">Maintenance (5 yr)</td>
+                  <td className="py-2 px-3 text-center text-white/80">{formatCurrency(annualMaint * 5)}</td>
+                  <td className="py-2 px-3 text-center text-white/80">{formatCurrency(annualMaint * 5)}</td>
                 </tr>
-                <tr className="bg-gray-50">
-                  <td className="py-2 px-3 text-gray-500">Insurance (5 yr)</td>
-                  <td className="py-2 px-3 text-center text-gray-800">{formatCurrency(insLow * 5)}–{formatCurrency(insHigh * 5)}</td>
-                  <td className="py-2 px-3 text-center text-gray-800">{formatCurrency(insLow * 5)}–{formatCurrency(insHigh * 5)}</td>
+                <tr className="bg-[#0d1117]">
+                  <td className="py-2 px-3 text-white/50">Insurance (5 yr)</td>
+                  <td className="py-2 px-3 text-center text-white/80">{formatCurrency(insLow * 5)}–{formatCurrency(insHigh * 5)}</td>
+                  <td className="py-2 px-3 text-center text-white/80">{formatCurrency(insLow * 5)}–{formatCurrency(insHigh * 5)}</td>
                 </tr>
                 {(total5A != null || total5B != null) && (
-                  <tr className="bg-indigo-50 font-semibold">
-                    <td className="py-2.5 px-3 text-indigo-800">5-yr total est.</td>
-                    <td className={`py-2.5 px-3 text-center ${tcoWinner === "A" ? "text-green-700" : "text-indigo-800"}`}>
+                  <tr className="bg-[#00d97e]/[0.06] font-semibold">
+                    <td className="py-2.5 px-3 text-white/60">5-yr total est.</td>
+                    <td className={`py-2.5 px-3 text-center ${tcoWinner === "A" ? "text-[#00d97e]" : "text-white/60"}`}>
                       {total5A != null ? formatCurrency(total5A) : "—"}
-                      {tcoWinner === "A" && <span className="ml-1 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">lower</span>}
+                      {tcoWinner === "A" && <span className="ml-1 text-xs bg-green-100 text-[#00d97e] px-1.5 py-0.5 rounded-full">lower</span>}
                     </td>
-                    <td className={`py-2.5 px-3 text-center ${tcoWinner === "B" ? "text-green-700" : "text-indigo-800"}`}>
+                    <td className={`py-2.5 px-3 text-center ${tcoWinner === "B" ? "text-[#00d97e]" : "text-white/60"}`}>
                       {total5B != null ? formatCurrency(total5B) : "—"}
-                      {tcoWinner === "B" && <span className="ml-1 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">lower</span>}
+                      {tcoWinner === "B" && <span className="ml-1 text-xs bg-green-100 text-[#00d97e] px-1.5 py-0.5 rounded-full">lower</span>}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
             {tcoWinner && tcoWinner !== "TIE" && total5A != null && total5B != null && (
-              <div className="px-5 py-3 bg-green-50 border-t border-green-100">
+              <div className="px-5 py-3 bg-[#00d97e]/[0.06] border-t border-[#00d97e]/15">
                 <p className="text-xs text-green-800">
                   <span className="font-semibold">{tcoWinner === "A" ? labelA : labelB}</span> costs{" "}
                   <span className="font-semibold">{formatCurrency(Math.abs(total5A - total5B))} less</span> over 5 years.
                 </p>
               </div>
             )}
-            <p className="text-xs text-gray-400 px-5 py-2">12,000 mi/yr · $0.16/kWh · AAA maintenance avg · mid-range insurance est.</p>
+            <p className="text-xs text-white/40 px-5 py-2">12,000 mi/yr · $0.16/kWh · AAA maintenance avg · mid-range insurance est.</p>
           </div>
         )}
 
         {/* ── DEPRECIATION & RESALE VALUE ───────────────────────── */}
         {(yr3ValueA != null || yr3ValueB != null || yr5ValueA != null || yr5ValueB != null) && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-5 pt-4 pb-3 border-b border-gray-100">
-              <h3 className="font-bold text-gray-900 text-sm">Depreciation &amp; Resale Value</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Projected value based on per-make iSeeCars / CarEdge benchmarks.</p>
+          <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] overflow-hidden">
+            <div className="px-5 pt-4 pb-3 border-b border-white/[0.06]">
+              <h3 className="font-bold text-white text-sm">Depreciation &amp; Resale Value</h3>
+              <p className="text-xs text-white/50 mt-0.5">Projected value based on per-make iSeeCars / CarEdge benchmarks.</p>
             </div>
             <div className="grid grid-cols-2 divide-x divide-gray-100">
               {[
@@ -1258,25 +1258,25 @@ function ComparePageContent() {
                 return (
                   <div key={i} className="px-4 py-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold text-gray-700 truncate">{label}</p>
+                      <p className="text-xs font-semibold text-white/70 truncate">{label}</p>
                       {isBetterResale && (
-                        <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-semibold shrink-0 ml-1">Better resale</span>
+                        <span className="text-xs bg-green-100 text-[#00d97e] px-1.5 py-0.5 rounded-full font-semibold shrink-0 ml-1">Better resale</span>
                       )}
                     </div>
                     {price != null && (
-                      <p className="text-xs text-gray-400">Purchase: {formatCurrency(price)}</p>
+                      <p className="text-xs text-white/40">Purchase: {formatCurrency(price)}</p>
                     )}
                     <div className="space-y-1.5">
                       {yr3 != null && (
                         <div className="flex justify-between text-xs">
-                          <span className="text-gray-500">After 3 yrs</span>
-                          <span className="font-semibold text-gray-800">~{formatCurrency(yr3)}</span>
+                          <span className="text-white/50">After 3 yrs</span>
+                          <span className="font-semibold text-white/80">~{formatCurrency(yr3)}</span>
                         </div>
                       )}
                       {yr5 != null && (
                         <div className="flex justify-between text-xs">
-                          <span className="text-gray-500">After 5 yrs</span>
-                          <span className="font-semibold text-gray-800">~{formatCurrency(yr5)}</span>
+                          <span className="text-white/50">After 5 yrs</span>
+                          <span className="font-semibold text-white/80">~{formatCurrency(yr5)}</span>
                         </div>
                       )}
                       {price != null && yr5 != null && (
@@ -1291,7 +1291,7 @@ function ComparePageContent() {
                         href={searchUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block text-center text-xs text-indigo-600 hover:underline mt-1"
+                        className="block text-center text-xs text-[#00d97e]/70 hover:underline mt-1"
                       >
                         Search used listings →
                       </a>
@@ -1300,17 +1300,17 @@ function ComparePageContent() {
                 );
               })}
             </div>
-            <p className="text-xs text-gray-400 px-5 py-2 border-t border-gray-100">Depreciation rates are estimates. Actual resale value varies by trim, condition, and market.</p>
+            <p className="text-xs text-white/40 px-5 py-2 border-t border-white/[0.06]">Depreciation rates are estimates. Actual resale value varies by trim, condition, and market.</p>
           </div>
         )}
 
         {/* ── FREE PERSONALIZATION CTA ─────────────────────────── */}
         {!routineRefined && (
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-5">
-            <p className="font-semibold text-blue-900 text-sm mb-1">
+          <div className="bg-[#00d97e]/[0.06] border-2 border-blue-200 rounded-2xl p-5">
+            <p className="font-semibold text-white text-sm mb-1">
               Personalise to your routine — free
             </p>
-            <p className="text-xs text-blue-700 mb-4">
+            <p className="text-xs text-[#00d97e]/80 mb-4">
               Tell us how you drive and we&apos;ll re-score both fit signals for your actual situation. No payment needed.
             </p>
             <button
@@ -1318,7 +1318,7 @@ function ComparePageContent() {
                 setPhase("routine");
                 trackEvent("compare_routine_free_entry", { region: regionResolved, was_unlocked: unlocked });
               }}
-              className="w-full py-3 rounded-xl font-semibold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-xl font-semibold text-sm bg-[#00d97e] text-[#0d1117] hover:bg-[#00c970] transition-all flex items-center justify-center gap-2"
             >
               Personalise for my routine <ArrowRight className="w-4 h-4" />
             </button>
@@ -1327,56 +1327,56 @@ function ComparePageContent() {
 
         {/* ── PAYWALL GATE ─────────────────────────────────────── */}
         {!unlocked && (
-          <div className="bg-gradient-to-br from-slate-50 via-white to-indigo-50 rounded-2xl border-2 border-indigo-200 shadow-sm overflow-hidden">
+          <div className="bg-[#00d97e]/[0.04] rounded-2xl border-2 border-[#00d97e]/30 overflow-hidden">
             {/* Blurred preview of deep analysis */}
             <div className="relative">
               <div className="pointer-events-none select-none blur-sm opacity-60 px-5 pt-5 space-y-3">
-                <div className="bg-white rounded-xl border border-blue-100 p-4">
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Deep Analysis — {labelA}</p>
-                  <p className="text-sm text-gray-700">✓ Efficient for city driving — lower battery drain in stop-start</p>
-                  <p className="text-sm text-gray-700 mt-1">✓ DC fast charging adequate for occasional road trips</p>
-                  <p className="text-sm text-gray-500 mt-1">• Consider range anxiety on 150+ mile days without planning</p>
+                <div className="bg-[#161b22] rounded-xl border border-[#00d97e]/20 p-4">
+                  <p className="text-xs font-semibold text-white/50 uppercase mb-2">Deep Analysis — {labelA}</p>
+                  <p className="text-sm text-white/70">✓ Efficient for city driving — lower battery drain in stop-start</p>
+                  <p className="text-sm text-white/70 mt-1">✓ DC fast charging adequate for occasional road trips</p>
+                  <p className="text-sm text-white/50 mt-1">• Consider range anxiety on 150+ mile days without planning</p>
                 </div>
-                <div className="bg-white rounded-xl border border-blue-100 p-4">
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Deep Analysis — {labelB}</p>
-                  <p className="text-sm text-gray-700">✓ Higher peak DC charging — faster top-ups on longer trips</p>
-                  <p className="text-sm text-gray-700 mt-1">• Larger battery means more to charge overnight with L1</p>
+                <div className="bg-[#161b22] rounded-xl border border-[#00d97e]/20 p-4">
+                  <p className="text-xs font-semibold text-white/50 uppercase mb-2">Deep Analysis — {labelB}</p>
+                  <p className="text-sm text-white/70">✓ Higher peak DC charging — faster top-ups on longer trips</p>
+                  <p className="text-sm text-white/70 mt-1">• Larger battery means more to charge overnight with L1</p>
                 </div>
-                <div className="bg-white rounded-xl border border-blue-100 p-4">
-                  <p className="text-xs font-semibold text-gray-700 mb-2">Verdict: What would actually change?</p>
-                  <p className="text-sm text-gray-700">→ Daily charging time increases by ~2 hours with L1</p>
-                  <p className="text-sm text-gray-700 mt-1">→ Road trip planning effort differs significantly</p>
+                <div className="bg-[#161b22] rounded-xl border border-[#00d97e]/20 p-4">
+                  <p className="text-xs font-semibold text-white/70 mb-2">Verdict: What would actually change?</p>
+                  <p className="text-sm text-white/70">→ Daily charging time increases by ~2 hours with L1</p>
+                  <p className="text-sm text-white/70 mt-1">→ Road trip planning effort differs significantly</p>
                 </div>
               </div>
               {/* Lock overlay */}
-              <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-[1px]">
-                <Lock className="w-8 h-8 text-indigo-400 opacity-80" />
+              <div className="absolute inset-0 flex items-center justify-center bg-[#161b22]/40 backdrop-blur-[1px]">
+                <Lock className="w-8 h-8 text-[#00d97e]/50 opacity-80" />
               </div>
             </div>
 
             {/* Unlock CTA */}
             <div className="px-5 pb-5 pt-4 border-t border-indigo-100">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2.5 py-1 rounded-full">OFFO Compare Pass</span>
-                <span className="text-base font-bold text-gray-900">{displayPrice}</span>
+                <span className="text-xs font-semibold text-[#00d97e] bg-[#00d97e]/10 px-2.5 py-1 rounded-full">OFFO Compare Pass</span>
+                <span className="text-base font-bold text-white">{displayPrice}</span>
               </div>
-              <p className="text-sm font-semibold text-gray-900 mb-1">Unlock the full comparison</p>
+              <p className="text-sm font-semibold text-white mb-1">Unlock the full comparison</p>
               <ul className="space-y-1.5 mb-3">
                 {[
                   { icon: BarChart2, text: "Deep-dive analysis for both vehicles" },
                   { icon: MessageSquare, text: "Verdict: what actually changes for your routine" },
                 ].map(({ icon: Icon, text }, i) => (
-                  <li key={i} className="flex items-center gap-2 text-xs text-gray-600">
-                    <Icon className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <li key={i} className="flex items-center gap-2 text-xs text-white/60">
+                    <Icon className="w-3.5 h-3.5 text-[#00d97e]/50 shrink-0" />
                     {text}
                   </li>
                 ))}
               </ul>
-              <p className="text-xs text-indigo-600 font-medium mb-3">See how these cars match your routine — one-time, no subscription.</p>
+              <p className="text-xs text-[#00d97e]/70 font-medium mb-3">See how these cars match your routine — one-time, no subscription.</p>
               <button
                 onClick={handleCompareCheckout}
                 disabled={checkoutLoading || !compareSessionId}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 transition-all disabled:opacity-60 shadow-sm"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r bg-[#00d97e] hover:bg-[#00c970] transition-all disabled:opacity-60 shadow-sm"
               >
                 {checkoutLoading ? (
                   <><Loader2 className="w-4 h-4 animate-spin" />Redirecting...</>
@@ -1385,7 +1385,7 @@ function ComparePageContent() {
                 )}
               </button>
               {checkoutError && <p className="text-xs text-red-600 mt-2">{checkoutError}</p>}
-              {!compareSessionId && <p className="text-xs text-gray-400 mt-2 text-center">Preparing checkout…</p>}
+              {!compareSessionId && <p className="text-xs text-white/40 mt-2 text-center">Preparing checkout…</p>}
             </div>
           </div>
         )}
@@ -1394,12 +1394,12 @@ function ComparePageContent() {
         {unlocked && (
           <>
             {/* Delta */}
-            <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-5">
-              <h3 className="font-bold text-gray-900 mb-4">What would actually change?</h3>
+            <div className="bg-[#161b22] rounded-2xl border border-[#00d97e]/20 p-5">
+              <h3 className="font-bold text-white mb-4">What would actually change?</h3>
               <ul className="space-y-3">
                 {result.routine_delta_bullets.map((bullet, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 flex items-start gap-2.5">
-                    <span className="text-blue-500 mt-0.5 font-bold flex-shrink-0">→</span>
+                  <li key={idx} className="text-sm text-white/70 flex items-start gap-2.5">
+                    <span className="text-[#00d97e]/70 mt-0.5 font-bold flex-shrink-0">→</span>
                     <span>{bullet}</span>
                   </li>
                 ))}
@@ -1407,8 +1407,8 @@ function ComparePageContent() {
             </div>
 
             {/* Neutral Closer */}
-            <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-2xl border border-blue-100 p-5 text-center">
-              <p className="text-sm text-gray-600 italic">{result.neutral_closer}</p>
+            <div className="bg-[#00d97e]/[0.06] rounded-2xl border border-[#00d97e]/20 p-5 text-center">
+              <p className="text-sm text-white/60 italic">{result.neutral_closer}</p>
             </div>
           </>
         )}
@@ -1462,7 +1462,7 @@ function ComparePageContent() {
           return (
             <button
               onClick={handleCopy}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-medium border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-blue-400 transition-all"
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-medium border-2 border-white/[0.08] text-white/70 hover:bg-[#0d1117] hover:border-blue-400 transition-all"
             >
               {showCopySuccess ? (
                 <><CheckCircle className="w-4 h-4 text-green-600" /><span className="text-green-600">Copied!</span></>
@@ -1476,13 +1476,13 @@ function ComparePageContent() {
         <div className="flex gap-3">
           <button
             onClick={() => setPhase("options")}
-            className="flex-1 py-3.5 rounded-xl font-medium border-2 border-gray-200 text-gray-700 hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+            className="flex-1 py-3.5 rounded-xl font-medium border-2 border-white/[0.08] text-white/70 hover:bg-[#0d1117] transition-all flex items-center justify-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" /> Edit options
           </button>
           <button
             onClick={() => { setPhase("options"); setResult(null); setRoutineRefined(false); setCompareSessionId(null); trackEvent("compare_restart_clicked", { region: regionResolved }); }}
-            className="flex-1 py-3.5 rounded-xl font-medium border-2 border-gray-200 text-gray-700 hover:bg-gray-50 transition-all"
+            className="flex-1 py-3.5 rounded-xl font-medium border-2 border-white/[0.08] text-white/70 hover:bg-[#0d1117] transition-all"
           >
             New comparison
           </button>
@@ -1495,18 +1495,18 @@ function ComparePageContent() {
   const renderRoutinePhase = () => (
     <div className="space-y-5">
       <div className="mb-4">
-        <h2 className="text-2xl font-bold text-gray-900 mb-1">Your Driving Routine</h2>
-        <p className="text-gray-500">Answer these to personalise the comparison to your actual situation.</p>
+        <h2 className="text-2xl font-bold text-white mb-1">Your Driving Routine</h2>
+        <p className="text-white/50">Answer these to personalise the comparison to your actual situation.</p>
       </div>
 
       {/* Region */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-[#161b22] rounded-2xl border border-white/[0.06] p-5">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-semibold text-gray-900">Your region</p>
-            <p className="text-xs text-gray-500 mt-0.5">{regionResolved === "UK" ? "United Kingdom" : "United States"}</p>
+            <p className="text-sm font-semibold text-white">Your region</p>
+            <p className="text-xs text-white/50 mt-0.5">{regionResolved === "UK" ? "United Kingdom" : "United States"}</p>
           </div>
-          <select value={regionSelection} onChange={(e) => setRegionSelection(e.target.value as RegionSelection)} className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:border-blue-600 focus:outline-none">
+          <select value={regionSelection} onChange={(e) => setRegionSelection(e.target.value as RegionSelection)} className="text-sm border border-white/[0.08] rounded-lg px-3 py-2 bg-[#161b22] focus:border-[#00d97e]/50 focus:outline-none">
             <option value="AUTO">Auto-detect</option>
             <option value="US">United States</option>
             <option value="UK">United Kingdom</option>
@@ -1515,19 +1515,19 @@ function ComparePageContent() {
       </div>
 
       {/* Q1: Home Charging */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-        <label className="block text-sm font-semibold text-gray-900">Do you have dedicated home charging?</label>
+      <div className="bg-[#161b22] rounded-2xl border border-white/[0.06] p-5 space-y-3">
+        <label className="block text-sm font-semibold text-white">Do you have dedicated home charging?</label>
         <div className="grid grid-cols-2 gap-3">
           {[{ value: true, label: "Yes" }, { value: false, label: "No" }].map((opt) => (
-            <button key={String(opt.value)} onClick={() => setHasHomeCharging(opt.value)} className={`p-3 rounded-xl border-2 text-left font-medium text-sm transition-all ${hasHomeCharging === opt.value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700 hover:border-blue-300"}`}>{opt.label}</button>
+            <button key={String(opt.value)} onClick={() => setHasHomeCharging(opt.value)} className={`p-3 rounded-xl border-2 text-left font-medium text-sm transition-all ${hasHomeCharging === opt.value ? "border-blue-600 bg-[#00d97e]/[0.06] text-[#00d97e]/80" : "border-white/[0.08] text-white/70 hover:border-blue-300"}`}>{opt.label}</button>
           ))}
         </div>
         {hasHomeCharging && (
           <div className="pt-2 pl-4 border-l-2 border-blue-200">
-            <label className="block text-xs font-medium text-gray-600 mb-2">What type?</label>
+            <label className="block text-xs font-medium text-white/60 mb-2">What type?</label>
             <div className="flex gap-2">
               {(["L1", "L2", "UNKNOWN"] as const).map((type) => (
-                <button key={type} onClick={() => setHomeChargingType(type)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${homeChargingType === type ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                <button key={type} onClick={() => setHomeChargingType(type)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${homeChargingType === type ? "bg-[#00d97e] text-[#0d1117]" : "bg-white/[0.04] text-white/60 hover:bg-white/[0.08]"}`}>
                   {type === "UNKNOWN" ? "Not sure" : type}
                 </button>
               ))}
@@ -1537,21 +1537,21 @@ function ComparePageContent() {
       </div>
 
       {/* Q2: Work Charging */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-        <label className="block text-sm font-semibold text-gray-900">Can you charge at work?</label>
+      <div className="bg-[#161b22] rounded-2xl border border-white/[0.06] p-5 space-y-3">
+        <label className="block text-sm font-semibold text-white">Can you charge at work?</label>
         <div className="grid grid-cols-2 gap-3">
           {[{ value: true, label: "Yes" }, { value: false, label: "No" }].map((opt) => (
-            <button key={String(opt.value)} onClick={() => setCanChargeAtWork(opt.value)} className={`p-3 rounded-xl border-2 text-left font-medium text-sm transition-all ${canChargeAtWork === opt.value ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700 hover:border-blue-300"}`}>{opt.label}</button>
+            <button key={String(opt.value)} onClick={() => setCanChargeAtWork(opt.value)} className={`p-3 rounded-xl border-2 text-left font-medium text-sm transition-all ${canChargeAtWork === opt.value ? "border-blue-600 bg-[#00d97e]/[0.06] text-[#00d97e]/80" : "border-white/[0.08] text-white/70 hover:border-blue-300"}`}>{opt.label}</button>
           ))}
         </div>
       </div>
 
       {/* Q3: Public Dependency */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-        <label className="block text-sm font-semibold text-gray-900">How often would you rely on public charging?</label>
+      <div className="bg-[#161b22] rounded-2xl border border-white/[0.06] p-5 space-y-3">
+        <label className="block text-sm font-semibold text-white">How often would you rely on public charging?</label>
         <div className="space-y-2">
           {(["RARE", "SOMETIMES", "OFTEN"] as const).map((opt) => (
-            <button key={opt} onClick={() => setPublicDependency(opt)} className={`w-full px-4 py-3 rounded-xl border-2 text-left text-sm font-medium transition-all ${publicDependency === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700 hover:border-blue-300"}`}>
+            <button key={opt} onClick={() => setPublicDependency(opt)} className={`w-full px-4 py-3 rounded-xl border-2 text-left text-sm font-medium transition-all ${publicDependency === opt ? "border-blue-600 bg-[#00d97e]/[0.06] text-[#00d97e]/80" : "border-white/[0.08] text-white/70 hover:border-blue-300"}`}>
               {opt === "RARE" && "Rarely — road trips only"}{opt === "SOMETIMES" && "Sometimes — roughly weekly"}{opt === "OFTEN" && "Often — multiple times per week"}
             </button>
           ))}
@@ -1559,11 +1559,11 @@ function ComparePageContent() {
       </div>
 
       {/* Q4: Routine Pattern */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-        <label className="block text-sm font-semibold text-gray-900">What&apos;s your typical driving pattern?</label>
+      <div className="bg-[#161b22] rounded-2xl border border-white/[0.06] p-5 space-y-3">
+        <label className="block text-sm font-semibold text-white">What&apos;s your typical driving pattern?</label>
         <div className="space-y-2">
           {(["LOCAL", "MIXED", "MOTORWAY_HEAVY"] as const).map((opt) => (
-            <button key={opt} onClick={() => setRoutinePattern(opt)} className={`w-full px-4 py-3 rounded-xl border-2 text-left text-sm font-medium transition-all ${routinePattern === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700 hover:border-blue-300"}`}>
+            <button key={opt} onClick={() => setRoutinePattern(opt)} className={`w-full px-4 py-3 rounded-xl border-2 text-left text-sm font-medium transition-all ${routinePattern === opt ? "border-blue-600 bg-[#00d97e]/[0.06] text-[#00d97e]/80" : "border-white/[0.08] text-white/70 hover:border-blue-300"}`}>
               {opt === "LOCAL" && "Mostly local / city driving"}{opt === "MIXED" && "Mix of local and highway"}{opt === "MOTORWAY_HEAVY" && (regionResolved === "UK" ? "Mostly motorway" : "Mostly highway")}
             </button>
           ))}
@@ -1571,11 +1571,11 @@ function ComparePageContent() {
       </div>
 
       {/* Q5: Long Day Frequency */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-        <label className="block text-sm font-semibold text-gray-900">How often do you have long driving days (100+ miles)?</label>
+      <div className="bg-[#161b22] rounded-2xl border border-white/[0.06] p-5 space-y-3">
+        <label className="block text-sm font-semibold text-white">How often do you have long driving days (100+ miles)?</label>
         <div className="space-y-2">
           {(["RARE", "MONTHLY", "WEEKLY"] as const).map((opt) => (
-            <button key={opt} onClick={() => setLongDayFrequency(opt)} className={`w-full px-4 py-3 rounded-xl border-2 text-left text-sm font-medium transition-all ${longDayFrequency === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700 hover:border-blue-300"}`}>
+            <button key={opt} onClick={() => setLongDayFrequency(opt)} className={`w-full px-4 py-3 rounded-xl border-2 text-left text-sm font-medium transition-all ${longDayFrequency === opt ? "border-blue-600 bg-[#00d97e]/[0.06] text-[#00d97e]/80" : "border-white/[0.08] text-white/70 hover:border-blue-300"}`}>
               {opt === "RARE" && "Rarely — a few times a year"}{opt === "MONTHLY" && "Monthly"}{opt === "WEEKLY" && "Weekly or more"}
             </button>
           ))}
@@ -1583,11 +1583,11 @@ function ComparePageContent() {
       </div>
 
       {/* Q6: Planning Tolerance */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-        <label className="block text-sm font-semibold text-gray-900">How do you feel about planning charging stops?</label>
+      <div className="bg-[#161b22] rounded-2xl border border-white/[0.06] p-5 space-y-3">
+        <label className="block text-sm font-semibold text-white">How do you feel about planning charging stops?</label>
         <div className="space-y-2">
           {(["LOW", "MED", "HIGH"] as const).map((opt) => (
-            <button key={opt} onClick={() => setPlanningTolerance(opt)} className={`w-full px-4 py-3 rounded-xl border-2 text-left text-sm font-medium transition-all ${planningTolerance === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700 hover:border-blue-300"}`}>
+            <button key={opt} onClick={() => setPlanningTolerance(opt)} className={`w-full px-4 py-3 rounded-xl border-2 text-left text-sm font-medium transition-all ${planningTolerance === opt ? "border-blue-600 bg-[#00d97e]/[0.06] text-[#00d97e]/80" : "border-white/[0.08] text-white/70 hover:border-blue-300"}`}>
               {opt === "LOW" && "I prefer not to think about it"}{opt === "MED" && "I don't mind some planning"}{opt === "HIGH" && "I'm comfortable planning ahead"}
             </button>
           ))}
@@ -1595,11 +1595,11 @@ function ComparePageContent() {
       </div>
 
       {/* Q7: Shared Infrastructure */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-        <label className="block text-sm font-semibold text-gray-900">Would you share charging access with others?</label>
+      <div className="bg-[#161b22] rounded-2xl border border-white/[0.06] p-5 space-y-3">
+        <label className="block text-sm font-semibold text-white">Would you share charging access with others?</label>
         <div className="space-y-2">
           {(["NONE", "SOME", "HIGH"] as const).map((opt) => (
-            <button key={opt} onClick={() => setSharedInfrastructure(opt)} className={`w-full px-4 py-3 rounded-xl border-2 text-left text-sm font-medium transition-all ${sharedInfrastructure === opt ? "border-blue-600 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-700 hover:border-blue-300"}`}>
+            <button key={opt} onClick={() => setSharedInfrastructure(opt)} className={`w-full px-4 py-3 rounded-xl border-2 text-left text-sm font-medium transition-all ${sharedInfrastructure === opt ? "border-blue-600 bg-[#00d97e]/[0.06] text-[#00d97e]/80" : "border-white/[0.08] text-white/70 hover:border-blue-300"}`}>
               {opt === "NONE" && "No — dedicated charger for me"}{opt === "SOME" && "Sometimes — shared with household"}{opt === "HIGH" && "Yes — apartment or shared parking"}
             </button>
           ))}
@@ -1607,13 +1607,13 @@ function ComparePageContent() {
       </div>
 
       <div className="flex gap-3 pt-1">
-        <button onClick={() => setPhase("results")} className="flex-1 py-3.5 rounded-xl font-medium border-2 border-gray-200 text-gray-700 hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
+        <button onClick={() => setPhase("results")} className="flex-1 py-3.5 rounded-xl font-medium border-2 border-white/[0.08] text-white/70 hover:bg-[#0d1117] transition-all flex items-center justify-center gap-2">
           <ChevronUp className="w-4 h-4" /> Back to results
         </button>
         <button
           onClick={handleRoutineRefine}
           disabled={!isRoutineComplete}
-          className={`flex-1 py-3.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${isRoutineComplete ? "bg-gradient-to-r from-blue-600 to-green-600 text-white hover:shadow-md" : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
+          className={`flex-1 py-3.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${isRoutineComplete ? "bg-[#00d97e] text-[#0d1117] hover:bg-[#00c970]" : "bg-white/[0.08] text-white/40 cursor-not-allowed"}`}
         >
           Re-score for my routine <ArrowRight className="w-4 h-4" />
         </button>
@@ -1650,7 +1650,7 @@ function ComparePageContent() {
                 : "border-transparent text-white/30"
             }`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 text-xs font-bold ${
-                phase === p ? "bg-[#00d97e] text-[#0d1117]" : idx < currentStepIdx ? "bg-[#00d97e]/20 text-[#00d97e]" : "bg-white/[0.06] text-white/30"
+                phase === p ? "bg-[#00d97e] text-[#0d1117]" : idx < currentStepIdx ? "bg-[#00d97e]/20 text-[#00d97e]" : "bg-[#161b22]/[0.06] text-white/30"
               }`}>
                 {idx < currentStepIdx ? "✓" : idx + 1}
               </div>
