@@ -60,15 +60,19 @@ export default function SavedScenariosList({
 }: SavedScenariosListProps) {
   const { isAuthenticated, session, isLoading, isReady } = useAuth();
   const [scenarios, setScenarios] = useState<SavedScenarioPreview[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
     // Wait for isReady - this ensures the token is fully validated after SIGNED_IN
     if (!isAuthenticated || !isReady || !session?.access_token) {
-      setScenarios([]);
-      setLoading(false);
+      if (!isLoading) {
+        setScenarios([]);
+        setLoading(false);
+        setHasFetched(true);
+      }
       return;
     }
 
@@ -102,24 +106,31 @@ export default function SavedScenariosList({
         setError(err instanceof Error ? err.message : "Failed to load");
       } finally {
         setLoading(false);
+        setHasFetched(true);
       }
     };
 
     fetchScenarios();
-  }, [isAuthenticated, isReady, session?.access_token, maxItems]);
+  }, [isAuthenticated, isReady, session?.access_token, maxItems, isLoading]);
 
-  // Don't show if not authenticated or still loading auth
+  // Don't show while auth is still resolving
   if (isLoading || !isAuthenticated) {
     return null;
   }
 
-  // Don't show if auth resolved but not ready and not loading scenarios
-  if (!isReady && !loading) {
-    return null;
+  // Show spinner while waiting for first fetch
+  if (!hasFetched) {
+    return (
+      <div className={compact ? "" : "bg-[#161b22] rounded-xl p-6 border border-white/[0.08]"}>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-5 h-5 animate-spin text-[#00d97e]" />
+        </div>
+      </div>
+    );
   }
 
-  // Show nothing if no scenarios and no error
-  if (!loading && scenarios.length === 0 && !error) {
+  // Hide entirely if authenticated but has no scenarios and no error
+  if (hasFetched && scenarios.length === 0 && !error) {
     return null;
   }
 
