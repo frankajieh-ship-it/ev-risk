@@ -94,6 +94,13 @@ function saveLocally(dealId: string): void {
   } catch { /* ignore */ }
 }
 
+function removeLocally(dealId: string): void {
+  try {
+    const saved: string[] = JSON.parse(localStorage.getItem(SAVED_DEALS_KEY) || "[]");
+    localStorage.setItem(SAVED_DEALS_KEY, JSON.stringify(saved.filter((id) => id !== dealId)));
+  } catch { /* ignore */ }
+}
+
 
 function FreshnessLabel({ timestamp }: { timestamp: string }) {
   const diffMs = new Date().getTime() - new Date(timestamp).getTime();
@@ -168,7 +175,12 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   const handleSave = async () => {
-    if (saved) return;
+    if (saved) {
+      // Unsave
+      setSaved(false);
+      removeLocally(deal.id);
+      return;
+    }
     setSaved(true);
     saveLocally(deal.id);
 
@@ -298,9 +310,9 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
       <div className={`flex flex-col flex-1 ${preview ? "gap-2 p-2.5" : compact ? "gap-3 p-3" : "gap-3 p-4"}`}>
         {/* Vehicle + price */}
         <div>
-          <Link href={`/deals/${deal.id}`} className={`font-semibold text-white leading-snug hover:text-white/80 transition-colors ${preview ? "text-[11px]" : compact ? "text-xs" : "text-sm"}`}>
+          <a href={deal.listing_url} target="_blank" rel="noopener noreferrer" className={`font-semibold text-white leading-snug hover:text-white/80 transition-colors ${preview ? "text-[11px]" : compact ? "text-xs" : "text-sm"}`}>
             {deal.vehicle_label}
-          </Link>
+          </a>
           {!preview && deal.verdict === "YELLOW" && deal.risk_flags?.[0] && (
             <p className="text-[10px] text-white/35 italic mt-0.5 line-clamp-1">{deal.risk_flags[0]}</p>
           )}
@@ -369,21 +381,19 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
 
         {/* Actions */}
         <div className="mt-auto flex gap-2 pt-1">
-          {deal.receipt_id ? (
-            <Link
-              href={`/receipt?id=${deal.receipt_id}`}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-[#00d97e]/10 hover:bg-[#00d97e]/20 border border-[#00d97e]/20 text-[#00d97e] text-xs font-semibold rounded-lg transition-colors"
-            >
-              {preview ? "View Receipt" : "View Full Receipt"}
-            </Link>
-          ) : (
-            <Link
-              href={`/receipt?url=${encodeURIComponent(deal.listing_url)}`}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.08] text-white/70 text-xs font-semibold rounded-lg transition-colors"
-            >
-              {preview ? "Analyze" : "Analyze This Listing"}
-            </Link>
-          )}
+          {/* Primary action: view existing receipt if available, else analyze */}
+          <Link
+            href={deal.receipt_id ? `/receipt?id=${deal.receipt_id}` : `/receipt?url=${encodeURIComponent(deal.listing_url)}`}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg transition-colors ${
+              deal.receipt_id
+                ? "bg-[#00d97e]/10 hover:bg-[#00d97e]/20 border border-[#00d97e]/20 text-[#00d97e]"
+                : "bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.08] text-white/70"
+            }`}
+          >
+            {deal.receipt_id
+              ? (preview ? "View Receipt" : "View Full Receipt")
+              : (preview ? "Analyze" : "Analyze This Listing")}
+          </Link>
           {!preview && (
             <a
               href={deal.listing_url}

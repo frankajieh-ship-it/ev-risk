@@ -63,10 +63,20 @@ const MODEL_EXACT_MAP: Record<string, string> = {
   "cybertruck": "Cybertruck",
   "cybertruck crew cab": "Cybertruck",
   "cybertruck foundation series": "Cybertruck",
+  // Chevrolet EVs
+  "bolt euv": "Bolt EUV", "bolt euv lt": "Bolt EUV", "bolt euv premier": "Bolt EUV",
+  "bolt ev": "Bolt EV", "bolt ev lt": "Bolt EV", "bolt ev premier": "Bolt EV",
+  "bolt": "Bolt EV",
+  "equinox ev": "Equinox EV", "blazer ev": "Blazer EV", "silverado ev": "Silverado EV",
+  // Cadillac
+  "lyriq": "LYRIQ", "lyriq luxury 1": "LYRIQ", "lyriq luxury 2": "LYRIQ", "lyriq luxury 3": "LYRIQ",
+  "lyriq sport 1": "LYRIQ", "lyriq sport 2": "LYRIQ", "lyriq v-series": "LYRIQ",
+  "optiq": "OPTIQ", "escalade iq": "ESCALADE IQ",
   // BMW
   "i3": "i3", "i4": "i4", "i5": "i5", "i7": "i7", "ix": "iX", "ix3": "iX3",
   "i4 edrive40": "i4", "i4 m50": "i4", "i5 xdrive40": "i5", "i5 edrive40": "i5",
   "i7 xdrive60": "i7", "ix xdrive40": "iX", "ix xdrive50": "iX", "ix m60": "iX",
+  "ix xdrive60": "iX",
   // Mercedes (make comes in as "Mercedes" or "Mercedes-Benz")
   "eqs 450+": "EQS", "eqs 580 4matic": "EQS", "eqs": "EQS",
   "eqb 300 4matic": "EQB", "eqb": "EQB",
