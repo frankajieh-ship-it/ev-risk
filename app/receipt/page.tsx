@@ -856,7 +856,11 @@ export default function ReceiptPage() {
           return;
         }
 
-        setReceipt(result.receipt);
+        // Merge VIN into receipt so VehicleFactsBar can run history lookup
+        const receiptWithVin = data.fields.vin
+          ? { ...result.receipt, vin: data.fields.vin }
+          : result.receipt;
+        setReceipt(receiptWithVin);
         setLintPassed(result.lint_passed);
         setLintErrors(result.lint_error_codes || []);
         setIsFallback(!!result.fallback);

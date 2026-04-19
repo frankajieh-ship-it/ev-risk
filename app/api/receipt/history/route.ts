@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     try {
       const { data, error } = await supabase
         .from("receipts")
-        .select("id, created_at, output_json")
+        .select("id, created_at, output_json, vin")
         .eq("id", receiptId)
         .single();
 
@@ -43,16 +43,18 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ entries: [] });
       }
 
+      const dataVin = (data as Record<string, unknown>).vin as string | null | undefined;
+      const receipt = dataVin ? { ...data.output_json, vin: dataVin } : data.output_json;
       return NextResponse.json({
         entries: [{
           receipt_id: data.id,
           created_at: data.created_at,
-          verdict: data.output_json.verdict,
-          year: data.output_json.listing_summary?.year || null,
-          make: data.output_json.listing_summary?.make || null,
-          model: data.output_json.listing_summary?.model || null,
-          price: data.output_json.listing_summary?.price || null,
-          receipt: data.output_json,
+          verdict: receipt.verdict,
+          year: receipt.listing_summary?.year || null,
+          make: receipt.listing_summary?.make || null,
+          model: receipt.listing_summary?.model || null,
+          price: receipt.listing_summary?.price || null,
+          receipt,
         }],
       });
     } catch (err) {
@@ -100,7 +102,7 @@ export async function GET(req: NextRequest) {
     // Query by session_id (existing behavior)
     const { data: sessionData, error: sessionError } = await supabase
       .from("receipts")
-      .select("id, created_at, output_json")
+      .select("id, created_at, output_json, vin")
       .eq("session_id", anonId)
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -111,7 +113,7 @@ export async function GET(req: NextRequest) {
     if (authUserId) {
       const { data: userData } = await supabase
         .from("receipts")
-        .select("id, created_at, output_json")
+        .select("id, created_at, output_json, vin")
         .eq("user_id", authUserId)
         .order("created_at", { ascending: false })
         .limit(limit);
@@ -139,16 +141,20 @@ export async function GET(req: NextRequest) {
 
     const entries: ReceiptHistoryEntry[] = allData
       .filter((row) => row.output_json)
-      .map((row) => ({
-        receipt_id: row.id,
-        created_at: row.created_at,
-        verdict: row.output_json.verdict,
-        year: row.output_json.listing_summary?.year || null,
-        make: row.output_json.listing_summary?.make || null,
-        model: row.output_json.listing_summary?.model || null,
-        price: row.output_json.listing_summary?.price || null,
-        receipt: row.output_json,
-      }));
+      .map((row) => {
+        const rowVin = (row as Record<string, unknown>).vin as string | null | undefined;
+        const receipt = rowVin ? { ...row.output_json, vin: rowVin } : row.output_json;
+        return {
+          receipt_id: row.id,
+          created_at: row.created_at,
+          verdict: receipt.verdict,
+          year: receipt.listing_summary?.year || null,
+          make: receipt.listing_summary?.make || null,
+          model: receipt.listing_summary?.model || null,
+          price: receipt.listing_summary?.price || null,
+          receipt,
+        };
+      });
 
     return NextResponse.json({ entries });
   } catch (err) {

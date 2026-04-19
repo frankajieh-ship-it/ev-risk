@@ -76,49 +76,67 @@ export default function DeepDiveSection({
       </div>
 
       {/* Market Comparison */}
-      <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] overflow-hidden">
-        <div className="px-5 py-4 border-b border-white/[0.08]">
-          <div className="flex items-center gap-2">
-            <BarChart2 className="w-4 h-4 text-blue-400" />
-            <h3 className="text-sm font-semibold text-white">Market Comparison</h3>
+      {deepDive.market_comparison.length > 0 && (() => {
+        const comps = deepDive.market_comparison;
+        const avgDelta = comps.reduce((sum, c) => sum + c.delta_pct, 0) / comps.length;
+        const cheaperCount = comps.filter((c) => c.delta_pct > 0).length; // comps cost MORE = yours is cheaper
+        const summary = avgDelta > 15
+          ? { text: `Comparables average ${avgDelta.toFixed(0)}% more than yours — this listing is priced well below market.`, color: "text-[#00d97e]", bg: "bg-[#00d97e]/[0.08] border-[#00d97e]/20" }
+          : avgDelta > 5
+          ? { text: `${cheaperCount} of ${comps.length} comparable${comps.length !== 1 ? "s" : ""} cost more — yours is moderately below market.`, color: "text-blue-300", bg: "bg-blue-500/[0.08] border-blue-500/20" }
+          : avgDelta > -5
+          ? { text: `Comparables are priced similarly — this listing is in line with the market.`, color: "text-white/60", bg: "bg-white/[0.06] border-white/[0.08]" }
+          : { text: `Most comparables are priced lower — this listing may be above market. Ask for justification.`, color: "text-red-400", bg: "bg-red-500/[0.08] border-red-500/20" };
+        return (
+          <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] overflow-hidden">
+            <div className="px-5 py-4 border-b border-white/[0.08]">
+              <div className="flex items-center gap-2">
+                <BarChart2 className="w-4 h-4 text-blue-400" />
+                <h3 className="text-sm font-semibold text-white">Market Comparison</h3>
+              </div>
+            </div>
+            {/* Summary callout */}
+            <div className={`mx-4 mt-4 mb-2 px-4 py-2.5 rounded-lg border text-sm font-medium ${summary.bg} ${summary.color}`}>
+              {summary.text}
+            </div>
+            <div className="overflow-x-auto pb-2">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/[0.08] bg-white/[0.04]">
+                    <th className="text-left px-4 py-2 font-medium text-white/60">Vehicle</th>
+                    <th className="text-right px-4 py-2 font-medium text-white/60">Price</th>
+                    <th className="text-right px-4 py-2 font-medium text-white/60">Mileage</th>
+                    <th className="text-right px-4 py-2 font-medium text-white/60">vs. Yours</th>
+                    <th className="text-left px-4 py-2 font-medium text-white/60">Source</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comps.map((comp, i) => (
+                    <tr key={i} className="border-b border-white/[0.06] last:border-0">
+                      <td className="px-4 py-2.5 text-white">{comp.title}</td>
+                      <td className="px-4 py-2.5 text-right text-white font-medium">
+                        {formatPrice(comp.price, region)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-white/60">
+                        {comp.mileage.toLocaleString()} mi
+                      </td>
+                      <td
+                        className={`px-4 py-2.5 text-right font-medium ${
+                          comp.delta_pct < 0 ? "text-red-400" : "text-green-400"
+                        }`}
+                      >
+                        {comp.delta_pct > 0 ? "+" : ""}
+                        {comp.delta_pct.toFixed(1)}%
+                      </td>
+                      <td className="px-4 py-2.5 text-white/50 text-xs">{comp.source}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/[0.08] bg-white/[0.04]">
-                <th className="text-left px-4 py-2 font-medium text-white/60">Vehicle</th>
-                <th className="text-right px-4 py-2 font-medium text-white/60">Price</th>
-                <th className="text-right px-4 py-2 font-medium text-white/60">Mileage</th>
-                <th className="text-right px-4 py-2 font-medium text-white/60">vs. Yours</th>
-                <th className="text-left px-4 py-2 font-medium text-white/60">Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {deepDive.market_comparison.map((comp, i) => (
-                <tr key={i} className="border-b border-white/[0.06] last:border-0">
-                  <td className="px-4 py-2.5 text-white">{comp.title}</td>
-                  <td className="px-4 py-2.5 text-right text-white font-medium">
-                    {formatPrice(comp.price, region)}
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-white/60">
-                    {comp.mileage.toLocaleString()} mi
-                  </td>
-                  <td
-                    className={`px-4 py-2.5 text-right font-medium ${
-                      comp.delta_pct < 0 ? "text-green-400" : "text-red-400"
-                    }`}
-                  >
-                    {comp.delta_pct > 0 ? "+" : ""}
-                    {comp.delta_pct.toFixed(1)}%
-                  </td>
-                  <td className="px-4 py-2.5 text-white/50 text-xs">{comp.source}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Extended Inspection */}
       <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] p-5">
