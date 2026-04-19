@@ -32,7 +32,7 @@ export default function ReceiptDetailsAccordion({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden divide-y divide-gray-100">
+    <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] overflow-hidden divide-y divide-white/[0.06]">
       {/* Fee Estimates */}
       {details.fee_estimates && (
         <AccordionItem
@@ -42,11 +42,11 @@ export default function ReceiptDetailsAccordion({
           icon={<DollarSign className="w-4 h-4 text-green-600" />}
           title="Fee Estimates"
         >
-          <div className="space-y-2 text-sm text-gray-700">
+          <div className="space-y-2 text-sm text-white/70">
             {details.fee_estimates.tax_estimate_range && (
               <div className="flex justify-between">
                 <span>{region === "UK" ? "VAT estimate:" : "Tax estimate:"}</span>
-                <span className="font-medium">
+                <span className="font-medium text-white">
                   {formatPrice(details.fee_estimates.tax_estimate_range.low, region)} –
                   {formatPrice(details.fee_estimates.tax_estimate_range.high, region)}
                 </span>
@@ -55,14 +55,14 @@ export default function ReceiptDetailsAccordion({
             {details.fee_estimates.doc_fee_estimate_range && (
               <div className="flex justify-between">
                 <span>{region === "UK" ? "Admin fee estimate:" : "Doc fee estimate:"}</span>
-                <span className="font-medium">
+                <span className="font-medium text-white">
                   {formatPrice(details.fee_estimates.doc_fee_estimate_range.low, region)} –
                   {formatPrice(details.fee_estimates.doc_fee_estimate_range.high, region)}
                 </span>
               </div>
             )}
             {details.fee_estimates.notes && (
-              <p className="text-xs text-gray-500 mt-1">{details.fee_estimates.notes}</p>
+              <p className="text-xs text-white/40 mt-1">{details.fee_estimates.notes}</p>
             )}
           </div>
         </AccordionItem>
@@ -79,8 +79,8 @@ export default function ReceiptDetailsAccordion({
         >
           <ul className="space-y-1.5">
             {details.common_listing_tricks.map((trick, i) => (
-              <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
-                <span className="text-yellow-500 mt-0.5">*</span>
+              <li key={i} className="text-sm text-white/70 flex items-start gap-2">
+                <span className="text-yellow-400 mt-0.5">*</span>
                 <span>{trick}</span>
               </li>
             ))}
@@ -99,7 +99,7 @@ export default function ReceiptDetailsAccordion({
         >
           <ul className="space-y-1.5">
             {details.walk_away_triggers.map((trigger, i) => (
-              <li key={i} className="text-sm text-gray-700 flex items-start gap-2">
+              <li key={i} className="text-sm text-white/70 flex items-start gap-2">
                 <span className="text-red-400 mt-0.5">x</span>
                 <span>{trigger}</span>
               </li>
@@ -118,15 +118,15 @@ export default function ReceiptDetailsAccordion({
           title="How summary was made"
         >
           <div className="space-y-3 text-sm">
-            <p className="text-gray-700">{operatorNotes.rationale}</p>
+            <p className="text-white/70">{operatorNotes.rationale}</p>
             {(operatorNotes.assumptions?.length ?? 0) > 0 && (
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase mb-1">
+                <p className="text-xs font-medium text-white/40 uppercase mb-1">
                   Assumptions
                 </p>
                 <ul className="space-y-1">
                   {operatorNotes.assumptions?.map((a, i) => (
-                    <li key={i} className="text-gray-600 text-xs">
+                    <li key={i} className="text-white/50 text-xs">
                       - {a}
                     </li>
                   ))}
@@ -135,12 +135,12 @@ export default function ReceiptDetailsAccordion({
             )}
             {(operatorNotes.what_would_change_verdict?.length ?? 0) > 0 && (
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase mb-1">
+                <p className="text-xs font-medium text-white/40 uppercase mb-1">
                   What would change the verdict
                 </p>
                 <ul className="space-y-1">
                   {operatorNotes.what_would_change_verdict?.map((w, i) => (
-                    <li key={i} className="text-gray-600 text-xs">
+                    <li key={i} className="text-white/50 text-xs">
                       - {w}
                     </li>
                   ))}
@@ -215,14 +215,14 @@ function AccordionItem({
         onClick={onToggle}
         aria-expanded={isOpen}
         aria-controls={`accordion-${id}`}
-        className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-3.5 text-left hover:bg-white/[0.04] transition-colors"
       >
         <div className="flex items-center gap-2">
           {icon}
-          <span className="text-sm font-medium text-gray-900">{title}</span>
+          <span className="text-sm font-medium text-white/80">{title}</span>
         </div>
         <ChevronDown
-          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+          className={`w-4 h-4 text-white/30 transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
           }`}
         />
@@ -237,8 +237,8 @@ function AccordionItem({
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <span className="text-gray-500 text-xs">{label}</span>
-      <p className="text-gray-800 font-medium capitalize">{value}</p>
+      <span className="text-white/40 text-xs">{label}</span>
+      <p className="text-white/80 font-medium capitalize">{value}</p>
     </div>
   );
 }
