@@ -120,17 +120,30 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
       .replace(/\s+(p100d|p90d|p85d\+?|p85|100d|90d|85d|75d|70d|60d)\b.*/i, "")
       .replace(/\s+(long range|standard range plus|standard range|performance|plaid\+?|dual motor|tri motor|awd|rwd|fwd|4wd)\b.*/i, "")
       .trim();
-    fetch(`/api/recalls/nhtsa?make=${encodeURIComponent(make)}&model=${encodeURIComponent(nhtsaModel)}&year=${encodeURIComponent(String(year))}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.success) {
-          setRecalls(data.recalls || []);
-          setRecallStatus("done");
-        } else {
-          setRecallStatus("error");
-        }
-      })
-      .catch(() => setRecallStatus("error"));
+    const recallUrl = `/api/recalls/nhtsa?make=${encodeURIComponent(make)}&model=${encodeURIComponent(nhtsaModel)}&year=${encodeURIComponent(String(year))}`;
+    // Retry once on failure — NHTSA can be flaky
+    const tryFetch = (attempt: number): void => {
+      fetch(recallUrl)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success) {
+            setRecalls(data.recalls || []);
+            setRecallStatus("done");
+          } else if (attempt < 1) {
+            setTimeout(() => tryFetch(attempt + 1), 2000);
+          } else {
+            setRecallStatus("error");
+          }
+        })
+        .catch(() => {
+          if (attempt < 1) {
+            setTimeout(() => tryFetch(attempt + 1), 2000);
+          } else {
+            setRecallStatus("error");
+          }
+        });
+    };
+    tryFetch(0);
   }, [make, model, year]);
 
   const ev = isEv(make, model);
@@ -182,11 +195,13 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
           </span>
         )}
 
-        {/* Accidents */}
-        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${ac.cls}`}>
-          <AccidentIcon className="w-3 h-3" />
-          {ac.label}
-        </span>
+        {/* Accidents — show listing-scraped pill only when VinAudit hasn't confirmed yet */}
+        {historyStatus !== "done" && (
+          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${ac.cls}`}>
+            <AccidentIcon className="w-3 h-3" />
+            {ac.label}
+          </span>
+        )}
 
         {/* VinAudit history pills */}
         {historyStatus === "loading" && (
@@ -197,6 +212,18 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
         )}
         {historyStatus === "done" && history && (
           <>
+            {/* Accidents — VinAudit is more authoritative than listing scraper */}
+            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${
+              history.summary.accident_count > 0
+                ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
+                : "text-green-400 bg-green-500/10 border-green-500/20"
+            }`}>
+              {history.summary.accident_count > 0
+                ? <><AlertTriangle className="w-3 h-3" />{history.summary.accident_count} accident record{history.summary.accident_count !== 1 ? "s" : ""} (NMVTIS)</>
+                : <><CheckCircle className="w-3 h-3" />No accidents (NMVTIS)</>
+              }
+            </span>
+
             {/* Theft */}
             <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${
               history.summary.theft_reported
@@ -214,14 +241,6 @@ export default function VehicleFactsBar({ receipt }: VehicleFactsBarProps) {
               <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-red-400 bg-red-500/10 border-red-500/20">
                 <ShieldAlert className="w-3 h-3" />
                 Salvage on record
-              </span>
-            )}
-
-            {/* VinAudit accident count (more detailed than listing field) */}
-            {history.summary.accident_count > 0 && (
-              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-amber-400 bg-amber-500/10 border-amber-500/20">
-                <AlertTriangle className="w-3 h-3" />
-                {history.summary.accident_count} accident record{history.summary.accident_count !== 1 ? "s" : ""} (NMVTIS)
               </span>
             )}
           </>

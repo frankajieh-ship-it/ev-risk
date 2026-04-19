@@ -52,9 +52,9 @@ export async function GET(req: NextRequest) {
     url.searchParams.set("modelYear", year);
 
     const res = await fetch(url.toString(), {
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(12000),
       headers: { Accept: "application/json" },
-      next: { revalidate: 3600 }, // Next.js fetch cache 1hr
+      cache: "no-store", // avoid stale Next.js fetch cache issues
     });
 
     if (!res.ok) {
