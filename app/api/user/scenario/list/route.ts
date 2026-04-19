@@ -66,7 +66,7 @@ export interface SavedScenarioPreview {
   scenario_hash: string;
   receipt_id: string | null;
   vehicle_model: string;
-  vehicle_year: number;
+  vehicle_year: number | null;
   fit_signal: string | null;
   one_sentence_verdict: string | null;
   title: string | null;
@@ -146,7 +146,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Format response
-    const formattedScenarios: SavedScenarioPreview[] = (scenarios || []).map((s: any) => ({
+    const formattedScenarios: SavedScenarioPreview[] = (scenarios || []).map((s: Record<string, unknown>) => ({
       id: s.id,
       scenario_type: s.scenario_type || "evroutine",
       scenario_hash: s.scenario_hash,
@@ -161,10 +161,10 @@ export async function GET(req: NextRequest) {
       is_comparison: s.is_comparison,
       notes: s.notes,
       inputs: {
-        zipCode: s.inputs?.zipCode,
-        dailyMiles: s.inputs?.dailyMiles,
-        homeCharging: s.inputs?.homeCharging,
-        riskTolerance: s.inputs?.riskTolerance,
+        zipCode: (s.inputs as Record<string, unknown>)?.zipCode as string | undefined,
+        dailyMiles: (s.inputs as Record<string, unknown>)?.dailyMiles as number | undefined,
+        homeCharging: (s.inputs as Record<string, unknown>)?.homeCharging as boolean | undefined,
+        riskTolerance: (s.inputs as Record<string, unknown>)?.riskTolerance as string | undefined,
       },
     }));
 
