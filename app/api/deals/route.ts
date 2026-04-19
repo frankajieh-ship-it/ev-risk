@@ -102,16 +102,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch deals" }, { status: 500 });
   }
 
-  // Deduplicate by (make, model, year, trim) — keep highest deal_quality_score per spec.
-  // Must happen before pagination so every page shows different vehicles.
+  // Deduplicate by listing_url — each URL is unique in the DB already,
+  // but guard against any duplicates introduced by imports.
   const seen = new Map<string, (typeof allDeals)[0]>();
   for (const deal of allDeals ?? []) {
-    const key = [
-      (deal.make ?? "").toLowerCase().trim(),
-      (deal.model ?? "").toLowerCase().trim(),
-      deal.year ?? 0,
-      (deal.trim ?? "").toLowerCase().trim(),
-    ].join("|");
+    const key = deal.listing_url;
     const existing = seen.get(key);
     if (!existing || (deal.deal_quality_score ?? 0) > (existing.deal_quality_score ?? 0)) {
       seen.set(key, deal);
