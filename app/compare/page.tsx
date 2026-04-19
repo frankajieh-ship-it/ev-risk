@@ -1627,7 +1627,7 @@ function ComparePageContent() {
   const currentStepIdx = stepPhases.indexOf(phase);
 
   return (
-    <div className="min-h-screen bg-[#0d1117] flex flex-col">
+    <div className="flex flex-col">
       {/* Page header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
@@ -1640,7 +1640,7 @@ function ComparePageContent() {
 
       {/* Step indicator */}
       <div className="border-b border-white/[0.08] mb-6">
-        <div className="max-w-2xl flex">
+        <div className="flex">
           {stepPhases.map((p, idx) => (
             <div key={p} className={`flex-1 flex flex-col items-center pb-3 text-xs font-medium transition-colors border-b-2 ${
               phase === p
@@ -1663,7 +1663,7 @@ function ComparePageContent() {
 
       {/* Main content */}
       <div className="flex-1">
-        <div className="max-w-2xl px-0">
+        <div className="w-full px-0">
           <AnimatePresence mode="wait">
             <motion.div key={phase} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.25 }}>
               {phase === "options" && renderOptionsPhase()}

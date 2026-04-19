@@ -118,7 +118,7 @@ export default function ListingExtractMini({ onExtracted, placeholder }: Props) 
         <button
           onClick={() => switchMode("url")}
           className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-            mode === "url" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            mode === "url" ? "bg-white/[0.12] text-white" : "bg-white/[0.04] text-white/50 hover:bg-white/[0.08] hover:text-white/70"
           }`}
         >
           <Link2 className="w-3 h-3" />
@@ -127,7 +127,7 @@ export default function ListingExtractMini({ onExtracted, placeholder }: Props) 
         <button
           onClick={() => switchMode("vin")}
           className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-            mode === "vin" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            mode === "vin" ? "bg-white/[0.12] text-white" : "bg-white/[0.04] text-white/50 hover:bg-white/[0.08] hover:text-white/70"
           }`}
         >
           <Hash className="w-3 h-3" />
@@ -136,7 +136,7 @@ export default function ListingExtractMini({ onExtracted, placeholder }: Props) 
       </div>
 
       {successLabel && (
-        <p className="flex items-center gap-1.5 text-xs text-green-700 font-medium">
+        <p className="flex items-center gap-1.5 text-xs text-[#00d97e] font-medium">
           <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
           Extracted: {successLabel}
         </p>
@@ -145,9 +145,9 @@ export default function ListingExtractMini({ onExtracted, placeholder }: Props) 
       <div className="flex gap-2">
         <div className="relative flex-1">
           {mode === "url" ? (
-            <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
           ) : (
-            <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
           )}
           <input
             type="text"
@@ -164,20 +164,20 @@ export default function ListingExtractMini({ onExtracted, placeholder }: Props) 
                 : (placeholder ?? "Paste listing URL or text…")
             }
             maxLength={mode === "vin" ? 17 : undefined}
-            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none font-mono"
+            className="w-full pl-8 pr-3 py-2 text-sm bg-white/[0.04] text-white placeholder-white/30 border border-white/[0.08] rounded-lg focus:border-[#00d97e]/50 focus:outline-none font-mono"
           />
         </div>
         <button
           onClick={handleExtract}
           disabled={loading || !input.trim() || (mode === "vin" && input.length !== 17)}
-          className="px-3 py-2 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors flex items-center gap-1.5"
+          className="px-3 py-2 text-xs font-semibold bg-[#00d97e] text-[#0d1117] rounded-lg hover:bg-[#00c970] disabled:opacity-40 transition-colors flex items-center gap-1.5"
         >
           {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : mode === "vin" ? "Decode" : "Extract"}
         </button>
       </div>
 
       {mode === "vin" && input.length > 0 && input.length < 17 && (
-        <p className="text-xs text-gray-400">{17 - input.length} characters remaining</p>
+        <p className="text-xs text-white/30">{17 - input.length} characters remaining</p>
       )}
 
       {error && (

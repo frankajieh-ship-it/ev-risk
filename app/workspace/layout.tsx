@@ -70,7 +70,7 @@ export default function WorkspaceLayout({
         {/* Logo */}
         <div className="p-4 border-b border-white/[0.08]">
           <Link href="/">
-            <Image src="/offo-logo.png" alt="OFFO" width={120} height={48} className="h-7 w-auto" />
+            <Image src="/offo-logo.png" alt="OFFO" width={140} height={56} className="h-9 w-auto" />
           </Link>
           <span className="text-xs text-white/40 block mt-1.5">Buyer Workspace</span>
         </div>
