@@ -112,12 +112,13 @@ function FreshnessLabel({ timestamp }: { timestamp: string }) {
 interface DealCardProps {
   deal: CuratedDeal;
   compact?: boolean;
+  preview?: boolean; // minimal card for landing page 5-col grid
   showDebug?: boolean;
   rank?: number;
   totalDeals?: number;
 }
 
-export default function DealCard({ deal, compact = false, showDebug = false, rank, totalDeals }: DealCardProps) {
+export default function DealCard({ deal, compact = false, preview = false, showDebug = false, rank, totalDeals }: DealCardProps) {
   const vc = deal.verdict ? VERDICT_CONFIG[deal.verdict] : VERDICT_CONFIG.YELLOW;
   const VerdictIcon = vc.icon;
   const { isAuthenticated, session } = useAuth();
@@ -290,21 +291,21 @@ export default function DealCard({ deal, compact = false, showDebug = false, ran
       </div>
 
       {/* Content */}
-      <div className={`flex flex-col flex-1 gap-3 ${compact ? "p-3" : "p-4"}`}>
+      <div className={`flex flex-col flex-1 ${preview ? "gap-2 p-2.5" : compact ? "gap-3 p-3" : "gap-3 p-4"}`}>
         {/* Vehicle + price */}
         <div>
-          <Link href={`/deals/${deal.id}`} className={`font-semibold text-white leading-snug hover:text-white/80 transition-colors ${compact ? "text-xs" : "text-sm"}`}>
+          <Link href={`/deals/${deal.id}`} className={`font-semibold text-white leading-snug hover:text-white/80 transition-colors ${preview ? "text-[11px]" : compact ? "text-xs" : "text-sm"}`}>
             {deal.vehicle_label}
           </Link>
-          {deal.verdict === "YELLOW" && deal.risk_flags?.[0] && (
+          {!preview && deal.verdict === "YELLOW" && deal.risk_flags?.[0] && (
             <p className="text-[10px] text-white/35 italic mt-0.5 line-clamp-1">{deal.risk_flags[0]}</p>
           )}
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`font-bold text-white ${compact ? "text-base" : "text-lg"}`}>{priceStr}</span>
+          <div className={`flex items-center flex-wrap gap-x-2 mt-0.5 ${preview ? "gap-y-0" : "gap-y-0.5"}`}>
+            <span className={`font-bold text-white ${preview ? "text-sm" : compact ? "text-base" : "text-lg"}`}>{priceStr}</span>
             {mileageStr && (
               <span className="text-xs text-white/40">· {mileageStr}</span>
             )}
-            {deal.location && (
+            {!preview && deal.location && (
               <span className="flex items-center gap-0.5 text-xs text-white/40 max-w-[120px] truncate flex-shrink-0">
                 <MapPin className="w-3 h-3 flex-shrink-0" />
                 {formatLocation(deal.location)}
@@ -313,8 +314,8 @@ export default function DealCard({ deal, compact = false, showDebug = false, ran
           </div>
         </div>
 
-        {/* Verdict expand panel */}
-        {expandedVerdict && (
+        {/* Verdict expand panel — not shown in preview */}
+        {!preview && expandedVerdict && (
           <div className={`rounded-lg border p-3 text-xs space-y-1.5 ${vc.bg} ${vc.border}`}>
             {deal.verdict === "GREEN" || !topFlags.length ? (
               <p className="text-[#00d97e]/70">No major risk flags detected.</p>
@@ -329,29 +330,29 @@ export default function DealCard({ deal, compact = false, showDebug = false, ran
           </div>
         )}
 
-        {/* Scores row */}
-        <div className="flex items-center gap-2">
-          {/* Evidence badge with tooltip */}
-          <div className="relative group/ev">
-            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border cursor-help ${evidenceBadge.cls}`}>
-              {evidenceBadge.label}
-            </span>
-            <div className="absolute bottom-full left-0 mb-1.5 w-52 p-2 rounded-lg bg-[#1c2128] border border-white/10 text-[10px] text-white/50 leading-relaxed opacity-0 group-hover/ev:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl">
-              {evidenceBadge.tooltip}
+        {/* Scores row — not shown in preview */}
+        {!preview && (
+          <div className="flex items-center gap-2">
+            <div className="relative group/ev">
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border cursor-help ${evidenceBadge.cls}`}>
+                {evidenceBadge.label}
+              </span>
+              <div className="absolute bottom-full left-0 mb-1.5 w-52 p-2 rounded-lg bg-[#1c2128] border border-white/10 text-[10px] text-white/50 leading-relaxed opacity-0 group-hover/ev:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl">
+                {evidenceBadge.tooltip}
+              </div>
             </div>
+            {deal.risk_points != null && (
+              <div className="flex items-center gap-1.5">
+                <VerdictIcon className={`w-3.5 h-3.5 ${vc.text}`} />
+                <span className="text-xs text-white/50">Risk</span>
+                <span className={`text-xs font-semibold ${vc.text}`}>{deal.risk_points}/10</span>
+              </div>
+            )}
           </div>
+        )}
 
-          {deal.risk_points != null && (
-            <div className="flex items-center gap-1.5">
-              <VerdictIcon className={`w-3.5 h-3.5 ${vc.text}`} />
-              <span className="text-xs text-white/50">Risk</span>
-              <span className={`text-xs font-semibold ${vc.text}`}>{deal.risk_points}/10</span>
-            </div>
-          )}
-        </div>
-
-        {/* Risk flags */}
-        {topFlags.length > 0 && !expandedVerdict && (
+        {/* Risk flags — not shown in preview */}
+        {!preview && topFlags.length > 0 && !expandedVerdict && (
           <div className="flex flex-col gap-1">
             {topFlags.map((flag, i) => (
               <p key={i} className="text-xs text-white/40 flex items-start gap-1.5">
@@ -362,13 +363,13 @@ export default function DealCard({ deal, compact = false, showDebug = false, ran
           </div>
         )}
 
-        {/* Freshness */}
-        {deal.last_analyzed_at && (
+        {/* Freshness — not shown in preview */}
+        {!preview && deal.last_analyzed_at && (
           <FreshnessLabel timestamp={deal.last_analyzed_at} />
         )}
 
         {/* Debug strip — internal only */}
-        {showDebug && (
+        {!preview && showDebug && (
           <div className="border-t border-white/[0.06] -mx-4 px-4 pt-2 pb-1 bg-black/30 font-mono text-[10px] text-white/40 space-y-1">
             <div className="flex flex-wrap gap-x-4 gap-y-0.5">
               <span>fit: <span className="text-white/70">{deal.fit_score ?? "—"}</span></span>
@@ -390,25 +391,27 @@ export default function DealCard({ deal, compact = false, showDebug = false, ran
               href={`/receipt?id=${deal.receipt_id}`}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-[#00d97e]/10 hover:bg-[#00d97e]/20 border border-[#00d97e]/20 text-[#00d97e] text-xs font-semibold rounded-lg transition-colors"
             >
-              View Full Receipt
+              {preview ? "View Receipt" : "View Full Receipt"}
             </Link>
           ) : (
             <Link
               href={`/receipt?url=${encodeURIComponent(deal.listing_url)}`}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.08] text-white/70 text-xs font-semibold rounded-lg transition-colors"
             >
-              Analyze This Listing
+              {preview ? "Analyze" : "Analyze This Listing"}
             </Link>
           )}
-          <a
-            href={deal.listing_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center w-9 h-9 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/40 rounded-lg transition-colors flex-shrink-0"
-            title="View original listing"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          {!preview && (
+            <a
+              href={deal.listing_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center w-9 h-9 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/40 rounded-lg transition-colors flex-shrink-0"
+              title="View original listing"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
         </div>
       </div>
     </div>

@@ -70,7 +70,7 @@ export default function FeaturedDeals() {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {deals.map((deal, i) => (
-              <DealCard key={deal.id} deal={deal} compact rank={i + 1} />
+              <DealCard key={deal.id} deal={deal} preview rank={i + 1} />
             ))}
           </div>
           <div className="flex sm:hidden justify-center mt-6">
