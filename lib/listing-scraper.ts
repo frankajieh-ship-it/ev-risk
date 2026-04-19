@@ -838,26 +838,6 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     diagnostics.parseDurationMs = Date.now() - parseStart;
     console.log('[Listing Scraper] Parse result:', { dataSource, year: extractedData.year, make: extractedData.make, model: extractedData.model, mileage: extractedData.mileage, hasNextData: html.includes('__NEXT_DATA__') });
 
-    // --- Extract title status and accident history from raw text ---
-    if (!extractedData.title_status || extractedData.title_status === "unknown") {
-      const rawLower = (html.replace(/<[^>]+>/g, " ") + " ").toLowerCase();
-      if (/\b(salvage\s+title|branded\s+title|flood\s+title|lemon\s+title)\b/.test(rawLower)) {
-        extractedData.title_status = "salvage";
-      } else if (/\b(rebuilt\s+title|reconstructed\s+title)\b/.test(rawLower)) {
-        extractedData.title_status = "rebuilt";
-      } else if (/\b(clean\s+title|title:\s*clean|clear\s+title|title\s+status:\s*clean|clean,?\s+no\s+accidents?)\b/.test(rawLower)) {
-        extractedData.title_status = "clean";
-      }
-    }
-    if (!extractedData.accidents_reported || extractedData.accidents_reported === "unknown") {
-      const rawLower = (html.replace(/<[^>]+>/g, " ") + " ").toLowerCase();
-      if (/\b(\d+\s+accident|\d+\s+reported\s+accident|accident\s+reported|has\s+accidents?|prior\s+damage)\b/.test(rawLower)) {
-        extractedData.accidents_reported = "yes";
-      } else if (/\b(no\s+accidents?|accident[\s-]*free|0\s+accidents?|no\s+reported\s+accidents?|clean,?\s+no\s+accidents?)\b/.test(rawLower)) {
-        extractedData.accidents_reported = "no";
-      }
-    }
-
     // --- Build result ---
     const extractedFields: string[] = [];
     const missingFields: string[] = [];
