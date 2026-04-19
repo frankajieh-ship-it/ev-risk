@@ -627,8 +627,10 @@ export default function ReceiptPage() {
   useEffect(() => {
     if (!receipt || listingPhotos.length > 0) return;
     const { make, model, year } = receipt.listing_summary ?? {};
-    if (!make && !model && !year) return;
+    const vin = (receipt as Record<string, unknown>).vin as string | undefined;
+    if (!make && !model && !year && !vin) return;
     const params = new URLSearchParams({
+      ...(vin ? { vin } : {}),
       ...(make ? { make } : {}),
       ...(model ? { model } : {}),
       ...(year ? { year: String(year) } : {}),

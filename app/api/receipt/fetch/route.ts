@@ -361,6 +361,8 @@ export async function POST(request: NextRequest) {
       vin: result.data.vin,
       location: result.data.location,
       url_domain: urlDomain,
+      title_status: result.data.title_status,
+      accidents_reported: result.data.accidents_reported,
     };
 
     // Map EV specs extracted directly by the scraper (from __NEXT_DATA__ or HTML patterns)

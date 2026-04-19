@@ -142,6 +142,8 @@ export interface FetchedListingFields {
   vin?: string;
   location?: string;
   url_domain?: string;
+  title_status?: "clean" | "salvage" | "rebuilt" | "unknown";
+  accidents_reported?: "yes" | "no" | "unknown";
   /** EV-specific specs extracted from listing page or text */
   range_mi?: number;
   battery_kwh?: number;

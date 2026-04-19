@@ -440,6 +440,8 @@ export default function ReceiptInputCard({
           price: f.price,
           vin: f.vin,
           location: f.location,
+          title_status: f.title_status,
+          accidents_reported: f.accidents_reported,
         };
         for (const [key, val] of Object.entries(fieldMap)) {
           const k = key as keyof StructuredListingFields;
