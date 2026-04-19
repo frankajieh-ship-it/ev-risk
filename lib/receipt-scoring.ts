@@ -93,17 +93,7 @@ export function scoreReceipt(signals: string[]): ReceiptScoringResult {
   }
   evidenceScore = Math.max(0, Math.min(100, evidenceScore));
 
-  // 4. Determine verdict
-  let verdict: "GREEN" | "YELLOW" | "RED";
-  if (hardBlockerHit || fitScore < 45) {
-    verdict = "RED";
-  } else if (fitScore >= 72) {
-    verdict = "GREEN";
-  } else {
-    verdict = "YELLOW";
-  }
-
-  // 5. Determine evidence label
+  // 4. Determine evidence label (computed before verdict — caps GREEN when MISSING)
   let evidenceLabel: EvidenceLabel;
   if (evidenceScore >= 75) {
     evidenceLabel = "STRONG";
@@ -111,6 +101,18 @@ export function scoreReceipt(signals: string[]): ReceiptScoringResult {
     evidenceLabel = "PARTIAL";
   } else {
     evidenceLabel = "MISSING";
+  }
+
+  // 5. Determine verdict
+  // GREEN requires fit_score ≥ 72 AND evidence ≥ PARTIAL (not MISSING).
+  // Too little evidence to confidently call a deal good — cap at YELLOW.
+  let verdict: "GREEN" | "YELLOW" | "RED";
+  if (hardBlockerHit || fitScore < 45) {
+    verdict = "RED";
+  } else if (fitScore >= 72 && evidenceLabel !== "MISSING") {
+    verdict = "GREEN";
+  } else {
+    verdict = "YELLOW";
   }
 
   // 6. Build "why not GREEN?" — blockers + penalties, sorted by severity desc
