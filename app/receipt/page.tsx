@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Receipt, Loader2, QrCode, ArrowLeft, AlertTriangle, Menu, X } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { addToAnonGarage } from "@/lib/anon-garage";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { initAttribution } from "@/lib/attribution";
 import { useAuth } from "@/hooks/useAuth";
@@ -623,23 +624,9 @@ export default function ReceiptPage() {
       .catch(() => {});
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch photos when a receipt loads but we have none (e.g. loaded via ?id= param)
-  useEffect(() => {
-    if (!receipt || listingPhotos.length > 0) return;
-    const { make, model, year } = receipt.listing_summary ?? {};
-    const vin = (receipt as Record<string, unknown>).vin as string | undefined;
-    if (!make && !model && !year && !vin) return;
-    const params = new URLSearchParams({
-      ...(vin ? { vin } : {}),
-      ...(make ? { make } : {}),
-      ...(model ? { model } : {}),
-      ...(year ? { year: String(year) } : {}),
-    });
-    fetch(`/api/photos?${params}`)
-      .then((r) => r.json())
-      .then((d: { photo_urls?: string[] }) => { if (d.photo_urls?.length) setListingPhotos(d.photo_urls); })
-      .catch(() => {});
-  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Stock photo fallback intentionally removed — only show photos extracted
+  // directly from the listing page (onPhotosExtracted). Generic make/model
+  // lookups return wrong-year or wrong-trim stock images that mislead users.
 
   // Reset popup when a new receipt comes in
   useEffect(() => {
@@ -957,6 +944,35 @@ export default function ReceiptPage() {
   const handleCopy = useCallback(() => {
     postReceiptEvent("copy");
   }, [postReceiptEvent]);
+
+  // Quick save from top-of-card icon (mirrors SaveReceiptCTA logic)
+  const handleQuickSave = useCallback(() => {
+    if (!receipt || hasSaved) return;
+    try {
+      const LOCAL_KEY = "offo_saved_receipts";
+      const existing = JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]");
+      if (!existing.some((r: { receipt_id: string }) => r.receipt_id === receipt.receipt_id)) {
+        const s = receipt.listing_summary;
+        existing.push({
+          receipt_id: receipt.receipt_id,
+          vehicle: [s?.year, s?.make, s?.model, s?.trim].filter(Boolean).join(" "),
+          verdict: receipt.verdict,
+          verdict_reason: receipt.verdict_reason || null,
+          price: s?.price || null,
+          mileage: s?.mileage || null,
+          saved_at: new Date().toISOString(),
+        });
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(existing));
+        addToAnonGarage({
+          type: "receipt",
+          label: [s?.year, s?.make, s?.model].filter(Boolean).join(" ") || "Unknown Vehicle",
+          data: { receipt_id: receipt.receipt_id, verdict: receipt.verdict, verdict_reason: receipt.verdict_reason || null, price: s?.price || null, mileage: s?.mileage || null },
+        });
+      }
+    } catch { /* ignore */ }
+    setHasSaved(true);
+    trackEvent("scenario_save_clicked", { receipt_id: receipt.receipt_id, source: "card_icon" });
+  }, [receipt, hasSaved, trackEvent]);
 
   // Granular copy tracking (user_events table)
   const handleTrackCopy = useCallback(
@@ -1313,6 +1329,10 @@ export default function ReceiptPage() {
                 paymentsEnabled={false}
                 onPaywallClick={() => {}}
                 photos={isSimilarityMatch ? [] : listingPhotos}
+                onSave={handleQuickSave}
+                saveState={hasSaved ? "saved" : "idle"}
+                onCompare={() => setShowCompareModal(true)}
+                showCompare={authConfigured}
               />
 
               {/* ── Matching Deals Strip ─────────────────────────────── */}

@@ -30,24 +30,40 @@ interface DeepDiveSectionProps {
   region?: Region;
 }
 
-/** Build a search URL for a comparable listing given source name + vehicle title. */
+/** Build a working search URL for a comparable listing. */
 function buildSourceUrl(source: string, title: string, price: number): string | null {
-  const q = encodeURIComponent(title);
   const s = source.toLowerCase().replace(/[^a-z0-9]/g, "");
-  if (s.includes("cargurus")) return `https://www.cargurus.com/Cars/new/nl_cars_d0#listing=searchResults;zip=;kw=${q}`;
-  if (s.includes("autotrader")) return `https://www.autotrader.com/cars-for-sale/all-cars?searchRadius=0&keywords=${q}`;
-  if (s.includes("carcom") || s === "carscom") return `https://www.cars.com/shopping/results/?keyword=${q}`;
-  if (s.includes("edmunds")) return `https://www.edmunds.com/used-cars/search/?q=${q}`;
-  if (s.includes("carmax")) return `https://www.carmax.com/cars/all?search=${q}`;
-  if (s.includes("kbb") || s.includes("kelley")) return `https://www.kbb.com/cars-for-sale/all/?search=${q}`;
-  if (s.includes("truecar")) return `https://www.truecar.com/used-cars-for-sale/listings/?search%5Bkeyword%5D=${q}`;
-  if (s.includes("facebook") || s.includes("marketplace")) return `https://www.facebook.com/marketplace/search?query=${q}`;
-  if (s.includes("craigslist")) return `https://craigslist.org/search/cta?query=${q}`;
-  if (s.includes("vroom")) return `https://www.vroom.com/cars?search=${q}`;
-  if (s.includes("carvana")) return `https://www.carvana.com/cars?search=${q}`;
-  // Fallback: Google search scoped to source
-  const domain = source.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9.]/g, "") + ".com";
-  return `https://www.google.com/search?q=${encodeURIComponent(`${title} $${price} site:${domain}`)}`;
+  // Parse "2025 Audi Q4 e-tron Premium Plus 45" → year, rest as keyword
+  const yearMatch = title.match(/^(\d{4})\s+(.+)/);
+  const year = yearMatch?.[1] ?? "";
+  const model = yearMatch?.[2] ?? title;
+  const q = encodeURIComponent(title);
+  const qModel = encodeURIComponent(model);
+
+  if (s.includes("cargurus"))
+    return `https://www.cargurus.com/Cars/new/nl_cars_d0#listing=searchResults;zip=;kw=${q};zip=10001`;
+  if (s.includes("autotrader"))
+    return `https://www.autotrader.com/cars-for-sale/used-cars?searchRadius=0&startYear=${year}&endYear=${year}&keyword=${qModel}`;
+  if (s.includes("carscom") || s === "carscom" || s.includes("cars"))
+    return `https://www.cars.com/shopping/results/?stock_type=used&makes[]=&models[]=&list_price_max=&maximum_distance=all&zip=&keyword=${q}`;
+  if (s.includes("edmunds"))
+    return `https://www.edmunds.com/inventory/srp.html?radius=100&inventorytype=used&keyword=${q}`;
+  if (s.includes("carmax"))
+    return `https://www.carmax.com/cars?search=${encodeURIComponent(model)}&year=${year}`;
+  if (s.includes("kbb") || s.includes("kelley"))
+    return `https://www.kbb.com/cars-for-sale/all/?zip=10001&search=${q}`;
+  if (s.includes("truecar"))
+    return `https://www.truecar.com/used-cars-for-sale/listings/?search%5Bkeyword%5D=${q}`;
+  if (s.includes("facebook") || s.includes("marketplace"))
+    return `https://www.facebook.com/marketplace/search/?query=${q}&categoryId=vehicles`;
+  if (s.includes("craigslist"))
+    return `https://www.google.com/search?q=${encodeURIComponent(`${title} site:craigslist.org`)}`;
+  if (s.includes("vroom"))
+    return `https://www.vroom.com/cars?search=${encodeURIComponent(model)}`;
+  if (s.includes("carvana"))
+    return `https://www.carvana.com/cars/${year !== "" ? year + "/" : ""}${encodeURIComponent(model.toLowerCase().replace(/\s+/g, "-"))}`;
+  // Fallback: Google search — always works
+  return `https://www.google.com/search?q=${encodeURIComponent(`${title} for sale $${price}`)}`;
 }
 
 export default function DeepDiveSection({

@@ -25,6 +25,8 @@ import {
   ChevronRight,
   Expand,
   X,
+  Bookmark,
+  GitCompare,
 } from "lucide-react";
 import type { ListingReceipt, LintError } from "@/types/receipt";
 import type { Region } from "@/lib/region";
@@ -54,6 +56,10 @@ interface ReceiptOutputCardProps {
   paymentsEnabled?: boolean;
   onPaywallClick?: () => void;
   photos?: string[];
+  onSave?: () => void;
+  saveState?: "idle" | "saved";
+  onCompare?: () => void;
+  showCompare?: boolean;
 }
 
 const VERDICT_STYLES = {
@@ -121,6 +127,10 @@ export default function ReceiptOutputCard({
   paymentsEnabled = false,
   onPaywallClick,
   photos = [],
+  onSave,
+  saveState = "idle",
+  onCompare,
+  showCompare = false,
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [scoringTooltipOpen, setScoringTooltipOpen] = useState(false);
@@ -229,7 +239,32 @@ export default function ReceiptOutputCard({
 
       {/* Verdict banner — neutral/pending style while upgrading */}
       <div className={`${isUpgrading ? "bg-[#161b22] border-white/[0.08]" : `${verdict.bg} ${verdict.border}`} border-b px-5 py-4`}>
-        <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-2">Overall Verdict</p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-semibold text-white/40 uppercase tracking-widest">Overall Verdict</p>
+          {/* Quick-action icons — save + compare without scrolling */}
+          {!isUpgrading && (
+            <div className="flex items-center gap-1">
+              {onSave && (
+                <button
+                  onClick={onSave}
+                  title={saveState === "saved" ? "Saved to garage" : "Save to My Garage"}
+                  className={`p-1.5 rounded-lg transition-colors ${saveState === "saved" ? "text-[#00d97e]" : "text-white/40 hover:text-white/70 hover:bg-white/[0.06]"}`}
+                >
+                  <Bookmark className={`w-4 h-4 ${saveState === "saved" ? "fill-[#00d97e]" : ""}`} />
+                </button>
+              )}
+              {onCompare && showCompare && (
+                <button
+                  onClick={onCompare}
+                  title="Compare with another listing"
+                  className="p-1.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
+                >
+                  <GitCompare className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           {isUpgrading
             ? <HelpCircle className="w-6 h-6 text-white/40" />
@@ -448,8 +483,8 @@ export default function ReceiptOutputCard({
         )}
 
       <div className="p-5 space-y-5">
-        {/* Price Sanity */}
-        {receipt.price_sanity && (
+        {/* Price Sanity — hidden when UNKNOWN (deep market comparison still processing) */}
+        {receipt.price_sanity && receipt.price_sanity.label !== "UNKNOWN" && (
           <div className={`${price.bg} rounded-lg p-4`}>
             <div className="flex items-center gap-2 mb-1">
               <DollarSign className={`w-4 h-4 ${price.text}`} />
