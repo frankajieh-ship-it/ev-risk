@@ -63,7 +63,7 @@ export default function DealsPage() {
   const fetchDeals = useCallback(async (p = 1) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(p), per_page: "18", sort });
+      const params = new URLSearchParams({ page: String(p), per_page: "20", sort });
       if (verdict !== "ALL") params.set("verdict", verdict);
       if (make !== "All Makes") params.set("make", make);
       if (priceMax) params.set("price_max", String(priceMax));
@@ -205,15 +205,14 @@ export default function DealsPage() {
 
         {/* Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {Array.from({ length: 6 }).map((_, i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {Array.from({ length: 10 }).map((_, i) => (
               <div key={i} className="bg-[#161b22] border border-white/[0.06] rounded-xl overflow-hidden animate-pulse">
                 <div className="aspect-[16/9] bg-white/[0.04]" />
-                <div className="p-4 space-y-3">
-                  <div className="h-4 bg-white/[0.04] rounded w-3/4" />
-                  <div className="h-5 bg-white/[0.04] rounded w-1/2" />
-                  <div className="h-3 bg-white/[0.04] rounded w-full" />
-                  <div className="h-9 bg-white/[0.04] rounded" />
+                <div className="p-3 space-y-2">
+                  <div className="h-3 bg-white/[0.04] rounded w-3/4" />
+                  <div className="h-4 bg-white/[0.04] rounded w-1/2" />
+                  <div className="h-8 bg-white/[0.04] rounded" />
                 </div>
               </div>
             ))}
@@ -226,13 +225,13 @@ export default function DealsPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {deals.map((deal, index) => (
                 <DealCard
                   key={deal.id}
                   deal={deal}
                   showDebug={isDebugUser}
-                  rank={index + 1 + (page - 1) * 18}
+                  rank={index + 1 + (page - 1) * 20}
                   totalDeals={total}
                 />
               ))}

@@ -67,6 +67,48 @@ export default function AdminDealsPage() {
     window.location.href = `/api/admin/deals-export?format=${format}&key=${encodeURIComponent(adminKey)}`;
   };
 
+  const handleToggleActive = async (id: string, newActive: boolean) => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    try {
+      const res = await fetch("/api/admin/deals-toggle-active", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: authHeader },
+        body: JSON.stringify({ id, is_active: newActive }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDeals((prev) => prev.map((d) => d.id === id ? { ...d, is_active: newActive } : d));
+      } else {
+        alert(`Failed: ${data.error}`);
+      }
+    } catch {
+      alert("Toggle failed");
+    }
+  };
+
+  const handleActivateAll = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    const inactive = deals.filter((d) => !d.is_active);
+    if (inactive.length === 0) { alert("No inactive deals to activate"); return; }
+    if (!confirm(`Activate all ${inactive.length} inactive deals?`)) return;
+    try {
+      const res = await fetch("/api/admin/deals-toggle-active", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: authHeader },
+        body: JSON.stringify({ bulk: true, is_active: true }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDeals((prev) => prev.map((d) => ({ ...d, is_active: true })));
+        setImportStatus(`✓ Activated ${data.updated ?? inactive.length} deals`);
+      } else {
+        alert(`Failed: ${data.error}`);
+      }
+    } catch {
+      alert("Bulk activate failed");
+    }
+  };
+
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -157,6 +199,10 @@ export default function AdminDealsPage() {
               onChange={(e) => setFilter(e.target.value)}
               className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 w-56 focus:outline-none focus:border-[#00d97e]/40"
             />
+            <button onClick={handleActivateAll}
+              className="flex items-center gap-1.5 text-xs text-white/40 hover:text-emerald-400 border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
+              Activate All
+            </button>
             <button onClick={() => handleExport("template")}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#00d97e] border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
               <Download className="w-3.5 h-3.5" />
@@ -255,9 +301,13 @@ export default function AdminDealsPage() {
                       <div className="line-clamp-2">{d.risk_flags?.join(", ") ?? "—"}</div>
                     </td>
                     <td className="px-3 py-3 text-center">
-                      <span className={d.is_active ? "text-emerald-400" : "text-white/20"}>
+                      <button
+                        onClick={() => handleToggleActive(d.id, !d.is_active)}
+                        title={d.is_active ? "Click to deactivate" : "Click to activate"}
+                        className={`font-semibold transition-colors cursor-pointer ${d.is_active ? "text-emerald-400 hover:text-red-400" : "text-white/20 hover:text-emerald-400"}`}
+                      >
                         {d.is_active ? "✓" : "✗"}
-                      </span>
+                      </button>
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2">

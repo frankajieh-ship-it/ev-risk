@@ -10,7 +10,7 @@ export default function FeaturedDeals() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/deals?verdict=GREEN,YELLOW&per_page=6&page=1")
+    fetch("/api/deals?verdict=GREEN,YELLOW&per_page=10&page=1")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data?.deals?.length) setDeals(data.deals);
@@ -51,8 +51,8 @@ export default function FeaturedDeals() {
 
       {/* Grid */}
       {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
               className="bg-[#161b22] border border-white/[0.06] rounded-xl overflow-hidden animate-pulse"
@@ -68,7 +68,7 @@ export default function FeaturedDeals() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {deals.map((deal, i) => (
               <DealCard key={deal.id} deal={deal} compact rank={i + 1} />
             ))}

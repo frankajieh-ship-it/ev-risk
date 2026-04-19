@@ -102,10 +102,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch deals" }, { status: 500 });
   }
 
-  // Deduplicate by (vehicle_label, price, mileage) — keep highest deal_quality_score
+  // Deduplicate by (make, model, year, trim) — keep highest deal_quality_score per spec.
+  // This prevents near-identical listings of the same vehicle from flooding results.
   const seen = new Map<string, (typeof deals)[0]>();
   for (const deal of deals ?? []) {
-    const key = `${deal.vehicle_label}|${deal.price}|${deal.mileage}`;
+    const key = [
+      (deal.make ?? "").toLowerCase().trim(),
+      (deal.model ?? "").toLowerCase().trim(),
+      deal.year ?? 0,
+      (deal.trim ?? "").toLowerCase().trim(),
+    ].join("|");
     const existing = seen.get(key);
     if (!existing || (deal.deal_quality_score ?? 0) > (existing.deal_quality_score ?? 0)) {
       seen.set(key, deal);

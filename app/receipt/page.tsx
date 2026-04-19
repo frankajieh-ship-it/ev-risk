@@ -1378,28 +1378,20 @@ export default function ReceiptPage() {
               )}
 
 
-              {/* ── Save + Compare — immediately after verdict, max visibility ── */}
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <SaveReceiptCTA
-                    receipt={receipt}
-                    onSaveSuccess={() => setHasSaved(true)}
-                  />
-                </div>
-                {authConfigured && (
-                  <CompareBadge
-                    compareRemaining={compareRemaining}
-                    compareBoundTo={compareBoundTo}
-                    isAuthenticated={isAuthenticated}
-                    onInitiateCompare={() => setShowCompareModal(true)}
-                    onViewCompare={() => setShowCompareView(true)}
-                    onSignIn={() => {
-                      if (receipt) storeActiveReceipt(receipt.receipt_id);
-                      setShowCompareLoginModal(true);
-                    }}
-                  />
-                )}
-              </div>
+              {/* Compare — shown when auth is configured */}
+              {authConfigured && (
+                <CompareBadge
+                  compareRemaining={compareRemaining}
+                  compareBoundTo={compareBoundTo}
+                  isAuthenticated={isAuthenticated}
+                  onInitiateCompare={() => setShowCompareModal(true)}
+                  onViewCompare={() => setShowCompareView(true)}
+                  onSignIn={() => {
+                    if (receipt) storeActiveReceipt(receipt.receipt_id);
+                    setShowCompareLoginModal(true);
+                  }}
+                />
+              )}
 
               {/* Feedback — placed immediately after verdict actions for max visibility */}
               <FeedbackWidget
