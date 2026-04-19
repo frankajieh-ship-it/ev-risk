@@ -22,23 +22,24 @@ import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import LoginModal from "@/components/LoginModal";
 import AuthLoginModal from "@/components/auth/LoginModal";
-import HowItWorksSection from "@/components/landing/HowItWorksSection";
-import ExampleAnalysisSection from "@/components/landing/ExampleAnalysisSection";
-import UniqueAdvantageSection from "@/components/landing/UniqueAdvantageSection";
-import Footer from "@/components/landing/Footer";
 import ReceiptInputCard from "@/components/receipt/ReceiptInputCard";
 import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
-import ReceiptDetailsAccordion from "@/components/receipt/ReceiptDetailsAccordion";
-import ReceiptHistoryDrawer from "@/components/receipt/ReceiptHistoryDrawer";
 import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
 // EmailGateModal removed — 100% skip rate, replaced by inline EmailCaptureCard
 import FeedbackWidget from "@/components/FeedbackWidget";
 import ExitFeedbackModal from "@/components/receipt/ExitFeedbackModal";
-import SaveReceiptCTA from "@/components/receipt/SaveReceiptCTA";
-import ModelInfoSection from "@/components/receipt/ModelInfoSection";
 import dynamic from "next/dynamic";
 
 // Heavy components lazy-loaded — not needed for initial receipt render
+// All below-fold and conditional components are lazy — keeps initial bundle lean
+const HowItWorksSection = dynamic(() => import("@/components/landing/HowItWorksSection"), { ssr: false });
+const ExampleAnalysisSection = dynamic(() => import("@/components/landing/ExampleAnalysisSection"), { ssr: false });
+const UniqueAdvantageSection = dynamic(() => import("@/components/landing/UniqueAdvantageSection"), { ssr: false });
+const Footer = dynamic(() => import("@/components/landing/Footer"), { ssr: false });
+const SaveReceiptCTA = dynamic(() => import("@/components/receipt/SaveReceiptCTA"), { ssr: false });
+const ModelInfoSection = dynamic(() => import("@/components/receipt/ModelInfoSection"), { ssr: false });
+const ReceiptDetailsAccordion = dynamic(() => import("@/components/receipt/ReceiptDetailsAccordion"), { ssr: false });
+const ReceiptHistoryDrawer = dynamic(() => import("@/components/receipt/ReceiptHistoryDrawer"), { ssr: false });
 const NewsCarousel = dynamic(() => import("@/components/NewsCarousel"), { ssr: false });
 const DeepDiveSection = dynamic(() => import("@/components/receipt/DeepDiveSection"), { ssr: false });
 const NegotiationDeepSection = dynamic(() => import("@/components/receipt/NegotiationDeepSection"), { ssr: false });
@@ -47,19 +48,17 @@ const CompareSelectModal = dynamic(() => import("@/components/receipt/CompareSel
 const ShareModal = dynamic(() => import("@/components/receipt/ShareModal"), { ssr: false });
 const OFfoChat = dynamic(() => import("@/components/chat/OFfoChat"), { ssr: false });
 
-// Lighter components — static import fine
-import PdfDownloadButton from "@/components/receipt/PdfDownloadButton";
-import CompareBadge from "@/components/receipt/CompareBadge";
+const PdfDownloadButton = dynamic(() => import("@/components/receipt/PdfDownloadButton"), { ssr: false });
+const CompareBadge = dynamic(() => import("@/components/receipt/CompareBadge"), { ssr: false });
+const ExtensionNudge = dynamic(() => import("@/components/ExtensionNudge"), { ssr: false });
+const DealCard = dynamic(() => import("@/components/deals/DealCard").then(m => ({ default: m.default })), { ssr: false });
 import { SourcesFooter } from "@/components/blocks/SourcesFooter";
-import ExtensionNudge from "@/components/ExtensionNudge";
 import { useReceiptHistory } from "@/hooks/useReceiptHistory";
 import { useRegion } from "@/hooks/useRegion";
 import RegionSelector from "@/components/RegionSelector";
 import { getOrCreateReceiptToken } from "@/lib/session-utils";
 import type { ListingReceipt, LintError, StructuredListingFields, ReceiptHistoryEntry, DeepDiveContent } from "@/types/receipt";
 import type { MinimumViableRoutine } from "@/types/v2";
-import RoutineContextBanner from "@/components/receipt/RoutineContextBanner";
-import DealCard from "@/components/deals/DealCard";
 // Persist/retrieve current receipt ID across auth redirects
 const ACTIVE_RECEIPT_KEY = "offo_active_receipt_id";
 
@@ -302,8 +301,16 @@ export default function ReceiptPage() {
 
   // Email gate removed (100% skip rate) — inline EmailCaptureCard handles email now
 
-  // Retention capture state
+  // Retention capture state — initialised from localStorage to avoid flicker
   const [hasSaved, setHasSaved] = useState(false);
+  // Sync hasSaved when receipt changes (e.g. loaded via ?id= param)
+  useEffect(() => {
+    if (!receipt?.receipt_id) return;
+    try {
+      const existing = JSON.parse(localStorage.getItem("offo_saved_receipts") || "[]");
+      setHasSaved(existing.some((r: { receipt_id: string }) => r.receipt_id === receipt.receipt_id));
+    } catch { setHasSaved(false); }
+  }, [receipt?.receipt_id]);
   const [hasEmailed, setHasEmailed] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
@@ -1096,7 +1103,7 @@ export default function ReceiptPage() {
   return (
     <div className="min-h-screen bg-[#0d1117]">
       {/* Dark nav — same pattern as homepage */}
-      <nav className="sticky top-0 z-50 bg-[#0d1117]/90 backdrop-blur-md border-b border-white/[0.06]">
+      <nav className="sticky top-0 z-50 bg-[#0d1117] border-b border-white/[0.06]">
         <div className="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between">
           <Link href="/">
             <Image src="/offo-logo.jpg" alt="OFFO" width={200} height={103} className="w-24 sm:w-28 h-auto" priority />

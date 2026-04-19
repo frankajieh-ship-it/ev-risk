@@ -69,7 +69,17 @@ export default function SaveReceiptCTA({
 }: SaveReceiptCTAProps) {
   const { isAuthenticated, session } = useAuth();
   const { trackEvent } = useEventTracking();
-  const [saveState, setSaveState] = useState<SaveState>("idle");
+  // Initialise synchronously from localStorage to avoid idle→saved flicker on refresh
+  const [saveState, setSaveState] = useState<SaveState>(() => {
+    try {
+      const existing: LocalSavedReceipt[] = JSON.parse(
+        localStorage.getItem(LOCAL_STORAGE_KEY) || "[]"
+      );
+      return existing.some((r) => r.receipt_id === receipt.receipt_id) ? "saved" : "idle";
+    } catch {
+      return "idle";
+    }
+  });
   const [error, setError] = useState<string | null>(null);
 
   const summary = receipt.listing_summary;
@@ -77,21 +87,6 @@ export default function SaveReceiptCTA({
     .filter(Boolean)
     .join(" ");
   const scenarioHash = `receipt_${receipt.receipt_id}`;
-
-  // Check if already saved (localStorage)
-  useEffect(() => {
-    try {
-      const existing: LocalSavedReceipt[] = JSON.parse(
-        localStorage.getItem(LOCAL_STORAGE_KEY) || "[]"
-      );
-      if (existing.some((r) => r.receipt_id === receipt.receipt_id)) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSaveState("saved");
-      }
-    } catch {
-      // ignore
-    }
-  }, [receipt.receipt_id]);
 
   const doServerSave = useCallback(async () => {
     if (!session?.access_token) return;
