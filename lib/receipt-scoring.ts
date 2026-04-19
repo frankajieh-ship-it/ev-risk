@@ -191,10 +191,7 @@ export function scoreFallbackReceipt(fields: {
     signals.push("vin_missing");
   }
 
-  // Evidence gaps for fallback — only non-EV-specific ones apply universally
-  // (battery/DCFC penalties are added by extractSignalsFromText for EVs specifically)
-  signals.push("fees_unclear");
-  signals.push("tire_condition_unclear");
+  // Evidence gaps for fallback — title and service are handled above from structured fields
 
   return scoreReceipt(signals);
 }

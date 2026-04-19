@@ -186,21 +186,17 @@ const INVERSE_EVIDENCE: {
       !!f.title_status && f.title_status !== "unknown",
   },
   { bonusId: "battery_report_recent", penaltyId: "battery_proof_missing" },
-  { bonusId: "battery_report_recent", penaltyId: "battery_no_proof_risk", onlyForEV: true },
   { bonusId: "battery_warranty_info", penaltyId: "battery_warranty_unclear" },
   {
     bonusId: "service_records_shown",
     penaltyId: "service_records_missing",
     skipWhenField: (f) => f.service_history === "yes",
   },
-  { bonusId: "dcfc_confirmed", penaltyId: "dcfc_unclear", onlyForEV: true },
   {
     bonusId: "ownership_history_clear",
     penaltyId: "ownership_history_unclear",
     skipWhenField: (f) => f.owners != null,
   },
-  { bonusId: "fees_disclosed", penaltyId: "fees_unclear" },
-  { bonusId: "tire_condition_visible", penaltyId: "tire_condition_unclear" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -344,14 +340,6 @@ export function extractSignalsFromText(
 
     // Skip when structured field already provides the info
     if (inv.skipWhenField && inv.skipWhenField(fields)) continue;
-
-    // For DCFC, also skip if classifier says "yes" (already added bonus above)
-    if (
-      inv.penaltyId === "dcfc_unclear" &&
-      classification.dcfcSupport === "yes"
-    ) {
-      continue;
-    }
 
     signals.add(inv.penaltyId);
   }

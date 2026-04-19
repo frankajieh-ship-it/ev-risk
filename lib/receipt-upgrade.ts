@@ -86,6 +86,20 @@ export async function runReceiptUpgrade(payload: UpgradePayload): Promise<void> 
     } catch { /* keep going */ }
   }
 
+  // Patch listing_signals from listing_summary.title_status so title always maps correctly
+  // even if AI forgets to emit the corresponding signal.
+  if (finalReceipt.listing_summary) {
+    const ts = (finalReceipt.listing_summary as Record<string, unknown>).title_status as string | undefined;
+    const sigs = (finalReceipt.listing_signals || []) as string[];
+    const hasTitleSignal = sigs.includes("clean_title_explicit") || sigs.includes("title_salvage") || sigs.includes("title_status_unclear");
+    if (!hasTitleSignal) {
+      if (ts === "clean") sigs.push("clean_title_explicit");
+      else if (ts === "salvage" || ts === "rebuilt") sigs.push("title_salvage");
+      else sigs.push("title_status_unclear");
+      finalReceipt = { ...finalReceipt, listing_signals: sigs } as typeof finalReceipt;
+    }
+  }
+
   // Deterministic scoring
   const aiVerdict = finalReceipt.verdict;
   if (finalReceipt.listing_signals && Array.isArray(finalReceipt.listing_signals) && finalReceipt.listing_signals.length > 0) {

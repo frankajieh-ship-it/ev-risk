@@ -33,7 +33,6 @@ export type ListingSignalId =
   | "battery_replaced_unverified"
   | "dealer_addon_pressure"
   | "model_known_limit_vs_routine"
-  | "battery_no_proof_risk"
   // Evidence bonuses (add to 50)
   | "clean_title_explicit"
   | "battery_report_recent"
@@ -53,10 +52,7 @@ export type ListingSignalId =
   | "battery_proof_missing"
   | "battery_warranty_unclear"
   | "service_records_missing"
-  | "dcfc_unclear"
   | "ownership_history_unclear"
-  | "fees_unclear"
-  | "tire_condition_unclear"
   | "title_status_unclear"
   | "vin_missing"
   | "structural_claim_no_photo";
@@ -108,7 +104,6 @@ export const FIT_PENALTIES: ReceiptRule[] = [
   { id: "battery_replaced_unverified", type: "fit_penalty", category: "listing_risk", points: -12, label: "Battery replacement mentioned but proof or source unclear", risk_v2: 2, confidence_v2: 0, evidence_type: "negative" },
   { id: "dealer_addon_pressure", type: "fit_penalty", category: "listing_risk", points: -10, label: "Dealer add-ons or fees likely inflate out-the-door cost", risk_v2: 2, confidence_v2: 0, evidence_type: "negative" },
   { id: "model_known_limit_vs_routine", type: "fit_penalty", category: "listing_risk", points: -12, label: "Known model limitation conflicts with expected usage", risk_v2: 2, confidence_v2: 0, evidence_type: "friction" },
-  { id: "battery_no_proof_risk", type: "fit_penalty", category: "listing_risk", points: -5, label: "No battery health proof — condition unverified", risk_v2: 2, confidence_v2: 0, evidence_type: "negative" },
 ];
 
 // --- Evidence Bonuses (add to 50) ---
@@ -136,10 +131,7 @@ export const EVIDENCE_PENALTIES: ReceiptRule[] = [
   { id: "battery_proof_missing", type: "evidence_penalty", category: "missing_proof", points: -15, label: "No battery health proof provided", risk_v2: 0, confidence_v2: -1, evidence_type: "absent" },
   { id: "battery_warranty_unclear", type: "evidence_penalty", category: "missing_proof", points: -6, label: "Battery warranty status not shown", risk_v2: 0, confidence_v2: 0, evidence_type: "absent" },
   { id: "service_records_missing", type: "evidence_penalty", category: "missing_proof", points: -8, label: "No service history shown", risk_v2: 0, confidence_v2: -1, evidence_type: "absent" },
-  { id: "dcfc_unclear", type: "evidence_penalty", category: "missing_proof", points: -10, label: "DC fast charging support not confirmed", risk_v2: 0, confidence_v2: -1, evidence_type: "absent" },
   { id: "ownership_history_unclear", type: "evidence_penalty", category: "missing_proof", points: -6, label: "Owner count or history unclear", risk_v2: 0, confidence_v2: 0, evidence_type: "absent" },
-  { id: "fees_unclear", type: "evidence_penalty", category: "missing_proof", points: -8, label: "Out-the-door fees or add-ons not clear", risk_v2: 0, confidence_v2: 0, evidence_type: "absent" },
-  { id: "tire_condition_unclear", type: "evidence_penalty", category: "missing_proof", points: -4, label: "Tire condition not visible or mentioned", risk_v2: 0, confidence_v2: 0, evidence_type: "absent" },
   { id: "title_status_unclear", type: "evidence_penalty", category: "missing_proof", points: -12, label: "Title status not explicitly stated", risk_v2: 0, confidence_v2: -1, evidence_type: "absent" },
   { id: "vin_missing", type: "evidence_penalty", category: "missing_proof", points: -6, label: "VIN not provided", risk_v2: 0, confidence_v2: 0, evidence_type: "absent" },
   { id: "structural_claim_no_photo", type: "evidence_penalty", category: "listing_risk", points: -15, label: "Structural damage claimed but no frame/underbody photo", risk_v2: 2, confidence_v2: -1, evidence_type: "absent" },

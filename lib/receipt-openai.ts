@@ -209,12 +209,14 @@ SIGNAL LIBRARY — use exact IDs in listing_signals[]:
 Hard blockers: title_salvage, frame_damage_major, routine_impossible, dcfc_required_but_absent, odometer_title_mismatch
 Fit penalties: no_home_charging, single_site_dependency, plan_b_weak, winter_high_exposure, longest_day_tight_buffer, public_charging_cost_risk, multi_driver_one_charger, price_over_market_10_15, price_over_market_15_plus, prior_damage_minor, ownership_turnover_high, battery_replaced_unverified, dealer_addon_pressure, model_known_limit_vs_routine
 Evidence bonuses: clean_title_explicit, battery_report_recent, battery_warranty_info, service_records_shown, dcfc_confirmed, charging_port_photo, vin_decoded, ownership_history_clear, fees_disclosed, tire_condition_visible, recall_status_clear
-Evidence penalties: battery_proof_missing, battery_warranty_unclear, service_records_missing, dcfc_unclear, ownership_history_unclear, fees_unclear, tire_condition_unclear, title_status_unclear, vin_missing
+Evidence penalties: battery_proof_missing, battery_warranty_unclear, service_records_missing, ownership_history_unclear, title_status_unclear, vin_missing
 
 SIGNAL RULES:
 - Include EVERY signal that applies. Err on the side of including more signals.
 - Hard blockers: only if strong evidence. Evidence bonuses: only if listing explicitly shows it. Evidence penalties: if listing does NOT address it.
-- "Not mentioned" = the corresponding "missing" or "unclear" penalty applies.`;
+- "Not mentioned" = the corresponding "missing" or "unclear" penalty applies.
+- TITLE: if listing_summary.title_status="clean" → include clean_title_explicit. If "salvage" or "rebuilt" → include title_salvage. If "unknown" → include title_status_unclear.
+- Do NOT include dcfc_unclear, fees_unclear, or tire_condition_unclear — these are not scored.`;
 
 // --- Prompt Sanitization ---
 
@@ -586,11 +588,8 @@ const PENALTY_QUESTIONS: Partial<Record<ListingSignalId, string>> = {
   battery_proof_missing: "Can you provide a recent battery health report or state-of-health percentage?",
   service_records_missing: "Are service or maintenance records available for this vehicle?",
   title_status_unclear: "What is the title status — clean, salvage, or rebuilt?",
-  fees_unclear: "What is the full out-the-door price including all dealer fees and add-ons?",
   battery_warranty_unclear: "Is the battery still under the manufacturer warranty, and when does it expire?",
-  dcfc_unclear: "Does this vehicle support DC fast charging (CCS or CHAdeMO)?",
   ownership_history_unclear: "How many previous owners has this vehicle had?",
-  tire_condition_unclear: "What is the current tire tread depth or condition?",
   vin_missing: "Can you provide the full 17-digit VIN for a history check?",
 };
 

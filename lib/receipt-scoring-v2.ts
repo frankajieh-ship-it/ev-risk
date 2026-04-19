@@ -141,18 +141,7 @@ export function scoreReceiptV2(signals: string[]): ScoringV2Result {
   riskPoints = Math.max(0, Math.min(10, riskPoints));
   confidencePoints = Math.max(0, Math.min(8, confidencePoints));
 
-  // 3. CEO verdict thresholds
-  let verdict: "GREEN" | "YELLOW" | "RED";
-  if (hardBlockerHit || riskPoints >= 6) {
-    verdict = "RED";
-  } else if (riskPoints >= 3 || confidencePoints <= 1) {
-    verdict = "YELLOW";
-  } else {
-    // risk 0-2 AND confidence >= 2 AND no hard flags
-    verdict = "GREEN";
-  }
-
-  // 4. Evidence label (derived from confidence_points)
+  // 3. Evidence label (computed first — used to cap verdict)
   let evidenceLabel: EvidenceLabel;
   if (confidencePoints >= 5) {
     evidenceLabel = "STRONG";
@@ -160,6 +149,18 @@ export function scoreReceiptV2(signals: string[]): ScoringV2Result {
     evidenceLabel = "PARTIAL";
   } else {
     evidenceLabel = "MISSING";
+  }
+
+  // 4. CEO verdict thresholds
+  // GREEN requires evidence ≥ PARTIAL — too little evidence to confidently call a deal good.
+  let verdict: "GREEN" | "YELLOW" | "RED";
+  if (hardBlockerHit || riskPoints >= 6) {
+    verdict = "RED";
+  } else if (riskPoints >= 3 || confidencePoints <= 1 || evidenceLabel === "MISSING") {
+    verdict = "YELLOW";
+  } else {
+    // risk 0-2 AND confidence >= 2 AND evidence PARTIAL or STRONG AND no hard flags
+    verdict = "GREEN";
   }
 
   // 5. Why not green
