@@ -90,8 +90,8 @@ export default function RoutineComparePanel({ vehicles, routine }: RoutineCompar
           return (
             <div
               key={rec.model}
-              className={`rounded-2xl border bg-white/[0.05] p-4 flex flex-col gap-3 ${
-                idx === 0 ? "border-[#00d97e]/30" : "border-white/10"
+              className={`rounded-2xl border bg-[#161b22] p-4 flex flex-col gap-3 ${
+                idx === 0 ? "border-[#00d97e]/30" : "border-white/[0.08]"
               }`}
             >
               {/* Header */}
