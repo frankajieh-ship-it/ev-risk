@@ -10,6 +10,7 @@
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Car,
   Settings,
@@ -63,20 +64,19 @@ export default function WorkspaceLayout({
   const initial = displayName.charAt(0).toUpperCase();
 
   return (
-    <div className="min-h-screen bg-[#0d1117] flex">
-      {/* ── Sidebar ─────────────────────────────────────────── */}
-      <aside className="w-60 bg-[#0d1117] border-r border-white/[0.08] flex flex-col shrink-0 hidden md:flex">
+    <div className="h-screen bg-[#0d1117] flex overflow-hidden">
+      {/* ── Sidebar — fixed, always visible ─────────────────── */}
+      <aside className="w-60 bg-[#0d1117] border-r border-white/[0.08] flex flex-col shrink-0 fixed top-0 left-0 h-screen z-30 hidden md:flex">
         {/* Logo */}
-        <div className="p-5 border-b border-white/[0.08]">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-sm font-bold text-white tracking-wide">OFFO</span>
-            <span className="text-sm font-bold text-[#00d97e] tracking-wide">Lab</span>
+        <div className="p-4 border-b border-white/[0.08]">
+          <Link href="/">
+            <Image src="/offo-logo.png" alt="OFFO" width={120} height={48} className="h-7 w-auto" />
           </Link>
-          <span className="text-xs text-white/40 block mt-0.5">Buyer Workspace</span>
+          <span className="text-xs text-white/40 block mt-1.5">Buyer Workspace</span>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-3 space-y-0.5">
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map((item) => {
             const isActive = item.exact
               ? pathname === item.href
@@ -146,11 +146,10 @@ export default function WorkspaceLayout({
       {/* ── Mobile top bar ───────────────────────────────────── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#0d1117] border-b border-white/[0.08] px-4 py-3 flex items-center gap-3">
         <Link href="/">
-          <span className="text-sm font-bold text-white tracking-wide">OFFO<span className="text-[#00d97e]">Lab</span></span>
+          <Image src="/offo-logo.png" alt="OFFO" width={100} height={40} className="h-6 w-auto" />
         </Link>
-        <span className="text-white/40 text-sm">Workspace</span>
         <div className="flex-1" />
-        {NAV_ITEMS.slice(0, 3).map((item) => {
+        {NAV_ITEMS.slice(0, 4).map((item) => {
           const isActive = item.exact
             ? pathname === item.href
             : pathname.startsWith(item.href);
@@ -166,8 +165,8 @@ export default function WorkspaceLayout({
         })}
       </div>
 
-      {/* ── Main content ─────────────────────────────────────── */}
-      <main className="flex-1 min-w-0 md:p-6 p-4 pt-16 md:pt-6 overflow-y-auto">
+      {/* ── Main content — offset by sidebar width, full height scroll ── */}
+      <main className="flex-1 min-w-0 overflow-y-auto md:ml-60 p-4 pt-16 md:p-6 md:pt-6">
         {children}
       </main>
     </div>
