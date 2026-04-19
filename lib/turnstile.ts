@@ -133,7 +133,7 @@ export async function guardTurnstile(
   }
 
   // 2. Token presence — block on high-security endpoints, warn-only elsewhere
-  const HIGH_SECURITY_ENDPOINTS = ["/api/recommendations"];
+  const HIGH_SECURITY_ENDPOINTS = ["/api/receipt"];
   const token = body.turnstileToken;
   if (!token || typeof token !== "string") {
     if (HIGH_SECURITY_ENDPOINTS.some((e) => endpoint.startsWith(e))) {
