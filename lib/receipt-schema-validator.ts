@@ -129,6 +129,9 @@ export const ReceiptSchema = z.object({
     label: z.string(),
   })).optional(),
   verify_before_visit: z.array(z.string().max(200)).max(5).optional(),
+  // Photo URLs stored with the receipt (from extraction or stock image lookup)
+  photo_urls: z.array(z.string()).optional(),
+  vin: z.string().optional(),
 });
 
 export type Receipt = z.infer<typeof ReceiptSchema>;
