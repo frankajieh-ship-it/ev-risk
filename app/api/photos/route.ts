@@ -217,6 +217,13 @@ export async function GET(request: NextRequest) {
         const expectedMake = normalizedMake.toLowerCase();
         if (!recordMake.includes(expectedMake) && !expectedMake.includes(recordMake)) continue;
       }
+      // Filter by model to prevent wrong-car images (e.g. gas Mustang GT for Mach-E search)
+      if (model && record.model) {
+        const recordModel = record.model.toLowerCase();
+        const expectedModel = model.toLowerCase();
+        const modelWords = expectedModel.split(" ").filter((w) => w.length > 2);
+        if (modelWords.length > 0 && !modelWords.every((w) => recordModel.includes(w))) continue;
+      }
       if (record.primaryPhotoUrl && !photoUrls.includes(record.primaryPhotoUrl)) {
         photoUrls.push(record.primaryPhotoUrl);
       }
