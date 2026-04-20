@@ -142,7 +142,8 @@ export function useTurnstile({ containerId, action }: UseTurnstileOptions) {
       window.turnstile.reset(widgetIdRef.current);
       resolveRef.current = resolve;
 
-      window.turnstile.execute(`#${containerId}`, {});
+      // Pass the widget ID (not a CSS selector) — what render() returned
+      window.turnstile.execute(widgetIdRef.current, {});
 
       // Safety timeout: 15s (well under 30s fetch timeout)
       setTimeout(() => {
