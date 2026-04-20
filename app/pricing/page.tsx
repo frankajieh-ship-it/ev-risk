@@ -232,7 +232,7 @@ export default function PricingPage() {
               },
               {
                 q: "Can I get a refund?",
-                a: "If you're not satisfied with the analysis quality, email hello@offo.app within 48 hours and we'll refund you.",
+                a: "If you're not satisfied with the analysis quality, email support@offolab.com within 48 hours and we'll refund you.",
               },
               {
                 q: "Do prices include tax?",

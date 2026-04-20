@@ -799,7 +799,7 @@ export default function Home() {
               <p className="text-sm text-white/40 mb-1">Can&apos;t find what you&apos;re looking for?</p>
               <p className="text-sm text-white/40 mb-5">Check out our <Link href="/receipt" className="text-[#00d97e] hover:text-[#00f090] transition-colors">Analyze tool</Link> or reach out.</p>
               <a
-                href="mailto:hello@offo.app"
+                href="mailto:support@offolab.com"
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#00d97e] hover:bg-[#00f090] text-[#0d1117] text-sm font-semibold rounded-xl transition-colors"
               >
                 <Mail className="w-4 h-4" />
