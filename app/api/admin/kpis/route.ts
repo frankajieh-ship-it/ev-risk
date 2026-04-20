@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
     // Query user_events for the date range
     const { data: events, error } = await supabase
       .from("user_events")
-      .select("event_name")
+      .select("event_name, event_data")
       .gte("timestamp", start)
       .lt("timestamp", end);
 
@@ -128,6 +128,30 @@ export async function GET(request: NextRequest) {
       counts[e.event_name] = (counts[e.event_name] || 0) + 1;
     }
 
+    // Top vehicles from evfit_completed events — tally #1 picks
+    const vehicleTally: Record<string, number> = {};
+    for (const e of allEvents) {
+      if (e.event_name !== "evfit_completed") continue;
+      const top = (e.event_data as Record<string, unknown> | null)?.top_vehicles as Array<{
+        make: string; model: string; fit_score: number;
+      }> | undefined;
+      const pick = top?.[0];
+      if (pick?.make && pick?.model) {
+        const key = `${pick.make} ${pick.model}`;
+        vehicleTally[key] = (vehicleTally[key] || 0) + 1;
+      }
+    }
+    const top_vehicles_picked = Object.entries(vehicleTally)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([vehicle, count]) => ({ vehicle, count }));
+
+    // All-time profiles saved (not date-scoped — cumulative count)
+    const { count: profilesSavedTotal } = await supabase
+      .from("user_events")
+      .select("*", { count: "exact", head: true })
+      .in("event_name", ["profile_saved", "routine_saved"]);
+
     return NextResponse.json({
       success: true,
       date,
@@ -138,7 +162,11 @@ export async function GET(request: NextRequest) {
         copy_seller_message: counts["copy_seller_message"] || 0,
         copy_checklist: counts["copy_checklist"] || 0,
         saves: counts["scenario_save_success"] || 0,
+        evfit_completed: counts["evfit_completed"] || 0,
+        profiles_saved_today: (counts["profile_saved"] || 0) + (counts["routine_saved"] || 0),
+        profiles_saved_total: profilesSavedTotal ?? 0,
       },
+      top_vehicles_picked,
     });
   } catch (err) {
     console.error("KPI endpoint error:", err);

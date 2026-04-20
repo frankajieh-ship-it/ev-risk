@@ -224,6 +224,13 @@ export async function POST(request: NextRequest) {
     const tieClusterCount = topScore !== null
       ? recommendations.filter((r) => r.fit_score === topScore).length
       : 0;
+    const topVehicles = recommendations.slice(0, 3).map((r) => ({
+      make: r.make,
+      model: r.model_short,
+      year: r.year,
+      fit_score: r.fit_score,
+      fit_label: r.fit_label,
+    }));
     trackServerEvent({
       event_name: "evfit_completed",
       source: "evfit",
@@ -236,6 +243,10 @@ export async function POST(request: NextRequest) {
         tie_cluster_count: tieClusterCount,
         weather_live: weatherLive,
         chargers_live: chargersLive,
+        top_vehicles: topVehicles,
+        charging_access: routine.charging_access,
+        climate: routine.climate,
+        weekly_miles: routine.weekly_miles ?? null,
       },
     });
 
