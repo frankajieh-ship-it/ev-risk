@@ -109,7 +109,7 @@ export function useTurnstile({ containerId, action }: UseTurnstileOptions) {
         }
       }, 200);
 
-      const timeout = setTimeout(() => clearInterval(interval), 10000);
+      const timeout = setTimeout(() => clearInterval(interval), 20000);
 
       return () => {
         mounted = false;
@@ -144,14 +144,14 @@ export function useTurnstile({ containerId, action }: UseTurnstileOptions) {
 
       window.turnstile.execute(`#${containerId}`, {});
 
-      // Safety timeout: 8s (well under 30s fetch timeout)
+      // Safety timeout: 15s (well under 30s fetch timeout)
       setTimeout(() => {
         if (resolveRef.current) {
-          console.warn("[Turnstile] Challenge timed out after 8s");
+          console.warn("[Turnstile] Challenge timed out after 15s");
           resolveRef.current(null);
           resolveRef.current = null;
         }
-      }, 8000);
+      }, 15000);
     });
   }, [containerId]);
 

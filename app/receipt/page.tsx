@@ -810,13 +810,17 @@ export default function ReceiptPage() {
       setCurrentVin(data.fields.vin || undefined);
 
       try {
-        // Turnstile bot protection
-        const turnstileToken = await executeTurnstile();
-
-        // If widget timed out or failed to load, surface a retry message rather
-        // than sending an empty token to the API (which returns a hard 403).
+        // Turnstile bot protection — retry once automatically if first attempt times out
+        let turnstileToken = await executeTurnstile();
         if (!turnstileToken) {
-          setError("Bot check timed out. Click Generate Receipt again to retry.");
+          // Brief pause then one automatic retry (covers slow Cloudflare script load)
+          await new Promise((r) => setTimeout(r, 1500));
+          turnstileToken = await executeTurnstile();
+        }
+
+        // If still null after retry, surface actionable message
+        if (!turnstileToken) {
+          setError("Bot check timed out. Click Generate Receipt to try again.");
           setIsGenerating(false);
           return;
         }
