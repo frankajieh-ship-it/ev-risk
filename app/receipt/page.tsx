@@ -813,11 +813,19 @@ export default function ReceiptPage() {
         // Turnstile bot protection
         const turnstileToken = await executeTurnstile();
 
+        // If widget timed out or failed to load, surface a retry message rather
+        // than sending an empty token to the API (which returns a hard 403).
+        if (!turnstileToken) {
+          setError("Bot check timed out. Click Generate Receipt again to retry.");
+          setIsGenerating(false);
+          return;
+        }
+
         const body: Record<string, unknown> = {
           receipt_token: receiptToken,
           mode: "single",
           region,
-          turnstileToken: turnstileToken || undefined,
+          turnstileToken,
           leave_this_empty: "",
         };
 
@@ -863,7 +871,7 @@ export default function ReceiptPage() {
         if (!res.ok || !result.success) {
           // Turnstile rejection
           if (res.status === 403 && result.captcha_required) {
-            setError("Verification failed. Please refresh and try again.");
+            setError("Bot check failed. Click Generate Receipt to try again — if this keeps happening, refresh the page.");
             return;
           }
           // Friendly 429 messages with time info
