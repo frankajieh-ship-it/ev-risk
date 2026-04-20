@@ -86,6 +86,19 @@ export interface VehicleRecommendation {
 
   /** Whether this vehicle is currently eligible for the federal $7,500 new-EV tax credit */
   incentive_new?: boolean;
+
+  /** Maximum seating capacity */
+  seating_capacity?: number;
+  /** Cargo volume behind rear seats (cu ft) */
+  cargo_volume_cuft?: number;
+  /** Combined system horsepower */
+  hp_combined?: number;
+  /** 0–60 mph time in seconds */
+  zero_to_60_sec?: number;
+  /** Actual max tow rating in lbs (0 = not rated) */
+  tow_capacity_lbs?: number;
+  /** Battery warranty in years */
+  battery_warranty_years?: number;
   /** Unified OFFO score for this vehicle in retail context */
   offo_score?: OffoScore;
 

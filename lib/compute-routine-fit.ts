@@ -52,6 +52,10 @@ export type VehicleBasics = {
   purchase_type?: "new" | "used";
   /** Home charging type — used for L1+winter cross-penalty */
   home_charging_type?: "L1" | "L2" | "UNKNOWN";
+  /** Maximum seating capacity — used for passenger fit scoring */
+  seating_capacity?: number;
+  /** Cargo volume behind rear seats (cu ft) — used for utility fit scoring */
+  cargo_volume_cuft?: number;
 };
 
 /** Charger availability context for the user's home area */
@@ -279,6 +283,22 @@ export function computeRoutineFit(
   } else if (mvr.towing_needs === "light" && vehicle?.sub_category) {
     if (vehicle.sub_category === "sedan" || vehicle.sub_category === "hatchback") {
       utilityScore = Math.min(utilityScore, 52);
+    }
+  }
+
+  // Seating fit — penalize if vehicle can't seat the requested passenger count
+  if (mvr.passenger_count && vehicle?.seating_capacity) {
+    if (mvr.passenger_count > vehicle.seating_capacity) {
+      const shortfall = mvr.passenger_count - vehicle.seating_capacity;
+      // 1 seat short → -15 pts; 2+ seats short → -30 pts (capped)
+      utilityScore = Math.max(0, utilityScore - Math.min(30, shortfall * 15));
+    }
+  }
+
+  // Cargo fit — SUV buyers needing cargo space: penalize low-cargo vehicles (<20 cu ft)
+  if (mvr.body_style === "suv" && vehicle?.cargo_volume_cuft !== undefined) {
+    if (vehicle.cargo_volume_cuft < 20) {
+      utilityScore = Math.max(0, utilityScore - 15);
     }
   }
 

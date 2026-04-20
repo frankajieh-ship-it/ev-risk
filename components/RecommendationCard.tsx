@@ -327,6 +327,21 @@ export default function RecommendationCard({
               $7,500 fed. credit possible
             </span>
           )}
+          {rec.seating_capacity && rec.seating_capacity >= 6 && (
+            <span className="inline-flex items-center gap-1 text-xs bg-white/[0.07] text-white/70 px-2 py-1 rounded-full">
+              🪑 {rec.seating_capacity}-seat
+            </span>
+          )}
+          {rec.tow_capacity_lbs && rec.tow_capacity_lbs >= 1000 && (
+            <span className="inline-flex items-center gap-1 text-xs bg-white/[0.07] text-white/70 px-2 py-1 rounded-full">
+              🔗 Tows {rec.tow_capacity_lbs.toLocaleString()} lbs
+            </span>
+          )}
+          {rec.zero_to_60_sec && rec.zero_to_60_sec <= 4.0 && (
+            <span className="inline-flex items-center gap-1 text-xs bg-purple-500/10 text-purple-400 px-2 py-1 rounded-full">
+              ⚡ 0–60 in {rec.zero_to_60_sec}s
+            </span>
+          )}
           {cost && cost.total > 0 && (
             <button
               onClick={() => setShowCostBreakdown(!showCostBreakdown)}

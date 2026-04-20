@@ -40,6 +40,8 @@ export interface MinimumViableRoutine {
   min_comfortable_soc?: number;
   towing_needs?: "none" | "light" | "heavy";
   wants_carplay?: boolean;
+  /** Number of passengers to seat regularly (used for utility fit scoring) */
+  passenger_count?: number;
 }
 
 // ============================================

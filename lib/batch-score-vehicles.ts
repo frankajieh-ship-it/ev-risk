@@ -48,7 +48,7 @@ export interface RealTimeData {
 
 /**
  * Compute a 0–100 ownership cost score.
- * Components: price vs budget (60%) + vehicle efficiency (40%)
+ * Components: price vs budget (55%) + vehicle efficiency (35%) + charging cost (10%)
  */
 function computeOwnershipCostScore(
   row: RangeDeltaRow,
@@ -68,7 +68,23 @@ function computeOwnershipCostScore(
   const mpge = traits.efficiency_mpge ?? 100;
   const efficiencyScore = Math.min(100, Math.round((mpge / 130) * 100));
 
-  return Math.round(priceScore * 0.6 + efficiencyScore * 0.4);
+  // Charging cost score: penalize slow onboard AC for L1/L2 home chargers
+  // Vehicles with weak AC chargers (< 7.2 kW) cost more in L1/L2 time-of-use for high-mileage users
+  let chargingCostScore = 100;
+  const onboardAcKw = traits.onboard_ac_kw ?? 11;
+  const dailyMiles = mvr.commute_miles_roundtrip ?? (mvr.weekly_miles ?? 100) / 5;
+  if (mvr.home_charging_type === "L1" && onboardAcKw < 7 && dailyMiles > 30) {
+    // Very slow L1-equivalent onboard AC + heavy usage = higher effective energy cost
+    chargingCostScore = 70;
+  } else if (onboardAcKw >= 19) {
+    // 19.2 kW+ (bidirectional-capable trucks) = excellent L2 utilization bonus
+    chargingCostScore = 100;
+  } else if (onboardAcKw < 7.4) {
+    // Below 7.4 kW is slower than typical L2 EVSE output — minor penalty
+    chargingCostScore = 85;
+  }
+
+  return Math.round(priceScore * 0.55 + efficiencyScore * 0.35 + chargingCostScore * 0.10);
 }
 
 // ---------------------------------------------------------------------------
@@ -161,6 +177,9 @@ export function batchScoreVehicles(
       dc_fast_kw: row.dc_fast_kw || undefined,
       // Pass incentive amount so budget scoring uses effective price
       incentive_amount: row.incentive_new ? 7500 : 0,
+      // Pass enriched spec data for utility fit scoring
+      seating_capacity: traits.seating_capacity,
+      cargo_volume_cuft: traits.cargo_volume_cuft,
     };
 
     // Use V2 scoring if real-time data is available, otherwise baseline
@@ -250,6 +269,12 @@ export function batchScoreVehicles(
       dc_fast_kw: row.dc_fast_kw || undefined,
       incentive_new: row.incentive_new || undefined,
       offo_score: offoScore,
+      seating_capacity: traits.seating_capacity,
+      cargo_volume_cuft: traits.cargo_volume_cuft,
+      hp_combined: traits.hp_combined,
+      zero_to_60_sec: traits.zero_to_60_sec,
+      tow_capacity_lbs: traits.tow_capacity_lbs,
+      battery_warranty_years: traits.battery_warranty_years,
     };
   });
 
