@@ -5,6 +5,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import { HumanSignalCollector } from "@/components/HumanSignalCollector";
 import CookieConsent from "@/components/CookieConsent";
 import { VitalsReporter } from "@/components/VitalsReporter";
+import { TutorialProvider } from "@/components/tutorial/TutorialProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -84,6 +85,7 @@ export default function RootLayout({
             url: "https://offolab.com",
           }}
         />
+        <TutorialProvider>
         <HumanSignalCollector />
         <CookieConsent />
         <VitalsReporter />
@@ -112,6 +114,7 @@ export default function RootLayout({
           `}
         </Script>
         {children}
+        </TutorialProvider>
       </body>
     </html>
   );

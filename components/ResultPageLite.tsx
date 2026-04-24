@@ -126,11 +126,13 @@ export function ResultPageLite({
       {/* 6 Blocks */}
       <div className="space-y-5">
         {/* Block 1: Fit Verdict (ALWAYS visible) */}
+        <div data-tutorial="fit-verdict">
         <FitVerdictBlock
           fitSignal={presentation.fitSignal}
           verdict={presentation.oneSentenceVerdict}
           mentalLoad={presentation.mentalLoadLabel}
         />
+        </div>
 
         {/* P1: Your Situation - Share-first Reddit-native paragraph */}
         {presentation.yourSituationSummary && (
@@ -147,10 +149,12 @@ export function ResultPageLite({
         {presentation.showPlanB && <PlanBBlock items={presentation.planB} />}
 
         {/* Block 5: Confidence (single sentence) */}
+        <div data-tutorial="confidence-score">
         <ConfidenceBlock
           level={presentation.confidenceLevel}
           summary={presentation.confidenceSummary}
         />
+        </div>
 
         {/* P0: Stability Bullet for low-friction setups (shown in green) */}
         {presentation.stabilityBullet && (

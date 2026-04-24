@@ -8,10 +8,10 @@ interface OwnershipRiskPanelProps {
 }
 
 const STATUS_CONFIG = {
-  green: { dot: "bg-green-500", bg: "bg-green-50", border: "border-green-200", label: "Low" },
-  yellow: { dot: "bg-yellow-500", bg: "bg-yellow-50", border: "border-yellow-200", label: "Medium" },
-  red: { dot: "bg-red-500", bg: "bg-red-50", border: "border-red-200", label: "High" },
-  unknown: { dot: "bg-gray-400", bg: "bg-gray-50", border: "border-gray-200", label: "Unknown" },
+  green: { dot: "bg-green-500", bg: "bg-green-500/10", border: "border-green-500/25", label: "Low" },
+  yellow: { dot: "bg-yellow-500", bg: "bg-yellow-500/10", border: "border-yellow-500/25", label: "Medium" },
+  red: { dot: "bg-red-500", bg: "bg-red-500/10", border: "border-red-500/25", label: "High" },
+  unknown: { dot: "bg-white/40", bg: "bg-white/[0.04]", border: "border-white/[0.08]", label: "Unknown" },
 } as const;
 
 function ModuleCard({ module }: { module: OwnershipRiskModule }) {
@@ -27,21 +27,21 @@ function ModuleCard({ module }: { module: OwnershipRiskModule }) {
         <span className={`w-3 h-3 rounded-full ${config.dot} flex-shrink-0`} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-gray-900 text-sm">{module.label}</span>
+            <span className="font-semibold text-white text-sm">{module.label}</span>
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-              module.status === "unknown" ? "bg-gray-200 text-gray-600" :
-              module.status === "green" ? "bg-green-200 text-green-700" :
-              module.status === "yellow" ? "bg-yellow-200 text-yellow-700" :
-              "bg-red-200 text-red-700"
+              module.status === "unknown" ? "bg-white/[0.08] text-white/50" :
+              module.status === "green" ? "bg-green-500/20 text-green-400" :
+              module.status === "yellow" ? "bg-yellow-500/20 text-yellow-400" :
+              "bg-red-500/20 text-red-400"
             }`}>
               {config.label}
             </span>
           </div>
-          <p className="text-xs text-gray-500 mt-1 truncate">{module.summary}</p>
+          <p className="text-xs text-white/50 mt-1 truncate">{module.summary}</p>
         </div>
         {module.detail && (
           <svg
-            className={`w-4 h-4 text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`}
+            className={`w-4 h-4 text-white/40 transition-transform ${expanded ? "rotate-180" : ""}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -51,7 +51,7 @@ function ModuleCard({ module }: { module: OwnershipRiskModule }) {
         )}
       </div>
       {expanded && module.detail && (
-        <p className="text-xs text-gray-600 mt-3 pt-3 border-t border-gray-200">
+        <p className="text-xs text-white/60 mt-3 pt-3 border-t border-white/[0.08]">
           {module.detail}
         </p>
       )}
@@ -61,16 +61,16 @@ function ModuleCard({ module }: { module: OwnershipRiskModule }) {
 
 export function OwnershipRiskPanel({ ownershipRisk }: OwnershipRiskPanelProps) {
   const overallConfig = {
-    "Low ownership friction": { color: "text-green-700", bg: "bg-green-100" },
-    "Moderate ownership friction": { color: "text-yellow-700", bg: "bg-yellow-100" },
-    "High ownership friction": { color: "text-red-700", bg: "bg-red-100" },
-    "Insufficient data": { color: "text-gray-700", bg: "bg-gray-100" },
+    "Low ownership friction": { color: "text-green-400", bg: "bg-green-500/15" },
+    "Moderate ownership friction": { color: "text-yellow-400", bg: "bg-yellow-500/15" },
+    "High ownership friction": { color: "text-red-400", bg: "bg-red-500/15" },
+    "Insufficient data": { color: "text-white/50", bg: "bg-white/[0.08]" },
   }[ownershipRisk.overall_risk_label];
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+        <h3 className="text-sm font-semibold text-white uppercase tracking-wide">
           Ownership Friction
         </h3>
         <span className={`text-xs font-medium px-3 py-1 rounded-full ${overallConfig.bg} ${overallConfig.color}`}>

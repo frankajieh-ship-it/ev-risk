@@ -18,9 +18,9 @@ interface ConfidenceBlockProps {
 
 export function ConfidenceBlock({ level, summary }: ConfidenceBlockProps) {
   const getBadgeStyle = () => {
-    if (level === "High") return "bg-green-100 text-green-800";
-    if (level === "Medium") return "bg-amber-100 text-amber-900";
-    return "bg-red-100 text-red-800";
+    if (level === "High") return "bg-green-500/20 text-green-400";
+    if (level === "Medium") return "bg-amber-500/20 text-amber-400";
+    return "bg-red-500/20 text-red-400";
   };
 
   // Reframe confidence as data completeness
@@ -31,17 +31,17 @@ export function ConfidenceBlock({ level, summary }: ConfidenceBlockProps) {
   };
 
   return (
-    <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+    <div className="bg-white/[0.05] rounded-xl p-5 border border-white/[0.08]">
       <div className="flex items-center gap-3 mb-3">
-        <Database className="w-5 h-5 text-gray-600" />
-        <h3 className="font-bold text-gray-900">Data Available</h3>
+        <Database className="w-5 h-5 text-white/50" />
+        <h3 className="font-bold text-white">Data Available</h3>
         <span
           className={`px-2.5 py-1 rounded-full text-xs font-medium ${getBadgeStyle()}`}
         >
           {getCompleteness()}
         </span>
       </div>
-      <p className="text-sm text-gray-700">{summary}</p>
+      <p className="text-sm text-white/70">{summary}</p>
     </div>
   );
 }

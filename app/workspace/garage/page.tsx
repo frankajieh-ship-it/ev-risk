@@ -405,6 +405,7 @@ export default function GaragePage() {
       )}
 
       {/* ── Content ─────────────────────────────────────────── */}
+      <div data-tutorial="garage-section">
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-[#00d97e]" />
@@ -470,6 +471,7 @@ export default function GaragePage() {
           ))}
         </div>
       )}
+      </div>{/* /garage-section */}
 
       {/* Mark as Owned prompt */}
       {justAddedVehicleId && isAuthenticated && (

@@ -11,10 +11,10 @@ interface ConfidencePlanBlockProps {
 }
 
 const MODULE_COLORS: Record<string, { bg: string; text: string }> = {
-  battery: { bg: "bg-blue-100", text: "text-blue-700" },
-  warranty: { bg: "bg-purple-100", text: "text-purple-700" },
-  recall: { bg: "bg-orange-100", text: "text-orange-700" },
-  platform: { bg: "bg-gray-100", text: "text-gray-700" },
+  battery: { bg: "bg-blue-500/20", text: "text-blue-300" },
+  warranty: { bg: "bg-purple-500/20", text: "text-purple-300" },
+  recall: { bg: "bg-orange-500/20", text: "text-orange-300" },
+  platform: { bg: "bg-white/[0.08]", text: "text-white/60" },
 };
 
 function CopyButton({
@@ -57,14 +57,14 @@ function CopyButton({
   return (
     <button
       onClick={handleCopy}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors bg-white border-gray-200 hover:bg-gray-50 text-gray-700"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors bg-white/[0.08] border-white/[0.08] hover:bg-white/[0.12] text-white/70"
     >
       {copied ? (
         <>
-          <svg className="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          <span className="text-green-600">Copied!</span>
+          <span className="text-green-400">Copied!</span>
         </>
       ) : (
         <>
@@ -82,7 +82,7 @@ function ModulePills({ modules }: { modules: ConfidenceAction["required_for_modu
   return (
     <div className="flex flex-wrap gap-1.5">
       {modules.map((mod) => {
-        const colors = MODULE_COLORS[mod] ?? { bg: "bg-gray-100", text: "text-gray-700" };
+        const colors = MODULE_COLORS[mod] ?? { bg: "bg-white/[0.08]", text: "text-white/60" };
         return (
           <span
             key={mod}
@@ -100,15 +100,15 @@ function ProgressBar({ current, potential }: { current: number; potential: numbe
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-xs">
-        <span className="font-medium text-gray-700">Report confidence</span>
-        <span className="text-gray-500">
-          {current}% <span className="text-gray-400">→</span> {potential}%
+        <span className="font-medium text-white/70">Report confidence</span>
+        <span className="text-white/50">
+          {current}% <span className="text-white/40">→</span> {potential}%
         </span>
       </div>
-      <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden">
+      <div className="relative h-3 bg-white/[0.08] rounded-full overflow-hidden">
         {/* Potential (ghost) */}
         <div
-          className="absolute inset-y-0 left-0 bg-green-100 rounded-full border border-green-200 border-dashed"
+          className="absolute inset-y-0 left-0 bg-green-500/15 rounded-full border border-green-500/30 border-dashed"
           style={{ width: `${potential}%` }}
         />
         {/* Current (solid) */}
@@ -135,24 +135,24 @@ function ActionCard({
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white/[0.05] rounded-xl border border-white/[0.08] overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center justify-between w-full text-left p-4 hover:bg-gray-50 transition-colors"
+        className="flex items-center justify-between w-full text-left p-4 hover:bg-white/[0.08] transition-colors"
       >
         <div className="flex items-center gap-3 min-w-0">
-          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center">
+          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500/20 text-green-400 text-xs font-bold flex items-center justify-center">
             {index + 1}
           </span>
           <div className="min-w-0">
-            <p className="font-semibold text-gray-900 text-sm">{action.title}</p>
-            <p className="text-xs text-green-600 font-medium">
+            <p className="font-semibold text-white text-sm">{action.title}</p>
+            <p className="text-xs text-green-400 font-medium">
               +{action.expected_confidence_gain_pct}% confidence
             </p>
           </div>
         </div>
         <svg
-          className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${expanded ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-white/40 transition-transform flex-shrink-0 ${expanded ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -169,29 +169,29 @@ function ActionCard({
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 space-y-3 border-t border-gray-100 pt-3">
+            <div className="px-4 pb-4 space-y-3 border-t border-white/[0.06] pt-3">
               {/* Unlocks modules */}
               <div>
-                <p className="text-xs uppercase tracking-wide text-gray-400 font-medium mb-1">
+                <p className="text-xs uppercase tracking-wide text-white/40 font-medium mb-1">
                   Unlocks
                 </p>
                 <ModulePills modules={action.required_for_modules} />
               </div>
 
               {/* Why it matters */}
-              <p className="text-xs text-gray-600 leading-relaxed">
+              <p className="text-xs text-white/60 leading-relaxed">
                 {action.why_it_matters}
               </p>
 
               {/* How to get */}
               <div>
-                <p className="text-xs uppercase tracking-wide text-gray-400 font-medium mb-1">
+                <p className="text-xs uppercase tracking-wide text-white/40 font-medium mb-1">
                   How to get it
                 </p>
                 <ul className="space-y-1">
                   {action.how_to_get.map((step, i) => (
-                    <li key={i} className="text-xs text-gray-600 flex gap-2">
-                      <span className="text-gray-400 flex-shrink-0">&#x2022;</span>
+                    <li key={i} className="text-xs text-white/60 flex gap-2">
+                      <span className="text-white/40 flex-shrink-0">&#x2022;</span>
                       {step}
                     </li>
                   ))}
@@ -199,9 +199,9 @@ function ActionCard({
               </div>
 
               {/* Seller message template */}
-              <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+              <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.06]">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs uppercase tracking-wide text-gray-400 font-medium">
+                  <p className="text-xs uppercase tracking-wide text-white/40 font-medium">
                     Send to seller
                   </p>
                   <CopyButton
@@ -210,16 +210,16 @@ function ActionCard({
                     trackEvent={trackEvent}
                   />
                 </div>
-                <p className="text-xs text-gray-600 italic leading-relaxed">
+                <p className="text-xs text-white/60 italic leading-relaxed">
                   &ldquo;{action.message_templates.seller}&rdquo;
                 </p>
               </div>
 
               {/* Dealer template if exists */}
               {action.message_templates.dealer && (
-                <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.06]">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs uppercase tracking-wide text-gray-400 font-medium">
+                    <p className="text-xs uppercase tracking-wide text-white/40 font-medium">
                       Send to dealer
                     </p>
                     <CopyButton
@@ -228,7 +228,7 @@ function ActionCard({
                       trackEvent={trackEvent}
                     />
                   </div>
-                  <p className="text-xs text-gray-600 italic leading-relaxed">
+                  <p className="text-xs text-white/60 italic leading-relaxed">
                     &ldquo;{action.message_templates.dealer}&rdquo;
                   </p>
                 </div>
@@ -249,7 +249,7 @@ export function ConfidencePlanBlock({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
+      <h3 className="text-sm font-semibold text-white uppercase tracking-wide">
         Get to {confidencePlan.potential_pct}% confidence
       </h3>
 

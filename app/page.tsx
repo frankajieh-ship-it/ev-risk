@@ -482,6 +482,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row gap-3 max-w-2xl mx-auto">
             <input
               id="listing-input"
+              data-tutorial="url-input"
               type="url"
               value={listingUrl}
               onChange={(e) => setListingUrl(e.target.value)}
@@ -491,6 +492,7 @@ export default function Home() {
               autoFocus
             />
             <button
+              data-tutorial="analyze-btn"
               onClick={handleHomePasteSubmit}
               disabled={!listingUrl.trim()}
               className={`px-7 py-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all whitespace-nowrap ${

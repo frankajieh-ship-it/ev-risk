@@ -1358,6 +1358,7 @@ export default function ReceiptPage() {
               transition={{ duration: 0.3 }}
               className="mt-6 space-y-4"
             >
+              <div data-tutorial="receipt-output">
               <ReceiptOutputCard
                 receipt={receipt}
                 lintPassed={lintPassed}
@@ -1385,6 +1386,7 @@ export default function ReceiptPage() {
                 onCompare={() => setShowCompareModal(true)}
                 showCompare={authConfigured}
               />
+              </div>
 
               {/* ── Matching Deals Strip ─────────────────────────────── */}
               {matchingDeals.length > 0 && (
@@ -1504,7 +1506,7 @@ export default function ReceiptPage() {
 
               {/* Workspace save nudge — shown to unauthenticated users after receipt loads */}
               {!isAuthenticated && (
-                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 flex items-start justify-between gap-4">
+                <div data-tutorial="save-garage" className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium text-white/70">Track this deal over time</p>
                     <p className="text-xs text-white/30 mt-0.5">Create a free account to save receipts, compare EVs, and get deal alerts.</p>
@@ -1719,7 +1721,7 @@ export default function ReceiptPage() {
               </p>
 
               {/* Save */}
-              <div className="mb-3">
+              <div className="mb-3" data-tutorial="save-garage">
                 <SaveReceiptCTA
                   receipt={receipt}
                   onSaveSuccess={() => {

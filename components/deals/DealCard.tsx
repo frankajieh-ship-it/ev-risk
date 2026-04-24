@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { ExternalLink, ShieldCheck, AlertTriangle, XCircle, Bookmark, BookmarkCheck, ChevronDown } from "lucide-react";
 import { addToAnonGarage } from "@/lib/anon-garage";
 import { useAuth } from "@/hooks/useAuth";
@@ -249,13 +248,13 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
       {/* Photo */}
       <div className="relative w-full aspect-[16/9] bg-[#0d1117] overflow-hidden flex-shrink-0">
         {photoUrl ? (
-          <Image
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={photoUrl}
             alt={deal.vehicle_label}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            priority={rank === 1}
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading={rank === 1 ? "eager" : "lazy"}
+            onError={() => setPhotoUrl(null)}
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-[#0d1117]">
