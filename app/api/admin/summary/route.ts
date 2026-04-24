@@ -201,14 +201,15 @@ export async function GET(request: NextRequest) {
       .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`)
       .limit(5000);
 
-    // 2. Receipt events
+    // 2. Receipt events — explicit limit to avoid Supabase 1000-row default cap
     const receiptEventsPromise = supabase
       .from("receipt_events")
       .select(
         "event_type, receipt_id, session_id, url_domain, verdict, created_at"
       )
       .gte("created_at", window.start)
-      .lt("created_at", window.end);
+      .lt("created_at", window.end)
+      .limit(50000);
 
     // 3. Reports (old EV-Risk)
     const reportsPromise = supabase
@@ -221,23 +222,25 @@ export async function GET(request: NextRequest) {
       .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
     // 4. User events (exclude internal team via is_internal column)
+    // IMPORTANT: must set explicit limit — Supabase default cap is 1000 rows, which silently
+    // truncates large windows and breaks all session/engagement/bot-scoring metrics derived here.
     const userEventsPromise = supabase
       .from("user_events")
       .select("event_name, event_data, visitor_id, session_id, ip_address, user_agent, timestamp")
       .gte("timestamp", window.start)
       .lt("timestamp", window.end)
-      .eq("is_internal", false);
+      .eq("is_internal", false)
+      .limit(50000);
 
     // 5. Visitors (exclude internal team)
-    // NOTE: Supabase default row cap is 1000 — must set explicit limit to avoid silently
-    // truncating unique visitor counts once the table exceeds 1000 rows for the window.
+    // NOTE: explicit limit required — Supabase default cap is 1000 rows.
     const visitorsPromise = supabase
       .from("visitors")
       .select("visitor_id, page_path, visit_count, last_visit")
       .gte("last_visit", window.start)
       .lt("last_visit", window.end)
       .not("visitor_id", "in", `(${INTERNAL_VISITOR_IDS_FILTER.join(",")})`)
-      .limit(10000);
+      .limit(50000);
 
     // 6. Report feedback
     const feedbackPromise = supabase
