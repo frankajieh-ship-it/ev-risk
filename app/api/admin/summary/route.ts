@@ -45,6 +45,20 @@ function getUTCBoundariesForDate(dateStr: string): {
   return { start: startUTC.toISOString(), end: endUTC.toISOString() };
 }
 
+/** Convert a UTC ISO timestamp string to a YYYY-MM-DD date in ET */
+function utcToETDate(isoTimestamp: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: TIMEZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(isoTimestamp));
+  } catch {
+    return isoTimestamp.split("T")[0] || "unknown";
+  }
+}
+
 function getTodayET(): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: TIMEZONE,
@@ -178,13 +192,14 @@ export async function GET(request: NextRequest) {
     // Parallel queries
     // -----------------------------------------------------------------------
 
-    // 1. Receipts
+    // 1. Receipts — explicit limit avoids Supabase's default 1000-row silent cap
     const receiptsPromise = supabase
       .from("receipts")
       .select("id, created_at, output_json, url_domain")
       .gte("created_at", window.start)
       .lt("created_at", window.end)
-      .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`);
+      .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`)
+      .limit(5000);
 
     // 2. Receipt events
     const receiptEventsPromise = supabase
@@ -552,8 +567,14 @@ export async function GET(request: NextRequest) {
     const fetchFailures = countReceiptEvents(allReceiptEvents, "fetch_fail");
     const receiptScrapeAttempts = fetchSuccesses + fetchFailures;
 
-    // DB rows are ground truth; client-side events may undercount (late addition, ad blockers)
+    // DB rows (receipts table) are the authoritative count.
+    // receipt_events.generate and user_events.receipt_generate are secondary signals:
+    //   - receipt_events has no bot filter, so it can be higher than real human receipts
+    //   - user_events is bot-filtered but may undercount (ad blockers, JS errors)
+    // Using Math.max across these sources produced impossible results (e.g. single-day
+    // count > month-to-date count) because different bot-filtering was applied to each.
     const receiptsGenFromDB = allReceipts.length;
+    // Keep secondary counts available for debugging/comparison only
     const receiptsGenFromUserEvents = countEvents(filteredUserEvents, "receipt_generate");
     const receiptsGenFromReceiptEvents = countReceiptEvents(allReceiptEvents, "generate");
 
@@ -565,7 +586,11 @@ export async function GET(request: NextRequest) {
         receiptScrapeAttempts > 0
           ? Math.round((fetchSuccesses / receiptScrapeAttempts) * 1000) / 10
           : 0,
-      receipts_generated: Math.max(receiptsGenFromDB, receiptsGenFromUserEvents, receiptsGenFromReceiptEvents),
+      // Use DB row count as single source of truth — avoids overcounting from event dedup mismatches
+      receipts_generated: receiptsGenFromDB,
+      // Secondary counts for debugging; not surfaced in the main metric
+      receipts_generated_user_events: receiptsGenFromUserEvents,
+      receipts_generated_receipt_events: receiptsGenFromReceiptEvents,
       lint_failures: Math.max(
         countReceiptEvents(allReceiptEvents, "lint_fail"),
         countEvents(filteredUserEvents, "receipt_lint_failed")
@@ -649,10 +674,9 @@ export async function GET(request: NextRequest) {
     // -----------------------------------------------------------------------
 
     const uniqueVisitorIds = new Set(allVisitors.map((v) => v.visitor_id));
-    const totalVisits = allVisitors.reduce(
-      (sum, v) => sum + (v.visit_count || 1),
-      0
-    );
+    // Count rows in the window (not all-time visit_count) — visit_count is a cumulative
+    // all-time counter per visitor+page, which overcounts when summed for a date window.
+    const totalVisits = allVisitors.length;
 
     // Top pages
     const pageMap = new Map<
@@ -665,7 +689,7 @@ export async function GET(request: NextRequest) {
         pageMap.set(path, { views: 0, visitors: new Set() });
       }
       const entry = pageMap.get(path)!;
-      entry.views += v.visit_count || 1;
+      entry.views += 1; // count rows in window, not all-time visit_count
       entry.visitors.add(v.visitor_id);
     }
     const topPages = Array.from(pageMap.entries())
@@ -816,17 +840,18 @@ export async function GET(request: NextRequest) {
       { receipts: number; reports_free: number; reports_paid: number }
     >();
 
-    // Receipt generates from receipts table (ground truth, not event-based)
+    // Receipt generates from receipts table (ground truth, not event-based).
+    // Use ET date (not raw UTC split) so daily buckets align with the ET window boundaries.
     for (const r of allReceipts) {
-      const date = r.created_at?.split("T")[0] || "unknown";
+      const date = r.created_at ? utcToETDate(r.created_at) : "unknown";
       if (!dailyMap.has(date))
         dailyMap.set(date, { receipts: 0, reports_free: 0, reports_paid: 0 });
       dailyMap.get(date)!.receipts++;
     }
 
-    // Reports from reports table
+    // Reports from reports table — also use ET date
     for (const r of allReports) {
-      const date = r.created_at?.split("T")[0] || "unknown";
+      const date = r.created_at ? utcToETDate(r.created_at) : "unknown";
       if (!dailyMap.has(date))
         dailyMap.set(date, { receipts: 0, reports_free: 0, reports_paid: 0 });
       if (r.status === "paid") dailyMap.get(date)!.reports_paid++;
@@ -843,7 +868,8 @@ export async function GET(request: NextRequest) {
 
     const dailyVisitorMap = new Map<string, { unique_visitors: Set<string>; total_visits: number }>();
     for (const e of filteredUserEvents) {
-      const date = (e as any).timestamp?.split("T")[0];
+      const ts = (e as any).timestamp;
+      const date = ts ? utcToETDate(ts) : null;
       if (!date) continue;
       if (!dailyVisitorMap.has(date)) dailyVisitorMap.set(date, { unique_visitors: new Set(), total_visits: 0 });
       const entry = dailyVisitorMap.get(date)!;
