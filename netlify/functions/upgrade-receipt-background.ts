@@ -15,7 +15,7 @@
 
 import type { Handler, HandlerEvent, HandlerResponse } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
-import { fixReceiptFormatting, RECEIPT_JSON_SCHEMA, SYSTEM_PROMPT, buildUserPrompt } from "../../lib/receipt-openai.js";
+import { fixReceiptFormatting, RECEIPT_JSON_SCHEMA, SYSTEM_PROMPT, buildUserPrompt, buildEnhancedFallbackReceipt } from "../../lib/receipt-openai.js";
 import { validateReceiptSchema } from "../../lib/receipt-schema-validator.js";
 import { renderRedditDraft } from "../../lib/reddit-draft-renderer.js";
 import { scoreReceipt } from "../../lib/receipt-scoring.js";
@@ -26,6 +26,7 @@ import { logApi } from "../../lib/api-logger.js";
 import { hedgedGenerate, AllProvidersFailedError, logReceiptCost } from "../../lib/providers/index.js";
 import { applyRenderer } from "../../lib/receipt-renderer.js";
 import type { ReceiptGenerateRequest } from "../../types/receipt.js";
+import type { ListingSignalId } from "../../lib/receipt-rules.js";
 
 // --- Supabase client (service role) ---
 
@@ -50,6 +51,74 @@ interface UpgradePayload {
   ip_hash: string | null;
   is_pro: boolean;
   t0: number;
+}
+
+// --- Deterministic fallback ---
+
+async function saveDeterministicFallback(
+  supabase: ReturnType<typeof getSupabase>,
+  receipt_id: string,
+  receipt_token: string,
+  input: ReceiptGenerateRequest,
+  rule_signals: string[],
+  rule_scoring: { verdict: string; fit_score: number; [key: string]: unknown },
+  features: Record<string, boolean>,
+): Promise<void> {
+  // buildEnhancedFallbackReceipt requires ReceiptScoringResult (V1 shape)
+  const v1Scoring = scoreReceipt(rule_signals);
+
+  // Build a complete receipt from rule signals alone — no AI required
+  let fallbackReceipt = buildEnhancedFallbackReceipt(
+    input,
+    rule_signals as ListingSignalId[],
+    v1Scoring,
+  ) as ReturnType<typeof buildEnhancedFallbackReceipt> & { receipt_id: string; scoring_version?: string };
+
+  // Overlay V2 scoring fields if the feature flag is on
+  if (features.scoringV2) {
+    const v2 = scoreReceiptV2(rule_signals);
+    fallbackReceipt = {
+      ...fallbackReceipt,
+      verdict: v2.verdict,
+      fit_score: v2.fit_score,
+      evidence_score: v2.evidence_score,
+      evidence_label: v2.evidence_label,
+      scoring_reasons: v2.scoring_reasons,
+      why_not_green: v2.why_not_green.map((f) => ({
+        signal_id: f.signal_id,
+        category: f.category,
+        points: f.risk_points,
+        label: f.ui_label,
+      })),
+      verify_before_visit: v2.verify_before_visit,
+      scoring_version: "deterministic-v2",
+    } as typeof fallbackReceipt;
+  } else {
+    fallbackReceipt = { ...fallbackReceipt, scoring_version: "deterministic" };
+  }
+
+  fallbackReceipt = { ...fallbackReceipt, receipt_id };
+
+  // Apply deterministic renderer for OFFO voice consistency
+  const rendered = applyRenderer(fallbackReceipt as import("../../types/receipt.js").ListingReceipt);
+
+  await supabase.from("receipts").update({
+    output_json: rendered,
+    generation_status: "full",
+    sections: {
+      core:             { status: "ready", updated_at: new Date().toISOString(), provider_used: "deterministic", latency_ms: 0 },
+      reddit_draft:     { status: "not_requested" },
+      receipt_details:  { status: "not_requested" },
+      negotiation_deep: { status: "not_requested" },
+    },
+  }).eq("id", receipt_id);
+
+  supabase.from("receipt_events").insert({
+    receipt_id,
+    session_id: receipt_token,
+    event_type: "deterministic_fallback",
+    verdict: (rendered as Record<string, unknown>).verdict as string | null ?? rule_scoring.verdict,
+  }).then(() => {}, () => {});
 }
 
 // --- Handler ---
@@ -143,8 +212,12 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
       temperature: 0.3,
       maxTokens: 1800,
       validate: (json) => {
+        // Only reject on Zod schema failures — lint errors are cosmetic and
+        // handled post-win by the formatter. Rejecting on lint causes all three
+        // providers to be marked failed when the receipt is structurally valid.
         const v = validateReceiptSchema(json);
-        return { valid: v.valid, errors: v.errors };
+        const zodFailed = !v.sanitized && v.errors.length > 0;
+        return { valid: !zodFailed, errors: v.errors };
       },
       onEvent: (event) => {
         if (event.type === "hedge_triggered") {
@@ -182,9 +255,9 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     let lintErrors = validation.lintErrors;
     let finalReceipt = validation.sanitized || hedgeResult.result.json;
 
-    // If Zod parse failed, mark as failed
+    // If Zod parse failed, fall back to deterministic receipt instead of failing
     if (!validation.sanitized && validation.errors.length > 0 && validation.lintErrors.length === 0) {
-      logApi("error", "Schema validation failed in async upgrade", {
+      logApi("error", "Schema validation failed in async upgrade — serving deterministic fallback", {
         endpoint: "/upgrade-receipt-background",
         anon_id: receipt_token,
         error_code: "schema_fail",
@@ -198,11 +271,8 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
         event_type: "schema_fail",
       }).then(() => {}, () => {});
 
-      await supabase.from("receipts")
-        .update({ generation_status: "failed" })
-        .eq("id", receipt_id);
-
-      console.log(`[Upgrade BG] Schema fail for ${receipt_id}, keeping lite receipt`);
+      await saveDeterministicFallback(supabase, receipt_id, receipt_token, input, rule_signals, rule_scoring, features);
+      console.log(`[Upgrade BG] Schema fail for ${receipt_id} — saved deterministic fallback`);
       return { statusCode: 200, body: JSON.stringify({ ok: true }) };
     }
 
@@ -458,21 +528,9 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
       page_path: "/.netlify/functions/upgrade-receipt-background",
       timestamp: new Date().toISOString(),
     }).then(() => {}, () => {});
-
-    supabase.from("user_events").insert({
-      event_name: "receipt_upgrade_failed",
-      event_data: {
-        receipt_id,
-        receipt_token,
-        error_code: isTimeoutOrAIError ? "upgrade_timeout" : "upgrade_fail",
-        rule_signal_count: rule_signals.length,
-        rule_verdict: rule_scoring.verdict,
-        rule_fit_score: rule_scoring.fit_score,
-      },
-      ip_address: client_ip,
-      page_path: "/.netlify/functions/upgrade-receipt-background",
-      timestamp: new Date().toISOString(),
-    }).then(() => {}, () => {});
+    // NOTE: receipt_upgrade_failed is NOT fired here — the deterministic fallback
+    // below will save a full receipt so the user never sees a failure. Only fire
+    // receipt_upgrade_failed if the fallback itself fails (handled below).
 
     // Detailed alert event for backend monitoring
     const errorCode = isTimeoutOrAIError ? "upgrade_timeout" : "upgrade_fail";
@@ -543,12 +601,36 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
       }
     }
 
-    // Mark as failed — lite receipt stays
-    await supabase.from("receipts")
-      .update({ generation_status: "failed" })
-      .eq("id", receipt_id);
+    // All AI providers failed and similarity search found no match — use deterministic fallback
+    // so the user always receives a complete receipt, never a failure banner
+    try {
+      await saveDeterministicFallback(supabase, receipt_id, receipt_token, input, rule_signals, rule_scoring, features);
+      console.log(`[Upgrade BG] All providers failed for ${receipt_id} — saved deterministic fallback`);
+    } catch (fallbackErr) {
+      // Deterministic fallback itself failed (very unlikely) — only NOW mark failed
+      // and fire receipt_upgrade_failed so the client shows the error banner
+      console.error("[Upgrade BG] Deterministic fallback failed:", fallbackErr instanceof Error ? fallbackErr.message : fallbackErr);
+      await supabase.from("receipts")
+        .update({ generation_status: "failed" })
+        .eq("id", receipt_id);
 
-    console.log(`[Upgrade BG] Failed for ${receipt_id}, keeping lite receipt`);
+      supabase.from("user_events").insert({
+        event_name: "receipt_upgrade_failed",
+        event_data: {
+          receipt_id,
+          receipt_token,
+          error_code: "fallback_failed",
+          rule_signal_count: rule_signals?.length ?? 0,
+          rule_verdict: rule_scoring?.verdict ?? null,
+          rule_fit_score: rule_scoring?.fit_score ?? null,
+        },
+        ip_address: client_ip,
+        page_path: "/.netlify/functions/upgrade-receipt-background",
+        timestamp: new Date().toISOString(),
+      }).then(() => {}, () => {});
+
+      console.log(`[Upgrade BG] Fallback also failed for ${receipt_id}, marking failed`);
+    }
     return { statusCode: 200, body: JSON.stringify({ ok: true }) };
   }
 };

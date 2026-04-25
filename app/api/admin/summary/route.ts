@@ -192,13 +192,16 @@ export async function GET(request: NextRequest) {
     // Parallel queries
     // -----------------------------------------------------------------------
 
-    // 1. Receipts — explicit limit avoids Supabase's default 1000-row silent cap
+    // 1. Receipts — explicit limit avoids Supabase's default 1000-row silent cap.
+    // IMPORTANT: use .or() to include NULL user_id rows (anonymous receipts).
+    // .not("user_id", "in", [...]) silently excludes NULL rows in SQL because
+    // NULL NOT IN (...) evaluates to NULL, not TRUE — so all anon receipts vanish.
     const receiptsPromise = supabase
       .from("receipts")
       .select("id, created_at, output_json, url_domain")
       .gte("created_at", window.start)
       .lt("created_at", window.end)
-      .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`)
+      .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`)
       .limit(5000);
 
     // 2. Receipt events — explicit limit to avoid Supabase 1000-row default cap
@@ -219,7 +222,7 @@ export async function GET(request: NextRequest) {
       )
       .gte("created_at", window.start)
       .lt("created_at", window.end)
-      .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`);
+      .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
     // 4. User events (exclude internal team via is_internal column)
     // IMPORTANT: must set explicit limit — Supabase default cap is 1000 rows, which silently
@@ -272,19 +275,19 @@ export async function GET(request: NextRequest) {
       .select("status, amount, currency, price_variant, scenario_type, created_at")
       .gte("created_at", window.start)
       .lt("created_at", window.end)
-      .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`);
+      .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
     // 10. Garage vehicles — all-time count per user (authenticated users only)
     const garageUsersPromise = supabase
       .from("garage_vehicles")
       .select("user_id")
-      .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`);
+      .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
     // 11. Saved scenarios — all-time count per user (authenticated users only)
     const savedScenariosUsersPromise = supabase
       .from("saved_scenarios")
       .select("user_id")
-      .not("user_id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`);
+      .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
     // 12. Extraction attempts — URL vs text success/failure breakdown
     const extractionAttemptsPromise = supabase

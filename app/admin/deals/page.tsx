@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { RefreshCw, ArrowUpDown, ExternalLink, Upload, Download } from "lucide-react";
+import { RefreshCw, ArrowUpDown, ExternalLink, Upload, Download, Link2 } from "lucide-react";
+import Link from "next/link";
 
 interface DealRow {
   id: string;
@@ -220,6 +221,13 @@ export default function AdminDealsPage() {
               onChange={(e) => setFilter(e.target.value)}
               className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 w-56 focus:outline-none focus:border-[#00d97e]/40"
             />
+            <Link
+              href="/admin/deals-import-urls"
+              className="flex items-center gap-1.5 text-xs text-[#00d97e] hover:text-[#00c270] border border-[#00d97e]/30 hover:border-[#00d97e]/50 rounded-lg px-3 py-2 transition-colors font-medium"
+            >
+              <Link2 className="w-3.5 h-3.5" />
+              Import from URLs
+            </Link>
             <button onClick={handleActivateAll}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-emerald-400 border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
               Activate All
