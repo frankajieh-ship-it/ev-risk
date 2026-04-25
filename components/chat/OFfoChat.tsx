@@ -404,6 +404,7 @@ export default function OFfoChat({
             </div>
           )}
           <button
+            data-offo-chat-trigger
             onClick={() => {
               setIsOpen(true);
               setTooltipShown(false);
