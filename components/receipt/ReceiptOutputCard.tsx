@@ -459,28 +459,6 @@ export default function ReceiptOutputCard({
       )}
 
 
-      {/* What would change the verdict */}
-      {receipt.operator_notes?.what_would_change_verdict &&
-        receipt.operator_notes.what_would_change_verdict.length > 0 && (
-          <div className="px-5 py-3 bg-[#161b22] border-b border-white/[0.08]">
-            <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-1.5">
-              This becomes a different verdict if:
-            </p>
-            <ul className="space-y-1">
-              {receipt.operator_notes.what_would_change_verdict.map(
-                (item: string, i: number) => (
-                  <li
-                    key={i}
-                    className="text-sm text-white/70 flex items-start gap-2"
-                  >
-                    <span className="text-white/40 mt-0.5">→</span>
-                    <span>{item}</span>
-                  </li>
-                )
-              )}
-            </ul>
-          </div>
-        )}
 
       <div className="p-5 space-y-5">
         {/* Price Sanity — hidden when UNKNOWN (deep market comparison still processing) */}
