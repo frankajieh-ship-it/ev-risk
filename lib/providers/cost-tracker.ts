@@ -13,9 +13,10 @@ interface CostRate {
 }
 
 const COST_RATES: Record<ProviderName, CostRate> = {
-  openai: { input: 0.15 / 1_000_000, output: 0.60 / 1_000_000 },  // gpt-4o-mini
-  gemini: { input: 0.075 / 1_000_000, output: 0.30 / 1_000_000 }, // gemini-2.0-flash
-  grok:   { input: 0.30 / 1_000_000, output: 0.50 / 1_000_000 },  // grok-3-mini
+  openai:    { input: 0.15 / 1_000_000,  output: 0.60 / 1_000_000 },  // gpt-4o-mini
+  gemini:    { input: 0.075 / 1_000_000, output: 0.30 / 1_000_000 },  // gemini-2.0-flash
+  grok:      { input: 0.30 / 1_000_000,  output: 0.50 / 1_000_000 },  // grok-3-mini
+  anthropic: { input: 0.25 / 1_000_000,  output: 1.25 / 1_000_000 },  // claude-haiku-4-5
 };
 
 export function estimateCost(result: GenerateResult): number {
