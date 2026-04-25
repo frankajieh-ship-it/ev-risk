@@ -1388,6 +1388,21 @@ export default function ReceiptPage() {
               />
               </div>
 
+              {/* Email capture — immediately after verdict, before any other content */}
+              {!hasEmailed && (
+                <div id="email-capture-card">
+                  <EmailCaptureCard
+                    receiptId={receipt.receipt_id}
+                    onSubmit={() => {
+                      setHasEmailed(true);
+                      trackEvent("email_checklist_submit", {
+                        receipt_id: receipt.receipt_id,
+                      });
+                    }}
+                  />
+                </div>
+              )}
+
               {/* ── Matching Deals Strip ─────────────────────────────── */}
               {matchingDeals.length > 0 && (
                 <div className="rounded-xl border border-white/[0.08] bg-[#161b22] p-4">
@@ -1490,19 +1505,6 @@ export default function ReceiptPage() {
 
               {/* Extension nudge — shown after receipt loads */}
               <ExtensionNudge context="receipt" />
-
-              {/* Email capture — high visibility, before paywall cards */}
-              <div id="email-capture-card">
-                <EmailCaptureCard
-                  receiptId={receipt.receipt_id}
-                  onSubmit={() => {
-                    setHasEmailed(true);
-                    trackEvent("email_checklist_submit", {
-                      receipt_id: receipt.receipt_id,
-                    });
-                  }}
-                />
-              </div>
 
               {/* Workspace save nudge — shown to unauthenticated users after receipt loads */}
               {!isAuthenticated && (
