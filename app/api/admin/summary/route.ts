@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
     // -----------------------------------------------------------------------
     // Internal team exclusion lists
     // -----------------------------------------------------------------------
-    const INTERNAL_VISITOR_IDS_FILTER = ["fp-uwi6gg", "fp-24bewu", "fp-airyss"];
+    const INTERNAL_VISITOR_IDS_FILTER = ["fp-uwi6gg", "fp-24bewu", "fp-airyss", "fp-vy4i"];
     const INTERNAL_USER_IDS_FILTER = [
       "a9e65037-00b3-443b-afba-5631e42b0505",
       "71ccca48-add0-4a47-b7b4-14985c923a78",
@@ -198,10 +198,11 @@ export async function GET(request: NextRequest) {
     // NULL NOT IN (...) evaluates to NULL, not TRUE — so all anon receipts vanish.
     const receiptsPromise = supabase
       .from("receipts")
-      .select("id, created_at, output_json, url_domain")
+      .select("id, created_at, output_json, url_domain, generation_status")
       .gte("created_at", window.start)
       .lt("created_at", window.end)
       .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`)
+      .in("generation_status", ["lite", "full"])
       .limit(5000);
 
     // 2. Receipt events — explicit limit to avoid Supabase 1000-row default cap
@@ -1642,7 +1643,7 @@ export async function GET(request: NextRequest) {
         timestamp: e.created_at,
       })),
     ]
-      .filter((e) => !["fp-uwi6gg", "fp-24bewu"].includes(e.visitor_id || ""))
+      .filter((e) => !["fp-uwi6gg", "fp-24bewu", "fp-vy4i"].includes(e.visitor_id || ""))
       .sort(
         (a, b) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
