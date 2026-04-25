@@ -128,26 +128,32 @@ function extractFieldsWithRegex(text: string): Partial<FetchedListingFields> | n
   return fields;
 }
 
+const ALL_FIELD_KEYS = ["year", "make", "model", "trim", "mileage", "price", "vin", "location", "range_mi", "battery_kwh", "dc_fast_kw", "efficiency_mi_per_kwh"];
+
+function buildResult(fields: Partial<FetchedListingFields>): TextExtractionResult {
+  const extractedFields = ALL_FIELD_KEYS.filter((k) => fields[k as keyof typeof fields] !== undefined);
+  const missingFields = ALL_FIELD_KEYS.filter((k) => fields[k as keyof typeof fields] === undefined);
+  const confidence: TextExtractionResult["confidence"] = extractedFields.length >= 4 ? "high" : extractedFields.length >= 2 ? "medium" : "low";
+  return { fields: fields as FetchedListingFields, extractedFields, missingFields, confidence };
+}
+
 export async function extractFieldsFromText(
   text: string
 ): Promise<TextExtractionResult> {
   // --- Fast path: regex extractor (no AI cost, handles structured paste) ---
   const regexResult = extractFieldsWithRegex(text);
   if (regexResult) {
-    const allKeys = ["year", "make", "model", "trim", "mileage", "price", "vin", "location", "range_mi", "battery_kwh", "dc_fast_kw", "efficiency_mi_per_kwh"];
-    const extractedFields = allKeys.filter((k) => regexResult[k as keyof typeof regexResult] !== undefined);
-    const missingFields = allKeys.filter((k) => regexResult[k as keyof typeof regexResult] === undefined);
-    const confidence: TextExtractionResult["confidence"] = extractedFields.length >= 4 ? "high" : extractedFields.length >= 2 ? "medium" : "low";
-    return { fields: regexResult as FetchedListingFields, extractedFields, missingFields, confidence };
+    return buildResult(regexResult);
   }
 
   // --- Slow path: GPT-4o-mini for unstructured / ambiguous text ---
-  const response = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content: `Extract vehicle listing details from the provided text.
+  try {
+    const response = await getOpenAI().chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `Extract vehicle listing details from the provided text.
 Return ONLY a JSON object with these fields (use null for anything not found):
 { "year": number|null, "make": string|null, "model": string|null, "trim": string|null,
   "mileage": number|null, "price": number|null, "vin": string|null, "location": string|null,
@@ -155,50 +161,29 @@ Return ONLY a JSON object with these fields (use null for anything not found):
 Parse numbers correctly: "$32,500" → 32500, "45k miles" → 45000.
 For VIN, only return if you find a valid 17-character alphanumeric string.
 For EV specs: range_mi = EPA or stated range in miles; battery_kwh = usable battery capacity in kWh; dc_fast_kw = peak DC fast charging speed in kW; efficiency_mi_per_kwh = miles per kWh efficiency.`,
-      },
-      { role: "user", content: text.substring(0, 8000) },
-    ],
-    temperature: 0.1,
-    max_tokens: 500,
-    response_format: { type: "json_object" },
-  });
+        },
+        { role: "user", content: text.substring(0, 8000) },
+      ],
+      temperature: 0.1,
+      max_tokens: 500,
+      response_format: { type: "json_object" },
+    });
 
-  const content = response.choices[0]?.message?.content || "{}";
-  const parsed = JSON.parse(content);
+    const content = response.choices[0]?.message?.content || "{}";
+    const parsed = JSON.parse(content);
 
-  const fields: FetchedListingFields = {};
-  const extractedFields: string[] = [];
-  const missingFields: string[] = [];
-  const allKeys = [
-    "year",
-    "make",
-    "model",
-    "trim",
-    "mileage",
-    "price",
-    "vin",
-    "location",
-    "range_mi",
-    "battery_kwh",
-    "dc_fast_kw",
-    "efficiency_mi_per_kwh",
-  ];
-
-  for (const key of allKeys) {
-    if (parsed[key] !== null && parsed[key] !== undefined) {
-      (fields as Record<string, unknown>)[key] = parsed[key];
-      extractedFields.push(key);
-    } else {
-      missingFields.push(key);
+    const fields: FetchedListingFields = {};
+    for (const key of ALL_FIELD_KEYS) {
+      if (parsed[key] !== null && parsed[key] !== undefined) {
+        (fields as Record<string, unknown>)[key] = parsed[key];
+      }
     }
+
+    return buildResult(fields);
+  } catch (err) {
+    // GPT unavailable (bad key, quota, network) — return whatever regex found,
+    // even partial, so the user gets pre-filled fields rather than a hard failure.
+    console.warn("[text-extractor] GPT fallback failed, returning empty result:", err instanceof Error ? err.message : err);
+    return buildResult({});
   }
-
-  const confidence =
-    extractedFields.length >= 4
-      ? "high"
-      : extractedFields.length >= 2
-        ? "medium"
-        : "low";
-
-  return { fields, extractedFields, missingFields, confidence };
 }
