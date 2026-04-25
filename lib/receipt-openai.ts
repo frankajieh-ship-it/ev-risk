@@ -127,7 +127,21 @@ export const RECEIPT_JSON_SCHEMA = {
         financing_vs_cash: { type: "string", enum: ["financing", "cash", "unknown"] },
       },
     },
-    compare: { anyOf: [{ type: "object" }, { type: "null" }] },
+    compare: {
+      anyOf: [
+        {
+          type: "object",
+          additionalProperties: false,
+          required: ["avg_price", "delta", "sample_size"],
+          properties: {
+            avg_price: { anyOf: [{ type: "number" }, { type: "null" }] },
+            delta: { anyOf: [{ type: "number" }, { type: "null" }] },
+            sample_size: { anyOf: [{ type: "number" }, { type: "null" }] },
+          },
+        },
+        { type: "null" },
+      ],
+    },
     operator_notes: {
       type: "object",
       additionalProperties: false,

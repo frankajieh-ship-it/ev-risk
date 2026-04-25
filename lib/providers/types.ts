@@ -5,7 +5,7 @@
  * Each provider (OpenAI, Gemini, Grok) implements ProviderAdapter.
  */
 
-export type ProviderName = "openai" | "gemini" | "grok";
+export type ProviderName = "openai" | "gemini" | "grok" | "anthropic";
 
 export interface GenerateOpts {
   systemPrompt: string;

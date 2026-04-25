@@ -52,6 +52,7 @@ const PdfDownloadButton = dynamic(() => import("@/components/receipt/PdfDownload
 const CompareBadge = dynamic(() => import("@/components/receipt/CompareBadge"), { ssr: false });
 const ExtensionNudge = dynamic(() => import("@/components/ExtensionNudge"), { ssr: false });
 const DealCard = dynamic(() => import("@/components/deals/DealCard").then(m => ({ default: m.default })), { ssr: false });
+const TutorialModal = dynamic(() => import("@/components/TutorialModal"), { ssr: false });
 import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import { useReceiptHistory } from "@/hooks/useReceiptHistory";
 import { useRegion } from "@/hooks/useRegion";
@@ -1641,6 +1642,9 @@ export default function ReceiptPage() {
 
       {/* Exit-intent feedback modal — triggers when user leaves with a receipt but no feedback */}
       <ExitFeedbackModal hasReceipt={!!receipt} receiptId={receipt?.receipt_id} />
+
+      {/* Tutorial modal — floating "?" button shown only before first receipt */}
+      {!receipt && <TutorialModal />}
 
       {/* OFFO Chat — collapsible AI assistant, appears 8s after result */}
       {receipt && receiptToken && (

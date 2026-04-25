@@ -19,6 +19,7 @@
 import { openaiAdapter } from "./openai-adapter";
 import { geminiAdapter } from "./gemini-adapter";
 import { grokAdapter } from "./grok-adapter";
+import { anthropicAdapter } from "./anthropic-adapter";
 import { getProviderOrder, recordSuccess, recordFailure } from "./circuit-breaker";
 import type {
   ProviderAdapter,
@@ -33,6 +34,7 @@ const ALL_ADAPTERS: Record<string, ProviderAdapter> = {
   openai: openaiAdapter,
   gemini: geminiAdapter,
   grok: grokAdapter,
+  anthropic: anthropicAdapter,
 };
 
 export interface HedgeOpts {
@@ -51,6 +53,8 @@ export interface HedgeOpts {
   onEvent?: (event: HedgeEvent) => void;
   /** Optional image URLs for vision analysis (max 3). Passed to all providers. */
   imageUrls?: string[];
+  /** Per-provider call timeout in ms — defaults to 18000 */
+  timeoutMs?: number;
 }
 
 export interface HedgeEvent {
@@ -86,7 +90,7 @@ export async function hedgedGenerate(opts: HedgeOpts): Promise<HedgeResult> {
     schemaName: opts.schemaName,
     temperature,
     maxTokens,
-    timeoutMs: 18_000,
+    timeoutMs: opts.timeoutMs ?? 18_000,
     imageUrls: opts.imageUrls,
   };
 

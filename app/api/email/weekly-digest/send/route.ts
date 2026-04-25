@@ -50,20 +50,28 @@ export async function POST(request: NextRequest) {
         dealWatchMatches: recipient.dealWatchMatches,
         receiptsThisWeek: recipient.receiptsThisWeek,
         marketSnapshot,
+        lastVehicle: recipient.lastVehicle,
+        lastVerdict: recipient.lastVerdict,
       });
+
+      const idempotencyKey = recipient.userId
+        ? `digest:${recipient.userId}:week:${weekKey}`
+        : `digest:anon:${recipient.email}:week:${weekKey}`;
 
       const r = await safeSend({
         email: recipient.email,
         userId: recipient.userId,
+        anonId: recipient.anonId,
         sequenceType: "weekly_digest",
         sequenceStep: "digest_weekly",
         subject,
         html,
-        idempotencyKey: `digest:${recipient.userId}:week:${weekKey}`,
+        idempotencyKey,
         metadata: {
           week_key: weekKey,
           deal_watch_matches: recipient.dealWatchMatches,
           receipts_this_week: recipient.receiptsThisWeek,
+          last_vehicle: recipient.lastVehicle,
         },
       });
 

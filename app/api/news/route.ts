@@ -47,16 +47,15 @@ export async function GET(req: NextRequest) {
       "id, title, url, source, published_at, impact_score, category, key_routine_effects, ai_summary, post_worthy, scored_at"
     )
     .gte("scored_at", since)
-    .order("impact_score", { ascending: false })
-    .limit(limit);
+    .order("impact_score", { ascending: false });
 
   if (category !== "all") {
-    // Specific category — use that category's minimum threshold
+    // Specific category — filter + use that category's minimum threshold, then limit
     const minScore = category === "recall" ? 50 : 60;
-    query = query.eq("category", category).gte("impact_score", minScore);
+    query = query.eq("category", category).gte("impact_score", minScore).limit(limit);
   } else {
-    // All categories — use 60 as the floor (recalls at 50-59 are included per-category only)
-    query = query.gte("impact_score", 60);
+    // All categories — use 60 as the floor, then limit
+    query = query.gte("impact_score", 60).limit(limit);
   }
 
   const { data, error } = await query;
@@ -75,6 +74,9 @@ export async function GET(req: NextRequest) {
     {
       headers: {
         "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30",
+        "Vary": "Accept, Accept-Encoding",
+        "CDN-Cache-Control": "public, s-maxage=60",
+        "Netlify-Vary": "query=category|hours|limit",
       },
     }
   );

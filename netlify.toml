@@ -22,6 +22,10 @@
 [functions.upgrade-receipt-background]
   timeout = 900
 
+# Background function: bulk rescore all curated_deals with AI (runs up to 15 minutes)
+[functions.rescore-all-deals]
+  timeout = 900
+
 # Scheduled function: daily email nudge sender (runs at 10:00 UTC)
 [functions.send-nudge-emails]
   timeout = 30

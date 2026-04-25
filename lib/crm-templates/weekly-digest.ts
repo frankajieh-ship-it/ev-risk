@@ -5,20 +5,22 @@
  * Market snapshot is computed once per run (not per-user).
  */
 
-import { SITE_URL, ctaButton } from "./shared";
+import { SITE_URL, ctaButton, verdictBadge } from "./shared";
 import { emailFooter, emailWrapper } from "@/lib/crm-email";
 import type { MarketSnapshot } from "@/lib/crm-queries";
 
 export interface WeeklyDigestContext {
   email: string;
-  userId: string;
+  userId?: string;
   dealWatchMatches: number;
   receiptsThisWeek: number;
   marketSnapshot: MarketSnapshot;
+  lastVehicle?: string;
+  lastVerdict?: string;
 }
 
 export function buildWeeklyDigest(ctx: WeeklyDigestContext): { subject: string; html: string } {
-  const { email, dealWatchMatches, receiptsThisWeek, marketSnapshot } = ctx;
+  const { email, dealWatchMatches, receiptsThisWeek, marketSnapshot, lastVehicle, lastVerdict } = ctx;
 
   const dealWatchSection = dealWatchMatches > 0
     ? `<div style="background:#f0fdf4;border-radius:10px;padding:16px 18px;margin-bottom:12px;border:1px solid #bbf7d0;">
@@ -40,6 +42,17 @@ export function buildWeeklyDigest(ctx: WeeklyDigestContext): { subject: string; 
           You ran <strong>${receiptsThisWeek} receipt${receiptsThisWeek !== 1 ? "s" : ""}</strong> this week.
           <a href="${SITE_URL}/workspace" style="color:#1e40af;margin-left:4px;">View history →</a>
         </p>
+      </div>`
+    : "";
+
+  const lastReceiptSection = lastVehicle
+    ? `<div style="background:white;border-radius:10px;padding:16px 18px;margin-bottom:12px;border:1px solid #e5e7eb;">
+        <p style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 10px;">Your last receipt</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+          <span style="font-size:14px;color:#111827;font-weight:600;">${lastVehicle}</span>
+          ${lastVerdict ? verdictBadge(lastVerdict as "GREEN" | "YELLOW" | "RED") : ""}
+        </div>
+        ${ctaButton("View in workspace →", `${SITE_URL}/workspace`, "#111827")}
       </div>`
     : "";
 
@@ -77,6 +90,7 @@ export function buildWeeklyDigest(ctx: WeeklyDigestContext): { subject: string; 
     </div>
     ${dealWatchSection}
     ${receiptsSection}
+    ${lastReceiptSection}
     ${marketSection}
     <div style="text-align:center;margin-top:20px;margin-bottom:24px;">
       ${ctaButton("Check a new listing →", `${SITE_URL}/receipt`)}

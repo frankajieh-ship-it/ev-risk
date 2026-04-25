@@ -2,11 +2,12 @@
  * POST /api/admin/deals-import-urls
  *
  * Accepts a JSON array of CarGurus (or any supported marketplace) listing URLs,
- * scrapes each one, runs deterministic OFFO scoring (scoreReceiptV2), and
- * upserts the result into curated_deals.
+ * scrapes each one, runs the full OFFO AI scoring pipeline (same as /api/receipt),
+ * and upserts the result into curated_deals.
  *
- * No AI required — fully deterministic. Runs in a single Next.js API route
- * (max 60s); batch size should stay at or below 20 URLs per call.
+ * Uses hedgedGenerate + SYSTEM_PROMPT + buildUserPrompt so verdicts and risk_flags
+ * match exactly what a user would get running the same listing through /receipt.
+ * Falls back to deterministic scoreReceiptV2 if AI fails.
  *
  * Request body:
  *   { urls: string[], tag?: string }
@@ -22,65 +23,12 @@ import { getSupabaseAdmin } from "@/lib/api-auth";
 import { extractVehicleData } from "@/lib/listing-scraper";
 import { scoreReceiptV2 } from "@/lib/receipt-scoring-v2";
 import { computeDealQualityScore } from "@/lib/deal-quality-score";
+import { scoreWithAi, inferSignalsFromListing } from "@/lib/deals-score";
 
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
-const MAX_URLS_PER_CALL = 20;
+// AI scoring takes ~5-10s per listing; keep batches small to stay within 60s Next.js limit
+const MAX_URLS_PER_CALL = 5;
 
-// --- Signal inference from scraped listing data ---
-// We don't have AI to extract signals, so we infer the most reliable ones
-// from what the scraper actually returns (VIN present, title status, etc.)
-
-function inferSignalsFromListing(data: {
-  vin?: string;
-  title_status?: "clean" | "salvage" | "rebuilt" | "unknown";
-  accidents_reported?: "yes" | "no" | "unknown";
-  mileage?: number;
-  price?: number;
-  battery_kwh?: number;
-  dc_fast_kw?: number;
-  range_mi?: number;
-}): string[] {
-  const signals: string[] = [];
-
-  // VIN presence → strong evidence signal
-  if (data.vin) {
-    signals.push("vin_decoded");
-  } else {
-    signals.push("vin_missing");
-  }
-
-  // Title status
-  if (data.title_status === "clean") {
-    signals.push("clean_title_explicit");
-  } else if (data.title_status === "salvage" || data.title_status === "rebuilt") {
-    signals.push("title_salvage");
-  } else {
-    signals.push("title_status_unclear");
-  }
-
-  // Accident history
-  if (data.accidents_reported === "yes") {
-    signals.push("prior_damage_minor");
-  }
-
-  // Missing battery proof — no battery report shown in listing
-  signals.push("battery_proof_missing");
-
-  // Missing service records — can't confirm from listing alone
-  signals.push("service_records_missing");
-
-  // DC fast charge confirmed if scraped
-  if (data.dc_fast_kw && data.dc_fast_kw > 0) {
-    signals.push("dcfc_confirmed");
-  }
-
-  // High mileage penalty (>80k for EV is meaningful)
-  if (data.mileage && data.mileage > 80000) {
-    signals.push("ownership_turnover_high");
-  }
-
-  return signals;
-}
 
 async function fetchPhotoUrl(
   make: string,
@@ -114,6 +62,7 @@ export interface ImportUrlResult {
   deal_quality_score?: number;
   error?: string;
   extraction_confidence?: string;
+  scoring_source?: "ai" | "deterministic";
 }
 
 export async function POST(request: NextRequest) {
@@ -200,11 +149,13 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    // Infer signals from extracted data
-    const signals = inferSignalsFromListing(d);
+    // Run AI scoring (same pipeline as /api/receipt); falls back to deterministic on failure
+    const aiResult = await scoreWithAi(url, d);
 
-    // Run deterministic V2 scoring
-    const scoring = scoreReceiptV2(signals);
+    // Run deterministic V2 scorer on AI-extracted signals (same as receipt-upgrade.ts)
+    const scoring = scoreReceiptV2(
+      aiResult.signals.length > 0 ? aiResult.signals : inferSignalsFromListing(d)
+    );
 
     // Build vehicle label
     const vehicleLabel = [d.year, d.make, d.model, d.trim]
@@ -226,12 +177,14 @@ export async function POST(request: NextRequest) {
       scoring.fit_score,
     );
 
-    // Top 3 risk flags from scoring reasons (negative points = risk)
-    const riskFlags = scoring.scoring_reasons
-      .filter((r) => r.points <= 0)
-      .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
-      .slice(0, 3)
-      .map((r) => r.label);
+    // Risk flags: use AI-authored strings if available; otherwise top 3 scoring reason labels
+    const riskFlags = aiResult.riskFlags.length > 0
+      ? aiResult.riskFlags
+      : scoring.scoring_reasons
+          .filter((r) => r.points <= 0)
+          .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
+          .slice(0, 3)
+          .map((r) => r.label);
 
     // Auto-fetch photo
     let photoUrl: string | null = null;
@@ -286,6 +239,7 @@ export async function POST(request: NextRequest) {
         risk_points: scoring.risk_points,
         deal_quality_score: dealQualityScore,
         extraction_confidence: d.confidence,
+        scoring_source: aiResult.source,
       });
       imported++;
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { RefreshCw, ArrowUpDown, ExternalLink, Upload, Download, Link2 } from "lucide-react";
+import { RefreshCw, ArrowUpDown, ExternalLink, Upload, Download, Link2, Cpu } from "lucide-react";
 import Link from "next/link";
 
 interface DealRow {
@@ -46,6 +46,8 @@ export default function AdminDealsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [adminKey, setAdminKey] = useState("");
   const authHeader = adminKey ? `Bearer ${adminKey}` : "";
+  const [rescoring, setRescoring] = useState(false);
+  const rescoringPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchDeals = useCallback(async () => {
     setLoading(true);
@@ -105,6 +107,43 @@ export default function AdminDealsPage() {
       }
     } catch {
       setImportStatus("✗ Backfill failed");
+    }
+  };
+
+  const handleRescoreAll = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    if (!confirm(`Re-score all ${deals.length} deals with AI? This runs in the background and activates all rows. May take several minutes.`)) return;
+    setRescoring(true);
+    setImportStatus("⏳ Rescore job started — table refreshes every 15s...");
+    try {
+      const res = await fetch("/api/admin/deals-rescore-all", {
+        method: "POST",
+        headers: { Authorization: authHeader },
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setImportStatus(`✗ ${data.error}`);
+        setRescoring(false);
+        return;
+      }
+      // If dev mode returned inline results, show them immediately
+      if (data.rescored !== undefined) {
+        setImportStatus(`✓ Rescored ${data.rescored} deals (${data.failed ?? 0} failed)`);
+        setRescoring(false);
+        fetchDeals();
+        return;
+      }
+      // Prod: poll every 15s for up to 10 minutes
+      rescoringPollRef.current = setInterval(fetchDeals, 15000);
+      setTimeout(() => {
+        if (rescoringPollRef.current) clearInterval(rescoringPollRef.current);
+        setRescoring(false);
+        setImportStatus("✓ Rescore job finished (check Netlify logs for details)");
+        fetchDeals();
+      }, 10 * 60 * 1000);
+    } catch {
+      setImportStatus("✗ Failed to start rescore job");
+      setRescoring(false);
     }
   };
 
@@ -228,6 +267,14 @@ export default function AdminDealsPage() {
               <Link2 className="w-3.5 h-3.5" />
               Import from URLs
             </Link>
+            <button
+              onClick={handleRescoreAll}
+              disabled={rescoring}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${rescoring ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}
+            >
+              <Cpu className={`w-3.5 h-3.5 ${rescoring ? "animate-pulse" : ""}`} />
+              {rescoring ? "Rescoring..." : "Rescore All (AI)"}
+            </button>
             <button onClick={handleActivateAll}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-emerald-400 border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
               Activate All

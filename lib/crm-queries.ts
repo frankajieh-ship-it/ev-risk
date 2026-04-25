@@ -31,10 +31,13 @@ export interface WinBackCandidate {
 }
 
 export interface DigestRecipient {
-  userId: string;
+  userId?: string;
+  anonId?: string;
   email: string;
   dealWatchMatches: number;
   receiptsThisWeek: number;
+  lastVehicle?: string;
+  lastVerdict?: string;
 }
 
 export interface MarketSnapshot {
@@ -274,22 +277,22 @@ export async function getDigestRecipients(
   const supabase = getSupabaseAdmin();
   if (!supabase) return [];
 
-  // Auth users with deal watches or saved scenarios
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - 7);
+
+  const recipients: DigestRecipient[] = [];
+  const seenEmails = new Set<string>();
+
+  // ── Pool A: Auth users with deal watches or saved scenarios ────────────────
+
   const { data: users } = await supabase
     .from("user_profiles")
     .select("id, email")
     .not("email", "is", null)
     .range(offset, offset + limit - 1);
 
-  if (!users?.length) return [];
-
-  const now = new Date();
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - 7);
-
-  const recipients: DigestRecipient[] = [];
-
-  for (const user of users) {
+  for (const user of users ?? []) {
     // Must have deal watches or saved scenarios
     const { count: dealWatchCount } = await supabase
       .from("deal_watch_searches")
@@ -333,12 +336,131 @@ export async function getDigestRecipients(
       .eq("user_id", user.id)
       .gte("created_at", weekStart.toISOString());
 
+    // Last receipt (vehicle + verdict)
+    const { data: lastReceipt } = await supabase
+      .from("receipts")
+      .select("output_json")
+      .eq("user_id", user.id)
+      .in("generation_status", ["lite", "full"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let lastVehicle: string | undefined;
+    let lastVerdict: string | undefined;
+    if (lastReceipt?.output_json) {
+      const out = lastReceipt.output_json as Record<string, unknown>;
+      const summary = out.listing_summary as Record<string, unknown> | undefined;
+      const label = vehicleLabel(
+        summary?.year as number | null,
+        summary?.make as string | null,
+        summary?.model as string | null
+      );
+      if (label !== "your vehicle") lastVehicle = label;
+      lastVerdict = out.verdict as string | undefined;
+    }
+
+    seenEmails.add(user.email);
     recipients.push({
       userId: user.id,
       email: user.email,
       dealWatchMatches: matchCount ?? 0,
       receiptsThisWeek: receiptsThisWeek ?? 0,
+      lastVehicle,
+      lastVerdict,
     });
+  }
+
+  // ── Pool B: Anon users who captured email via receipt checklist ────────────
+  // Fill remaining slots up to `limit` from checklist_email_captures.
+
+  const remaining = limit - recipients.length;
+  if (remaining > 0) {
+    const { data: captures } = await supabase
+      .from("checklist_email_captures")
+      .select("email, anon_id")
+      .not("email", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(remaining * 3); // over-fetch to account for suppression + already-sent
+
+    for (const cap of captures ?? []) {
+      if (recipients.length >= limit) break;
+      if (!cap.email || seenEmails.has(cap.email)) continue;
+
+      // Check suppression
+      const { data: pref } = await supabase
+        .from("crm_email_preferences")
+        .select("all_marketing, weekly_digest, bounced")
+        .eq("email", cap.email)
+        .maybeSingle();
+      if (pref && (!pref.all_marketing || !pref.weekly_digest || pref.bounced)) continue;
+
+      // Check not already sent this week
+      const idemKey = `digest:anon:${cap.email}:week:${weekKey}`;
+      const { count: alreadySent } = await supabase
+        .from("crm_email_sends")
+        .select("id", { count: "exact", head: true })
+        .eq("idempotency_key", idemKey);
+      if ((alreadySent ?? 0) > 0) continue;
+
+      // Last receipt via user_events → receipt_id lookup
+      let lastVehicle: string | undefined;
+      let lastVerdict: string | undefined;
+      let receiptsThisWeek = 0;
+
+      if (cap.anon_id) {
+        // Most recent receipt_generated event for this anon
+        const { data: latestEvent } = await supabase
+          .from("user_events")
+          .select("event_data")
+          .eq("event_name", "receipt_generated")
+          .filter("event_data->>anon_id", "eq", cap.anon_id)
+          .order("timestamp", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const receiptId = (latestEvent?.event_data as Record<string, unknown> | null)?.receipt_id as string | undefined;
+        if (receiptId) {
+          const { data: receipt } = await supabase
+            .from("receipts")
+            .select("output_json")
+            .eq("id", receiptId)
+            .in("generation_status", ["lite", "full"])
+            .maybeSingle();
+
+          if (receipt?.output_json) {
+            const out = receipt.output_json as Record<string, unknown>;
+            const summary = out.listing_summary as Record<string, unknown> | undefined;
+            const label = vehicleLabel(
+              summary?.year as number | null,
+              summary?.make as string | null,
+              summary?.model as string | null
+            );
+            if (label !== "your vehicle") lastVehicle = label;
+            lastVerdict = out.verdict as string | undefined;
+          }
+        }
+
+        // Count receipt_generated events this week for this anon
+        const { count: weekCount } = await supabase
+          .from("user_events")
+          .select("id", { count: "exact", head: true })
+          .eq("event_name", "receipt_generated")
+          .filter("event_data->>anon_id", "eq", cap.anon_id)
+          .gte("timestamp", weekStart.toISOString());
+        receiptsThisWeek = weekCount ?? 0;
+      }
+
+      seenEmails.add(cap.email);
+      recipients.push({
+        anonId: cap.anon_id ?? undefined,
+        email: cap.email,
+        dealWatchMatches: 0,
+        receiptsThisWeek,
+        lastVehicle,
+        lastVerdict,
+      });
+    }
   }
 
   return recipients;
