@@ -466,7 +466,7 @@ export default function Home() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full border border-white/10 bg-white/5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e] animate-pulse" />
-            <span className="text-xs font-medium text-white/70 tracking-wide">AI-powered EV decision intelligence</span>
+            <span className="text-xs font-medium text-white/70 tracking-wide">Free · No sign-up · Results in 30 seconds</span>
           </div>
 
           {/* Headline */}
@@ -476,7 +476,7 @@ export default function Home() {
           </h1>
 
           <p className="text-base md:text-lg text-white/50 mb-10 max-w-xl mx-auto" style={{ lineHeight: "1.6" }}>
-            OFFO analyzes used EV listings for hidden risks, verifies negotiation opportunities, and tells you if the car actually fits your life — in under 30 seconds.
+            Paste a used EV listing. Get an instant risk verdict, hidden battery flags, and a charging fit score for your real life.
           </p>
 
           {/* Input row */}
@@ -539,7 +539,7 @@ export default function Home() {
       {/* ── Section 2: Trust Bar ─────────────────────────────────────── */}
       <div className="bg-[#0d1117] border-t border-white/[0.06] py-3">
         <p className="text-center text-xs text-white/40 tracking-wide">
-          Used by serious EV shoppers · Powered by Auto.dev + NHTSA data · No sales pitch. Just honest analysis.
+          Seen on r/electriccars · r/whatcarshouldIbuy · Powered by Auto.dev + NHTSA data · No sales pitch
         </p>
       </div>
 

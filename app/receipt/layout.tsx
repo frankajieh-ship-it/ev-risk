@@ -3,16 +3,16 @@ import type { Metadata } from "next";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
 
 export const metadata: Metadata = {
-  title: "Deal Checker",
+  title: "Used EV Deal Checker",
   description:
-    "Paste a used car listing URL or text. Get an instant deal verdict, risk flags, and must-ask questions in seconds.",
+    "Paste any used EV listing URL or text. Get an instant risk verdict, hidden battery flags, and a charging fit score for your real life.",
   alternates: {
     canonical: `${SITE_URL}/receipt`,
   },
   openGraph: {
-    title: "Deal Checker | OFFO",
+    title: "Used EV Deal Checker | OFFO",
     description:
-      "Paste a used car listing. Get a deal verdict, risk flags, and must-ask questions in seconds.",
+      "Paste a used EV listing. Get an instant risk verdict, battery flags, and charging fit score in seconds.",
     url: `${SITE_URL}/receipt`,
     siteName: "OFFO",
     type: "website",
@@ -21,15 +21,15 @@ export const metadata: Metadata = {
         url: "/og-default.png",
         width: 1200,
         height: 630,
-        alt: "OFFO Deal Checker — Paste a listing, get a verdict",
+        alt: "OFFO Used EV Deal Checker — Paste a listing, get an instant verdict",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Deal Checker | OFFO",
+    title: "Used EV Deal Checker | OFFO",
     description:
-      "Paste a used car listing. Get a deal verdict, risk flags, and must-ask questions in seconds.",
+      "Paste a used EV listing. Get an instant risk verdict, battery flags, and charging fit score in seconds.",
     images: ["/og-default.png"],
   },
 };

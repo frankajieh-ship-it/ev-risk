@@ -21,15 +21,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://offolab.com"),
   title: {
-    default: "OFFO | Used Car Deal Checker",
+    default: "OFFO | Used EV Deal Checker & Charging Fit Score",
     template: "%s | OFFO",
   },
   description:
-    "Paste a used car listing. Get an AI-powered deal verdict, risk flags, and must-ask questions in seconds. Free.",
+    "Paste a used EV listing. Get an instant risk verdict, hidden battery flags, and a charging fit score for your real life. Free.",
   openGraph: {
-    title: "OFFO | Used Car Deal Checker",
+    title: "OFFO | Used EV Deal Checker & Charging Fit Score",
     description:
-      "Paste a used car listing. Get a deal verdict in seconds.",
+      "Paste a used EV listing. Get an instant risk verdict and charging fit score in seconds.",
     url: "https://offolab.com",
     siteName: "OFFO",
     locale: "en_US",
@@ -37,8 +37,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "OFFO | Used Car Deal Checker",
-    description: "Paste a used car listing. Get a deal verdict in seconds.",
+    title: "OFFO | Used EV Deal Checker & Charging Fit Score",
+    description: "Paste a used EV listing. Get an instant risk verdict and charging fit score in seconds.",
   },
   robots: {
     index: true,
