@@ -794,9 +794,14 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
 
     // --- Sold / unavailable listing detection ---
     // Check before heavy parsing — if the page says the listing is gone, fail fast.
+    // IMPORTANT: CarGurus embeds i18n strings like "Looks like that one got away" in its
+    // JS bundle on EVERY page (active and sold). Strip <script> tags before checking
+    // CarGurus-specific phrases to avoid false positives on active listings.
     const lowerHtmlSold = html.toLowerCase();
+    const htmlNoScripts = html.replace(/<script[\s\S]*?<\/script>/gi, '');
+    const lowerNoScripts = htmlNoScripts.toLowerCase();
     const isSold =
-      // Generic phrases
+      // Generic visible-text phrases — safe to check full HTML
       lowerHtmlSold.includes('this listing is no longer available') ||
       lowerHtmlSold.includes('listing is no longer available') ||
       lowerHtmlSold.includes('this vehicle has been sold') ||
@@ -806,20 +811,11 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
       lowerHtmlSold.includes('listing has expired') ||
       lowerHtmlSold.includes('listing is unavailable') ||
       lowerHtmlSold.includes('vehicle is no longer available') ||
-      // CarGurus-specific sold/gone page text
-      lowerHtmlSold.includes('looks like that one got away') ||
-      lowerHtmlSold.includes('that one got away') ||
-      lowerHtmlSold.includes('"listing_status":"inactive"') ||
-      lowerHtmlSold.includes('"listingstatus":"inactive"') ||
-      lowerHtmlSold.includes('"inactive":true') ||
-      lowerHtmlSold.includes('solddate') ||
-      lowerHtmlSold.includes('"listing_status":"sold"') ||
-      lowerHtmlSold.includes('"listingstatus":"sold"') ||
-      lowerHtmlSold.includes('"status":"sold"') ||
-      // AutoTrader sold page
       lowerHtmlSold.includes('this vehicle is no longer listed') ||
-      // Cars.com sold page
-      lowerHtmlSold.includes('listing is no longer active');
+      lowerHtmlSold.includes('listing is no longer active') ||
+      // CarGurus-specific — MUST check script-stripped HTML only (phrases exist in JS bundle on all pages)
+      lowerNoScripts.includes('looks like that one got away') ||
+      lowerNoScripts.includes('that one got away');
 
     if (isSold) {
       diagnostics.failureReason = "listing_sold";
