@@ -126,7 +126,12 @@ const handler: Handler = async (event: HandlerEvent) => {
         if (s === "service_records_missing") mergedSet.delete("service_records_shown");
         if (s === "vin_decoded") mergedSet.delete("vin_missing");
         if (s === "vin_missing") mergedSet.delete("vin_decoded");
-        // clean_title_explicit and title_salvage are mutually exclusive
+        // DCFC: VinAudit/NHTSA confirmation removes the AI's hard-blocker assumption
+        if (s === "dcfc_confirmed") {
+          mergedSet.delete("dcfc_required_but_absent");
+          mergedSet.delete("no_dcfc_support");
+        }
+        // Title conflicts
         if (s === "clean_title_explicit") mergedSet.delete("title_status_unclear");
         if (s === "title_salvage") { mergedSet.delete("clean_title_explicit"); mergedSet.delete("title_status_unclear"); }
       }

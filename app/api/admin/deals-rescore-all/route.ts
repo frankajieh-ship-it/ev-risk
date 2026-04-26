@@ -28,14 +28,23 @@ function mergeSignals(aiSignals: string[], structured: string[]): string[] {
   const merged = new Set(aiSignals);
   for (const s of structured) {
     merged.add(s);
-    // If structured says battery IS present, remove the AI's "missing" signal
+    // Battery proof conflicts
     if (s === "battery_report_recent") merged.delete("battery_proof_missing");
     if (s === "battery_proof_missing") merged.delete("battery_report_recent");
+    // Service record conflicts
     if (s === "service_records_shown") merged.delete("service_records_missing");
     if (s === "service_records_missing") merged.delete("service_records_shown");
-    // If structured says VIN present, remove vin_missing
+    // VIN conflicts
     if (s === "vin_decoded") merged.delete("vin_missing");
     if (s === "vin_missing") merged.delete("vin_decoded");
+    // DCFC: if VinAudit/NHTSA confirms DCFC present, remove AI's hard-blocker assumption
+    if (s === "dcfc_confirmed") {
+      merged.delete("dcfc_required_but_absent");
+      merged.delete("no_dcfc_support");
+    }
+    // Title conflicts
+    if (s === "clean_title_explicit") merged.delete("title_status_unclear");
+    if (s === "title_salvage") { merged.delete("clean_title_explicit"); merged.delete("title_status_unclear"); }
   }
   return Array.from(merged);
 }
