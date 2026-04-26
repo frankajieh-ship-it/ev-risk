@@ -115,9 +115,36 @@ export async function POST(request: NextRequest) {
       d => parsedUrl.hostname.includes(d)
     );
 
+    const SCRAPINGBEE_KEY = process.env.SCRAPINGBEE_API_KEY;
+
+    // For JS-render domains, check ScrapingBee credit balance before attempting fetch.
+    // If credits are exhausted, fail fast instead of burning 25s timeout per user request.
+    if (needsJsRender && SCRAPINGBEE_KEY) {
+      try {
+        const usageRes = await fetch(
+          `https://app.scrapingbee.com/api/v1/usage?api_key=${SCRAPINGBEE_KEY}`,
+          { signal: AbortSignal.timeout(3000) }
+        );
+        if (usageRes.ok) {
+          const usage = await usageRes.json() as { max_api_credit: number; used_api_credit: number };
+          if (usage.used_api_credit >= usage.max_api_credit) {
+            clearTimeout(timeoutId);
+            console.warn('[Proxy Fetch] ScrapingBee credits exhausted — failing fast for JS-render domain');
+            return NextResponse.json({
+              success: false,
+              error: 'ScrapingBee credits exhausted',
+              blocked: true,
+              sb_credits_exhausted: true,
+            }, { status: 422 });
+          }
+        }
+      } catch {
+        // Credit check failed — proceed and let the actual request determine the outcome
+      }
+    }
+
     try {
       // --- ScrapingBee path (when API key is configured) ---
-      const SCRAPINGBEE_KEY = process.env.SCRAPINGBEE_API_KEY;
       if (SCRAPINGBEE_KEY) {
         try {
           const sbUrl = new URL('https://app.scrapingbee.com/api/v1/');
