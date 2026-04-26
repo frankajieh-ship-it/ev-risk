@@ -132,17 +132,11 @@ export async function guardTurnstile(
     );
   }
 
-  // 2. Token presence — block on high-security endpoints, warn-only elsewhere
-  const HIGH_SECURITY_ENDPOINTS = ["/api/receipt"];
+  // 2. Token presence — fail-open on all endpoints (honeypot above catches real bots).
+  // Hard-blocking on missing token causes false negatives on slow connections / mobile
+  // where the Turnstile script hasn't finished loading by the time the user submits.
   const token = body.turnstileToken;
   if (!token || typeof token !== "string") {
-    if (HIGH_SECURITY_ENDPOINTS.some((e) => endpoint.startsWith(e))) {
-      logBotEvent("turnstile_blocked", endpoint, clientIP, { reason: "turnstile_missing", action: "blocked" });
-      return NextResponse.json(
-        { success: false, error: "Verification required", captcha_required: true },
-        { status: 403 }
-      );
-    }
     console.warn(`[Turnstile] Token missing on ${endpoint} — allowing (fail-open)`);
     logBotEvent("turnstile_blocked", endpoint, clientIP, { reason: "turnstile_missing", action: "allowed_failopen" });
     delete body.turnstileToken;

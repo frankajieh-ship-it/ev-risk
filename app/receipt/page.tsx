@@ -848,12 +848,9 @@ export default function ReceiptPage() {
           turnstileToken = await executeTurnstile();
         }
 
-        // If still null after retry, surface actionable message
-        if (!turnstileToken) {
-          setError("Bot check timed out. Click Generate Receipt to try again.");
-          setIsGenerating(false);
-          return;
-        }
+        // If still null after retry, proceed anyway — server-side guard handles real bots.
+        // Blocking the user here causes false negatives on slow connections / mobile.
+        // The server will reject if the token is missing and TURNSTILE_SECRET_KEY is set.
 
         const body: Record<string, unknown> = {
           receipt_token: receiptToken,

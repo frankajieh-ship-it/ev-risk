@@ -145,14 +145,14 @@ export function useTurnstile({ containerId, action }: UseTurnstileOptions) {
       // Pass the widget ID (not a CSS selector) — what render() returned
       window.turnstile.execute(widgetIdRef.current, {});
 
-      // Safety timeout: 15s (well under 30s fetch timeout)
+      // Safety timeout: 25s — resolves null so caller can decide to proceed anyway
       setTimeout(() => {
         if (resolveRef.current) {
-          console.warn("[Turnstile] Challenge timed out after 15s");
+          console.warn("[Turnstile] Challenge timed out after 25s");
           resolveRef.current(null);
           resolveRef.current = null;
         }
-      }, 15000);
+      }, 25000);
     });
   }, [containerId]);
 
