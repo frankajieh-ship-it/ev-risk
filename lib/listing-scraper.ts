@@ -630,9 +630,10 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
     // --- Proxy fetch phase ---
     let html: string | null = null;
 
-    // CarGurus is client-side rendered — direct fetch returns a near-empty shell.
-    // Cap it at 8s so users get the paste-text fallback quickly rather than waiting 20s.
-    const sourceProxyCap = dataSource === 'cargurus' ? 8000 : 15000;
+    // CarGurus/AutoTrader/Cars.com are JS-rendered — Nimbleway needs the full budget.
+    // Other sites are server-rendered and respond quickly via direct fetch.
+    const jsRenderSources: VehicleData['dataSource'][] = ['cargurus', 'autotrader', 'cars.com'];
+    const sourceProxyCap = jsRenderSources.includes(dataSource) ? 25000 : 15000;
 
     if (remainingBudget() > 1000) {
       const proxyStart = Date.now();

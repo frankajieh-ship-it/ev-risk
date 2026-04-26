@@ -97,6 +97,74 @@ export async function POST(request: NextRequest) {
 
     console.log('[Proxy Fetch] Fetching URL:', url.substring(0, 100));
 
+    // Sites that need JS rendering (client-side rendered, bot-protected)
+    const needsJsRender = ['cargurus.com', 'autotrader.com', 'cars.com'].some(
+      d => parsedUrl.hostname.includes(d)
+    );
+
+    const NIMBLEWAY_KEY = process.env.NIMBLEWAY_API_KEY;
+
+    // --- Nimbleway path for JS-rendered sites ---
+    if (needsJsRender && NIMBLEWAY_KEY) {
+      const nmController = new AbortController();
+      const nmTimeoutId = setTimeout(() => nmController.abort(), 30000);
+      try {
+        console.log('[Proxy Fetch] Trying Nimbleway:', url.substring(0, 80));
+        const nmResponse = await fetch('https://sdk.nimbleway.com/v1/extract', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${NIMBLEWAY_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ url, render: true, country: 'US', locale: 'en-US' }),
+          signal: nmController.signal,
+        });
+        clearTimeout(nmTimeoutId);
+
+        console.log('[Proxy Fetch] Nimbleway status:', nmResponse.status);
+
+        if (nmResponse.ok) {
+          const contentType = nmResponse.headers.get('content-type') ?? '';
+          const html = await nmResponse.text();
+          console.log('[Proxy Fetch] Nimbleway html length:', html.length);
+
+          const lowerHtml = html.toLowerCase();
+          const isBlocked =
+            lowerHtml.includes('captcha') ||
+            lowerHtml.includes('just a moment') ||
+            lowerHtml.includes('challenge-platform') ||
+            html.length < 2000;
+
+          if (!isBlocked) {
+            return NextResponse.json({
+              success: true,
+              html,
+              contentLength: html.length,
+              status: 200,
+              fetchMethod: 'nimbleway',
+              headers: { 'content-type': contentType },
+            });
+          }
+          console.warn('[Proxy Fetch] Nimbleway returned blocked page');
+        } else {
+          const errText = await nmResponse.text().catch(() => '');
+          console.warn('[Proxy Fetch] Nimbleway error', nmResponse.status, errText.substring(0, 200));
+          // JS-render domains won't work via direct fetch either — fail fast
+          return NextResponse.json({
+            success: false,
+            error: `Nimbleway error ${nmResponse.status} — site requires JS rendering`,
+            blocked: true,
+            nm_status: nmResponse.status,
+          }, { status: 422 });
+        }
+      } catch (nmErr) {
+        clearTimeout(nmTimeoutId);
+        const msg = nmErr instanceof Error ? nmErr.message : String(nmErr);
+        console.warn('[Proxy Fetch] Nimbleway threw:', msg);
+        // Fall through to direct fetch if Nimbleway itself is unreachable
+      }
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
