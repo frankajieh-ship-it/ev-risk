@@ -139,21 +139,25 @@ export async function POST(request: NextRequest) {
     }
   } catch { /* no body is fine */ }
 
-  const isDev = process.env.NODE_ENV === "development";
+  // Fire-and-forget in both dev and prod — return 200 immediately, work runs async.
+  // In dev, Next.js kills long-running route handlers (no true background support),
+  // so we kick off the promise without awaiting and let the UI poll for results.
+  runRescore(since).then((result) => {
+    const msg = since
+      ? `[rescore-all] ✓ ${result.rescored} deals from ${since} (${result.failed} failed)`
+      : `[rescore-all] ✓ ${result.rescored} deals, deleted ${result.deleted} blank rows (${result.failed} failed)`;
+    console.log(msg);
+  }).catch((err) => {
+    console.error("[rescore-all] failed:", err instanceof Error ? err.message : err);
+  });
 
-  if (isDev) {
-    try {
-      const result = await runRescore(since);
-      const msg = since
-        ? `Rescored ${result.rescored} deals from ${since} (${result.failed} failed)`
-        : `Rescored ${result.rescored} deals, deleted ${result.deleted} blank rows (${result.failed} failed)`;
-      return NextResponse.json({ ok: true, message: msg, ...result });
-    } catch (err) {
-      return NextResponse.json(
-        { error: err instanceof Error ? err.message : "Rescore failed" },
-        { status: 500 }
-      );
-    }
+  if (process.env.NODE_ENV === "development") {
+    return NextResponse.json({
+      ok: true,
+      message: since
+        ? `Rescore started for ${since} — check server logs + refresh table in ~30s per deal`
+        : "Rescore started — check server logs + refresh table in ~30s per deal",
+    });
   }
 
   // Production: fire background function and return immediately
