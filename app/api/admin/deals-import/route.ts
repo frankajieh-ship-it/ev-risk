@@ -102,7 +102,14 @@ export async function POST(request: NextRequest) {
 
   const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || "https://offolab.com").replace(/\/$/, "");
 
-  const results = { imported: 0, skipped: 0, errors: [] as string[] };
+  const results = { imported: 0, skipped: 0, deactivated: 0, errors: [] as string[] };
+
+  // Collect all valid URLs from this CSV so we can deactivate rows not in it
+  const csvUrls = new Set(
+    rows
+      .map((r) => r["listing_url"]?.trim())
+      .filter((u): u is string => !!u && u.startsWith("http"))
+  );
 
   for (const row of rows) {
     const listingUrl = row["listing_url"]?.trim();
@@ -177,11 +184,33 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Deactivate any currently-active rows whose URLs are NOT in this CSV upload.
+  // This handles sold/removed listings that were manually deleted from the CSV.
+  if (csvUrls.size > 0) {
+    const { data: activeRows } = await supabase
+      .from("curated_deals")
+      .select("id, listing_url")
+      .eq("is_active", true);
+
+    const toDeactivate = (activeRows ?? [])
+      .filter((r) => !csvUrls.has(r.listing_url))
+      .map((r) => r.id);
+
+    if (toDeactivate.length > 0) {
+      await supabase
+        .from("curated_deals")
+        .update({ is_active: false })
+        .in("id", toDeactivate);
+      results.deactivated = toDeactivate.length;
+    }
+  }
+
   return NextResponse.json({
     success: true,
     imported: results.imported,
     skipped: results.skipped,
-    errors: results.errors.slice(0, 20), // cap error list
+    deactivated: results.deactivated,
+    errors: results.errors.slice(0, 20),
     total_rows: rows.length,
   });
 }

@@ -191,7 +191,8 @@ export default function AdminDealsPage() {
       const res = await fetch("/api/admin/deals-import", { method: "POST", headers: { Authorization: authHeader }, body: formData });
       const data = await res.json();
       if (data.success) {
-        setImportStatus(`✓ Imported ${data.imported} deals (${data.skipped} skipped)`);
+        const deactivatedNote = data.deactivated > 0 ? `, ${data.deactivated} deactivated (not in CSV)` : "";
+        setImportStatus(`✓ Imported ${data.imported} deals (${data.skipped} skipped${deactivatedNote})`);
         fetchDeals();
       } else {
         setImportStatus(`✗ ${data.error}`);

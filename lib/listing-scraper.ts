@@ -14,6 +14,7 @@ export type AutofillFailureReason =
   | "unsupported_domain"    // Domain not in supported list
   | "search_page"           // User pasted search results, not individual listing
   | "blocked_by_bot_protection" // Akamai, Cloudflare, etc. blocked us
+  | "listing_sold"          // Listing is sold or no longer available
   | "timeout"               // Request took too long
   | "http_error"            // Non-200 response status
   | "parse_failure"         // HTML parsing failed to extract data
@@ -780,6 +781,38 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
           ? 'Extraction timed out. Paste the listing text instead.'
           : 'Unable to fetch listing. Paste the listing text instead.',
         warnings: ['ScrapingBee extraction failed'],
+        diagnostics,
+      };
+    }
+
+    // --- Sold / unavailable listing detection ---
+    // Check before heavy parsing — if the page says the listing is gone, fail fast.
+    const lowerHtmlSold = html.toLowerCase();
+    const isSold =
+      lowerHtmlSold.includes('this listing is no longer available') ||
+      lowerHtmlSold.includes('listing is no longer available') ||
+      lowerHtmlSold.includes('this vehicle has been sold') ||
+      lowerHtmlSold.includes('vehicle has been sold') ||
+      lowerHtmlSold.includes('this car has been sold') ||
+      lowerHtmlSold.includes('sorry, this listing is') ||
+      lowerHtmlSold.includes('listing has expired') ||
+      lowerHtmlSold.includes('listing is unavailable') ||
+      lowerHtmlSold.includes('vehicle is no longer available') ||
+      // CarGurus-specific: "inactive listing" page shows status badge
+      lowerHtmlSold.includes('"sold"') ||
+      lowerHtmlSold.includes('solddate') ||
+      lowerHtmlSold.includes('"listing_status":"sold"') ||
+      lowerHtmlSold.includes('"listingstatus":"sold"') ||
+      lowerHtmlSold.includes('"status":"sold"');
+
+    if (isSold) {
+      diagnostics.failureReason = "listing_sold";
+      finalize();
+      return {
+        success: false,
+        data: null,
+        error: 'This listing has been sold or is no longer available.',
+        warnings: ['Listing appears to be sold or removed'],
         diagnostics,
       };
     }
