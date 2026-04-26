@@ -789,6 +789,7 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     // Check before heavy parsing — if the page says the listing is gone, fail fast.
     const lowerHtmlSold = html.toLowerCase();
     const isSold =
+      // Generic phrases
       lowerHtmlSold.includes('this listing is no longer available') ||
       lowerHtmlSold.includes('listing is no longer available') ||
       lowerHtmlSold.includes('this vehicle has been sold') ||
@@ -798,12 +799,20 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
       lowerHtmlSold.includes('listing has expired') ||
       lowerHtmlSold.includes('listing is unavailable') ||
       lowerHtmlSold.includes('vehicle is no longer available') ||
-      // CarGurus-specific: "inactive listing" page shows status badge
-      lowerHtmlSold.includes('"sold"') ||
+      // CarGurus-specific sold/gone page text
+      lowerHtmlSold.includes('looks like that one got away') ||
+      lowerHtmlSold.includes('that one got away') ||
+      lowerHtmlSold.includes('"listing_status":"inactive"') ||
+      lowerHtmlSold.includes('"listingstatus":"inactive"') ||
+      lowerHtmlSold.includes('"inactive":true') ||
       lowerHtmlSold.includes('solddate') ||
       lowerHtmlSold.includes('"listing_status":"sold"') ||
       lowerHtmlSold.includes('"listingstatus":"sold"') ||
-      lowerHtmlSold.includes('"status":"sold"');
+      lowerHtmlSold.includes('"status":"sold"') ||
+      // AutoTrader sold page
+      lowerHtmlSold.includes('this vehicle is no longer listed') ||
+      // Cars.com sold page
+      lowerHtmlSold.includes('listing is no longer active');
 
     if (isSold) {
       diagnostics.failureReason = "listing_sold";

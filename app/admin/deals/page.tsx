@@ -93,6 +93,27 @@ export default function AdminDealsPage() {
     }
   };
 
+  const handleCheckSold = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    const active = deals.filter((d) => d.is_active).length;
+    if (!confirm(`Check all ${active} active listings for sold/removed status? This may take a couple of minutes.`)) return;
+    setImportStatus("⏳ Sold check started — table refreshes every 15s...");
+    setRescoring(true);
+    try {
+      await fetch("/api/admin/deals-check-sold", { method: "POST", headers: { Authorization: authHeader } });
+      rescoringPollRef.current = setInterval(fetchDeals, 15000);
+      setTimeout(() => {
+        if (rescoringPollRef.current) clearInterval(rescoringPollRef.current);
+        setRescoring(false);
+        setImportStatus("✓ Sold check complete — check table for deactivated rows");
+        fetchDeals();
+      }, 3 * 60 * 1000);
+    } catch {
+      setImportStatus("✗ Failed to start sold check");
+      setRescoring(false);
+    }
+  };
+
   const handleBackfillPhotos = async () => {
     if (!adminKey) { alert("Enter your admin API key first"); return; }
     if (!confirm("Fetch photos for all active deals with missing images? This may take a while.")) return;
@@ -307,6 +328,10 @@ export default function AdminDealsPage() {
             <button onClick={handleActivateAll}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-emerald-400 border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
               Activate All
+            </button>
+            <button onClick={handleCheckSold} disabled={rescoring}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${rescoring ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-red-400 border-white/[0.08]"}`}>
+              Check Sold
             </button>
             <button onClick={handleBackfillPhotos}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#00d97e] border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">

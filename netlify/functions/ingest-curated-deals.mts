@@ -190,7 +190,19 @@ export default async function handler() {
 
       const receiptData = (await receiptRes.json()) as LiteReceiptResponse;
       if (!receiptData.success || !receiptData.receipt) {
-        console.warn(`[ingest-curated-deals] No receipt for ${listingUrl}`);
+        // If the listing already exists in our DB and the scrape failed, check
+        // whether the failure looks like a sold/removed listing (vs. a bot block).
+        // Bot blocks return quickly; a sold page on CarGurus returns HTML with
+        // "looks like that one got away" which the scraper now flags as listing_sold.
+        // For any other failure on an existing active deal, leave it as-is (don't
+        // deactivate on transient network/bot errors).
+        const failReason = (receiptData as Record<string, unknown>).diagnostics as { failureReason?: string } | undefined;
+        if (failReason?.failureReason === "listing_sold") {
+          console.log(`[ingest-curated-deals] Listing confirmed sold — deactivating: ${listingUrl}`);
+          await supabase.from("curated_deals").update({ is_active: false }).eq("listing_url", listingUrl);
+        } else {
+          console.warn(`[ingest-curated-deals] No receipt for ${listingUrl} (reason: ${failReason?.failureReason ?? "unknown"})`);
+        }
         totalFailed++;
         continue;
       }
