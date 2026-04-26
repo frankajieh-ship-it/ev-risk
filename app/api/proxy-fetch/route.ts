@@ -124,28 +124,33 @@ export async function POST(request: NextRequest) {
         console.log('[Proxy Fetch] Nimbleway status:', nmResponse.status);
 
         if (nmResponse.ok) {
-          const contentType = nmResponse.headers.get('content-type') ?? '';
-          const html = await nmResponse.text();
-          console.log('[Proxy Fetch] Nimbleway html length:', html.length);
+          // Nimbleway returns JSON: { status, status_code, data: { html } }
+          const nmJson = await nmResponse.json() as { status?: string; status_code?: number; data?: { html?: string } };
+          const html = nmJson?.data?.html ?? '';
+          const nmStatusCode = nmJson?.status_code ?? 200;
+          console.log('[Proxy Fetch] Nimbleway html length:', html.length, 'status_code:', nmStatusCode);
 
+          // CarGurus returns BLACKOUT_TEXAS shell (~2755 bytes) for some routes —
+          // still usable since og:title / og:description are populated on /details/ URLs.
+          // Only treat as blocked if truly empty or has CAPTCHA.
           const lowerHtml = html.toLowerCase();
           const isBlocked =
-            lowerHtml.includes('captcha') ||
+            lowerHtml.includes('id="captcha"') ||
             lowerHtml.includes('just a moment') ||
             lowerHtml.includes('challenge-platform') ||
-            html.length < 2000;
+            html.length < 500;
 
           if (!isBlocked) {
             return NextResponse.json({
               success: true,
               html,
               contentLength: html.length,
-              status: 200,
+              status: nmStatusCode,
               fetchMethod: 'nimbleway',
-              headers: { 'content-type': contentType },
+              headers: { 'content-type': 'text/html' },
             });
           }
-          console.warn('[Proxy Fetch] Nimbleway returned blocked page');
+          console.warn('[Proxy Fetch] Nimbleway returned blocked/empty page, length:', html.length);
         } else {
           const errText = await nmResponse.text().catch(() => '');
           console.warn('[Proxy Fetch] Nimbleway error', nmResponse.status, errText.substring(0, 200));
