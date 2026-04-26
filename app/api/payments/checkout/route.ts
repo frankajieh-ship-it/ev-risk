@@ -22,7 +22,7 @@ import {
   type PackTier,
 } from "@/lib/price-assignment";
 
-const VALID_PACK_TIERS: PackTier[] = ["buyer_pass", "seller_questions", "chat_pass", "copart_report", "sellers_report_pdf"];
+const VALID_PACK_TIERS: PackTier[] = ["buyer_pass", "seller_questions", "chat_pass", "copart_report", "sellers_report_pdf", "receipt_single"];
 
 const checkoutRateLimiter = new RateLimiter(60 * 1000, 5); // 5 attempts per minute per IP
 
@@ -177,8 +177,11 @@ export async function POST(request: NextRequest) {
       const isChat = packTier === "chat_pass";
       const isCopart = packTier === "copart_report";
       const isSellersReport = packTier === "sellers_report_pdf";
-      const productName = isSeller ? "OFFO Seller Questions Pack" : isChat ? "OFFO AI Unlimited" : isCopart ? "OFFO Full Copart Risk Report" : isSellersReport ? "OFFO Sellers Report" : "OFFO Buyer Pass";
-      const productDescription = isSeller
+      const isReceiptSingle = packTier === "receipt_single";
+      const productName = isReceiptSingle ? "OFFO Receipt Analysis" : isSeller ? "OFFO Seller Questions Pack" : isChat ? "OFFO AI Unlimited" : isCopart ? "OFFO Full Copart Risk Report" : isSellersReport ? "OFFO Sellers Report" : "OFFO Buyer Pass";
+      const productDescription = isReceiptSingle
+        ? "Full AI-powered EV deal analysis — risk verdict, deal quality score, battery assessment, and negotiation insights."
+        : isSeller
         ? "Full seller questions pack + inspect-first checklist for this listing."
         : isChat
         ? "Unlimited AI chat questions forever — full multi-model reasoning, saved history."
@@ -209,7 +212,7 @@ export async function POST(request: NextRequest) {
     });
 
     // 6. Insert pending purchase row
-    const receiptCredits = packTier === "seller_questions" ? 1 : packTier === "chat_pass" ? 0 : packTier === "copart_report" ? 1 : 10;
+    const receiptCredits = packTier === "receipt_single" ? 1 : packTier === "seller_questions" ? 1 : packTier === "chat_pass" ? 0 : packTier === "copart_report" ? 1 : 10;
     const { error: insertError } = await supabase.from("purchases").insert({
       stripe_session_id: session.id,
       status: "pending",

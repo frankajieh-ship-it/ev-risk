@@ -28,6 +28,30 @@ export interface BlogPost {
 
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "how-we-vet-every-ev-deal",
+    badge: "How It Works",
+    badgeColor: "bg-indigo-100 text-indigo-800",
+    title: "How We Find and Vet Every Used EV Deal on OFFO",
+    description:
+      "From listing page to GREEN verdict — here's exactly what happens before a deal appears on our site. The full sourcing, VIN audit, and AI scoring pipeline explained.",
+    excerpt:
+      "From listing page to GREEN verdict — here's exactly what happens before a deal appears on our site.",
+    readTime: "6 min read",
+    datePublished: "2026-04-26",
+  },
+  {
+    slug: "carfax-alternative-used-ev",
+    badge: "Buyer's Guide",
+    badgeColor: "bg-green-100 text-green-800",
+    title: "I Was Paying $45 for Carfax Reports. Then I Found a Better Way to Shop for Used EVs.",
+    description:
+      "After testing every major VIN report service on real EV listings, one tool completely changed how I evaluate deals — and it's free.",
+    excerpt:
+      "After testing every major VIN report service on real EV listings, one tool completely changed how I evaluate deals — and it's free.",
+    readTime: "6 min read",
+    datePublished: "2026-04-26",
+  },
+  {
     slug: "hybrid-ai-system-used-ev-buying",
     badge: "Engineering",
     badgeColor: "bg-indigo-100 text-indigo-800",

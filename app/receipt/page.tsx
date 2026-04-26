@@ -24,6 +24,7 @@ import LoginModal from "@/components/LoginModal";
 import AuthLoginModal from "@/components/auth/LoginModal";
 import ReceiptInputCard from "@/components/receipt/ReceiptInputCard";
 import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
+import ReceiptPaywallCard from "@/components/receipt/ReceiptPaywallCard";
 import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
 // EmailGateModal removed — 100% skip rate, replaced by inline EmailCaptureCard
 import FeedbackWidget from "@/components/FeedbackWidget";
@@ -273,6 +274,10 @@ export default function ReceiptPage() {
   // On-demand section statuses (populated after core upgrade completes)
   const [sections, setSections] = useState<Record<string, { status: string }> | null>(null);
 
+  // Receipt paywall (pre-generation gate)
+  const [showReceiptPaywall, setShowReceiptPaywall] = useState(false);
+  const [paywallScenarioId, setPaywallScenarioId] = useState<string>("");
+
   // Decision Pack state
   const [deepDive, setDeepDive] = useState<DeepDiveContent | null>(null);
   const [isLoadingDeepDive, setIsLoadingDeepDive] = useState(false);
@@ -469,10 +474,9 @@ export default function ReceiptPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") !== "success") return;
 
-    // Track $9.99 Buyer Pass purchase completion
-    trackEvent("deep_dive_purchase_succeeded", {
+    trackEvent("receipt_purchase_succeeded", {
       receipt_id: receipt?.receipt_id,
-      offer_type: "buyer_pass_999",
+      offer_type: "receipt_single_399",
       session_id: params.get("session_id"),
     });
 
@@ -480,19 +484,44 @@ export default function ReceiptPage() {
     const url = new URL(window.location.href);
     url.searchParams.delete("checkout");
     url.searchParams.delete("session_id");
+    url.searchParams.delete("scenario_type");
+    url.searchParams.delete("scenario_id");
     window.history.replaceState({}, "", url.pathname + url.search);
 
-    // Poll payment status until unlocked (max 30s)
+    // Hide paywall immediately
+    setShowReceiptPaywall(false);
+
+    // Poll payment status until purchase is confirmed paid (max 30s), then auto-generate
     let attempts = 0;
     const maxAttempts = 15;
     const poll = setInterval(async () => {
       attempts++;
       await refetchPayment();
-      if (attempts >= maxAttempts) clearInterval(poll);
+      // Once payment confirmed, re-run generate with last known input
+      if (attempts >= maxAttempts) {
+        clearInterval(poll);
+      }
     }, 2000);
 
     return () => clearInterval(poll);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // After returning from Stripe checkout: once payment is confirmed, auto-trigger generation
+  const postPaymentTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (!isUnlocked) return;
+    if (receipt) return; // already have a result
+    if (postPaymentTriggeredRef.current) return;
+    if (!lastGenerateInputRef.current) return;
+    // Only fire if we came back from checkout (paywall was shown or URL had checkout=success)
+    const cameFromCheckout =
+      showReceiptPaywall ||
+      (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("checkout") === "success");
+    if (!cameFromCheckout) return;
+    postPaymentTriggeredRef.current = true;
+    setShowReceiptPaywall(false);
+    handleGenerate(lastGenerateInputRef.current);
+  }, [isUnlocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-load deep dive for all users (free — no payment gate)
   useEffect(() => {
@@ -874,6 +903,16 @@ export default function ReceiptPage() {
         const result = await res.json();
 
         if (!res.ok || !result.success) {
+          // Payment required — show paywall
+          if (res.status === 402 && result.payment_required) {
+            // Use a stable scenario ID for the checkout session (hash of token + input)
+            const sid = `pre_${receiptToken.slice(0, 16)}_${Date.now()}`;
+            setPaywallScenarioId(sid);
+            setShowReceiptPaywall(true);
+            setIsGenerating(false);
+            inFlightRef.current = false;
+            return;
+          }
           // Turnstile rejection
           if (res.status === 403 && result.captcha_required) {
             setError("Bot check failed. Click Generate Receipt to try again — if this keeps happening, refresh the page.");
@@ -1277,6 +1316,17 @@ export default function ReceiptPage() {
           receiptToken={receiptToken}
           hasResult={!!receipt}
         />
+
+        {/* Receipt paywall — shown when API returns 402 payment_required */}
+        {showReceiptPaywall && !receipt && (
+          <div className="mt-4">
+            <ReceiptPaywallCard
+              receiptToken={receiptToken}
+              scenarioId={paywallScenarioId}
+              onCheckout={(url) => { window.location.href = url; }}
+            />
+          </div>
+        )}
 
         {/* CarGurus pro tip + bookmarklet */}
         <div className="mt-2 space-y-1 text-center px-2">

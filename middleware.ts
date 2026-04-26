@@ -44,16 +44,17 @@ export function middleware(request: NextRequest) {
     );
   }
 
-  // Geo-block: restrict AI-heavy endpoints to English-speaking markets
-  // Blocks ~67% bot traffic from China/Singapore identified in CEO report.
+  // Geo-block: block known high-abuse regions on AI-heavy endpoints.
   // Only applies when Netlify x-country header is present — local dev unaffected.
+  // Uses a denylist (not allowlist) to avoid blocking US/EU users routed via
+  // foreign IPs (VPNs, mobile carriers, Cloudflare edges) — fp-rwt5gw incident.
   const isAiRoute =
     request.nextUrl.pathname.startsWith("/api/receipt/") ||
     request.nextUrl.pathname.startsWith("/api/auction/analyze");
   if (isAiRoute) {
     const country = request.headers.get("x-country");
-    const ALLOWED_COUNTRIES = ["US", "CA", "GB", "AU", "NZ", "IE"];
-    if (country && !ALLOWED_COUNTRIES.includes(country)) {
+    const BLOCKED_COUNTRIES = ["CN", "RU", "KP", "IR"];
+    if (country && BLOCKED_COUNTRIES.includes(country)) {
       return new NextResponse(
         JSON.stringify({ success: false, error: "Service not available in your region" }),
         { status: 403, headers: { "Content-Type": "application/json" } }

@@ -772,11 +772,15 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
       if (!diagnostics.failureReason) {
         diagnostics.failureReason = remainingBudget() <= 1000 ? "timeout" : "network_error";
       }
-      // Treat ScrapingBee timeout on CarGurus as bot protection so frontend auto-switches to text mode
-      if (diagnostics.failureReason === "timeout" && dataSource === "cargurus") {
+      // JS-rendered sites (CarGurus, AutoTrader, Cars.com) require ScrapingBee.
+      // If fetch fails for any reason on these domains, treat as bot protection so
+      // the frontend auto-switches to text mode with the right error message.
+      const jsRenderDomains = ["cargurus", "autotrader", "cars.com"];
+      if (jsRenderDomains.includes(dataSource) &&
+          (diagnostics.failureReason === "timeout" || diagnostics.failureReason === "network_error" || !diagnostics.failureReason)) {
         diagnostics.failureReason = "blocked_by_bot_protection";
         diagnostics.botProtectionDetected = true;
-        diagnostics.botProtectionType = "silent_hang";
+        diagnostics.botProtectionType = diagnostics.botProtectionType ?? "silent_hang";
       }
       finalize();
       return {

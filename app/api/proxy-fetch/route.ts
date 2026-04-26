@@ -165,6 +165,18 @@ export async function POST(request: NextRequest) {
           } else {
             const errText = await sbResponse.text().catch(() => '');
             console.warn('[Proxy Fetch] ScrapingBee error', sbResponse.status, errText.substring(0, 200));
+            // For JS-rendered sites, ScrapingBee is the only viable path.
+            // If it returns non-OK (402 credit exhaustion, 500, etc.), direct fetch won't work either.
+            // Return blocked so the scraper shows the right error instead of silently falling through.
+            if (needsJsRender) {
+              clearTimeout(timeoutId);
+              return NextResponse.json({
+                success: false,
+                error: `ScrapingBee error ${sbResponse.status} — site requires JS rendering`,
+                blocked: true,
+                sb_status: sbResponse.status,
+              }, { status: 422 });
+            }
           }
         } catch (sbErr) {
           console.warn('[Proxy Fetch] ScrapingBee threw, falling back:', sbErr instanceof Error ? sbErr.message : sbErr);

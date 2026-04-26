@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractVehicleData } from "@/lib/listing-scraper";
 import { extractionRateLimiter, getClientIP } from "@/lib/rate-limiter";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 // Configure route to allow longer execution time for slow listing sites
 export const maxDuration = 30; // 30 seconds for Netlify/Vercel
@@ -97,6 +98,28 @@ export async function POST(request: NextRequest) {
     }
 
     if (!result.success) {
+      // Log extraction failure to Supabase for visibility (domain, failure reason, fetch method)
+      if (isSupabaseConfigured()) {
+        supabase.from("user_events").insert({
+          event_name: "autofill_extraction_failed",
+          event_data: {
+            url_domain: result.diagnostics?.domain ?? null,
+            failure_reason: result.diagnostics?.failureReason ?? "unknown",
+            fetch_method: result.diagnostics?.fetchMethod ?? null,
+            proxy_status: result.diagnostics?.proxyStatusCode ?? null,
+            direct_status: result.diagnostics?.directStatusCode ?? null,
+            html_length: result.diagnostics?.htmlLength ?? null,
+            duration_ms: result.diagnostics?.durationMs ?? null,
+            bot_protection: result.diagnostics?.botProtectionDetected ?? false,
+            bot_protection_type: result.diagnostics?.botProtectionType ?? null,
+            error_message: result.diagnostics?.errorMessage ?? null,
+          },
+          ip_address: clientIP,
+          page_path: "/api/extract-listing",
+          timestamp: new Date().toISOString(),
+        }).then(() => {}, () => {});
+      }
+
       // Determine which fields are missing
       const missingFields: string[] = [];
       if (!result.data?.make) missingFields.push('make');

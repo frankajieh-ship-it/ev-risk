@@ -9,7 +9,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export type PurchaseStatus = "pending" | "paid" | "failed" | "refunded" | "none";
 
-export type PackTier = "buyer_pass" | "seller_questions" | "chat_pass" | "copart_report";
+export type PackTier = "buyer_pass" | "seller_questions" | "chat_pass" | "copart_report" | "receipt_single";
 
 export type EntitlementLevel = "free" | "seller_pack" | "buyer_pass";
 
@@ -56,6 +56,7 @@ export async function checkPurchaseStatus(
     if (tier === "seller_questions") return { entitlement_level: "seller_pack", seller_pack_unlocked: true, chat_unlocked: false };
     if (tier === "chat_pass") return { entitlement_level: "free", seller_pack_unlocked: false, chat_unlocked: true };
     if (tier === "copart_report") return { entitlement_level: "buyer_pass", seller_pack_unlocked: true, chat_unlocked: false };
+    if (tier === "receipt_single") return { entitlement_level: "buyer_pass", seller_pack_unlocked: true, chat_unlocked: false };
     return { entitlement_level: "free", seller_pack_unlocked: false, chat_unlocked: false };
   }
 

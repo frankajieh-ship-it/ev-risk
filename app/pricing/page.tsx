@@ -6,12 +6,12 @@ import Header from "@/components/landing/Header";
 export const metadata: Metadata = {
   title: "Pricing — OFFO",
   description:
-    "OFFO is free to start. Unlock deeper analysis, negotiation scripts, auction audits, and more with one-time add-ons. No subscription required.",
+    "Full AI-powered EV deal analysis for $3.99. No subscription. Instant risk verdict, deal quality score, battery assessment, and negotiation insights.",
   alternates: { canonical: "https://offolab.com/pricing" },
   openGraph: {
-    title: "OFFO Pricing — Free to start, pay only for what you need",
+    title: "OFFO Pricing — $3.99 per analysis. No subscription.",
     description:
-      "No subscription. Buyer Pass $9.99, Auction Audit $49, Seller Pack from $2.99. See exactly what you get.",
+      "Full EV deal analysis for $3.99. Risk verdict, deal quality score, battery assessment, negotiation insights. Auction Audit $49.",
     url: "https://offolab.com/pricing",
     type: "website",
     siteName: "OFFO",
@@ -20,42 +20,23 @@ export const metadata: Metadata = {
 
 const TIERS = [
   {
-    id: "free",
-    icon: Car,
-    label: "Free",
-    price: null,
-    badge: null,
-    badgeColor: null,
+    id: "receipt_single",
+    icon: Sparkles,
+    label: "Receipt Analysis",
+    price: "$3.99",
+    badge: "Per listing",
+    badgeColor: "blue",
     cta: "Analyze a listing",
     ctaHref: "/receipt",
-    ctaStyle: "outline",
-    description: "No account needed. Get a quick verdict on any listing.",
-    features: [
-      "AI deal verdict (Good / Caution / Pass)",
-      "Top 3 risk flags",
-      "3 seller questions",
-      "Battery degradation estimate",
-      "Open recall check",
-    ],
-  },
-  {
-    id: "buyer_pass",
-    icon: Sparkles,
-    label: "Buyer Pass",
-    price: "$9.99",
-    badge: "Most popular",
-    badgeColor: "blue",
-    cta: "Unlock full analysis",
-    ctaHref: "/receipt",
     ctaStyle: "primary",
-    description: "Everything you need to negotiate and close with confidence.",
+    description: "Full AI-powered EV deal analysis for any listing. One-time, no subscription.",
     features: [
-      "Full risk breakdown (10+ factors)",
-      "Negotiation script tailored to this listing",
+      "Risk verdict — GREEN / YELLOW / RED",
+      "Deal quality score & price vs. market",
+      "Battery health assessment",
+      "Open safety recall check",
+      "Negotiation insights & seller questions",
       "Pre-purchase inspection checklist",
-      "PDF export to share with your mechanic",
-      "Compare this vehicle vs alternatives",
-      "10 receipt credits",
     ],
   },
   {
@@ -76,23 +57,6 @@ const TIERS = [
       "Repair cost estimate + arbitrage (max safe bid)",
       "Post-repair ARV vs current lot price",
       "NHTSA recall check by VIN",
-    ],
-  },
-  {
-    id: "seller_questions",
-    icon: MessageSquare,
-    label: "Seller Pack",
-    price: "from $2.99",
-    badge: null,
-    badgeColor: null,
-    cta: "Get seller script",
-    ctaHref: "/receipt",
-    ctaStyle: "outline",
-    description: "One listing, full question set, and a printable checklist.",
-    features: [
-      "1 full receipt credit",
-      "Full seller question script",
-      "Pre-purchase checklist",
     ],
   },
   {
@@ -131,13 +95,13 @@ export default function PricingPage() {
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 bg-[#00d97e]/10 rounded-full border border-[#00d97e]/20">
             <Sparkles className="w-3.5 h-3.5 text-[#00d97e]" />
-            <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wider">No subscription required</span>
+            <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wider">No subscription · Pay per listing</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-3 leading-tight">
-            Simple, honest pricing
+            $3.99 per analysis
           </h1>
           <p className="text-base text-white/40 max-w-xl mx-auto">
-            OFFO is free to start. Pay only when you want the full picture — one-time, no subscription.
+            Full AI-powered EV deal analysis for every listing. One-time payment — no account, no subscription.
           </p>
         </div>
 
@@ -215,24 +179,24 @@ export default function PricingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[
               {
-                q: "Is the free analysis really free?",
-                a: "Yes. No account, no credit card. Paste any listing URL and get a verdict, top risks, and 3 seller questions instantly.",
+                q: "What do I get for $3.99?",
+                a: "A full AI-powered analysis of one listing: risk verdict (GREEN/YELLOW/RED), deal quality score, price vs. market comparison, battery health assessment, open recall check, negotiation insights, and a pre-purchase inspection checklist.",
               },
               {
-                q: "What is a receipt credit?",
-                a: "One credit = one full analysis (Buyer Pass level). The Buyer Pass comes with 10 credits. Credits don't expire.",
+                q: "Do I need an account or subscription?",
+                a: "No. Paste a listing URL, pay $3.99, and get your analysis instantly. One-time payment — nothing recurring.",
               },
               {
-                q: "Do I need a subscription?",
-                a: "No. All products are one-time purchases. Pay once for the analysis you need — nothing recurring.",
+                q: "What if the analysis fails or I'm not satisfied?",
+                a: "If generation fails, your payment is automatically voided — you won't be charged. If you're unsatisfied with quality, email support@offolab.com within 48 hours for a full refund.",
               },
               {
-                q: "What's the difference between Buyer Pass and the Auction Audit?",
-                a: "Buyer Pass is for standard used car listings (CarGurus, etc.) — it unlocks full risk breakdown and negotiation tools. Auction Audit is specifically for Copart/IAAI salvage lots — it adds arbitrage scoring, battery pack exposure, and repair cost estimates.",
+                q: "What's the Auction Audit?",
+                a: "A separate $49 product for Copart/IAAI salvage lots. It adds arbitrage scoring, damage classification, battery pack exposure, and repair cost estimates — specific to auction buying.",
               },
               {
-                q: "Can I get a refund?",
-                a: "If you're not satisfied with the analysis quality, email support@offolab.com within 48 hours and we'll refund you.",
+                q: "What listing sites are supported?",
+                a: "CarGurus, AutoTrader, Cars.com, Carvana, CarMax, Facebook Marketplace, Vroom, Edmunds, KBB, and more. Or paste listing text directly.",
               },
               {
                 q: "Do prices include tax?",
@@ -249,12 +213,12 @@ export default function PricingPage() {
 
         {/* Bottom CTA */}
         <div className="mt-10 text-center">
-          <p className="text-sm text-white/30 mb-3">Still not sure? Start free — no account needed.</p>
+          <p className="text-sm text-white/30 mb-3">Paste any CarGurus, AutoTrader, or Carvana listing — results in under 30 seconds.</p>
           <Link
             href="/receipt"
             className="inline-flex items-center gap-2 px-6 py-3 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-xl hover:bg-[#00c970] transition-colors"
           >
-            Analyze a listing for free →
+            Analyze a listing — $3.99 →
           </Link>
         </div>
       </div>

@@ -96,7 +96,7 @@ async function runExtract(since?: string) {
 
   let query = supabase
     .from("curated_deals")
-    .select("id, listing_url, vehicle_label, vin, make, model, year")
+    .select("id, listing_url, vehicle_label, vin, make, model, year, mileage, trim")
     .eq("is_active", true)
     .not("listing_url", "is", null)
     .order("created_at", { ascending: true });
@@ -240,16 +240,18 @@ async function runExtract(since?: string) {
         if (!row.year && nhtsaResult.decoded.year) update.year = nhtsaResult.decoded.year;
         if (!row.make && nhtsaResult.decoded.make) update.make = nhtsaResult.decoded.make;
         if (!row.model && nhtsaResult.decoded.model) update.model = nhtsaResult.decoded.model;
-        if (nhtsaResult.decoded.fuel_type?.toLowerCase().includes("electric")) {
-          extractedSignals.push("dcfc_confirmed");
-        }
+        // NOTE: fuel_type = "electric" only confirms this is an EV, NOT that it has DCFC.
+        // dcfc_confirmed is left to the AI — it checks the specific trim's charging spec.
+        // Incorrectly pushing dcfc_confirmed here would remove the dcfc_required_but_absent
+        // hard blocker for base LEAFs and other EVs that lack DC fast charging.
       }
 
       // Battery health estimate — possible for any EV with year + mileage
       const resolvedYear = (update.year ?? row.year) as number | null;
       const resolvedMake = (update.make ?? row.make) as string | null;
       const resolvedModel = (update.model ?? row.model) as string | null;
-      if (resolvedYear && (row as Record<string, unknown>).mileage) {
+      const resolvedMileage = (row.mileage as number | null) ?? null;
+      if (resolvedYear && resolvedMileage) {
         extractedSignals.push("battery_health_estimated");
       }
 

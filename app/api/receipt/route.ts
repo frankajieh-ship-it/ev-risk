@@ -17,7 +17,7 @@
 
 import { NextRequest, NextResponse, after } from "next/server";
 import { getClientIP } from "@/lib/rate-limiter";
-import { receiptBurstLimiter, checkDailyLimit, incrementDailyCount, decrementReceiptCredit } from "@/lib/receipt-rate-limiter";
+import { receiptBurstLimiter, checkDailyLimit, incrementDailyCount, decrementReceiptCredit, restoreReceiptCredit } from "@/lib/receipt-rate-limiter";
 import { generateReceipt, fixReceiptFormatting, buildEnhancedFallbackReceipt } from "@/lib/receipt-openai";
 import { extractSignalsFromText } from "@/lib/receipt-signal-extractor";
 import { validateReceiptSchema } from "@/lib/receipt-schema-validator";
@@ -237,6 +237,31 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // 6b. Payment gate — receipt generation requires a paid purchase.
+  // Internal testers, pro users, and server-to-server calls bypass the gate.
+  if (!tokenIsInternal && !isPro && isSupabaseConfigured()) {
+    const { data: activePurchase } = await supabase
+      .from("purchases")
+      .select("receipt_credits_total, receipt_credits_used")
+      .eq("anon_id", receiptToken as string)
+      .eq("status", "paid")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const hasCredits =
+      activePurchase &&
+      activePurchase.receipt_credits_total > 0 &&
+      activePurchase.receipt_credits_total - activePurchase.receipt_credits_used > 0;
+
+    if (!hasCredits) {
+      return NextResponse.json(
+        { success: false, error: "payment_required", payment_required: true },
+        { status: 402 }
+      );
+    }
+  }
+
   // 7. Build request
   const input: ReceiptGenerateRequest = {
     listing_url: (body.listing_url as string) || null,
@@ -304,6 +329,10 @@ export async function POST(request: NextRequest) {
   }
 
   // --- RECEIPT LITE: Return deterministic receipt immediately (<2s) ---
+  // Wrapped in try/catch: if anything throws after decrementReceiptCredit is called,
+  // we restore the credit so the user is not charged for a failed generation.
+  let creditDecrementedForToken: string | null = null;
+  try {
   const liteReceipt = buildEnhancedFallbackReceipt(input, ruleSignals, ruleScoring);
 
   // Save lite receipt to DB
@@ -388,6 +417,7 @@ export async function POST(request: NextRequest) {
 
   if (!tokenIsInternal) {
     incrementDailyCount(receiptToken as string);
+    creditDecrementedForToken = receiptToken as string;
     decrementReceiptCredit(receiptToken as string).catch(() => {});
   }
 
@@ -529,6 +559,17 @@ export async function POST(request: NextRequest) {
     recalls,
     has_active_recalls: recalls.length > 0,
   });
+  } catch (err) {
+    // Failsafe: restore any credit consumed this request so the user is not charged
+    if (creditDecrementedForToken) {
+      await restoreReceiptCredit(creditDecrementedForToken).catch(() => {});
+    }
+    console.error("[Receipt API] Generation failed — credit restored:", err instanceof Error ? err.message : err);
+    return NextResponse.json(
+      { success: false, error: "generation_failed", generation_failed: true },
+      { status: 500 }
+    );
+  }
 }
 
 function buildRoutineSummary(fit: RoutineFitScore, mvr: MinimumViableRoutine): string {

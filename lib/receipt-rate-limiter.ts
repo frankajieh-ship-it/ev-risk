@@ -178,6 +178,38 @@ export function incrementDailyCount(receiptToken: string): void {
 }
 
 /**
+ * Restore a receipt credit when generation fails after decrement.
+ * Uses optimistic concurrency — safe to call in catch blocks.
+ */
+export async function restoreReceiptCredit(anonId: string): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  try {
+    const { data: purchase } = await supabase
+      .from("purchases")
+      .select("purchase_id, receipt_credits_used")
+      .eq("anon_id", anonId)
+      .eq("status", "paid")
+      .gt("receipt_credits_total", 0)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!purchase || purchase.receipt_credits_used <= 0) return;
+
+    await supabase
+      .from("purchases")
+      .update({
+        receipt_credits_used: purchase.receipt_credits_used - 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("purchase_id", purchase.purchase_id)
+      .eq("receipt_credits_used", purchase.receipt_credits_used); // Optimistic lock
+  } catch (err) {
+    console.error("[Receipt Rate Limiter] Credit restore failed:", err);
+  }
+}
+
+/**
  * Decrement a receipt credit after successful generation.
  * Returns the number of remaining credits, or -1 if no purchase found.
  */
