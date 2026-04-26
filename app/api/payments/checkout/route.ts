@@ -81,8 +81,9 @@ export async function POST(request: NextRequest) {
   }
 
   // 1. Validate scenario exists and verify ownership
-  // chat_pass uses sessionId as scenarioId — no DB row to look up
-  if (scenarioType !== "chat") {
+  // chat_pass and receipt_single skip this check — no DB row exists yet at payment time
+  // (receipt_single is paid before generation; chat_pass uses sessionId as scenarioId)
+  if (scenarioType !== "chat" && packTier !== "receipt_single") {
     const tableMap: Record<string, { table: string; select: string; ownerColumn: string | null; idColumn?: string }> = {
       receipt: { table: "receipts", select: "id, session_id", ownerColumn: "session_id" },
       evroutine: { table: "reports", select: "id", ownerColumn: null },
