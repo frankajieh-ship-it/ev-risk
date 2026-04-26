@@ -2,7 +2,8 @@
  * Proxy Fetch API
  *
  * Fetches external URLs through a server-side proxy to avoid CORS
- * and bot detection issues with car listing sites
+ * and bot detection issues with car listing sites.
+ * Uses direct fetch with user-agent rotation.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -22,8 +23,7 @@ function getRandomUserAgent(): string {
 
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
 
-// Must be long enough for ScrapingBee JS-render (CarGurus/AutoTrader need 15-25s)
-export const maxDuration = 45;
+export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,7 +32,6 @@ export async function POST(request: NextRequest) {
     const isAdminBypass = ADMIN_KEY && adminHeader === ADMIN_KEY;
 
     if (!isAdminBypass) {
-      // Rate limiting for regular user requests
       const clientIP = getClientIP(request);
       const rateLimit = extractionRateLimiter.check(clientIP);
 
@@ -48,12 +47,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Parse request body
     const body = await request.json();
-    // Default 30s — ScrapingBee needs 15-25s for JS-rendered sites (CarGurus, AutoTrader)
-    const { url, timeout = 30000 } = body;
+    const { url, timeout = 10000 } = body;
 
-    // Validate URL
     if (!url || typeof url !== 'string') {
       return NextResponse.json(
         { success: false, error: 'URL is required' },
@@ -71,7 +67,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Security: Only allow known car listing domains
+    // Security: only allow known car listing domains
     const allowedDomains = [
       'autotrader.com',
       'cargurus.com',
@@ -90,133 +86,23 @@ export async function POST(request: NextRequest) {
       'iaai.com',
     ];
 
-    const isAllowed = allowedDomains.some(domain =>
-      parsedUrl.hostname.endsWith(domain)
-    );
+    const isAllowed = allowedDomains.some(domain => parsedUrl.hostname.endsWith(domain));
 
     if (!isAllowed) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Domain not allowed. Only car listing sites are supported.'
-        },
+        { success: false, error: 'Domain not allowed. Only car listing sites are supported.' },
         { status: 403 }
       );
     }
 
-    console.log('[Proxy Fetch] Fetching URL:', url);
+    console.log('[Proxy Fetch] Fetching URL:', url.substring(0, 100));
 
-    // Fetch with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-    // Sites that need JS rendering (client-side rendered, bot-protected)
-    const needsJsRender = ['cargurus.com', 'autotrader.com', 'cars.com'].some(
-      d => parsedUrl.hostname.includes(d)
-    );
-
-    const SCRAPINGBEE_KEY = process.env.SCRAPINGBEE_API_KEY;
-
-    // For JS-render domains, check ScrapingBee credit balance before attempting fetch.
-    // If credits are exhausted, fail fast instead of burning 25s timeout per user request.
-    if (needsJsRender && SCRAPINGBEE_KEY) {
-      try {
-        const usageRes = await fetch(
-          `https://app.scrapingbee.com/api/v1/usage?api_key=${SCRAPINGBEE_KEY}`,
-          { signal: AbortSignal.timeout(3000) }
-        );
-        if (usageRes.ok) {
-          const usage = await usageRes.json() as { max_api_credit: number; used_api_credit: number };
-          if (usage.used_api_credit >= usage.max_api_credit) {
-            clearTimeout(timeoutId);
-            console.warn('[Proxy Fetch] ScrapingBee credits exhausted — failing fast for JS-render domain');
-            return NextResponse.json({
-              success: false,
-              error: 'ScrapingBee credits exhausted',
-              blocked: true,
-              sb_credits_exhausted: true,
-            }, { status: 422 });
-          }
-        }
-      } catch {
-        // Credit check failed — proceed and let the actual request determine the outcome
-      }
-    }
-
     try {
-      // --- ScrapingBee path (when API key is configured) ---
-      if (SCRAPINGBEE_KEY) {
-        try {
-          const sbUrl = new URL('https://app.scrapingbee.com/api/v1/');
-          sbUrl.searchParams.set('api_key', SCRAPINGBEE_KEY);
-          sbUrl.searchParams.set('url', url);
-          sbUrl.searchParams.set('render_js', needsJsRender ? 'true' : 'false');
-          sbUrl.searchParams.set('premium_proxy', 'true');
-          sbUrl.searchParams.set('country_code', 'us');
-          if (needsJsRender) {
-            // wait_browser tells ScrapingBee's headless browser to wait until network is idle
-            // (Puppeteer networkidle2 equivalent). ScrapingBee uses wait_browser, NOT wait_for.
-            // wait_for is for CSS selectors only — passing 'networkidle2' there causes a timeout.
-            // Minimum 20s for JS-rendered sites — CarGurus and AutoTrader need the full render cycle.
-            sbUrl.searchParams.set('wait_browser', 'networkidle2');
-            sbUrl.searchParams.set('timeout', String(Math.max(20000, Math.min(timeout, 30000))));
-          }
-
-          console.log('[Proxy Fetch] Trying ScrapingBee:', { url: url.substring(0, 80), needsJsRender });
-          const sbResponse = await fetch(sbUrl.toString(), { signal: controller.signal });
-          clearTimeout(timeoutId);
-
-          if (sbResponse.ok) {
-            const html = await sbResponse.text();
-            const creditsUsed = sbResponse.headers.get('spb-cost');
-            console.log('[Proxy Fetch] ScrapingBee success, credits used:', creditsUsed, 'html length:', html.length);
-
-            const lowerHtml = html.toLowerCase();
-            const isBlocked =
-              lowerHtml.includes('captcha') ||
-              lowerHtml.includes('just a moment') ||
-              lowerHtml.includes('challenge-platform') ||
-              html.length < 2000;
-
-            if (!isBlocked) {
-              return NextResponse.json({
-                success: true,
-                html,
-                contentLength: html.length,
-                status: 200,
-                fetchMethod: 'scrapingbee',
-                headers: { 'content-type': 'text/html' },
-              });
-            }
-            console.warn('[Proxy Fetch] ScrapingBee returned blocked page, falling back to direct fetch');
-          } else {
-            const errText = await sbResponse.text().catch(() => '');
-            console.warn('[Proxy Fetch] ScrapingBee error', sbResponse.status, errText.substring(0, 200));
-            // For JS-rendered sites, ScrapingBee is the only viable path.
-            // If it returns non-OK (402 credit exhaustion, 500, etc.), direct fetch won't work either.
-            // Return blocked so the scraper shows the right error instead of silently falling through.
-            if (needsJsRender) {
-              clearTimeout(timeoutId);
-              return NextResponse.json({
-                success: false,
-                error: `ScrapingBee error ${sbResponse.status} — site requires JS rendering`,
-                blocked: true,
-                sb_status: sbResponse.status,
-              }, { status: 422 });
-            }
-          }
-        } catch (sbErr) {
-          console.warn('[Proxy Fetch] ScrapingBee threw, falling back:', sbErr instanceof Error ? sbErr.message : sbErr);
-        }
-      }
-
-      // --- Direct fetch fallback ---
-      clearTimeout(timeoutId); // ensure outer timer is cleared regardless of ScrapingBee path
-      const directController = new AbortController();
-      const directTimeoutId = setTimeout(() => directController.abort(), timeout);
-
       const response = await fetch(url, {
-        signal: directController.signal,
+        signal: controller.signal,
         headers: {
           'User-Agent': getRandomUserAgent(),
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -235,9 +121,9 @@ export async function POST(request: NextRequest) {
         redirect: 'follow',
       });
 
-      clearTimeout(directTimeoutId);
+      clearTimeout(timeoutId);
 
-      console.log('[Proxy Fetch] Direct response status:', response.status, response.statusText);
+      console.log('[Proxy Fetch] Response status:', response.status, 'for', parsedUrl.hostname);
 
       if (!response.ok) {
         return NextResponse.json(
@@ -251,24 +137,17 @@ export async function POST(request: NextRequest) {
       }
 
       const html = await response.text();
+      console.log('[Proxy Fetch] HTML length:', html.length);
 
-      console.log('[Proxy Fetch] HTML received, length:', html.length);
-
-      // Check if we got a cookie consent / bot wall instead of real content
       const lowerHtml = html.toLowerCase();
+
+      // Cookie consent wall — page is not useful content
       const isCookieWall =
         (lowerHtml.includes('cookie') && lowerHtml.includes('consent') && html.length < 15000) ||
         lowerHtml.includes('cookiebanner') ||
         lowerHtml.includes('cookie-banner') ||
         lowerHtml.includes('cookie_consent') ||
         (lowerHtml.includes('accept') && lowerHtml.includes('cookie') && !lowerHtml.includes('lot-') && html.length < 10000);
-      const isBlocked =
-        html.includes('captcha') ||
-        html.includes('bot detection') ||
-        html.includes('Just a moment') ||
-        html.includes('challenge-platform') ||
-        html.includes('access denied') ||
-        html.length < 2000;
 
       if (isCookieWall) {
         console.warn('[Proxy Fetch] Cookie consent wall detected');
@@ -280,8 +159,19 @@ export async function POST(request: NextRequest) {
         }, { status: 422 });
       }
 
+      // Bot/CAPTCHA wall
+      const isBlocked =
+        lowerHtml.includes('id="captcha"') ||
+        lowerHtml.includes('class="captcha') ||
+        lowerHtml.includes('bot detection') ||
+        lowerHtml.includes('just a moment') ||
+        lowerHtml.includes('challenge-platform') ||
+        lowerHtml.includes('access denied') ||
+        html.includes('Autotrader - page unavailable') ||
+        html.length < 2000;
+
       if (isBlocked) {
-        console.warn('[Proxy Fetch] Possible blocking detected');
+        console.warn('[Proxy Fetch] Bot protection detected');
         return NextResponse.json({
           success: false,
           error: 'blocked',
@@ -289,15 +179,13 @@ export async function POST(request: NextRequest) {
         }, { status: 403 });
       }
 
-      // Return successful response
       return NextResponse.json({
         success: true,
         html,
         contentLength: html.length,
         status: response.status,
-        headers: {
-          'content-type': response.headers.get('content-type'),
-        },
+        fetchMethod: 'direct',
+        headers: { 'content-type': response.headers.get('content-type') },
       });
 
     } finally {
@@ -305,7 +193,6 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    // Handle abort/timeout
     if (error instanceof Error && error.name === 'AbortError') {
       console.error('[Proxy Fetch] Request timeout');
       return NextResponse.json(

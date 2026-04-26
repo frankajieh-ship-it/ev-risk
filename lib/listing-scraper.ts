@@ -575,8 +575,8 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
   const warnings: string[] = [];
   const startTime = Date.now();
 
-  // Hard budget: 25s total — proxy fetch + direct fallback (maxDuration=30s on route)
-  const EXTRACTION_BUDGET_MS = 25000;
+  // Hard budget: 20s total — proxy fetch + direct fallback
+  const EXTRACTION_BUDGET_MS = 20000;
   const remainingBudget = () => Math.max(0, EXTRACTION_BUDGET_MS - (Date.now() - startTime));
 
   // Initialize diagnostics
@@ -630,10 +630,9 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
     // --- Proxy fetch phase ---
     let html: string | null = null;
 
-    // CarGurus hangs direct connections silently — was capped at 8s.
-    // Now that the proxy uses ScrapingBee (headless browser), the silent-hang
-    // problem is gone. Use a full 25s budget so ScrapingBee can finish JS render.
-    const sourceProxyCap = 25000;
+    // CarGurus is client-side rendered — direct fetch returns a near-empty shell.
+    // Cap it at 8s so users get the paste-text fallback quickly rather than waiting 20s.
+    const sourceProxyCap = dataSource === 'cargurus' ? 8000 : 15000;
 
     if (remainingBudget() > 1000) {
       const proxyStart = Date.now();
