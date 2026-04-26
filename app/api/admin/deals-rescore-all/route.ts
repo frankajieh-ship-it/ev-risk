@@ -20,7 +20,8 @@ export const maxDuration = 300; // 5 min — enough for ~60 deals at 5s each in 
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
 
 // Shared rescore logic — used by both dev inline path and background function
-export async function runRescore() {
+// since: optional ISO date string "YYYY-MM-DD" — only rescore rows created on/after that date
+export async function runRescore(since?: string) {
   const [
     { scoreWithAi, inferSignalsFromListing },
     { scoreReceiptV2 },
@@ -36,22 +37,33 @@ export async function runRescore() {
   const supabase = getSupabaseAdmin();
   if (!supabase) throw new Error("DB not configured");
 
-  // Delete blank rows (no make AND no vehicle_label — nothing usable)
-  // Use OR: delete if make is null OR vehicle_label is null
-  const { count: deleted } = await supabase
-    .from("curated_deals")
-    .delete({ count: "exact" })
-    .or("make.is.null,vehicle_label.is.null");
+  let deleted = 0;
+  // Only delete blank rows when doing a full rescore, not a date-filtered one
+  if (!since) {
+    const { count } = await supabase
+      .from("curated_deals")
+      .delete({ count: "exact" })
+      .or("make.is.null,vehicle_label.is.null");
+    deleted = count ?? 0;
+    console.log(`[rescore-all] deleted ${deleted} blank rows`);
+  }
 
-  console.log(`[rescore-all] deleted ${deleted ?? 0} blank rows`);
-
-  // Fetch all rows that have at least make+model to work with
-  const { data: rows, error: fetchErr } = await supabase
+  // Fetch rows — filter by created_at when since is provided
+  let query = supabase
     .from("curated_deals")
     .select("id, listing_url, make, model, year, trim, price, mileage, location")
     .not("make", "is", null)
     .order("created_at", { ascending: true });
 
+  if (since) {
+    // since = "2026-04-26" → rows created on that calendar day (UTC)
+    const dayStart = `${since}T00:00:00.000Z`;
+    const nextDay = new Date(new Date(dayStart).getTime() + 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte("created_at", dayStart).lt("created_at", nextDay);
+    console.log(`[rescore-all] filtering to rows created ${since} (${dayStart} – ${nextDay})`);
+  }
+
+  const { data: rows, error: fetchErr } = await query;
   if (fetchErr) throw new Error(`Fetch failed: ${fetchErr.message}`);
 
   let rescored = 0, failed = 0;
@@ -109,7 +121,7 @@ export async function runRescore() {
     }
   }
 
-  return { rescored, failed, deleted: deleted ?? 0, total: rows?.length ?? 0 };
+  return { rescored, failed, deleted, total: rows?.length ?? 0 };
 }
 
 export async function POST(request: NextRequest) {
@@ -119,16 +131,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  let since: string | undefined;
+  try {
+    const body = await request.json();
+    if (typeof body?.since === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.since)) {
+      since = body.since;
+    }
+  } catch { /* no body is fine */ }
+
   const isDev = process.env.NODE_ENV === "development";
 
   if (isDev) {
     try {
-      const result = await runRescore();
-      return NextResponse.json({
-        ok: true,
-        message: `Rescored ${result.rescored} deals, deleted ${result.deleted} blank rows (${result.failed} failed)`,
-        ...result,
-      });
+      const result = await runRescore(since);
+      const msg = since
+        ? `Rescored ${result.rescored} deals from ${since} (${result.failed} failed)`
+        : `Rescored ${result.rescored} deals, deleted ${result.deleted} blank rows (${result.failed} failed)`;
+      return NextResponse.json({ ok: true, message: msg, ...result });
     } catch (err) {
       return NextResponse.json(
         { error: err instanceof Error ? err.message : "Rescore failed" },
@@ -144,12 +163,15 @@ export async function POST(request: NextRequest) {
   fetch(fnUrl, {
     method: "POST",
     headers: { Authorization: `Bearer ${ADMIN_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ since }),
   }).catch((err) => {
     console.error("[deals-rescore-all] failed to trigger background function:", err.message);
   });
 
   return NextResponse.json({
     ok: true,
-    message: "Rescore job started in background — check Netlify logs for progress.",
+    message: since
+      ? `Rescore job started for ${since} — check Netlify logs for progress.`
+      : "Rescore job started in background — check Netlify logs for progress.",
   });
 }

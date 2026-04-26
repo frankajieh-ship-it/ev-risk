@@ -38,30 +38,51 @@ const handler: Handler = async (event: HandlerEvent) => {
     return { statusCode: 401, body: "Unauthorized" };
   }
 
+  // Optional date filter — "YYYY-MM-DD" — only rescore rows from that day
+  let since: string | undefined;
+  try {
+    const body = event.body ? JSON.parse(event.body) : {};
+    if (typeof body?.since === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.since)) {
+      since = body.since;
+    }
+  } catch { /* ignore parse errors */ }
+
   const supabase = getSupabase();
   if (!supabase) return { statusCode: 503, body: "DB not configured" };
 
-  // Delete blank rows (no make OR no vehicle_label — nothing usable to score)
-  const { count: deleted } = await supabase
-    .from("curated_deals")
-    .delete({ count: "exact" })
-    .or("make.is.null,vehicle_label.is.null");
+  let deleted = 0;
+  // Only purge blank rows on a full rescore, not a date-scoped one
+  if (!since) {
+    const { count } = await supabase
+      .from("curated_deals")
+      .delete({ count: "exact" })
+      .or("make.is.null,vehicle_label.is.null");
+    deleted = count ?? 0;
+    console.log(`[rescore-all-deals] deleted ${deleted} blank rows`);
+  }
 
-  console.log(`[rescore-all-deals] deleted ${deleted ?? 0} blank rows`);
-
-  // Fetch all rows that have at least make to work with
-  const { data: rows, error: fetchErr } = await supabase
+  // Fetch rows — optionally scoped to a single calendar day (UTC)
+  let query = supabase
     .from("curated_deals")
     .select("id, listing_url, make, model, year, trim, price, mileage, location")
     .not("make", "is", null)
     .order("created_at", { ascending: true });
+
+  if (since) {
+    const dayStart = `${since}T00:00:00.000Z`;
+    const nextDay = new Date(new Date(dayStart).getTime() + 24 * 60 * 60 * 1000).toISOString();
+    query = query.gte("created_at", dayStart).lt("created_at", nextDay);
+    console.log(`[rescore-all-deals] scoped to ${since}`);
+  }
+
+  const { data: rows, error: fetchErr } = await query;
 
   if (fetchErr || !rows) {
     console.error("[rescore-all-deals] fetch error:", fetchErr?.message);
     return { statusCode: 500, body: fetchErr?.message ?? "Fetch failed" };
   }
 
-  console.log(`[rescore-all-deals] rescoring ${rows.length} deals (no re-scrape — using DB fields)`);
+  console.log(`[rescore-all-deals] rescoring ${rows.length} deals${since ? ` from ${since}` : ""} (DB fields only)`);
 
   let rescored = 0, failed = 0;
 
@@ -119,10 +140,10 @@ const handler: Handler = async (event: HandlerEvent) => {
     }
   }
 
-  console.log(`[rescore-all-deals] done — rescored: ${rescored}, failed: ${failed}, deleted: ${deleted ?? 0}`);
+  console.log(`[rescore-all-deals] done — rescored: ${rescored}, failed: ${failed}, deleted: ${deleted}`);
   return {
     statusCode: 200,
-    body: JSON.stringify({ rescored, failed, deleted: deleted ?? 0, total: rows.length }),
+    body: JSON.stringify({ rescored, failed, deleted, total: rows.length }),
   };
 };
 

@@ -23,6 +23,7 @@ interface DealRow {
   receipt_id: string | null;
   last_analyzed_at: string | null;
   is_active: boolean;
+  created_at: string | null;
 }
 
 type SortKey = keyof DealRow;
@@ -48,6 +49,9 @@ export default function AdminDealsPage() {
   const authHeader = adminKey ? `Bearer ${adminKey}` : "";
   const [rescoring, setRescoring] = useState(false);
   const rescoringPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+  const [rescopeDate, setRescopeDate] = useState(todayStr);
+  const [rescopeOnly, setRescopeOnly] = useState(true);
 
   const fetchDeals = useCallback(async () => {
     setLoading(true);
@@ -112,13 +116,19 @@ export default function AdminDealsPage() {
 
   const handleRescoreAll = async () => {
     if (!adminKey) { alert("Enter your admin API key first"); return; }
-    if (!confirm(`Re-score all ${deals.length} deals with AI? This runs in the background and activates all rows. May take several minutes.`)) return;
+    const since = rescopeOnly && rescopeDate ? rescopeDate : undefined;
+    const scopeLabel = since ? `from ${since}` : `all ${deals.length}`;
+    const rowsInScope = since
+      ? deals.filter((d) => d.created_at && d.created_at.startsWith(since)).length
+      : deals.length;
+    if (!confirm(`Re-score ${rowsInScope} deal${rowsInScope !== 1 ? "s" : ""} ${scopeLabel} with AI? This activates all rescored rows.`)) return;
     setRescoring(true);
-    setImportStatus("⏳ Rescore job started — table refreshes every 15s...");
+    setImportStatus(`⏳ Rescore job started${since ? ` for ${since}` : ""} — table refreshes every 15s...`);
     try {
       const res = await fetch("/api/admin/deals-rescore-all", {
         method: "POST",
-        headers: { Authorization: authHeader },
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({ since }),
       });
       const data = await res.json();
       if (!data.ok) {
@@ -267,13 +277,31 @@ export default function AdminDealsPage() {
               <Link2 className="w-3.5 h-3.5" />
               Import from URLs
             </Link>
+            {/* Date-scoped rescore controls */}
+            <div className="flex items-center gap-1.5">
+              <input
+                type="date"
+                value={rescopeDate}
+                onChange={(e) => setRescopeDate(e.target.value)}
+                className="bg-[#161b22] border border-white/[0.08] text-white/60 text-xs rounded-lg px-2 py-2 focus:outline-none focus:border-[#00d97e]/40 w-32"
+              />
+              <label className="flex items-center gap-1 text-xs text-white/40 cursor-pointer select-none whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={rescopeOnly}
+                  onChange={(e) => setRescopeOnly(e.target.checked)}
+                  className="accent-[#00d97e] w-3 h-3"
+                />
+                date only
+              </label>
+            </div>
             <button
               onClick={handleRescoreAll}
               disabled={rescoring}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${rescoring ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}
             >
               <Cpu className={`w-3.5 h-3.5 ${rescoring ? "animate-pulse" : ""}`} />
-              {rescoring ? "Rescoring..." : "Rescore All (AI)"}
+              {rescoring ? "Rescoring..." : rescopeOnly && rescopeDate ? `Rescore ${rescopeDate.slice(5)} (AI)` : "Rescore All (AI)"}
             </button>
             <button onClick={handleActivateAll}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-emerald-400 border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
@@ -324,6 +352,7 @@ export default function AdminDealsPage() {
             <thead>
               <tr className="border-b border-white/[0.08] bg-[#161b22] text-white/40">
                 <th className="text-left px-4 py-3"><SortBtn k="vehicle_label" label="Vehicle" /></th>
+                <th className="text-right px-3 py-3"><SortBtn k="created_at" label="Added" /></th>
                 <th className="text-right px-3 py-3"><SortBtn k="price" label="Price" /></th>
                 <th className="text-right px-3 py-3"><SortBtn k="mileage" label="Miles" /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="verdict" label="Verdict" /></th>
@@ -340,7 +369,7 @@ export default function AdminDealsPage() {
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="border-b border-white/[0.04]">
-                    {Array.from({ length: 11 }).map((__, j) => (
+                    {Array.from({ length: 12 }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-3 bg-white/[0.04] rounded animate-pulse" />
                       </td>
@@ -349,7 +378,7 @@ export default function AdminDealsPage() {
                 ))
               ) : sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="text-center py-12 text-white/30">No deals found</td>
+                  <td colSpan={12} className="text-center py-12 text-white/30">No deals found</td>
                 </tr>
               ) : (
                 sorted.map((d) => (
@@ -357,6 +386,9 @@ export default function AdminDealsPage() {
                     <td className="px-4 py-3 max-w-[220px]">
                       <div className="font-medium text-white/80 truncate">{d.vehicle_label ?? `${d.year} ${d.make} ${d.model}`}</div>
                       <div className="text-white/30 text-[10px] mt-0.5">{d.url_domain}</div>
+                    </td>
+                    <td className="px-3 py-3 text-right text-white/40 text-[10px] whitespace-nowrap">
+                      {d.created_at ? new Date(d.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
                     </td>
                     <td className="px-3 py-3 text-right text-white/60">
                       {d.price ? `$${d.price.toLocaleString()}` : "—"}
