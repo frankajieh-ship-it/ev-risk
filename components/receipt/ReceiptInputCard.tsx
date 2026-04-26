@@ -403,6 +403,11 @@ export default function ReceiptInputCard({
             message: "Extraction timed out — please fill in the details below."
           });
           showManualForm();
+        } else if (data.diagnostics?.failureReason === "listing_sold") {
+          setExtractError({
+            message: "This listing has already sold or been removed. Try a different listing."
+          });
+          // Don't show manual form for sold listings — nothing to fill in
         } else if (data.diagnostics?.failureReason === "search_page") {
           const urlValue = urlOverride ?? listingUrl.trim();
           const id = extractCarGurusListingId(urlValue);
