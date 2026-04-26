@@ -10,8 +10,12 @@
  *
  * CSV columns (in any order, header row required):
  *   listing_url, vehicle_label, year, make, model, trim,
- *   price, mileage, location, verdict, risk_flags, photo_url, url_domain
+ *   price, mileage, location, vin, title_status, battery_report, service_records,
+ *   verdict, risk_flags, photo_url, url_domain
  *
+ * title_status: clean | salvage | rebuilt | unknown
+ * battery_report: yes | no (blank = unknown)
+ * service_records: yes | no (blank = unknown)
  * risk_flags: semicolon-separated, e.g. "Battery unknown;Service history missing"
  * verdict: GREEN | YELLOW | RED
  */
@@ -19,6 +23,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { computeDealQualityScore } from "@/lib/deal-quality-score";
+import { scoreReceiptV2 } from "@/lib/receipt-scoring-v2";
+
+/**
+ * Derive listing_signals from structured CSV fields (no AI needed).
+ * These map directly to the scoring rules in receipt-rules.ts.
+ */
+function signalsFromStructuredData(opts: {
+  vin: string | null;
+  title_status: string | null;
+  battery_report: string | null;
+  service_records: string | null;
+}): string[] {
+  const signals: string[] = [];
+  // VIN
+  if (opts.vin) signals.push("vin_decoded"); else signals.push("vin_missing");
+  // Title
+  if (opts.title_status === "clean") signals.push("clean_title_explicit");
+  else if (opts.title_status === "salvage" || opts.title_status === "rebuilt") signals.push("title_salvage");
+  else signals.push("title_status_unclear");
+  // Battery report
+  if (opts.battery_report === "yes") signals.push("battery_report_recent");
+  else if (opts.battery_report === "no") signals.push("battery_proof_missing");
+  // Service records
+  if (opts.service_records === "yes") signals.push("service_records_shown");
+  else if (opts.service_records === "no") signals.push("service_records_missing");
+  return signals;
+}
 
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
 const VALID_VERDICTS = new Set(["GREEN", "YELLOW", "RED"]);
@@ -133,9 +164,15 @@ export async function POST(request: NextRequest) {
     const model = row["model"]?.trim() || null;
     const trim = row["trim"]?.trim() || null;
     const location = row["location"]?.trim() || null;
-    const verdict = (verdictRaw || "YELLOW") as "GREEN" | "YELLOW" | "RED";
+    const vin = row["vin"]?.trim() || null;
+    const titleStatusRaw = row["title_status"]?.trim().toLowerCase() || null;
+    const title_status = (["clean", "salvage", "rebuilt", "unknown"].includes(titleStatusRaw ?? "") ? titleStatusRaw : null) as "clean" | "salvage" | "rebuilt" | "unknown" | null;
+    const batteryReportRaw = row["battery_report"]?.trim().toLowerCase() || null;
+    const battery_report = (["yes", "no"].includes(batteryReportRaw ?? "") ? batteryReportRaw : null) as "yes" | "no" | null;
+    const serviceRecordsRaw = row["service_records"]?.trim().toLowerCase() || null;
+    const service_records = (["yes", "no"].includes(serviceRecordsRaw ?? "") ? serviceRecordsRaw : null) as "yes" | "no" | null;
+
     const riskFlagsRaw = row["risk_flags"]?.trim();
-    const riskFlags = riskFlagsRaw ? riskFlagsRaw.split(";").map((f) => f.trim()).filter(Boolean).slice(0, 3) : null;
     const vehicleLabel = row["vehicle_label"]?.trim() || [year, make, model, trim].filter(Boolean).join(" ") || null;
     let photoUrl = row["photo_url"]?.trim() || null;
     const urlDomain = row["url_domain"]?.trim() || (() => {
@@ -147,8 +184,37 @@ export async function POST(request: NextRequest) {
       photoUrl = await fetchPhotoUrl(make, model, year, baseUrl);
     }
 
-    // Compute deal quality score (no evidence/fit data for manual entries — uses defaults)
-    const dealQualityScore = computeDealQualityScore(null, null, null);
+    // Compute scores from structured fields — no AI call needed for basic signals.
+    // If any structured fields are provided, use them; otherwise fall back to null scores
+    // (AI rescore triggered at end of import will fill these in).
+    const hasStructuredData = vin || title_status || battery_report || service_records;
+    let computedVerdict = (verdictRaw || null) as "GREEN" | "YELLOW" | "RED" | null;
+    let computedRiskFlags: string[] | null = riskFlagsRaw
+      ? riskFlagsRaw.split(";").map((f) => f.trim()).filter(Boolean).slice(0, 3)
+      : null;
+    let evidenceScore: number | null = null;
+    let fitScore: number | null = null;
+    let riskPoints: number | null = null;
+    let dealQualityScore = computeDealQualityScore(null, null, null);
+
+    if (hasStructuredData) {
+      const signals = signalsFromStructuredData({ vin, title_status, battery_report, service_records });
+      const scoring = scoreReceiptV2(signals);
+      evidenceScore = scoring.evidence_score;
+      fitScore = scoring.fit_score;
+      riskPoints = scoring.risk_points;
+      dealQualityScore = computeDealQualityScore(evidenceScore, riskPoints, fitScore);
+      // Override verdict from scoring unless manually set in CSV
+      if (!verdictRaw) computedVerdict = scoring.verdict;
+      // Override risk flags from scoring unless manually set in CSV
+      if (!computedRiskFlags) {
+        computedRiskFlags = scoring.scoring_reasons
+          .filter((r) => r.points <= 0)
+          .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
+          .slice(0, 3)
+          .map((r) => r.label);
+      }
+    }
 
     const { error: upsertErr } = await supabase
       .from("curated_deals")
@@ -163,12 +229,16 @@ export async function POST(request: NextRequest) {
         price,
         mileage,
         location,
-        verdict,
-        evidence_score: null,
-        fit_score: null,
-        risk_points: null,
+        vin,
+        title_status,
+        battery_report,
+        service_records,
+        verdict: computedVerdict ?? "YELLOW",
+        evidence_score: evidenceScore,
+        fit_score: fitScore,
+        risk_points: riskPoints,
         deal_quality_score: dealQualityScore,
-        risk_flags: riskFlags,
+        risk_flags: computedRiskFlags,
         photo_url: photoUrl,
         receipt_id: null,
         last_analyzed_at: new Date().toISOString(),
@@ -205,11 +275,23 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Auto-rescore newly imported rows with AI — fire-and-forget
+  // Scoped to today so we don't re-score the full database on every import.
+  const today = new Date().toISOString().slice(0, 10);
+  fetch(`${baseUrl}/api/admin/deals-rescore-all`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${ADMIN_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ since: today }),
+  }).catch((err) => {
+    console.warn("[deals-import] auto-rescore trigger failed:", err instanceof Error ? err.message : err);
+  });
+
   return NextResponse.json({
     success: true,
     imported: results.imported,
     skipped: results.skipped,
     deactivated: results.deactivated,
+    rescore_started: true,
     errors: results.errors.slice(0, 20),
     total_rows: rows.length,
   });

@@ -105,7 +105,8 @@ export function detectListingSource(url: string): VehicleData['dataSource'] {
 /**
  * Type definition for data sources
  */
-type DataSource = 'autotrader' | 'cargurus' | 'cars.com' | 'carvana' | 'facebook' | 'carfax' | 'truecar' | 'edmunds' | 'kbb' | 'vroom' | 'carmax' | 'autotempest' | 'hemmings' | 'unknown'; // eslint-disable-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type DataSource = 'autotrader' | 'cargurus' | 'cars.com' | 'carvana' | 'facebook' | 'carfax' | 'truecar' | 'edmunds' | 'kbb' | 'vroom' | 'carmax' | 'autotempest' | 'hemmings' | 'unknown';
 
 /**
  * Checks if URL is a search/listing page vs individual vehicle page
@@ -570,7 +571,7 @@ async function extractFromCars(html: string): Promise<Partial<VehicleData>> {
  * Main extraction function
  * Fetches URL and extracts vehicle data with a hard 10s total budget.
  */
-export async function extractVehicleData(url: string): Promise<ExtractionResult> {
+export async function extractVehicleData(url: string, opts?: { adminKey?: string }): Promise<ExtractionResult> {
   const warnings: string[] = [];
   const startTime = Date.now();
 
@@ -629,11 +630,10 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
     // --- Proxy fetch phase ---
     let html: string | null = null;
 
-    // CarGurus hangs connections silently — cap proxy at 8s then fall through
-    const SOURCE_PROXY_TIMEOUT: Partial<Record<string, number>> = {
-      cargurus: 8000,
-    };
-    const sourceProxyCap = SOURCE_PROXY_TIMEOUT[dataSource] ?? 20000;
+    // CarGurus hangs direct connections silently — was capped at 8s.
+    // Now that the proxy uses ScrapingBee (headless browser), the silent-hang
+    // problem is gone. Use a full 25s budget so ScrapingBee can finish JS render.
+    const sourceProxyCap = 25000;
 
     if (remainingBudget() > 1000) {
       const proxyStart = Date.now();
@@ -643,19 +643,26 @@ export async function extractVehicleData(url: string): Promise<ExtractionResult>
 
       try {
         // Internal proxy route — avoids CORS and rotates user-agents
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
+        // BASE_URL (server-only) takes priority over the public variant so dev port
+        // is always correct without exposing it in the browser bundle.
+        // process.env.PORT is set by Next.js at runtime as an additional fallback.
+        const devPort = process.env.PORT ?? "3000";
+        const baseUrl = process.env.BASE_URL ||
+                        process.env.NEXT_PUBLIC_BASE_URL ||
                         process.env.URL ||
                         process.env.DEPLOY_URL ||
                         (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-                        'http://localhost:3000';
+                        `http://localhost:${devPort}`;
         const proxyUrl = typeof window === 'undefined'
           ? `${baseUrl}/api/proxy-fetch`
           : '/api/proxy-fetch';
 
         console.log('[Listing Scraper] Proxy fetch:', { url: url.substring(0, 80), dataSource });
+        const proxyHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (opts?.adminKey) proxyHeaders['x-admin-key'] = opts.adminKey;
         const proxyResponse = await fetch(proxyUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: proxyHeaders,
           body: JSON.stringify({ url, timeout: Math.min(sourceProxyCap, proxyTimeout - 500) }),
           signal: proxyController.signal,
         });

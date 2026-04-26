@@ -25,6 +25,10 @@ const HEADERS = [
   "price",
   "mileage",
   "location",
+  "vin",
+  "title_status",
+  "battery_report",
+  "service_records",
   "verdict",
   "risk_flags",
   "photo_url",
@@ -67,6 +71,10 @@ export async function GET(request: NextRequest) {
       "27999",
       "18500",
       "Austin, TX",
+      "5YJ3E1EA4PF123456",
+      "clean",
+      "no",
+      "yes",
       "GREEN",
       "Battery health not disclosed;Service history incomplete",
       "",
@@ -88,7 +96,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from("curated_deals")
-    .select("listing_url, vehicle_label, year, make, model, trim, price, mileage, location, verdict, risk_flags, photo_url, url_domain")
+    .select("listing_url, vehicle_label, year, make, model, trim, price, mileage, location, vin, title_status, battery_report, service_records, verdict, risk_flags, photo_url, url_domain")
     .eq("is_active", true)
     .order("deal_quality_score", { ascending: false })
     .limit(500);

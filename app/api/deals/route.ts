@@ -133,6 +133,8 @@ export async function GET(request: NextRequest) {
     .not("vehicle_label", "is", null)
     .not("make", "is", null)
     .not("price", "is", null)
+    .not("vin", "is", null)           // VIN audit required before public surfacing
+    .not("title_status", "is", null)  // title must be resolved
     .order(sortCol, { ascending: sortAsc, nullsFirst: false })
     .limit(fetchLimit);
 

@@ -40,8 +40,8 @@ export interface AiScoringResult {
 }
 
 // ── Deterministic fallback ────────────────────────────────────────────────────
-// Used only when AI call fails. Produces generic YELLOW-biased results
-// because it always emits battery_proof_missing + service_records_missing.
+// Used only when AI call fails. Battery/service record absence is neutral —
+// only inject penalty signals when explicitly set to "no".
 
 export function inferSignalsFromListing(data: ScrapedListing): string[] {
   const signals: string[] = [];
@@ -50,8 +50,10 @@ export function inferSignalsFromListing(data: ScrapedListing): string[] {
   else if (data.title_status === "salvage" || data.title_status === "rebuilt") { signals.push("title_salvage"); }
   else { signals.push("title_status_unclear"); }
   if (data.accidents_reported === "yes") { signals.push("prior_damage_minor"); }
-  signals.push("battery_proof_missing");
-  signals.push("service_records_missing");
+  // battery_proof_missing only when battery report is explicitly absent (not just unknown)
+  if ((data as Record<string, unknown>).battery_report === "no") { signals.push("battery_proof_missing"); }
+  // service_records_missing only when service records are explicitly absent
+  if ((data as Record<string, unknown>).service_records === "no") { signals.push("service_records_missing"); }
   if (data.dc_fast_kw && data.dc_fast_kw > 0) { signals.push("dcfc_confirmed"); }
   if (data.mileage && data.mileage > 80000) { signals.push("ownership_turnover_high"); }
   return signals;

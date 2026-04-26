@@ -4,6 +4,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { RefreshCw, ArrowUpDown, ExternalLink, Upload, Download, Link2, Cpu } from "lucide-react";
 import Link from "next/link";
 
+interface VinAuditSummary {
+  salvage: boolean;
+  theft: boolean;
+  accident_count: number;
+  sale_count: number;
+}
+
 interface DealRow {
   id: string;
   listing_url: string;
@@ -14,6 +21,12 @@ interface DealRow {
   model: string | null;
   price: number | null;
   mileage: number | null;
+  vin: string | null;
+  title_status: "clean" | "salvage" | "rebuilt" | "unknown" | null;
+  battery_report: "yes" | "no" | null;
+  service_records: "yes" | "no" | null;
+  vin_audit_summary: VinAuditSummary | null;
+  extracted_signals: string[] | null;
   verdict: "GREEN" | "YELLOW" | "RED" | null;
   fit_score: number | null;
   evidence_score: number | null;
@@ -48,7 +61,9 @@ export default function AdminDealsPage() {
   const [adminKey, setAdminKey] = useState("");
   const authHeader = adminKey ? `Bearer ${adminKey}` : "";
   const [rescoring, setRescoring] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const rescoringPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const extractPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
   const [rescopeDate, setRescopeDate] = useState(todayStr);
   const [rescopeOnly, setRescopeOnly] = useState(true);
@@ -178,6 +193,39 @@ export default function AdminDealsPage() {
     }
   };
 
+  const handleExtract = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    const since = rescopeOnly && rescopeDate ? rescopeDate : undefined;
+    const scopeLabel = since ? `from ${since}` : "all active listings";
+    if (!confirm(`Extract info (VIN, title, mileage, etc.) for ${scopeLabel}?\n\nThis scrapes each listing URL (~30s per listing). Sold listings will be auto-deactivated.`)) return;
+    setExtracting(true);
+    setImportStatus(`⏳ Extracting${since ? ` ${since}` : ""} listings — table refreshes every 15s...`);
+    try {
+      const res = await fetch("/api/admin/deals-extract", {
+        method: "POST",
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({ since }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setImportStatus(`✗ ${data.error}`);
+        setExtracting(false);
+        return;
+      }
+      // Poll every 15s — extraction runs async server-side
+      extractPollRef.current = setInterval(fetchDeals, 15000);
+      setTimeout(() => {
+        if (extractPollRef.current) clearInterval(extractPollRef.current);
+        setExtracting(false);
+        setImportStatus("✓ Extraction finished — VIN, title, mileage columns updated. Run Rescore to apply scores.");
+        fetchDeals();
+      }, 10 * 60 * 1000);
+    } catch {
+      setImportStatus("✗ Failed to start extraction");
+      setExtracting(false);
+    }
+  };
+
   const handleActivateAll = async () => {
     if (!adminKey) { alert("Enter your admin API key first"); return; }
     const inactive = deals.filter((d) => !d.is_active);
@@ -213,7 +261,8 @@ export default function AdminDealsPage() {
       const data = await res.json();
       if (data.success) {
         const deactivatedNote = data.deactivated > 0 ? `, ${data.deactivated} deactivated (not in CSV)` : "";
-        setImportStatus(`✓ Imported ${data.imported} deals (${data.skipped} skipped${deactivatedNote})`);
+        const rescoreNote = data.rescore_started ? " — AI rescore started (refresh in ~1 min per listing)" : "";
+        setImportStatus(`✓ Imported ${data.imported} deals (${data.skipped} skipped${deactivatedNote})${rescoreNote}`);
         fetchDeals();
       } else {
         setImportStatus(`✗ ${data.error}`);
@@ -318,6 +367,14 @@ export default function AdminDealsPage() {
               </label>
             </div>
             <button
+              onClick={handleExtract}
+              disabled={extracting || rescoring}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${extracting ? "text-blue-400 border-blue-400/20 cursor-not-allowed" : (rescoring ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-blue-400 border-white/[0.08]")}`}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${extracting ? "animate-spin" : ""}`} />
+              {extracting ? "Extracting..." : rescopeOnly && rescopeDate ? `Extract ${rescopeDate.slice(5)}` : "Extract All"}
+            </button>
+            <button
               onClick={handleRescoreAll}
               disabled={rescoring}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${rescoring ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}
@@ -381,12 +438,16 @@ export default function AdminDealsPage() {
                 <th className="text-right px-3 py-3"><SortBtn k="created_at" label="Added" /></th>
                 <th className="text-right px-3 py-3"><SortBtn k="price" label="Price" /></th>
                 <th className="text-right px-3 py-3"><SortBtn k="mileage" label="Miles" /></th>
+                <th className="text-center px-3 py-3">VIN</th>
+                <th className="text-center px-3 py-3"><SortBtn k="title_status" label="Title" /></th>
+                <th className="text-center px-3 py-3">Bat. Report</th>
+                <th className="text-center px-3 py-3">Svc Records</th>
                 <th className="text-center px-3 py-3"><SortBtn k="verdict" label="Verdict" /></th>
                 <th className="text-right px-3 py-3"><SortBtn k="fit_score" label="Fit" /></th>
                 <th className="text-right px-3 py-3"><SortBtn k="evidence_score" label="Evidence" /></th>
                 <th className="text-right px-3 py-3"><SortBtn k="risk_points" label="Risk Pts" /></th>
                 <th className="text-right px-3 py-3"><SortBtn k="deal_quality_score" label="Quality" /></th>
-                <th className="text-left px-3 py-3 min-w-[200px]">Flags</th>
+                <th className="text-left px-3 py-3 min-w-[180px]">Flags</th>
                 <th className="text-center px-3 py-3"><SortBtn k="is_active" label="Active" /></th>
                 <th className="px-3 py-3"></th>
               </tr>
@@ -395,7 +456,7 @@ export default function AdminDealsPage() {
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="border-b border-white/[0.04]">
-                    {Array.from({ length: 12 }).map((__, j) => (
+                    {Array.from({ length: 16 }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-3 bg-white/[0.04] rounded animate-pulse" />
                       </td>
@@ -404,7 +465,7 @@ export default function AdminDealsPage() {
                 ))
               ) : sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="text-center py-12 text-white/30">No deals found</td>
+                  <td colSpan={16} className="text-center py-12 text-white/30">No deals found</td>
                 </tr>
               ) : (
                 sorted.map((d) => (
@@ -421,6 +482,46 @@ export default function AdminDealsPage() {
                     </td>
                     <td className="px-3 py-3 text-right text-white/50">
                       {d.mileage ? d.mileage.toLocaleString() : "—"}
+                    </td>
+                    <td className="px-3 py-3 text-center font-mono text-[10px]">
+                      {d.vin ? (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="text-emerald-400" title={d.vin}>✓</span>
+                          {d.vin_audit_summary?.accident_count != null && d.vin_audit_summary.accident_count > 0 && (
+                            <span className="text-red-400 font-sans" title={`${d.vin_audit_summary.accident_count} accident(s) reported`}>
+                              ⚠{d.vin_audit_summary.accident_count}
+                            </span>
+                          )}
+                          {d.extracted_signals && d.extracted_signals.length > 0 && (
+                            <span className="text-white/30 font-sans" title={d.extracted_signals.join(", ")}>
+                              {d.extracted_signals.length}
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-white/20">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      {d.title_status === "clean"
+                        ? <span className="text-emerald-400">clean</span>
+                        : d.title_status === "salvage" || d.title_status === "rebuilt"
+                        ? <span className="text-red-400">{d.title_status}</span>
+                        : <span className="text-white/20">{d.title_status ?? "—"}</span>}
+                    </td>
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      {d.battery_report === "yes"
+                        ? <span className="text-emerald-400">yes</span>
+                        : d.battery_report === "no"
+                        ? <span className="text-red-400">no</span>
+                        : <span className="text-white/20">—</span>}
+                    </td>
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      {d.service_records === "yes"
+                        ? <span className="text-emerald-400">yes</span>
+                        : d.service_records === "no"
+                        ? <span className="text-red-400">no</span>
+                        : <span className="text-white/20">—</span>}
                     </td>
                     <td className="px-3 py-3 text-center">
                       <span className={`font-semibold ${d.verdict ? VERDICT_COLOR[d.verdict] : "text-white/30"}`}>

@@ -20,26 +20,38 @@ function getRandomUserAgent(): string {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 }
 
+const ADMIN_KEY = process.env.ADMIN_API_KEY;
+
+// Must be long enough for ScrapingBee JS-render (CarGurus/AutoTrader need 15-25s)
+export const maxDuration = 45;
+
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting
-    const clientIP = getClientIP(request);
-    const rateLimit = extractionRateLimiter.check(clientIP);
+    // Admin batch jobs (deals-extract, ingest) bypass the rate limiter
+    const adminHeader = request.headers.get("x-admin-key");
+    const isAdminBypass = ADMIN_KEY && adminHeader === ADMIN_KEY;
 
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Rate limit exceeded. Please try again later.',
-          resetAt: new Date(rateLimit.resetAt).toISOString(),
-        },
-        { status: 429 }
-      );
+    if (!isAdminBypass) {
+      // Rate limiting for regular user requests
+      const clientIP = getClientIP(request);
+      const rateLimit = extractionRateLimiter.check(clientIP);
+
+      if (!rateLimit.allowed) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Rate limit exceeded. Please try again later.',
+            resetAt: new Date(rateLimit.resetAt).toISOString(),
+          },
+          { status: 429 }
+        );
+      }
     }
 
     // Parse request body
     const body = await request.json();
-    const { url, timeout = 10000 } = body;
+    // Default 30s — ScrapingBee needs 15-25s for JS-rendered sites (CarGurus, AutoTrader)
+    const { url, timeout = 30000 } = body;
 
     // Validate URL
     if (!url || typeof url !== 'string') {
@@ -118,8 +130,9 @@ export async function POST(request: NextRequest) {
             // wait_browser tells ScrapingBee's headless browser to wait until network is idle
             // (Puppeteer networkidle2 equivalent). ScrapingBee uses wait_browser, NOT wait_for.
             // wait_for is for CSS selectors only — passing 'networkidle2' there causes a timeout.
+            // Minimum 20s for JS-rendered sites — CarGurus and AutoTrader need the full render cycle.
             sbUrl.searchParams.set('wait_browser', 'networkidle2');
-            sbUrl.searchParams.set('timeout', String(Math.min(timeout, 25000)));
+            sbUrl.searchParams.set('timeout', String(Math.max(20000, Math.min(timeout, 30000))));
           }
 
           console.log('[Proxy Fetch] Trying ScrapingBee:', { url: url.substring(0, 80), needsJsRender });

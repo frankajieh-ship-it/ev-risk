@@ -64,7 +64,7 @@ const handler: Handler = async (event: HandlerEvent) => {
   // Fetch rows — optionally scoped to a single calendar day (UTC)
   let query = supabase
     .from("curated_deals")
-    .select("id, listing_url, make, model, year, trim, price, mileage, location")
+    .select("id, listing_url, make, model, year, trim, price, mileage, location, vin, title_status, battery_report, service_records, extracted_signals")
     .not("make", "is", null)
     .order("created_at", { ascending: true });
 
@@ -97,10 +97,40 @@ const handler: Handler = async (event: HandlerEvent) => {
         price: row.price as number | undefined,
         mileage: row.mileage as number | undefined,
         location: row.location as string | undefined,
+        vin: (row.vin as string | null) ?? undefined,
+        title_status: (row.title_status as "clean" | "salvage" | "rebuilt" | "unknown" | null) ?? undefined,
       };
 
+      // Build structured signals from CSV columns + pre-computed VinAudit/NHTSA signals
+      const structuredSignals: string[] = [];
+      const batteryReport = row.battery_report as string | null;
+      const serviceRecords = row.service_records as string | null;
+      if (batteryReport === "yes") structuredSignals.push("battery_report_recent");
+      else if (batteryReport === "no") structuredSignals.push("battery_proof_missing");
+      if (serviceRecords === "yes") structuredSignals.push("service_records_shown");
+      else if (serviceRecords === "no") structuredSignals.push("service_records_missing");
+      // VinAudit + NHTSA extracted signals are ground truth — merge in
+      const extractedSignals = (row.extracted_signals as string[] | null) ?? [];
+      const allStructured = [...structuredSignals, ...extractedSignals];
+
       const aiResult = await scoreWithAi(row.listing_url as string | undefined, d);
-      const signals = aiResult.signals.length > 0 ? aiResult.signals : inferSignalsFromListing(d);
+      const aiSignals = aiResult.signals.length > 0 ? aiResult.signals : inferSignalsFromListing(d);
+
+      // Merge structured facts over AI assumptions
+      const mergedSet = new Set(aiSignals);
+      for (const s of allStructured) {
+        mergedSet.add(s);
+        if (s === "battery_report_recent") mergedSet.delete("battery_proof_missing");
+        if (s === "battery_proof_missing") mergedSet.delete("battery_report_recent");
+        if (s === "service_records_shown") mergedSet.delete("service_records_missing");
+        if (s === "service_records_missing") mergedSet.delete("service_records_shown");
+        if (s === "vin_decoded") mergedSet.delete("vin_missing");
+        if (s === "vin_missing") mergedSet.delete("vin_decoded");
+        // clean_title_explicit and title_salvage are mutually exclusive
+        if (s === "clean_title_explicit") mergedSet.delete("title_status_unclear");
+        if (s === "title_salvage") { mergedSet.delete("clean_title_explicit"); mergedSet.delete("title_status_unclear"); }
+      }
+      const signals = Array.from(mergedSet);
       const scoring = scoreReceiptV2(signals);
       const dealQualityScore = computeDealQualityScore(
         scoring.evidence_score, scoring.risk_points, scoring.fit_score

@@ -19,6 +19,27 @@ export const maxDuration = 300; // 5 min — enough for ~60 deals at 5s each in 
 
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
 
+/**
+ * Merge structured signals (from DB columns: vin, title_status, battery_report,
+ * service_records) with AI-generated signals. Structured signals take priority for
+ * battery/service — removes the generic missing-signal if the structured data says yes.
+ */
+function mergeSignals(aiSignals: string[], structured: string[]): string[] {
+  const merged = new Set(aiSignals);
+  for (const s of structured) {
+    merged.add(s);
+    // If structured says battery IS present, remove the AI's "missing" signal
+    if (s === "battery_report_recent") merged.delete("battery_proof_missing");
+    if (s === "battery_proof_missing") merged.delete("battery_report_recent");
+    if (s === "service_records_shown") merged.delete("service_records_missing");
+    if (s === "service_records_missing") merged.delete("service_records_shown");
+    // If structured says VIN present, remove vin_missing
+    if (s === "vin_decoded") merged.delete("vin_missing");
+    if (s === "vin_missing") merged.delete("vin_decoded");
+  }
+  return Array.from(merged);
+}
+
 // Shared rescore logic — used by both dev inline path and background function
 // since: optional ISO date string "YYYY-MM-DD" — only rescore rows created on/after that date
 export async function runRescore(since?: string) {
@@ -51,7 +72,7 @@ export async function runRescore(since?: string) {
   // Fetch rows — filter by created_at when since is provided
   let query = supabase
     .from("curated_deals")
-    .select("id, listing_url, make, model, year, trim, price, mileage, location")
+    .select("id, listing_url, make, model, year, trim, price, mileage, location, vin, title_status, battery_report, service_records, extracted_signals")
     .not("make", "is", null)
     .order("created_at", { ascending: true });
 
@@ -79,12 +100,29 @@ export async function runRescore(since?: string) {
         price: row.price as number | undefined,
         mileage: row.mileage as number | undefined,
         location: row.location as string | undefined,
-        // No raw_text — AI will work from structured fields only
+        vin: (row.vin as string | null) ?? undefined,
+        title_status: (row.title_status as "clean" | "salvage" | "rebuilt" | "unknown" | null) ?? undefined,
+        // Map battery_report/service_records DB columns to ScrapedListing fields
+        // AI prompt will receive these so signals can be accurate
       };
+      // Pre-seed signals from structured data (CSV columns + VinAudit extracted_signals)
+      const structuredSignals: string[] = [];
+      const batteryReport = row.battery_report as string | null;
+      const serviceRecords = row.service_records as string | null;
+      if (batteryReport === "yes") structuredSignals.push("battery_report_recent");
+      else if (batteryReport === "no") structuredSignals.push("battery_proof_missing");
+      if (serviceRecords === "yes") structuredSignals.push("service_records_shown");
+      else if (serviceRecords === "no") structuredSignals.push("service_records_missing");
+      // Merge pre-computed VinAudit + NHTSA signals (deterministic facts, highest priority)
+      const extractedSignals = (row.extracted_signals as string[] | null) ?? [];
+      const allStructured = [...structuredSignals, ...extractedSignals];
 
       // AI scoring (falls back to deterministic if AI fails)
       const aiResult = await scoreWithAi(row.listing_url as string | undefined, d);
-      const signals = aiResult.signals.length > 0 ? aiResult.signals : inferSignalsFromListing(d);
+      // Structured facts override AI assumptions — VinAudit/NHTSA signals are ground truth
+      const aiSignals = aiResult.signals.length > 0 ? aiResult.signals : inferSignalsFromListing(d);
+      const mergedSignals = mergeSignals(aiSignals, allStructured);
+      const signals = mergedSignals;
       const scoring = scoreReceiptV2(signals);
       const dealQualityScore = computeDealQualityScore(
         scoring.evidence_score, scoring.risk_points, scoring.fit_score
