@@ -93,9 +93,13 @@ export default function DealsPage() {
           <p className="text-white/50 text-base max-w-xl">
             Every listing is pre-analyzed by OFFO — verdict, risk flags, and evidence score included. No browsing blind.
           </p>
-          {total > 0 && (
-            <p className="text-white/30 text-sm mt-2">{total.toLocaleString()} deals analyzed</p>
-          )}
+          <div className="flex items-center gap-2 mt-3">
+            {total > 0 && (
+              <span className="text-white/30 text-sm">{total.toLocaleString()} deals analyzed</span>
+            )}
+            {total > 0 && <span className="text-white/15 text-sm">·</span>}
+            <span className="text-white/25 text-xs">Updated every 24 hours — some listings may have sold</span>
+          </div>
         </div>
 
         {/* Filters */}

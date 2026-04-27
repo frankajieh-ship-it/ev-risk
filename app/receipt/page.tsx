@@ -204,6 +204,7 @@ export default function ReceiptPage() {
   // Prefill from SEO page or extension
   const [prefillText, setPrefillText] = useState<string | null>(null);
   const [prefillUrl, setPrefillUrl] = useState<string | null>(null);
+  const [prefillVin, setPrefillVin] = useState<string | null>(null);
   const [pageSource, setPageSource] = useState<string | null>(null);
 
   // Receipt history (merged server + localStorage)
@@ -395,6 +396,9 @@ export default function ReceiptPage() {
       setPrefillUrl(extUrl);
       const src = params.get("src") || (params.get("ext") === "true" ? "extension" : "direct_url");
       setPageSource(src);
+      // Carry VIN from deal card (?vin=) — pre-seeds the form before extraction completes
+      const vinParam = params.get("vin");
+      if (vinParam) setPrefillVin(vinParam.toUpperCase());
       window.history.replaceState({}, "", "/receipt");
     }
 
@@ -831,6 +835,7 @@ export default function ReceiptPage() {
           isPro={isPro}
           prefillText={prefillText}
           prefillUrl={prefillUrl}
+          prefillVin={prefillVin}
           trackEvent={trackEvent}
           receiptToken={receiptToken}
           hasResult={!!receipt}

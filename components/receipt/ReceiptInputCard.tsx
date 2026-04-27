@@ -50,6 +50,7 @@ interface ReceiptInputCardProps {
   isPro?: boolean;
   prefillText?: string | null;
   prefillUrl?: string | null;
+  prefillVin?: string | null;
   trackEvent?: (eventName: string, eventData?: Record<string, unknown>) => void;
   receiptToken?: string;
   hasResult?: boolean;
@@ -152,6 +153,7 @@ export default function ReceiptInputCard({
   error,
   prefillText,
   prefillUrl,
+  prefillVin,
   trackEvent,
   receiptToken,
   hasResult = false,
@@ -222,6 +224,7 @@ export default function ReceiptInputCard({
   // Auto-extract on URL paste
   const [lastAutoExtractedUrl, setLastAutoExtractedUrl] = useState<string | null>(null);
   const autoExtractTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoRetryDoneRef = useRef(false);
 
   // Refs for auto-focus
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -246,6 +249,13 @@ export default function ReceiptInputCard({
       autoExtractTimerRef.current = setTimeout(() => handleExtract(prefillUrl), 800);
     }
   }, [prefillUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pre-seed VIN from deal card (?vin= param) — extraction will overwrite only if it finds one
+  useEffect(() => {
+    if (prefillVin) {
+      setFields((prev) => prev.vin ? prev : { ...prev, vin: prefillVin });
+    }
+  }, [prefillVin]);  
 
   // Cleanup auto-extract timer on unmount
   useEffect(() => {
@@ -296,6 +306,7 @@ export default function ReceiptInputCard({
     setShowCarGurusBanner(false);
     setCarGurusCleanId(null);
 
+    autoRetryDoneRef.current = false;
     if (autoExtractTimerRef.current) clearTimeout(autoExtractTimerRef.current);
     autoExtractTimerRef.current = setTimeout(() => handleExtract(pasted), 300);
   };
@@ -400,10 +411,15 @@ export default function ReceiptInputCard({
           }
           showManualForm();
         } else if (data.diagnostics?.failureReason === "timeout") {
-          setExtractError({
-            message: "Extraction timed out — please fill in the details below."
-          });
-          showManualForm();
+          // Auto-retry once — cold serverless starts can cause first-attempt timeouts
+          if (!autoRetryDoneRef.current && (urlOverride || inputMode === "url")) {
+            autoRetryDoneRef.current = true;
+            setExtractError({ message: "Taking a moment — retrying automatically..." });
+            autoExtractTimerRef.current = setTimeout(() => handleExtract(urlOverride ?? listingUrl.trim()), 1500);
+          } else {
+            setExtractError({ message: "Extraction timed out — please fill in the details below." });
+            showManualForm();
+          }
         } else if (data.diagnostics?.failureReason === "listing_sold") {
           setExtractError({
             message: "This listing has already sold or been removed. Try a different listing."
@@ -423,10 +439,15 @@ export default function ReceiptInputCard({
             showManualForm();
           }
         } else {
-          setExtractError({
-            message: "Couldn't extract listing details."
-          });
-          showManualForm();
+          // Auto-retry once on generic failures (e.g. cold start returned thin HTML)
+          if (!autoRetryDoneRef.current && (urlOverride || inputMode === "url")) {
+            autoRetryDoneRef.current = true;
+            setExtractError({ message: "Taking a moment — retrying automatically..." });
+            autoExtractTimerRef.current = setTimeout(() => handleExtract(urlOverride ?? listingUrl.trim()), 1500);
+          } else {
+            setExtractError({ message: "Couldn't extract listing details." });
+            showManualForm();
+          }
         }
         return;
       }
