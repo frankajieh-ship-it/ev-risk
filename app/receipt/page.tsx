@@ -390,15 +390,16 @@ export default function ReceiptPage() {
       setRoutineRunId(params.get("run_id"));
     }
 
+    // ?vin= can come from any entry point (deal card URL or deal card ?id= link)
+    const vinParam = params.get("vin");
+    if (vinParam) setPrefillVin(vinParam.toUpperCase());
+
     // Check for URL prefill (?url=...&ext=true or ?url=...&src=landing)
     const extUrl = params.get("url");
     if (extUrl) {
       setPrefillUrl(extUrl);
       const src = params.get("src") || (params.get("ext") === "true" ? "extension" : "direct_url");
       setPageSource(src);
-      // Carry VIN from deal card (?vin=) — pre-seeds the form before extraction completes
-      const vinParam = params.get("vin");
-      if (vinParam) setPrefillVin(vinParam.toUpperCase());
       window.history.replaceState({}, "", "/receipt");
     }
 

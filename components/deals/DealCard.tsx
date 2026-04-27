@@ -383,7 +383,9 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
         <div className="mt-auto flex gap-2 pt-1">
           {/* Primary action: view existing receipt if available, else analyze */}
           <Link
-            href={deal.receipt_id ? `/receipt?id=${deal.receipt_id}` : `/receipt?url=${encodeURIComponent(deal.listing_url)}${deal.vin ? `&vin=${encodeURIComponent(deal.vin)}` : ""}`}
+            href={deal.receipt_id
+              ? `/receipt?id=${deal.receipt_id}${deal.vin ? `&vin=${encodeURIComponent(deal.vin)}` : ""}`
+              : `/receipt?url=${encodeURIComponent(deal.listing_url)}${deal.vin ? `&vin=${encodeURIComponent(deal.vin)}` : ""}`}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg transition-colors ${
               deal.receipt_id
                 ? "bg-[#00d97e]/10 hover:bg-[#00d97e]/20 border border-[#00d97e]/20 text-[#00d97e]"
