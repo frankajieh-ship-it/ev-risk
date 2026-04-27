@@ -89,6 +89,51 @@ function lookupEvSpecs(make: string, model: string, trim?: string): EvSpecEntry 
   return EV_SPECS[baseKey] ?? null;
 }
 
+/** NHTSA vPIC VIN decode — free, no API key, broad make/model coverage */
+interface NhtsaResult {
+  make?: string;
+  model?: string;
+  year?: number;
+  trim?: string;
+  bodyClass?: string;
+  fuelType?: string;
+  electrificationLevel?: string;
+}
+
+async function decodeVinNhtsa(vin: string): Promise<NhtsaResult | null> {
+  try {
+    const res = await fetch(
+      `https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/${encodeURIComponent(vin)}?format=json`,
+      { signal: AbortSignal.timeout(6000) }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const results: Array<{ Variable: string; Value: string | null }> = data?.Results ?? [];
+    const get = (variable: string) =>
+      results.find((r) => r.Variable === variable)?.Value?.trim() || undefined;
+
+    const make = get("Make");
+    const model = get("Model");
+    const yearStr = get("Model Year");
+    const year = yearStr ? parseInt(yearStr) : undefined;
+
+    // NHTSA returns "Not Applicable" or empty for unknown fields
+    if (!make || !model || make === "Not Applicable") return null;
+
+    return {
+      make,
+      model,
+      year: year && !isNaN(year) ? year : undefined,
+      trim: get("Trim") !== "Not Applicable" ? get("Trim") : undefined,
+      bodyClass: get("Body Class"),
+      fuelType: get("Fuel Type - Primary"),
+      electrificationLevel: get("Electrification Level"),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   let body: Record<string, unknown>;
   try {
@@ -103,13 +148,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "A 17-character VIN is required" }, { status: 400 });
   }
 
-  // Decode VIN and search listings in parallel
+  // Decode VIN and search listings in parallel (Auto.dev + listings)
   const [vinData, listingsData] = await Promise.all([
     decodeVin(vin),
     searchListings({ vin, limit: 6 }),
   ]);
 
-  if (!vinData) {
+  // Fall back to NHTSA vPIC when Auto.dev doesn't recognize the VIN
+  // (NHTSA has broader coverage: Volvo, Polestar, Genesis, etc.)
+  const nhtsaData = vinData ? null : await decodeVinNhtsa(vin);
+
+  if (!vinData && !nhtsaData) {
     return NextResponse.json(
       { success: false, error: "VIN not found — check it's correct and try again" },
       { status: 404 }
@@ -123,27 +172,23 @@ export async function POST(request: NextRequest) {
     return v.name || undefined;
   };
 
-  // Build structured fields from VIN decode
-  // Auto.dev sometimes returns year in years[0].year instead of top-level modelYear/year
-  const resolvedYear = vinData.modelYear
-    ? Number(vinData.modelYear)
-    : (vinData.year ?? vinData.years?.[0]?.year ?? undefined);
+  // Build structured fields — prefer Auto.dev, fall back to NHTSA
+  const resolvedYear = vinData
+    ? (vinData.modelYear ? Number(vinData.modelYear) : (vinData.year ?? vinData.years?.[0]?.year ?? undefined))
+    : nhtsaData?.year;
 
   const fields: Record<string, unknown> = {
     vin,
     year: resolvedYear,
-    make: resolveName(vinData.make),
-    model: resolveName(vinData.model),
-    trim: vinData.trim ?? undefined,
+    make: vinData ? resolveName(vinData.make) : nhtsaData?.make,
+    model: vinData ? resolveName(vinData.model) : nhtsaData?.model,
+    trim: vinData ? (vinData.trim ?? undefined) : nhtsaData?.trim,
   };
 
-  // EV spec extraction from VIN decode data
-  // MPGe (city+highway combined) → efficiency in mi/kWh  (MPGe ÷ 33.7)
-  if (vinData.mpg) {
+  // EV spec extraction from Auto.dev VIN decode (MPGe → mi/kWh)
+  if (vinData?.mpg) {
     const cityMpg = vinData.mpg.city ? parseFloat(vinData.mpg.city) : null;
     const hwyMpg = vinData.mpg.highway ? parseFloat(vinData.mpg.highway) : null;
-    // Only treat as MPGe if the value is suspiciously high for a normal ICE car (>50 MPG city)
-    // Tesla Model 3 city MPGe ≈ 138; Kia EV6 ≈ 132 — ICE cars rarely exceed 50 city
     if (cityMpg && cityMpg > 50) {
       const combinedMpge = hwyMpg ? Math.round((cityMpg + hwyMpg) / 2) : cityMpg;
       const eff = Math.round((combinedMpge / 33.7) * 10) / 10;
@@ -152,8 +197,10 @@ export async function POST(request: NextRequest) {
   }
 
   // Body style from VIN decode
-  if (vinData.categories?.vehicleStyle) {
+  if (vinData?.categories?.vehicleStyle) {
     fields.body_style = vinData.categories.vehicleStyle;
+  } else if (nhtsaData?.bodyClass) {
+    fields.body_style = nhtsaData.bodyClass;
   }
 
   // Fill missing EV specs from static lookup table
@@ -198,18 +245,18 @@ export async function POST(request: NextRequest) {
 
   // Build auto_dev_specs for downstream consumers (engine, body style, MSRP)
   const engineParts = [
-    vinData.engine?.cylinder ? `${vinData.engine.cylinder}-cyl` : null,
-    vinData.engine?.size ? `${vinData.engine.size}L` : null,
-    vinData.engine?.fuelType ?? null,
+    vinData?.engine?.cylinder ? `${vinData.engine.cylinder}-cyl` : null,
+    vinData?.engine?.size ? `${vinData.engine.size}L` : null,
+    vinData?.engine?.fuelType ?? (nhtsaData?.fuelType || null),
   ].filter(Boolean);
   const auto_dev_specs = {
     engine: engineParts.length ? engineParts.join(" ") : undefined,
-    mpg_city: vinData.mpg?.city ? parseFloat(vinData.mpg.city) : undefined,
-    mpg_highway: vinData.mpg?.highway ? parseFloat(vinData.mpg.highway) : undefined,
-    drive: vinData.drivenWheels,
-    body_style: vinData.categories?.vehicleStyle,
-    msrp: vinData.price?.baseMsrp,
-    used_tmv: vinData.price?.usedTmvRetail,
+    mpg_city: vinData?.mpg?.city ? parseFloat(vinData.mpg.city) : undefined,
+    mpg_highway: vinData?.mpg?.highway ? parseFloat(vinData.mpg.highway) : undefined,
+    drive: vinData?.drivenWheels,
+    body_style: vinData?.categories?.vehicleStyle ?? nhtsaData?.bodyClass,
+    msrp: vinData?.price?.baseMsrp,
+    used_tmv: vinData?.price?.usedTmvRetail,
   };
 
   const vehicleLabel = [fields.year, fields.make, fields.model, fields.trim]

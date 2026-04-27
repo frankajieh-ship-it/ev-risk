@@ -26,7 +26,7 @@ import {
 import type { FetchedListingFields, StructuredListingFields } from "@/types/receipt";
 import FbMarketplacePasteModal from "@/components/receipt/FbMarketplacePasteModal";
 
-type InputMode = "url" | "text";
+type InputMode = "url" | "text" | "vin";
 
 type ExtractError = {
   message: string;
@@ -666,6 +666,7 @@ export default function ReceiptInputCard({
         <button
           onClick={() => {
             setInputMode("url");
+            setShowVinFallback(false);
             trackEvent?.("entry_mode_selected", { mode: "url", context: "receipt_page" });
           }}
           className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
@@ -679,6 +680,7 @@ export default function ReceiptInputCard({
         <button
           onClick={() => {
             setInputMode("text");
+            setShowVinFallback(false);
             trackEvent?.("entry_mode_selected", { mode: "text", context: "receipt_page" });
           }}
           className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
@@ -688,6 +690,22 @@ export default function ReceiptInputCard({
           }`}
         >
           <FileText className="w-4 h-4" /> Paste Text <span className="text-xs text-white/30 ml-0.5 font-normal">(advanced)</span>
+        </button>
+        <button
+          onClick={() => {
+            setInputMode("vin");
+            setShowVinFallback(true);
+            setVinFallbackValue("");
+            setVinLookupError(null);
+            trackEvent?.("entry_mode_selected", { mode: "vin", context: "receipt_page" });
+          }}
+          className={`flex-1 py-3 px-4 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+            inputMode === "vin"
+              ? "text-[#00d97e] bg-[#00d97e]/10 border-b-2 border-[#00d97e]"
+              : "text-white/50 hover:text-white/70 hover:bg-white/[0.04]"
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4" /> Enter VIN
         </button>
       </div>
 
@@ -1034,6 +1052,49 @@ export default function ReceiptInputCard({
           </div>
         )}
 
+        {/* VIN entry mode — shown when user clicks "Enter VIN" tab */}
+        {inputMode === "vin" && (
+          <div className="bg-white/[0.05] border border-white/10 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#00d97e] shrink-0" />
+              <p className="text-sm font-semibold text-white">Enter the VIN to autofill</p>
+            </div>
+            <p className="text-xs text-white/50">
+              Found on the dashboard, door jamb, or listing page. We&apos;ll decode it and fill in the details automatically.
+            </p>
+            <div className="flex gap-2">
+              <input
+                ref={vinInputRef}
+                type="text"
+                maxLength={17}
+                placeholder="17-character VIN"
+                value={vinFallbackValue}
+                onChange={(e) => {
+                  setVinFallbackValue(e.target.value.toUpperCase());
+                  setVinLookupError(null);
+                }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleVinLookup(); }}
+                className="flex-1 px-3 py-2 text-sm font-mono bg-white/[0.06] border border-white/10 text-white rounded-lg focus:ring-2 focus:ring-[#00d97e]/40 focus:border-[#00d97e]/50 outline-none uppercase tracking-wider placeholder-white/25"
+                disabled={vinLookupStatus === "loading"}
+              />
+              <button
+                onClick={handleVinLookup}
+                disabled={vinFallbackValue.length !== 17 || vinLookupStatus === "loading"}
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-[#00d97e] text-[#0d1117] hover:bg-[#00f090] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+              >
+                {vinLookupStatus === "loading" ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Looking up…</>
+                ) : (
+                  "Autofill"
+                )}
+              </button>
+            </div>
+            {vinLookupError && (
+              <p className="text-xs text-red-600">{vinLookupError}</p>
+            )}
+          </div>
+        )}
+
         {/* Extraction Result Chips */}
         {hasExtracted && (
           <div className="space-y-2">
@@ -1203,6 +1264,13 @@ export default function ReceiptInputCard({
                 className={getInputClass(fieldConfidence.vin, dirtyFields.has("vin"))}
                 disabled={isGenerating}
               />
+              {/* Nudge when extraction succeeded but VIN wasn't available (e.g. CarGurus) */}
+              {hasExtracted && !fields.vin && (
+                <p className="mt-1.5 text-xs text-amber-400/80">
+                  VIN wasn&apos;t found on this listing — enter it above for richer analysis and recall checks.
+                  <span className="ml-1 text-white/30">(Found on dashboard, door jamb, or title)</span>
+                </p>
+              )}
             </div>
 
             {/* Row 2: Year, Make, Model */}

@@ -355,10 +355,28 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
         // model is everything between make and the price suffix
         const modelTrim = vehicleMatch[3].trim();
         if (!data.model) {
-          // Split model from trim: first word(s) are model, rest is trim
-          const modelParts = modelTrim.split(/\s+/);
-          data.model = modelParts[0];
-          if (modelParts.length > 1 && !data.trim) data.trim = modelParts.slice(1).join(' ');
+          // Known multi-word models indexed by make (lowercase)
+          const MULTI_WORD_MODELS: Record<string, string[]> = {
+            tesla: ['model s', 'model 3', 'model x', 'model y', 'roadster'],
+            land: ['land rover', 'range rover'],
+            alfa: ['alfa romeo'],
+            aston: ['aston martin'],
+            rolls: ['rolls royce'],
+          };
+          const makeLower = (data.make || vehicleMatch[2]).toLowerCase();
+          const knownModels = MULTI_WORD_MODELS[makeLower] || [];
+          const modelTrimLower = modelTrim.toLowerCase();
+          const multiWordMatch = knownModels.find(m => modelTrimLower.startsWith(m));
+
+          if (multiWordMatch) {
+            data.model = modelTrim.slice(0, multiWordMatch.length);
+            const rest = modelTrim.slice(multiWordMatch.length).trim();
+            if (rest && !data.trim) data.trim = rest;
+          } else {
+            const modelParts = modelTrim.split(/\s+/);
+            data.model = modelParts[0];
+            if (modelParts.length > 1 && !data.trim) data.trim = modelParts.slice(1).join(' ');
+          }
         }
       }
       // Extract price from og:title
@@ -396,8 +414,9 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
         data.trim = data.trim || listing.trim;
         data.price = data.price || listing.price || listing.listPrice;
         data.mileage = data.mileage || listing.mileage;
-        data.vin = data.vin || listing.vin;
-        data.location = data.location || listing.dealer?.cityState;
+        data.vin = data.vin || listing.vin || listing.vehicleIdentificationNumber
+          || listing.vehicle?.vin || listing.listingDetails?.vin;
+        data.location = data.location || listing.dealer?.cityState || listing.dealerInfo?.cityState;
 
         // EV specs — CarGurus nests these under various keys
         const specs = listing.specs || listing.vehicleSpecs || listing.attributes || {};
@@ -421,6 +440,56 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
       }
     } catch (e) {
       console.log('[CarGurus] Failed to parse __NEXT_DATA__:', e);
+    }
+
+    // If VIN still missing, scan the raw __NEXT_DATA__ blob for any 17-char VIN value
+    if (!data.vin) {
+      const vinInJson = nextDataMatch[1].match(/"vin"\s*:\s*"([A-HJ-NPR-Z0-9]{17})"/i);
+      if (vinInJson) data.vin = vinInJson[1].toUpperCase();
+    }
+  }
+
+  // CarGurus migrated to Remix — try window.__remixContext for listing data / VIN
+  if (!data.vin || !data.year || !data.make) {
+    const remixMatch = html.match(/window\.__remixContext\s*=\s*(\{[\s\S]*?\});\s*(?:window\.|<\/script>)/);
+    if (remixMatch) {
+      try {
+        const ctx = JSON.parse(remixMatch[1]);
+        const loaderValues = Object.values(
+          (ctx?.state?.loaderData ?? {}) as Record<string, unknown>
+        );
+        for (const loader of loaderValues) {
+          const l = loader as Record<string, unknown>;
+          const listing = l?.listing ?? l?.listingData ?? l?.vehicleListing ?? l?.vehicle;
+          if (listing && typeof listing === 'object') {
+            const ls = listing as Record<string, unknown>;
+            data.vin = data.vin || (ls.vin as string) || (ls.vehicleIdentificationNumber as string);
+            data.year = data.year || (ls.year as number) || (ls.modelYear as number);
+            data.make = data.make || (ls.make as string);
+            data.model = data.model || (ls.model as string);
+            data.trim = data.trim || (ls.trim as string);
+            data.price = data.price || (ls.price as number) || (ls.listPrice as number);
+            data.mileage = data.mileage || (ls.mileage as number) || (ls.odometer as number);
+            data.location = data.location || (ls.city && ls.state ? `${ls.city}, ${ls.state}` : undefined);
+            if (data.vin) break;
+          }
+        }
+      } catch { /* silent — Remix context parsing is best-effort */ }
+    }
+  }
+
+  // Context-aware VIN scan across all inline script blocks — skips carousel/recommendation VINs
+  if (!data.vin) {
+    const scriptBlocks = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)];
+    for (const block of scriptBlocks) {
+      const vinMatch = block[1].match(/"vin"\s*:\s*"([A-HJ-NPR-Z0-9]{17})"/i);
+      if (!vinMatch) continue;
+      const idx = block[1].indexOf(vinMatch[0]);
+      const context = block[1].substring(Math.max(0, idx - 300), idx + 400);
+      // Skip if surrounding context looks like a recommendations/similar-cars list
+      if (/similar|recommend|related|other listing|you may also/i.test(context)) continue;
+      data.vin = vinMatch[1].toUpperCase();
+      break;
     }
   }
 

@@ -91,8 +91,6 @@ export interface AutoDevEnrichment {
     high: number;
     count: number;
   };
-  /** VIN from the first matched listing record — used to backfill when scraper couldn't extract it */
-  listing_vin?: string;
   /** Source of enrichment */
   source: "vin_decode" | "listings_search" | "both" | "none";
 }
@@ -231,17 +229,10 @@ export async function enrichFromAutodev(params: {
     : listingsResult ? "listings_search"
     : "none";
 
-  // Pick the first listing VIN that passes the 17-char format check —
-  // used to backfill when the scraper couldn't extract VIN from the page
-  const listingVin = listingsResult?.records
-    ?.find((r) => r.vin && /^[A-HJ-NPR-Z0-9]{17}$/i.test(r.vin))
-    ?.vin;
-
   return {
     vin_data: vinResult ?? undefined,
     photo_urls: photoUrls,
     market_price_range,
-    listing_vin: listingVin,
     source,
   };
 }
