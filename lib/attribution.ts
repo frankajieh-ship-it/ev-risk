@@ -70,6 +70,8 @@ function derivePageSource(attr: Partial<Attribution>): string {
   if (typeof document !== "undefined" && document.referrer) {
     try {
       const host = new URL(document.referrer).hostname.toLowerCase();
+      // Own domain — treat as direct (internal navigation or extension links)
+      if (host.includes("offolab.com")) return "direct";
       if (host.includes("google")) return "google_organic";
       if (host.includes("reddit")) return "reddit";
       if (host.includes("facebook") || host.includes("fb.com")) return "facebook";
