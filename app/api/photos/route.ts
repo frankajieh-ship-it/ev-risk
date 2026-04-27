@@ -218,6 +218,10 @@ const STATIC_PHOTO_MAP: Record<string, string> = {
   "spark": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Chevrolet_Spark_EV_%26_Bolt_EV_CRI_02_2023_1899.jpg/960px-Chevrolet_Spark_EV_%26_Bolt_EV_CRI_02_2023_1899.jpg",
   // Nissan
   "leaf": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/2023_Nissan_Leaf_Tekna.jpg/960px-2023_Nissan_Leaf_Tekna.jpg",
+  "leaf s": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/2023_Nissan_Leaf_Tekna.jpg/960px-2023_Nissan_Leaf_Tekna.jpg",
+  "leaf sv": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/2023_Nissan_Leaf_Tekna.jpg/960px-2023_Nissan_Leaf_Tekna.jpg",
+  "leaf sl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/2023_Nissan_Leaf_Tekna.jpg/960px-2023_Nissan_Leaf_Tekna.jpg",
+  "leaf plus": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/2023_Nissan_Leaf_Tekna.jpg/960px-2023_Nissan_Leaf_Tekna.jpg",
   "ariya": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Nissan_Ariya_IAA_2023_1X7A0455.jpg/960px-Nissan_Ariya_IAA_2023_1X7A0455.jpg",
   // Ford
   "mustang mach-e": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/Ford_Mustang_Mach-E_Rally_Auto_Zuerich_2023_1X7A1182.jpg/960px-Ford_Mustang_Mach-E_Rally_Auto_Zuerich_2023_1X7A1182.jpg",
@@ -316,6 +320,7 @@ function getStaticPhotoUrl(make: string | undefined, model: string | undefined):
     " 450+", " 580", " pure",
     " 1lt", " 1", " lt", " premier",
     " electric", " ev",
+    " sl", " sv", " s",
   ];
   let stripped = true;
   while (stripped) {
