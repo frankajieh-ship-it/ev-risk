@@ -318,43 +318,6 @@ export async function GET(request: NextRequest) {
       .gte("created_at", window.start)
       .lt("created_at", window.end);
 
-    // 16. Deal Watch searches — all-time stats
-    const dealWatchSearchesPromise = supabase
-      .from("deal_watch_searches")
-      .select("id, user_id, email_alerts, created_at");
-
-    // 17. Deal Watch results — alerts sent in last 7 days
-    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
-    const dealWatchAlertsPromise = supabase
-      .from("deal_watch_results")
-      .select("id, alert_sent_at")
-      .gte("alert_sent_at", sevenDaysAgo);
-
-    // 18. All-time paid purchases for payments breakdown (not window-filtered)
-    const allPaidPurchasesPromise = supabase
-      .from("purchases")
-      .select("purchase_id, pack_tier, price_variant, amount, status, created_at")
-      .eq("status", "paid")
-      .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`)
-      .order("created_at", { ascending: false })
-      .limit(2000);
-
-    // 19. All-time refunded purchases (last 30 days)
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
-    const refundedPurchasesPromise = supabase
-      .from("purchases")
-      .select("purchase_id, amount, pack_tier, created_at")
-      .eq("status", "refunded")
-      .gte("created_at", thirtyDaysAgo);
-
-    // 20. Real users — authenticated users from user_profiles (excludes internal team)
-    // Filters by UUID list AND by email domain to catch all offolab.com / internal accounts.
-    const realUsersPromise = supabase
-      .from("user_profiles")
-      .select("id, created_at, email")
-      .not("id", "in", `(${INTERNAL_USER_IDS_FILTER.join(",")})`)
-      .not("email", "like", "%@offolab.com");
-
     const [
       { data: receipts },
       { data: receiptEvents },
@@ -371,11 +334,6 @@ export async function GET(request: NextRequest) {
       { data: chatAnalyticsRaw },
       { data: chatMessagesRaw },
       { data: auctionAnalyses },
-      { data: dealWatchSearches },
-      { data: dealWatchAlerts },
-      { data: allPaidPurchasesRaw },
-      { data: refundedPurchasesRaw },
-      { data: realUsersRaw },
     ] = await Promise.all([
       receiptsPromise,
       receiptEventsPromise,
@@ -392,11 +350,6 @@ export async function GET(request: NextRequest) {
       chatAnalyticsPromise,
       chatMessagesPromise,
       auctionAnalysesPromise,
-      dealWatchSearchesPromise,
-      dealWatchAlertsPromise,
-      allPaidPurchasesPromise,
-      refundedPurchasesPromise,
-      realUsersPromise,
     ]);
 
     const allReceipts = receipts || [];
@@ -1912,167 +1865,6 @@ export async function GET(request: NextRequest) {
       chat_conversion_pct: chatConversionPct,
     };
 
-    // -----------------------------------------------------------------------
-    // Real users (authenticated accounts, excluding internal team)
-    // -----------------------------------------------------------------------
-
-    const allRealUsers = realUsersRaw || [];
-    const sevenDaysAgoRealUsers = new Date(Date.now() - 7 * 86400000).toISOString();
-    const thirtyDaysAgoRealUsers = new Date(Date.now() - 30 * 86400000).toISOString();
-
-    // Paid user IDs from all-time purchases
-    const paidUserIds = new Set(
-      (allPaidPurchasesRaw || [])
-        .map((p: any) => p.user_id)
-        .filter(Boolean)
-    );
-
-    // Garage user IDs
-    const garageUserIds = new Set(
-      (garageUsers || []).map((r: any) => r.user_id).filter(Boolean)
-    );
-
-    // Deal Watch user IDs
-    const dealWatchUserIds = new Set(
-      (dealWatchSearches || []).map((s: any) => s.user_id).filter(Boolean)
-    );
-
-    // Active user IDs in last 7d and 30d (from user_events, already internal-filtered)
-    const activeUserIds7d = new Set(
-      (userEvents || [])
-        .filter((e: any) => e.user_id && e.timestamp >= sevenDaysAgoRealUsers)
-        .map((e: any) => e.user_id)
-    );
-    const activeUserIds30d = new Set(
-      (userEvents || [])
-        .filter((e: any) => e.user_id && e.timestamp >= thirtyDaysAgoRealUsers)
-        .map((e: any) => e.user_id)
-    );
-
-    const real_users = {
-      total_registered: allRealUsers.length,
-      registered_last_7d: allRealUsers.filter((u: any) => u.created_at >= sevenDaysAgoRealUsers).length,
-      registered_last_30d: allRealUsers.filter((u: any) => u.created_at >= thirtyDaysAgoRealUsers).length,
-      with_purchase: allRealUsers.filter((u: any) => paidUserIds.has(u.id)).length,
-      with_garage_vehicle: allRealUsers.filter((u: any) => garageUserIds.has(u.id)).length,
-      with_deal_watch: allRealUsers.filter((u: any) => dealWatchUserIds.has(u.id)).length,
-      active_last_7d: allRealUsers.filter((u: any) => activeUserIds7d.has(u.id)).length,
-      active_last_30d: allRealUsers.filter((u: any) => activeUserIds30d.has(u.id)).length,
-    };
-
-    // -----------------------------------------------------------------------
-    // Deal Watch metrics
-    // -----------------------------------------------------------------------
-
-    const allDealWatchSearches = dealWatchSearches || [];
-    const sevenDaysAgoIso = new Date(Date.now() - 7 * 86400000).toISOString();
-    const dealWatchSection = {
-      total_searches: allDealWatchSearches.length,
-      alert_searches: allDealWatchSearches.filter((s: any) => s.email_alerts === true).length,
-      unique_users: new Set(allDealWatchSearches.map((s: any) => s.user_id).filter(Boolean)).size,
-      new_7d: allDealWatchSearches.filter((s: any) => s.created_at >= sevenDaysAgoIso).length,
-      alerts_sent_7d: (dealWatchAlerts || []).length,
-    };
-
-    // -----------------------------------------------------------------------
-    // Payments detailed breakdown
-    // -----------------------------------------------------------------------
-
-    const allPaidPurchases = allPaidPurchasesRaw || [];
-    const recentPaidPurchases = allPaidPurchases.slice(0, 10);
-
-    // Revenue by pack_tier + price_variant
-    const revenueByTierMap = new Map<string, { count: number; revenue_cents: number }>();
-    for (const p of allPaidPurchases) {
-      const key = `${p.pack_tier || "buyer_pass"}::${p.price_variant || "unknown"}`;
-      const existing = revenueByTierMap.get(key) || { count: 0, revenue_cents: 0 };
-      existing.count++;
-      existing.revenue_cents += p.amount || 0;
-      revenueByTierMap.set(key, existing);
-    }
-    const revenue_by_tier = Array.from(revenueByTierMap.entries())
-      .map(([key, { count, revenue_cents }]) => {
-        const [pack_tier, price_variant] = key.split("::");
-        return { pack_tier, price_variant, count, revenue: revenue_cents / 100 };
-      })
-      .sort((a, b) => b.revenue - a.revenue);
-
-    // Cart abandonment: checkout_started events vs paid purchases in last 7 days (from filteredUserEvents)
-    const checkoutStarted7d = filteredUserEvents.filter(
-      (e) => e.event_name === "checkout_started" && e.timestamp >= sevenDaysAgoIso
-    ).length;
-    const paid7d = allPaidPurchases.filter((p: any) => p.created_at >= sevenDaysAgoIso).length;
-    const abandonmentRate = checkoutStarted7d > 0
-      ? Math.round(((checkoutStarted7d - paid7d) / checkoutStarted7d) * 1000) / 10
-      : 0;
-
-    // Refunds in last 30 days
-    const refundedRows = refundedPurchasesRaw || [];
-    const refundTotal = refundedRows.reduce((sum: number, p: any) => sum + (p.amount || 0), 0) / 100;
-
-    const payments_detail = {
-      revenue_by_tier,
-      cart_abandonment: {
-        checkout_started_7d: checkoutStarted7d,
-        paid_7d: paid7d,
-        abandonment_rate_pct: abandonmentRate,
-      },
-      refunds_30d: {
-        count: refundedRows.length,
-        total_refunded: refundTotal,
-      },
-      recent_payments: recentPaidPurchases.map((p: any) => ({
-        amount: (p.amount || 0) / 100,
-        pack_tier: p.pack_tier || "buyer_pass",
-        created_at: p.created_at,
-      })),
-    };
-
-    // -----------------------------------------------------------------------
-    // Upgrade job health (dead-letter tracking)
-    // -----------------------------------------------------------------------
-
-    let upgrade_jobs = {
-      dead_letter_count: 0,
-      failed_count: 0,
-      pending_count: 0,
-      recent_dead_letters: [] as Array<{ job_id: string; receipt_id: string; last_error: string | null; created_at: string }>,
-    };
-
-    try {
-      const [deadLetterResult, failedResult, pendingResult] = await Promise.allSettled([
-        supabase
-          .from("receipt_upgrade_jobs")
-          .select("job_id, receipt_id, last_error, created_at")
-          .eq("status", "dead_letter")
-          .order("created_at", { ascending: false })
-          .limit(20),
-        supabase
-          .from("receipt_upgrade_jobs")
-          .select("job_id", { count: "exact", head: true })
-          .eq("status", "failed"),
-        supabase
-          .from("receipt_upgrade_jobs")
-          .select("job_id", { count: "exact", head: true })
-          .eq("status", "pending"),
-      ]);
-
-      const deadLetterRows = deadLetterResult.status === "fulfilled" ? (deadLetterResult.value.data ?? []) : [];
-      upgrade_jobs = {
-        dead_letter_count: deadLetterRows.length,
-        failed_count: failedResult.status === "fulfilled" ? (failedResult.value.count ?? 0) : 0,
-        pending_count: pendingResult.status === "fulfilled" ? (pendingResult.value.count ?? 0) : 0,
-        recent_dead_letters: deadLetterRows.slice(0, 5).map((r: any) => ({
-          job_id: r.job_id,
-          receipt_id: r.receipt_id,
-          last_error: r.last_error ?? null,
-          created_at: r.created_at,
-        })),
-      };
-    } catch {
-      // Non-critical — table may not exist yet if migration hasn't run
-    }
-
     // Dealer counts (for adminv2)
     const [dealersTotalResult, dealersNewResult] = await Promise.allSettled([
       supabase.from("dealerships").select("id", { count: "exact", head: true }),
@@ -2193,10 +1985,6 @@ export async function GET(request: NextRequest) {
       chat_metrics,
       dealers,
       auction_metrics,
-      deal_watch: dealWatchSection,
-      payments_detail,
-      upgrade_jobs,
-      real_users,
     });
   } catch (err) {
     console.error("Admin summary error:", err);
