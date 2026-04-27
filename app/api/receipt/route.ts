@@ -237,31 +237,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 6b. Payment gate — receipt generation requires a paid purchase.
-  // Internal testers, pro users, and server-to-server calls bypass the gate.
-  if (!tokenIsInternal && !isPro && isSupabaseConfigured()) {
-    const { data: activePurchase } = await supabase
-      .from("purchases")
-      .select("receipt_credits_total, receipt_credits_used")
-      .eq("anon_id", receiptToken as string)
-      .eq("status", "paid")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const hasCredits =
-      activePurchase &&
-      activePurchase.receipt_credits_total > 0 &&
-      activePurchase.receipt_credits_total - activePurchase.receipt_credits_used > 0;
-
-    if (!hasCredits) {
-      return NextResponse.json(
-        { success: false, error: "payment_required", payment_required: true },
-        { status: 402 }
-      );
-    }
-  }
-
   // 7. Build request
   const input: ReceiptGenerateRequest = {
     listing_url: (body.listing_url as string) || null,
@@ -385,7 +360,7 @@ export async function POST(request: NextRequest) {
 
     // Log user event
     supabase.from("user_events").insert({
-      event_name: "receipt_extract_succeeded",
+      event_name: "receipt_generate",
       event_data: {
         receipt_id: liteReceipt.receipt_id,
         receipt_token: receiptToken,
@@ -398,6 +373,9 @@ export async function POST(request: NextRequest) {
         fit_score: liteReceipt.fit_score ?? null,
         evidence_score: liteReceipt.evidence_score ?? null,
         evidence_label: liteReceipt.evidence_label ?? null,
+        verdict: liteReceipt.verdict ?? null,
+        price_label: liteReceipt.price_sanity?.label ?? null,
+        generation_status: "lite",
       },
       ip_address: clientIP,
       page_path: "/api/receipt",
@@ -513,20 +491,61 @@ export async function POST(request: NextRequest) {
     // Enqueue Netlify Background Function (15 min timeout)
     const bgUrl = `${baseUrl}/.netlify/functions/upgrade-receipt-background`;
     console.log("[Receipt] Enqueuing BG upgrade →", bgUrl, "receipt_id:", liteReceipt.receipt_id);
+
+    // Insert durable job record before firing — ensures job is never silently lost
+    let jobId: string | null = null;
+    if (isSupabaseConfigured() && liteDbSaved) {
+      try {
+        const { data: jobRow } = await supabase
+          .from("receipt_upgrade_jobs")
+          .insert({
+            receipt_id: liteReceipt.receipt_id,
+            receipt_token: receiptToken as string,
+            payload: upgradePayload,
+            status: "pending",
+            next_retry_at: new Date().toISOString(),
+          })
+          .select("job_id")
+          .single();
+        jobId = jobRow?.job_id ?? null;
+      } catch (jobErr) {
+        // Non-fatal — job record is best-effort; upgrade can still run
+        console.warn("[Receipt] Job record insert failed:", jobErr instanceof Error ? jobErr.message : jobErr);
+      }
+    }
+
     try {
+      const payloadWithJobId = jobId ? { ...upgradePayload, job_id: jobId } : upgradePayload;
       const bgRes = await fetch(bgUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-upgrade-secret": upgradeSecret,
         },
-        body: JSON.stringify(upgradePayload),
+        body: JSON.stringify(payloadWithJobId),
         signal: AbortSignal.timeout(5000),
       });
       console.log("[Receipt] BG upgrade enqueued, HTTP status:", bgRes.status);
+      if (!bgRes.ok && jobId && isSupabaseConfigured()) {
+        // Enqueue returned a non-2xx — mark job failed so scanner picks it up
+        supabase.from("receipt_upgrade_jobs").update({
+          status: "failed",
+          last_error: `enqueue_http_${bgRes.status}`,
+          next_retry_at: new Date(Date.now() + 60_000).toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq("job_id", jobId).then(() => {}, () => {});
+      }
     } catch (err) {
       console.error("[Receipt] BG upgrade enqueue failed:", err instanceof Error ? err.message : err);
-      // Non-fatal: lite receipt already saved — upgrade just won't run
+      // Mark job failed with backoff so scanner retries within 1 minute
+      if (jobId && isSupabaseConfigured()) {
+        supabase.from("receipt_upgrade_jobs").update({
+          status: "failed",
+          last_error: err instanceof Error ? err.message.slice(0, 300) : "enqueue_fetch_threw",
+          next_retry_at: new Date(Date.now() + 60_000).toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq("job_id", jobId).then(() => {}, () => {});
+      }
     }
   } else if (!tokenIsInternal) {
     // Dev: run upgrade inline after response flushes
