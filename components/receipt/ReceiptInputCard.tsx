@@ -88,7 +88,7 @@ function getInputClass(confidence?: string, isDirty?: boolean): string {
 }
 
 // Extraction loading step labels
-const EXTRACT_STEPS = ["Fetching listing page...", "Scanning for vehicle data...", "Verifying fields..."];
+const EXTRACT_STEPS = ["Fetching listing page...", "Rendering JS — this takes a moment...", "Scanning for vehicle data...", "Almost there..."];
 const GENERATE_STEPS = ["Checking risks...", "Analyzing pricing...", "Building your checklist..."];
 
 /**
@@ -261,8 +261,9 @@ export default function ReceiptInputCard({
       return;
     }
     const timers = [
-      setTimeout(() => setExtractStep(1), 2000),
-      setTimeout(() => setExtractStep(2), 5000),
+      setTimeout(() => setExtractStep(1), 3000),
+      setTimeout(() => setExtractStep(2), 12000),
+      setTimeout(() => setExtractStep(3), 22000),
     ];
     return () => timers.forEach(clearTimeout);
   }, [isExtracting]);
@@ -353,7 +354,7 @@ export default function ReceiptInputCard({
     setShowCgPasteHint(false);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 35000);
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
 
     try {
       const bodyPayload: Record<string, string> = {};

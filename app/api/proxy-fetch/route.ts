@@ -23,7 +23,7 @@ function getRandomUserAgent(): string {
 
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
 
-export const maxDuration = 30;
+export const maxDuration = 40;
 
 export async function POST(request: NextRequest) {
   try {
