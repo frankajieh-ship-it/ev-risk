@@ -1,28 +1,4 @@
 import Link from "next/link";
-import type { Metadata } from "next";
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
-const CANONICAL = "/blog/best-carfax-alternatives-2026";
-
-export const metadata: Metadata = {
-  title: "Best Carfax Alternatives of 2026 — Tested Head-to-Head | OFFO",
-  description:
-    "We tested 7 VIN report services head-to-head. See which Carfax alternatives actually surface the risks Carfax misses — especially for used EV buyers.",
-  alternates: { canonical: `${SITE_URL}${CANONICAL}` },
-  openGraph: {
-    title: "Best Carfax Alternatives of 2026 — Tested Head-to-Head",
-    description:
-      "We tested 7 VIN report services. Here are the ones that actually surface the risks Carfax can miss.",
-    url: `${SITE_URL}${CANONICAL}`,
-    type: "article",
-    siteName: "OFFO",
-  },
-  twitter: {
-    card: "summary",
-    title: "Best Carfax Alternatives of 2026",
-    description: "7 VIN report services tested. Which ones actually surface the risks Carfax misses?",
-  },
-};
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -696,9 +672,9 @@ export default function BestCarfaxAlternatives2026() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0d1117]">
+    <div>
 
-      {/* ── Header ── */}
+      {/* ── Article Header ── */}
       <header className="border-b border-white/[0.08]">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <nav className="text-xs text-white/30 mb-5 flex items-center gap-1.5 flex-wrap">

@@ -28,6 +28,18 @@ export interface BlogPost {
 
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "best-carfax-alternatives-2026",
+    badge: "Comparison",
+    badgeColor: "bg-green-100 text-green-800",
+    title: "Best Carfax Alternatives of 2026",
+    description:
+      "We tested 7 VIN report services head-to-head. Here are the ones that actually surface the risks Carfax can miss — especially for used EV buyers.",
+    excerpt:
+      "We tested 7 VIN report services head-to-head. OFFO ranks #1 for used EV buyers — the only service with EV-specific signals, AI verdict, and free access.",
+    readTime: "12 min read",
+    datePublished: "2026-04-27",
+  },
+  {
     slug: "how-we-vet-every-ev-deal",
     badge: "How It Works",
     badgeColor: "bg-indigo-100 text-indigo-800",
