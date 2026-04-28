@@ -58,8 +58,10 @@ function computeOwnershipCostScore(
   const incentiveAmount = row.incentive_new ? 7500 : 0;
   const effectivePrice = (row.msrp_usd ?? 50000) - incentiveAmount;
 
-  // Price score: exponential decay above budget
-  const budgetMax = mvr.budget_max ?? 60000;
+  // Price score: exponential decay above budget.
+  // Default 75k (not 60k) — when user hasn't set a budget, don't penalise
+  // mid-premium vehicles that are perfectly reasonable choices.
+  const budgetMax = mvr.budget_max ?? 75000;
   const budgetRatio = effectivePrice / budgetMax;
   const priceScore = Math.min(100, Math.max(0, Math.round(100 * Math.exp(-1.8 * (budgetRatio - 1)))));
 

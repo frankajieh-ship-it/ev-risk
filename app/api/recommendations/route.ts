@@ -40,19 +40,22 @@ const recLimiter = new RateLimiter(
 function randomizeWithinScoreTiers(vehicles: VehicleRecommendation[]): VehicleRecommendation[] {
   if (vehicles.length <= 1) return vehicles;
 
-  // Group by fit_score
+  // Group by 3-point band (floor to nearest 3) so vehicles within ±2 points
+  // of each other are shuffled together. Prevents the same cluster (e.g. Ioniq 5
+  // at 83, EV6 at 82) from always appearing in the same order even when other
+  // vehicles are statistically tied with them.
   const scoreGroups = new Map<number, VehicleRecommendation[]>();
 
   for (const vehicle of vehicles) {
-    const score = vehicle.fit_score;
-    if (!scoreGroups.has(score)) {
-      scoreGroups.set(score, []);
+    const band = Math.floor(vehicle.fit_score / 3) * 3;
+    if (!scoreGroups.has(band)) {
+      scoreGroups.set(band, []);
     }
-    scoreGroups.get(score)!.push(vehicle);
+    scoreGroups.get(band)!.push(vehicle);
   }
 
-  // Randomize within each group using Fisher-Yates shuffle
-  for (const [score, group] of scoreGroups.entries()) {
+  // Fisher-Yates shuffle within each band
+  for (const group of scoreGroups.values()) {
     if (group.length > 1) {
       for (let i = group.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -61,12 +64,12 @@ function randomizeWithinScoreTiers(vehicles: VehicleRecommendation[]): VehicleRe
     }
   }
 
-  // Recombine in descending score order
-  const sortedScores = Array.from(scoreGroups.keys()).sort((a, b) => b - a);
+  // Recombine in descending band order
+  const sortedBands = Array.from(scoreGroups.keys()).sort((a, b) => b - a);
   const result: VehicleRecommendation[] = [];
 
-  for (const score of sortedScores) {
-    result.push(...scoreGroups.get(score)!);
+  for (const band of sortedBands) {
+    result.push(...scoreGroups.get(band)!);
   }
 
   return result;
