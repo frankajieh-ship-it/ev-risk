@@ -80,11 +80,12 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
               {!isHomepageVariant && (
                 <>
                   {regionSelector}
-                  {variant !== "compare" && (
+                  {/* Deal Watch nav link suspended 2026-04-28 — re-enable when sold-listing detection is automated */}
+                  {/* {variant !== "compare" && (
                     <Link href="/deals" className={`${navLinkCls} hidden sm:inline`}>
                       Deal Watch
                     </Link>
-                  )}
+                  )} */}
                   {onHistoryClick && (
                     <button
                       onClick={onHistoryClick}

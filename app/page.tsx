@@ -21,7 +21,6 @@ import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import TutorialVideoSection from "@/components/landing/TutorialVideoSection";
-import FeaturedDeals from "@/components/landing/FeaturedDeals";
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 import { getReceiptHistory } from "@/lib/receipt-history";
 import type { MinimumViableRoutine } from "@/types/v2";
@@ -683,8 +682,8 @@ export default function Home() {
       {/* ── Section: Tutorial Video ──────────────────────────────────── */}
       <TutorialVideoSection />
 
-      {/* ── Section: Featured Deals ──────────────────────────────────── */}
-      <FeaturedDeals />
+      {/* ── Section: Featured Deals — suspended 2026-04-28, re-enable when sold-listing automation is solved ── */}
+      {/* <FeaturedDeals /> */}
 
       {/* ── Section 6: Social Proof ──────────────────────────────────── */}
       <section className="section bg-[#111827]">
