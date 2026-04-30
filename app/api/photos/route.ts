@@ -303,27 +303,51 @@ function getStaticPhotoUrl(make: string | undefined, model: string | undefined):
     return STATIC_PHOTO_MAP[m.toLowerCase()];
   }
 
-  // Strip common trim suffixes to get base model.
-  // Note: " ev" and " electric" are kept toward the end so "niro ev" → "niro" only after
-  // checking the full form above.
+  // Strip common trim suffixes to get base model name.
+  // Order matters: longest strings first, short/ambiguous ones last.
+  // " ev" / " electric" intentionally come before " se" / " sel" so that
+  // "Niro EV" is checked in the map before being further stripped.
   const trimSuffixes = [
+    // Long multi-word trims
     " sel long range", " se standard range plus", " se long range", " se standard",
     " long range plus", " long range", " standard range plus", " standard range",
     " extended range", " premium awd", " premium rwd", " premium",
-    " select rwd", " select", " gt-line awd", " gt-line rwd", " gt-line", " gt line", " gt awd", " gt",
+    " select rwd", " select",
+    " gt-line awd", " gt-line rwd", " gt-line", " gt line", " gt awd", " gt",
     " pro s", " pro", " plus s", " plus",
-    " large pack", " max pack", " adventure", " light long range", " light",
+    " large pack", " max pack", " adventure",
+    " light long range", " light",
     " all4", " se all4",
-    " awd", " rwd", " fwd", " 4wd", " 4matic",
-    " xdrive60", " xdrive50", " xdrive40", " edrive40", " m50",
-    " twin ultimate", " twin", " single motor", " recharge",
-    " 450+", " 580", " pure",
+    " awd", " rwd", " fwd", " 4wd", " 4matic", " e-4wd",
+    " xdrive60", " xdrive50", " xdrive40", " edrive40", " edrive35", " m50",
+    " twin ultimate eawd", " twin ultimate", " twin",
+    " single motor eawd", " single motor",
+    " recharge",
+    " 450+", " 580", " 350+", " pure",
     " 1lt", " 1", " lt", " premier",
-    // Tesla battery capacity suffixes (e.g. "Model S 75 RWD" → strip "75" → "Model S")
-    " p100d", " p90d", " p85d", " p85+", " p85", " 100d", " 90d", " 85d",
-    " 75d", " 75", " 100", " 90", " 85", " 70d", " 70", " 60d", " 60",
+    // Tesla battery capacity (e.g. "Model S 75 RWD" → "Model S")
+    " p100d", " p90d", " p85d", " p85+", " p85",
+    " 100d", " 90d", " 85d", " 75d", " 70d", " 60d",
+    " 75", " 100", " 90", " 85", " 70", " 60",
+    // Performance tiers
+    " performance", " plaid+", " plaid",
+    " turbo s", " turbo", " 4s",
+    " cross turismo", " sport turismo",
+    " grand touring+", " grand touring",
+    // OEM trim levels missing from original list (root cause of the bug)
+    " touring", " sport", " limited", " base",
+    " ex-l", " ex", " lx",
+    " wind", " earth",
+    " advanced", " blue",
+    " electrified",
+    // Ford Mach-E
+    " california route 1", " california route",
+    // Body styles
+    " hatchback", " sedan", " suv", " crossover", " coupe", " convertible", " wagon",
+    // Electric-specific (before short single-letter trims so "niro ev" hits map first)
     " electric", " ev",
-    " sl", " sv", " s",
+    // Short single-word trims — must be last to avoid false positives
+    " sl", " sv", " se", " sel", " s",
   ];
   let stripped = true;
   while (stripped) {
