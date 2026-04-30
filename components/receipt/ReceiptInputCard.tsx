@@ -306,6 +306,7 @@ export default function ReceiptInputCard({
       applyExtractedFields({ ...data.fields, vin });
       setVinStatus("success");
       setVinFilled(true);
+      setExtractError(null);
       trackEvent?.("vin_lookup_success", { vin, anon_id: receiptToken });
       setTimeout(() => priceInputRef.current?.focus(), 150);
     } catch {
@@ -809,8 +810,8 @@ export default function ReceiptInputCard({
                     </div>
                   )}
 
-                  {/* Extract error */}
-                  {extractError && !isExtracting && (
+                  {/* Extract error — suppressed once VIN filled or all required fields complete */}
+                  {extractError && !isExtracting && !vinFilled && !fieldsComplete && (
                     <div className="flex items-start gap-2 text-xs p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">
                       <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                       <span>{extractError.message}</span>

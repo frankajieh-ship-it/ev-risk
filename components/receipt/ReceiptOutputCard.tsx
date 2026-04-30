@@ -357,13 +357,13 @@ export default function ReceiptOutputCard({
                   (e.currentTarget as HTMLImageElement).onerror = null;
                   const ls = receipt.listing_summary;
                   if (!ls?.make) { setPhotoOverride({ key: photosKey, urls: [] }); return; }
+                  const key = photosKey;
+                  // First retry: skip static map, try VinAudit + Auto.dev
                   const params = new URLSearchParams();
                   params.set("make", ls.make);
                   if (ls.model) params.set("model", ls.model);
                   if (ls.year) params.set("year", String(ls.year));
-                  // Skip static map on retry — force Auto.dev path
                   params.set("skip_static", "1");
-                  const key = photosKey;
                   fetch(`/api/photos?${params.toString()}`)
                     .then((r) => r.json())
                     .then((data) => {
@@ -371,7 +371,16 @@ export default function ReceiptOutputCard({
                         setPhotoOverride({ key, urls: data.photo_urls });
                         setPhotoIndex(0);
                       } else {
-                        setPhotoOverride({ key, urls: [] });
+                        // Second retry: make-only — hits MAKE_FALLBACK_MAP for a same-make photo
+                        const fallbackParams = new URLSearchParams();
+                        fallbackParams.set("make", ls.make);
+                        fetch(`/api/photos?${fallbackParams.toString()}`)
+                          .then((r) => r.json())
+                          .then((d) => {
+                            setPhotoOverride({ key, urls: d.photo_urls ?? [] });
+                            setPhotoIndex(0);
+                          })
+                          .catch(() => setPhotoOverride({ key, urls: [] }));
                       }
                     })
                     .catch(() => setPhotoOverride({ key: photosKey, urls: [] }));

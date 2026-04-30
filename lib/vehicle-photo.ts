@@ -104,6 +104,33 @@ export const STATIC_PHOTO_MAP: Record<string, string> = {
   "solterra": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/2023_Subaru_Solterra_in_Ice_Silver_%26_Magnetite_Gray%2C_front_left.jpg/960px-2023_Subaru_Solterra_in_Ice_Silver_%26_Magnetite_Gray%2C_front_left.jpg",
 };
 
+// One representative photo per make — used when model-level lookup fails entirely.
+// Keys are lowercase make names.
+export const MAKE_FALLBACK_MAP: Record<string, string> = {
+  "kia":           STATIC_PHOTO_MAP["ev6"]!,
+  "hyundai":       STATIC_PHOTO_MAP["ioniq 5"]!,
+  "tesla":         STATIC_PHOTO_MAP["model 3"]!,
+  "chevrolet":     STATIC_PHOTO_MAP["bolt ev"]!,
+  "ford":          STATIC_PHOTO_MAP["mustang mach-e"]!,
+  "nissan":        STATIC_PHOTO_MAP["leaf"]!,
+  "volkswagen":    STATIC_PHOTO_MAP["id.4"]!,
+  "bmw":           STATIC_PHOTO_MAP["i4"]!,
+  "rivian":        STATIC_PHOTO_MAP["r1t"]!,
+  "audi":          STATIC_PHOTO_MAP["e-tron"]!,
+  "mercedes-benz": STATIC_PHOTO_MAP["eqs"]!,
+  "mercedes":      STATIC_PHOTO_MAP["eqs"]!,
+  "cadillac":      STATIC_PHOTO_MAP["lyriq"]!,
+  "genesis":       STATIC_PHOTO_MAP["gv60"]!,
+  "volvo":         STATIC_PHOTO_MAP["c40 recharge"]!,
+  "polestar":      STATIC_PHOTO_MAP["polestar 2"]!,
+  "porsche":       STATIC_PHOTO_MAP["taycan"]!,
+  "lucid":         STATIC_PHOTO_MAP["air"]!,
+  "jaguar":        STATIC_PHOTO_MAP["i-pace"]!,
+  "toyota":        STATIC_PHOTO_MAP["bz4x"]!,
+  "subaru":        STATIC_PHOTO_MAP["solterra"]!,
+  "mini":          STATIC_PHOTO_MAP["cooper se"]!,
+};
+
 // Suffix stripping order matters: longest strings first, short/ambiguous ones last.
 // " ev" / " electric" come before " se" / " sel" so "Niro EV" is checked before further stripping.
 const TRIM_STRIP_SUFFIXES = [
@@ -185,5 +212,5 @@ export function getStaticPhotoUrl(
     }
   }
 
-  return STATIC_PHOTO_MAP[m.toLowerCase()] ?? null;
+  return STATIC_PHOTO_MAP[m.toLowerCase()] ?? MAKE_FALLBACK_MAP[make.toLowerCase()] ?? null;
 }

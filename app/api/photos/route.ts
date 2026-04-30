@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchListings } from "@/lib/auto-dev-client";
 import { getVehicleImages } from "@/lib/vinaudit-client";
-import { getStaticPhotoUrl } from "@/lib/vehicle-photo";
+import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
 
 export const maxDuration = 10;
 
@@ -212,6 +212,13 @@ export async function GET(request: NextRequest) {
     const staticUrl = getStaticPhotoUrl(make, rawModel);
     if (staticUrl) {
       return NextResponse.json({ photo_urls: [staticUrl], source: "static" });
+    }
+
+    // 2b. Make-level fallback — closest known model photo for same make
+    // Runs when model is unknown/unmapped but make is recognized
+    const makeFallbackUrl = make ? MAKE_FALLBACK_MAP[make.toLowerCase()] : undefined;
+    if (makeFallbackUrl) {
+      return NextResponse.json({ photo_urls: [makeFallbackUrl], source: "make_fallback" });
     }
   }
 
