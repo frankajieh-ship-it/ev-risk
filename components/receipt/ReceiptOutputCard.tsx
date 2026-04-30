@@ -136,15 +136,22 @@ export default function ReceiptOutputCard({
   const [scoringTooltipOpen, setScoringTooltipOpen] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [photoOverride, setPhotoOverride] = useState<{ key: string; urls: string[] } | null>(null);
   const fallbackFiredRef = useRef(false);
 
+  const photosKey = photos.join(",");
+  // Override is only valid when it was set for the current photos array
+  const photoSrcs = (photoOverride?.key === photosKey ? photoOverride.urls : null) ?? photos;
+  // Whether the photo fallback has already been attempted for this photos set
+  const photoFallbackFired = photoOverride?.key === photosKey;
+
   const prevPhoto = useCallback(() =>
-    setPhotoIndex((i) => (i - 1 + photos.length) % photos.length),
-    [photos.length]
+    setPhotoIndex((i) => (i - 1 + photoSrcs.length) % photoSrcs.length),
+    [photoSrcs.length]
   );
   const nextPhoto = useCallback(() =>
-    setPhotoIndex((i) => (i + 1) % photos.length),
-    [photos.length]
+    setPhotoIndex((i) => (i + 1) % photoSrcs.length),
+    [photoSrcs.length]
   );
 
   useEffect(() => {
@@ -298,7 +305,7 @@ export default function ReceiptOutputCard({
         </div>
 
         {/* Photo strip — hero + thumbnail row, only when photos available */}
-        {photos.length > 0 && (
+        {photoSrcs.length > 0 && (
           <div className="mt-3 -mx-5 relative">
             {/* Hero image */}
             <div
@@ -306,9 +313,30 @@ export default function ReceiptOutputCard({
               onClick={() => setLightboxOpen(true)}
             >
               <img
-                src={photos[photoIndex]?.startsWith("http") ? `/api/proxy-image?url=${encodeURIComponent(photos[photoIndex])}` : photos[photoIndex]}
-                alt={vehicleDesc ? `${vehicleDesc} — listing photo ${photoIndex + 1} of ${photos.length}` : `Listing photo ${photoIndex + 1} of ${photos.length}`}
+                src={photoSrcs[photoIndex]?.startsWith("http") ? `/api/proxy-image?url=${encodeURIComponent(photoSrcs[photoIndex])}` : photoSrcs[photoIndex]}
+                alt={vehicleDesc ? `${vehicleDesc} — listing photo ${photoIndex + 1} of ${photoSrcs.length}` : `Listing photo ${photoIndex + 1} of ${photoSrcs.length}`}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                onError={() => {
+                  if (photoFallbackFired) return;
+                  const ls = receipt.listing_summary;
+                  if (!ls?.make) return;
+                  const params = new URLSearchParams();
+                  if (ls.make) params.set("make", ls.make);
+                  if (ls.model) params.set("model", ls.model);
+                  if (ls.year) params.set("year", String(ls.year));
+                  const key = photosKey;
+                  fetch(`/api/photos?${params.toString()}`)
+                    .then((r) => r.json())
+                    .then((data) => {
+                      if (data.photo_urls?.length > 0) {
+                        setPhotoOverride({ key, urls: data.photo_urls });
+                        setPhotoIndex(0);
+                      } else {
+                        setPhotoOverride({ key, urls: [] });
+                      }
+                    })
+                    .catch(() => setPhotoOverride({ key, urls: [] }));
+                }}
               />
               {/* Gradient overlay so text below stays readable */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
@@ -317,7 +345,7 @@ export default function ReceiptOutputCard({
                 <Expand className="w-3.5 h-3.5 text-white" />
               </div>
               {/* Prev/next on hero */}
-              {photos.length > 1 && (
+              {photoSrcs.length > 1 && (
                 <>
                   <button
                     onClick={(e) => { e.stopPropagation(); prevPhoto(); }}
@@ -337,14 +365,14 @@ export default function ReceiptOutputCard({
               )}
               {/* Counter */}
               <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
-                {photoIndex + 1} / {photos.length}
+                {photoIndex + 1} / {photoSrcs.length}
               </div>
             </div>
 
             {/* Thumbnail strip — only when 2+ photos */}
-            {photos.length > 1 && (
+            {photoSrcs.length > 1 && (
               <div className="flex gap-1.5 px-5 pt-2 pb-0 overflow-x-auto scrollbar-hide">
-                {photos.map((url, i) => (
+                {photoSrcs.map((url, i) => (
                   <button
                     key={i}
                     onClick={() => setPhotoIndex(i)}
@@ -564,7 +592,7 @@ export default function ReceiptOutputCard({
 
       {/* Lightbox */}
       <AnimatePresence>
-        {lightboxOpen && photos.length > 0 && (
+        {lightboxOpen && photoSrcs.length > 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -580,11 +608,11 @@ export default function ReceiptOutputCard({
               onClick={(e) => e.stopPropagation()}
             >
               <img
-                src={photos[photoIndex]?.startsWith("http") ? `/api/proxy-image?url=${encodeURIComponent(photos[photoIndex])}` : photos[photoIndex]}
-                alt={vehicleDesc ? `${vehicleDesc} — photo ${photoIndex + 1} of ${photos.length}` : `Listing photo ${photoIndex + 1} of ${photos.length}`}
+                src={photoSrcs[photoIndex]?.startsWith("http") ? `/api/proxy-image?url=${encodeURIComponent(photoSrcs[photoIndex])}` : photoSrcs[photoIndex]}
+                alt={vehicleDesc ? `${vehicleDesc} — photo ${photoIndex + 1} of ${photoSrcs.length}` : `Listing photo ${photoIndex + 1} of ${photoSrcs.length}`}
                 className="w-full max-h-[75vh] object-contain rounded-xl"
               />
-              {photos.length > 1 && (
+              {photoSrcs.length > 1 && (
                 <>
                   <button
                     onClick={prevPhoto}
@@ -607,7 +635,7 @@ export default function ReceiptOutputCard({
                 <X className="w-4 h-4" />
               </button>
               <p className="text-center text-white/70 text-xs mt-2">
-                {photoIndex + 1} of {photos.length} · Click outside to close
+                {photoIndex + 1} of {photoSrcs.length} · Click outside to close
               </p>
             </motion.div>
           </motion.div>
