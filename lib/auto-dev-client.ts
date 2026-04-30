@@ -192,10 +192,29 @@ export async function enrichFromAutodev(params: {
     searchListings({ vin, make, model, year, limit: 8 }),
   ]);
 
-  // Collect photo URLs from listings (deduplicated, max 6)
+  // Collect photo URLs from listings — strict make+model+year filtering to prevent
+  // wrong-car images from fuzzy Auto.dev search results.
   const photoUrls: string[] = [];
   if (listingsResult?.records) {
+    const expectedMake = make?.toLowerCase().replace(/[^a-z0-9]/g, "") ?? "";
+    const modelWords = model
+      ? model.toLowerCase().split(" ").filter((w) => w.length > 1)
+      : [];
+
     for (const record of listingsResult.records) {
+      // Exact make match (normalized, no punctuation)
+      if (expectedMake && record.make) {
+        const recordMake = record.make.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (recordMake !== expectedMake) continue;
+      }
+      // All significant model words must appear in the record's model string
+      if (modelWords.length > 0 && record.model) {
+        const recordModel = record.model.toLowerCase();
+        if (!modelWords.every((w) => recordModel.includes(w))) continue;
+      }
+      // Year within ±2 to block completely wrong-era listings
+      if (year && record.year && Math.abs(Number(record.year) - year) > 2) continue;
+
       if (record.primaryPhotoUrl && !photoUrls.includes(record.primaryPhotoUrl)) {
         photoUrls.push(record.primaryPhotoUrl);
       }

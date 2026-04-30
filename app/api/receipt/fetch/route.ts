@@ -18,6 +18,7 @@ import { receiptBurstLimiter } from "@/lib/receipt-rate-limiter";
 import { extractVehicleData } from "@/lib/listing-scraper";
 import { extractFieldsFromText } from "@/lib/text-extractor";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
+import { getStaticPhotoUrl } from "@/lib/vehicle-photo";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { FetchedListingFields } from "@/types/receipt";
 import type { FieldConfidence } from "@/types/receipt";
@@ -408,9 +409,13 @@ export async function POST(request: NextRequest) {
     // Await Auto.dev enrichment (already running in parallel above)
     const autoDevData = await autoDevPromise;
 
-    // Merge Auto.dev enrichment into fields
+    // Merge Auto.dev enrichment into fields; fall back to static Wikimedia photo
+    // if Auto.dev returns nothing (avoids broken/wrong-car market listing images)
     if (autoDevData.photo_urls.length > 0) {
       fields.photo_urls = autoDevData.photo_urls;
+    } else {
+      const staticUrl = getStaticPhotoUrl(fields.make, fields.model);
+      if (staticUrl) fields.photo_urls = [staticUrl];
     }
     if (autoDevData.market_price_range) {
       fields.market_price_range = autoDevData.market_price_range;
