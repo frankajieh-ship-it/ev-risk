@@ -159,7 +159,8 @@ export function getStaticPhotoUrl(
 ): string | null {
   if (!make || !model) return null;
 
-  let m = model.trim();
+  // Normalize: remove commas (e.g. "Niro EV S, EX" → "Niro EV S EX")
+  let m = model.trim().replace(/,/g, "");
 
   // Strip make prefix (e.g. "Hyundai Ioniq 5 SEL" → "Ioniq 5 SEL")
   if (m.toLowerCase().startsWith(make.toLowerCase() + " ")) {

@@ -49,7 +49,6 @@ const OFfoChat = dynamic(() => import("@/components/chat/OFfoChat"), { ssr: fals
 
 const PdfDownloadButton = dynamic(() => import("@/components/receipt/PdfDownloadButton"), { ssr: false });
 const CompareBadge = dynamic(() => import("@/components/receipt/CompareBadge"), { ssr: false });
-const ExtensionNudge = dynamic(() => import("@/components/ExtensionNudge"), { ssr: false });
 const DealCard = dynamic(() => import("@/components/deals/DealCard").then(m => ({ default: m.default })), { ssr: false });
 const TutorialModal = dynamic(() => import("@/components/TutorialModal"), { ssr: false });
 import { SourcesFooter } from "@/components/blocks/SourcesFooter";
@@ -148,12 +147,15 @@ function ReceiptDetailsOnDemand({
           </div>
         )}
         {detailStatus === "failed" && (
-          <button
-            onClick={generate}
-            className="w-full flex items-center justify-center gap-2 py-2.5 text-sm text-red-400 hover:text-red-300 bg-red-500/10 rounded-lg border border-red-500/20 transition-colors"
-          >
-            Retry — details generation failed
-          </button>
+          <div className="space-y-2">
+            <p className="text-xs text-white/40 text-center">Fee estimates couldn&apos;t load — this is usually a temporary issue.</p>
+            <button
+              onClick={generate}
+              className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-white/60 bg-white/[0.05] hover:bg-white/[0.09] rounded-lg border border-white/[0.10] transition-colors"
+            >
+              Try again
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -842,27 +844,6 @@ export default function ReceiptPage() {
           hasResult={!!receipt}
         />
 
-        {/* CarGurus pro tip + bookmarklet */}
-        <div className="mt-2 space-y-1 text-center px-2">
-          <p className="text-xs text-white/30">
-            <span className="font-medium text-white/50">Pro tip:</span>{" "}
-            On CarGurus, click the car photo first — the clean listing URL appears in your address bar.
-          </p>
-          <p className="text-xs text-white/30">
-            Save time:{" "}
-            { }
-            <a
-              href="javascript:(function(){var u=encodeURIComponent(window.location.href);window.open('https://offolab.com/receipt?url='+u+'&ext=true','_blank');})();"
-              onClick={(e) => e.preventDefault()}
-              draggable
-              className="text-[#00d97e]/70 underline cursor-grab active:cursor-grabbing font-medium"
-              title="Drag this to your bookmarks bar"
-            >
-              ⬆ OFFO Extract
-            </a>
-            {" "}— drag to your bookmarks bar, then click on any CarGurus listing
-          </p>
-        </div>
 
         {/* Analysis loading indicator */}
         {isGenerating && (
@@ -932,7 +913,17 @@ export default function ReceiptPage() {
               />
               </div>
 
-              {/* Email capture — first action after receipt, maximises visibility */}
+              {/* On-demand: extended negotiation scripts — moved here for prominence */}
+              {!isUpgrading && receipt.receipt_id && (
+                <NegotiationDeepSection
+                  receiptId={receipt.receipt_id}
+                  initialStatus={sections?.negotiation_deep?.status}
+                  isUnlocked={true}
+                  paymentsEnabled={false}
+                />
+              )}
+
+              {/* Email capture — shown after negotiation scripts */}
               {!hasEmailed && (
                 <div id="email-capture-card">
                   <EmailCaptureCard
@@ -1087,34 +1078,9 @@ export default function ReceiptPage() {
                 />
               </div>
 
-              {/* Extension nudge — shown after receipt loads */}
-              <ExtensionNudge context="receipt" />
-
               {/* Workspace save nudge — shown to unauthenticated users after receipt loads */}
               {!isAuthenticated && (
                 <WorkspaceSaveNudge onSignIn={() => setShowAuthPrompt(true)} />
-              )}
-
-
-              {/* On-demand: extended negotiation scripts */}
-              {!isUpgrading && receipt.receipt_id && (
-                <NegotiationDeepSection
-                  receiptId={receipt.receipt_id}
-                  initialStatus={sections?.negotiation_deep?.status}
-                  isUnlocked={true}
-                  paymentsEnabled={false}
-                />
-              )}
-
-              {/* Model Info — research links */}
-              {receipt.listing_summary?.make && receipt.listing_summary?.model && (
-                <ModelInfoSection
-                  make={receipt.listing_summary.make}
-                  model={receipt.listing_summary.model}
-                  year={receipt.listing_summary.year}
-                  region={region}
-                  trackEvent={trackEvent}
-                />
               )}
 
 
@@ -1152,6 +1118,17 @@ export default function ReceiptPage() {
                   initialStatus={sections?.receipt_details?.status}
                 />
               ) : null}
+
+              {/* Model Info — research links (at bottom, after all analysis) */}
+              {receipt.listing_summary?.make && receipt.listing_summary?.model && (
+                <ModelInfoSection
+                  make={receipt.listing_summary.make}
+                  model={receipt.listing_summary.model}
+                  year={receipt.listing_summary.year}
+                  region={region}
+                  trackEvent={trackEvent}
+                />
+              )}
 
               <SourcesFooter />
 

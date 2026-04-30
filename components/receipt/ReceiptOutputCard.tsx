@@ -21,6 +21,7 @@ import {
   Info,
   Store,
   User,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Expand,
@@ -134,6 +135,7 @@ export default function ReceiptOutputCard({
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [scoringTooltipOpen, setScoringTooltipOpen] = useState(false);
+  const [whyNotGreenOpen, setWhyNotGreenOpen] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [photoOverride, setPhotoOverride] = useState<{ key: string; urls: string[] } | null>(null);
@@ -153,6 +155,40 @@ export default function ReceiptOutputCard({
     setPhotoIndex((i) => (i + 1) % photoSrcs.length),
     [photoSrcs.length]
   );
+
+  // Wikimedia URLs are public — serve directly; proxy everything else
+  const resolveImgSrc = (url: string | undefined) => {
+    if (!url) return url;
+    if (url.includes("wikimedia.org")) return url;
+    if (url.startsWith("http")) return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+    return url;
+  };
+
+  // Eagerly fetch a static Wikimedia photo whenever:
+  // - photos array is empty (no photo from extraction), OR
+  // - first photo is a non-Wikimedia URL (stale CDN / Auto.dev URL)
+  // Runs on mount and whenever the photos set changes.
+  useEffect(() => {
+    const firstUrl = photos[0];
+    // Already have a good static URL — nothing to do
+    if (firstUrl?.includes("wikimedia.org")) return;
+    const ls = receipt.listing_summary;
+    if (!ls?.make) return;
+    const params = new URLSearchParams();
+    params.set("make", ls.make);
+    if (ls.model) params.set("model", ls.model);
+    if (ls.year) params.set("year", String(ls.year));
+    const key = photosKey;
+    fetch(`/api/photos?${params.toString()}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.photo_urls?.length > 0) {
+          setPhotoOverride({ key, urls: data.photo_urls });
+          setPhotoIndex(0);
+        }
+      })
+      .catch(() => {});
+  }, [photosKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!lintPassed && receipt && !fallbackFiredRef.current) {
@@ -313,7 +349,7 @@ export default function ReceiptOutputCard({
               onClick={() => setLightboxOpen(true)}
             >
               <img
-                src={photoSrcs[photoIndex]?.startsWith("http") ? `/api/proxy-image?url=${encodeURIComponent(photoSrcs[photoIndex])}` : photoSrcs[photoIndex]}
+                src={resolveImgSrc(photoSrcs[photoIndex])}
                 alt={vehicleDesc ? `${vehicleDesc} — listing photo ${photoIndex + 1} of ${photoSrcs.length}` : `Listing photo ${photoIndex + 1} of ${photoSrcs.length}`}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                 onError={() => {
@@ -380,7 +416,7 @@ export default function ReceiptOutputCard({
                       i === photoIndex ? "border-[#00d97e] opacity-100" : "border-transparent opacity-60 hover:opacity-90"
                     }`}
                   >
-                    <img src={url?.startsWith("http") ? `/api/proxy-image?url=${encodeURIComponent(url)}` : url} alt={vehicleDesc ? `${vehicleDesc} — photo ${i + 1}` : `Photo ${i + 1}`} className="w-full h-full object-cover" />
+                    <img src={resolveImgSrc(url)} alt={vehicleDesc ? `${vehicleDesc} — photo ${i + 1}` : `Photo ${i + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -399,13 +435,19 @@ export default function ReceiptOutputCard({
       {/* Vehicle Facts Bar — title status, accidents, live NHTSA recalls, battery estimate */}
       <VehicleFactsBar receipt={receipt} />
 
-      {/* Why not GREEN? — gated for yellow/red; unlocked users see full list */}
+      {/* Why not GREEN? — collapsible */}
       {receipt.why_not_green && receipt.why_not_green.length > 0 && receipt.verdict !== "GREEN" && (
         <div className="px-5 py-3 bg-[#161b22] border-b border-white/[0.08]">
           <div className="flex items-center gap-1.5 mb-1.5">
-            <p className="text-xs font-semibold text-white/40 uppercase tracking-widest">
-              Why not GREEN?
-            </p>
+            <button
+              onClick={() => setWhyNotGreenOpen((o) => !o)}
+              className="flex items-center gap-1.5 flex-1 text-left"
+            >
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-widest">
+                Why not GREEN?
+              </p>
+              <ChevronDown className={`w-3.5 h-3.5 text-white/30 transition-transform ${whyNotGreenOpen ? "rotate-180" : ""}`} />
+            </button>
             <div className="relative">
               <button
                 onClick={() => setScoringTooltipOpen((o) => !o)}
@@ -426,8 +468,8 @@ export default function ReceiptOutputCard({
               )}
             </div>
           </div>
-          {isUnlocked || !paymentsEnabled ? (
-            <ul className="space-y-1">
+          {whyNotGreenOpen && (isUnlocked || !paymentsEnabled ? (
+            <ul className="space-y-1 mt-1.5">
               {receipt.why_not_green.map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
                 const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
                 return (
@@ -444,9 +486,8 @@ export default function ReceiptOutputCard({
               })}
             </ul>
           ) : (
-            <div>
+            <div className="mt-1.5">
               <ul className="space-y-1 mb-2">
-                {/* First reason shown unblurred — gives real value, earns trust */}
                 {receipt.why_not_green.slice(0, 1).map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
                   const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
                   return (
@@ -458,7 +499,6 @@ export default function ReceiptOutputCard({
                     </li>
                   );
                 })}
-                {/* Remaining reasons blurred */}
                 {receipt.why_not_green.slice(1).map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
                   const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
                   const preview = reason.label.length > 45 ? reason.label.slice(0, 45) + "…" : reason.label;
@@ -482,7 +522,7 @@ export default function ReceiptOutputCard({
                 </button>
               )}
             </div>
-          )}
+          ))}
         </div>
       )}
 
@@ -608,7 +648,7 @@ export default function ReceiptOutputCard({
               onClick={(e) => e.stopPropagation()}
             >
               <img
-                src={photoSrcs[photoIndex]?.startsWith("http") ? `/api/proxy-image?url=${encodeURIComponent(photoSrcs[photoIndex])}` : photoSrcs[photoIndex]}
+                src={resolveImgSrc(photoSrcs[photoIndex])}
                 alt={vehicleDesc ? `${vehicleDesc} — photo ${photoIndex + 1} of ${photoSrcs.length}` : `Listing photo ${photoIndex + 1} of ${photoSrcs.length}`}
                 className="w-full max-h-[75vh] object-contain rounded-xl"
               />
