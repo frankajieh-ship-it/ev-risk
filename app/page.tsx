@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
@@ -97,53 +97,15 @@ export default function Home() {
     trackLandingView();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Homepage inline URL input
-  const [listingUrl, setListingUrl] = useState("");
+  // Homepage VIN input
+  const [homeVin, setHomeVin] = useState("");
+  const homeVinValid = homeVin.trim().length === 17;
 
-  // Derived paste detection — computed inline, no useEffect needed
-  const { detectedDomain, detectedType } = useMemo(() => {
-    const trimmed = listingUrl.trim();
-    if (!trimmed) return { detectedDomain: null, detectedType: null };
-
-    // Bare Copart lot number (6–12 digits, no spaces)
-    if (/^\d{6,12}$/.test(trimmed)) {
-      return { detectedDomain: "Copart lot number detected ✓", detectedType: "auction" as const };
-    }
-
-    try {
-      const url = new URL(trimmed);
-      const host = url.hostname.replace(/^www\./, "");
-      const path = url.pathname.toLowerCase();
-
-      if (host.includes("copart.com")) return { detectedDomain: "Copart auction detected ✓", detectedType: "auction" as const };
-      if (host.includes("iaai.com") || host.includes("iaaiservices.com")) return { detectedDomain: "IAAI auction detected ✓", detectedType: "auction" as const };
-      if (host.includes("manheim.com")) return { detectedDomain: "Manheim auction detected ✓", detectedType: "auction" as const };
-      if (host.includes("cargurus.com")) return { detectedDomain: "CarGurus listing detected ✓", detectedType: "listing" as const };
-      if (host.includes("cars.com")) return { detectedDomain: "Cars.com listing detected ✓", detectedType: "listing" as const };
-      if (host.includes("autotrader.com")) return { detectedDomain: "AutoTrader listing detected ✓", detectedType: "listing" as const };
-      if (host.includes("facebook.com") && path.includes("marketplace")) return { detectedDomain: "Facebook Marketplace listing detected ✓", detectedType: "listing" as const };
-      if (path.includes("/inventory/") || path.includes("/used/") || path.includes("/vehicle/")) return { detectedDomain: "Dealer listing detected ✓", detectedType: "listing" as const };
-
-      return { detectedDomain: null, detectedType: null };
-    } catch {
-      return { detectedDomain: null, detectedType: null };
-    }
-  }, [listingUrl]);
-
-  const handleHomePasteSubmit = () => {
-    const trimmed = listingUrl.trim();
-    if (!trimmed) return;
-    trackEvent("listing_paste_submitted", { page_source: "homepage", detected_type: detectedType, text_length: trimmed.length });
-    // Route auction URLs directly to the auction bidder, all others to receipt
-    if (detectedType === "auction") {
-      const isBareLot = /^\d{6,12}$/.test(trimmed);
-      router.push(isBareLot
-        ? `/copart?lot=${encodeURIComponent(trimmed)}&src=homepage`
-        : `/copart?url=${encodeURIComponent(trimmed)}&src=homepage`
-      );
-    } else {
-      router.push(`/receipt?url=${encodeURIComponent(trimmed)}&src=homepage`);
-    }
+  const handleHomeVinSubmit = () => {
+    const vin = homeVin.trim().toUpperCase();
+    if (vin.length !== 17) return;
+    trackEvent("vin_submit_homepage", { page_source: "homepage", vin_length: vin.length });
+    router.push(`/receipt?vin=${encodeURIComponent(vin)}&src=homepage`);
   };
 
   // ── V2 Wizard state ──────────────────────────────────────────────────────────
@@ -471,32 +433,33 @@ export default function Home() {
           {/* Headline */}
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-5 tracking-tight" style={{ lineHeight: "1.05" }}>
             Know before you buy.<br />
-            <span className="text-[#00d97e]">Paste any listing.</span>
+            <span className="text-[#00d97e]">Paste your VIN.</span>
           </h1>
 
           <p className="text-base md:text-lg text-white/50 mb-10 max-w-xl mx-auto" style={{ lineHeight: "1.6" }}>
-            Paste a used EV listing. Get an instant risk verdict, hidden battery flags, and a charging fit score for your real life.
+            Enter the vehicle&apos;s VIN and get an instant risk verdict, hidden battery flags, negotiation scripts, and a cost of ownership breakdown.
           </p>
 
-          {/* Input row */}
+          {/* VIN input row */}
           <div className="flex flex-col sm:flex-row gap-3 max-w-2xl mx-auto">
             <input
               id="listing-input"
               data-tutorial="url-input"
-              type="url"
-              value={listingUrl}
-              onChange={(e) => setListingUrl(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleHomePasteSubmit(); }}
-              placeholder="https://cargurus.com/Cars/listingDetail.action?listing=..."
-              className="flex-1 px-5 py-4 rounded-xl bg-white/[0.07] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/60 focus:ring-1 focus:ring-[#00d97e]/30 transition-colors"
+              type="text"
+              value={homeVin}
+              onChange={(e) => setHomeVin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+              onKeyDown={(e) => { if (e.key === "Enter") handleHomeVinSubmit(); }}
+              placeholder="Paste your 17-character VIN"
+              maxLength={17}
+              className="flex-1 px-5 py-4 rounded-xl bg-white/[0.07] border border-white/10 text-sm text-white placeholder-white/30 font-mono tracking-widest focus:outline-none focus:border-[#00d97e]/60 focus:ring-1 focus:ring-[#00d97e]/30 transition-colors uppercase"
               autoFocus
             />
             <button
               data-tutorial="analyze-btn"
-              onClick={handleHomePasteSubmit}
-              disabled={!listingUrl.trim()}
+              onClick={handleHomeVinSubmit}
+              disabled={!homeVinValid}
               className={`px-7 py-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all whitespace-nowrap ${
-                listingUrl.trim()
+                homeVinValid
                   ? "bg-[#00d97e] text-[#0d1117] hover:bg-[#00f090]"
                   : "bg-white/10 text-white/30 cursor-not-allowed"
               }`}
@@ -505,15 +468,19 @@ export default function Home() {
             </button>
           </div>
 
-          {detectedDomain && (
-            <p className={`text-xs font-medium mt-3 ${detectedType === "auction" ? "text-orange-400" : "text-[#00d97e]"}`}>
-              {detectedDomain}
-              {detectedType === "auction" && " — Auction analysis"}
-              {detectedType === "listing" && " — Listing analysis"}
-            </p>
+          {homeVin.length > 0 && homeVin.length < 17 && (
+            <p className="text-xs text-white/40 mt-3">{17 - homeVin.length} characters remaining</p>
+          )}
+          {homeVinValid && (
+            <p className="text-xs text-[#00d97e] mt-3">VIN ready — click Analyze</p>
           )}
 
-          <p className="text-xs text-white/30 mt-4">Free analysis · Save to your garage · Track deals over time</p>
+          <p className="text-xs text-white/30 mt-4">
+            Free analysis · Save to your garage · Track deals over time ·{" "}
+            <Link href="/receipt" className="text-white/40 hover:text-white/60 underline underline-offset-2 transition-colors">
+              No VIN? Enter details manually →
+            </Link>
+          </p>
         </section>
 
         {/* Return visitor nudge — shown when local receipt history exists but not signed in */}
@@ -844,7 +811,7 @@ export default function Home() {
             onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); document.getElementById("listing-input")?.focus(); }}
             className="px-8 py-3.5 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-xl hover:bg-[#00f090] transition-colors"
           >
-            Paste it here →
+            Enter VIN →
           </button>
         </div>
       </section>

@@ -56,7 +56,6 @@ import ReturnToRoutinePrompt from "@/components/receipt/ReturnToRoutinePrompt";
 import RecallBanner from "@/components/receipt/RecallBanner";
 import WorkspaceSaveNudge from "@/components/receipt/WorkspaceSaveNudge";
 import PostReceiptPopup from "@/components/receipt/PostReceiptPopup";
-import VinPrompt from "@/components/receipt/VinPrompt";
 import { useReceiptGeneration } from "@/hooks/useReceiptGeneration";
 import { useDeepDive } from "@/hooks/useDeepDive";
 import { useCompareState } from "@/hooks/useCompareState";
@@ -316,11 +315,6 @@ export default function ReceiptPage() {
     } catch { setHasSaved(false); }
   }, [receipt?.receipt_id]);
   const [hasEmailed, setHasEmailed] = useState(false);
-  const [vinPromptDismissed, setVinPromptDismissed] = useState(false);
-  // Reset VIN prompt when a new receipt is generated (receipt_id changes)
-  useEffect(() => {
-    setVinPromptDismissed(false);
-  }, [receipt?.receipt_id]);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
   // Post-receipt popup (save + compare) — shown 5s after result
@@ -946,24 +940,16 @@ export default function ReceiptPage() {
                 </div>
               )}
 
-              {/* VIN prompt — shown when receipt generated without a VIN */}
-              {!vinPromptDismissed && !(receipt as Record<string, unknown>).vin &&
-               !(receipt.listing_summary as Record<string, unknown> | undefined)?.vin && (
-                <VinPrompt
-                  onEnriched={(fields, photoUrls) => {
-                    setVinPromptDismissed(true);
-                    if (lastGenerateInputRef.current) {
-                      handleGenerate({
-                        ...lastGenerateInputRef.current,
-                        fields: { ...lastGenerateInputRef.current.fields, ...fields },
-                        force_regenerate: true,
-                      });
-                    }
-                    if (photoUrls.length > 0) setListingPhotos(photoUrls);
-                  }}
-                  onDismiss={() => setVinPromptDismissed(true)}
-                />
-              )}
+              {/* ── Deep-dive nudge banner */}
+              <div className="rounded-xl border border-[#00d97e]/20 bg-[#00d97e]/[0.04] px-4 py-3.5 flex items-start gap-3">
+                <Zap className="w-4 h-4 text-[#00d97e] shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-white">More analysis below</p>
+                  <p className="text-xs text-white/50 mt-0.5 leading-relaxed">
+                    Scroll down for deep-dive negotiation scripts, cost of ownership breakdown, and model-specific known issues.
+                  </p>
+                </div>
+              </div>
 
               {/* ── Next-step CTA bar ────────────────────────────────── */}
               <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
