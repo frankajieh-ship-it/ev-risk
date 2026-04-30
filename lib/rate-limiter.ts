@@ -160,6 +160,10 @@ export const analyticsRateLimiter = new RateLimiter(
   30
 );
 
+// Critical API endpoints: tighter per-IP and per-session sliding windows
+export const criticalApiRateLimiter = new RateLimiter(60 * 1000, 10);  // 10 req/min per IP
+export const sessionRateLimiter = new RateLimiter(60 * 1000, 20);       // 20 req/min per session
+
 export { RateLimiter };
 
 /**

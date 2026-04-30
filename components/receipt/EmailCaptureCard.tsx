@@ -17,9 +17,10 @@ import { useEventTracking } from "@/hooks/useEventTracking";
 interface EmailCaptureCardProps {
   receiptId?: string;
   onSubmit?: () => void;
+  onGarageSave?: () => void;
 }
 
-export default function EmailCaptureCard({ receiptId, onSubmit }: EmailCaptureCardProps) {
+export default function EmailCaptureCard({ receiptId, onSubmit, onGarageSave }: EmailCaptureCardProps) {
   const { trackEvent } = useEventTracking();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
@@ -54,6 +55,7 @@ export default function EmailCaptureCard({ receiptId, onSubmit }: EmailCaptureCa
           setStatus("success");
           trackEvent("email_capture_submitted", { receipt_id: receiptId });
           onSubmit?.();
+          onGarageSave?.();
         } else {
           setErrorMsg(data.error || "Failed to send. Try again.");
           setStatus("error");
@@ -74,6 +76,7 @@ export default function EmailCaptureCard({ receiptId, onSubmit }: EmailCaptureCa
           setStatus("success");
           trackEvent("email_capture_submitted", { receipt_id: receiptId });
           onSubmit?.();
+          onGarageSave?.();
         } else {
           setStatus("error");
         }
@@ -95,10 +98,10 @@ export default function EmailCaptureCard({ receiptId, onSubmit }: EmailCaptureCa
   }
 
   return (
-    <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-4">
+    <div className="bg-[#00d97e]/[0.06] border border-[#00d97e]/20 rounded-xl p-4 border-l-2 border-l-[#00d97e]/50">
       <div className="flex items-center gap-2 mb-2">
-        <Mail className="w-4 h-4 text-white/40" />
-        <p className="text-sm font-medium text-white/70">
+        <Mail className="w-4 h-4 text-[#00d97e]/70" />
+        <p className="text-sm font-medium text-white/80">
           {receiptId ? "Email yourself the full verdict + questions to ask" : "Get the OFFO checklist free."}
         </p>
       </div>

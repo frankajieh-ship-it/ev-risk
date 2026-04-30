@@ -51,6 +51,10 @@ interface UpgradePayload {
   ip_hash: string | null;
   is_pro: boolean;
   t0: number;
+  /** Durable job queue ID — present when enqueued via receipt route or webhook */
+  job_id?: string | null;
+  /** Retry attempt number (0 = first attempt) — passed by scan-stuck-upgrades */
+  attempt_count?: number;
 }
 
 // --- Deterministic fallback ---
@@ -164,7 +168,7 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON body" }) };
   }
 
-  const { receipt_id, receipt_token, input, rule_signals, rule_scoring, features, client_ip, ip_hash, t0 } = payload;
+  const { receipt_id, receipt_token, input, rule_signals, rule_scoring, features, client_ip, ip_hash, t0, job_id = null } = payload;
 
   if (!receipt_id || !receipt_token || !input) {
     return { statusCode: 400, body: JSON.stringify({ error: "Missing required fields" }) };
@@ -186,6 +190,15 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
   if (markErr) {
     console.error("[Upgrade BG] Failed to mark generating:", markErr.message);
     return { statusCode: 500, body: JSON.stringify({ error: "DB update failed" }) };
+  }
+
+  // Update job record to "processing" so the retry scanner skips it while we're running
+  if (job_id) {
+    supabase.from("receipt_upgrade_jobs").update({
+      status: "processing",
+      attempt_count: (payload.attempt_count ?? 0) + 1,
+      updated_at: new Date().toISOString(),
+    }).eq("job_id", job_id).then(() => {}, () => {});
   }
 
   // Track all provider results for cost logging
@@ -480,6 +493,14 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
       timestamp: new Date().toISOString(),
     }).then(() => {}, () => {});
 
+    // Mark job succeeded
+    if (job_id) {
+      supabase.from("receipt_upgrade_jobs").update({
+        status: "succeeded",
+        updated_at: new Date().toISOString(),
+      }).eq("job_id", job_id).then(() => {}, () => {});
+    }
+
     console.log(`[Upgrade BG] Successfully upgraded ${receipt_id} in ${Date.now() - t0}ms`);
     return { statusCode: 200, body: JSON.stringify({ ok: true }) };
 
@@ -560,6 +581,32 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
       }).catch(() => {}); // fire-and-forget
     }
 
+    // Update job record: increment attempts, schedule backoff retry, or dead-letter
+    if (job_id) {
+      const attemptsDone = (payload.attempt_count ?? 0) + 1;
+      const isDeadLetter = attemptsDone >= 3;
+      const backoffMs = Math.min(60_000 * Math.pow(2, attemptsDone - 1), 600_000); // 1min → 2min → 10min cap
+      supabase.from("receipt_upgrade_jobs").update({
+        status: isDeadLetter ? "dead_letter" : "failed",
+        last_error: errorMessage,
+        attempt_count: attemptsDone,
+        next_retry_at: isDeadLetter ? null : new Date(Date.now() + backoffMs).toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("job_id", job_id).then(() => {}, () => {});
+
+      // Fire dead-letter alert when all retries exhausted
+      if (isDeadLetter && alertWebhookUrl) {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
+        fetch(alertWebhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: `☠️ *Receipt upgrade DEAD-LETTERED* — all ${attemptsDone} attempts exhausted\n*Receipt:* ${receipt_id}\n*Job:* ${job_id}\n*Last error:* ${errorMessage}\n*Admin:* ${siteUrl}/admin`,
+          }),
+        }).catch(() => {});
+      }
+    }
+
     // Try similarity match on timeout
     if (isTimeoutOrAIError) {
       try {
@@ -593,6 +640,12 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
             event_type: "similarity_match",
           }).then(() => {}, () => {});
 
+          if (job_id) {
+            supabase.from("receipt_upgrade_jobs").update({
+              status: "succeeded",
+              updated_at: new Date().toISOString(),
+            }).eq("job_id", job_id).then(() => {}, () => {});
+          }
           console.log(`[Upgrade BG] Similarity match for ${receipt_id} (confidence=${similarResult.confidence.toFixed(2)})`);
           return { statusCode: 200, body: JSON.stringify({ ok: true }) };
         }
@@ -605,6 +658,13 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     // so the user always receives a complete receipt, never a failure banner
     try {
       await saveDeterministicFallback(supabase, receipt_id, receipt_token, input, rule_signals, rule_scoring, features);
+      if (job_id) {
+        supabase.from("receipt_upgrade_jobs").update({
+          status: "succeeded",
+          last_error: "deterministic_fallback_used",
+          updated_at: new Date().toISOString(),
+        }).eq("job_id", job_id).then(() => {}, () => {});
+      }
       console.log(`[Upgrade BG] All providers failed for ${receipt_id} — saved deterministic fallback`);
     } catch (fallbackErr) {
       // Deterministic fallback itself failed (very unlikely) — only NOW mark failed

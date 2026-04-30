@@ -15,7 +15,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
+import { criticalApiRateLimiter, sessionRateLimiter, getClientIP } from "@/lib/rate-limiter";
+import { guardTurnstile } from "@/lib/turnstile";
+import { checkUserAgent } from "@/lib/bot-guard";
 import { logApi, startTimer } from "@/lib/api-logger";
 import { computeRoutineFitV2 } from "@/lib/compute-routine-fit-v2";
 import { generatePlanB } from "@/lib/plan-b-algorithm";
@@ -34,7 +36,6 @@ import type {
   SavedCharger,
 } from "@/types/routine-v2";
 
-const rateLimiter = new RateLimiter(15 * 60 * 1000, 30);
 
 // Valid enum values
 const VALID_CHARGING_ACCESS = ["home", "work", "public"] as const;
@@ -49,12 +50,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // 1. UA filter — block scripted clients before doing any work
+  const uaBlocked = checkUserAgent(req);
+  if (uaBlocked) return uaBlocked;
+
   const ip = getClientIP(req);
-  const limit = rateLimiter.check(ip);
-  if (!limit.allowed) {
+
+  // 2. IP-based rate limit (10 req/min, distributed via Upstash)
+  const ipLimit = await criticalApiRateLimiter.checkAsync(ip);
+  if (!ipLimit.allowed) {
+    const retryAfter = Math.max(60, Math.ceil((ipLimit.resetAt - Date.now()) / 1000));
+    supabase.from("user_events").insert({
+      event_name: "rate_limit_hit",
+      event_data: { endpoint: "/api/routine/run", ip },
+      ip_address: ip,
+      page_path: "/api/routine/run",
+      timestamp: new Date().toISOString(),
+    }).then(() => {}, () => {});
     return NextResponse.json(
-      { success: false, error: "Rate limit exceeded" },
-      { status: 429 }
+      { success: false, error: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
     );
   }
 
@@ -96,6 +111,28 @@ export async function POST(req: NextRequest) {
       session_id: clientSessionId,
       entry_point,
     } = body;
+
+    // 3. Turnstile verification (fail-closed — token must be present and valid)
+    const turnstileBlocked = await guardTurnstile(body, ip, "/api/routine/run");
+    if (turnstileBlocked) return turnstileBlocked;
+
+    // 4. Session rate limit (20 req/min per session ID)
+    const sessionId = clientSessionId || anon_session_id || "anonymous";
+    const sessionLimit = await sessionRateLimiter.checkAsync(`session:${sessionId}`);
+    if (!sessionLimit.allowed) {
+      const retryAfter = Math.max(60, Math.ceil((sessionLimit.resetAt - Date.now()) / 1000));
+      supabase.from("user_events").insert({
+        event_name: "rate_limit_hit",
+        event_data: { endpoint: "/api/routine/run", session_id: sessionId },
+        ip_address: ip,
+        page_path: "/api/routine/run",
+        timestamp: new Date().toISOString(),
+      }).then(() => {}, () => {});
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(retryAfter) } }
+      );
+    }
 
     // Validate required routine fields
     if (!charging_access || !VALID_CHARGING_ACCESS.includes(charging_access)) {

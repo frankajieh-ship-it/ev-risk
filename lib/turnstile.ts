@@ -132,16 +132,18 @@ export async function guardTurnstile(
     );
   }
 
-  // 2. Token presence — fail-open on all endpoints (honeypot above catches real bots).
-  // Hard-blocking on missing token causes false negatives on slow connections / mobile
-  // where the Turnstile script hasn't finished loading by the time the user submits.
+  // 2. Token presence — fail-closed. Missing token means the Turnstile widget
+  // never ran (bot, headless browser, or scripted request). Legitimate slow/mobile
+  // connections will have the token by the time the user hits submit because the
+  // widget runs invisibly in the background while the form is being filled.
   const token = body.turnstileToken;
   if (!token || typeof token !== "string") {
-    console.warn(`[Turnstile] Token missing on ${endpoint} — allowing (fail-open)`);
-    logBotEvent("turnstile_blocked", endpoint, clientIP, { reason: "turnstile_missing", action: "allowed_failopen" });
-    delete body.turnstileToken;
-    delete body.leave_this_empty;
-    return null; // pass through
+    console.warn(`[Turnstile] Token missing on ${endpoint} — blocking (fail-closed)`);
+    logBotEvent("turnstile_blocked", endpoint, clientIP, { reason: "turnstile_missing", action: "blocked_failclosed" });
+    return NextResponse.json(
+      { success: false, error: "Please complete the security check", captcha_required: true },
+      { status: 403 }
+    );
   }
 
   // 3. Verify with Cloudflare

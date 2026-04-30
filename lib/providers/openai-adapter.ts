@@ -89,7 +89,20 @@ export const openaiAdapter: ProviderAdapter = {
       clearTimeout(localTimeout);
 
       const rawText = response.choices[0]?.message?.content ?? "{}";
-      const json = JSON.parse(rawText) as Record<string, unknown>;
+
+      const trimmed = rawText.trimStart();
+      if (trimmed.startsWith('<')) {
+        console.error(`[openai] API returned HTML instead of JSON — first 200 chars: ${rawText.slice(0, 200)}`);
+        throw new Error("Provider returned HTML error page (not JSON)");
+      }
+
+      let json: Record<string, unknown>;
+      try {
+        json = JSON.parse(rawText) as Record<string, unknown>;
+      } catch (parseErr) {
+        console.error(`[openai] JSON.parse failed. rawText preview: ${rawText.slice(0, 300)}`);
+        throw parseErr;
+      }
 
       return {
         json,

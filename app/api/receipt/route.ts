@@ -35,6 +35,7 @@ import { findRangeDataByModel } from "@/lib/data";
 import type { MinimumViableRoutine } from "@/types/v2";
 import { isInternalTester } from "@/lib/rollout-flags";
 import { guardTurnstile } from "@/lib/turnstile";
+import { checkUserAgent } from "@/lib/bot-guard";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
 import { logApi } from "@/lib/api-logger";
 import { runReceiptUpgrade } from "@/lib/receipt-upgrade";
@@ -60,6 +61,10 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+
+  // 1a. UA filter — drop scripted clients before any rate limit or DB work
+  const uaBlocked = checkUserAgent(request);
+  if (uaBlocked) return uaBlocked;
 
   // 1b. Bot protection — honeypot check is instant (no await)
   if (body.leave_this_empty) {

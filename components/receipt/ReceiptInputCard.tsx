@@ -60,8 +60,6 @@ const REQUIRED_FIELDS: (keyof StructuredListingFields)[] = [
   "year",
   "make",
   "model",
-  "price",
-  "mileage",
 ];
 
 const FIELD_LABELS: Record<string, string> = {
@@ -89,7 +87,14 @@ function getInputClass(confidence?: string, isDirty?: boolean): string {
 }
 
 // Extraction loading step labels
-const EXTRACT_STEPS = ["Fetching listing page...", "Rendering JS — this takes a moment...", "Scanning for vehicle data...", "Almost there..."];
+const EXTRACT_STEPS = [
+  "Fetching listing page...",
+  "Rendering JS — this takes a moment...",
+  "Scanning for vehicle data...",
+  "Almost there...",
+  "Still working — this listing takes extra time...",
+  "Hang tight, nearly done...",
+];
 const GENERATE_STEPS = ["Checking risks...", "Analyzing pricing...", "Building your checklist..."];
 
 /**
@@ -197,6 +202,7 @@ export default function ReceiptInputCard({
 
   // Manual form fallback banner — shown after extraction failure
   const [showManualFallbackBanner, setShowManualFallbackBanner] = useState(false);
+  const [partialFieldCount, setPartialFieldCount] = useState(0);
 
   // VIN fallback state — shown after VIN autofill flow (not auto-triggered on extraction failure)
   const [showVinFallback, setShowVinFallback] = useState(false);
@@ -228,6 +234,7 @@ export default function ReceiptInputCard({
 
   // Refs for auto-focus
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
 
   // Prefill from SEO page
   useEffect(() => {
@@ -274,6 +281,8 @@ export default function ReceiptInputCard({
       setTimeout(() => setExtractStep(1), 3000),
       setTimeout(() => setExtractStep(2), 12000),
       setTimeout(() => setExtractStep(3), 22000),
+      setTimeout(() => setExtractStep(4), 32000),
+      setTimeout(() => setExtractStep(5), 40000),
     ];
     return () => timers.forEach(clearTimeout);
   }, [isExtracting]);
@@ -394,22 +403,44 @@ export default function ReceiptInputCard({
           failure_reason: data.diagnostics?.failureReason || data.error || "api_error",
           bot_protection: data.diagnostics?.botProtectionDetected || false,
           input_length: inputMode === "url" ? (urlOverride ?? listingUrl.trim()).length : listingText.trim().length,
+          partial_field_count: data.partial_field_count ?? 0,
         });
+
+        // Pre-fill form from any partial fields the scraper managed to extract
+        if (data.partial_fields) {
+          const pf = data.partial_fields as Partial<StructuredListingFields>;
+          setFields((prev) => {
+            const merged = { ...prev };
+            const fieldMap: Partial<Record<keyof StructuredListingFields, unknown>> = {
+              year: pf.year, make: pf.make, model: pf.model, trim: pf.trim,
+              mileage: pf.mileage, price: pf.price, vin: pf.vin, location: pf.location,
+            };
+            for (const [key, val] of Object.entries(fieldMap)) {
+              const k = key as keyof StructuredListingFields;
+              if (val !== undefined && val !== null && !dirtyFields.has(k)) {
+                (merged as Record<string, unknown>)[key] = val;
+              }
+            }
+            return merged;
+          });
+          setDetailsOpen(true);
+        }
+        setPartialFieldCount(data.partial_field_count ?? 0);
 
         // Show specific error based on diagnostics
         if (data.diagnostics?.botProtectionDetected) {
           const urlValue = urlOverride ?? listingUrl.trim();
           if (urlValue.toLowerCase().includes("cargurus.com")) {
+            // CarGurus: show the targeted hint only — no red error banner, no generic fallback
             setShowCgPasteHint(true);
-            setExtractError({
-              message: "CarGurus blocked auto-fetch. Copy the listing details and paste them below."
-            });
+            setExtractError(null);
+            setDetailsOpen(true);
           } else {
             setExtractError({
               message: "This site blocked auto-extraction."
             });
+            showManualForm();
           }
-          showManualForm();
         } else if (data.diagnostics?.failureReason === "timeout") {
           // Auto-retry once — cold serverless starts can cause first-attempt timeouts
           if (!autoRetryDoneRef.current && (urlOverride || inputMode === "url")) {
@@ -737,6 +768,7 @@ export default function ReceiptInputCard({
           <div className="space-y-3">
             <div className="flex gap-2">
               <input
+                ref={urlInputRef}
                 type="url"
                 value={listingUrl}
                 onChange={(e) => {
@@ -1208,11 +1240,29 @@ export default function ReceiptInputCard({
           <div className="space-y-3">
             {/* Extraction failure banner */}
             {showManualFallbackBanner && (
-              <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-300">
-                  We couldn&apos;t extract the listing automatically. Please fill in the details below.
-                </p>
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2.5 space-y-1.5">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-300">
+                    {partialFieldCount > 0
+                      ? `Got ${partialFieldCount} field${partialFieldCount !== 1 ? "s" : ""} from the listing — just fill in year/make/model if they're missing.`
+                      : "We couldn’t read all details from this listing. Just enter year/make/model to continue."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDetailsOpen(false);
+                    setShowManualFallbackBanner(false);
+                    setExtractError(null);
+                    setPartialFieldCount(0);
+                    trackEvent?.("try_different_listing_clicked", { anon_id: receiptToken });
+                    setTimeout(() => urlInputRef.current?.focus(), 50);
+                  }}
+                  className="text-xs text-amber-400/80 hover:text-amber-300 underline ml-6"
+                >
+                  Try a different listing
+                </button>
               </div>
             )}
             {/* VIN-fill prompt — shown after VIN autofill when price/mileage still missing */}
@@ -1228,7 +1278,7 @@ export default function ReceiptInputCard({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={LABEL_CLASS}>
-                  Price ($) <span className="text-red-400">*</span>
+                  Price ($)
                 </label>
                 <input
                   ref={priceInputRef}
@@ -1249,7 +1299,7 @@ export default function ReceiptInputCard({
               </div>
               <div>
                 <label className={LABEL_CLASS}>
-                  Mileage <span className="text-red-400">*</span>
+                  Mileage
                 </label>
                 <input
                   type="number"

@@ -331,12 +331,31 @@ export async function POST(request: NextRequest) {
         } catch { /* non-critical */ }
       }
 
+      // Return any partial fields the scraper managed to extract so the client
+      // can pre-populate the manual form rather than showing a blank slate.
+      const partialFields: Partial<FetchedListingFields> = result.data ? {
+        year: result.data.year,
+        make: result.data.make,
+        model: result.data.model,
+        trim: result.data.trim,
+        mileage: result.data.mileage,
+        price: result.data.price,
+        vin: result.data.vin,
+        location: result.data.location,
+        title_status: result.data.title_status,
+      } : {};
+      const partialFieldCount = Object.values(partialFields).filter(
+        (v) => v !== undefined && v !== null
+      ).length;
+
       return NextResponse.json(
         {
           success: false,
           error: result.error || "Could not extract listing data from this URL",
           warnings: result.warnings,
           diagnostics: result.diagnostics || null,
+          partial_fields: partialFieldCount > 0 ? partialFields : null,
+          partial_field_count: partialFieldCount,
         },
         { status: 422 }
       );

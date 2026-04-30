@@ -50,5 +50,17 @@
 [functions.send-weekly-digest]
   timeout = 60
 
+# Scheduled function: receipt upgrade retry scanner (every 5 minutes)
+# Detects failed/stuck upgrade jobs and re-enqueues them with exponential backoff.
+# Dead-letters jobs after 3 failed attempts and fires an ops alert.
+[functions.scan-stuck-upgrades]
+  timeout = 60
+
+# Scheduled function: AI health monitor (every 5 minutes)
+# Checks 30-min rolling success rate of ai_job_succeeded/failed events.
+# Fires Slack alert when success rate drops below 85% (min 3 samples).
+[functions.health-check-ai]
+  timeout = 60
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"

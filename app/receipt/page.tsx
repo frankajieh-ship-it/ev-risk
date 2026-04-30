@@ -932,6 +932,25 @@ export default function ReceiptPage() {
               />
               </div>
 
+              {/* Email capture — first action after receipt, maximises visibility */}
+              {!hasEmailed && (
+                <div id="email-capture-card">
+                  <EmailCaptureCard
+                    receiptId={receipt.receipt_id}
+                    onSubmit={() => {
+                      setHasEmailed(true);
+                      trackEvent("email_checklist_submit", {
+                        receipt_id: receipt.receipt_id,
+                      });
+                    }}
+                    onGarageSave={() => {
+                      addToAnonGarage(receipt);
+                      setHasSaved(true);
+                    }}
+                  />
+                </div>
+              )}
+
               {/* VIN prompt — shown when receipt generated without a VIN */}
               {!vinPromptDismissed && !(receipt as Record<string, unknown>).vin &&
                !(receipt.listing_summary as Record<string, unknown> | undefined)?.vin && (
@@ -949,21 +968,6 @@ export default function ReceiptPage() {
                   }}
                   onDismiss={() => setVinPromptDismissed(true)}
                 />
-              )}
-
-              {/* Email capture — immediately after verdict, before any other content */}
-              {!hasEmailed && (
-                <div id="email-capture-card">
-                  <EmailCaptureCard
-                    receiptId={receipt.receipt_id}
-                    onSubmit={() => {
-                      setHasEmailed(true);
-                      trackEvent("email_checklist_submit", {
-                        receipt_id: receipt.receipt_id,
-                      });
-                    }}
-                  />
-                </div>
               )}
 
               {/* ── Next-step CTA bar ────────────────────────────────── */}

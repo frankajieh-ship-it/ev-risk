@@ -9,8 +9,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { v4 as uuidv4 } from "uuid";
+import { criticalApiRateLimiter, sessionRateLimiter, getClientIP } from "@/lib/rate-limiter";
+import { guardTurnstile } from "@/lib/turnstile";
+import { checkUserAgent } from "@/lib/bot-guard";
 
 export async function GET(request: NextRequest) {
+  const uaBlocked = checkUserAgent(request);
+  if (uaBlocked) return uaBlocked;
+
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
       { success: false, error: "Database not configured" },
@@ -52,10 +58,26 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // 1. UA filter
+  const uaBlocked = checkUserAgent(request);
+  if (uaBlocked) return uaBlocked;
+
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
       { success: false, error: "Database not configured" },
       { status: 503 }
+    );
+  }
+
+  const clientIP = getClientIP(request);
+
+  // 2. IP rate limit (10 req/min)
+  const ipLimit = await criticalApiRateLimiter.checkAsync(clientIP);
+  if (!ipLimit.allowed) {
+    const retryAfter = Math.max(60, Math.ceil((ipLimit.resetAt - Date.now()) / 1000));
+    return NextResponse.json(
+      { success: false, error: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
     );
   }
 
@@ -66,6 +88,28 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
+
+    // 3. Turnstile verification
+    const turnstileBlocked = await guardTurnstile(body, clientIP, "/api/report/free");
+    if (turnstileBlocked) return turnstileBlocked;
+
+    // 4. Session rate limit (20 req/min per session)
+    const sessionId = (body.session_id as string | undefined) || "anonymous";
+    const sessionLimit = await sessionRateLimiter.checkAsync(`session:${sessionId}`);
+    if (!sessionLimit.allowed) {
+      const retryAfter = Math.max(60, Math.ceil((sessionLimit.resetAt - Date.now()) / 1000));
+      supabase.from("user_events").insert({
+        event_name: "rate_limit_hit",
+        event_data: { endpoint: "/api/report/free", session_id: sessionId },
+        ip_address: clientIP,
+        page_path: "/api/report/free",
+        timestamp: new Date().toISOString(),
+      }).then(() => {}, () => {});
+      return NextResponse.json(
+        { success: false, error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(retryAfter) } }
+      );
+    }
     const { reportData } = body;
 
     // Validate report data (V1 has confidence+input, V2 has primary+routine or _internal+default_view)
@@ -89,11 +133,8 @@ export async function POST(request: NextRequest) {
     const schemaVersion = reportData.schema_version || body.schema_version || "v1";
     const routine = reportData.routine || reportData._internal?.routine || body.routine || null;
 
-    // Extract IP/UA early so they're available in error paths
+    // Extract UA (IP already captured above for rate limiting)
     const userAgent = request.headers.get("user-agent") || "unknown";
-    const clientIP = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-      || request.headers.get("x-real-ip")
-      || "unknown";
 
     // Store as free report in database
     const { error } = await supabase.from("reports").insert({
@@ -182,8 +223,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Free report creation error:", error);
     try {
-      const clientIP = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-        || request.headers.get("x-real-ip") || "unknown";
       await supabase.from("user_events").insert({
         event_name: "report_generated_failed",
         event_data: {
