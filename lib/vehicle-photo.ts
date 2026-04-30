@@ -18,8 +18,8 @@ export const STATIC_PHOTO_MAP: Record<string, string> = {
   // Kia
   "ev6": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Kia_EV6_GT_IMG_8171.jpg/960px-Kia_EV6_GT_IMG_8171.jpg",
   "ev9": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Kia_EV9_MV1_Aurora_Black_Pearl_%285%29.jpg/960px-Kia_EV9_MV1_Aurora_Black_Pearl_%285%29.jpg",
-  "niro ev": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Kia_Niro_EV_%28DE%2C_second_generation%2C_facelift%29%2C_front_8.28.22.jpg/960px-Kia_Niro_EV_%28DE%2C_second_generation%2C_facelift%29%2C_front_8.28.22.jpg",
-  "niro": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Kia_Niro_EV_%28DE%2C_second_generation%2C_facelift%29%2C_front_8.28.22.jpg/960px-Kia_Niro_EV_%28DE%2C_second_generation%2C_facelift%29%2C_front_8.28.22.jpg",
+  "niro ev": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Kia_Niro_EV_%282023%29_%2852920493406%29.jpg/960px-Kia_Niro_EV_%282023%29_%2852920493406%29.jpg",
+  "niro": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Kia_Niro_EV_%282023%29_%2852920493406%29.jpg/960px-Kia_Niro_EV_%282023%29_%2852920493406%29.jpg",
   "soul ev": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Kia_Soul_EV_auto_z%C3%BCrich_2023.jpg/960px-Kia_Soul_EV_auto_z%C3%BCrich_2023.jpg",
   "soul": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Kia_Soul_EV_auto_z%C3%BCrich_2023.jpg/960px-Kia_Soul_EV_auto_z%C3%BCrich_2023.jpg",
   // Tesla

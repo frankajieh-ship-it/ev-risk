@@ -192,6 +192,7 @@ export async function GET(request: NextRequest) {
   const make = p.get("make") || undefined;
   const rawModel = p.get("model") || undefined;
   const year = p.get("year") ? Number(p.get("year")) : undefined;
+  const skipStatic = p.get("skip_static") === "1";
 
   if (!vin && !make) {
     return NextResponse.json({ photo_urls: [] });
@@ -206,9 +207,12 @@ export async function GET(request: NextRequest) {
   }
 
   // 2. Static curated map — zero-latency, always the correct car, covers all common EVs
-  const staticUrl = getStaticPhotoUrl(make, rawModel);
-  if (staticUrl) {
-    return NextResponse.json({ photo_urls: [staticUrl], source: "static" });
+  // Skip when caller already tried the static URL and it 404'd
+  if (!skipStatic) {
+    const staticUrl = getStaticPhotoUrl(make, rawModel);
+    if (staticUrl) {
+      return NextResponse.json({ photo_urls: [staticUrl], source: "static" });
+    }
   }
 
   // 3. VinAudit YMM lookup — reliable stock images keyed by make/model/year

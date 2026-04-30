@@ -352,14 +352,17 @@ export default function ReceiptOutputCard({
                 src={resolveImgSrc(photoSrcs[photoIndex])}
                 alt={vehicleDesc ? `${vehicleDesc} — listing photo ${photoIndex + 1} of ${photoSrcs.length}` : `Listing photo ${photoIndex + 1} of ${photoSrcs.length}`}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                onError={() => {
-                  if (photoFallbackFired) return;
+                onError={(e) => {
+                  // Prevent infinite retry loops
+                  (e.currentTarget as HTMLImageElement).onerror = null;
                   const ls = receipt.listing_summary;
-                  if (!ls?.make) return;
+                  if (!ls?.make) { setPhotoOverride({ key: photosKey, urls: [] }); return; }
                   const params = new URLSearchParams();
-                  if (ls.make) params.set("make", ls.make);
+                  params.set("make", ls.make);
                   if (ls.model) params.set("model", ls.model);
                   if (ls.year) params.set("year", String(ls.year));
+                  // Skip static map on retry — force Auto.dev path
+                  params.set("skip_static", "1");
                   const key = photosKey;
                   fetch(`/api/photos?${params.toString()}`)
                     .then((r) => r.json())
@@ -371,7 +374,7 @@ export default function ReceiptOutputCard({
                         setPhotoOverride({ key, urls: [] });
                       }
                     })
-                    .catch(() => setPhotoOverride({ key, urls: [] }));
+                    .catch(() => setPhotoOverride({ key: photosKey, urls: [] }));
                 }}
               />
               {/* Gradient overlay so text below stays readable */}

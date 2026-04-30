@@ -288,9 +288,7 @@ export default function ReceiptInputCard({
   };
 
   // ── VIN lookup ─────────────────────────────────────────────────────────────
-  const handleVinLookup = async () => {
-    const vin = vinValue.trim().toUpperCase();
-    if (vin.length !== 17) { setVinError("Please enter the full 17-character VIN."); return; }
+  const handleVinLookupWithVin = async (vin: string) => {
     setVinStatus("loading");
     setVinError(null);
     try {
@@ -306,7 +304,6 @@ export default function ReceiptInputCard({
         return;
       }
       applyExtractedFields({ ...data.fields, vin });
-      if (data.photo_urls?.length) onPhotosExtracted?.(data.photo_urls);
       setVinStatus("success");
       setVinFilled(true);
       trackEvent?.("vin_lookup_success", { vin, anon_id: receiptToken });
@@ -317,9 +314,26 @@ export default function ReceiptInputCard({
     }
   };
 
+  const handleVinLookup = () => {
+    const vin = vinValue.trim().toUpperCase();
+    if (vin.length !== 17) { setVinError("Please enter the full 17-character VIN."); return; }
+    handleVinLookupWithVin(vin);
+  };
+
+  // ── VIN detection helper ────────────────────────────────────────────────────
+  const isVinLike = (s: string) => /^[A-HJ-NPR-Z0-9]{17}$/i.test(s.trim());
+
   // ── URL paste handler ──────────────────────────────────────────────────────
   const handleUrlPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const pasted = e.clipboardData.getData("text").trim();
+    // If user pastes a VIN into the URL field, route it to VIN lookup instead
+    if (isVinLike(pasted)) {
+      e.preventDefault();
+      setVinValue(pasted.toUpperCase());
+      setPasteOpen(false);
+      setTimeout(() => handleVinLookupWithVin(pasted.toUpperCase()), 100);
+      return;
+    }
     if (!/^https?:\/\/.+/.test(pasted)) return;
     if (isExtracting || pasted === lastAutoExtractedUrl.current) return;
     setListingUrl(pasted);
@@ -340,6 +354,16 @@ export default function ReceiptInputCard({
   // ── Extraction ─────────────────────────────────────────────────────────────
   const handleExtract = useCallback(async (urlOverride?: string) => {
     const urlToCheck = urlOverride ?? (pasteMode === "url" ? listingUrl.trim() : "");
+
+    // If user entered a VIN in the URL field, redirect to VIN lookup silently
+    if (urlToCheck && isVinLike(urlToCheck)) {
+      const vin = urlToCheck.trim().toUpperCase();
+      setListingUrl("");
+      setVinValue(vin);
+      handleVinLookupWithVin(vin);
+      return;
+    }
+
     if (urlToCheck && isFacebookMarketplaceUrl(urlToCheck)) {
       setShowFbPasteModal(true);
       return;
