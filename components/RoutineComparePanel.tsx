@@ -5,10 +5,10 @@ import type { VehicleRecommendation } from "@/types/recommendations";
 import type { MinimumViableRoutine } from "@/types/v2";
 
 const FIT_COLORS: Record<string, { badge: string; bar: string; score: string }> = {
-  "Great Fit":    { badge: "bg-green-500/10 text-green-400 border-green-500/20",  bar: "bg-green-500",  score: "text-green-400" },
-  "Good Fit":     { badge: "bg-blue-500/10 text-blue-400 border-blue-500/20",     bar: "bg-blue-500",   score: "text-blue-400"  },
-  "Mixed Fit":    { badge: "bg-amber-500/10 text-amber-400 border-amber-500/20",  bar: "bg-amber-500",  score: "text-amber-400" },
-  "High Friction":{ badge: "bg-red-500/10 text-red-400 border-red-500/20",        bar: "bg-red-500",    score: "text-red-400"   },
+  "Great Fit":    { badge: "bg-[#00d97e]/10 text-[#00d97e] border-[#00d97e]/20", bar: "bg-[#00d97e]", score: "text-[#00d97e]" },
+  "Good Fit":     { badge: "bg-[#00d97e]/10 text-[#00d97e] border-[#00d97e]/20", bar: "bg-[#00d97e]", score: "text-[#00d97e]" },
+  "Mixed Fit":    { badge: "bg-[#00d97e]/10 text-[#00d97e] border-[#00d97e]/20", bar: "bg-[#00d97e]", score: "text-[#00d97e]" },
+  "High Friction":{ badge: "bg-[#00d97e]/10 text-[#00d97e] border-[#00d97e]/20", bar: "bg-[#00d97e]", score: "text-[#00d97e]" },
 };
 
 const DIMENSION_LABELS: Record<string, string> = {

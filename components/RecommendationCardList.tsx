@@ -9,10 +9,10 @@ interface Props {
 }
 
 const badgeColors: Record<string, string> = {
-  "Great Fit": "bg-green-600",
-  "Good Fit": "bg-blue-600",
-  "Mixed Fit": "bg-amber-500",
-  "High Friction": "bg-red-500",
+  "Great Fit":    "bg-[#00a862]",
+  "Good Fit":     "bg-[#00a862]",
+  "Mixed Fit":    "bg-[#00a862]",
+  "High Friction":"bg-[#00a862]",
 };
 
 export default function RecommendationCardList({ recommendation: rec, onSelect, rank }: Props) {

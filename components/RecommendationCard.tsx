@@ -12,17 +12,17 @@ import { useEventTracking } from "@/hooks/useEventTracking";
 import VehicleImage from "./VehicleImage";
 
 const fitColors: Record<string, { bg: string; text: string; border: string }> = {
-  "Great Fit": { bg: "bg-green-500/10", text: "text-green-400", border: "border-green-500/20" },
-  "Good Fit": { bg: "bg-blue-500/10", text: "text-blue-400", border: "border-blue-500/20" },
-  "Mixed Fit": { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20" },
-  "High Friction": { bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/20" },
+  "Great Fit":    { bg: "bg-[#00d97e]/10", text: "text-[#00d97e]", border: "border-[#00d97e]/20" },
+  "Good Fit":     { bg: "bg-[#00d97e]/10", text: "text-[#00d97e]", border: "border-[#00d97e]/20" },
+  "Mixed Fit":    { bg: "bg-[#00d97e]/10", text: "text-[#00d97e]", border: "border-[#00d97e]/20" },
+  "High Friction":{ bg: "bg-[#00d97e]/10", text: "text-[#00d97e]", border: "border-[#00d97e]/20" },
 };
 
 const scoreBadgeColors: Record<string, string> = {
-  "Great Fit": "bg-green-600",
-  "Good Fit": "bg-blue-600",
-  "Mixed Fit": "bg-amber-500",
-  "High Friction": "bg-red-500",
+  "Great Fit":    "bg-[#00a862]",
+  "Good Fit":     "bg-[#00a862]",
+  "Mixed Fit":    "bg-[#00a862]",
+  "High Friction":"bg-[#00a862]",
 };
 
 // ---- Matched Deal Strip ----

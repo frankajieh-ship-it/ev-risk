@@ -9,17 +9,17 @@ interface Props {
 }
 
 const badgeColors: Record<string, string> = {
-  "Great Fit": "bg-green-600",
-  "Good Fit": "bg-blue-600",
-  "Mixed Fit": "bg-amber-500",
-  "High Friction": "bg-red-500",
+  "Great Fit":    "bg-[#00a862]",
+  "Good Fit":     "bg-[#00a862]",
+  "Mixed Fit":    "bg-[#00a862]",
+  "High Friction":"bg-[#00a862]",
 };
 
 const fitColors: Record<string, { bg: string; text: string }> = {
-  "Great Fit": { bg: "bg-[#00d97e]/15", text: "text-[#00d97e]" },
-  "Good Fit": { bg: "bg-blue-500/15", text: "text-blue-400" },
-  "Mixed Fit": { bg: "bg-amber-500/15", text: "text-amber-400" },
-  "High Friction": { bg: "bg-red-500/15", text: "text-red-400" },
+  "Great Fit":    { bg: "bg-[#00d97e]/15", text: "text-[#00d97e]" },
+  "Good Fit":     { bg: "bg-[#00d97e]/15", text: "text-[#00d97e]" },
+  "Mixed Fit":    { bg: "bg-[#00d97e]/15", text: "text-[#00d97e]" },
+  "High Friction":{ bg: "bg-[#00d97e]/15", text: "text-[#00d97e]" },
 };
 
 export default function RecommendationCardGrid({ recommendation: rec, onSelect }: Props) {

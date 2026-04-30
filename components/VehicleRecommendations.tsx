@@ -953,11 +953,7 @@ export default function VehicleRecommendations({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-xs font-bold text-white/30">#{i + 1}</span>
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                              rec.fit_label === "Great Fit" ? "bg-green-500/10 text-green-400" :
-                              rec.fit_label === "Good Fit"  ? "bg-blue-500/10 text-blue-400" :
-                              "bg-amber-500/10 text-amber-400"
-                            }`}>{rec.fit_label}</span>
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#00d97e]/10 text-[#00d97e]">{rec.fit_label}</span>
                           </div>
                           <p className="text-sm font-semibold text-white/80 truncate">{rec.year} {rec.make} {rec.model_short}</p>
                           {diffBullets[i] && (
