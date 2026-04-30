@@ -319,6 +319,9 @@ function getStaticPhotoUrl(make: string | undefined, model: string | undefined):
     " twin ultimate", " twin", " single motor", " recharge",
     " 450+", " 580", " pure",
     " 1lt", " 1", " lt", " premier",
+    // Tesla battery capacity suffixes (e.g. "Model S 75 RWD" → strip "75" → "Model S")
+    " p100d", " p90d", " p85d", " p85+", " p85", " 100d", " 90d", " 85d",
+    " 75d", " 75", " 100", " 90", " 85", " 70d", " 70", " 60d", " 60",
     " electric", " ev",
     " sl", " sv", " s",
   ];
@@ -386,11 +389,12 @@ export async function GET(request: NextRequest) {
         const expectedMake = normalizedMake.toLowerCase();
         if (!recordMake.includes(expectedMake) && !expectedMake.includes(recordMake)) continue;
       }
-      // Filter by model to prevent wrong-car images (e.g. gas Mustang GT for Mach-E search)
+      // Filter by model to prevent wrong-car images (e.g. gas Mustang GT for Mach-E search).
+      // Use length > 1 (not > 2) so single-letter suffixes like "S", "X", "Y" are required.
       if (model && record.model) {
         const recordModel = record.model.toLowerCase();
         const expectedModel = model.toLowerCase();
-        const modelWords = expectedModel.split(" ").filter((w) => w.length > 2);
+        const modelWords = expectedModel.split(" ").filter((w) => w.length > 1);
         if (modelWords.length > 0 && !modelWords.every((w) => recordModel.includes(w))) continue;
       }
       if (record.primaryPhotoUrl && !photoUrls.includes(record.primaryPhotoUrl)) {
