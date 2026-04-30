@@ -944,7 +944,11 @@ export default function ReceiptPage() {
                       });
                     }}
                     onGarageSave={() => {
-                      addToAnonGarage(receipt);
+                      addToAnonGarage({
+                        type: "receipt",
+                        label: `${receipt.year ?? ""} ${receipt.make ?? ""} ${receipt.model ?? ""}`.trim() || "Saved Receipt",
+                        data: receipt as unknown as Record<string, unknown>,
+                      });
                       setHasSaved(true);
                     }}
                   />
