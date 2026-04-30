@@ -356,46 +356,52 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ photo_urls: [] });
   }
 
-  // --- For VIN lookups: try VinAudit first (best quality stock images) ---
+  // 1. VinAudit VIN lookup — highest quality, exact vehicle match
   if (vin) {
-    const vinauditResult = await getVehicleImages({ vin, year, make, model: rawModel, limit: 6 });
-    if (vinauditResult.success && vinauditResult.photo_urls.length > 0) {
-      return NextResponse.json({ photo_urls: vinauditResult.photo_urls, source: "vinaudit" });
+    const result = await getVehicleImages({ vin, year, make, model: rawModel, limit: 6 });
+    if (result.success && result.photo_urls.length > 0) {
+      return NextResponse.json({ photo_urls: result.photo_urls, source: "vinaudit" });
     }
   }
 
-  // --- For make/model lookups (and VIN fallthrough): try static map first ---
-  // Static Wikimedia Commons photos are always available, zero latency, correct car.
-  // This is the most reliable source for recommendation cards (no VIN available).
+  // 2. Static curated map — zero-latency, always the correct car, covers all common EVs
   const staticUrl = getStaticPhotoUrl(make, rawModel);
   if (staticUrl) {
     return NextResponse.json({ photo_urls: [staticUrl], source: "static" });
   }
 
-  // --- Fallback: Auto.dev listing photos ---
-  const { make: normalizedMake, model } = normalizeForAutodev(make, rawModel);
-  // Try with year first; if no results, retry without year (Auto.dev inventory varies by year)
-  let result = await searchListings({ vin, make: normalizedMake, model, year, limit: 8 });
-  if ((!result?.records || result.records.length === 0) && year) {
-    result = await searchListings({ vin, make: normalizedMake, model, limit: 8 });
+  // 3. VinAudit YMM lookup — reliable stock images keyed by make/model/year
+  if (make) {
+    const result = await getVehicleImages({ year, make, model: rawModel, limit: 6 });
+    if (result.success && result.photo_urls.length > 0) {
+      return NextResponse.json({ photo_urls: result.photo_urls, source: "vinaudit_ymm" });
+    }
   }
+
+  // 4. Auto.dev listing photos — last resort; apply strict make+model+year filtering
+  //    to prevent wrong-car images from market listing data.
+  const { make: normalizedMake, model } = normalizeForAutodev(make, rawModel);
+  const result = await searchListings({ vin, make: normalizedMake, model, year, limit: 10 });
 
   const photoUrls: string[] = [];
   if (result?.records) {
     for (const record of result.records) {
-      // Filter by make to prevent wrong-car images (e.g. Auto.dev returning Genesis when searching BMW i5)
+      // Strict make check: record make must equal expected make (not just substring)
       if (normalizedMake && record.make) {
-        const recordMake = record.make.toLowerCase();
-        const expectedMake = normalizedMake.toLowerCase();
-        if (!recordMake.includes(expectedMake) && !expectedMake.includes(recordMake)) continue;
+        const recordMake = record.make.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const expectedMake = normalizedMake.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (recordMake !== expectedMake) continue;
       }
-      // Filter by model to prevent wrong-car images (e.g. gas Mustang GT for Mach-E search).
-      // Use length > 1 (not > 2) so single-letter suffixes like "S", "X", "Y" are required.
+      // Model check: all words > 1 char in expected model must appear in record model
       if (model && record.model) {
         const recordModel = record.model.toLowerCase();
         const expectedModel = model.toLowerCase();
         const modelWords = expectedModel.split(" ").filter((w) => w.length > 1);
         if (modelWords.length > 0 && !modelWords.every((w) => recordModel.includes(w))) continue;
+      }
+      // Year check: record year must be within ±2 of requested year (avoids completely wrong era)
+      if (year && record.year) {
+        if (Math.abs(Number(record.year) - year) > 2) continue;
       }
       if (record.primaryPhotoUrl && !photoUrls.includes(record.primaryPhotoUrl)) {
         photoUrls.push(record.primaryPhotoUrl);
@@ -406,14 +412,6 @@ export async function GET(request: NextRequest) {
 
   if (photoUrls.length > 0) {
     return NextResponse.json({ photo_urls: photoUrls, source: "autodev" });
-  }
-
-  // --- Last resort: VinAudit YMM lookup (no VIN) ---
-  if (!vin && make) {
-    const vinauditResult = await getVehicleImages({ year, make, model: rawModel, limit: 6 });
-    if (vinauditResult.success && vinauditResult.photo_urls.length > 0) {
-      return NextResponse.json({ photo_urls: vinauditResult.photo_urls, source: "vinaudit_ymm" });
-    }
   }
 
   return NextResponse.json({ photo_urls: [], source: "none" });
