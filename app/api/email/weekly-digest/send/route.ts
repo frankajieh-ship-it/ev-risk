@@ -16,7 +16,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isResendConfigured } from "@/lib/resend";
 import { safeSend, isoWeekKey } from "@/lib/crm-email";
-import { getDigestRecipients, getDigestMarketSnapshot } from "@/lib/crm-queries";
+import { getDigestRecipients, getDigestMarketSnapshot, getTopWeeklyNews } from "@/lib/crm-queries";
 import { buildWeeklyDigest } from "@/lib/crm-templates/weekly-digest";
 
 export async function POST(request: NextRequest) {
@@ -37,8 +37,11 @@ export async function POST(request: NextRequest) {
   const weekKey = isoWeekKey();
   const results = { sent: 0, skipped: 0, errors: 0, offset, limit };
 
-  // Compute market snapshot once for all recipients in this batch
-  const marketSnapshot = await getDigestMarketSnapshot();
+  // Compute market snapshot + top news once for all recipients in this batch
+  const [marketSnapshot, topNews] = await Promise.all([
+    getDigestMarketSnapshot(),
+    getTopWeeklyNews(5),
+  ]);
 
   const recipients = await getDigestRecipients(limit, offset, weekKey);
 
@@ -52,6 +55,7 @@ export async function POST(request: NextRequest) {
         marketSnapshot,
         lastVehicle: recipient.lastVehicle,
         lastVerdict: recipient.lastVerdict,
+        topNews,
       });
 
       const idempotencyKey = recipient.userId

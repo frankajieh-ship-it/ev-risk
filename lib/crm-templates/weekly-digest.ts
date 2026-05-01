@@ -7,7 +7,7 @@
 
 import { SITE_URL, ctaButton, verdictBadge } from "./shared";
 import { emailFooter, emailWrapper } from "@/lib/crm-email";
-import type { MarketSnapshot } from "@/lib/crm-queries";
+import type { MarketSnapshot, NewsDigestArticle } from "@/lib/crm-queries";
 
 export interface WeeklyDigestContext {
   email: string;
@@ -17,10 +17,18 @@ export interface WeeklyDigestContext {
   marketSnapshot: MarketSnapshot;
   lastVehicle?: string;
   lastVerdict?: string;
+  topNews: NewsDigestArticle[];
 }
 
+const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
+  recall:           { label: "🔴 Recall",      color: "#dc2626" },
+  used_market:      { label: "💲 Used Market",  color: "#ca8a04" },
+  charging_network: { label: "⚡ Charging",     color: "#2563eb" },
+  routine_impact:   { label: "📡 Routine",      color: "#6b7280" },
+};
+
 export function buildWeeklyDigest(ctx: WeeklyDigestContext): { subject: string; html: string } {
-  const { email, dealWatchMatches, receiptsThisWeek, marketSnapshot, lastVehicle, lastVerdict } = ctx;
+  const { email, dealWatchMatches, receiptsThisWeek, marketSnapshot, lastVehicle, lastVerdict, topNews } = ctx;
 
   const dealWatchSection = dealWatchMatches > 0
     ? `<div style="background:#f0fdf4;border-radius:10px;padding:16px 18px;margin-bottom:12px;border:1px solid #bbf7d0;">
@@ -83,6 +91,30 @@ export function buildWeeklyDigest(ctx: WeeklyDigestContext): { subject: string; 
       </div>`
     : "";
 
+  const newsSection = topNews.length > 0
+    ? `<div style="margin-bottom:12px;">
+        <p style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 10px;">This week in EV news</p>
+        ${topNews.map(article => {
+          const cat = CATEGORY_LABELS[article.category] ?? CATEGORY_LABELS["routine_impact"];
+          return `<div style="padding:12px 14px;border-radius:10px;border:1px solid #e5e7eb;background:white;margin-bottom:8px;">
+            <span style="font-size:11px;font-weight:600;color:${cat.color};">${cat.label}</span>
+            <p style="font-size:13px;font-weight:600;color:#111827;margin:4px 0 4px;">
+              <a href="${article.url}" style="color:#111827;text-decoration:none;">${article.title}</a>
+            </p>
+            ${article.ai_summary ? `<p style="font-size:12px;color:#6b7280;margin:0;">${article.ai_summary}</p>` : ""}
+          </div>`;
+        }).join("")}
+        <p style="font-size:12px;margin:8px 0 0;text-align:center;">
+          <a href="${SITE_URL}/news" style="color:#00d97e;text-decoration:none;font-weight:600;">See all EV news →</a>
+        </p>
+      </div>`
+    : "";
+
+  const hasRecall = topNews.some(a => a.category === "recall");
+  const subject = hasRecall
+    ? `OFFO weekly — ${dealWatchMatches > 0 ? `${dealWatchMatches} price drop${dealWatchMatches !== 1 ? "s" : ""}, ` : ""}recall alert + market recap`
+    : `Your OFFO weekly digest — ${dealWatchMatches > 0 ? `${dealWatchMatches} price drop${dealWatchMatches !== 1 ? "s" : ""} found` : "market recap"}`;
+
   const body = `
     <div style="text-align:center;margin-bottom:24px;">
       <p style="font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 4px;">Weekly Digest</p>
@@ -92,13 +124,11 @@ export function buildWeeklyDigest(ctx: WeeklyDigestContext): { subject: string; 
     ${receiptsSection}
     ${lastReceiptSection}
     ${marketSection}
+    ${newsSection}
     <div style="text-align:center;margin-top:20px;margin-bottom:24px;">
       ${ctaButton("Check a new listing →", `${SITE_URL}/receipt`)}
     </div>
     ${emailFooter(email, "weekly_digest")}`;
 
-  return {
-    subject: `Your OFFO weekly digest — ${dealWatchMatches > 0 ? `${dealWatchMatches} price drop${dealWatchMatches !== 1 ? "s" : ""} found` : "market recap"}`,
-    html: emailWrapper(body),
-  };
+  return { subject, html: emailWrapper(body) };
 }

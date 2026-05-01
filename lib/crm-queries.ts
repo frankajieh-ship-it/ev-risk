@@ -22,6 +22,14 @@ export interface ConversionCandidate {
   triggerType: "paywall_dismissed" | "checkout_started";
 }
 
+export interface AuctionNurtureCandidate {
+  email: string;
+  anonId?: string;
+  eventId: string;
+  resultId?: string;
+  vehicle?: string;
+}
+
 export interface WinBackCandidate {
   userId: string;
   email: string;
@@ -157,6 +165,91 @@ export async function getConversionCandidates(
       vehicle,
       verdict,
       triggerType,
+    });
+
+    if (candidates.length >= limit) break;
+  }
+
+  return candidates;
+}
+
+// ── Auction nurture candidates ────────────────────────────────────────────────
+// Users who captured email on /copart after running a lot lookup, but have
+// not yet purchased a copart_report. Single email, sent 2-24h after capture.
+
+export async function getAuctionNurtureCandidates(
+  limit = 50
+): Promise<AuctionNurtureCandidate[]> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+
+  const now = Date.now();
+  const windowStart = new Date(now - 24 * 60 * 60 * 1000).toISOString(); // up to 24h ago
+  const windowEnd = new Date(now - 2 * 60 * 60 * 1000).toISOString();   // at least 2h ago
+
+  const { data: events } = await supabase
+    .from("user_events")
+    .select("id, event_data, timestamp")
+    .eq("event_name", "auction_email_captured")
+    .gte("timestamp", windowStart)
+    .lte("timestamp", windowEnd)
+    .not("is_internal", "eq", true)
+    .limit(limit * 2);
+
+  if (!events?.length) return [];
+
+  const candidates: AuctionNurtureCandidate[] = [];
+
+  for (const ev of events) {
+    const eventData = (ev.event_data || {}) as Record<string, unknown>;
+    const resultId = eventData.result_id as string | undefined;
+    const email = eventData.email as string | undefined;
+
+    if (!email) continue;
+
+    // Skip if already sent this nurture email
+    const { count: sentCount } = await supabase
+      .from("crm_email_sends")
+      .select("id", { count: "exact", head: true })
+      .eq("idempotency_key", `auction_nurture:${ev.id}`);
+    if ((sentCount ?? 0) > 0) continue;
+
+    // Skip if already purchased
+    if (resultId) {
+      const { count: purchaseCount } = await supabase
+        .from("auction_entitlements")
+        .select("id", { count: "exact", head: true })
+        .eq("result_id", resultId);
+      if ((purchaseCount ?? 0) > 0) continue;
+    }
+
+    // Check suppression
+    const { data: pref } = await supabase
+      .from("crm_email_preferences")
+      .select("all_marketing, conversion, bounced")
+      .eq("email", email)
+      .maybeSingle();
+    if (pref && (!pref.all_marketing || !pref.conversion || pref.bounced)) continue;
+
+    // Resolve vehicle label from auction_analyses
+    let vehicle: string | undefined;
+    if (resultId) {
+      const { data: analysis } = await supabase
+        .from("auction_analyses")
+        .select("raw_data")
+        .eq("result_id", resultId)
+        .maybeSingle();
+      if (analysis?.raw_data) {
+        const lot = analysis.raw_data as Record<string, unknown>;
+        vehicle = [lot.year, lot.make, lot.model, lot.trim].filter(Boolean).join(" ") || undefined;
+      }
+    }
+
+    candidates.push({
+      email,
+      eventId: ev.id as string,
+      resultId,
+      vehicle,
     });
 
     if (candidates.length >= limit) break;
@@ -464,6 +557,34 @@ export async function getDigestRecipients(
   }
 
   return recipients;
+}
+
+// ── Top weekly news ───────────────────────────────────────────────────────────
+
+export interface NewsDigestArticle {
+  title: string;
+  url: string;
+  source: string;
+  category: string;
+  impact_score: number;
+  ai_summary: string;
+}
+
+export async function getTopWeeklyNews(limit = 5): Promise<NewsDigestArticle[]> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data } = await supabase
+    .from("daily_routine_news")
+    .select("title, url, source, category, impact_score, ai_summary")
+    .gte("scored_at", since)
+    .gte("impact_score", 70)
+    .order("impact_score", { ascending: false })
+    .limit(limit);
+
+  return (data ?? []) as NewsDigestArticle[];
 }
 
 // ── Market snapshot ───────────────────────────────────────────────────────────
