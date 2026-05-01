@@ -408,7 +408,7 @@ RULES:
   - Sentence 1: What the overall picture is and why (reference the actual verdict)
   - Sentence 2: The biggest specific risk or strength (reference concrete facts: mileage, title, price vs market, specific flag)
   - Sentence 3 (optional): The evidence quality — what's confirmed vs missing
-  - Sentence 4 (optional): Routine fit or charging situation if relevant
+  - Sentence 4 (optional): Routine fit or charging situation — ONLY if ROUTINE FIT data is provided. Never invent or assume fit scores.
 - bottom_line: A single concrete action sentence starting with a verb. Not wishy-washy. 20-180 chars.
   Examples: "Get a pre-purchase inspection before committing." / "This listing is worth a closer look — confirm DC fast charging first." / "Walk away — the title risk alone justifies it."
 - confidence_note: If evidence_label is MISSING or PARTIAL, write a short honest caveat (10-140 chars). If STRONG evidence, return null.
@@ -445,6 +445,7 @@ export async function generateReceiptSummary(
     fit_score?: number | null;
     fit_summary?: string | null;
   } | null,
+  hasActiveRecalls?: boolean | null,
 ): Promise<ListingAISummary> {
   const ls = receipt.listing_summary;
   const label = `${ls.year} ${ls.make} ${ls.model}${ls.trim ? " " + ls.trim : ""}`;
@@ -457,12 +458,13 @@ export async function generateReceiptSummary(
     : null;
   const priceSanityLine = priceDirection ? `Price direction: ${priceDirection}` : "";
 
-  // Recalls: presence only — no count or details (user must seek full report)
+  // Recalls: presence only — no count or details (user must check deep dive)
   const signals = (receipt.listing_signals ?? []) as string[];
-  const flags = (receipt.risk_flags ?? []) as string[];
-  const recallStatusClear = signals.includes("recall_status_clear");
-  const recallMentionedInFlags = flags.some(f => /recall/i.test(f));
-  const recallStatus = recallStatusClear ? "no open recalls noted" : recallMentionedInFlags ? "recall concerns present" : "recall status unknown";
+  const recallStatus =
+    hasActiveRecalls === true ? "active recalls confirmed — details in deep dive" :
+    hasActiveRecalls === false ? "no active recalls found" :
+    signals.includes("recall_status_clear") ? "no open recalls noted" :
+    "recall status unknown — verify before purchase";
 
   const whyNotGreenLines = ((receipt.why_not_green ?? []) as Array<{ label: string; category?: string }>)
     .slice(0, 4)
@@ -496,7 +498,6 @@ RECALLS: ${recallStatus}
 
 VERDICT: ${receipt.verdict}
 EVIDENCE QUALITY: ${receipt.evidence_label ?? "unknown"}
-FIT SCORE: ${receipt.fit_score ?? "N/A"}/100
 EVIDENCE SCORE: ${receipt.evidence_score ?? "N/A"}/100
 
 VERDICT REASON (from analysis):

@@ -135,10 +135,32 @@ export async function POST(
       sectionData = result;
       outputJsonPatch = { receipt_details: result };
     } else if (sectionKey === "receipt_summary") {
-      // Pass routine context stored in the receipt's extended fields if available
       const ext = data.output_json as Record<string, unknown>;
       const routineCtx = (ext.routine_context as Parameters<typeof generateReceiptSummary>[1]) ?? null;
-      const result = await generateReceiptSummary(receipt, routineCtx);
+
+      // Look up whether this receipt has active recalls in vehicle_recalls table
+      let hasActiveRecalls: boolean | null = null;
+      try {
+        const vin = (receipt as unknown as Record<string, unknown>).vin as string | undefined;
+        if (vin) {
+          const { data: vehicleRows } = await supabase
+            .from("vehicles")
+            .select("id")
+            .eq("vin", vin)
+            .limit(1);
+          const vehicleId = vehicleRows?.[0]?.id;
+          if (vehicleId) {
+            const { count } = await supabase
+              .from("vehicle_recalls")
+              .select("id", { count: "exact", head: true })
+              .eq("vehicle_id", vehicleId)
+              .eq("status", "active");
+            hasActiveRecalls = (count ?? 0) > 0;
+          }
+        }
+      } catch { /* non-critical */ }
+
+      const result = await generateReceiptSummary(receipt, routineCtx, hasActiveRecalls);
       sectionData = result;
       outputJsonPatch = { receipt_summary: result } as Partial<ListingReceipt>;
     } else {
