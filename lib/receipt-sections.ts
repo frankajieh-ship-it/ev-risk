@@ -414,6 +414,17 @@ RULES:
 - confidence_note: If evidence_label is MISSING or PARTIAL, write a short honest caveat (10-140 chars). If STRONG evidence, return null.
 - tone: "proceed" for GREEN, "caution" for YELLOW, "stop" for RED.
 
+PRICING RULES (important):
+- You may say whether the price is above, below, or near market — nothing more.
+- Do NOT include specific dollar amounts, percentages, confidence levels, or market data sources in the summary.
+- The goal is to signal direction only — full pricing detail is in the paid report.
+
+RECALL RULES (important):
+- If recalls are present or concerns exist: mention that recalls were detected, but do NOT state how many or describe what they are.
+- If no open recalls noted: you may briefly mention this as a positive signal.
+- If recall status is unknown: you may note it as something to verify.
+- Never list, describe, or quantify specific recalls in the summary.
+
 VOICE:
 - Write "this listing" not "this vehicle" or "this car"
 - No verdict language in body: no "good deal", "bad deal", "skip it", "buy it", "hard pass"
@@ -440,9 +451,18 @@ export async function generateReceiptSummary(
   const priceStr = ls.price > 0 ? `$${ls.price.toLocaleString()}` : "price unknown";
   const mileageStr = ls.mileage ? `${ls.mileage.toLocaleString()} ${ls.mileage_unit}` : "mileage unknown";
 
-  const priceSanityLine = receipt.price_sanity?.label && receipt.price_sanity.label !== "UNKNOWN"
-    ? `Price assessment: ${receipt.price_sanity.label} (${Math.round((receipt.price_sanity.confidence ?? 0) * 100)}% confidence, basis: ${receipt.price_sanity.basis}). ${receipt.price_sanity.rationale_short ?? ""}`
-    : "";
+  // Pricing: direction only — no numbers, confidence, or rationale (user must seek details)
+  const priceDirection = receipt.price_sanity?.label && receipt.price_sanity.label !== "UNKNOWN"
+    ? receipt.price_sanity.label.toLowerCase().replace(/_/g, " ")
+    : null;
+  const priceSanityLine = priceDirection ? `Price direction: ${priceDirection}` : "";
+
+  // Recalls: presence only — no count or details (user must seek full report)
+  const signals = (receipt.listing_signals ?? []) as string[];
+  const flags = (receipt.risk_flags ?? []) as string[];
+  const recallStatusClear = signals.includes("recall_status_clear");
+  const recallMentionedInFlags = flags.some(f => /recall/i.test(f));
+  const recallStatus = recallStatusClear ? "no open recalls noted" : recallMentionedInFlags ? "recall concerns present" : "recall status unknown";
 
   const whyNotGreenLines = ((receipt.why_not_green ?? []) as Array<{ label: string; category?: string }>)
     .slice(0, 4)
@@ -472,6 +492,7 @@ TITLE: ${ls.title_status}
 ACCIDENTS: ${ls.accidents_reported}
 SERVICE HISTORY: ${ls.service_history}
 OWNERS: ${ls.owners ?? "unknown"}
+RECALLS: ${recallStatus}
 
 VERDICT: ${receipt.verdict}
 EVIDENCE QUALITY: ${receipt.evidence_label ?? "unknown"}
@@ -481,7 +502,7 @@ EVIDENCE SCORE: ${receipt.evidence_score ?? "N/A"}/100
 VERDICT REASON (from analysis):
 ${receipt.verdict_reason}
 
-${priceSanityLine ? `PRICE ANALYSIS:\n${priceSanityLine}\n` : ""}
+${priceSanityLine ? `PRICE DIRECTION:\n${priceSanityLine}\n` : ""}
 TOP RISK FLAGS:
 ${(receipt.risk_flags || []).map(f => `- ${f}`).join("\n")}
 
