@@ -951,13 +951,13 @@ export default function ReceiptPage() {
                 isRegenerating={isGenerating}
                 onTrackLintFallback={handleLintFallback}
                 region={region}
-                sellerPackUnlocked={true}
+                sellerPackUnlocked={sellerPackUnlocked}
                 onSellerPackUpgrade={() => {}}
                 isUpgrading={isUpgrading}
                 upgradeFailed={upgradeFailed}
-                isUnlocked={true}
-                paymentsEnabled={false}
-                onPaywallClick={() => {}}
+                isUnlocked={isUnlocked}
+                paymentsEnabled={paymentsEnabled}
+                onPaywallClick={() => handlePremiumAction("output_card")}
                 photos={isSimilarityMatch ? [] : listingPhotos}
                 onSave={handleQuickSave}
                 saveState={hasSaved ? "saved" : "idle"}
@@ -972,8 +972,8 @@ export default function ReceiptPage() {
                   receiptId={receipt.receipt_id}
                   initialScripts={(receipt as unknown as Record<string, unknown>).negotiation_deep as import("@/lib/receipt-sections").NegotiationScript[] ?? null}
                   initialStatus={sections?.negotiation_deep?.status}
-                  isUnlocked={true}
-                  paymentsEnabled={false}
+                  isUnlocked={isUnlocked}
+                  paymentsEnabled={paymentsEnabled}
                 />
               )}
 

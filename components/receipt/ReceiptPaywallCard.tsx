@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Zap, ShieldCheck, TrendingDown, FileText, Lock } from "lucide-react";
+import { Zap, TrendingDown, FileText, Lock, Search, ClipboardList } from "lucide-react";
 
 interface ReceiptPaywallCardProps {
   receiptToken: string;
@@ -11,10 +11,10 @@ interface ReceiptPaywallCardProps {
 }
 
 const FEATURES = [
-  { icon: ShieldCheck, text: "Full risk verdict — GREEN / YELLOW / RED" },
-  { icon: TrendingDown, text: "Deal quality score & price vs. market" },
-  { icon: Zap, text: "Battery assessment & recall check" },
-  { icon: FileText, text: "Negotiation insights & seller questions" },
+  { icon: Search, text: "Market comparables — is this listing overpriced?" },
+  { icon: ClipboardList, text: "10-point inspection checklist for this exact model" },
+  { icon: FileText, text: "3 negotiation scripts ready to copy & send" },
+  { icon: TrendingDown, text: "Battery health deep dive & recall status" },
 ];
 
 export default function ReceiptPaywallCard({
@@ -44,7 +44,6 @@ export default function ReceiptPaywallCard({
         if (onCheckout) onCheckout(data.url);
         else window.location.href = data.url;
       } else if (data.status === "paid") {
-        // Already paid — reload to trigger generation
         window.location.reload();
       } else {
         setError(data.error || "Failed to start checkout. Please try again.");
@@ -64,14 +63,16 @@ export default function ReceiptPaywallCard({
           <div className="flex items-center gap-2 mb-2">
             <Lock className="w-4 h-4 text-[#00d97e]" />
             <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wide">
-              Analysis ready
+              Deep dive ready
             </span>
           </div>
           <h2 className="text-xl font-bold text-white leading-tight">
-            Unlock your full EV deal report
+            Get the full deep dive on this exact listing
           </h2>
           <p className="text-sm text-white/50 mt-1">
-            One-time payment. No subscription. Instant results.
+            Market comparables · inspection checklist · 3 negotiation scripts.
+            <br />
+            One-time, $3.99. No subscription.
           </p>
         </div>
 
@@ -102,7 +103,7 @@ export default function ReceiptPaywallCard({
             ) : (
               <>
                 <Zap className="w-4 h-4" />
-                Unlock for $3.99
+                Unlock full deep dive — $3.99
               </>
             )}
           </button>
