@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Zap, ArrowRight } from "lucide-react";
+import { Zap, ArrowRight, Bell } from "lucide-react";
 import DealCard, { type CuratedDeal } from "@/components/deals/DealCard";
 
 export default function FeaturedDeals() {
@@ -18,9 +18,6 @@ export default function FeaturedDeals() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
-
-  // Don't render the section if there are no deals and loading is done
-  if (!loading && deals.length === 0) return null;
 
   return (
     <section className="max-w-7xl mx-auto px-4 py-16">
@@ -66,7 +63,7 @@ export default function FeaturedDeals() {
             </div>
           ))}
         </div>
-      ) : (
+      ) : deals.length > 0 ? (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {deals.map((deal, i) => (
@@ -83,7 +80,33 @@ export default function FeaturedDeals() {
             </Link>
           </div>
         </>
+      ) : (
+        <div className="rounded-xl border border-white/[0.06] bg-[#161b22] px-5 py-8 text-center">
+          <p className="text-sm text-white/40">No deals available right now — check back soon.</p>
+          <Link href="/deals" className="inline-flex items-center gap-1.5 mt-3 text-sm text-[#00d97e] font-medium hover:text-[#00f090] transition-colors">
+            Browse all deals <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
       )}
+
+      {/* Deal Watch alert CTA — always shown */}
+      <div className="mt-6 rounded-xl border border-[#00d97e]/20 bg-[#00d97e]/[0.04] px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Bell className="w-5 h-5 text-[#00d97e] shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-white">Get alerted when prices drop</p>
+            <p className="text-xs text-white/40 mt-0.5">
+              Save search filters and OFFO notifies you by email when matching EVs drop in price or a new GREEN listing appears.
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/deals"
+          className="shrink-0 px-4 py-2 rounded-lg bg-[#00d97e] text-[#0d1117] text-sm font-semibold hover:bg-[#00f090] transition-colors whitespace-nowrap"
+        >
+          Set up deal watch →
+        </Link>
+      </div>
     </section>
   );
 }
