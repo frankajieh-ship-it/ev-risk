@@ -9,7 +9,7 @@ import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-import { ArrowRight, Star, ChevronDown, ChevronUp, Mail, Menu, X, Zap } from "lucide-react";
+import { ArrowRight, Bell, Star, ChevronDown, ChevronUp, Mail, Menu, X, Zap } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import LoginModal from "@/components/LoginModal";
@@ -673,8 +673,27 @@ export default function Home() {
       {/* ── Section: Tutorial Video ──────────────────────────────────── */}
       <TutorialVideoSection />
 
-      {/* ── Section: Featured Deals — suspended 2026-04-28, re-enable when sold-listing automation is solved ── */}
-      {/* <FeaturedDeals /> */}
+      {/* ── Section: Deal Watch CTA ──────────────────────────────────── */}
+      <section className="py-8 bg-[#0d1117]">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="rounded-2xl border border-[#00d97e]/20 bg-[#00d97e]/[0.04] px-6 py-6 flex flex-col sm:flex-row items-center gap-5">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <Bell className="w-4 h-4 text-[#00d97e]" />
+                <span className="text-xs font-bold text-[#00d97e] uppercase tracking-wider">Deal Watch</span>
+              </div>
+              <p className="text-base font-bold text-white mb-1">Get alerted when prices drop</p>
+              <p className="text-sm text-white/40">Save search filters and OFFO notifies you by email when matching EVs drop in price or a new GREEN listing appears.</p>
+            </div>
+            <Link
+              href="/workspace/deal-watch"
+              className="shrink-0 px-5 py-2.5 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-xl hover:bg-[#00c970] transition-colors whitespace-nowrap"
+            >
+              Set up deal watch →
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* ── Section 6: Social Proof ──────────────────────────────────── */}
       <section className="section bg-[#111827]">
@@ -685,28 +704,44 @@ export default function Home() {
               ? `Trusted by ${totalReceipts.toLocaleString()}+ EV buyers`
               : "Trusted by thousands of EV buyers"}
           </h2>
-          <p className="text-sm text-white/40 text-center mb-8">Real OFFO users, real decisions.</p>
+          <p className="text-sm text-white/40 text-center mb-8">Real posts. Real decisions. No made-up names.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { name: "Marcus T.", location: "Chicago, IL", photo: "/car-bolt-ev.webp", quote: "Saved $2,400 on a used Bolt after seeing the hidden battery risk flag. Would never have caught it myself.", tag: "Used-EV buyer" },
-              { name: "Priya S.", location: "Austin, TX", photo: "/car-ioniq5.webp", quote: "Avoided a $6k repair on a salvage Ioniq 5 — the routine impact score was a dealbreaker the seller couldn't argue with.", tag: "First EV purchase" },
-              { name: "Jordan R.", location: "Denver, CO", photo: "/car-tesla-model3.webp", quote: "Compared 12 listings in one weekend. First time I've ever felt confident walking into a dealership...", tag: "EV switcher" },
-              { name: "Alicia M.", location: "Seattle, WA", photo: "/car-hyundai-kona.webp", quote: "The apartment charging check alone was worth it. OFFO told me exactly which vehicles fit my situation.", tag: "Apartment renter" },
-            ].map(({ name, location, photo, quote, tag }) => (
-              <div key={name} className="overflow-hidden flex flex-col rounded-xl border border-white/10 bg-white/5">
-                <div className="h-36 overflow-hidden bg-white/5">
-                  <Image src={photo} alt={name} width={300} height={144} className="w-full h-full object-cover object-center" />
-                </div>
+              { subreddit: "r/whatcarshouldIbuy", title: "This 2022 Ford Mustang Mach‑E was listed as a 'Great Deal' at $24,255 — here's what the OFFO receipt actually showed", views: "8,372", tag: "Used-EV receipt", photo: "/car-ioniq5.webp" },
+              { subreddit: "r/electriccars", title: "Dealer called this 2013 Tesla Model S a 'Good Deal' at $12,995… here's what the full OFFO receipt actually showed", views: "5,759", tag: "Salvage deal check", photo: "/car-tesla-model3.webp" },
+              { subreddit: "r/EVRoutine", title: "Just moved and thinking about an EV without home charging? Here's what actually ends up mattering.", views: "108,023", tag: "Routine Fit check", photo: null },
+              { subreddit: "r/EVRoutine", title: "Apartment dweller with no home charging, tows a small boat weekly, $25–40k budget — here's what EVRoutine recommends", views: "7,575", tag: "Routine Fit check", photo: null },
+            ].map(({ subreddit, title, views, tag, photo }) => (
+              <div key={title} className="overflow-hidden flex flex-col rounded-xl border border-white/10 bg-white/5">
+                {photo ? (
+                  <div className="h-36 overflow-hidden bg-white/5">
+                    <Image src={photo} alt="" width={300} height={144} className="w-full h-full object-cover object-center" />
+                  </div>
+                ) : (
+                  <div className="h-36 bg-gradient-to-br from-[#00d97e]/10 to-[#00d97e]/5 flex items-center justify-center">
+                    <svg className="w-8 h-8 opacity-20" viewBox="0 0 20 20" aria-hidden>
+                      <circle cx="10" cy="10" r="10" fill="#FF4500"/>
+                      <path d="M16.67 10a1.46 1.46 0 00-2.47-1 7.12 7.12 0 00-3.85-1.23l.65-3.08 2.13.45a1 1 0 101.07-1 1 1 0 00-.96.68l-2.38-.5a.26.26 0 00-.31.2l-.73 3.44a7.14 7.14 0 00-3.89 1.23 1.46 1.46 0 10-1.61 2.39 2.87 2.87 0 000 .44c0 2.24 2.61 4.06 5.83 4.06s5.83-1.82 5.83-4.06a2.87 2.87 0 000-.44 1.46 1.46 0 00.6-1.18zM7.27 11a1 1 0 111 1 1 1 0 01-1-1zm5.6 2.71a3.58 3.58 0 01-2.87.89 3.58 3.58 0 01-2.87-.89.23.23 0 01.33-.33 3.15 3.15 0 002.54.71 3.15 3.15 0 002.54-.71.23.23 0 01.33.33zm-.2-1.71a1 1 0 111-1 1 1 0 01-1 1z" fill="white"/>
+                    </svg>
+                  </div>
+                )}
                 <div className="p-4 flex flex-col flex-1">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="flex gap-0.5">
-                      {[1,2,3,4,5].map(s => <Star key={s} className="w-3 h-3 text-[#00d97e] fill-[#00d97e]" />)}
+                    <div className="flex items-center gap-1.5">
+                      <svg className="w-3 h-3 shrink-0" viewBox="0 0 20 20" aria-hidden>
+                        <circle cx="10" cy="10" r="10" fill="#FF4500"/>
+                        <path d="M16.67 10a1.46 1.46 0 00-2.47-1 7.12 7.12 0 00-3.85-1.23l.65-3.08 2.13.45a1 1 0 101.07-1 1 1 0 00-.96.68l-2.38-.5a.26.26 0 00-.31.2l-.73 3.44a7.14 7.14 0 00-3.89 1.23 1.46 1.46 0 10-1.61 2.39 2.87 2.87 0 000 .44c0 2.24 2.61 4.06 5.83 4.06s5.83-1.82 5.83-4.06a2.87 2.87 0 000-.44 1.46 1.46 0 00.6-1.18zM7.27 11a1 1 0 111 1 1 1 0 01-1-1zm5.6 2.71a3.58 3.58 0 01-2.87.89 3.58 3.58 0 01-2.87-.89.23.23 0 01.33-.33 3.15 3.15 0 002.54.71 3.15 3.15 0 002.54-.71.23.23 0 01.33.33zm-.2-1.71a1 1 0 111-1 1 1 0 01-1 1z" fill="white"/>
+                      </svg>
+                      <span className="text-[0.625rem] font-semibold text-white/40">{subreddit}</span>
                     </div>
-                    <span className="text-[0.6875rem] font-semibold text-[#00d97e]/60 tracking-wide">✓ Verified</span>
+                    <span className="text-[0.6875rem] font-semibold text-[#00d97e]/60 tracking-wide">✓ Real post</span>
                   </div>
-                  <p className="text-xs font-semibold text-white mb-1">{name}</p>
-                  <p className="text-xs text-white/50 leading-relaxed flex-1">{quote}</p>
-                  <p className="text-xs text-white/25 mt-2">{tag} · {location}</p>
+                  <p className="text-xs font-semibold text-white leading-relaxed flex-1">&ldquo;{title}&rdquo;</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs text-white/25">{views} views</span>
+                    <span className="text-white/15">·</span>
+                    <span className="text-xs text-white/25">{tag}</span>
+                  </div>
                 </div>
               </div>
             ))}
