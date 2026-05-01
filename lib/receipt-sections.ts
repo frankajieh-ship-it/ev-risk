@@ -9,6 +9,7 @@
  *   - generateRedditDraft      → reddit_draft (structured Reddit post)
  *   - generateReceiptDetails   → receipt_details (fees, tricks, walk-away triggers)
  *   - generateNegotiationDeep  → negotiation_scripts (3-scenario scripts)
+ *   - generateReceiptSummary   → receipt_summary (human-voice plain-language summary)
  */
 
 import type { ListingReceipt, RedditDraft, ReceiptDetails } from "@/types/receipt";
@@ -365,4 +366,140 @@ Produce EXACTLY 3 scenarios. Do not repeat what the opener already says.`;
   );
 
   return result.negotiation_scripts;
+}
+
+// --- Receipt Summary (Human-Voice Plain Language) ---
+
+export interface ListingAISummary {
+  headline: string;          // 8-100 chars: the single most important takeaway
+  body: string[];            // 2-4 sentences, each 20-200 chars: plain-language explanation
+  bottom_line: string;       // 20-180 chars: what to do next / the concrete action
+  confidence_note: string | null;  // 10-140 chars: caveat about data quality, or null if evidence is STRONG
+  tone: "proceed" | "caution" | "stop";  // maps to GREEN/YELLOW/RED
+}
+
+const RECEIPT_SUMMARY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["receipt_summary"],
+  properties: {
+    receipt_summary: {
+      type: "object",
+      additionalProperties: false,
+      required: ["headline", "body", "bottom_line", "confidence_note", "tone"],
+      properties: {
+        headline: { type: "string" },
+        body: { type: "array", items: { type: "string" } },
+        bottom_line: { type: "string" },
+        confidence_note: { anyOf: [{ type: "string" }, { type: "null" }] },
+        tone: { type: "string", enum: ["proceed", "caution", "stop"] },
+      },
+    },
+  },
+} as const;
+
+const RECEIPT_SUMMARY_SYSTEM = `You write plain-language summaries of used EV listing analyses for buyers. Your job is to cut through the data and tell the buyer, in a direct human voice, what this listing actually means for them.
+
+You are like a trusted friend who has looked over the analysis and is giving their honest read — not a salesperson, not a lawyer. Warm but honest.
+
+RULES:
+- headline: the single most important fact about this listing. 8-100 chars. Specific numbers where possible.
+- body: 2-4 sentences. Each sentence stands alone. Plain English. No jargon.
+  - Sentence 1: What the overall picture is and why (reference the actual verdict)
+  - Sentence 2: The biggest specific risk or strength (reference concrete facts: mileage, title, price vs market, specific flag)
+  - Sentence 3 (optional): The evidence quality — what's confirmed vs missing
+  - Sentence 4 (optional): Routine fit or charging situation if relevant
+- bottom_line: A single concrete action sentence starting with a verb. Not wishy-washy. 20-180 chars.
+  Examples: "Get a pre-purchase inspection before committing." / "This listing is worth a closer look — confirm DC fast charging first." / "Walk away — the title risk alone justifies it."
+- confidence_note: If evidence_label is MISSING or PARTIAL, write a short honest caveat (10-140 chars). If STRONG evidence, return null.
+- tone: "proceed" for GREEN, "caution" for YELLOW, "stop" for RED.
+
+VOICE:
+- Write "this listing" not "this vehicle" or "this car"
+- No verdict language in body: no "good deal", "bad deal", "skip it", "buy it", "hard pass"
+- Use cautious language: "may", "worth confirming", "tends to", "appears"
+- Specific > general. Reference actual numbers from the listing.
+- No bullet points. No markdown. No URLs. Straight quotes only.
+- Max 1 question mark total across ALL fields.
+
+Return ONLY the JSON object.`;
+
+export async function generateReceiptSummary(
+  receipt: ListingReceipt,
+  routineContext?: {
+    charging_access?: string;
+    weekly_miles?: number;
+    climate?: string;
+    fit_label?: string | null;
+    fit_score?: number | null;
+    fit_summary?: string | null;
+  } | null,
+): Promise<ListingAISummary> {
+  const ls = receipt.listing_summary;
+  const label = `${ls.year} ${ls.make} ${ls.model}${ls.trim ? " " + ls.trim : ""}`;
+  const priceStr = ls.price > 0 ? `$${ls.price.toLocaleString()}` : "price unknown";
+  const mileageStr = ls.mileage ? `${ls.mileage.toLocaleString()} ${ls.mileage_unit}` : "mileage unknown";
+
+  const priceSanityLine = receipt.price_sanity?.label && receipt.price_sanity.label !== "UNKNOWN"
+    ? `Price assessment: ${receipt.price_sanity.label} (${Math.round((receipt.price_sanity.confidence ?? 0) * 100)}% confidence, basis: ${receipt.price_sanity.basis}). ${receipt.price_sanity.rationale_short ?? ""}`
+    : "";
+
+  const whyNotGreenLines = ((receipt.why_not_green ?? []) as Array<{ label: string; category?: string }>)
+    .slice(0, 4)
+    .map(f => `- ${f.label}`)
+    .join("\n");
+
+  const scoringLines = ((receipt.scoring_reasons ?? []) as Array<{ label: string; points: number }>)
+    .filter(r => r.points > 0)
+    .slice(0, 3)
+    .map(r => `- ${r.label} (+${r.points} pts)`)
+    .join("\n");
+
+  const routineSection = routineContext
+    ? `\nROUTINE FIT:
+Charging access: ${routineContext.charging_access ?? "unknown"}
+Weekly miles: ${routineContext.weekly_miles ?? "unknown"}
+Climate: ${routineContext.climate ?? "unknown"}${routineContext.fit_label ? `\nFit label: ${routineContext.fit_label} (score: ${routineContext.fit_score ?? "??"}/100)` : ""}${routineContext.fit_summary ? `\nFit summary: ${routineContext.fit_summary}` : ""}`
+    : "";
+
+  const userPrompt = `Generate receipt_summary for this listing:
+
+VEHICLE: ${label}
+PRICE: ${priceStr}
+MILEAGE: ${mileageStr}
+SELLER: ${ls.seller_type}
+TITLE: ${ls.title_status}
+ACCIDENTS: ${ls.accidents_reported}
+SERVICE HISTORY: ${ls.service_history}
+OWNERS: ${ls.owners ?? "unknown"}
+
+VERDICT: ${receipt.verdict}
+EVIDENCE QUALITY: ${receipt.evidence_label ?? "unknown"}
+FIT SCORE: ${receipt.fit_score ?? "N/A"}/100
+EVIDENCE SCORE: ${receipt.evidence_score ?? "N/A"}/100
+
+VERDICT REASON (from analysis):
+${receipt.verdict_reason}
+
+${priceSanityLine ? `PRICE ANALYSIS:\n${priceSanityLine}\n` : ""}
+TOP RISK FLAGS:
+${(receipt.risk_flags || []).map(f => `- ${f}`).join("\n")}
+
+${whyNotGreenLines ? `WHY NOT GREEN:\n${whyNotGreenLines}\n` : ""}
+${scoringLines ? `EVIDENCE STRENGTHS:\n${scoringLines}\n` : ""}
+MUST-ANSWER QUESTIONS:
+${(receipt.must_answer_questions || []).map(q => `- ${q}`).join("\n")}
+${routineSection}
+
+Write a receipt_summary that a buyer with no car expertise could understand in 30 seconds. Be honest, specific, and human.`;
+
+  const result = await callStructuredSection<{ receipt_summary: ListingAISummary }>(
+    RECEIPT_SUMMARY_SYSTEM,
+    userPrompt,
+    RECEIPT_SUMMARY_SCHEMA as Record<string, unknown>,
+    "receipt_summary",
+    700,
+  );
+
+  return result.receipt_summary;
 }

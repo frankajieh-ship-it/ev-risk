@@ -5,8 +5,11 @@
  * receipt is set. Extracted from receipt/page.tsx.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { DeepDiveContent } from "@/types/receipt";
+
+const MAX_202_RETRIES = 6;
+const RETRY_DELAY_MS = 8_000;
 
 export function useDeepDive({
   receiptId,
@@ -17,10 +20,12 @@ export function useDeepDive({
 }) {
   const [deepDive, setDeepDive] = useState<DeepDiveContent | null>(null);
   const [isLoadingDeepDive, setIsLoadingDeepDive] = useState(false);
+  const retryCountRef = useRef(0);
 
   // Reset deep dive when receipt changes
   useEffect(() => {
     setDeepDive(null); // eslint-disable-line react-hooks/set-state-in-effect
+    retryCountRef.current = 0;
   }, [receiptId]);
 
   // Auto-load deep dive for all users (free — no payment gate)
@@ -30,8 +35,9 @@ export function useDeepDive({
 
     let cancelled = false;
     setIsLoadingDeepDive(true); // eslint-disable-line react-hooks/set-state-in-effect
+    retryCountRef.current = 0;
 
-    (async () => {
+    async function attempt(): Promise<void> {
       try {
         const res = await fetch("/api/deepdive/generate", {
           method: "POST",
@@ -47,12 +53,19 @@ export function useDeepDive({
           console.log("[DeepDive] API response:", res.status, data.success, data.error || "");
         }
         if (cancelled) return;
+
         if (res.status === 202) {
-          // Receipt output_json not yet populated — retry after delay
-          await new Promise((r) => setTimeout(r, 5000));
-          if (!cancelled) setIsLoadingDeepDive(false); // reset so effect can retry
+          // Receipt output_json not yet populated — retry silently
+          if (retryCountRef.current < MAX_202_RETRIES) {
+            retryCountRef.current += 1;
+            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+            if (!cancelled) return attempt();
+          } else {
+            setIsLoadingDeepDive(false);
+          }
           return;
         }
+
         if (data.success && data.deep_dive) {
           setDeepDive(data.deep_dive);
         }
@@ -63,11 +76,12 @@ export function useDeepDive({
         }
         if (!cancelled) setIsLoadingDeepDive(false);
       }
-    })();
+    }
+
+    attempt();
 
     return () => {
       cancelled = true;
-      setIsLoadingDeepDive(false);
     };
   }, [receiptId, receiptToken]); // eslint-disable-line react-hooks/exhaustive-deps
 

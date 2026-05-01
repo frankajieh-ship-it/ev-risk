@@ -681,6 +681,16 @@ export function buildEnhancedFallbackReceipt(
   // listing_signals is string[] of signal IDs
   const listingSignals = signals.filter((id) => RULES_BY_ID.has(id));
 
+  // Infer accidents_reported from signals when user didn't provide it
+  const inferredAccidents: "yes" | "no" | "unknown" =
+    input.accidents_reported && input.accidents_reported !== "unknown"
+      ? input.accidents_reported
+      : signalSet.has("prior_damage_minor" as ListingSignalId)
+        ? "yes"
+        : signalSet.has("clean_title_explicit" as ListingSignalId)
+          ? "no"
+          : "unknown";
+
   return {
     receipt_id: uuidv4(),
     schema_version: "v1",
@@ -720,7 +730,7 @@ export function buildEnhancedFallbackReceipt(
       trim: input.trim || null,
       seller_type: input.seller_type || "unknown",
       title_status: input.title_status || "unknown",
-      accidents_reported: input.accidents_reported || "unknown",
+      accidents_reported: inferredAccidents,
       service_history: input.service_history || "unknown",
       owners: input.owners || null,
       carfax_available: input.carfax_available || "unknown",

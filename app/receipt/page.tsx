@@ -42,6 +42,7 @@ const ReceiptHistoryDrawer = dynamic(() => import("@/components/receipt/ReceiptH
 const NewsCarousel = dynamic(() => import("@/components/NewsCarousel"), { ssr: false });
 const DeepDiveSection = dynamic(() => import("@/components/receipt/DeepDiveSection"), { ssr: false });
 const NegotiationDeepSection = dynamic(() => import("@/components/receipt/NegotiationDeepSection"), { ssr: false });
+const ReceiptSummaryCard = dynamic(() => import("@/components/receipt/ReceiptSummaryCard"), { ssr: false });
 const CompareView = dynamic(() => import("@/components/receipt/CompareView"), { ssr: false });
 const CompareSelectModal = dynamic(() => import("@/components/receipt/CompareSelectModal"), { ssr: false });
 const ShareModal = dynamic(() => import("@/components/receipt/ShareModal"), { ssr: false });
@@ -179,6 +180,10 @@ export default function ReceiptPage() {
   const [returnToRoutine, setReturnToRoutine] = useState(false);
   const [routineRunId, setRoutineRunId] = useState<string | null>(null);
   const [routineVehicleReady, setRoutineVehicleReady] = useState(false);
+
+  // From EV Routine recommendation flow
+  const [fromRoutine, setFromRoutine] = useState(false);
+  const [prefillYear, setPrefillYear] = useState<string | null>(null);
 
   // Recall state
   const [activeRecalls, setActiveRecalls] = useState<Array<{
@@ -403,8 +408,17 @@ export default function ReceiptPage() {
     const prefillMake = params.get("make");
     const prefillModel = params.get("model");
     if (prefillMake && prefillModel && !extUrl) {
-      setPrefillText(`${prefillMake} ${prefillModel}`);
-      setPageSource("vehicle_landing");
+      const year = params.get("year");
+      const yearPrefix = year ? `${year} ` : "";
+      setPrefillText(`${yearPrefix}${prefillMake} ${prefillModel}`);
+      if (year) setPrefillYear(year);
+      const src = params.get("src");
+      if (src === "routine_rec") {
+        setFromRoutine(true);
+        setPageSource("routine_rec");
+      } else {
+        setPageSource("vehicle_landing");
+      }
     }
 
     // Resume saved receipt from /saved dashboard
@@ -803,6 +817,13 @@ export default function ReceiptPage() {
           </p>
         </div>
 
+        {/* From EV Routine context banner */}
+        {fromRoutine && prefillText && (
+          <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg bg-[#00d97e]/[0.07] border border-[#00d97e]/20">
+            <span className="text-xs text-[#00d97e]">From your EV Routine match — paste a listing URL below to analyze it</span>
+          </div>
+        )}
+
         {/* Input Card */}
         <ReceiptInputCard
           onGenerate={(data) => {
@@ -877,6 +898,44 @@ export default function ReceiptPage() {
               transition={{ duration: 0.3 }}
               className="mt-6 space-y-4"
             >
+              {/* Back to EV Routine matches — shown when arriving via routine_rec flow */}
+              {fromRoutine && (
+                <div className="flex items-center justify-between gap-3 px-4 py-3 mb-3 rounded-xl bg-white/[0.05] border border-white/[0.08]">
+                  <button
+                    onClick={() => router.back()}
+                    className="flex items-center gap-1.5 text-sm text-white/60 hover:text-white transition-colors"
+                  >
+                    ← Back to your EV matches
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (receipt) {
+                        const ls = receipt.listing_summary;
+                        addToAnonGarage({
+                          type: "receipt",
+                          label: `${ls.year} ${ls.make} ${ls.model}`,
+                          data: { receipt_id: receipt.receipt_id, verdict: receipt.verdict },
+                        });
+                      }
+                      router.push("/workspace/garage");
+                    }}
+                    className="shrink-0 px-3 py-1.5 text-xs font-semibold bg-[#00d97e] text-[#0d1117] rounded-lg hover:bg-[#00c970] transition-colors"
+                  >
+                    Save &amp; view garage →
+                  </button>
+                </div>
+              )}
+
+              {/* AI plain-language summary — shown first, auto-generates when upgrade completes */}
+              <ReceiptSummaryCard
+                receiptId={receipt.receipt_id}
+                isUpgrading={isUpgrading}
+                generationStatus={isUpgrading ? "lite" : "full"}
+                initialSummary={(receipt as unknown as Record<string, unknown>).receipt_summary as import("@/lib/receipt-sections").ListingAISummary ?? null}
+                initialStatus={sections?.receipt_summary?.status}
+                verdict={receipt.verdict}
+              />
+
               <div data-tutorial="receipt-output">
               <ReceiptOutputCard
                 receipt={receipt}
@@ -911,6 +970,7 @@ export default function ReceiptPage() {
               {!isUpgrading && receipt.receipt_id && (
                 <NegotiationDeepSection
                   receiptId={receipt.receipt_id}
+                  initialScripts={(receipt as unknown as Record<string, unknown>).negotiation_deep as import("@/lib/receipt-sections").NegotiationScript[] ?? null}
                   initialStatus={sections?.negotiation_deep?.status}
                   isUnlocked={true}
                   paymentsEnabled={false}

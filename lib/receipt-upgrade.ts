@@ -12,9 +12,48 @@ import { scoreReceipt } from "@/lib/receipt-scoring";
 import { scoreReceiptV2 } from "@/lib/receipt-scoring-v2";
 import { applyRenderer } from "@/lib/receipt-renderer";
 import { detectListingSource } from "@/lib/listing-scraper";
+import { VALID_SIGNAL_IDS } from "@/lib/receipt-rules";
 import type { ReceiptGenerateRequest } from "@/types/receipt";
 import type { ReceiptScoringResult } from "@/lib/receipt-scoring";
 import type { FeatureFlags } from "@/lib/feature-flags";
+
+// --- Hallucination-reduction helpers ---
+
+function deriveVerdictReason(
+  verdict: string,
+  scoringReasons: Array<{ label: string }>,
+  whyNotGreen: Array<{ label: string }>
+): string {
+  if (verdict === "RED") {
+    const top = whyNotGreen[0]?.label ?? scoringReasons.find(r => r.label.toLowerCase().includes("block"))?.label ?? "major risk flags present";
+    return `${top}`.slice(0, 180);
+  }
+  if (verdict === "GREEN") {
+    const reason = scoringReasons[0]?.label ?? "Evidence score supports this listing.";
+    return `No major risk flags. ${reason}`.slice(0, 180);
+  }
+  // YELLOW
+  const reason = whyNotGreen[0]?.label ?? scoringReasons[0]?.label ?? "Missing evidence or minor concerns noted.";
+  return reason.slice(0, 180);
+}
+
+function patchContradictoryFlags(
+  riskFlags: string[],
+  signals: string[],
+  titleStatus: string,
+  scoringReasons: Array<{ label: string }>
+): string[] {
+  return riskFlags.map((flag, i) => {
+    const fl = flag.toLowerCase();
+    if ((fl.includes("title") || fl.includes("salvage")) && titleStatus === "clean" && signals.includes("clean_title_explicit")) {
+      return scoringReasons[i]?.label ?? flag;
+    }
+    if (fl.includes("fast charg") && signals.includes("dcfc_confirmed")) {
+      return scoringReasons[i]?.label ?? flag;
+    }
+    return flag;
+  });
+}
 
 export interface UpgradePayload {
   receipt_id: string;
@@ -100,12 +139,27 @@ export async function runReceiptUpgrade(payload: UpgradePayload): Promise<void> 
     }
   }
 
+  // Fix 2: Filter invalid signal IDs before scoring so phantom signals don't pollute output
+  const rawSignals = (finalReceipt.listing_signals ?? []) as string[];
+  const validSignals = rawSignals.filter(id => VALID_SIGNAL_IDS.has(id));
+  const droppedSignals = rawSignals.filter(id => !VALID_SIGNAL_IDS.has(id));
+  if (droppedSignals.length > 0) {
+    console.warn("[receipt-upgrade] Dropped invalid signal IDs:", droppedSignals);
+    finalReceipt = { ...finalReceipt, listing_signals: validSignals } as typeof finalReceipt;
+  }
+
   // Deterministic scoring
   const aiVerdict = finalReceipt.verdict;
-  if (finalReceipt.listing_signals && Array.isArray(finalReceipt.listing_signals) && finalReceipt.listing_signals.length > 0) {
+  if (validSignals.length > 0) {
     try {
       if (features.scoringV2) {
-        const v2 = scoreReceiptV2(finalReceipt.listing_signals as string[]);
+        const v2 = scoreReceiptV2(validSignals);
+        const mappedWhyNotGreen = v2.why_not_green.map((f: { signal_id: string; category: string; risk_points: number; ui_label: string }) => ({
+          signal_id: f.signal_id,
+          category: f.category,
+          points: f.risk_points,
+          label: f.ui_label,
+        }));
         finalReceipt = {
           ...finalReceipt,
           verdict: v2.verdict,
@@ -113,17 +167,20 @@ export async function runReceiptUpgrade(payload: UpgradePayload): Promise<void> 
           evidence_score: v2.evidence_score,
           evidence_label: v2.evidence_label,
           scoring_reasons: v2.scoring_reasons,
-          why_not_green: v2.why_not_green.map((f: { signal_id: string; category: string; risk_points: number; ui_label: string }) => ({
-            signal_id: f.signal_id,
-            category: f.category,
-            points: f.risk_points,
-            label: f.ui_label,
-          })),
+          why_not_green: mappedWhyNotGreen,
           verify_before_visit: v2.verify_before_visit,
           scoring_version: "v2",
         } as typeof finalReceipt;
+
+        // Fix 1: Sync verdict_reason with deterministic verdict when it changed
+        if (aiVerdict !== v2.verdict) {
+          finalReceipt = {
+            ...finalReceipt,
+            verdict_reason: deriveVerdictReason(v2.verdict, v2.scoring_reasons, mappedWhyNotGreen),
+          } as typeof finalReceipt;
+        }
       } else {
-        const v1 = scoreReceipt(finalReceipt.listing_signals as string[]);
+        const v1 = scoreReceipt(validSignals);
         finalReceipt = {
           ...finalReceipt,
           verdict: v1.verdict,
@@ -134,9 +191,43 @@ export async function runReceiptUpgrade(payload: UpgradePayload): Promise<void> 
           why_not_green: v1.why_not_green,
           verify_before_visit: v1.verify_before_visit,
         };
+
+        // Fix 1: Sync verdict_reason with deterministic verdict when it changed
+        if (aiVerdict !== v1.verdict) {
+          finalReceipt = {
+            ...finalReceipt,
+            verdict_reason: deriveVerdictReason(v1.verdict, v1.scoring_reasons, v1.why_not_green),
+          } as typeof finalReceipt;
+        }
       }
     } catch (e) {
       console.error("[receipt-upgrade] Scoring error:", e);
+    }
+  }
+
+  // Fix 3: Patch risk_flags that contradict known structured facts
+  if (finalReceipt.risk_flags && Array.isArray(finalReceipt.risk_flags) && finalReceipt.listing_summary) {
+    const titleStatus = (finalReceipt.listing_summary as Record<string, unknown>).title_status as string ?? "unknown";
+    const scoringReasons = ((finalReceipt.scoring_reasons ?? []) as Array<{ label: string }>);
+    finalReceipt = {
+      ...finalReceipt,
+      risk_flags: patchContradictoryFlags(
+        finalReceipt.risk_flags as string[],
+        validSignals,
+        titleStatus,
+        scoringReasons
+      ) as [string, string, string],
+    } as typeof finalReceipt;
+  }
+
+  // Fix 4: Clamp price_sanity confidence when no market data was available
+  if (finalReceipt.price_sanity) {
+    const ps = finalReceipt.price_sanity as Record<string, unknown>;
+    if (ps.basis === "LISTING_ONLY" || ps.basis === "UNKNOWN") {
+      finalReceipt = {
+        ...finalReceipt,
+        price_sanity: { ...ps, confidence: Math.min((ps.confidence as number) ?? 0.5, 0.4) },
+      } as typeof finalReceipt;
     }
   }
 

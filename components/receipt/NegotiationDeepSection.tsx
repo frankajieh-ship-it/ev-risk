@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { ChevronDown, ChevronUp, Loader2, RefreshCw, Zap, Copy, Check } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import type { NegotiationScript } from "@/lib/receipt-sections";
@@ -33,18 +33,34 @@ export default function NegotiationDeepSection({
   const [scripts, setScripts] = useState<NegotiationScript[] | null>(initialScripts ?? null);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
+  const retryCountRef = useRef(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const generateRef = useRef<(isAutoRetry?: boolean) => Promise<void>>(null as any);
 
-  const generate = useCallback(async () => {
-    trackEvent("section_generate_clicked", { receipt_id: receiptId, section_name: "negotiation_deep" });
+  useEffect(() => {
+    return () => { if (retryTimerRef.current) clearTimeout(retryTimerRef.current); };
+  }, []);
+
+  const generate = useCallback(async (isAutoRetry = false) => {
+    if (!isAutoRetry) {
+      retryCountRef.current = 0;
+      trackEvent("section_generate_clicked", { receipt_id: receiptId, section_name: "negotiation_deep" });
+    }
     setStatus("running");
     const t0 = Date.now();
     try {
       const res = await fetch(`/api/receipt/${receiptId}/generate/negotiation_deep`, { method: "POST" });
       const json = await res.json();
 
-      // 409 means the full analysis hasn't completed yet — show a waiting state
       if (res.status === 409) {
-        setStatus("pending");
+        // Full upgrade not written to DB yet — retry silently, stay in "running" skeleton
+        if (retryCountRef.current < 4) {
+          retryCountRef.current += 1;
+          retryTimerRef.current = setTimeout(() => generateRef.current(true), 8_000);
+        } else {
+          setStatus("failed");
+        }
         return;
       }
 
@@ -66,6 +82,7 @@ export default function NegotiationDeepSection({
       trackEvent("section_generate_failed", { receipt_id: receiptId, section_name: "negotiation_deep", reason: err instanceof Error ? err.message : "network_error" });
     }
   }, [receiptId, trackEvent]);
+  useEffect(() => { generateRef.current = generate; });
 
   const copyScript = async (script: NegotiationScript, i: number) => {
     const text = [script.opening, ...(script.body ?? [])].join("\n\n");
@@ -80,7 +97,7 @@ export default function NegotiationDeepSection({
     return (
       <div className="rounded-xl border border-white/[0.08] bg-[#161b22] overflow-hidden">
         <button
-          onClick={generate}
+          onClick={() => generate(false)}
           className="w-full flex items-center justify-center gap-2 px-5 py-4 text-sm font-semibold text-[#00d97e] hover:bg-[#00d97e]/[0.06] transition-colors"
         >
           <Zap className="w-4 h-4" />
@@ -99,30 +116,12 @@ export default function NegotiationDeepSection({
     );
   }
 
-  // Full analysis still processing — politely ask user to retry in a moment
-  if (status === "pending") {
-    return (
-      <div className="rounded-xl border border-white/[0.08] bg-[#161b22] px-5 py-4 space-y-2">
-        <p className="text-xs text-white/50 text-center">
-          Full analysis still processing — try again in 15–30 seconds.
-        </p>
-        <button
-          onClick={generate}
-          className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-white/60 bg-white/[0.05] hover:bg-white/[0.09] rounded-lg border border-white/[0.10] transition-colors"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Try again
-        </button>
-      </div>
-    );
-  }
-
   if (status === "failed") {
     return (
       <div className="rounded-xl border border-white/[0.08] bg-[#161b22] px-5 py-4 space-y-2">
         <p className="text-xs text-white/40 text-center">Couldn&apos;t generate scripts — this is usually temporary.</p>
         <button
-          onClick={generate}
+          onClick={() => generate(false)}
           className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-white/60 bg-white/[0.05] hover:bg-white/[0.09] rounded-lg border border-white/[0.10] transition-colors"
         >
           <RefreshCw className="w-3.5 h-3.5" />

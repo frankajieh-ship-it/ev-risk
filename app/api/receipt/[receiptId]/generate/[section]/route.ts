@@ -16,12 +16,13 @@ import {
   generateRedditDraft,
   generateReceiptDetails,
   generateNegotiationDeep,
+  generateReceiptSummary,
 } from "@/lib/receipt-sections";
 import type { ListingReceipt } from "@/types/receipt";
 
 const sectionRateLimiter = new RateLimiter(60 * 1000, 10); // 10 req/min per IP
 
-const VALID_SECTIONS = ["reddit_draft", "receipt_details", "negotiation_deep"] as const;
+const VALID_SECTIONS = ["reddit_draft", "receipt_details", "negotiation_deep", "receipt_summary"] as const;
 type Section = (typeof VALID_SECTIONS)[number];
 
 export async function POST(
@@ -133,11 +134,17 @@ export async function POST(
       const result = await generateReceiptDetails(receipt);
       sectionData = result;
       outputJsonPatch = { receipt_details: result };
+    } else if (sectionKey === "receipt_summary") {
+      // Pass routine context stored in the receipt's extended fields if available
+      const ext = data.output_json as Record<string, unknown>;
+      const routineCtx = (ext.routine_context as Parameters<typeof generateReceiptSummary>[1]) ?? null;
+      const result = await generateReceiptSummary(receipt, routineCtx);
+      sectionData = result;
+      outputJsonPatch = { receipt_summary: result } as Partial<ListingReceipt>;
     } else {
       const result = await generateNegotiationDeep(receipt);
       sectionData = result;
-      // Store negotiation_scripts in a custom field (not part of core Zod schema)
-      outputJsonPatch = { negotiation_scripts: result } as Partial<ListingReceipt>;
+      outputJsonPatch = { negotiation_deep: result } as Partial<ListingReceipt>;
     }
 
     // Merge into output_json and mark section ready
@@ -204,6 +211,7 @@ export async function POST(
 function getSectionData(receipt: ListingReceipt, section: Section): unknown {
   if (section === "reddit_draft") return receipt.reddit_draft;
   if (section === "receipt_details") return receipt.receipt_details;
-  // negotiation_deep stored in extended field
-  return (receipt as unknown as Record<string, unknown>).negotiation_scripts ?? null;
+  const ext = receipt as unknown as Record<string, unknown>;
+  if (section === "receipt_summary") return ext.receipt_summary ?? null;
+  return ext.negotiation_deep ?? null;
 }
