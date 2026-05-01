@@ -105,6 +105,24 @@ export default function PricingPage() {
           </p>
         </div>
 
+        {/* Always free callout */}
+        <div className="mb-8 rounded-2xl border border-[#00d97e]/20 bg-[#00d97e]/[0.04] px-6 py-5">
+          <p className="text-xs font-bold text-[#00d97e] uppercase tracking-wider mb-3">Always free — no account required</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
+            {[
+              "Risk verdict (GREEN / YELLOW / RED)",
+              "Battery health flags",
+              "Open NHTSA recall check",
+              "EV Routine Fit check — personalized vehicle match",
+            ].map((f) => (
+              <div key={f} className="flex items-center gap-2 text-sm text-white/70">
+                <Check className="w-4 h-4 text-[#00d97e] shrink-0" />
+                {f}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Tier grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-14">
           {TIERS.map((tier) => {

@@ -427,7 +427,7 @@ export default function Home() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full border border-white/10 bg-white/5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e] animate-pulse" />
-            <span className="text-xs font-medium text-white/70 tracking-wide">Free · No sign-up · Results in 30 seconds</span>
+            <span className="text-xs font-medium text-white/70 tracking-wide">Free analysis · No sign-up · Full report from $3.99</span>
           </div>
 
           {/* Headline */}
@@ -475,8 +475,25 @@ export default function Home() {
             <p className="text-xs text-[#00d97e] mt-3">VIN ready — click Analyze</p>
           )}
 
+          {/* Free vs. paid breakdown */}
+          <div className="mt-5 inline-grid grid-cols-2 gap-x-6 gap-y-1.5 text-left max-w-sm mx-auto">
+            {[
+              { label: "Risk verdict (GREEN / YELLOW / RED)", tier: "FREE" },
+              { label: "Battery flags + open recall check", tier: "FREE" },
+              { label: "Negotiation scripts + deep dive", tier: "$3.99" },
+              { label: "Cost of ownership breakdown", tier: "$3.99" },
+            ].map(({ label, tier }) => (
+              <div key={label} className="contents">
+                <span className="text-xs text-white/40 flex items-center gap-1.5">
+                  <span className="text-[#00d97e]">✓</span>{label}
+                </span>
+                <span className={`text-xs font-semibold ${tier === "FREE" ? "text-[#00d97e]" : "text-white/30"}`}>{tier}</span>
+              </div>
+            ))}
+          </div>
+
           <p className="text-xs text-white/30 mt-4">
-            Free analysis · Save to your garage · Track deals over time ·{" "}
+            No account needed ·{" "}
             <Link href="/receipt" className="text-white/40 hover:text-white/60 underline underline-offset-2 transition-colors">
               No VIN? Enter details manually →
             </Link>
@@ -504,9 +521,30 @@ export default function Home() {
 
       {/* ── Section 2: Trust Bar ─────────────────────────────────────── */}
       <div className="bg-[#0d1117] border-t border-white/[0.06] py-3">
-        <p className="text-center text-xs text-white/40 tracking-wide">
-          Seen on r/electriccars · r/whatcarshouldIbuy · Powered by Auto.dev + NHTSA data · No sales pitch
-        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3 px-4">
+          <span className="text-xs text-white/30">Seen on</span>
+          {[
+            { sub: "r/electriccars", href: "https://www.reddit.com/r/electriccars/" },
+            { sub: "r/whatcarshouldIbuy", href: "https://www.reddit.com/r/whatcarshouldIbuy/" },
+            { sub: "r/UsedCars", href: "https://www.reddit.com/r/UsedCars/" },
+          ].map(({ sub, href }) => (
+            <a
+              key={sub}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] hover:border-white/20 transition-colors"
+            >
+              {/* Reddit logo */}
+              <svg className="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="#FF4500" aria-hidden>
+                <circle cx="10" cy="10" r="10" fill="#FF4500"/>
+                <path d="M16.67 10a1.46 1.46 0 00-2.47-1 7.12 7.12 0 00-3.85-1.23l.65-3.08 2.13.45a1 1 0 101.07-1 1 1 0 00-.96.68l-2.38-.5a.26.26 0 00-.31.2l-.73 3.44a7.14 7.14 0 00-3.89 1.23 1.46 1.46 0 10-1.61 2.39 2.87 2.87 0 000 .44c0 2.24 2.61 4.06 5.83 4.06s5.83-1.82 5.83-4.06a2.87 2.87 0 000-.44 1.46 1.46 0 00.6-1.18zM7.27 11a1 1 0 111 1 1 1 0 01-1-1zm5.6 2.71a3.58 3.58 0 01-2.87.89 3.58 3.58 0 01-2.87-.89.23.23 0 01.33-.33 3.15 3.15 0 002.54.71 3.15 3.15 0 002.54-.71.23.23 0 01.33.33zm-.2-1.71a1 1 0 111-1 1 1 0 01-1 1z" fill="white"/>
+              </svg>
+              <span className="text-xs text-white/50">{sub}</span>
+            </a>
+          ))}
+          <span className="text-xs text-white/20 hidden sm:inline">· Powered by Auto.dev + NHTSA · No sales pitch</span>
+        </div>
       </div>
 
       {/* ── Section: EV Routine Wizard ───────────────────────────────── */}
@@ -519,8 +557,11 @@ export default function Home() {
             </span>
             <div className="flex-1 h-px bg-white/10" />
           </div>
-          <p className="text-center text-sm text-white/40 mt-3">
-            Check if an EV actually fits your charging routine before you commit.
+          <p className="text-center text-sm text-white/60 mt-3 font-medium">
+            Unlike Carfax, OFFO checks if the EV actually fits your life — not just its history.
+          </p>
+          <p className="text-center text-xs text-white/35 mt-1">
+            3 questions. No sign-up. Personalized vehicle match.
           </p>
         </div>
       )}
@@ -658,8 +699,8 @@ export default function Home() {
         <div className="max-w-5xl mx-auto px-4">
           <h2 className="text-2xl font-bold text-white text-center mb-2">
             {totalReceipts !== null
-              ? `${totalReceipts.toLocaleString()}+ vehicles analyzed`
-              : "5.0 stars from 200+ reviews"}
+              ? `Trusted by ${totalReceipts.toLocaleString()}+ EV buyers`
+              : "Trusted by thousands of EV buyers"}
           </h2>
           <p className="text-sm text-white/40 text-center mb-8">Real OFFO users, real decisions.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -678,7 +719,7 @@ export default function Home() {
                     <div className="flex gap-0.5">
                       {[1,2,3,4,5].map(s => <Star key={s} className="w-3 h-3 text-[#00d97e] fill-[#00d97e]" />)}
                     </div>
-                    <span className="text-[0.6875rem] font-bold text-white/20 tracking-wide">G</span>
+                    <span className="text-[0.6875rem] font-semibold text-[#00d97e]/60 tracking-wide">✓ Verified</span>
                   </div>
                   <p className="text-xs font-semibold text-white mb-1">{name}</p>
                   <p className="text-xs text-white/50 leading-relaxed flex-1">{quote}</p>
