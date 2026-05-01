@@ -475,23 +475,6 @@ export default function Home() {
             <p className="text-xs text-[#00d97e] mt-3">VIN ready — click Analyze</p>
           )}
 
-          {/* Free vs. paid breakdown */}
-          <div className="mt-5 inline-grid grid-cols-2 gap-x-6 gap-y-1.5 text-left max-w-sm mx-auto">
-            {[
-              { label: "Risk verdict (GREEN / YELLOW / RED)", tier: "FREE" },
-              { label: "Battery flags + open recall check", tier: "FREE" },
-              { label: "Negotiation scripts + deep dive", tier: "$3.99" },
-              { label: "Cost of ownership breakdown", tier: "$3.99" },
-            ].map(({ label, tier }) => (
-              <div key={label} className="contents">
-                <span className="text-xs text-white/40 flex items-center gap-1.5">
-                  <span className="text-[#00d97e]">✓</span>{label}
-                </span>
-                <span className={`text-xs font-semibold ${tier === "FREE" ? "text-[#00d97e]" : "text-white/30"}`}>{tier}</span>
-              </div>
-            ))}
-          </div>
-
           <p className="text-xs text-white/30 mt-4">
             No account needed ·{" "}
             <Link href="/receipt" className="text-white/40 hover:text-white/60 underline underline-offset-2 transition-colors">
