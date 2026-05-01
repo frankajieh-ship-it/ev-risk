@@ -653,7 +653,7 @@ export default function Home() {
           <p className="text-sm text-white/40 text-center mb-8">Real posts. Real decisions. No made-up names.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { subreddit: "r/whatcarshouldIbuy", title: "This 2022 Ford Mustang Mach‑E was listed as a 'Great Deal' at $24,255 — here's what the OFFO receipt actually showed", views: "8,372", tag: "Used-EV receipt", photo: "/car-f150-lightning.webp" },
+              { subreddit: "r/whatcarshouldIbuy", title: "This 2022 Ford Mustang Mach‑E was listed as a 'Great Deal' at $24,255 — here's what the OFFO receipt actually showed", views: "8,372", tag: "Used-EV receipt", photo: "/car-mustang-mache.webp" },
               { subreddit: "r/electriccars", title: "Dealer called this 2013 Tesla Model S a 'Good Deal' at $12,995… here's what the full OFFO receipt actually showed", views: "5,759", tag: "Salvage deal check", photo: "/car-tesla-model3.webp" },
               { subreddit: "r/EVRoutine", title: "Just moved and thinking about an EV without home charging? Here's what actually ends up mattering.", views: "108,023", tag: "Routine Fit check", photo: "/car-nissan-leaf.webp" },
               { subreddit: "r/EVRoutine", title: "Apartment dweller with no home charging, tows a small boat weekly, $25–40k budget — here's what EVRoutine recommends", views: "7,575", tag: "Routine Fit check", photo: "/car-bolt-ev.webp" },
