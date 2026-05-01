@@ -37,6 +37,7 @@ import AuctionSourceBadge from "@/components/auction/AuctionSourceBadge";
 import AuctionVerdictCard from "@/components/auction/AuctionVerdictCard";
 import AuctionDamageCard from "@/components/auction/AuctionDamageCard";
 import SalvageRiskCard from "@/components/copart/SalvageRiskCard";
+import CopartUnlockCard from "@/components/copart/CopartUnlockCard";
 import type { AuctionSource, NormalizedAuctionLot, NhtsaRecallSummary } from "@/lib/auction/types";
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
 import type { ArbitrageResult } from "@/lib/copart-arbitrage-engine";
@@ -451,34 +452,7 @@ export default function AuctionResultPage() {
               )}
             </div>
           ) : !data.paid_unlocked ? (
-            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Lock className="w-4 h-4 text-amber-600" />
-                <h3 className="text-sm font-semibold text-gray-800">Financial Arbitrage</h3>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
-                  Auction Audit
-                </span>
-              </div>
-              {/* Blurred teaser */}
-              <div className="grid grid-cols-3 gap-3 mb-4 select-none">
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 mb-1">Market Value (ARV)</p>
-                  <p className="text-base font-bold text-gray-300 blur-sm">$32,500</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 mb-1">Repair Cost</p>
-                  <p className="text-base font-bold text-gray-300 blur-sm">$4,200–$6,800</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 mb-1">Max Safe Bid</p>
-                  <p className="text-base font-bold text-gray-300 blur-sm">$21,750</p>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mb-3">
-                Unlock ARV, repair cost range, max safe bid, and arbitrage caveats for this lot.
-              </p>
-              <AuctionUnlockButton resultId={resultId} />
-            </div>
+            <CopartUnlockCard resultId={resultId} />
           ) : null}
 
           {/* 8. Routine impact */}

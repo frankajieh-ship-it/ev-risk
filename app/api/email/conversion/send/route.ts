@@ -16,8 +16,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isResendConfigured } from "@/lib/resend";
 import { safeSend } from "@/lib/crm-email";
-import { getConversionCandidates } from "@/lib/crm-queries";
-import { buildConversionPaywall, buildConversionCheckout } from "@/lib/crm-templates/conversion";
+import { getConversionCandidates, getAuctionNurtureCandidates } from "@/lib/crm-queries";
+import { buildConversionPaywall, buildConversionCheckout, buildAuctionNurture } from "@/lib/crm-templates/conversion";
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
   const results = {
     paywall_24h: { sent: 0, skipped: 0, errors: 0 },
     checkout_2h: { sent: 0, skipped: 0, errors: 0 },
+    auction_nurture: { sent: 0, skipped: 0, errors: 0 },
   };
 
   // ── Paywall dismissed → 24h follow-up ────────────────────────────────────
@@ -103,6 +104,38 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       results.checkout_2h.errors++;
       console.error("[conversion/send] checkout_2h error:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  // ── Auction email captured → 2-24h nurture ──────────────────────────────────
+  const auctionCandidates = await getAuctionNurtureCandidates(50);
+  for (const candidate of auctionCandidates) {
+    try {
+      const { subject, html } = buildAuctionNurture({
+        email: candidate.email,
+        vehicle: candidate.vehicle,
+        resultId: candidate.resultId,
+      });
+      const r = await safeSend({
+        email: candidate.email,
+        anonId: candidate.anonId,
+        sequenceType: "conversion",
+        sequenceStep: "auction_nurture",
+        subject,
+        html,
+        idempotencyKey: `auction_nurture:${candidate.eventId}`,
+        metadata: {
+          trigger_event_id: candidate.eventId,
+          result_id: candidate.resultId,
+          vehicle: candidate.vehicle,
+        },
+      });
+      if (r.sent) results.auction_nurture.sent++;
+      else if (r.skipped) results.auction_nurture.skipped++;
+      else results.auction_nurture.errors++;
+    } catch (err) {
+      results.auction_nurture.errors++;
+      console.error("[conversion/send] auction_nurture error:", err instanceof Error ? err.message : err);
     }
   }
 

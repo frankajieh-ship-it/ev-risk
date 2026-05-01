@@ -1,191 +1,162 @@
 "use client";
 
+/**
+ * CopartUnlockCard — Full-strength upsell card for the /auction/[resultId] arbitrage lock gate.
+ *
+ * Replaces the minimal blur treatment with a prominent card showing:
+ * - 3 blurred number slots (ARV, repair cost, max safe bid)
+ * - Feature list
+ * - Strong $49 CTA
+ */
+
 import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-import { ShieldCheck, Zap, BarChart2, FileDown, Loader2, X, Calculator, MapPin } from "lucide-react";
-import { useEventTracking } from "@/hooks/useEventTracking";
+import { ShieldCheck, Zap, BarChart2, FileDown, Loader2, Calculator, MapPin, Lock } from "lucide-react";
+import { getOrCreatePersistentSessionId } from "@/lib/session-utils";
 
 interface CopartUnlockCardProps {
-  receiptToken: string;
-  receiptId: string;
+  resultId: string;
   onDismiss?: () => void;
-  teaserArvLow?: number | null;
-  teaserArvHigh?: number | null;
 }
 
 const BENEFITS = [
-  { icon: Calculator, text: "Arbitrage calculator: ARV, repair cost, max safe bid" },
+  { icon: Calculator, text: "Market value (ARV), repair cost range, max safe bid" },
+  { icon: BarChart2, text: "Component-by-component repair cost breakdown" },
   { icon: MapPin, text: "State-specific rebuilt title requirements" },
   { icon: Zap, text: "Battery health projection & thermal damage assessment" },
   { icon: ShieldCheck, text: "Repair impact on EV range and charging capability" },
-  { icon: BarChart2, text: "Post-repair routine fit estimate" },
-  { icon: FileDown, text: "Full AI deep-dive + PDF export" },
+  { icon: FileDown, text: "PDF export of full report" },
 ];
 
-function fmt(n: number) {
-  return "$" + Math.round(n).toLocaleString();
-}
-
-export default function CopartUnlockCard({ receiptToken: _receiptToken, receiptId, onDismiss, teaserArvLow, teaserArvHigh }: CopartUnlockCardProps) {
-  const { trackEvent } = useEventTracking();
-  const [checkingOut, setCheckingOut] = useState(false);
+export default function CopartUnlockCard({ resultId, onDismiss }: CopartUnlockCardProps) {
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const hasTrackedShow = useRef(false);
+  const shownRef = useRef(false);
 
   useEffect(() => {
-    if (!hasTrackedShow.current) {
-      trackEvent("copart_unlock_shown", { receipt_id: receiptId });
-      hasTrackedShow.current = true;
-    }
-  }, [trackEvent, receiptId]);
-
-  const handleDismiss = () => {
-    trackEvent("copart_unlock_dismissed", { receipt_id: receiptId });
-    onDismiss?.();
-  };
-
-  const handleUnlock = async () => {
-    setCheckingOut(true);
-    setError(null);
-
-    trackEvent("checkout_started", {
-      receipt_id: receiptId,
-      pack_tier: "copart_report",
-      display_price: "$19.99",
-      page_source: "copart_page",
-    });
-
-    try {
-      const res = await fetch(`/api/auction/purchase/${receiptId}`, {
+    if (!shownRef.current) {
+      shownRef.current = true;
+      // Fire-and-forget impression event
+      fetch("/api/track-event", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          success_url: window.location.href + (window.location.href.includes("?") ? "&" : "?") + "checkout=success",
-          cancel_url: window.location.href,
+          event_name: "auction_teaser_shown",
+          event_data: { result_id: resultId, source: "unlock_card" },
+          visitor_id: getOrCreatePersistentSessionId(),
         }),
+      }).catch(() => {});
+    }
+  }, [resultId]);
+
+  const handleUnlock = async () => {
+    setLoading(true);
+    setError(null);
+
+    // Track checkout start
+    fetch("/api/track-event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event_name: "checkout_started",
+        event_data: { result_id: resultId, pack_tier: "copart_report", display_price: "$49", page_source: "auction_result" },
+        visitor_id: getOrCreatePersistentSessionId(),
+      }),
+    }).catch(() => {});
+
+    try {
+      const anonId = getOrCreatePersistentSessionId();
+      const res = await fetch(`/api/auction/purchase/${resultId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anon_id: anonId }),
       });
-
-      const data = await res.json();
-
-      if (data.checkout_url) {
-        window.location.href = data.checkout_url;
-        return;
-      }
-
-      if (data.success === false && data.error === "Already purchased") {
+      const json = await res.json();
+      if (json.checkout_url) {
+        window.location.href = json.checkout_url;
+      } else if (json.success === false && json.error === "Already purchased") {
         window.location.reload();
-        return;
+      } else {
+        setError(json.error ?? "Checkout failed — please try again");
+        setLoading(false);
       }
-
-      setError(data.error || "Checkout failed. Please try again.");
-      trackEvent("checkout_failed", {
-        receipt_id: receiptId,
-        pack_tier: "copart_report",
-        error: data.error || "unknown",
-        page_source: "copart_page",
-      });
-    } catch (err) {
-      setError("Connection error. Please try again.");
-      trackEvent("checkout_failed", {
-        receipt_id: receiptId,
-        pack_tier: "copart_report",
-        error: err instanceof Error ? err.message : "connection_error",
-        page_source: "copart_page",
-      });
-    } finally {
-      setCheckingOut(false);
+    } catch {
+      setError("Network error — please try again");
+      setLoading(false);
     }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="relative bg-gradient-to-br from-orange-50 via-white to-amber-50 rounded-2xl border border-orange-200 shadow-sm overflow-hidden"
-    >
-      {onDismiss && (
-        <button
-          onClick={handleDismiss}
-          className="absolute top-3 right-3 z-10 text-gray-400 hover:text-gray-600 transition-colors"
-          aria-label="Dismiss"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      )}
-
-      <div className="p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-bold text-gray-900">Full Copart Risk Report</h3>
-          <span className="text-sm font-bold text-orange-700 bg-orange-100 px-2.5 py-1 rounded-full">
-            $19.99 one-time
+    <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="bg-amber-50 border-b border-amber-100 px-5 pt-5 pb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Lock className="w-4 h-4 text-amber-600" />
+          <span className="text-xs font-semibold text-amber-700 uppercase tracking-wide">
+            Auction Audit — $49
           </span>
         </div>
-
-        <p className="text-sm text-gray-600 mb-4">
-          Get the complete salvage analysis — battery projection, repair impact, and post-auction routine fit.
+        <h3 className="text-base font-bold text-gray-900 leading-snug">
+          Know your numbers before you bid
+        </h3>
+        <p className="text-xs text-gray-500 mt-1">
+          ARV, repair cost range, and max safe bid computed from real auction comparables.
         </p>
+      </div>
 
-        {/* Teaser preview with blurred numbers */}
-        {(teaserArvLow != null || teaserArvHigh != null) && (
-          <div className="bg-white/60 rounded-xl border border-orange-100 p-3 mb-4 space-y-2">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">What you&apos;ll unlock</p>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div>
-                <p className="text-xs text-gray-500">Est. ARV</p>
-                <p className="text-sm font-bold text-gray-900 blur-[3px] select-none">
-                  {teaserArvLow ? fmt(teaserArvLow) : "—"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Repair Est.</p>
-                <p className="text-sm font-bold text-gray-900 blur-[3px] select-none">$8,200</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Max Safe Bid</p>
-                <p className="text-sm font-bold text-green-700 blur-[3px] select-none">$27,400</p>
-              </div>
-            </div>
-            <p className="text-xs text-center text-orange-600 font-medium">Unlock to see your numbers →</p>
-          </div>
-        )}
+      {/* Blurred number slots */}
+      <div className="px-5 py-4 grid grid-cols-3 gap-3 border-b border-gray-100">
+        <div className="text-center">
+          <p className="text-xs text-gray-400 mb-1">Market Value</p>
+          <p className="text-base font-bold text-gray-200 blur-sm select-none">$28,500</p>
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-gray-400 mb-1">Repair Cost</p>
+          <p className="text-base font-bold text-gray-200 blur-sm select-none">$4,200–$6,800</p>
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-gray-400 mb-1">Max Safe Bid</p>
+          <p className="text-base font-bold text-gray-200 blur-sm select-none">$21,750</p>
+        </div>
+      </div>
 
-        <ul className="space-y-2 mb-5">
+      {/* Benefits */}
+      <div className="px-5 py-4 border-b border-gray-100">
+        <ul className="space-y-2">
           {BENEFITS.map(({ icon: Icon, text }) => (
-            <li key={text} className="flex items-start gap-2 text-xs text-gray-700">
-              <Icon className="w-3.5 h-3.5 text-orange-500 flex-shrink-0 mt-0.5" />
+            <li key={text} className="flex items-start gap-2 text-xs text-gray-600">
+              <Icon className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
               {text}
             </li>
           ))}
         </ul>
+      </div>
 
-        {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
-
+      {/* CTA */}
+      <div className="px-5 py-4">
+        {error && <p className="text-xs text-red-600 mb-3 text-center">{error}</p>}
         <button
           onClick={handleUnlock}
-          disabled={checkingOut}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 transition-all shadow-sm disabled:opacity-60"
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white bg-amber-500 hover:bg-amber-600 transition-colors disabled:opacity-60"
         >
-          {checkingOut ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Redirecting...</>
+          {loading ? (
+            <><Loader2 className="w-4 h-4 animate-spin" /> Redirecting to checkout...</>
           ) : (
-            <><ShieldCheck className="w-4 h-4" /> Unlock Full Report — $19.99</>
+            <><Lock className="w-4 h-4" /> Unlock Auction Audit — $49</>
           )}
         </button>
-
         <p className="text-center text-xs text-gray-400 mt-2">
-          One-time payment · No subscription · Instant access
+          One-time · No subscription · Instant access
         </p>
-
         {onDismiss && (
           <button
-            onClick={handleDismiss}
-            className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors mt-2"
+            onClick={onDismiss}
+            className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors mt-1"
           >
             Not now
           </button>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

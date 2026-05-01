@@ -264,6 +264,9 @@ const VALID_EVENT_NAMES = [
   "auction_report_email_sent",
   "auction_report_email_failed",
   "auction_report_shared",
+  "auction_teaser_shown",
+  "auction_teaser_cta_clicked",
+  "auction_email_captured",
 ] as const;
 
 // Events that should be deduplicated by report_id (to prevent double-counting)

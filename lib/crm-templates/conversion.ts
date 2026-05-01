@@ -93,3 +93,59 @@ export function buildConversionCheckout(ctx: ConversionContext): { subject: stri
     html: emailWrapper(body),
   };
 }
+
+// ── Auction nurture ───────────────────────────────────────────────────────────
+
+export interface AuctionNurtureContext {
+  email: string;
+  vehicle?: string;
+  resultId?: string;
+}
+
+export function buildAuctionNurture(ctx: AuctionNurtureContext): { subject: string; html: string } {
+  const { vehicle, resultId } = ctx;
+  const vehicleName = vehicle || "the lot you looked up";
+  const auditUrl = resultId ? `${SITE_URL}/auction/${resultId}` : `${SITE_URL}/copart`;
+
+  const body = `
+    <div style="text-align:center;margin-bottom:20px;">
+      <h1 style="font-size:21px;color:#1e293b;margin:0 0 6px;">Your auction numbers are waiting</h1>
+      <p style="font-size:14px;color:#64748b;margin:0;">${vehicleName}</p>
+    </div>
+    <div style="background:white;border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #e5e7eb;">
+      <p style="font-size:14px;color:#374151;margin:0 0 12px;">
+        You ran a free salvage analysis for <strong>${vehicleName}</strong>. The full Auction Audit adds the numbers you need before bidding:
+      </p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+        <tr>
+          <td style="padding:10px;text-align:center;background:#f9fafb;border-radius:8px;width:33%;">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">Market Value</div>
+            <div style="font-size:18px;font-weight:700;color:#d1d5db;filter:blur(4px);user-select:none;">$28,500</div>
+          </td>
+          <td style="width:2%;"></td>
+          <td style="padding:10px;text-align:center;background:#f9fafb;border-radius:8px;width:33%;">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">Repair Cost</div>
+            <div style="font-size:18px;font-weight:700;color:#d1d5db;filter:blur(4px);user-select:none;">$4,200–$6,800</div>
+          </td>
+          <td style="width:2%;"></td>
+          <td style="padding:10px;text-align:center;background:#f9fafb;border-radius:8px;width:33%;">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:4px;">Max Safe Bid</div>
+            <div style="font-size:18px;font-weight:700;color:#d1d5db;filter:blur(4px);user-select:none;">$21,750</div>
+          </td>
+        </tr>
+      </table>
+      <p style="font-size:12px;color:#9ca3af;text-align:center;margin:0;">Unlock to see your actual numbers for this lot</p>
+    </div>
+    <div style="text-align:center;margin-bottom:16px;">
+      ${ctaButton("See the Full Audit — $49", auditUrl)}
+    </div>
+    <p style="font-size:12px;color:#6b7280;text-align:center;margin:0;">
+      One-time · No subscription · Instant access
+    </p>
+  `;
+
+  return {
+    subject: `Your auction numbers for ${vehicleName} — unlock before you bid`,
+    html: emailWrapper(body + emailFooter(ctx.email, "conversion")),
+  };
+}

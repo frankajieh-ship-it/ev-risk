@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, getSupabaseAdmin } from "@/lib/api-auth";
+import { trackServerEvent } from "@/lib/track-server-event";
 
 export async function PUT(
   req: NextRequest,
@@ -47,6 +48,19 @@ export async function PUT(
     return NextResponse.json({ success: false, error: error?.message ?? "Not found" }, { status: 404 });
   }
 
+  // Emit specific event when email_alerts toggle changes
+  if ("email_alerts" in body) {
+    trackServerEvent({
+      event_name: "deal_watch_alerts_toggled",
+      source: "listing",
+      user_id: user.id,
+      page_path: "/api/deal-watch/searches/[searchId]",
+      entity_type: "deal_watch_search_id",
+      entity_id: searchId,
+      payload: { search_id: searchId, email_alerts: body.email_alerts },
+    }).catch(() => {});
+  }
+
   return NextResponse.json({ success: true, search: data });
 }
 
@@ -73,6 +87,16 @@ export async function DELETE(
   if (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
+
+  trackServerEvent({
+    event_name: "deal_watch_search_deleted",
+    source: "listing",
+    user_id: user.id,
+    page_path: "/api/deal-watch/searches/[searchId]",
+    entity_type: "deal_watch_search_id",
+    entity_id: searchId,
+    payload: { search_id: searchId },
+  }).catch(() => {});
 
   return NextResponse.json({ success: true });
 }

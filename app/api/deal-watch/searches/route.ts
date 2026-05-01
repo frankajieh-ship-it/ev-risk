@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, getSupabaseAdmin } from "@/lib/api-auth";
+import { trackServerEvent } from "@/lib/track-server-event";
 
 export async function GET(req: NextRequest) {
   const user = await requireAuth(req);
@@ -73,6 +74,24 @@ export async function POST(req: NextRequest) {
   if (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
+
+  trackServerEvent({
+    event_name: "deal_watch_search_created",
+    source: "listing",
+    user_id: user.id,
+    page_path: "/api/deal-watch/searches",
+    entity_type: "deal_watch_search_id",
+    entity_id: data.id,
+    payload: {
+      make: make || null,
+      model: model || null,
+      year_min: year_min || null,
+      year_max: year_max || null,
+      price_max: price_max || null,
+      email_alerts: email_alerts !== false,
+      sources: sources || ["listing"],
+    },
+  }).catch(() => {});
 
   return NextResponse.json({ success: true, search: data }, { status: 201 });
 }

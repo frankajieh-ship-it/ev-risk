@@ -52,6 +52,7 @@ import { detectVehicleType, isElectric } from "@/lib/auction/vehicle-type";
 import OFfoChat from "@/components/chat/OFfoChat";
 import { useAuth } from "@/hooks/useAuth";
 import NearbyMechanicsStrip from "@/components/mechanic/NearbyMechanicsStrip";
+import AuctionAuditTeaser from "@/components/copart/AuctionAuditTeaser";
 
 type PageState = "idle" | "fetching" | "done" | "error";
 
@@ -158,13 +159,29 @@ function AuctionEmailCapture({ resultId }: { resultId: string }) {
     setStatus("submitting");
     setErrorMsg(null);
     try {
+      const anonId = getOrCreatePersistentSessionId();
       const res = await fetch("/api/auction/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), result_id: resultId, anon_id: getOrCreatePersistentSessionId() }),
+        body: JSON.stringify({ email: email.trim(), result_id: resultId, anon_id: anonId }),
       });
       const data = await res.json();
-      if (data.success) { setStatus("success"); } else { setErrorMsg(data.error ?? "Failed. Try again."); setStatus("error"); }
+      if (data.success) {
+        setStatus("success");
+        // Fire conversion tracking event — picked up by send-conversion-emails for auction nurture
+        fetch("/api/track-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event_name: "auction_email_captured",
+            event_data: { result_id: resultId, email: email.trim() },
+            visitor_id: anonId,
+          }),
+        }).catch(() => {});
+      } else {
+        setErrorMsg(data.error ?? "Failed. Try again.");
+        setStatus("error");
+      }
     } catch { setErrorMsg("Connection error."); setStatus("error"); }
   };
 
@@ -783,6 +800,20 @@ export default function CopartPage() {
 
             {/* OFFO Score — unified verdict shown first */}
             {offoScore && <OffoScoreCard offoScore={offoScore} />}
+
+            {/* Auction Audit Teaser — upsell to full paid analysis */}
+            {resultId && (
+              <AuctionAuditTeaser
+                resultId={resultId}
+                repairCostLow={arbitrageResult?.repair_cost_low}
+                repairCostHigh={arbitrageResult?.repair_cost_high}
+                maxSafeBid={arbitrageResult?.max_safe_bid}
+                arv={arbitrageResult?.arv}
+                arvRange={arbitrageResult?.arv_range}
+                onShown={() => trackEvent("auction_teaser_shown", { result_id: resultId })}
+                onCtaClick={() => trackEvent("auction_teaser_cta_clicked", { result_id: resultId })}
+              />
+            )}
 
             {/* Bid Guidance — shown immediately after score as key selling point */}
             <AuctionBidGuidanceCard

@@ -3,13 +3,14 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Zap, MapPin, ArrowRight, ExternalLink, Snowflake, CheckCircle2, Circle, ChevronUp } from "lucide-react";
+import { ChevronDown, Zap, MapPin, ExternalLink, Snowflake, CheckCircle2, Circle, ChevronUp, Bookmark } from "lucide-react";
 import type { VehicleRecommendation } from "@/types/recommendations";
 import type { MinimumViableRoutine } from "@/types/v2";
 import { getCarGurusUrl } from "@/lib/cargurus-links";
 import { ScoreImprovementSuggestions } from "./blocks/ScoreImprovementSuggestions";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import VehicleImage from "./VehicleImage";
+import { addToAnonGarage } from "@/lib/anon-garage";
 
 const fitColors: Record<string, { bg: string; text: string; border: string }> = {
   "Great Fit":    { bg: "bg-[#00d97e]/10", text: "text-[#00d97e]", border: "border-[#00d97e]/20" },
@@ -118,6 +119,7 @@ interface RecommendationCardProps {
   routine?: MinimumViableRoutine;
   isSelectedForCompare?: boolean;
   onToggleCompare?: (model: string) => void;
+  onShortlistSave?: () => void;
 }
 
 const DIMENSION_DISPLAY: { key: keyof NonNullable<VehicleRecommendation["dimensions"]>; label: string }[] = [
@@ -185,10 +187,12 @@ export default function RecommendationCard({
   routine,
   isSelectedForCompare,
   onToggleCompare,
+  onShortlistSave,
 }: RecommendationCardProps) {
   const { trackExternalLinkClicked } = useEventTracking();
   const [expanded, setExpanded] = useState(false);
-  const [showReceiptNudge, setShowReceiptNudge] = useState(false);
+  const [shortlistSaved, setShortlistSaved] = useState(false);
+  const [shortlistToast, setShortlistToast] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showCostBreakdown, setShowCostBreakdown] = useState(false);
   const [searchHintVisible, setSearchHintVisible] = useState(false);
@@ -250,7 +254,25 @@ export default function RecommendationCard({
     } else {
       window.open(carGurusUrl, "_blank", "noopener,noreferrer");
     }
-    setShowReceiptNudge(true);
+  };
+
+  const handleShortlistSave = () => {
+    addToAnonGarage({
+      type: "shortlist",
+      label: `${rec.year} ${rec.make} ${rec.model_short}`,
+      data: {
+        make: rec.make,
+        model: rec.model_short,
+        year: rec.year,
+        fit_score: rec.fit_score,
+        fit_label: rec.fit_label,
+        epa_range_mi: rec.epa_range_mi,
+      },
+    });
+    setShortlistSaved(true);
+    setShortlistToast(true);
+    onShortlistSave?.();
+    setTimeout(() => setShortlistToast(false), 2000);
   };
 
   return (
@@ -274,19 +296,33 @@ export default function RecommendationCard({
             {fitLabel}
           </span>
         </div>
-        {/* Compare toggle — top right */}
-        {onToggleCompare && (
+        {/* Top-right controls: bookmark + compare toggle */}
+        <div className="absolute top-3 right-3 flex items-center gap-1.5">
           <button
-            onClick={() => onToggleCompare(rec.model)}
-            aria-label={isSelectedForCompare ? "Remove from compare" : "Add to compare"}
-            className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-[#0d1117]/70 backdrop-blur-sm shadow-sm hover:bg-[#0d1117]/90 transition-colors border border-white/10"
+            onClick={handleShortlistSave}
+            disabled={shortlistSaved}
+            aria-label={shortlistSaved ? "Saved to shortlist" : "Save to shortlist"}
+            className={`flex items-center justify-center w-7 h-7 rounded-full backdrop-blur-sm shadow-sm border transition-colors ${
+              shortlistSaved
+                ? "bg-[#00d97e]/20 border-[#00d97e]/40 text-[#00d97e]"
+                : "bg-[#0d1117]/70 border-white/10 text-white/60 hover:text-white hover:bg-[#0d1117]/90"
+            }`}
           >
-            {isSelectedForCompare
-              ? <><CheckCircle2 className="w-3.5 h-3.5 text-[#00d97e]" /><span className="text-[#00d97e]">Selected</span></>
-              : <><Circle className="w-3.5 h-3.5 text-white/40" /><span className="text-white/60">Compare</span></>
-            }
+            <Bookmark className={`w-3.5 h-3.5 ${shortlistSaved ? "fill-current" : ""}`} />
           </button>
-        )}
+          {onToggleCompare && (
+            <button
+              onClick={() => onToggleCompare(rec.model)}
+              aria-label={isSelectedForCompare ? "Remove from compare" : "Add to compare"}
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-[#0d1117]/70 backdrop-blur-sm shadow-sm hover:bg-[#0d1117]/90 transition-colors border border-white/10"
+            >
+              {isSelectedForCompare
+                ? <><CheckCircle2 className="w-3.5 h-3.5 text-[#00d97e]" /><span className="text-[#00d97e]">Selected</span></>
+                : <><Circle className="w-3.5 h-3.5 text-white/40" /><span className="text-white/60">Compare</span></>
+              }
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-5">
@@ -471,13 +507,18 @@ export default function RecommendationCard({
 
         {/* Action buttons */}
         <div className="mt-4 space-y-2">
-          <button
-            onClick={onSelect}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white/[0.08] border border-white/[0.12] text-white rounded-xl text-sm font-semibold hover:bg-white/[0.13] transition-colors"
+          {shortlistToast && (
+            <div className="flex items-center gap-1.5 px-3 py-2 bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-lg text-xs text-[#00d97e]">
+              <Bookmark className="w-3.5 h-3.5 shrink-0 fill-current" />
+              Saved to your shortlist
+            </div>
+          )}
+          <Link
+            href={`/receipt?make=${encodeURIComponent(rec.make)}&model=${encodeURIComponent(rec.model_short)}&year=${rec.year}&src=routine_rec`}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#00d97e] text-[#0d1117] rounded-xl text-sm font-semibold hover:bg-[#00c970] transition-colors"
           >
-            See Full Report
-            <ArrowRight className="w-4 h-4" />
-          </button>
+            Analyze a listing →
+          </Link>
           <a
             href={carGurusUrl}
             onClick={handleCarGurusClick}
@@ -490,23 +531,6 @@ export default function RecommendationCard({
             <div className="flex items-center gap-1.5 px-3 py-2 bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-lg text-xs text-[#00d97e]">
               <Zap className="w-3.5 h-3.5 shrink-0" />
               OFFO will apply your routine automatically on CarGurus.
-            </div>
-          )}
-          {showReceiptNudge && (
-            <div className="flex items-start gap-2 px-3 py-2.5 bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-lg">
-              <ArrowRight className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#00d97e]" />
-              <p className="text-xs text-white/70 leading-snug">
-                Found one you like?{" "}
-                <a
-                  href="/receipt"
-                  className="font-semibold text-[#00d97e] underline hover:text-[#00f090]"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Paste the listing URL into the Receipt Analyzer
-                </a>
-                {" "}to get exact price, mileage, and negotiation feedback on that specific car.
-              </p>
             </div>
           )}
         </div>

@@ -392,6 +392,35 @@ interface SummaryData {
     chat_pass_revenue_cents: number;
     chat_conversion_pct: number;
   };
+  deal_watch?: {
+    total_searches: number;
+    alert_searches: number;
+    unique_users: number;
+    new_7d: number;
+    alerts_sent_7d: number;
+  };
+  payments_detail?: {
+    revenue_by_tier: Array<{ pack_tier: string; price_variant: string; count: number; revenue: number }>;
+    cart_abandonment: { checkout_started_7d: number; paid_7d: number; abandonment_rate_pct: number };
+    refunds_30d: { count: number; total_refunded: number };
+    recent_payments: Array<{ amount: number; pack_tier: string; created_at: string }>;
+  };
+  upgrade_jobs?: {
+    dead_letter_count: number;
+    failed_count: number;
+    pending_count: number;
+    recent_dead_letters: Array<{ job_id: string; receipt_id: string; last_error: string | null; created_at: string }>;
+  };
+  real_users?: {
+    total_registered: number;
+    registered_last_7d: number;
+    registered_last_30d: number;
+    with_purchase: number;
+    with_garage_vehicle: number;
+    with_deal_watch: number;
+    active_last_7d: number;
+    active_last_30d: number;
+  };
 }
 
 type Period = "day" | "week" | "last_30_days" | "month_to_date" | "custom";
@@ -890,6 +919,131 @@ export default function AdminDashboard() {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {/* Upgrade Job Health — shown prominently when action is needed */}
+        {s.upgrade_jobs && (s.upgrade_jobs.dead_letter_count > 0 || s.upgrade_jobs.failed_count > 0) && (
+          <div className={`rounded-2xl shadow-lg p-5 mb-6 border-l-4 ${s.upgrade_jobs.dead_letter_count > 0 ? "bg-red-50 border-red-500" : "bg-amber-50 border-amber-400"}`}>
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 mb-1">
+                  {s.upgrade_jobs.dead_letter_count > 0 ? "⚠️ Upgrade Job Failures" : "🔄 Upgrade Jobs Pending"}
+                </h2>
+                <p className="text-sm text-gray-600 mb-3">
+                  {s.upgrade_jobs.dead_letter_count > 0
+                    ? `${s.upgrade_jobs.dead_letter_count} job(s) exhausted all retries — users may have paid without getting a full AI receipt.`
+                    : `${s.upgrade_jobs.failed_count} failed job(s) queued for retry by the scanner.`}
+                </p>
+              </div>
+              <div className="flex gap-3 ml-4 shrink-0">
+                {s.upgrade_jobs.dead_letter_count > 0 && (
+                  <span className="bg-red-100 text-red-800 text-sm font-semibold px-3 py-1 rounded-full">
+                    {s.upgrade_jobs.dead_letter_count} dead-lettered
+                  </span>
+                )}
+                {s.upgrade_jobs.failed_count > 0 && (
+                  <span className="bg-amber-100 text-amber-800 text-sm font-semibold px-3 py-1 rounded-full">
+                    {s.upgrade_jobs.failed_count} failed
+                  </span>
+                )}
+                {s.upgrade_jobs.pending_count > 0 && (
+                  <span className="bg-blue-100 text-blue-800 text-sm font-semibold px-3 py-1 rounded-full">
+                    {s.upgrade_jobs.pending_count} pending
+                  </span>
+                )}
+              </div>
+            </div>
+            {s.upgrade_jobs.recent_dead_letters.length > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Dead-lettered Jobs</h3>
+                <div className="space-y-2">
+                  {s.upgrade_jobs.recent_dead_letters.map((j) => (
+                    <div key={j.job_id} className="flex items-center justify-between bg-white rounded-lg p-3 text-sm border border-red-100">
+                      <div>
+                        <span className="font-mono text-gray-700 text-xs">{j.receipt_id}</span>
+                        {j.last_error && (
+                          <span className="ml-2 text-red-600 text-xs">{j.last_error}</span>
+                        )}
+                      </div>
+                      <span className="text-gray-400 text-xs shrink-0 ml-3">{new Date(j.created_at).toLocaleDateString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* All clear — show quiet confirmation when job queue is healthy */}
+        {s.upgrade_jobs && s.upgrade_jobs.dead_letter_count === 0 && s.upgrade_jobs.failed_count === 0 && (
+          <div className="rounded-2xl bg-green-50 border border-green-200 p-4 mb-6 flex items-center gap-3">
+            <span className="text-green-600 text-lg">✓</span>
+            <span className="text-sm text-green-800 font-medium">Upgrade job queue healthy — no dead-letters or failed jobs.</span>
+            {s.upgrade_jobs.pending_count > 0 && (
+              <span className="ml-auto bg-blue-100 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">{s.upgrade_jobs.pending_count} pending</span>
+            )}
+          </div>
+        )}
+
+        {/* ── Real Users ── */}
+        {s.real_users && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <div className="mb-4">
+              <h2 className="text-xl font-bold text-gray-900 mb-0.5">Real Users</h2>
+              <p className="text-sm text-gray-500">Authenticated accounts (email-confirmed, excludes internal team)</p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="bg-indigo-50 rounded-xl p-4">
+                <div className="text-3xl font-bold text-indigo-700">{s.real_users.total_registered}</div>
+                <div className="text-xs font-semibold text-indigo-500 mt-1">Total Registered</div>
+              </div>
+              <div className="bg-green-50 rounded-xl p-4">
+                <div className="text-3xl font-bold text-green-700">+{s.real_users.registered_last_7d}</div>
+                <div className="text-xs font-semibold text-green-600 mt-1">New Last 7 Days</div>
+              </div>
+              <div className="bg-blue-50 rounded-xl p-4">
+                <div className="text-3xl font-bold text-blue-700">+{s.real_users.registered_last_30d}</div>
+                <div className="text-xs font-semibold text-blue-600 mt-1">New Last 30 Days</div>
+              </div>
+              <div className="bg-emerald-50 rounded-xl p-4">
+                <div className="text-3xl font-bold text-emerald-700">{s.real_users.with_purchase}</div>
+                <div className="text-xs font-semibold text-emerald-600 mt-1">Paid Customers</div>
+                <div className="text-xs text-emerald-500 mt-0.5">
+                  {s.real_users.total_registered > 0
+                    ? `${Math.round((s.real_users.with_purchase / s.real_users.total_registered) * 100)}% conversion`
+                    : "—"}
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="text-2xl font-bold text-gray-700">{s.real_users.active_last_7d}</div>
+                <div className="text-xs font-semibold text-gray-500 mt-1">Active Last 7d</div>
+                <div className="text-xs text-gray-400 mt-0.5">
+                  {s.real_users.total_registered > 0
+                    ? `${Math.round((s.real_users.active_last_7d / s.real_users.total_registered) * 100)}% of registered`
+                    : "—"}
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="text-2xl font-bold text-gray-700">{s.real_users.active_last_30d}</div>
+                <div className="text-xs font-semibold text-gray-500 mt-1">Active Last 30d</div>
+                <div className="text-xs text-gray-400 mt-0.5">
+                  {s.real_users.total_registered > 0
+                    ? `${Math.round((s.real_users.active_last_30d / s.real_users.total_registered) * 100)}% of registered`
+                    : "—"}
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="text-2xl font-bold text-gray-700">{s.real_users.with_garage_vehicle}</div>
+                <div className="text-xs font-semibold text-gray-500 mt-1">With Garage Vehicle</div>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="text-2xl font-bold text-gray-700">{s.real_users.with_deal_watch}</div>
+                <div className="text-xs font-semibold text-gray-500 mt-1">Using Deal Watch</div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1545,6 +1699,86 @@ export default function AdminDashboard() {
                   <FunnelCard label="Returned in 7 days" value={s.repeat_usage.returned_in_7d} color="green" />
                   <FunnelCard label="Returned in 30 days" value={s.repeat_usage.returned_in_30d} color="blue" />
                   <FunnelCard label="Single Visit" value={s.repeat_usage.single_visit} color="gray" />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Deal Watch */}
+        {s.deal_watch && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border-l-4 border-sky-400">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Deal Watch</h2>
+            <p className="text-sm text-gray-500 mb-4">Saved search usage and alert delivery (all-time)</p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <FunnelCard label="Total Searches" value={s.deal_watch.total_searches} color="blue" />
+              <FunnelCard label="Unique Users" value={s.deal_watch.unique_users} color="indigo" />
+              <FunnelCard label="Alert-Enabled" value={s.deal_watch.alert_searches} color="sky"
+                subtitle={`${s.deal_watch.total_searches > 0 ? Math.round((s.deal_watch.alert_searches / s.deal_watch.total_searches) * 100) : 0}% of searches`} />
+              <FunnelCard label="New (Last 7d)" value={s.deal_watch.new_7d} color="cyan" />
+              <FunnelCard label="Alerts Sent (7d)" value={s.deal_watch.alerts_sent_7d} color="green" />
+            </div>
+          </div>
+        )}
+
+        {/* Payments Detail */}
+        {s.payments_detail && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border-l-4 border-emerald-400">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Payment Analytics</h2>
+            <p className="text-sm text-gray-500 mb-4">Revenue breakdown by tier, cart abandonment, and refunds (all-time paid)</p>
+
+            {/* Cart abandonment + Refunds */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <FunnelCard label="Checkout Started (7d)" value={s.payments_detail.cart_abandonment.checkout_started_7d} color="amber" />
+              <FunnelCard label="Paid (7d)" value={s.payments_detail.cart_abandonment.paid_7d} color="green" />
+              <FunnelCard label="Abandonment Rate" value={`${s.payments_detail.cart_abandonment.abandonment_rate_pct}%`}
+                color={s.payments_detail.cart_abandonment.abandonment_rate_pct > 70 ? "red" : "amber"} />
+              <FunnelCard label="Refunds (30d)" value={s.payments_detail.refunds_30d.count}
+                subtitle={`$${(s.payments_detail.refunds_30d.total_refunded ?? 0).toFixed(2)} refunded`}
+                color={s.payments_detail.refunds_30d.count > 0 ? "red" : "gray"} />
+            </div>
+
+            {/* Revenue by tier/variant */}
+            {s.payments_detail.revenue_by_tier?.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Revenue by Pack &amp; Variant</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-gray-500 border-b">
+                        <th className="pb-2 pr-4 font-medium">Pack Tier</th>
+                        <th className="pb-2 pr-4 font-medium">Price Variant</th>
+                        <th className="pb-2 pr-4 font-medium text-right">Count</th>
+                        <th className="pb-2 font-medium text-right">Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {s.payments_detail.revenue_by_tier.map((row, idx) => (
+                        <tr key={idx} className="border-b border-gray-50 hover:bg-gray-50">
+                          <td className="py-2 pr-4 font-medium text-gray-800">{row.pack_tier}</td>
+                          <td className="py-2 pr-4 text-gray-600">{row.price_variant || "—"}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums">{row.count}</td>
+                          <td className="py-2 text-right tabular-nums font-semibold text-emerald-700">${row.revenue.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Recent payments */}
+            {s.payments_detail.recent_payments?.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Recent Payments (last 10)</h3>
+                <div className="space-y-2">
+                  {s.payments_detail.recent_payments.map((p, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
+                      <span className="text-gray-600">{p.pack_tier}</span>
+                      <span className="font-semibold text-emerald-700">${(p.amount ?? 0).toFixed(2)}</span>
+                      <span className="text-gray-400 text-xs">{new Date(p.created_at).toLocaleDateString()}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

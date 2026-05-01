@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { sendChecklistEmail, isResendConfigured, buildDealWatchAlertHtml } from "@/lib/resend";
+import { trackServerEvent } from "@/lib/track-server-event";
 
 export async function POST(request: NextRequest) {
   // Auth check
@@ -92,6 +93,24 @@ export async function POST(request: NextRequest) {
             .from("deal_watch_results")
             .update({ alert_sent_at: new Date().toISOString() })
             .in("id", ids);
+
+          // Track alert sent event for each result
+          for (const r of pendingAlerts) {
+            trackServerEvent({
+              event_name: "deal_watch_alert_sent",
+              source: "listing",
+              user_id: search.user_id,
+              page_path: "/api/email/deal-watch",
+              entity_type: "deal_watch_result_id",
+              entity_id: r.id,
+              payload: {
+                search_id: search.id,
+                vehicle_label: r.vehicle_label,
+                price_drop_amount: r.price_drop_amount,
+                last_price: r.last_price,
+              },
+            }).catch(() => {});
+          }
         }
       } catch (err) {
         console.error(`[deal-watch] Error processing search ${search.id}:`, err);

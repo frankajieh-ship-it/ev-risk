@@ -352,7 +352,7 @@ async function fulfillFullRiskReport(session: Stripe.Checkout.Session) {
           .update({ generation_status: "paid_full_risk" })
           .eq("id", receiptId);
 
-        // Trigger the background function — fire-and-forget
+        // Trigger the background function — with durable job record
         const upgradeUrl = `${process.env.NETLIFY_URL ?? "http://localhost:8888"}/.netlify/functions/upgrade-receipt-background`;
         const upgradePayload = {
           receipt_id: receipt.id,
@@ -369,15 +369,52 @@ async function fulfillFullRiskReport(session: Stripe.Checkout.Session) {
           t0: Date.now(),
         };
 
+        // Insert durable job record before firing so the retry scanner can recover it
+        let jobId: string | null = null;
+        try {
+          const { data: jobRow } = await supabase
+            .from("receipt_upgrade_jobs")
+            .insert({
+              receipt_id: receipt.id,
+              receipt_token: receipt.session_id ?? receiptId,
+              payload: upgradePayload,
+              status: "pending",
+              next_retry_at: new Date().toISOString(),
+            })
+            .select("job_id")
+            .single();
+          jobId = jobRow?.job_id ?? null;
+        } catch (jobErr) {
+          console.warn("[FRR] Job record insert failed:", jobErr instanceof Error ? jobErr.message : jobErr);
+        }
+
+        const payloadWithJobId = jobId ? { ...upgradePayload, job_id: jobId } : upgradePayload;
         fetch(upgradeUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "X-Upgrade-Secret": process.env.UPGRADE_SECRET ?? "",
           },
-          body: JSON.stringify(upgradePayload),
+          body: JSON.stringify(payloadWithJobId),
+        }).then((res) => {
+          if (!res.ok && jobId) {
+            supabase.from("receipt_upgrade_jobs").update({
+              status: "failed",
+              last_error: `enqueue_http_${res.status}`,
+              next_retry_at: new Date(Date.now() + 60_000).toISOString(),
+              updated_at: new Date().toISOString(),
+            }).eq("job_id", jobId).then(() => {}, () => {});
+          }
         }).catch((err) => {
           console.error("[FRR] Failed to enqueue background upgrade:", err.message);
+          if (jobId) {
+            supabase.from("receipt_upgrade_jobs").update({
+              status: "failed",
+              last_error: err.message?.slice(0, 300) ?? "enqueue_fetch_threw",
+              next_retry_at: new Date(Date.now() + 60_000).toISOString(),
+              updated_at: new Date().toISOString(),
+            }).eq("job_id", jobId).then(() => {}, () => {});
+          }
         });
 
         console.log("[FRR] Background upgrade enqueued for receipt:", receiptId);
