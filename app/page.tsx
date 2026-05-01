@@ -569,26 +569,6 @@ export default function Home() {
             </motion.div>
           )}
 
-          {/* Step Indicator */}
-          {currentStep !== "generating" && (
-            <div className="mb-6">
-              <div className="flex items-center justify-center gap-3">
-                <div className={`flex items-center gap-2 ${currentStep === "routine" ? "text-[#00d97e]" : "text-white/30"}`}>
-                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                    currentStep === "routine" ? "bg-[#00d97e] text-[#0d1117]" : "bg-white/10 text-white/40"
-                  }`}>1</span>
-                  <span className="text-sm font-medium hidden sm:inline">Your Routine</span>
-                </div>
-                <div className="w-8 h-px bg-white/10" />
-                <div className={`flex items-center gap-2 ${currentStep === "recommendations" || currentStep === "vehicle_manual" ? "text-[#00d97e]" : "text-white/30"}`}>
-                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                    currentStep === "recommendations" || currentStep === "vehicle_manual" ? "bg-[#00d97e] text-[#0d1117]" : "bg-white/10 text-white/40"
-                  }`}>2</span>
-                  <span className="text-sm font-medium hidden sm:inline">Find Your EV</span>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Step 1: Routine */}
           {currentStep === "routine" && (

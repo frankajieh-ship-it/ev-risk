@@ -12,7 +12,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Receipt, Loader2, QrCode, Menu, X, Zap, Bookmark, MessageCircle } from "lucide-react";
+import { Receipt, Loader2, QrCode, Menu, X, Zap, Bell, Bookmark, MessageCircle } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { addToAnonGarage } from "@/lib/anon-garage";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
@@ -917,7 +917,12 @@ export default function ReceiptPage() {
                 />
               )}
 
-              {/* Email capture — shown after negotiation scripts */}
+              {/* Workspace save nudge — shown before email capture for maximum visibility */}
+              {!isAuthenticated && (
+                <WorkspaceSaveNudge onSignIn={() => setShowAuthPrompt(true)} />
+              )}
+
+              {/* Email capture — shown after save nudge */}
               {!hasEmailed && (
                 <div id="email-capture-card">
                   <EmailCaptureCard
@@ -954,37 +959,36 @@ export default function ReceiptPage() {
               {/* ── Next-step CTA bar ────────────────────────────────── */}
               <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
                 <p className="text-xs text-white/40 uppercase tracking-wider mb-3">What&apos;s next?</p>
-                <div className="grid grid-cols-3 gap-2">
-                  <a
-                    href="/routine"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => trackEvent("cta_routine_clicked", { receipt_id: receipt.receipt_id })}
-                    className="flex flex-col items-center gap-1.5 py-2.5 rounded-lg border border-white/[0.08] text-white/60 hover:text-white hover:border-white/20 hover:bg-white/[0.04] transition-colors text-center"
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <Link
+                    href={`/receipt?compare=${receipt.receipt_id}`}
+                    onClick={() => trackEvent("cta_compare_clicked", { receipt_id: receipt.receipt_id })}
+                    className="flex flex-col items-center gap-1.5 py-3 rounded-lg border border-[#00d97e]/20 bg-[#00d97e]/[0.04] text-[#00d97e] hover:bg-[#00d97e]/10 transition-colors text-center"
                   >
-                    <Zap className="w-4 h-4 text-[#00d97e]" />
-                    <span className="text-xs leading-tight">Does this fit<br />your routine?</span>
-                  </a>
-                  <button
-                    onClick={handleQuickSave}
-                    className="flex flex-col items-center gap-1.5 py-2.5 rounded-lg border border-white/[0.08] text-white/60 hover:text-white hover:border-white/20 hover:bg-white/[0.04] transition-colors"
+                    <Zap className="w-4 h-4" />
+                    <span className="text-xs font-semibold leading-tight">Compare another<br />listing</span>
+                  </Link>
+                  <Link
+                    href="/workspace/deal-watch"
+                    onClick={() => trackEvent("cta_deal_watch_clicked", { receipt_id: receipt.receipt_id })}
+                    className="flex flex-col items-center gap-1.5 py-3 rounded-lg border border-white/[0.08] text-white/60 hover:text-white hover:border-white/20 hover:bg-white/[0.04] transition-colors text-center"
                   >
-                    <Bookmark className={`w-4 h-4 ${hasSaved ? "text-[#00d97e] fill-[#00d97e]" : ""}`} />
-                    <span className="text-xs">{hasSaved ? "Saved" : "Save deal"}</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      trackEvent("cta_chat_clicked", { receipt_id: receipt.receipt_id });
-                      const bubble = document.querySelector<HTMLElement>("[data-offo-chat-trigger]");
-                      if (bubble) bubble.click();
-                      else window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-                    }}
-                    className="flex flex-col items-center gap-1.5 py-2.5 rounded-lg border border-white/[0.08] text-white/60 hover:text-white hover:border-white/20 hover:bg-white/[0.04] transition-colors"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    <span className="text-xs leading-tight">Ask AI<br />about this</span>
-                  </button>
+                    <Bell className="w-4 h-4" />
+                    <span className="text-xs leading-tight">Set up<br />deal watch</span>
+                  </Link>
                 </div>
+                <button
+                  onClick={() => {
+                    trackEvent("cta_chat_clicked", { receipt_id: receipt.receipt_id });
+                    const bubble = document.querySelector<HTMLElement>("[data-offo-chat-trigger]");
+                    if (bubble) bubble.click();
+                    else window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-white/[0.06] text-white/40 hover:text-white/60 hover:border-white/[0.10] hover:bg-white/[0.03] transition-colors"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span className="text-xs">Ask AI about this vehicle</span>
+                </button>
               </div>
 
               {/* ── Matching Deals Strip ─────────────────────────────── */}
@@ -1064,10 +1068,6 @@ export default function ReceiptPage() {
                 />
               </div>
 
-              {/* Workspace save nudge — shown to unauthenticated users after receipt loads */}
-              {!isAuthenticated && (
-                <WorkspaceSaveNudge onSignIn={() => setShowAuthPrompt(true)} />
-              )}
 
 
               {/* EV routine news carousel */}
