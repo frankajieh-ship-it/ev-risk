@@ -709,22 +709,13 @@ export default function Home() {
             {[
               { subreddit: "r/whatcarshouldIbuy", title: "This 2022 Ford Mustang Mach‑E was listed as a 'Great Deal' at $24,255 — here's what the OFFO receipt actually showed", views: "8,372", tag: "Used-EV receipt", photo: "/car-ioniq5.webp" },
               { subreddit: "r/electriccars", title: "Dealer called this 2013 Tesla Model S a 'Good Deal' at $12,995… here's what the full OFFO receipt actually showed", views: "5,759", tag: "Salvage deal check", photo: "/car-tesla-model3.webp" },
-              { subreddit: "r/EVRoutine", title: "Just moved and thinking about an EV without home charging? Here's what actually ends up mattering.", views: "108,023", tag: "Routine Fit check", photo: null },
-              { subreddit: "r/EVRoutine", title: "Apartment dweller with no home charging, tows a small boat weekly, $25–40k budget — here's what EVRoutine recommends", views: "7,575", tag: "Routine Fit check", photo: null },
+              { subreddit: "r/EVRoutine", title: "Just moved and thinking about an EV without home charging? Here's what actually ends up mattering.", views: "108,023", tag: "Routine Fit check", photo: "/car-nissan-leaf.webp" },
+              { subreddit: "r/EVRoutine", title: "Apartment dweller with no home charging, tows a small boat weekly, $25–40k budget — here's what EVRoutine recommends", views: "7,575", tag: "Routine Fit check", photo: "/car-bolt-ev.webp" },
             ].map(({ subreddit, title, views, tag, photo }) => (
               <div key={title} className="overflow-hidden flex flex-col rounded-xl border border-white/10 bg-white/5">
-                {photo ? (
-                  <div className="h-36 overflow-hidden bg-white/5">
-                    <Image src={photo} alt="" width={300} height={144} className="w-full h-full object-cover object-center" />
-                  </div>
-                ) : (
-                  <div className="h-36 bg-gradient-to-br from-[#00d97e]/10 to-[#00d97e]/5 flex items-center justify-center">
-                    <svg className="w-8 h-8 opacity-20" viewBox="0 0 20 20" aria-hidden>
-                      <circle cx="10" cy="10" r="10" fill="#FF4500"/>
-                      <path d="M16.67 10a1.46 1.46 0 00-2.47-1 7.12 7.12 0 00-3.85-1.23l.65-3.08 2.13.45a1 1 0 101.07-1 1 1 0 00-.96.68l-2.38-.5a.26.26 0 00-.31.2l-.73 3.44a7.14 7.14 0 00-3.89 1.23 1.46 1.46 0 10-1.61 2.39 2.87 2.87 0 000 .44c0 2.24 2.61 4.06 5.83 4.06s5.83-1.82 5.83-4.06a2.87 2.87 0 000-.44 1.46 1.46 0 00.6-1.18zM7.27 11a1 1 0 111 1 1 1 0 01-1-1zm5.6 2.71a3.58 3.58 0 01-2.87.89 3.58 3.58 0 01-2.87-.89.23.23 0 01.33-.33 3.15 3.15 0 002.54.71 3.15 3.15 0 002.54-.71.23.23 0 01.33.33zm-.2-1.71a1 1 0 111-1 1 1 0 01-1 1z" fill="white"/>
-                    </svg>
-                  </div>
-                )}
+                <div className="h-36 overflow-hidden bg-white/5">
+                  <Image src={photo} alt="" width={300} height={144} className="w-full h-full object-cover object-center" />
+                </div>
                 <div className="p-4 flex flex-col flex-1">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-1.5">
