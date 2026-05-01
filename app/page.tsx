@@ -9,7 +9,7 @@ import { useSessionTracking } from "@/hooks/useSessionTracking";
 import { useTurnstile } from "@/hooks/useTurnstile";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-import { ArrowRight, Bell, Star, ChevronDown, ChevronUp, Mail, Menu, X, Zap } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronUp, Mail, Menu, X } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import LoginModal from "@/components/LoginModal";
@@ -21,8 +21,10 @@ import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import TutorialVideoSection from "@/components/landing/TutorialVideoSection";
+import FeaturedDeals from "@/components/landing/FeaturedDeals";
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 import { getReceiptHistory } from "@/lib/receipt-history";
+import { anonGarageCount } from "@/lib/anon-garage";
 import type { MinimumViableRoutine } from "@/types/v2";
 
 type WizardStep = "routine" | "recommendations" | "vehicle_manual" | "generating";
@@ -111,6 +113,11 @@ export default function Home() {
   // ── V2 Wizard state ──────────────────────────────────────────────────────────
   const [currentStep, setCurrentStep] = useState<WizardStep>("routine");
   const [routineData, setRoutineData] = useState<MinimumViableRoutine | null>(null);
+  const [shortlistCount, setShortlistCount] = useState(0);
+
+  useEffect(() => {
+    setShortlistCount(anonGarageCount());
+  }, []);
 
   // Manual Entry Modal (for URL parse failures)
   const [manualEntryOpen, setManualEntryOpen] = useState(false);
@@ -360,6 +367,7 @@ export default function Home() {
               <Link href="/receipt" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Receipt Check</Link>
               <Link href="/" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Routine Fit</Link>
               <Link href="/copart" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Copart Arbitrage</Link>
+              <Link href="/deals" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Deal Watch</Link>
               <Link href="/pricing" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Pricing</Link>
               <Link href="/blog" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Blog</Link>
               <Link href="/workspace/garage" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Garage</Link>
@@ -397,6 +405,7 @@ export default function Home() {
                   { href: "/receipt", label: "Receipt Check" },
                   { href: "/", label: "Routine Fit" },
                   { href: "/copart", label: "Copart Arbitrage" },
+                  { href: "/deals", label: "Deal Watch" },
                   { href: "/pricing", label: "Pricing" },
                   { href: "/blog", label: "Blog" },
                   { href: "/workspace/garage", label: "Garage" },
@@ -502,34 +511,6 @@ export default function Home() {
       {/* Original Header hidden — replaced above for homepage */}
       <div className="hidden"><Header variant="homepage" /></div>
 
-      {/* ── Section 2: Trust Bar ─────────────────────────────────────── */}
-      <div className="bg-[#0d1117] border-t border-white/[0.06] py-3">
-        <div className="flex flex-wrap items-center justify-center gap-3 px-4">
-          <span className="text-xs text-white/30">Seen on</span>
-          {[
-            { sub: "r/electriccars", href: "https://www.reddit.com/r/electriccars/" },
-            { sub: "r/whatcarshouldIbuy", href: "https://www.reddit.com/r/whatcarshouldIbuy/" },
-            { sub: "r/UsedCars", href: "https://www.reddit.com/r/UsedCars/" },
-          ].map(({ sub, href }) => (
-            <a
-              key={sub}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] hover:border-white/20 transition-colors"
-            >
-              {/* Reddit logo */}
-              <svg className="w-3 h-3 shrink-0" viewBox="0 0 20 20" fill="#FF4500" aria-hidden>
-                <circle cx="10" cy="10" r="10" fill="#FF4500"/>
-                <path d="M16.67 10a1.46 1.46 0 00-2.47-1 7.12 7.12 0 00-3.85-1.23l.65-3.08 2.13.45a1 1 0 101.07-1 1 1 0 00-.96.68l-2.38-.5a.26.26 0 00-.31.2l-.73 3.44a7.14 7.14 0 00-3.89 1.23 1.46 1.46 0 10-1.61 2.39 2.87 2.87 0 000 .44c0 2.24 2.61 4.06 5.83 4.06s5.83-1.82 5.83-4.06a2.87 2.87 0 000-.44 1.46 1.46 0 00.6-1.18zM7.27 11a1 1 0 111 1 1 1 0 01-1-1zm5.6 2.71a3.58 3.58 0 01-2.87.89 3.58 3.58 0 01-2.87-.89.23.23 0 01.33-.33 3.15 3.15 0 002.54.71 3.15 3.15 0 002.54-.71.23.23 0 01.33.33zm-.2-1.71a1 1 0 111-1 1 1 0 01-1 1z" fill="white"/>
-              </svg>
-              <span className="text-xs text-white/50">{sub}</span>
-            </a>
-          ))}
-          <span className="text-xs text-white/20 hidden sm:inline">· Powered by Auto.dev + NHTSA · No sales pitch</span>
-        </div>
-      </div>
-
       {/* ── Section: EV Routine Wizard ───────────────────────────────── */}
       {currentStep === "routine" && (
         <div className="max-w-2xl mx-auto px-4 py-6 bg-[#0d1117]">
@@ -582,6 +563,8 @@ export default function Home() {
               onSelectVehicle={(vehicle) => generateV2Report(routineData, vehicle)}
               onSwitchToManual={() => setCurrentStep("vehicle_manual")}
               onBack={() => setCurrentStep("routine")}
+              shortlistCount={shortlistCount}
+              onShortlistSave={() => setShortlistCount((c) => c + 1)}
             />
           )}
 
@@ -653,27 +636,10 @@ export default function Home() {
       {/* ── Section: Tutorial Video ──────────────────────────────────── */}
       <TutorialVideoSection />
 
-      {/* ── Section: Deal Watch CTA ──────────────────────────────────── */}
-      <section className="py-8 bg-[#0d1117]">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="rounded-2xl border border-[#00d97e]/20 bg-[#00d97e]/[0.04] px-6 py-6 flex flex-col sm:flex-row items-center gap-5">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                <Bell className="w-4 h-4 text-[#00d97e]" />
-                <span className="text-xs font-bold text-[#00d97e] uppercase tracking-wider">Deal Watch</span>
-              </div>
-              <p className="text-base font-bold text-white mb-1">Get alerted when prices drop</p>
-              <p className="text-sm text-white/40">Save search filters and OFFO notifies you by email when matching EVs drop in price or a new GREEN listing appears.</p>
-            </div>
-            <Link
-              href="/workspace/deal-watch"
-              className="shrink-0 px-5 py-2.5 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-xl hover:bg-[#00c970] transition-colors whitespace-nowrap"
-            >
-              Set up deal watch →
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* ── Section: Featured Deals (Deal Watch) ────────────────────── */}
+      <div className="bg-[#0d1117]">
+        <FeaturedDeals />
+      </div>
 
       {/* ── Section 6: Social Proof ──────────────────────────────────── */}
       <section className="section bg-[#111827]">
@@ -687,7 +653,7 @@ export default function Home() {
           <p className="text-sm text-white/40 text-center mb-8">Real posts. Real decisions. No made-up names.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { subreddit: "r/whatcarshouldIbuy", title: "This 2022 Ford Mustang Mach‑E was listed as a 'Great Deal' at $24,255 — here's what the OFFO receipt actually showed", views: "8,372", tag: "Used-EV receipt", photo: "/car-ioniq5.webp" },
+              { subreddit: "r/whatcarshouldIbuy", title: "This 2022 Ford Mustang Mach‑E was listed as a 'Great Deal' at $24,255 — here's what the OFFO receipt actually showed", views: "8,372", tag: "Used-EV receipt", photo: "/car-f150-lightning.webp" },
               { subreddit: "r/electriccars", title: "Dealer called this 2013 Tesla Model S a 'Good Deal' at $12,995… here's what the full OFFO receipt actually showed", views: "5,759", tag: "Salvage deal check", photo: "/car-tesla-model3.webp" },
               { subreddit: "r/EVRoutine", title: "Just moved and thinking about an EV without home charging? Here's what actually ends up mattering.", views: "108,023", tag: "Routine Fit check", photo: "/car-nissan-leaf.webp" },
               { subreddit: "r/EVRoutine", title: "Apartment dweller with no home charging, tows a small boat weekly, $25–40k budget — here's what EVRoutine recommends", views: "7,575", tag: "Routine Fit check", photo: "/car-bolt-ev.webp" },
