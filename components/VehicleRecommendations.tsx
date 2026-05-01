@@ -2,17 +2,20 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Search, AlertCircle, MessageSquare, ChevronDown, ChevronUp, Lightbulb, SlidersHorizontal, Bookmark, Check, LayoutGrid, LayoutList, List } from "lucide-react";
+import { ArrowLeft, Search, AlertCircle, MessageSquare, ChevronDown, ChevronUp, Lightbulb, SlidersHorizontal, Bookmark, BookmarkCheck, Check, LayoutGrid, LayoutList, List, ArrowRight, Zap, ExternalLink } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import RecommendationCard from "./RecommendationCard";
 import RecommendationCardGrid from "./RecommendationCardGrid";
 import RecommendationCardList from "./RecommendationCardList";
 import ExtensionNudge from "./ExtensionNudge";
 import RefineStep, { type RefinePrefs } from "./RefineStep";
+import VehicleImage from "./VehicleImage";
 import Link from "next/link";
 import { addToAnonGarage } from "@/lib/anon-garage";
+import { getCarGurusUrl } from "@/lib/cargurus-links";
 import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import { DataSourcesBadge } from "@/components/blocks/DataSourcesBadge";
+import DealCard, { type CuratedDeal } from "@/components/deals/DealCard";
 import type { MinimumViableRoutine } from "@/types/v2";
 import type { VehicleRecommendation, RecommendationsResponse, DataSources } from "@/types/recommendations";
 import { computeConfidencePct } from "@/lib/routine-confidence";
@@ -22,6 +25,8 @@ interface VehicleRecommendationsProps {
   onSelectVehicle: (vehicle: { model: string; year: number }) => void;
   onSwitchToManual: () => void;
   onBack: () => void;
+  shortlistCount?: number;
+  onShortlistSave?: () => void;
 }
 
 const CATEGORY_FILTERS = [
@@ -151,11 +156,119 @@ function getDiffBullets(top3: VehicleRecommendation[]): string[] {
   return bullets.slice(0, 3);
 }
 
+function scoreToLabel(score: number): string {
+  if (score >= 80) return "Great Fit";
+  if (score >= 65) return "Good Fit";
+  if (score >= 45) return "Mixed Fit";
+  return "High Friction";
+}
+
+const FIT_COLORS: Record<string, { bg: string; border: string; text: string; dot: string }> = {
+  "Great Fit":    { bg: "bg-[#00a862]/20", border: "border-[#00a862]/30", text: "text-[#00d97e]", dot: "bg-[#00d97e]" },
+  "Good Fit":     { bg: "bg-[#00a862]/20", border: "border-[#00a862]/30", text: "text-[#00d97e]", dot: "bg-[#00d97e]" },
+  "Mixed Fit":    { bg: "bg-amber-500/10",  border: "border-amber-500/20",  text: "text-amber-400", dot: "bg-amber-400" },
+  "High Friction":{ bg: "bg-red-500/10",    border: "border-red-500/20",    text: "text-red-400",   dot: "bg-red-400"   },
+};
+
+function WatchPickCard({
+  rec,
+  isSaved,
+  onSave,
+  userZipCode,
+  weeklyMiles,
+}: {
+  rec: VehicleRecommendation;
+  isSaved: boolean;
+  onSave: () => void;
+  userZipCode: string | null;
+  weeklyMiles: number;
+}) {
+  const fitLabel = scoreToLabel(rec.fit_score);
+  const fc = FIT_COLORS[fitLabel] ?? FIT_COLORS["Mixed Fit"];
+  const carGurusUrl = getCarGurusUrl(rec.make, rec.model_short, {
+    year: rec.year,
+    zip: userZipCode ?? undefined,
+    weekly_miles: weeklyMiles,
+  });
+
+  return (
+    <div className="relative flex flex-col bg-[#161b22] border border-white/[0.08] rounded-xl overflow-hidden hover:border-white/[0.16] transition-all group">
+      {/* Photo */}
+      <div className="relative w-full aspect-[16/9] bg-[#0d1117] overflow-hidden flex-shrink-0">
+        <VehicleImage
+          make={rec.make}
+          model={rec.model_short}
+          year={rec.year}
+          className="w-full h-full"
+          imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+        />
+        {/* Fit badge — top left */}
+        <div className={`absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-full ${fc.bg} border ${fc.border} backdrop-blur-sm`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${fc.dot}`} />
+          <span className={`text-xs font-semibold ${fc.text}`}>{fitLabel}</span>
+        </div>
+        {/* Save — bottom right */}
+        <button
+          onClick={onSave}
+          title={isSaved ? "Saved to Garage" : "Save to Garage"}
+          className={`absolute bottom-2.5 right-2.5 flex items-center justify-center w-8 h-8 rounded-full backdrop-blur-sm border transition-all ${
+            isSaved
+              ? "bg-[#00d97e]/20 border-[#00d97e]/40 text-[#00d97e]"
+              : "bg-black/50 border-white/20 text-white/60 hover:text-white hover:bg-black/70"
+          }`}
+        >
+          {isSaved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex flex-col flex-1 gap-2 p-3">
+        <p className="font-semibold text-xs text-white leading-snug">
+          {rec.year} {rec.make} {rec.model_short}
+        </p>
+        <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5">
+          <span className="text-sm font-bold text-white">{rec.real_world_range_mi} mi</span>
+          <span className="text-xs text-white/40">· {rec.battery_kwh} kWh</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${fc.bg} ${fc.border} ${fc.text}`}>
+            Fit {rec.fit_score}/100
+          </span>
+          {rec.tow_capacity_lbs && rec.tow_capacity_lbs >= 1000 && (
+            <span className="text-[11px] text-white/40">· Tows {(rec.tow_capacity_lbs / 1000).toFixed(0)}k lbs</span>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="mt-auto flex gap-2 pt-1">
+          <Link
+            href={`/receipt?make=${encodeURIComponent(rec.make)}&model=${encodeURIComponent(rec.model_short)}&year=${rec.year}&src=routine_rec`}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg bg-[#00d97e]/10 hover:bg-[#00d97e]/20 border border-[#00d97e]/20 text-[#00d97e] transition-colors"
+          >
+            Analyze a listing →
+          </Link>
+          <a
+            href={carGurusUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Search on CarGurus"
+            className="flex items-center justify-center w-9 h-9 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/40 hover:text-white/70 rounded-lg transition-colors flex-shrink-0"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function VehicleRecommendations({
   routine,
   onSelectVehicle,
   onSwitchToManual,
   onBack,
+  shortlistCount = 0,
+  onShortlistSave,
 }: VehicleRecommendationsProps) {
   const { trackEvent, trackVehicleListGenerated, trackVehicleFullReportClicked, getPersistentSessionId } = useEventTracking();
 
@@ -183,6 +296,9 @@ export default function VehicleRecommendations({
   const [showAdjustBar, setShowAdjustBar] = useState(false);
   const [adjustExpanded, setAdjustExpanded] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+
+  // Matched deals from curated_deals for the top 3 picks
+  const [matchedDeals, setMatchedDeals] = useState<CuratedDeal[]>([]);
 
   // Trust & methodology state
   const [dataSources, setDataSources] = useState<DataSources | null>(null);
@@ -377,6 +493,29 @@ export default function VehicleRecommendations({
     }
   }, [showTieBreakQuestion]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fetch curated deals matching the top 3 vehicle picks
+  useEffect(() => {
+    if (loading || top3.length === 0) return;
+    // Build a set of "make|model_short" keys for quick lookup
+    const top3Keys = new Set(top3.map(r => `${r.make.toLowerCase()}|${r.model_short.toLowerCase()}`));
+    fetch("/api/deals?verdict=GREEN,YELLOW&per_page=50&page=1")
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { deals?: CuratedDeal[] } | null) => {
+        if (!data?.deals) return;
+        const matched = data.deals.filter(d => {
+          if (!d.make || !d.model) return false;
+          const key = `${d.make.toLowerCase()}|${d.model.toLowerCase()}`;
+          // also try model_short partial match
+          return top3Keys.has(key) || top3.some(r =>
+            r.make.toLowerCase() === d.make!.toLowerCase() &&
+            d.model!.toLowerCase().includes(r.model_short.toLowerCase())
+          );
+        }).slice(0, 6);
+        setMatchedDeals(matched);
+      })
+      .catch(() => {});
+  }, [loading, top3.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Available category filters
   const availableCategories = CATEGORY_FILTERS.filter(
     f => f.value === "all" || recommendations.some(r => r.sub_category === f.value)
@@ -531,11 +670,22 @@ export default function VehicleRecommendations({
       </AnimatePresence>
 
       {/* Header */}
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-white">EVs That Match Your Routine</h2>
-        <p className="text-sm text-white/50 mt-1">
-          Based on {chargingLabels[routine.charging_access] ?? routine.charging_access} charging, ~{weeklyMiles} mi/week, {routine.climate} climate
-        </p>
+      <div className="flex items-start justify-between gap-3 mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-white">EVs That Match Your Routine</h2>
+          <p className="text-sm text-white/50 mt-1">
+            Based on {chargingLabels[routine.charging_access] ?? routine.charging_access} charging, ~{weeklyMiles} mi/week, {routine.climate} climate
+          </p>
+        </div>
+        {shortlistCount > 0 && (
+          <Link
+            href="/workspace/garage"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#00d97e]/10 border border-[#00d97e]/20 text-[#00d97e] text-xs font-semibold hover:bg-[#00d97e]/20 transition-colors"
+          >
+            <Bookmark className="w-3.5 h-3.5 fill-current" />
+            {shortlistCount} saved →
+          </Link>
+        )}
       </div>
 
       {/* Loading state */}
@@ -1102,6 +1252,7 @@ export default function VehicleRecommendations({
                   routine={routine}
                   isSelectedForCompare={compareSelected.has(rec.model)}
                   onToggleCompare={handleToggleCompare}
+                  onShortlistSave={onShortlistSave}
                 />
               ))}
               {/* Extension nudge — shown after list loads (card view only) */}
@@ -1151,25 +1302,77 @@ export default function VehicleRecommendations({
             </div>
           )}
 
-          {/* Deal Watch CTA — watch the top picks for price drops */}
-          {refinePhase === "browse" && sortedRecommended.length >= 1 && (
-            <div className="rounded-2xl border border-[#00d97e]/20 bg-[#00d97e]/[0.04] px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white mb-0.5">Watch these picks for price drops</p>
-                <p className="text-xs text-white/40 leading-relaxed">
-                  OFFO will email you when a {sortedRecommended[0]?.make ?? "matching EV"} listing drops in price or a new GREEN deal appears.
-                </p>
+          {/* Deal Watch — matched listings from curated deals database */}
+          {refinePhase === "browse" && top3.length >= 1 && (
+            <div className="mb-4">
+              {/* Section header */}
+              <div className="flex items-end justify-between mb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Zap className="w-3.5 h-3.5 text-[#00d97e]" />
+                    <span className="text-xs font-semibold uppercase tracking-widest text-[#00d97e]">Deal Watch</span>
+                  </div>
+                  <h3 className="text-base font-bold text-white">
+                    {matchedDeals.length > 0 ? "Live listings for your top picks" : "Watch your top picks for price drops"}
+                  </h3>
+                  <p className="text-xs text-white/40 mt-0.5">
+                    {matchedDeals.length > 0
+                      ? "Pre-analyzed by OFFO — verdict and save-to-garage included."
+                      : "OFFO emails you when a matching listing drops or a new GREEN deal appears."}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Link
+                    href="/deals"
+                    className="hidden sm:flex items-center gap-1 text-xs text-[#00d97e] hover:text-[#00d97e]/80 transition-colors font-medium"
+                  >
+                    View all deals
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                  <Link
+                    href={`/workspace/deal-watch?prefill=${encodeURIComponent(
+                      JSON.stringify(top3.map((r) => ({ make: r.make, model: r.model_short })))
+                    )}`}
+                    className="px-3 py-1.5 bg-[#00d97e] text-[#0d1117] text-xs font-semibold rounded-xl hover:bg-[#00c970] transition-colors whitespace-nowrap"
+                  >
+                    Set up alerts →
+                  </Link>
+                </div>
               </div>
-              <Link
-                href={`/workspace/deal-watch?prefill=${encodeURIComponent(
-                  JSON.stringify(
-                    sortedRecommended.slice(0, 3).map((r) => ({ make: r.make, model: r.model_short }))
-                  )
-                )}`}
-                className="shrink-0 px-4 py-2 bg-[#00d97e] text-[#0d1117] text-xs font-semibold rounded-xl hover:bg-[#00c970] transition-colors whitespace-nowrap"
-              >
-                Set up deal watch →
-              </Link>
+
+              {/* Top 3 rich pick cards — always shown */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {top3.map((rec) => (
+                  <WatchPickCard
+                    key={rec.model}
+                    rec={rec}
+                    isSaved={savedIds.has(`${rec.year}-${rec.model}`)}
+                    onSave={() => handleAddToGarage(rec)}
+                    userZipCode={userZipCode}
+                    weeklyMiles={weeklyMiles}
+                  />
+                ))}
+              </div>
+
+              {/* Curated DB deals that match — shown below when available */}
+              {matchedDeals.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">Also available now</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {matchedDeals.map((deal, i) => (
+                      <DealCard key={deal.id} deal={deal} compact rank={i + 1} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Mobile "View all" link */}
+              <div className="flex sm:hidden justify-center mt-4">
+                <Link href="/deals" className="flex items-center gap-1.5 text-sm text-[#00d97e] font-medium">
+                  View all deals
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
             </div>
           )}
 
@@ -1213,6 +1416,7 @@ export default function VehicleRecommendations({
                       routine={routine}
                       isSelectedForCompare={compareSelected.has(rec.model)}
                       onToggleCompare={handleToggleCompare}
+                      onShortlistSave={onShortlistSave}
                     />
                   ))}
                 </div>
