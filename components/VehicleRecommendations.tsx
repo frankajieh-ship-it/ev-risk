@@ -15,7 +15,6 @@ import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import { DataSourcesBadge } from "@/components/blocks/DataSourcesBadge";
 import type { MinimumViableRoutine } from "@/types/v2";
 import type { VehicleRecommendation, RecommendationsResponse, DataSources } from "@/types/recommendations";
-import RoutineComparePanel from "./RoutineComparePanel";
 import { computeConfidencePct } from "@/lib/routine-confidence";
 
 interface VehicleRecommendationsProps {
@@ -1152,17 +1151,25 @@ export default function VehicleRecommendations({
             </div>
           )}
 
-          {/* Side-by-side compare panel — filtered to selected, or top 2–3 */}
-          {refinePhase === "browse" && sortedRecommended.length >= 2 && (
-            <div id="routine-compare-panel">
-              <RoutineComparePanel
-                vehicles={
-                  compareSelected.size >= 2
-                    ? sortedRecommended.filter((r) => compareSelected.has(r.model))
-                    : sortedRecommended.slice(0, Math.min(3, sortedRecommended.length))
-                }
-                routine={routine}
-              />
+          {/* Deal Watch CTA — watch the top picks for price drops */}
+          {refinePhase === "browse" && sortedRecommended.length >= 1 && (
+            <div className="rounded-2xl border border-[#00d97e]/20 bg-[#00d97e]/[0.04] px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white mb-0.5">Watch these picks for price drops</p>
+                <p className="text-xs text-white/40 leading-relaxed">
+                  OFFO will email you when a {sortedRecommended[0]?.make ?? "matching EV"} listing drops in price or a new GREEN deal appears.
+                </p>
+              </div>
+              <Link
+                href={`/workspace/deal-watch?prefill=${encodeURIComponent(
+                  JSON.stringify(
+                    sortedRecommended.slice(0, 3).map((r) => ({ make: r.make, model: r.model_short }))
+                  )
+                )}`}
+                className="shrink-0 px-4 py-2 bg-[#00d97e] text-[#0d1117] text-xs font-semibold rounded-xl hover:bg-[#00c970] transition-colors whitespace-nowrap"
+              >
+                Set up deal watch →
+              </Link>
             </div>
           )}
 
