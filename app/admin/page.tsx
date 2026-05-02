@@ -79,16 +79,32 @@ interface SummaryData {
   };
   revenue?: {
     total_revenue: number;
-    buyer_pass: {
-      paid: number;
-      pending: number;
-      failed: number;
-      refunded: number;
-      revenue: number;
+    total_transactions: number;
+    pending: number;
+    failed: number;
+    refunded: number;
+    by_product: Record<string, { count: number; revenue: number; price: number }>;
+    actual: {
+      revenue_per_day: number;
+      revenue_per_week: number;
+      revenue_per_month: number;
+      conversion_rate_pct: number;
+      window_days: number;
     };
-    legacy_reports: {
-      paid_count: number;
-      revenue: number;
+    potential: {
+      human_sessions_per_day: number;
+      projected_receipts_per_day: number;
+      projected_paid_per_day: number;
+      projected_revenue_per_day: number;
+      projected_revenue_per_week: number;
+      projected_revenue_per_month: number;
+      assumptions: string;
+      upside_scenario: {
+        projected_revenue_per_day: number;
+        projected_revenue_per_week: number;
+        projected_revenue_per_month: number;
+        assumptions: string;
+      };
     };
   };
   receipt_pipeline: {
@@ -555,13 +571,13 @@ export default function AdminDashboard() {
       [""],
       ["=== REVENUE ==="],
       ["Total Revenue", s.revenue ? `$${s.revenue.total_revenue.toFixed(2)}` : "n/a"],
-      ["Buyer Pass Paid", s.revenue?.buyer_pass.paid ?? 0],
-      ["Buyer Pass Revenue", s.revenue ? `$${s.revenue.buyer_pass.revenue.toFixed(2)}` : "n/a"],
-      ["Buyer Pass Pending", s.revenue?.buyer_pass.pending ?? 0],
-      ["Buyer Pass Failed", s.revenue?.buyer_pass.failed ?? 0],
-      ["Buyer Pass Refunded", s.revenue?.buyer_pass.refunded ?? 0],
-      ["Legacy Reports Paid", s.revenue?.legacy_reports.paid_count ?? 0],
-      ["Legacy Report Revenue", s.revenue ? `$${s.revenue.legacy_reports.revenue}` : "n/a"],
+      ["Total Transactions", s.revenue?.total_transactions ?? 0],
+      ["Receipt Single Revenue", s.revenue ? `$${(s.revenue.by_product.receipt_single?.revenue ?? 0).toFixed(2)}` : "n/a"],
+      ["Pending", s.revenue?.pending ?? 0],
+      ["Failed", s.revenue?.failed ?? 0],
+      ["Refunded", s.revenue?.refunded ?? 0],
+      ["Legacy Reports Paid", s.revenue?.by_product.legacy_reports?.count ?? 0],
+      ["Legacy Report Revenue", s.revenue ? `$${(s.revenue.by_product.legacy_reports?.revenue ?? 0).toFixed(2)}` : "n/a"],
       [""],
       ["=== RECEIPT PIPELINE ==="],
       ["URL Scrape Attempts", s.receipt_pipeline.url_scrape_attempts],
@@ -1408,10 +1424,50 @@ export default function AdminDashboard() {
                 <FunnelCard label="Paywall Dismissed" value={s.post_receipt_engagement.monetization.paywall_dismissed} color="red" />
                 <FunnelCard label="Checkout Started" value={s.post_receipt_engagement.monetization.checkout_started} color="green"
                   subtitle={`${s.post_receipt_engagement.monetization.paywall_to_checkout_rate}% of paywall`} />
-                <FunnelCard label="Paid" value={s.revenue?.buyer_pass.paid ?? 0} color="green"
-                  subtitle={s.revenue ? `$${s.revenue.buyer_pass.revenue.toFixed(2)} confirmed` : undefined} />
+                <FunnelCard label="Paid" value={s.revenue?.total_transactions ?? 0} color="green"
+                  subtitle={s.revenue ? `$${s.revenue.total_revenue.toFixed(2)} confirmed` : undefined} />
               </div>
             </div>
+
+            {/* Revenue breakdown + projections */}
+            {s.revenue && (
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Revenue — Actual vs. Potential</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                  <FunnelCard label="Total Revenue" value={`$${s.revenue.total_revenue.toFixed(2)}`} color="green" subtitle={`${s.revenue.total_transactions} paid transactions`} />
+                  <FunnelCard label="Rev / Day (actual)" value={`$${s.revenue.actual.revenue_per_day.toFixed(2)}`} color="green" subtitle={`${s.revenue.actual.window_days}d window`} />
+                  <FunnelCard label="Rev / Month (actual)" value={`$${s.revenue.actual.revenue_per_month.toFixed(2)}`} color="green" subtitle={`${s.revenue.actual.conversion_rate_pct}% conversion`} />
+                  <FunnelCard label="Pending Checkouts" value={s.revenue.pending} color="amber" subtitle={`${s.revenue.failed} failed · ${s.revenue.refunded} refunded`} />
+                </div>
+                <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-xs">
+                  <p className="font-semibold text-gray-600 mb-2">Projections (based on {s.revenue.potential.human_sessions_per_day} human sessions/day)</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-gray-400 mb-1">Conservative — {s.revenue.potential.assumptions}</p>
+                      <p>Daily: <span className="font-semibold text-gray-700">${s.revenue.potential.projected_revenue_per_day.toFixed(2)}</span></p>
+                      <p>Weekly: <span className="font-semibold text-gray-700">${s.revenue.potential.projected_revenue_per_week.toFixed(2)}</span></p>
+                      <p>Monthly: <span className="font-semibold text-gray-700">${s.revenue.potential.projected_revenue_per_month.toFixed(2)}</span></p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 mb-1">Upside — {s.revenue.potential.upside_scenario.assumptions}</p>
+                      <p>Daily: <span className="font-semibold text-emerald-600">${s.revenue.potential.upside_scenario.projected_revenue_per_day.toFixed(2)}</span></p>
+                      <p>Weekly: <span className="font-semibold text-emerald-600">${s.revenue.potential.upside_scenario.projected_revenue_per_week.toFixed(2)}</span></p>
+                      <p>Monthly: <span className="font-semibold text-emerald-600">${s.revenue.potential.upside_scenario.projected_revenue_per_month.toFixed(2)}</span></p>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-3">
+                  {Object.entries(s.revenue.by_product).map(([key, prod]) => (
+                    <div key={key} className="rounded border border-gray-100 bg-white p-2 text-center">
+                      <p className="text-[10px] text-gray-400 truncate">{key.replace(/_/g, " ")}</p>
+                      <p className="text-sm font-bold text-gray-700">{prod.count}</p>
+                      <p className="text-[10px] text-emerald-600">${prod.revenue.toFixed(2)}</p>
+                      <p className="text-[10px] text-gray-300">${prod.price}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Feedback */}
             <div>
