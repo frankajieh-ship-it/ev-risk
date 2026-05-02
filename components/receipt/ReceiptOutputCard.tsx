@@ -445,7 +445,7 @@ export default function ReceiptOutputCard({
       </div>
 
       {/* Vehicle Facts Bar — title status, accidents, live NHTSA recalls, battery estimate */}
-      <VehicleFactsBar receipt={receipt} />
+      <VehicleFactsBar receipt={receipt} isUnlocked={isUnlocked} paymentsEnabled={paymentsEnabled} onPaywallClick={onPaywallClick} />
 
       {/* Why not GREEN? — collapsible */}
       {receipt.why_not_green && receipt.why_not_green.length > 0 && receipt.verdict !== "GREEN" && (

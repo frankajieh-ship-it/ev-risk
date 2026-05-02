@@ -221,7 +221,7 @@ export default function ReceiptSummaryCard({
             <span className="text-[11px] text-white/20">·</span>
             <span className="text-[11px] text-white/30 flex items-center gap-1">
               <MessageSquare className="w-2.5 h-2.5" />
-              AI Summary
+              Summary
             </span>
           </div>
           <p className={`text-sm font-bold leading-snug mt-0.5 ${styles.headlineColor}`}>

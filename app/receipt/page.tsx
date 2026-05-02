@@ -42,6 +42,7 @@ const ReceiptHistoryDrawer = dynamic(() => import("@/components/receipt/ReceiptH
 const NewsCarousel = dynamic(() => import("@/components/NewsCarousel"), { ssr: false });
 const DeepDiveSection = dynamic(() => import("@/components/receipt/DeepDiveSection"), { ssr: false });
 const NegotiationDeepSection = dynamic(() => import("@/components/receipt/NegotiationDeepSection"), { ssr: false });
+const PaywallGate = dynamic(() => import("@/components/receipt/PaywallGate"), { ssr: false });
 const ReceiptSummaryCard = dynamic(() => import("@/components/receipt/ReceiptSummaryCard"), { ssr: false });
 const CompareView = dynamic(() => import("@/components/receipt/CompareView"), { ssr: false });
 const CompareSelectModal = dynamic(() => import("@/components/receipt/CompareSelectModal"), { ssr: false });
@@ -966,23 +967,63 @@ export default function ReceiptPage() {
               />
               </div>
 
-              {/* On-demand: extended negotiation scripts — moved here for prominence */}
-              {!isUpgrading && receipt.receipt_id && (
-                <NegotiationDeepSection
-                  receiptId={receipt.receipt_id}
-                  initialScripts={(receipt as unknown as Record<string, unknown>).negotiation_deep as import("@/lib/receipt-sections").NegotiationScript[] ?? null}
-                  initialStatus={sections?.negotiation_deep?.status}
-                  isUnlocked={isUnlocked}
-                  paymentsEnabled={paymentsEnabled}
+              {/* ── Paywall gate or unlocked sections ── */}
+              {paymentsEnabled && !isUnlocked ? (
+                /* LOCKED: single paywall card replaces all deep-dive sections */
+                <PaywallGate
+                  receiptToken={receiptToken}
+                  scenarioId={receipt.receipt_id}
                 />
+              ) : (
+                /* UNLOCKED (or payments off): show all sections */
+                <>
+                  {!isUpgrading && receipt.receipt_id && (
+                    <NegotiationDeepSection
+                      receiptId={receipt.receipt_id}
+                      initialScripts={(receipt as unknown as Record<string, unknown>).negotiation_deep as import("@/lib/receipt-sections").NegotiationScript[] ?? null}
+                      initialStatus={sections?.negotiation_deep?.status}
+                      isUnlocked={true}
+                      paymentsEnabled={false}
+                    />
+                  )}
+                  {deepDive && (
+                    <DeepDiveSection
+                      deepDive={deepDive}
+                      receiptId={receipt.receipt_id}
+                      region={region}
+                    />
+                  )}
+                  {isLoadingDeepDive && !deepDive && (
+                    <div className="flex items-center justify-center gap-2 py-8 text-sm text-white/40">
+                      <Loader2 className="w-4 h-4 animate-spin text-[#00d97e]" />
+                      Generating your deep dive analysis...
+                    </div>
+                  )}
+                  {receipt.receipt_details ? (
+                    <ReceiptDetailsAccordion
+                      details={receipt.receipt_details}
+                      operatorNotes={receipt.operator_notes}
+                      listingSummary={receipt.listing_summary}
+                      region={region}
+                    />
+                  ) : !isUpgrading && receipt.receipt_id ? (
+                    <ReceiptDetailsOnDemand
+                      receiptId={receipt.receipt_id}
+                      operatorNotes={receipt.operator_notes}
+                      listingSummary={receipt.listing_summary}
+                      region={region}
+                      initialStatus={sections?.receipt_details?.status}
+                    />
+                  ) : null}
+                </>
               )}
 
-              {/* Workspace save nudge — shown before email capture for maximum visibility */}
+              {/* Workspace save nudge */}
               {!isAuthenticated && (
                 <WorkspaceSaveNudge onSignIn={() => setShowAuthPrompt(true)} />
               )}
 
-              {/* Email capture — shown after save nudge */}
+              {/* Email capture */}
               {!hasEmailed && (
                 <div id="email-capture-card">
                   <EmailCaptureCard
@@ -1004,17 +1045,6 @@ export default function ReceiptPage() {
                   />
                 </div>
               )}
-
-              {/* ── Deep-dive nudge banner */}
-              <div className="rounded-xl border border-[#00d97e]/20 bg-[#00d97e]/[0.04] px-4 py-3.5 flex items-start gap-3">
-                <Zap className="w-4 h-4 text-[#00d97e] shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-white">More analysis below</p>
-                  <p className="text-xs text-white/50 mt-0.5 leading-relaxed">
-                    Scroll down for deep-dive negotiation scripts, cost of ownership breakdown, and model-specific known issues.
-                  </p>
-                </div>
-              </div>
 
               {/* ── Next-step CTA bar ────────────────────────────────── */}
               <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
@@ -1070,22 +1100,6 @@ export default function ReceiptPage() {
                   </div>
                 </div>
               )}
-
-              {/* Deep dive — moved to top as primary result section */}
-              {deepDive && (
-                <DeepDiveSection
-                  deepDive={deepDive}
-                  receiptId={receipt.receipt_id}
-                  region={region}
-                />
-              )}
-              {isLoadingDeepDive && !deepDive && (
-                <div className="flex items-center justify-center gap-2 py-8 text-sm text-white/40">
-                  <Loader2 className="w-4 h-4 animate-spin text-[#00d97e]" />
-                  Generating your deep dive analysis...
-                </div>
-              )}
-
 
               {/* Compare — shown when auth is configured */}
               {authConfigured && (
@@ -1146,24 +1160,6 @@ export default function ReceiptPage() {
                 />
               )}
 
-
-              {/* Details accordion — on-demand if not yet generated */}
-              {receipt.receipt_details ? (
-                <ReceiptDetailsAccordion
-                  details={receipt.receipt_details}
-                  operatorNotes={receipt.operator_notes}
-                  listingSummary={receipt.listing_summary}
-                  region={region}
-                />
-              ) : !isUpgrading && receipt.receipt_id ? (
-                <ReceiptDetailsOnDemand
-                  receiptId={receipt.receipt_id}
-                  operatorNotes={receipt.operator_notes}
-                  listingSummary={receipt.listing_summary}
-                  region={region}
-                  initialStatus={sections?.receipt_details?.status}
-                />
-              ) : null}
 
               {/* Model Info — research links (at bottom, after all analysis) */}
               {receipt.listing_summary?.make && receipt.listing_summary?.model && (
