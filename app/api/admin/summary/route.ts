@@ -273,7 +273,7 @@ export async function GET(request: NextRequest) {
     // 9. Purchases (Buyer Pass payments from Stripe)
     const purchasesPromise = supabase
       .from("purchases")
-      .select("status, amount, currency, price_variant, scenario_type, created_at")
+      .select("status, amount, currency, price_variant, scenario_type, pack_tier, stripe_session_id, created_at")
       .gte("created_at", window.start)
       .lt("created_at", window.end)
       .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`);
@@ -586,6 +586,13 @@ export async function GET(request: NextRequest) {
       total_revenue: totalRevenue,
       total_transactions: paidPurchases.length,
       pending: pendingPurchases.length,
+      pending_list: pendingPurchases.map((p) => ({
+        stripe_session_id: (p as any).stripe_session_id as string | null,
+        scenario_type: (p as any).scenario_type as string,
+        pack_tier: (p as any).pack_tier as string | null,
+        amount: (p as any).amount as number,
+        created_at: (p as any).created_at as string,
+      })),
       failed: failedPurchases.length,
       refunded: refundedPurchases.length,
       by_product: {

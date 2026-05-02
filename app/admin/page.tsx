@@ -81,6 +81,7 @@ interface SummaryData {
     total_revenue: number;
     total_transactions: number;
     pending: number;
+    pending_list?: Array<{ stripe_session_id: string | null; scenario_type: string; pack_tier: string | null; amount: number; created_at: string }>;
     failed: number;
     refunded: number;
     by_product: Record<string, { count: number; revenue: number; price: number }>;
@@ -1470,6 +1471,41 @@ export default function AdminDashboard() {
                   <FunnelCard label="Rev / Month (actual)" value={`$${s.revenue.actual.revenue_per_month.toFixed(2)}`} color="green" subtitle={`${s.revenue.actual.conversion_rate_pct}% conversion`} />
                   <FunnelCard label="Pending Checkouts" value={s.revenue.pending} color="amber" subtitle={`${s.revenue.failed} failed · ${s.revenue.refunded} refunded`} />
                 </div>
+                {s.revenue.pending > 0 && s.revenue.pending_list && s.revenue.pending_list.length > 0 && (
+                  <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-xs font-semibold text-amber-800 mb-2">Stuck Pending Payments — click Fulfill to manually complete</p>
+                    <div className="space-y-2">
+                      {s.revenue.pending_list.map((p, i) => (
+                        <div key={p.stripe_session_id ?? i} className="flex items-center justify-between gap-3 bg-white rounded border border-amber-100 px-3 py-2 text-xs">
+                          <div className="flex-1 min-w-0">
+                            <span className="font-mono text-gray-500 truncate block">{p.stripe_session_id ?? "no session id"}</span>
+                            <span className="text-gray-400">{p.scenario_type} · {p.pack_tier ?? "—"} · ${(p.amount / 100).toFixed(2)} · {new Date(p.created_at).toLocaleDateString()}</span>
+                          </div>
+                          {p.stripe_session_id && (
+                            <button
+                              className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-1.5 rounded"
+                              onClick={async () => {
+                                const res = await fetch("/api/admin/fulfill-purchase", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+                                  body: JSON.stringify({ stripe_session_id: p.stripe_session_id }),
+                                });
+                                const json = await res.json();
+                                if (res.ok) {
+                                  alert(`✅ Fulfilled! purchase_id: ${json.purchase_id}`);
+                                } else {
+                                  alert(`❌ Error: ${json.error ?? "unknown"}`);
+                                }
+                              }}
+                            >
+                              Fulfill
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-xs">
                   <p className="font-semibold text-gray-600 mb-2">Projections (based on {s.revenue.potential.human_sessions_per_day} human sessions/day)</p>
                   <div className="grid grid-cols-2 gap-4">
