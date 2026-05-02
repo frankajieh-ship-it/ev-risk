@@ -279,6 +279,7 @@ export default function ReceiptPage() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallTrigger, setPaywallTrigger] = useState<string | null>(null);
   const paywallShownForRef = useRef<Set<string>>(new Set());
+  const paywallSentinelRef = useRef<HTMLDivElement>(null);
 
   // Seller Pack state
   const [showSellerPackPaywall, setShowSellerPackPaywall] = useState(false);
@@ -605,6 +606,19 @@ export default function ReceiptPage() {
       document.getElementById("decision-pack-card")?.scrollIntoView({ behavior: "smooth" });
     }, 100);
   }, [freeMode, isUnlocked, packTier, receipt, receiptToken, purchaseId, trackEvent]);
+
+  // Auto-show paywall when user scrolls to the locked section boundary
+  useEffect(() => {
+    if (!paymentsEnabled || isUnlocked || !receipt) return;
+    const el = paywallSentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) handlePremiumAction("scroll"); },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [paymentsEnabled, isUnlocked, receipt, handlePremiumAction]);
 
   // Show seller pack paywall when user clicks a gated question
   const handleSellerPackAction = useCallback(() => {
@@ -975,6 +989,11 @@ export default function ReceiptPage() {
                 showCompare={authConfigured}
               />
               </div>
+
+              {/* Scroll sentinel — triggers paywall reveal when user reaches this point */}
+              {paymentsEnabled && !isUnlocked && (
+                <div ref={paywallSentinelRef} aria-hidden="true" />
+              )}
 
               {/* ── Paywall gate or unlocked sections ── */}
               {paymentsEnabled && !isUnlocked ? (
