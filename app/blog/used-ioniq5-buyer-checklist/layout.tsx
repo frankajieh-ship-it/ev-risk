@@ -1,0 +1,86 @@
+import type { Metadata } from "next";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? process.env.URL ?? "https://www.offolab.com";
+
+const ogTitle = "Used Hyundai Ioniq 5 Buyer Checklist (2026): 11 Things to Check Before You Buy";
+const ogSubtitle = "Battery degradation, recall history, charging speed, known issues — full pre-purchase checklist.";
+
+export const metadata: Metadata = {
+  title: "Used Hyundai Ioniq 5 Buyer Checklist (2026): 11 Things to Check Before You Buy",
+  description:
+    "Before buying a used Hyundai Ioniq 5, check these 11 things: battery degradation rate, open recalls, 800V charging compatibility, heat pump status, software updates, and which model years to target vs. avoid.",
+  alternates: {
+    canonical: `${SITE_URL}/blog/used-ioniq5-buyer-checklist`,
+  },
+  openGraph: {
+    title: ogTitle,
+    description:
+      "Before buying a used Hyundai Ioniq 5, check these 11 things: battery degradation rate, open recalls, 800V charging compatibility, heat pump status, software updates, and which model years to target vs. avoid.",
+    url: `${SITE_URL}/blog/used-ioniq5-buyer-checklist`,
+    type: "article",
+    siteName: "OFFO",
+    images: [
+      {
+        url: `${APP_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subtitle=${encodeURIComponent(ogSubtitle)}`,
+        width: 1200,
+        height: 630,
+        alt: ogTitle,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: ogTitle,
+    description:
+      "Before buying a used Hyundai Ioniq 5, check these 11 things: battery degradation, open recalls, 800V charging, heat pump, software updates, and model years to target vs. avoid.",
+    images: [
+      `${APP_URL}/api/og?title=${encodeURIComponent(ogTitle)}&subtitle=${encodeURIComponent(ogSubtitle)}`,
+    ],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export default function UsedIoniq5ChecklistLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            headline: ogTitle,
+            description:
+              "Before buying a used Hyundai Ioniq 5, check these 11 things: battery degradation rate, open recalls, 800V charging compatibility, heat pump status, software updates, and which model years to target vs. avoid.",
+            url: `${SITE_URL}/blog/used-ioniq5-buyer-checklist`,
+            datePublished: "2026-05-02",
+            dateModified: "2026-05-02",
+            author: {
+              "@type": "Organization",
+              name: "OFFO Lab",
+              url: SITE_URL,
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "OFFO Lab",
+              url: SITE_URL,
+            },
+            mainEntityOfPage: {
+              "@type": "WebPage",
+              "@id": `${SITE_URL}/blog/used-ioniq5-buyer-checklist`,
+            },
+          }),
+        }}
+      />
+      {children}
+    </>
+  );
+}

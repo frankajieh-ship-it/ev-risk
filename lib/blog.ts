@@ -28,6 +28,30 @@ export interface BlogPost {
 
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "used-model-y-buyer-checklist",
+    badge: "Buyer's Checklist",
+    badgeColor: "bg-green-100 text-green-800",
+    title: "Used Tesla Model Y Buyer Checklist (2026): 12 Things to Check Before You Buy",
+    description:
+      "Before buying a used Tesla Model Y, check these 12 things: open recalls, battery health estimate, FSD transfer status, heat pump issues, MCU generation, and the 4 model years to target vs. avoid.",
+    excerpt:
+      "Open recalls, battery health, FSD transfer, heat pump issues, panel gaps, market price, and 3 negotiation scripts — everything you need before handing over a dollar.",
+    readTime: "11 min read",
+    datePublished: "2026-05-02",
+  },
+  {
+    slug: "used-ioniq5-buyer-checklist",
+    badge: "Buyer's Checklist",
+    badgeColor: "bg-blue-100 text-blue-800",
+    title: "Used Hyundai Ioniq 5 Buyer Checklist (2026): 11 Things to Check Before You Buy",
+    description:
+      "Before buying a used Hyundai Ioniq 5, check these 11 things: battery degradation rate, open recalls, 800V charging compatibility, heat pump status, software updates, and which model years to target vs. avoid.",
+    excerpt:
+      "12V battery drain recalls, 800V charging verification, V2L adapter, heat pump failures, and the exact model years to target — the complete Ioniq 5 pre-purchase checklist.",
+    readTime: "10 min read",
+    datePublished: "2026-05-02",
+  },
+  {
     slug: "best-carfax-alternatives-2026",
     badge: "Comparison",
     badgeColor: "bg-green-100 text-green-800",
