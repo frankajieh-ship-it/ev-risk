@@ -22,7 +22,7 @@ import {
   type PackTier,
 } from "@/lib/price-assignment";
 
-const VALID_PACK_TIERS: PackTier[] = ["buyer_pass", "seller_questions", "chat_pass", "copart_report", "sellers_report_pdf", "receipt_single"];
+const VALID_PACK_TIERS: PackTier[] = ["decision_pack", "buyer_pass", "seller_questions", "chat_pass", "copart_report", "sellers_report_pdf", "receipt_single"];
 
 const checkoutRateLimiter = new RateLimiter(60 * 1000, 5); // 5 attempts per minute per IP
 

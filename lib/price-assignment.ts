@@ -11,7 +11,7 @@
 import type { Region } from "./region";
 
 export type PriceVariant = "299" | "399" | "499" | "999" | "1999" | "4900";
-export type PackTier = "buyer_pass" | "seller_questions" | "chat_pass" | "copart_report" | "sellers_report_pdf" | "receipt_single";
+export type PackTier = "decision_pack" | "buyer_pass" | "seller_questions" | "chat_pass" | "copart_report" | "sellers_report_pdf" | "receipt_single";
 
 export const RECEIPT_SINGLE_PRICE = "$3.99";
 export const BUYER_PASS_PRICE = "$9.99";
