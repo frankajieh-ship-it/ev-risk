@@ -381,6 +381,8 @@ export async function POST(request: NextRequest) {
         verdict: liteReceipt.verdict ?? null,
         price_label: liteReceipt.price_sanity?.label ?? null,
         generation_status: "lite",
+        entry_source: (body.page_source as string) || "unknown",
+        input_mode: (body.input_mode as string) || "unknown",
       },
       ip_address: clientIP,
       page_path: "/api/receipt",

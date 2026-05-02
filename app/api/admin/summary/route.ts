@@ -198,7 +198,7 @@ export async function GET(request: NextRequest) {
     // NULL NOT IN (...) evaluates to NULL, not TRUE — so all anon receipts vanish.
     const receiptsPromise = supabase
       .from("receipts")
-      .select("id, created_at, output_json, url_domain, generation_status")
+      .select("id, created_at, output_json, url_domain, generation_status, page_source")
       .gte("created_at", window.start)
       .lt("created_at", window.end)
       .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`)
@@ -641,6 +641,12 @@ export async function GET(request: NextRequest) {
     const receiptsGenFromUserEvents = countEvents(filteredUserEvents, "receipt_generate");
     const receiptsGenFromReceiptEvents = countReceiptEvents(allReceiptEvents, "generate");
 
+    const entrySourceBreakdown = allReceipts.reduce((acc, r) => {
+      const src = ((r as any).page_source as string) || "unknown";
+      acc[src] = (acc[src] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
     const receipt_pipeline = {
       url_scrape_attempts: receiptScrapeAttempts,
       url_scrape_successes: fetchSuccesses,
@@ -684,6 +690,7 @@ export async function GET(request: NextRequest) {
       upgrade_fail: countReceiptEvents(allReceiptEvents, "upgrade_fail"),
       upgrade_exception: countReceiptEvents(allReceiptEvents, "upgrade_exception"),
       upgrade_schema_fail: countReceiptEvents(allReceiptEvents, "schema_fail"),
+      entry_source_breakdown: entrySourceBreakdown,
     };
 
     // -----------------------------------------------------------------------

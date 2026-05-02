@@ -396,11 +396,20 @@ export default function ReceiptPage() {
     const vinParam = params.get("vin");
     if (vinParam) setPrefillVin(vinParam.toUpperCase());
 
+    // Capture entry source from ?src= for any path (homepage VIN, deal_watch, extension)
+    const srcParam = params.get("src");
+    if (srcParam && !params.get("url") && !params.get("make")) {
+      // Only set here if not handled below by the URL/make blocks
+      if (srcParam === "deal_watch" || srcParam === "homepage") {
+        setPageSource(srcParam);
+      }
+    }
+
     // Check for URL prefill (?url=...&ext=true or ?url=...&src=landing)
     const extUrl = params.get("url");
     if (extUrl) {
       setPrefillUrl(extUrl);
-      const src = params.get("src") || (params.get("ext") === "true" ? "extension" : "direct_url");
+      const src = srcParam || (params.get("ext") === "true" ? "extension" : "direct_url");
       setPageSource(src);
       window.history.replaceState({}, "", "/receipt");
     }

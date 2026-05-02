@@ -102,6 +102,7 @@ export function useReceiptGeneration({
     listing_text?: string;
     fields: StructuredListingFields;
     extraction_id?: string;
+    input_mode?: string;
   } | null>(null);
   const upgradePollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -194,6 +195,7 @@ export function useReceiptGeneration({
       listing_text?: string;
       fields: StructuredListingFields;
       extraction_id?: string;
+      input_mode?: string;
       force_regenerate?: boolean;
     }) => {
       if (!receiptToken) return;
@@ -235,6 +237,7 @@ export function useReceiptGeneration({
 
         if (data.force_regenerate) body.force_regenerate = true;
         if (pageSource) body.page_source = pageSource;
+        if (data.input_mode) body.input_mode = data.input_mode;
         if (data.extraction_id) body.extraction_id = data.extraction_id;
         if (data.listing_url) body.listing_url = data.listing_url;
         if (data.listing_text) body.listing_text = data.listing_text;
