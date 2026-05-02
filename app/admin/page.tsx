@@ -122,6 +122,7 @@ interface SummaryData {
     copy_checklist: number;
     negotiator_copy: number;
     lint_failed_fallback_served: number;
+    entry_source_breakdown?: Record<string, number>;
   };
   post_receipt_engagement: {
     receipt_result_viewed: number;
@@ -1327,6 +1328,36 @@ export default function AdminDashboard() {
               subtitle="Check / Nego / Reddit / Seller"
             />
           </div>
+
+          {/* Entry Source Breakdown */}
+          {s.receipt_pipeline.entry_source_breakdown && Object.keys(s.receipt_pipeline.entry_source_breakdown).length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Entry Source Breakdown</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(s.receipt_pipeline.entry_source_breakdown)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([src, count]) => {
+                    const total = s.receipt_pipeline.receipts_generated || 1;
+                    const pct = Math.round((count / total) * 100);
+                    const colorMap: Record<string, string> = {
+                      homepage: "bg-blue-50 border-blue-200 text-blue-700",
+                      deal_watch: "bg-emerald-50 border-emerald-200 text-emerald-700",
+                      extension: "bg-purple-50 border-purple-200 text-purple-700",
+                      direct_url: "bg-amber-50 border-amber-200 text-amber-700",
+                      unknown: "bg-gray-50 border-gray-200 text-gray-500",
+                    };
+                    const cls = colorMap[src] ?? "bg-gray-50 border-gray-200 text-gray-500";
+                    return (
+                      <div key={src} className={`rounded-lg border px-3 py-2 text-sm ${cls}`}>
+                        <span className="font-semibold">{src.replace(/_/g, " ")}</span>
+                        <span className="ml-2 font-bold">{count}</span>
+                        <span className="ml-1 text-xs opacity-60">({pct}%)</span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Extraction Health */}
