@@ -26,7 +26,8 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-from db import get_posted_sessions_db, save_posted_outcome  # noqa: E402
+import datetime
+from db import get_posted_sessions_db, save_posted_outcome, save_comments  # noqa: E402
 
 DEFAULT_INTERVAL = 3600  # 1 hour
 
@@ -121,6 +122,35 @@ def track_once(reddit, limit: int = 100) -> dict:
                 f"score={score:+d} comments={num_comments} | {post_title}"
             )
             counts["updated"] += 1
+
+            # Scrape and store top-level comments for this post
+            try:
+                submission.comments.replace_more(limit=0)
+                op_name = submission.author.name if submission.author else None
+                comment_rows = []
+                for c in submission.comments.list()[:20]:
+                    if not hasattr(c, "body") or c.body in ("[deleted]", "[removed]"):
+                        continue
+                    is_reply_to_op = (
+                        op_name is not None
+                        and getattr(c, "parent_id", "").startswith("t1_")
+                    )
+                    comment_rows.append({
+                        "comment_id": c.id,
+                        "author": c.author.name if c.author else "[deleted]",
+                        "body": c.body[:2000],
+                        "score": c.score,
+                        "depth": 0,
+                        "is_reply_to_op": is_reply_to_op,
+                        "created_utc": datetime.datetime.utcfromtimestamp(
+                            c.created_utc
+                        ).isoformat() + "Z",
+                    })
+                saved = save_comments(session_id, post_id, comment_rows)
+                if saved:
+                    print(f"  [COMMENTS] {saved} comments saved for {session_id[:8]}…")
+            except Exception as ce:
+                print(f"  [WARN] comment fetch failed for {session_id[:8]}…: {ce}")
 
         except Exception as e:
             err_str = str(e)

@@ -195,6 +195,51 @@ def save_posted_outcome(
     ).execute()
 
 
+def save_comments(session_id: str, post_id: str, comments: list) -> int:
+    """
+    Upsert comments for a posted session.
+    Uses reddit_comment_id UNIQUE constraint to skip duplicates.
+    Returns count of rows submitted.
+    """
+    if not comments:
+        return 0
+    rows = []
+    for c in comments:
+        rows.append({
+            "session_id": session_id,
+            "reddit_post_id": post_id,
+            "reddit_comment_id": c["comment_id"],
+            "comment_author": c.get("author"),
+            "comment_body": c["body"],
+            "comment_score": c.get("score", 0),
+            "depth": c.get("depth", 0),
+            "is_reply_to_op": c.get("is_reply_to_op", False),
+            "comment_date": c.get("created_utc"),
+        })
+    try:
+        _client().table("reddit_post_comments").upsert(
+            rows, on_conflict="reddit_comment_id"
+        ).execute()
+        return len(rows)
+    except Exception as e:
+        print(f"  [WARN] save_comments failed: {e}")
+        return 0
+
+
+def get_comments_for_session(session_id: str, limit: int = 20) -> list:
+    """Fetch stored comments for a given session, sorted by score desc."""
+    result = (
+        _client()
+        .table("reddit_post_comments")
+        .select("*")
+        .eq("session_id", session_id)
+        .order("comment_score", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data or []
+
+
 def save_invite_outcome(session_id: str, accepted: bool) -> None:
     """Record whether the EVRoutine invite was accepted."""
     _client().table("reddit_operator_sessions").update(

@@ -209,3 +209,29 @@ CREATE TABLE IF NOT EXISTS ai_cache (
 
 CREATE INDEX IF NOT EXISTS idx_ai_cache_expires_at
     ON ai_cache(expires_at);
+
+
+-- -------------------------
+-- Reddit Post Comments
+-- Stores comments scraped from Reddit posts where OFFO replied.
+-- Populated by outcome_tracker.py on each tracking pass.
+-- -------------------------
+
+CREATE TABLE IF NOT EXISTS reddit_post_comments (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    session_id           UUID REFERENCES reddit_operator_sessions(id) ON DELETE CASCADE,
+    reddit_post_id       TEXT NOT NULL,
+    reddit_comment_id    TEXT NOT NULL UNIQUE,
+    comment_author       TEXT,
+    comment_body         TEXT NOT NULL,
+    comment_score        INT DEFAULT 0,
+    depth                INT DEFAULT 0,
+    is_reply_to_op       BOOLEAN DEFAULT FALSE,
+    comment_date         TIMESTAMPTZ,
+    fetched_at           TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reddit_post_comments_session ON reddit_post_comments(session_id);
+CREATE INDEX IF NOT EXISTS idx_reddit_post_comments_post_id ON reddit_post_comments(reddit_post_id);
+CREATE INDEX IF NOT EXISTS idx_reddit_post_comments_fetched ON reddit_post_comments(fetched_at DESC);

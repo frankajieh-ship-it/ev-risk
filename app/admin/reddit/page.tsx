@@ -969,7 +969,66 @@ interface PostedSession {
   reply_count?: number;
 }
 
-function PostedTab({ get }: { get: (ep: string, params?: Record<string, string | number>) => Promise<unknown> }) {
+interface RedditComment {
+  reddit_comment_id: string;
+  comment_author?: string;
+  comment_body: string;
+  comment_score: number;
+  is_reply_to_op?: boolean;
+  comment_date?: string;
+}
+
+type GetFn = (ep: string, params?: Record<string, string | number>) => Promise<unknown>;
+
+function CommentsDrawer({ sessionId, get }: { sessionId: string; get: GetFn }) {
+  const [open, setOpen] = useState(false);
+  const [comments, setComments] = useState<RedditComment[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    if (comments.length > 0) { setOpen((o) => !o); return; }
+    setLoading(true);
+    try {
+      const data = await get(`/sessions/${sessionId}/comments`, { limit: 20 }) as { comments: RedditComment[] };
+      setComments(data.comments ?? []);
+      setOpen(true);
+    } catch {
+      setOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <button onClick={load} className="text-xs text-blue-600 hover:underline whitespace-nowrap">
+        {loading ? "Loading…" : open ? "▲ Hide" : "💬 Comments"}
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2 min-w-[280px]">
+          {comments.length === 0 ? (
+            <p className="text-xs text-gray-400">No comments stored yet — run outcome_tracker to fetch.</p>
+          ) : (
+            comments.map((c) => (
+              <div key={c.reddit_comment_id} className="bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-semibold text-gray-700">u/{c.comment_author ?? "[deleted]"}</span>
+                  <span className="text-gray-400">↑{c.comment_score}</span>
+                  {c.is_reply_to_op && (
+                    <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[10px]">reply to OP</span>
+                  )}
+                </div>
+                <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{c.comment_body}</p>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PostedTab({ get }: { get: GetFn }) {
   const [sessions, setSessions] = useState<PostedSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -1014,7 +1073,7 @@ function PostedTab({ get }: { get: (ep: string, params?: Record<string, string |
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                {["Time", "Subreddit", "Post Title", "Outcome", "Upvotes", "Replies", "Draft"].map((h) => (
+                {["Time", "Subreddit", "Post Title", "Outcome", "Upvotes", "Replies", "Comments", "Draft"].map((h) => (
                   <th key={h} className="px-3 py-2 text-left font-medium text-gray-600">{h}</th>
                 ))}
               </tr>
@@ -1042,6 +1101,9 @@ function PostedTab({ get }: { get: (ep: string, params?: Record<string, string |
                   </td>
                   <td className="px-3 py-2 text-center font-medium">{s.upvotes ?? "—"}</td>
                   <td className="px-3 py-2 text-center text-gray-500">{s.reply_count ?? "—"}</td>
+                  <td className="px-3 py-2">
+                    {s.id && <CommentsDrawer sessionId={s.id} get={get} />}
+                  </td>
                   <td className="px-3 py-2 max-w-[240px]">
                     <span className="truncate text-gray-500 block">{s.draft_reply_short ?? "—"}</span>
                   </td>

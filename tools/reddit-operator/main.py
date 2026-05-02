@@ -232,6 +232,14 @@ def get_posted_sessions(limit: int = 50):
     return {"sessions": get_posted_sessions_db(limit)}
 
 
+@app.get("/sessions/{session_id}/comments")
+def get_session_comments(session_id: str, limit: int = 20):
+    """Return stored comments for a specific posted session."""
+    from db import get_comments_for_session
+    comments = get_comments_for_session(session_id, limit=limit)
+    return {"comments": comments}
+
+
 # -------------------------
 # Health + stats endpoints
 # -------------------------
