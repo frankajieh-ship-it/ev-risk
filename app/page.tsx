@@ -446,7 +446,7 @@ export default function Home() {
           </h1>
 
           <p className="text-base md:text-lg text-white/50 mb-10 max-w-xl mx-auto" style={{ lineHeight: "1.6" }}>
-            Enter the vehicle&apos;s VIN and get an instant risk verdict, hidden battery flags, negotiation scripts, and a cost of ownership breakdown.
+            Instantly see open recalls, accident &amp; title history, battery health estimate, market price vs. comparables, and 3 copy-paste negotiation scripts — for that exact listing.
           </p>
 
           {/* VIN input row */}
@@ -485,7 +485,6 @@ export default function Home() {
           )}
 
           <p className="text-xs text-white/30 mt-4">
-            No account needed ·{" "}
             <Link href="/receipt" className="text-white/40 hover:text-white/60 underline underline-offset-2 transition-colors">
               No VIN? Enter details manually →
             </Link>
