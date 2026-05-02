@@ -547,22 +547,78 @@ export async function GET(request: NextRequest) {
     const failedPurchases = allPurchases.filter((p) => p.status === "failed");
     const refundedPurchases = allPurchases.filter((p) => p.status === "refunded");
 
-    // Sum confirmed revenue (amount is in cents)
-    const buyerPassRevenue = paidPurchases.reduce((sum, p) => sum + (p.amount || 0), 0) / 100;
+    // Break down by product type
+    const receiptPurchases   = paidPurchases.filter((p) => p.scenario_type === "receipt");
+    const buyerPassPurchases = paidPurchases.filter((p) => p.scenario_type === "buyer_pass");
+    const copartPurchases    = paidPurchases.filter((p) => p.scenario_type === "copart_report");
+    const routinePurchases   = paidPurchases.filter((p) => p.scenario_type === "evroutine" || p.scenario_type === "routine");
+    const chatPurchases      = paidPurchases.filter((p) => p.scenario_type === "chat");
+
+    const toUSD = (rows: typeof paidPurchases) => rows.reduce((s, p) => s + (p.amount || 0), 0) / 100;
+
+    const receiptRevenue   = toUSD(receiptPurchases);
+    const buyerPassRevenue = toUSD(buyerPassPurchases);
+    const copartRevenue    = toUSD(copartPurchases);
+    const routineRevenue   = toUSD(routinePurchases);
+    const chatRevenue      = toUSD(chatPurchases);
     const legacyReportRevenue = paidReports.length * 15;
+    const totalRevenue = receiptRevenue + buyerPassRevenue + copartRevenue + routineRevenue + chatRevenue + legacyReportRevenue;
+
+    // Projections — based on window length and current paid conversion rate
+    const windowDays = Math.max(1, Math.round(
+      (new Date(window.end).getTime() - new Date(window.start).getTime()) / 86_400_000
+    ));
+    const humanSessions = Math.max(1, sessionProfiles.filter((p) => p.actor_label === "human" || p.actor_label === "likely_human").length);
+    const revenuePerDay = totalRevenue / windowDays;
+    const receiptConversionRate = allReceipts.length > 0
+      ? (paidPurchases.length / allReceipts.length) * 100
+      : 0;
+
+    // Potential revenue: apply realistic funnel assumptions grounded in current traffic
+    // Assumes 5% of human sessions reach a receipt, 3% of those convert at $3.99
+    // (conservative — actual conversion could be higher once paywall is proven)
+    const humanSessionsPerDay = humanSessions / windowDays;
+    const projectedReceiptsPerDay = humanSessionsPerDay * 0.05;
+    const projectedPaidPerDay = projectedReceiptsPerDay * 0.03;
+    const projectedRevenuePerDay = projectedPaidPerDay * 3.99;
 
     const revenue = {
-      total_revenue: buyerPassRevenue + legacyReportRevenue,
-      buyer_pass: {
-        paid: paidPurchases.length,
-        pending: pendingPurchases.length,
-        failed: failedPurchases.length,
-        refunded: refundedPurchases.length,
-        revenue: buyerPassRevenue,
+      total_revenue: totalRevenue,
+      total_transactions: paidPurchases.length,
+      pending: pendingPurchases.length,
+      failed: failedPurchases.length,
+      refunded: refundedPurchases.length,
+      by_product: {
+        receipt_single:  { count: receiptPurchases.length,   revenue: receiptRevenue,   price: 3.99 },
+        buyer_pass:      { count: buyerPassPurchases.length, revenue: buyerPassRevenue, price: 9.99 },
+        copart_report:   { count: copartPurchases.length,    revenue: copartRevenue,    price: 49.00 },
+        routine:         { count: routinePurchases.length,   revenue: routineRevenue,   price: 4.99 },
+        chat:            { count: chatPurchases.length,      revenue: chatRevenue,      price: 9.99 },
+        legacy_reports:  { count: paidReports.length,        revenue: legacyReportRevenue, price: 15.00 },
       },
-      legacy_reports: {
-        paid_count: paidReports.length,
-        revenue: legacyReportRevenue,
+      actual: {
+        revenue_per_day: Math.round(revenuePerDay * 100) / 100,
+        revenue_per_week: Math.round(revenuePerDay * 7 * 100) / 100,
+        revenue_per_month: Math.round(revenuePerDay * 30 * 100) / 100,
+        conversion_rate_pct: Math.round(receiptConversionRate * 10) / 10,
+        window_days: windowDays,
+      },
+      potential: {
+        // Based on current human session volume with conservative 5% receipt reach, 3% paywall conversion
+        human_sessions_per_day: Math.round(humanSessionsPerDay * 10) / 10,
+        projected_receipts_per_day: Math.round(projectedReceiptsPerDay * 10) / 10,
+        projected_paid_per_day: Math.round(projectedPaidPerDay * 10) / 10,
+        projected_revenue_per_day: Math.round(projectedRevenuePerDay * 100) / 100,
+        projected_revenue_per_week: Math.round(projectedRevenuePerDay * 7 * 100) / 100,
+        projected_revenue_per_month: Math.round(projectedRevenuePerDay * 30 * 100) / 100,
+        assumptions: "5% of human sessions reach receipt · 3% paywall conversion · $3.99 avg ticket",
+        upside_scenario: {
+          // 15% reach, 8% conversion — achievable with Reddit traffic + good copy
+          projected_revenue_per_day: Math.round(humanSessionsPerDay * 0.15 * 0.08 * 3.99 * 100) / 100,
+          projected_revenue_per_week: Math.round(humanSessionsPerDay * 0.15 * 0.08 * 3.99 * 7 * 100) / 100,
+          projected_revenue_per_month: Math.round(humanSessionsPerDay * 0.15 * 0.08 * 3.99 * 30 * 100) / 100,
+          assumptions: "15% receipt reach · 8% conversion · $3.99 avg ticket",
+        },
       },
     };
 
@@ -1985,6 +2041,7 @@ export async function GET(request: NextRequest) {
       chat_metrics,
       dealers,
       auction_metrics,
+      revenue,
     });
   } catch (err) {
     console.error("Admin summary error:", err);
