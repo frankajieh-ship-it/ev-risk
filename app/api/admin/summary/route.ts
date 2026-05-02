@@ -574,12 +574,12 @@ export async function GET(request: NextRequest) {
       ? (paidPurchases.length / allReceipts.length) * 100
       : 0;
 
-    // Potential revenue: apply realistic funnel assumptions grounded in current traffic
-    // Assumes 5% of human sessions reach a receipt, 3% of those convert at $3.99
-    // (conservative — actual conversion could be higher once paywall is proven)
+    // Potential revenue: use actual receipt→paid conversion rate when available,
+    // fall back to 3% floor if there's no real data yet.
     const humanSessionsPerDay = humanSessions / windowDays;
     const projectedReceiptsPerDay = humanSessionsPerDay * 0.05;
-    const projectedPaidPerDay = projectedReceiptsPerDay * 0.03;
+    const actualConversionRate = receiptConversionRate > 0 ? receiptConversionRate / 100 : 0.03;
+    const projectedPaidPerDay = projectedReceiptsPerDay * actualConversionRate;
     const projectedRevenuePerDay = projectedPaidPerDay * 3.99;
 
     const revenue = {
@@ -618,13 +618,13 @@ export async function GET(request: NextRequest) {
         projected_revenue_per_day: Math.round(projectedRevenuePerDay * 100) / 100,
         projected_revenue_per_week: Math.round(projectedRevenuePerDay * 7 * 100) / 100,
         projected_revenue_per_month: Math.round(projectedRevenuePerDay * 30 * 100) / 100,
-        assumptions: "5% of human sessions reach receipt · 3% paywall conversion · $3.99 avg ticket",
+        assumptions: `5% of human sessions reach receipt · ${Math.round(actualConversionRate * 1000) / 10}% paywall conversion (${receiptConversionRate > 0 ? "actual" : "estimated"}) · $3.99 avg ticket`,
         upside_scenario: {
-          // 15% reach, 8% conversion — achievable with Reddit traffic + good copy
-          projected_revenue_per_day: Math.round(humanSessionsPerDay * 0.15 * 0.08 * 3.99 * 100) / 100,
-          projected_revenue_per_week: Math.round(humanSessionsPerDay * 0.15 * 0.08 * 3.99 * 7 * 100) / 100,
-          projected_revenue_per_month: Math.round(humanSessionsPerDay * 0.15 * 0.08 * 3.99 * 30 * 100) / 100,
-          assumptions: "15% receipt reach · 8% conversion · $3.99 avg ticket",
+          // 15% reach, 2× actual conversion — achievable with Reddit traffic + good copy
+          projected_revenue_per_day: Math.round(humanSessionsPerDay * 0.15 * Math.min(actualConversionRate * 2, 0.20) * 3.99 * 100) / 100,
+          projected_revenue_per_week: Math.round(humanSessionsPerDay * 0.15 * Math.min(actualConversionRate * 2, 0.20) * 3.99 * 7 * 100) / 100,
+          projected_revenue_per_month: Math.round(humanSessionsPerDay * 0.15 * Math.min(actualConversionRate * 2, 0.20) * 3.99 * 30 * 100) / 100,
+          assumptions: `15% receipt reach · ${Math.round(Math.min(actualConversionRate * 2, 0.20) * 1000) / 10}% conversion (2× actual, capped 20%) · $3.99 avg ticket`,
         },
       },
     };
