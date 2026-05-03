@@ -1,25 +1,212 @@
 "use client";
 
 import { useState, useEffect, useMemo, Suspense } from "react";
-import { motion } from "framer-motion";
-import { Loader2, Zap, ExternalLink } from "lucide-react";
+import { Loader2, ExternalLink, Zap, AlertTriangle, TrendingUp, Battery, Radio } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
-import NewsCard, { type NewsArticle, type NewsCategory } from "@/components/NewsCard";
+import { type NewsArticle, type NewsCategory } from "@/components/NewsCard";
 
-const HOURS_OPTIONS = [
-  { label: "Last 48h", value: 48 },
-  { label: "Last 7 days", value: 168 },
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const CATEGORY_TABS: {
+  label: string;
+  value: NewsCategory | "all";
+  icon: React.ReactNode;
+  description: string;
+}[] = [
+  { label: "All",         value: "all",              icon: <Radio className="w-3.5 h-3.5" />,         description: "All EV news" },
+  { label: "Recalls",     value: "recall",            icon: <AlertTriangle className="w-3.5 h-3.5" />, description: "Safety recalls & defects" },
+  { label: "Used Market", value: "used_market",       icon: <TrendingUp className="w-3.5 h-3.5" />,    description: "Prices & depreciation" },
+  { label: "Charging",    value: "charging_network",  icon: <Zap className="w-3.5 h-3.5" />,           description: "Network & infrastructure" },
+  { label: "Ownership",   value: "routine_impact",    icon: <Battery className="w-3.5 h-3.5" />,       description: "Battery, range & daily use" },
 ];
 
-const CATEGORY_TABS: { label: string; value: NewsCategory | "all"; description: string }[] = [
-  { label: "All",            value: "all",             description: "Everything across all categories" },
-  { label: "🔴 Recalls",     value: "recall",          description: "NHTSA recalls, safety defects, OTA fixes" },
-  { label: "💲 Used Market", value: "used_market",     description: "Used EV prices, depreciation, CPO" },
-  { label: "⚡ Charging",    value: "charging_network", description: "Network expansions, outages, reliability" },
-  { label: "📡 Routine",     value: "routine_impact",  description: "Battery, range, daily ownership" },
-];
+const CATEGORY_COLOR: Record<string, string> = {
+  recall:           "bg-red-50 text-red-700 border-red-200",
+  used_market:      "bg-amber-50 text-amber-700 border-amber-200",
+  charging_network: "bg-blue-50 text-blue-700 border-blue-200",
+  routine_impact:   "bg-gray-100 text-gray-600 border-gray-200",
+};
+
+const CATEGORY_LABEL: Record<string, string> = {
+  recall:           "Recall",
+  used_market:      "Used Market",
+  charging_network: "Charging",
+  routine_impact:   "Ownership",
+};
+
+const EFFECT_LABELS: Record<string, string> = {
+  battery_daily_use:   "Battery",
+  charging:            "Charging",
+  range:               "Range",
+  recall:              "Recall",
+  winter:              "Winter",
+  infrastructure:      "Infrastructure",
+  cost:                "Cost",
+  software:            "Software",
+  used_pricing:        "Used Price",
+  depreciation:        "Depreciation",
+  network_reliability: "Reliability",
+};
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const h = Math.floor(diff / 3_600_000);
+  if (h < 1) return "just now";
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "yesterday" : `${d}d ago`;
+}
+
+// ---------------------------------------------------------------------------
+// Inline article card — light news-blog style
+// ---------------------------------------------------------------------------
+
+function ArticleCard({ article, featured = false }: { article: NewsArticle; featured?: boolean }) {
+  const catLabel = article.category ? CATEGORY_LABEL[article.category] : null;
+  const catColor = article.category ? CATEGORY_COLOR[article.category] : "";
+  const isRecall = article.category === "recall";
+  const isHighImpact = article.impact_score >= 80;
+
+  if (featured) {
+    return (
+      <a
+        href={article.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group block bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md transition-shadow"
+      >
+        <div className="p-6 md:p-8">
+          <div className="flex items-center gap-2 mb-3">
+            {catLabel && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${catColor}`}>
+                {catLabel}
+              </span>
+            )}
+            {isRecall && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-red-50 text-red-700 border-red-200 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" /> Safety Alert
+              </span>
+            )}
+            {isHighImpact && !isRecall && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-green-50 text-green-700 border-green-200">
+                Top Story
+              </span>
+            )}
+            <span className="text-xs text-gray-400 ml-auto">{timeAgo(article.scored_at)}</span>
+          </div>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-snug mb-3 group-hover:text-green-700 transition-colors">
+            {article.title}
+          </h2>
+          {article.ai_summary && (
+            <p className="text-gray-500 leading-relaxed mb-4">{article.ai_summary}</p>
+          )}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{article.source}</span>
+              {article.key_routine_effects && article.key_routine_effects.length > 0 && (
+                <div className="flex gap-1.5">
+                  {article.key_routine_effects.slice(0, 3).map((e) => (
+                    <span key={e} className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                      {EFFECT_LABELS[e] ?? e.replace(/_/g, " ")}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <span className="text-sm font-semibold text-green-600 flex items-center gap-1 group-hover:gap-2 transition-all">
+              Read <ExternalLink className="w-3.5 h-3.5" />
+            </span>
+          </div>
+        </div>
+      </a>
+    );
+  }
+
+  return (
+    <a
+      href={article.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:shadow-sm hover:border-gray-300 transition-all"
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1.5">
+          {catLabel && (
+            <span className={`text-[10px] font-semibold px-1.5 py-0 rounded-full border ${catColor}`}>
+              {catLabel}
+            </span>
+          )}
+          <span className="text-xs text-gray-400">{timeAgo(article.scored_at)}</span>
+          <span className="text-xs text-gray-300">·</span>
+          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">{article.source}</span>
+        </div>
+        <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug group-hover:text-green-700 transition-colors">
+          {article.title}
+        </h3>
+        {article.ai_summary && (
+          <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{article.ai_summary}</p>
+        )}
+        {article.key_routine_effects && article.key_routine_effects.length > 0 && (
+          <div className="flex gap-1.5 mt-2">
+            {article.key_routine_effects.slice(0, 3).map((e) => (
+              <span key={e} className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-50 text-gray-400 border border-gray-100">
+                {EFFECT_LABELS[e] ?? e.replace(/_/g, " ")}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-green-500 flex-shrink-0 mt-0.5 transition-colors" />
+    </a>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Inline CTA nudge
+// ---------------------------------------------------------------------------
+
+function CtaNudge({ context }: { context: "recall" | "used_market" | "generic" }) {
+  const copy = {
+    recall: {
+      headline: "See if your listing has open recalls",
+      sub: "Paste a CarGurus or AutoTrader URL — we check NHTSA, battery, title, and pricing in seconds.",
+      cta: "Check a listing free",
+    },
+    used_market: {
+      headline: "Used EV prices are shifting — know if your deal still holds",
+      sub: "Get a live price comparison against similar listings before you make an offer.",
+      cta: "Analyze a listing free",
+    },
+    generic: {
+      headline: "See how this affects the listing you're watching",
+      sub: "Paste any CarGurus or AutoTrader URL and get a full risk receipt — recalls, price, battery, negotiation scripts.",
+      cta: "Analyze a listing free",
+    },
+  }[context];
+
+  return (
+    <div className="my-6 p-5 rounded-2xl bg-green-50 border border-green-200 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-gray-900 mb-0.5">{copy.headline}</p>
+        <p className="text-xs text-gray-500 leading-relaxed">{copy.sub}</p>
+      </div>
+      <Link
+        href="/"
+        className="flex-shrink-0 px-4 py-2 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors whitespace-nowrap"
+      >
+        {copy.cta} →
+      </Link>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
 
 function NewsPageInner() {
   const searchParams = useSearchParams();
@@ -30,21 +217,15 @@ function NewsPageInner() {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [hoursBack, setHoursBack] = useState(168);
-  const [minScore, setMinScore] = useState(60);
-  const [postWorthyOnly, setPostWorthyOnly] = useState(false);
   const [activeCategory, setActiveCategory] = useState<NewsCategory | "all">(initialCategory);
 
-  const activeTab = CATEGORY_TABS.find((t) => t.value === activeCategory) ?? CATEGORY_TABS[0];
-
   useEffect(() => {
-    const loadArticles = async () => {
+    const load = async () => {
       setLoading(true);
       setError(null);
       const catParam = activeCategory !== "all" ? `&category=${activeCategory}` : "";
       try {
-        const r = await fetch(`/api/news?hours=${hoursBack}&limit=50${catParam}`);
+        const r = await fetch(`/api/news?hours=168&limit=50${catParam}`);
         const data: { articles?: NewsArticle[]; error?: string } = await r.json();
         if (data.error) throw new Error(data.error);
         setArticles(data.articles ?? []);
@@ -54,205 +235,175 @@ function NewsPageInner() {
         setLoading(false);
       }
     };
-    loadArticles();
-  }, [hoursBack, activeCategory]);
+    load();
+  }, [activeCategory]);
 
   function handleCategoryChange(cat: NewsCategory | "all") {
     setActiveCategory(cat);
     const params = new URLSearchParams(searchParams.toString());
-    if (cat === "all") {
-      params.delete("category");
-    } else {
-      params.set("category", cat);
-    }
+    if (cat === "all") params.delete("category");
+    else params.set("category", cat);
     router.replace(`/news?${params.toString()}`, { scroll: false });
   }
 
-  const filtered = useMemo(() =>
-    articles.filter(
-      (a) => a.impact_score >= minScore && (!postWorthyOnly || a.post_worthy)
-    ),
-    [articles, minScore, postWorthyOnly]
+  // Sort by impact score desc (API already does this, but be explicit)
+  const sorted = useMemo(() =>
+    [...articles].filter(a => a.impact_score >= 60).sort((a, b) => b.impact_score - a.impact_score),
+    [articles]
   );
 
-  return (
-    <div className="min-h-screen bg-[#0d1117]">
+  const featured = sorted[0] ?? null;
+  const rest = sorted.slice(1);
 
-      {/* ── Nav ───────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 bg-[#0d1117]/90 backdrop-blur-md border-b border-white/[0.06]">
-        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between">
+  // Pick a contextual CTA nudge based on active category
+  const ctaContext: "recall" | "used_market" | "generic" =
+    activeCategory === "recall" ? "recall" :
+    activeCategory === "used_market" ? "used_market" : "generic";
+
+  const nudgeInsertAt = 4; // insert CTA after 4th article in the list
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+
+      {/* ── Nav ── */}
+      <nav className="sticky top-0 z-50 bg-white border-b border-gray-200">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center">
-            <Image
-              src="/offo-logo.png"
-              alt="OFFO"
-              width={200}
-              height={103}
-              className="w-20 sm:w-24 h-auto"
-              priority
-            />
+            <Image src="/offo-logo.png" alt="OFFO" width={200} height={103} className="w-20 h-auto" priority />
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <Link href="/blog" className="hidden sm:block text-sm text-gray-500 hover:text-gray-800 transition-colors">
+              Blog
+            </Link>
             <Link
-              href="/receipt"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#00d97e] text-[#0d1117] text-sm font-semibold hover:bg-[#00c970] transition-colors"
+              href="/"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors"
             >
-              Analyze a Listing
+              Analyze a listing
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* ── Hero header ───────────────────────────────────────── */}
-      <div className="border-b border-white/[0.06]">
-        <div className="max-w-4xl mx-auto px-4 py-10 md:py-14">
-          <div className="flex items-center gap-2 mb-3">
-            <Zap className="w-4 h-4 text-[#00d97e]" />
-            <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-widest">
-              EV News Digest
-            </span>
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight tracking-tight mb-3">
-            What&apos;s happening in the EV world
+      {/* ── Header ── */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-5xl mx-auto px-4 py-8 md:py-12">
+          <p className="text-xs font-semibold text-green-600 uppercase tracking-widest mb-2">EV News</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight mb-2">
+            What&apos;s happening in the used EV market
           </h1>
-          <p className="text-white/40 text-[0.9375rem] leading-relaxed max-w-xl">
-            Recalls, used market shifts, charging network updates, and daily ownership news —
-            scored by AI and updated every morning at 6 AM EST.
+          <p className="text-gray-500 max-w-xl">
+            Recalls, pricing shifts, charging updates, and ownership news — scored by AI and updated every morning.
           </p>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-5xl mx-auto px-4 py-8">
 
-        {/* ── Category tabs ─────────────────────────────────── */}
-        <div className="flex gap-1 overflow-x-auto scrollbar-hide mb-1 -mx-1 px-1">
+        {/* ── Category tabs ── */}
+        <div className="flex gap-1 overflow-x-auto scrollbar-hide mb-8 border-b border-gray-200">
           {CATEGORY_TABS.map((tab) => (
             <button
               key={tab.value}
               onClick={() => handleCategoryChange(tab.value)}
-              className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 flex-shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
                 activeCategory === tab.value
-                  ? "bg-white/[0.10] text-white"
-                  : "text-white/40 hover:text-white/70 hover:bg-white/[0.05]"
+                  ? "border-green-600 text-green-700"
+                  : "border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300"
               }`}
             >
+              {tab.icon}
               {tab.label}
             </button>
           ))}
         </div>
 
-        {/* Active tab description */}
-        <p className="text-xs text-white/25 mb-5 px-1">{activeTab.description}</p>
-
-        {/* ── Filters ───────────────────────────────────────── */}
-        <div className="flex flex-wrap items-center gap-3 mb-6 px-4 py-3 bg-white/[0.03] rounded-2xl border border-white/[0.06]">
-          {/* Time range */}
-          <div className="flex gap-1">
-            {HOURS_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setHoursBack(opt.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  hoursBack === opt.value
-                    ? "bg-white/[0.12] text-white"
-                    : "bg-transparent text-white/40 hover:bg-white/[0.06] hover:text-white/70"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="w-px h-4 bg-white/[0.08]" />
-
-          {/* Min score */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-white/30 whitespace-nowrap">
-              Min score: <span className="text-white/60 font-medium">{minScore}</span>
-            </span>
-            <input
-              type="range"
-              min={50}
-              max={95}
-              step={5}
-              value={minScore}
-              onChange={(e) => setMinScore(Number(e.target.value))}
-              className="w-20 accent-[#00d97e]"
-            />
-          </div>
-
-          <div className="w-px h-4 bg-white/[0.08]" />
-
-          {/* Post-worthy toggle */}
-          <label className="flex items-center gap-1.5 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={postWorthyOnly}
-              onChange={(e) => setPostWorthyOnly(e.target.checked)}
-              className="rounded accent-[#00d97e]"
-            />
-            <span className="text-xs text-white/40">Post-worthy only</span>
-          </label>
-        </div>
-
-        {/* ── Content ───────────────────────────────────────── */}
+        {/* ── Content ── */}
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-20 text-white/20">
+          <div className="flex items-center justify-center gap-2 py-24 text-gray-400">
             <Loader2 className="w-5 h-5 animate-spin" />
-            <span className="text-sm">Loading digest…</span>
+            <span className="text-sm">Loading…</span>
           </div>
         ) : error ? (
-          <div className="text-center py-20 text-red-400/70 text-sm">{error}</div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
-              <Zap className="w-5 h-5 text-white/20" />
-            </div>
-            <p className="text-sm font-medium text-white/30">No articles in this window.</p>
-            <p className="text-xs text-white/20 mt-1">Try expanding to 7 days or lowering the minimum score.</p>
-            <p className="text-xs text-white/15 mt-4">Analysis runs daily at 6 AM EST.</p>
+          <div className="text-center py-24 text-red-500 text-sm">{error}</div>
+        ) : sorted.length === 0 ? (
+          <div className="text-center py-24">
+            <p className="text-gray-400 text-sm">No articles found. Check back tomorrow.</p>
           </div>
         ) : (
-          <motion.div
-            key={`${activeCategory}-${hoursBack}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-3"
-          >
-            {filtered.map((article, i) => (
-              <motion.div
-                key={article.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03, duration: 0.2 }}
-              >
-                <NewsCard article={article} variant="default" />
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-        {/* ── Footer note ───────────────────────────────────── */}
-        {!loading && !error && filtered.length > 0 && (
-          <p className="text-center text-xs text-white/15 mt-10 pb-8">
-            {filtered.length} article{filtered.length !== 1 ? "s" : ""} · Scored by OFFO AI · Updated daily at 6 AM EST
-          </p>
-        )}
+            {/* ── Left column: main feed ── */}
+            <div className="lg:col-span-2 space-y-4">
+              {featured && <ArticleCard article={featured} featured />}
 
-        {/* ── CTA ───────────────────────────────────────────── */}
-        {!loading && !error && (
-          <div className="mt-8 mb-4 p-5 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-white/70 mb-0.5">Buying a used EV?</p>
-              <p className="text-xs text-white/30">Paste any listing URL and get an instant deal receipt — risk score, hidden issues, and what to watch out for.</p>
+              {rest.map((article, i) => (
+                <div key={article.id}>
+                  {i === nudgeInsertAt && (
+                    <CtaNudge context={ctaContext} />
+                  )}
+                  <ArticleCard article={article} />
+                </div>
+              ))}
+
+              {rest.length < nudgeInsertAt && (
+                <CtaNudge context={ctaContext} />
+              )}
             </div>
-            <Link
-              href="/receipt"
-              className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#00d97e] text-[#0d1117] text-sm font-semibold hover:bg-[#00c970] transition-colors whitespace-nowrap"
-            >
-              Analyze a listing <ExternalLink className="w-3.5 h-3.5" />
-            </Link>
+
+            {/* ── Right sidebar ── */}
+            <aside className="space-y-6">
+
+              {/* Sticky analyze CTA */}
+              <div className="sticky top-20">
+                <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                  <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">Free tool</p>
+                  <h3 className="text-base font-bold text-gray-900 mb-1.5">
+                    See how today&apos;s news affects your listing
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-4 leading-relaxed">
+                    Paste any CarGurus or AutoTrader URL. We pull recalls, battery health, title history, price vs. comparables, and 3 negotiation scripts.
+                  </p>
+                  <Link
+                    href="/"
+                    className="block w-full text-center py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors"
+                  >
+                    Analyze a listing free →
+                  </Link>
+                  <p className="text-xs text-gray-400 text-center mt-2">No account needed · Takes 30 seconds</p>
+                </div>
+
+                {/* Category quick-jump */}
+                <div className="mt-4 bg-white border border-gray-200 rounded-2xl p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Browse by topic</p>
+                  <div className="space-y-1">
+                    {CATEGORY_TABS.filter(t => t.value !== "all").map((tab) => (
+                      <button
+                        key={tab.value}
+                        onClick={() => handleCategoryChange(tab.value)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                          activeCategory === tab.value
+                            ? "bg-green-50 text-green-700 font-medium"
+                            : "text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {tab.icon}
+                        <span>{tab.label}</span>
+                        <span className="ml-auto text-xs text-gray-400">{tab.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </aside>
           </div>
+        )}
+
+        {/* ── Footer note ── */}
+        {!loading && !error && sorted.length > 0 && (
+          <p className="text-center text-xs text-gray-400 mt-12 pb-4">
+            {sorted.length} articles · Scored by OFFO AI · Updated daily at 6 AM EST
+          </p>
         )}
       </div>
     </div>
@@ -262,8 +413,8 @@ function NewsPageInner() {
 export default function NewsPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-[#00d97e] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-green-600 animate-spin" />
       </div>
     }>
       <NewsPageInner />
