@@ -12,7 +12,6 @@ import { loadRangeDeltaData } from "@/lib/data";
 import { batchScoreVehicles } from "@/lib/batch-score-vehicles";
 import { buildDealerQuestionsV2 } from "@/lib/dealer-questions";
 import { computeOwnershipRisk } from "@/lib/compute-ownership-risk";
-import { guardTurnstile } from "@/lib/turnstile";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { getWeatherClient, inferWeatherFallback } from "@/lib/weather-client";
@@ -86,10 +85,6 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-
-    // Bot protection
-    const blocked = await guardTurnstile(body, clientIP, "/api/recommendations");
-    if (blocked) return blocked;
 
     // Rate limit
     const burst = await recLimiter.checkAsync(clientIP);
