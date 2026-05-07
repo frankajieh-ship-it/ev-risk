@@ -247,6 +247,7 @@ export default function ReceiptInputCard({
   useEffect(() => {
     if (prefillVin && !vinValue) {
       setVinValue(prefillVin);
+      setVinFilled(true);
     }
   }, [prefillVin]); // eslint-disable-line react-hooks/exhaustive-deps
 
