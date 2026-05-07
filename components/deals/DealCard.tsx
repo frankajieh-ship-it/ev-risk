@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ExternalLink, Bookmark, BookmarkCheck } from "lucide-react";
+import { ExternalLink, Bookmark, BookmarkCheck, Search } from "lucide-react";
 import { addToAnonGarage } from "@/lib/anon-garage";
+import { getCarGurusUrl } from "@/lib/cargurus-links";
 import { useAuth } from "@/hooks/useAuth";
 import LoginModal from "@/components/auth/LoginModal";
 
@@ -251,15 +252,28 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
             {preview ? "Run Analysis" : "Run Full Analysis"}
           </Link>
           {!preview && (
-            <a
-              href={deal.listing_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center w-9 h-9 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/40 rounded-lg transition-colors flex-shrink-0"
-              title="View original listing"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            <>
+              {deal.make && deal.model && (
+                <a
+                  href={getCarGurusUrl(deal.make, deal.model, { year: deal.year ?? undefined })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center w-9 h-9 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/40 rounded-lg transition-colors flex-shrink-0"
+                  title="Search on CarGurus"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                </a>
+              )}
+              <a
+                href={deal.listing_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center w-9 h-9 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/40 rounded-lg transition-colors flex-shrink-0"
+                title="View original listing"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </>
           )}
         </div>
       </div>
