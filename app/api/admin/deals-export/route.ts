@@ -29,8 +29,6 @@ const HEADERS = [
   "title_status",
   "battery_report",
   "service_records",
-  "verdict",
-  "risk_flags",
   "photo_url",
   "url_domain",
 ];
@@ -75,8 +73,6 @@ export async function GET(request: NextRequest) {
       "clean",
       "no",
       "yes",
-      "GREEN",
-      "Battery health not disclosed;Service history incomplete",
       "",
       "cargurus.com",
     ].join(",");
@@ -96,9 +92,9 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from("curated_deals")
-    .select("listing_url, vehicle_label, year, make, model, trim, price, mileage, location, vin, title_status, battery_report, service_records, verdict, risk_flags, photo_url, url_domain")
+    .select("listing_url, vehicle_label, year, make, model, trim, price, mileage, location, vin, title_status, battery_report, service_records, photo_url, url_domain")
     .eq("is_active", true)
-    .order("deal_quality_score", { ascending: false })
+    .order("price", { ascending: true })
     .limit(500);
 
   if (error) return new NextResponse("Query failed", { status: 500 });

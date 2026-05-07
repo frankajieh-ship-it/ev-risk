@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { RefreshCw, ArrowUpDown, ExternalLink, Upload, Download, Link2, Cpu } from "lucide-react";
+import { RefreshCw, ArrowUpDown, ExternalLink, Upload, Download, Link2 } from "lucide-react";
 import Link from "next/link";
 
 interface VinAuditSummary {
@@ -27,12 +27,6 @@ interface DealRow {
   service_records: "yes" | "no" | null;
   vin_audit_summary: VinAuditSummary | null;
   extracted_signals: string[] | null;
-  verdict: "GREEN" | "YELLOW" | "RED" | null;
-  fit_score: number | null;
-  evidence_score: number | null;
-  risk_points: number | null;
-  deal_quality_score: number | null;
-  risk_flags: string[] | null;
   receipt_id: string | null;
   last_analyzed_at: string | null;
   is_active: boolean;
@@ -42,17 +36,11 @@ interface DealRow {
 type SortKey = keyof DealRow;
 type SortDir = "asc" | "desc";
 
-const VERDICT_COLOR: Record<string, string> = {
-  GREEN: "text-emerald-400",
-  YELLOW: "text-yellow-400",
-  RED: "text-red-400",
-};
-
 export default function AdminDealsPage() {
   const [deals, setDeals] = useState<DealRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>("deal_quality_score");
+  const [sortKey, setSortKey] = useState<SortKey>("price");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [filter, setFilter] = useState("");
   const [importStatus, setImportStatus] = useState<string | null>(null);
@@ -60,10 +48,7 @@ export default function AdminDealsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [adminKey, setAdminKey] = useState("");
   const authHeader = adminKey ? `Bearer ${adminKey}` : "";
-  const [rescoring, setRescoring] = useState(false);
   const [extracting, setExtracting] = useState(false);
-  const [generatingReceipts, setGeneratingReceipts] = useState(false);
-  const rescoringPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const extractPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
   const [rescopeDate, setRescopeDate] = useState(todayStr);
@@ -114,19 +99,19 @@ export default function AdminDealsPage() {
     const active = deals.filter((d) => d.is_active).length;
     if (!confirm(`Check all ${active} active listings for sold/removed status? This may take a couple of minutes.`)) return;
     setImportStatus("⏳ Sold check started — table refreshes every 15s...");
-    setRescoring(true);
+    setExtracting(true);
     try {
       await fetch("/api/admin/deals-check-sold", { method: "POST", headers: { Authorization: authHeader } });
-      rescoringPollRef.current = setInterval(fetchDeals, 15000);
+      extractPollRef.current = setInterval(fetchDeals, 15000);
       setTimeout(() => {
-        if (rescoringPollRef.current) clearInterval(rescoringPollRef.current);
-        setRescoring(false);
+        if (extractPollRef.current) clearInterval(extractPollRef.current);
+        setExtracting(false);
         setImportStatus("✓ Sold check complete — check table for deactivated rows");
         fetchDeals();
       }, 3 * 60 * 1000);
     } catch {
       setImportStatus("✗ Failed to start sold check");
-      setRescoring(false);
+      setExtracting(false);
     }
   };
 
@@ -148,76 +133,6 @@ export default function AdminDealsPage() {
       }
     } catch {
       setImportStatus("✗ Backfill failed");
-    }
-  };
-
-  const handleGenerateReceipts = async () => {
-    if (!adminKey) { alert("Enter your admin API key first"); return; }
-    const noReceipt = deals.filter((d) => d.is_active && !d.receipt_id).length;
-    if (noReceipt === 0) { alert("All active deals already have receipts."); return; }
-    if (!confirm(`Generate receipts for up to 10 active deals (${noReceipt} total missing)? This runs AI per deal and may take ~2 min.`)) return;
-    setGeneratingReceipts(true);
-    setImportStatus("⏳ Generating receipts...");
-    try {
-      const res = await fetch("/api/admin/deals-generate-receipts", {
-        method: "POST",
-        headers: { Authorization: authHeader },
-      });
-      const data = await res.json();
-      if (data.ok) {
-        const errSample = data.errors?.length ? ` | First error: ${data.errors[0]}` : "";
-        setImportStatus(`✓ Receipts: ${data.generated} generated, ${data.skipped} already cached, ${data.failed} failed (${data.total} processed)${errSample}`);
-        fetchDeals();
-      } else {
-        setImportStatus(`✗ ${data.error}`);
-      }
-    } catch {
-      setImportStatus("✗ Failed to generate receipts");
-    } finally {
-      setGeneratingReceipts(false);
-    }
-  };
-
-  const handleRescoreAll = async () => {
-    if (!adminKey) { alert("Enter your admin API key first"); return; }
-    const since = rescopeOnly && rescopeDate ? rescopeDate : undefined;
-    const scopeLabel = since ? `from ${since}` : `all ${deals.length}`;
-    const rowsInScope = since
-      ? deals.filter((d) => d.created_at && d.created_at.startsWith(since)).length
-      : deals.length;
-    if (!confirm(`Re-score ${rowsInScope} deal${rowsInScope !== 1 ? "s" : ""} ${scopeLabel} with AI? This activates all rescored rows.`)) return;
-    setRescoring(true);
-    setImportStatus(`⏳ Rescore job started${since ? ` for ${since}` : ""} — table refreshes every 15s...`);
-    try {
-      const res = await fetch("/api/admin/deals-rescore-all", {
-        method: "POST",
-        headers: { Authorization: authHeader, "Content-Type": "application/json" },
-        body: JSON.stringify({ since }),
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        setImportStatus(`✗ ${data.error}`);
-        setRescoring(false);
-        return;
-      }
-      // If dev mode returned inline results, show them immediately
-      if (data.rescored !== undefined) {
-        setImportStatus(`✓ Rescored ${data.rescored} deals (${data.failed ?? 0} failed)`);
-        setRescoring(false);
-        fetchDeals();
-        return;
-      }
-      // Prod: poll every 15s for up to 10 minutes
-      rescoringPollRef.current = setInterval(fetchDeals, 15000);
-      setTimeout(() => {
-        if (rescoringPollRef.current) clearInterval(rescoringPollRef.current);
-        setRescoring(false);
-        setImportStatus("✓ Rescore job finished (check Netlify logs for details)");
-        fetchDeals();
-      }, 10 * 60 * 1000);
-    } catch {
-      setImportStatus("✗ Failed to start rescore job");
-      setRescoring(false);
     }
   };
 
@@ -245,7 +160,7 @@ export default function AdminDealsPage() {
       setTimeout(() => {
         if (extractPollRef.current) clearInterval(extractPollRef.current);
         setExtracting(false);
-        setImportStatus("✓ Extraction finished — VIN, title, mileage columns updated. Run Rescore to apply scores.");
+        setImportStatus("✓ Extraction finished — VIN, title, mileage columns updated.");
         fetchDeals();
       }, 10 * 60 * 1000);
     } catch {
@@ -320,8 +235,7 @@ export default function AdminDealsPage() {
     return (
       d.vehicle_label?.toLowerCase().includes(q) ||
       d.make?.toLowerCase().includes(q) ||
-      d.model?.toLowerCase().includes(q) ||
-      d.verdict?.toLowerCase().includes(q)
+      d.model?.toLowerCase().includes(q)
     );
   });
 
@@ -364,7 +278,7 @@ export default function AdminDealsPage() {
             />
             <input
               type="text"
-              placeholder="Filter by make, model, verdict..."
+              placeholder="Filter by make, model..."
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 w-56 focus:outline-none focus:border-[#00d97e]/40"
@@ -396,31 +310,19 @@ export default function AdminDealsPage() {
             </div>
             <button
               onClick={handleExtract}
-              disabled={extracting || rescoring}
-              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${extracting ? "text-blue-400 border-blue-400/20 cursor-not-allowed" : (rescoring ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-blue-400 border-white/[0.08]")}`}
+              disabled={extracting}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${extracting ? "text-blue-400 border-blue-400/20 cursor-not-allowed" : "text-white/40 hover:text-blue-400 border-white/[0.08]"}`}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${extracting ? "animate-spin" : ""}`} />
               {extracting ? "Extracting..." : rescopeOnly && rescopeDate ? `Extract ${rescopeDate.slice(5)}` : "Extract All"}
-            </button>
-            <button
-              onClick={handleRescoreAll}
-              disabled={rescoring}
-              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${rescoring ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}
-            >
-              <Cpu className={`w-3.5 h-3.5 ${rescoring ? "animate-pulse" : ""}`} />
-              {rescoring ? "Rescoring..." : rescopeOnly && rescopeDate ? `Rescore ${rescopeDate.slice(5)} (AI)` : "Rescore All (AI)"}
             </button>
             <button onClick={handleActivateAll}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-emerald-400 border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
               Activate All
             </button>
-            <button onClick={handleCheckSold} disabled={rescoring}
-              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${rescoring ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-red-400 border-white/[0.08]"}`}>
+            <button onClick={handleCheckSold} disabled={extracting}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${extracting ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-red-400 border-white/[0.08]"}`}>
               Check Sold
-            </button>
-            <button onClick={handleGenerateReceipts} disabled={rescoring || generatingReceipts}
-              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${(rescoring || generatingReceipts) ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}>
-              {generatingReceipts ? "Generating..." : "Generate Receipts"}
             </button>
             <button onClick={handleBackfillPhotos}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#00d97e] border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
@@ -474,12 +376,6 @@ export default function AdminDealsPage() {
                 <th className="text-center px-3 py-3"><SortBtn k="title_status" label="Title" /></th>
                 <th className="text-center px-3 py-3">Bat. Report</th>
                 <th className="text-center px-3 py-3">Svc Records</th>
-                <th className="text-center px-3 py-3"><SortBtn k="verdict" label="Verdict" /></th>
-                <th className="text-right px-3 py-3"><SortBtn k="fit_score" label="Fit" /></th>
-                <th className="text-right px-3 py-3"><SortBtn k="evidence_score" label="Evidence" /></th>
-                <th className="text-right px-3 py-3"><SortBtn k="risk_points" label="Risk Pts" /></th>
-                <th className="text-right px-3 py-3"><SortBtn k="deal_quality_score" label="Quality" /></th>
-                <th className="text-left px-3 py-3 min-w-[180px]">Flags</th>
                 <th className="text-center px-3 py-3"><SortBtn k="is_active" label="Active" /></th>
                 <th className="px-3 py-3"></th>
               </tr>
@@ -488,7 +384,7 @@ export default function AdminDealsPage() {
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="border-b border-white/[0.04]">
-                    {Array.from({ length: 16 }).map((__, j) => (
+                    {Array.from({ length: 10 }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-3 bg-white/[0.04] rounded animate-pulse" />
                       </td>
@@ -497,7 +393,7 @@ export default function AdminDealsPage() {
                 ))
               ) : sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={16} className="text-center py-12 text-white/30">No deals found</td>
+                  <td colSpan={10} className="text-center py-12 text-white/30">No deals found</td>
                 </tr>
               ) : (
                 sorted.map((d) => (
@@ -554,22 +450,6 @@ export default function AdminDealsPage() {
                         : d.service_records === "no"
                         ? <span className="text-red-400">no</span>
                         : <span className="text-white/20">—</span>}
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      <span className={`font-semibold ${d.verdict ? VERDICT_COLOR[d.verdict] : "text-white/30"}`}>
-                        {d.verdict ?? "—"}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-right font-mono">
-                      <span className={d.fit_score != null ? (d.fit_score >= 72 ? "text-emerald-400" : d.fit_score >= 45 ? "text-yellow-400" : "text-red-400") : "text-white/30"}>
-                        {d.fit_score ?? "—"}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-right font-mono text-white/60">{d.evidence_score ?? "—"}</td>
-                    <td className="px-3 py-3 text-right font-mono text-white/60">{d.risk_points ?? "—"}</td>
-                    <td className="px-3 py-3 text-right font-mono text-white/70 font-semibold">{d.deal_quality_score ?? "—"}</td>
-                    <td className="px-3 py-3 text-white/30 text-[10px] max-w-[200px]">
-                      <div className="line-clamp-2">{d.risk_flags?.join(", ") ?? "—"}</div>
                     </td>
                     <td className="px-3 py-3 text-center">
                       <button
