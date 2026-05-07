@@ -461,7 +461,6 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row gap-3 max-w-2xl mx-auto">
             <input
               id="listing-input"
-              data-tutorial="url-input"
               type="text"
               value={homeInput}
               onChange={(e) => setHomeInput(e.target.value)}
@@ -471,7 +470,6 @@ export default function Home() {
               autoFocus
             />
             <button
-              data-tutorial="analyze-btn"
               onClick={handleHomeSubmit}
               disabled={!homeInputValid}
               className={`px-7 py-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all whitespace-nowrap ${
