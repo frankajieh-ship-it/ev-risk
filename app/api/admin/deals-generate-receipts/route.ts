@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       if (!data.success || !data.receipt_id) {
         const reason = (data as Record<string, unknown>).error ?? (data as Record<string, unknown>).message ?? JSON.stringify(data);
         console.warn(`[deals-generate-receipts] No receipt for ${row.listing_url}: HTTP ${res.status} — ${reason}`);
-        errors.push(`${row.vehicle_label ?? row.listing_url}: HTTP ${res.status} — ${reason}`);
+        errors.push(`${row.listing_url}: HTTP ${res.status} — ${reason}`);
         failed++;
         continue;
       }
