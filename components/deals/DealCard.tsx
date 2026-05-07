@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ExternalLink, Bookmark, BookmarkCheck, Search } from "lucide-react";
+import { Bookmark, BookmarkCheck, Search } from "lucide-react";
 import { addToAnonGarage } from "@/lib/anon-garage";
 import { getCarGurusUrl } from "@/lib/cargurus-links";
 import { useAuth } from "@/hooks/useAuth";
@@ -244,36 +244,23 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
         )}
 
         {/* Actions */}
-        <div className="mt-auto flex gap-2 pt-1">
+        <div className="mt-auto flex flex-col gap-1.5 pt-1">
           <Link
             href={`/receipt?url=${encodeURIComponent(deal.listing_url)}${deal.vin ? `&vin=${encodeURIComponent(deal.vin)}` : ""}&src=deal_watch`}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg transition-colors bg-[#00d97e]/10 hover:bg-[#00d97e]/20 border border-[#00d97e]/20 text-[#00d97e]"
+            className="flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg transition-colors bg-[#00d97e]/10 hover:bg-[#00d97e]/20 border border-[#00d97e]/20 text-[#00d97e]"
           >
-            {preview ? "Run Analysis" : "Run Full Analysis"}
+            Run Analysis
           </Link>
-          {!preview && (
-            <>
-              {deal.make && deal.model && (
-                <a
-                  href={getCarGurusUrl(deal.make, deal.model, { year: deal.year ?? undefined })}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center w-9 h-9 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/40 rounded-lg transition-colors flex-shrink-0"
-                  title="Search on CarGurus"
-                >
-                  <Search className="w-3.5 h-3.5" />
-                </a>
-              )}
-              <a
-                href={deal.listing_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center w-9 h-9 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/40 rounded-lg transition-colors flex-shrink-0"
-                title="View original listing"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </>
+          {deal.make && deal.model && (
+            <a
+              href={getCarGurusUrl(deal.make, deal.model, { year: deal.year ?? undefined })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg transition-colors bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/50"
+            >
+              <Search className="w-3 h-3" />
+              CarGurus
+            </a>
           )}
         </div>
       </div>
