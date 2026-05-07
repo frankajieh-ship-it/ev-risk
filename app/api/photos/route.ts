@@ -193,6 +193,9 @@ export async function GET(request: NextRequest) {
   const rawModel = p.get("model") || undefined;
   const year = p.get("year") ? Number(p.get("year")) : undefined;
   const skipStatic = p.get("skip_static") === "1";
+  // no_market=1: stop after static/VinAudit tiers — never call Auto.dev market listings.
+  // Use this on receipt pages where wrong-car images are worse than no image.
+  const noMarket = p.get("no_market") === "1";
 
   if (!vin && !make) {
     return NextResponse.json({ photo_urls: [] });
@@ -230,8 +233,12 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 4. Auto.dev listing photos — last resort; apply strict make+model+year filtering
-  //    to prevent wrong-car images from market listing data.
+  // 4. Auto.dev listing photos — last resort; apply strict make+model+year filtering.
+  //    Skipped when no_market=1 (e.g. receipt page fallbacks) to prevent wrong-car images.
+  if (noMarket) {
+    return NextResponse.json({ photo_urls: [], source: "none" });
+  }
+
   const { make: normalizedMake, model } = normalizeForAutodev(make, rawModel);
   const result = await searchListings({ vin, make: normalizedMake, model, year, limit: 10 });
 

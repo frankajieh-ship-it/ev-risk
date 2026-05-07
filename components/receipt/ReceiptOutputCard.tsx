@@ -178,6 +178,7 @@ export default function ReceiptOutputCard({
     params.set("make", ls.make);
     if (ls.model) params.set("model", ls.model);
     if (ls.year) params.set("year", String(ls.year));
+    params.set("no_market", "1"); // never use Auto.dev market listings on receipt page
     const key = photosKey;
     fetch(`/api/photos?${params.toString()}`)
       .then((r) => r.json())
@@ -358,32 +359,19 @@ export default function ReceiptOutputCard({
                   const ls = receipt.listing_summary;
                   if (!ls?.make) { setPhotoOverride({ key: photosKey, urls: [] }); return; }
                   const key = photosKey;
-                  // First retry: skip static map, try VinAudit + Auto.dev
-                  const params = new URLSearchParams();
-                  params.set("make", ls.make);
-                  if (ls.model) params.set("model", ls.model);
-                  if (ls.year) params.set("year", String(ls.year));
-                  params.set("skip_static", "1");
-                  fetch(`/api/photos?${params.toString()}`)
+                  // On image load failure: fall back to make-only static photo (MAKE_FALLBACK_MAP).
+                  // Never use skip_static + Auto.dev here — market listing photos from Auto.dev
+                  // can be wrong-car images (e.g. Tesla appearing on a Hyundai Kona receipt)
+                  // because model filtering is imperfect on unstructured listing data.
+                  const fallbackParams = new URLSearchParams();
+                  fallbackParams.set("make", ls.make);
+                  fetch(`/api/photos?${fallbackParams.toString()}`)
                     .then((r) => r.json())
-                    .then((data) => {
-                      if (data.photo_urls?.length > 0) {
-                        setPhotoOverride({ key, urls: data.photo_urls });
-                        setPhotoIndex(0);
-                      } else {
-                        // Second retry: make-only — hits MAKE_FALLBACK_MAP for a same-make photo
-                        const fallbackParams = new URLSearchParams();
-                        fallbackParams.set("make", ls.make);
-                        fetch(`/api/photos?${fallbackParams.toString()}`)
-                          .then((r) => r.json())
-                          .then((d) => {
-                            setPhotoOverride({ key, urls: d.photo_urls ?? [] });
-                            setPhotoIndex(0);
-                          })
-                          .catch(() => setPhotoOverride({ key, urls: [] }));
-                      }
+                    .then((d) => {
+                      setPhotoOverride({ key, urls: d.photo_urls ?? [] });
+                      setPhotoIndex(0);
                     })
-                    .catch(() => setPhotoOverride({ key: photosKey, urls: [] }));
+                    .catch(() => setPhotoOverride({ key, urls: [] }));
                 }}
               />
               {/* Gradient overlay so text below stays readable */}
