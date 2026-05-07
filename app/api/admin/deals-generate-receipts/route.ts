@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
         receipt_id?: string;
         source?: string;
         generation_status?: string;
+        receipt?: { verdict?: string };
       };
 
       if (!data.success || !data.receipt_id) {
@@ -99,9 +100,13 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      const receiptVerdict = data.receipt?.verdict;
       const { error: updateErr } = await supabase
         .from("curated_deals")
-        .update({ receipt_id: data.receipt_id })
+        .update({
+          receipt_id: data.receipt_id,
+          ...(receiptVerdict ? { verdict: receiptVerdict } : {}),
+        })
         .eq("id", row.id);
 
       if (updateErr) {

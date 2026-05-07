@@ -43,14 +43,26 @@ async function checkSold() {
         signal: AbortSignal.timeout(30000),
       });
 
-      const data = await res.json() as { success: boolean; diagnostics?: { failureReason?: string } };
+      const data = await res.json() as {
+        success: boolean;
+        diagnostics?: { failureReason?: string };
+        partial_fields?: { make?: string; year?: number };
+      };
 
-      if (!data.success && data.diagnostics?.failureReason === "listing_sold") {
-        console.log(`[check-sold] Deactivating sold listing: ${row.vehicle_label} — ${row.listing_url}`);
+      const reason = data.diagnostics?.failureReason;
+      const isConfirmedSold = !data.success && reason === "listing_sold";
+      // JS-rendered sold pages often come back as empty_response or timeout with no vehicle data
+      const isEffectivelyGone = !data.success &&
+        (reason === "empty_response" || reason === "timeout") &&
+        !data.partial_fields?.make && !data.partial_fields?.year;
+
+      if (isConfirmedSold || isEffectivelyGone) {
+        const why = isConfirmedSold ? "listing_sold" : `effectively_gone (${reason})`;
+        console.log(`[check-sold] Deactivating ${why}: ${row.vehicle_label} — ${row.listing_url}`);
         await supabase.from("curated_deals").update({ is_active: false }).eq("id", row.id);
         deactivated++;
       } else {
-        console.log(`[check-sold] Still active: ${row.vehicle_label} (${data.diagnostics?.failureReason ?? "ok"})`);
+        console.log(`[check-sold] Still active: ${row.vehicle_label} (${reason ?? "ok"})`);
       }
     } catch (err) {
       console.warn(`[check-sold] Error checking ${row.listing_url}:`, err instanceof Error ? err.message : err);

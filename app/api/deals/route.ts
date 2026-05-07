@@ -135,6 +135,7 @@ export async function GET(request: NextRequest) {
     .not("price", "is", null)
     .not("vin", "is", null)           // VIN audit required before public surfacing
     .not("title_status", "is", null)  // title must be resolved
+    .not("receipt_id", "is", null)    // only show deals with a stored receipt (verdict on card matches receipt)
     .order(sortCol, { ascending: sortAsc, nullsFirst: false })
     .limit(fetchLimit);
 

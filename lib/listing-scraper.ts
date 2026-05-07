@@ -889,8 +889,7 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
       lowerHtmlSold.includes('this vehicle is no longer listed') ||
       lowerHtmlSold.includes('listing is no longer active') ||
       // CarGurus-specific — MUST check script-stripped HTML only (phrases exist in JS bundle on all pages)
-      lowerNoScripts.includes('looks like that one got away') ||
-      lowerNoScripts.includes('that one got away');
+      /looks?\s+like\s+(?:that\s+)?one\s+got\s+away/i.test(htmlNoScripts);
 
     if (isSold) {
       diagnostics.failureReason = "listing_sold";
