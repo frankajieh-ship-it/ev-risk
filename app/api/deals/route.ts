@@ -125,7 +125,6 @@ export async function GET(request: NextRequest) {
     .not("vehicle_label", "is", null)
     .not("make", "is", null)
     .not("price", "is", null)
-    .not("receipt_id", "is", null)    // only show deals with a stored receipt (verdict on card matches receipt)
     .order(sortCol, { ascending: sortAsc, nullsFirst: false })
     .limit(fetchLimit);
 

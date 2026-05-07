@@ -31,9 +31,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+import socket
 import feedparser
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Cap feedparser HTTP connects at 10 seconds — prevents a hanging RSS server
+# from blocking the entire pipeline indefinitely.
+socket.setdefaulttimeout(10)
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
@@ -376,23 +381,33 @@ def _keyword_override_category(title: str, summary: str, grok_category: str) -> 
 
 def score_articles(articles: list[dict]) -> list[dict]:
     """
-    Run Grok classifier on each article.
+    Run Grok classifier on each article in parallel (8 workers).
     Applies per-category minimum score thresholds.
     Articles that fail scoring are dropped (not saved).
     """
+    total = len(articles)
+    results: list[tuple[dict, Optional[dict]]] = [None] * total  # type: ignore[list-item]
+
+    def _score_one(idx: int, article: dict) -> tuple[int, dict, Optional[dict]]:
+        return idx, article, _grok_classify(article["title"], article["summary"])
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = {pool.submit(_score_one, i, a): i for i, a in enumerate(articles)}
+        completed = 0
+        for future in as_completed(futures):
+            idx, article, result = future.result()
+            results[idx] = (article, result)
+            completed += 1
+            print(f"[news-engine] Scored {completed}/{total}: {article['title'][:60]}...")
+
     scored = []
-    for i, article in enumerate(articles):
-        print(f"[news-engine] Scoring {i+1}/{len(articles)}: {article['title'][:60]}...")
-        result = _grok_classify(article["title"], article["summary"])
+    for article, result in results:
         if result:
             score = int(result.get("impact_score", 0))
-            # Classifier category takes precedence over feed hint
             category = result.get("category") or article.get("feed_category_hint", "routine_impact")
-            # Validate category value
             valid_cats = {"routine_impact", "recall", "used_market", "charging_network"}
             if category not in valid_cats:
                 category = article.get("feed_category_hint", "routine_impact")
-            # Keyword override — corrects systematic Grok misclassification
             category = _keyword_override_category(article["title"], article.get("summary", ""), category)
 
             min_score = MIN_SCORE_BY_CATEGORY.get(category, 65)
@@ -409,8 +424,8 @@ def score_articles(articles: list[dict]) -> list[dict]:
             else:
                 print(f"  [SKIP] Score {score} < threshold {min_score} for {category}")
         else:
-            print(f"  [SKIP] Grok unavailable")
-        time.sleep(0.3)  # rate limit protection
+            print(f"  [SKIP] Grok unavailable for: {article['title'][:60]}")
+
     return scored
 
 
