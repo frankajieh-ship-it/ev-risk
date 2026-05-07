@@ -78,7 +78,10 @@ export async function POST(
     );
   }
 
-  if (data.generation_status !== "full") {
+  // receipt_summary can be generated from a lite receipt (needs only structured fields + signals).
+  // Other sections (reddit_draft, receipt_details, negotiation_deep) require the full AI receipt.
+  const requiresFullReceipt = sectionKey !== "receipt_summary";
+  if (requiresFullReceipt && data.generation_status !== "full") {
     return NextResponse.json(
       { success: false, error: "Receipt core upgrade not yet complete", generation_status: data.generation_status },
       { status: 409 }
