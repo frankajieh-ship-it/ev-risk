@@ -47,6 +47,7 @@ export default function AdminDealsPage() {
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [showFlagged, setShowFlagged] = useState(false);
+  const [generatingReceipts, setGeneratingReceipts] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [adminKey, setAdminKey] = useState("");
   const authHeader = adminKey ? `Bearer ${adminKey}` : "";
@@ -168,6 +169,32 @@ export default function AdminDealsPage() {
     } catch {
       setImportStatus("✗ Failed to start extraction");
       setExtracting(false);
+    }
+  };
+
+  const handleGenerateReceipts = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    const noReceipt = deals.filter((d) => d.is_active && !d.receipt_id).length;
+    if (noReceipt === 0) { alert("All active deals already have receipts"); return; }
+    if (!confirm(`Generate receipts for ${noReceipt} active deals without one? This uses AI credits.`)) return;
+    setGeneratingReceipts(true);
+    setImportStatus("⏳ Generating receipts...");
+    try {
+      const res = await fetch(`/api/admin/deals-generate-receipts?batch=50`, {
+        method: "POST",
+        headers: { Authorization: authHeader },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setImportStatus(`✓ Generated ${data.generated} receipts (${data.failed} failed, ${data.skipped} skipped)`);
+        fetchDeals();
+      } else {
+        setImportStatus(`✗ ${data.error}`);
+      }
+    } catch {
+      setImportStatus("✗ Receipt generation failed");
+    } finally {
+      setGeneratingReceipts(false);
     }
   };
 
@@ -338,6 +365,10 @@ export default function AdminDealsPage() {
             <button onClick={handleBackfillPhotos}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#00d97e] border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
               Backfill Photos
+            </button>
+            <button onClick={handleGenerateReceipts} disabled={generatingReceipts}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${generatingReceipts ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-purple-400 border-white/[0.08]"}`}>
+              {generatingReceipts ? "Generating..." : "Generate Receipts"}
             </button>
             <button onClick={() => handleExport("template")}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#00d97e] border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
