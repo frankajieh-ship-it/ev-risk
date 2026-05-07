@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   if (!supabase) return NextResponse.json({ error: "DB not configured" }, { status: 500 });
 
   const { searchParams } = new URL(request.url);
-  const batch = Math.min(20, Math.max(1, parseInt(searchParams.get("batch") || "20", 10)));
+  const batch = Math.min(50, Math.max(1, parseInt(searchParams.get("batch") || "50", 10)));
 
   // Fetch cheapest active deals with no receipt yet
   const { data: rows, error } = await supabase
