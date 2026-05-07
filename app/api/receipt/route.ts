@@ -194,7 +194,10 @@ export async function POST(request: NextRequest) {
   });
 
   // Run Turnstile, auth chain, and idempotency check concurrently
-  const turnstilePromise = guardTurnstile(body, clientIP, "/api/receipt");
+  // Skip Turnstile for verified server-to-server calls — bot protection is browser-only
+  const turnstilePromise = isServerInternal
+    ? Promise.resolve(null)
+    : guardTurnstile(body, clientIP, "/api/receipt");
 
   const authPromise = (async () => {
     let userId: string | undefined;
@@ -343,9 +346,12 @@ export async function POST(request: NextRequest) {
   try {
   const liteReceipt = buildEnhancedFallbackReceipt(input, ruleSignals, ruleScoring);
 
-  // Save lite receipt to DB
+  // Save lite receipt to DB.
+  // Skip when tokenIsInternal AND token was auto-generated (no explicit rt_ token passed).
+  // Batch generation passes an explicit rt_ token with x-internal-secret — we do want to save those.
+  const skipDbWrite = tokenIsInternal && (receiptToken as string).startsWith("internal-");
   let liteDbSaved = false;
-  if (!tokenIsInternal && isSupabaseConfigured()) {
+  if (!skipDbWrite && isSupabaseConfigured()) {
     const urlDomain = input.listing_url
       ? (() => { try { return new URL(input.listing_url!).hostname.replace("www.", ""); } catch { return null; } })()
       : null;

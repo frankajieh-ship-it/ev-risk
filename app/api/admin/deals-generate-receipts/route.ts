@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
   if (!supabase) return NextResponse.json({ error: "DB not configured" }, { status: 500 });
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+  const internalSecret = process.env.INTERNAL_API_SECRET;
 
   const { searchParams } = new URL(request.url);
   const batch = Math.min(20, Math.max(1, parseInt(searchParams.get("batch") || "10", 10)));
@@ -75,7 +76,10 @@ export async function POST(request: NextRequest) {
 
       const res = await fetch(`${siteUrl}/api/receipt`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(internalSecret ? { "x-internal-secret": internalSecret } : {}),
+        },
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(25000),
       });
