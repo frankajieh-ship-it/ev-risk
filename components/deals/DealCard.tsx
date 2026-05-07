@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Bookmark, BookmarkCheck, Search } from "lucide-react";
+import { Bookmark, BookmarkCheck, ExternalLink } from "lucide-react";
 import { addToAnonGarage } from "@/lib/anon-garage";
-import { getCarGurusUrl } from "@/lib/cargurus-links";
 import { useAuth } from "@/hooks/useAuth";
 import LoginModal from "@/components/auth/LoginModal";
 
@@ -251,17 +250,15 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
           >
             Run Analysis
           </Link>
-          {deal.make && deal.model && (
-            <a
-              href={getCarGurusUrl(deal.make, deal.model, { year: deal.year ?? undefined })}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg transition-colors bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/50"
-            >
-              <Search className="w-3 h-3" />
-              CarGurus
-            </a>
-          )}
+          <a
+            href={deal.listing_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg transition-colors bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/50"
+          >
+            <ExternalLink className="w-3 h-3" />
+            View on {deal.url_domain ?? "listing"}
+          </a>
         </div>
       </div>
     </div>
