@@ -137,11 +137,11 @@ export async function POST(
     } else if (sectionKey === "receipt_summary") {
       const ext = data.output_json as Record<string, unknown>;
       const routineCtx = (ext.routine_context as Parameters<typeof generateReceiptSummary>[1]) ?? null;
+      const vin = (receipt as unknown as Record<string, unknown>).vin as string | undefined;
 
       // Look up whether this receipt has active recalls in vehicle_recalls table
       let hasActiveRecalls: boolean | null = null;
       try {
-        const vin = (receipt as unknown as Record<string, unknown>).vin as string | undefined;
         if (vin) {
           const { data: vehicleRows } = await supabase
             .from("vehicles")
@@ -160,7 +160,23 @@ export async function POST(
         }
       } catch { /* non-critical */ }
 
-      const result = await generateReceiptSummary(receipt, routineCtx, hasActiveRecalls);
+      // Fetch VinAudit NMVTIS data server-side so summary generation has real accident/theft data
+      let vinAuditSummary: { accident_count: number; theft_reported: boolean; salvage_reported: boolean } | null = null;
+      if (vin) {
+        try {
+          const { liteCheck } = await import("@/lib/vinaudit-client");
+          const vaResult = await liteCheck(vin);
+          if (vaResult.success && vaResult.summary) {
+            vinAuditSummary = {
+              accident_count: vaResult.summary.accident_count ?? 0,
+              theft_reported: vaResult.summary.theft_reported ?? false,
+              salvage_reported: vaResult.summary.salvage_reported ?? false,
+            };
+          }
+        } catch { /* non-critical — fall back to listing-scraped data */ }
+      }
+
+      const result = await generateReceiptSummary(receipt, routineCtx, hasActiveRecalls, vinAuditSummary);
       sectionData = result;
       outputJsonPatch = { receipt_summary: result } as Partial<ListingReceipt>;
     } else {

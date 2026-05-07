@@ -139,6 +139,25 @@ export async function runReceiptUpgrade(payload: UpgradePayload): Promise<void> 
     }
   }
 
+  // Deterministic battery_health_estimated injection — fires whenever year + mileage are present
+  // and no actual battery report was provided. The AI rarely emits this signal on its own
+  // but the data to compute it always exists for used EV listings.
+  if (finalReceipt.listing_summary) {
+    const ls = finalReceipt.listing_summary as Record<string, unknown>;
+    const sigs2 = (finalReceipt.listing_signals || []) as string[];
+    const year = ls.year as number | undefined;
+    const mileage = ls.mileage as number | undefined;
+    const hasBatteryReport = sigs2.includes("battery_report_recent");
+    const hasEstimated = sigs2.includes("battery_health_estimated");
+    if (!hasBatteryReport && !hasEstimated && year && mileage && mileage > 0) {
+      const vehicleAge = new Date().getFullYear() - year;
+      if (vehicleAge >= 1 && mileage <= 150000 && mileage <= vehicleAge * 12000 * 2.5) {
+        sigs2.push("battery_health_estimated");
+        finalReceipt = { ...finalReceipt, listing_signals: sigs2 } as typeof finalReceipt;
+      }
+    }
+  }
+
   // Fix 2: Filter invalid signal IDs before scoring so phantom signals don't pollute output
   const rawSignals = (finalReceipt.listing_signals ?? []) as string[];
   const validSignals = rawSignals.filter(id => VALID_SIGNAL_IDS.has(id));

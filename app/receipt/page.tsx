@@ -42,7 +42,6 @@ const ReceiptHistoryDrawer = dynamic(() => import("@/components/receipt/ReceiptH
 const NewsCarousel = dynamic(() => import("@/components/NewsCarousel"), { ssr: false });
 const DeepDiveSection = dynamic(() => import("@/components/receipt/DeepDiveSection"), { ssr: false });
 const NegotiationDeepSection = dynamic(() => import("@/components/receipt/NegotiationDeepSection"), { ssr: false });
-const PaywallGate = dynamic(() => import("@/components/receipt/PaywallGate"), { ssr: false });
 const ReceiptSummaryCard = dynamic(() => import("@/components/receipt/ReceiptSummaryCard"), { ssr: false });
 const CompareView = dynamic(() => import("@/components/receipt/CompareView"), { ssr: false });
 const CompareSelectModal = dynamic(() => import("@/components/receipt/CompareSelectModal"), { ssr: false });
@@ -52,7 +51,6 @@ const OFfoChat = dynamic(() => import("@/components/chat/OFfoChat"), { ssr: fals
 const PdfDownloadButton = dynamic(() => import("@/components/receipt/PdfDownloadButton"), { ssr: false });
 const CompareBadge = dynamic(() => import("@/components/receipt/CompareBadge"), { ssr: false });
 const DealCard = dynamic(() => import("@/components/deals/DealCard").then(m => ({ default: m.default })), { ssr: false });
-const TutorialModal = dynamic(() => import("@/components/TutorialModal"), { ssr: false });
 import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import ReturnToRoutinePrompt from "@/components/receipt/ReturnToRoutinePrompt";
 import RecallBanner from "@/components/receipt/RecallBanner";
@@ -274,16 +272,6 @@ export default function ReceiptPage() {
     refetch: refetchPayment,
   } = usePaymentStatus("receipt", receipt?.receipt_id ?? null, receiptToken);
 
-  // Decision Pack state
-  const [decisionPackDismissed, setDecisionPackDismissed] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
-  const [paywallTrigger, setPaywallTrigger] = useState<string | null>(null);
-  const paywallShownForRef = useRef<Set<string>>(new Set());
-  const paywallSentinelRef = useRef<HTMLDivElement>(null);
-
-  // Seller Pack state
-  const [showSellerPackPaywall, setShowSellerPackPaywall] = useState(false);
-  const [sellerPackDismissed, setSellerPackDismissed] = useState(false);
 
   // Compare state (hook)
   const {
@@ -587,49 +575,10 @@ export default function ReceiptPage() {
 
   // Email gate useEffect removed — inline EmailCaptureCard handles email capture now
 
-  // Show paywall only when user clicks a premium-gated action
-  const handlePremiumAction = useCallback((trigger: string) => {
-    if (freeMode) return;
-    if (isUnlocked) return;
-    const rid = receipt?.receipt_id;
-    if (rid && paywallShownForRef.current.has(rid)) {
-      // Already shown for this receipt this session — just scroll to it
-      document.getElementById("decision-pack-card")?.scrollIntoView({ behavior: "smooth" });
-      return;
-    }
-    if (rid) paywallShownForRef.current.add(rid);
-    setShowPaywall(true);
-    setDecisionPackDismissed(false);
-    setPaywallTrigger(trigger);
-    trackEvent("paywall_shown", { receipt_id: rid, trigger_reason: trigger });
-    setTimeout(() => {
-      document.getElementById("decision-pack-card")?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
-  }, [freeMode, isUnlocked, packTier, receipt, receiptToken, purchaseId, trackEvent]);
+  // Payments disabled — no-op stub so existing call sites don't error
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handlePremiumAction = useCallback((_trigger: string) => {}, []);
 
-  // Auto-show paywall when user scrolls to the locked section boundary
-  useEffect(() => {
-    if (!paymentsEnabled || isUnlocked || !receipt) return;
-    const el = paywallSentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) handlePremiumAction("scroll"); },
-      { threshold: 0.1 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [paymentsEnabled, isUnlocked, receipt, handlePremiumAction]);
-
-  // Show seller pack paywall when user clicks a gated question
-  const handleSellerPackAction = useCallback(() => {
-    if (freeMode || sellerPackUnlocked) return;
-    setShowSellerPackPaywall(true);
-    setSellerPackDismissed(false);
-    trackEvent("seller_pack_cta_clicked", { receipt_id: receipt?.receipt_id });
-    setTimeout(() => {
-      document.getElementById("seller-pack-card")?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
-  }, [freeMode, sellerPackUnlocked, receipt, trackEvent]);
 
 
 
@@ -958,6 +907,7 @@ export default function ReceiptPage() {
                 initialSummary={(receipt as unknown as Record<string, unknown>).receipt_summary as import("@/lib/receipt-sections").ListingAISummary ?? null}
                 initialStatus={sections?.receipt_summary?.status}
                 verdict={receipt.verdict}
+                vin={(receipt as unknown as Record<string, unknown>).vin as string | undefined}
               />
 
               <div data-tutorial="receipt-output">
@@ -979,8 +929,8 @@ export default function ReceiptPage() {
                 onSellerPackUpgrade={() => {}}
                 isUpgrading={isUpgrading}
                 upgradeFailed={upgradeFailed}
-                isUnlocked={isUnlocked}
-                paymentsEnabled={paymentsEnabled}
+                isUnlocked={true}
+                paymentsEnabled={false}
                 onPaywallClick={() => handlePremiumAction("output_card")}
                 photos={isSimilarityMatch ? [] : listingPhotos}
                 onSave={handleQuickSave}
@@ -990,61 +940,47 @@ export default function ReceiptPage() {
               />
               </div>
 
-              {/* Scroll sentinel — triggers paywall reveal when user reaches this point */}
-              {paymentsEnabled && !isUnlocked && (
-                <div ref={paywallSentinelRef} aria-hidden="true" />
-              )}
-
-              {/* ── Paywall gate or unlocked sections ── */}
-              {paymentsEnabled && !isUnlocked ? (
-                /* LOCKED: single paywall card replaces all deep-dive sections */
-                <PaywallGate
-                  receiptToken={receiptToken}
-                  scenarioId={receipt.receipt_id}
-                />
-              ) : (
-                /* UNLOCKED (or payments off): show all sections */
-                <>
-                  {!isUpgrading && receipt.receipt_id && (
-                    <NegotiationDeepSection
-                      receiptId={receipt.receipt_id}
-                      initialScripts={(receipt as unknown as Record<string, unknown>).negotiation_deep as import("@/lib/receipt-sections").NegotiationScript[] ?? null}
-                      initialStatus={sections?.negotiation_deep?.status}
-                      isUnlocked={true}
-                      paymentsEnabled={false}
-                    />
-                  )}
-                  {deepDive && (
-                    <DeepDiveSection
-                      deepDive={deepDive}
-                      receiptId={receipt.receipt_id}
-                      region={region}
-                    />
-                  )}
-                  {isLoadingDeepDive && !deepDive && (
-                    <div className="flex items-center justify-center gap-2 py-8 text-sm text-white/40">
-                      <Loader2 className="w-4 h-4 animate-spin text-[#00d97e]" />
-                      Generating your deep dive analysis...
-                    </div>
-                  )}
-                  {receipt.receipt_details ? (
-                    <ReceiptDetailsAccordion
-                      details={receipt.receipt_details}
-                      operatorNotes={receipt.operator_notes}
-                      listingSummary={receipt.listing_summary}
-                      region={region}
-                    />
-                  ) : !isUpgrading && receipt.receipt_id ? (
-                    <ReceiptDetailsOnDemand
-                      receiptId={receipt.receipt_id}
-                      operatorNotes={receipt.operator_notes}
-                      listingSummary={receipt.listing_summary}
-                      region={region}
-                      initialStatus={sections?.receipt_details?.status}
-                    />
-                  ) : null}
-                </>
-              )}
+              {/* ── All sections always visible (free mode) ── */}
+              <>
+                {!isUpgrading && receipt.receipt_id && (
+                  <NegotiationDeepSection
+                    receiptId={receipt.receipt_id}
+                    initialScripts={(receipt as unknown as Record<string, unknown>).negotiation_deep as import("@/lib/receipt-sections").NegotiationScript[] ?? null}
+                    initialStatus={sections?.negotiation_deep?.status}
+                    isUnlocked={true}
+                    paymentsEnabled={false}
+                  />
+                )}
+                {deepDive && (
+                  <DeepDiveSection
+                    deepDive={deepDive}
+                    receiptId={receipt.receipt_id}
+                    region={region}
+                  />
+                )}
+                {isLoadingDeepDive && !deepDive && (
+                  <div className="flex items-center justify-center gap-2 py-8 text-sm text-white/40">
+                    <Loader2 className="w-4 h-4 animate-spin text-[#00d97e]" />
+                    Generating your deep dive analysis...
+                  </div>
+                )}
+                {receipt.receipt_details ? (
+                  <ReceiptDetailsAccordion
+                    details={receipt.receipt_details}
+                    operatorNotes={receipt.operator_notes}
+                    listingSummary={receipt.listing_summary}
+                    region={region}
+                  />
+                ) : !isUpgrading && receipt.receipt_id ? (
+                  <ReceiptDetailsOnDemand
+                    receiptId={receipt.receipt_id}
+                    operatorNotes={receipt.operator_notes}
+                    listingSummary={receipt.listing_summary}
+                    region={region}
+                    initialStatus={sections?.receipt_details?.status}
+                  />
+                ) : null}
+              </>
 
               {/* Workspace save nudge */}
               {!isAuthenticated && (
@@ -1226,8 +1162,6 @@ export default function ReceiptPage() {
       {/* Exit-intent feedback modal — triggers when user leaves with a receipt but no feedback */}
       <ExitFeedbackModal hasReceipt={!!receipt} receiptId={receipt?.receipt_id} />
 
-      {/* Tutorial modal — floating "?" button shown only before first receipt */}
-      {!receipt && <TutorialModal />}
 
       {/* OFFO Chat — collapsible AI assistant, appears 8s after result */}
       {receipt && receiptToken && (

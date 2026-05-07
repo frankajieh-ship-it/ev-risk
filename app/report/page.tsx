@@ -82,6 +82,11 @@ interface BatteryHealthContext {
   assessment: "typical" | "above-average" | "below-average" | "unusually-strong" | "faster-decline";
   comparisonText: string;
   benchmarkNote: string;
+  widthReason?: string;
+  calendarAgingDominant?: boolean;
+  calendarAgingNote?: string;
+  calendarLeadsCaution?: boolean;
+  calendarLeadsNote?: string;
 }
 
 interface EVHistoryFlag {
@@ -937,6 +942,15 @@ function ReportContent() {
                   assessment={confidence.battery_health_context.assessment}
                   comparisonText={confidence.battery_health_context.comparisonText}
                   benchmarkNote={confidence.battery_health_context.benchmarkNote}
+                  widthReason={confidence.battery_health_context.widthReason}
+                  calendarAgingDominant={confidence.battery_health_context.calendarAgingDominant}
+                  calendarAgingNote={confidence.battery_health_context.calendarAgingNote}
+                  calendarLeadsCaution={confidence.battery_health_context.calendarLeadsCaution}
+                  calendarLeadsNote={confidence.battery_health_context.calendarLeadsNote}
+                  showSOHPrompt={isPaid}
+                  vehicleYear={reportData?.input?.year}
+                  vehicleModel={reportData?.input?.model}
+                  receiptId={reportId ?? undefined}
                 />
               </div>
             )}

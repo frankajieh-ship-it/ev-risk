@@ -15,6 +15,8 @@ import {
   getClimateZoneByZip,
   getChargerDensityByZip,
   inferBatteryChemistry,
+  getModelDegradationCurve,
+  hasBatteryAffectingRecall,
   type RecallRow,
   type ChargerDensityRow,
   type ChargerDensityV2Row,
@@ -123,6 +125,11 @@ export interface BatteryHealthContext {
   assessment: "typical" | "above-average" | "below-average" | "unusually-strong" | "faster-decline";
   comparisonText: string; // "92% after 3 years = typical"
   benchmarkNote: string; // "Compared to similar vehicles of this age and usage pattern"
+  widthReason?: string; // Why the typical range band is wide or narrow
+  calendarAgingDominant?: boolean; // True when age >> mileage (electrolyte/SEI growth dominates)
+  calendarAgingNote?: string;
+  calendarLeadsCaution?: boolean; // Intermediate: calendar outpacing miles but not yet dominant
+  calendarLeadsNote?: string;
 }
 
 export interface EVHistoryFlag {
@@ -140,64 +147,113 @@ export interface ConfidenceDriver {
 
 // ---------- Scoring Logic ----------
 
+const KNOWN_MAKES = [
+  "tesla", "chevrolet", "nissan", "ford", "hyundai", "kia",
+  "volkswagen", "rivian", "lucid", "bmw", "audi", "mercedes",
+  "porsche", "toyota", "honda", "subaru", "volvo", "polestar",
+  "mini", "genesis", "jeep", "ram", "dodge", "chrysler", "gmc",
+  "buick", "cadillac", "lincoln", "mazda", "mitsubishi", "fisker",
+];
+
+function normalizeMakeFromModel(normalizedModel: string): string {
+  for (const make of KNOWN_MAKES) {
+    if (normalizedModel.startsWith(make + " ") || normalizedModel === make) {
+      return make;
+    }
+  }
+  return normalizedModel.split(" ")[0] ?? "unknown";
+}
+
 /**
  * Generate Battery Health Contextualization
  * Converts absolute battery health % into relative assessment
  */
-function generateBatteryHealthContext(degradation_percent: number, vehicleAge: number, chemistry: string): BatteryHealthContext {
-  // Calculate current health (inverse of degradation)
+function generateBatteryHealthContext(
+  degradation_percent: number,
+  vehicleAge: number,
+  chemistry: string,
+  make: string,
+  model: string,
+  year: number,
+  currentMileage: number
+): BatteryHealthContext {
   const currentHealth = Math.max(0, 100 - degradation_percent);
 
-  // Expected degradation ranges by age
-  // For NMC/NCM (most EVs): ~2% per year
-  // For LFP: ~1.5% per year
-  // For air-cooled (Nissan Leaf pre-2023): ~3% per year
-  let expectedDegradation = 0;
-  let typicalMin = 0;
-  let typicalMax = 0;
+  const curve = getModelDegradationCurve(make, model, year, chemistry);
+  const expectedDegradation = curve.annualRate * vehicleAge;
+  const typicalMin = curve.bandMin * vehicleAge;
+  const typicalMax = curve.bandMax * vehicleAge;
 
-  if (chemistry === "NMC" || chemistry === "NCM" || chemistry === "Unknown") {
-    expectedDegradation = vehicleAge * 2; // 2% per year
-    typicalMin = vehicleAge * 1.5;
-    typicalMax = vehicleAge * 3;
-  } else if (chemistry === "LFP") {
-    expectedDegradation = vehicleAge * 1.5; // 1.5% per year
-    typicalMin = vehicleAge * 1;
-    typicalMax = vehicleAge * 2.5;
-  } else {
-    // Air-cooled or other
-    expectedDegradation = vehicleAge * 3; // 3% per year
-    typicalMin = vehicleAge * 2;
-    typicalMax = vehicleAge * 4;
-  }
+  // Runtime confidenceWidth multiplier — adjusts band based on actual vehicle signals
+  const normalizedModelLower = model.toLowerCase();
+  let confidenceWidth = 1.0;
+  if (currentMileage > 80000) confidenceWidth += 0.25;
+  if (vehicleAge > 6) confidenceWidth += 0.20;
+  if (normalizedModelLower.includes("leaf")) confidenceWidth += 0.30;
+  if (currentMileage < 30000 && vehicleAge <= 3) confidenceWidth -= 0.20;
+  if (chemistry === "LFP") confidenceWidth -= 0.15;
+  confidenceWidth = Math.max(0.6, Math.min(1.8, confidenceWidth));
+
+  const adjustedMin = Math.max(0, expectedDegradation - (expectedDegradation - typicalMin) * confidenceWidth);
+  const adjustedMax = expectedDegradation + (typicalMax - expectedDegradation) * confidenceWidth;
+
+  // widthReason: prefer runtime signal descriptions over static source label
+  const widthReasons: string[] = [];
+  if (currentMileage > 80000) widthReasons.push("high mileage increases variance");
+  if (vehicleAge > 6) widthReasons.push("age compounds uncertainty");
+  if (normalizedModelLower.includes("leaf")) widthReasons.push("air-cooled platform has high variance");
+  if (chemistry === "LFP") widthReasons.push("LFP chemistry has tighter distribution");
+  if (currentMileage < 30000 && vehicleAge <= 3) widthReasons.push("low mileage / young vehicle = tighter estimate");
+
+  const bandWidth = curve.bandMax - curve.bandMin;
+  const widthReason = widthReasons.length > 0
+    ? widthReasons.join("; ")
+    : bandWidth <= 1.2
+      ? `Tight band — strong fleet data (${curve.source})`
+      : bandWidth >= 2.5
+        ? `Wide band — high variance in fleet data`
+        : `Typical uncertainty (source: ${curve.source})`;
+
+  // Calendar-aging-dominant flag: old car, low use
+  const milesPerYear = vehicleAge > 0 ? currentMileage / vehicleAge : currentMileage;
+  const calendarAgingDominant = vehicleAge >= 5 && milesPerYear < 8000;
+  const calendarAgingNote = calendarAgingDominant
+    ? "This vehicle's age is the primary degradation driver, not mileage. Calendar aging (electrolyte degradation, SEI layer growth) proceeds independently of use."
+    : undefined;
+
+  // Intermediate caution: calendar age outpacing mileage but not yet dominant
+  const expectedMilesAtAge = vehicleAge * 12000;
+  const mileageUtilization = currentMileage / Math.max(expectedMilesAtAge, 1);
+  const calendarLeadsCaution = !calendarAgingDominant && vehicleAge >= 3 && mileageUtilization < 0.40;
+  const calendarLeadsNote = calendarLeadsCaution
+    ? `This vehicle has averaged ~${Math.round(milesPerYear).toLocaleString()} miles/year — well below the 12,000 average. Calendar aging (electrolyte, SEI growth) is likely outpacing mileage-based wear. Actual degradation may be higher than mileage alone suggests.`
+    : undefined;
 
   // Determine assessment
   let assessment: "typical" | "above-average" | "below-average" | "unusually-strong" | "faster-decline";
   let comparisonText = "";
+  const ageStr = `${vehicleAge} year${vehicleAge !== 1 ? "s" : ""}`;
 
-  if (degradation_percent < typicalMin) {
-    // Better than expected
-    if (degradation_percent < typicalMin * 0.5) {
+  if (degradation_percent < adjustedMin) {
+    if (degradation_percent < adjustedMin * 0.5) {
       assessment = "unusually-strong";
-      comparisonText = `${currentHealth.toFixed(0)}% after ${vehicleAge} year${vehicleAge !== 1 ? 's' : ''} = unusually strong`;
+      comparisonText = `${currentHealth.toFixed(0)}% after ${ageStr} = unusually strong`;
     } else {
       assessment = "above-average";
-      comparisonText = `${currentHealth.toFixed(0)}% after ${vehicleAge} year${vehicleAge !== 1 ? 's' : ''} = slightly above average`;
+      comparisonText = `${currentHealth.toFixed(0)}% after ${ageStr} = slightly above average`;
     }
-  } else if (degradation_percent > typicalMax) {
-    // Worse than expected
+  } else if (degradation_percent > adjustedMax) {
     assessment = "faster-decline";
-    comparisonText = `${currentHealth.toFixed(0)}% after ${vehicleAge} year${vehicleAge !== 1 ? 's' : ''} = faster than expected decline`;
-  } else if (degradation_percent >= typicalMin - 1 && degradation_percent <= expectedDegradation + 1) {
-    // Within normal range
+    comparisonText = `${currentHealth.toFixed(0)}% after ${ageStr} = faster than expected decline`;
+  } else if (degradation_percent >= adjustedMin - 1 && degradation_percent <= expectedDegradation + 1) {
     assessment = "typical";
-    comparisonText = `${currentHealth.toFixed(0)}% after ${vehicleAge} year${vehicleAge !== 1 ? 's' : ''} = typical`;
+    comparisonText = `${currentHealth.toFixed(0)}% after ${ageStr} = typical`;
   } else if (degradation_percent < expectedDegradation) {
     assessment = "above-average";
-    comparisonText = `${currentHealth.toFixed(0)}% after ${vehicleAge} year${vehicleAge !== 1 ? 's' : ''} = slightly above average`;
+    comparisonText = `${currentHealth.toFixed(0)}% after ${ageStr} = slightly above average`;
   } else {
     assessment = "below-average";
-    comparisonText = `${currentHealth.toFixed(0)}% after ${vehicleAge} year${vehicleAge !== 1 ? 's' : ''} = slightly below average`;
+    comparisonText = `${currentHealth.toFixed(0)}% after ${ageStr} = slightly below average`;
   }
 
   return {
@@ -205,6 +261,11 @@ function generateBatteryHealthContext(degradation_percent: number, vehicleAge: n
     assessment,
     comparisonText,
     benchmarkNote: "Compared to similar vehicles of this age and usage pattern.",
+    widthReason,
+    calendarAgingDominant: calendarAgingDominant || undefined,
+    calendarAgingNote,
+    calendarLeadsCaution: calendarLeadsCaution || undefined,
+    calendarLeadsNote,
   };
 }
 
@@ -276,6 +337,25 @@ function generateEVHistoryFlags(input: ScoringInput, battery_risk: BatteryRiskSc
       flag: "Consistent moderate use pattern (positive indicator)",
       explanation: "Home charging access and moderate daily miles suggest healthy, consistent use pattern with minimal fast charging stress.",
       probability: "inferred",
+    });
+  }
+
+  // Battery-affecting recall cross-reference
+  const recalls = findRecallsForVehicle(input.model, input.year);
+  const batteryRecallResult = hasBatteryAffectingRecall(recalls);
+  if (batteryRecallResult.isKnownFireRisk) {
+    flags.push({
+      type: "warning",
+      flag: "Open battery fire recall (known campaign)",
+      explanation: `This vehicle matches recall campaign(s) ${batteryRecallResult.campaigns.join(", ")} — a known battery cell defect with fire risk. Confirm recall completion status with the seller or NHTSA before purchase.`,
+      probability: "observed",
+    });
+  } else if (batteryRecallResult.hasBatteryRecall) {
+    flags.push({
+      type: "caution",
+      flag: "Battery-related recall on record",
+      explanation: `Recall(s) ${batteryRecallResult.campaigns.join(", ")} affect battery components. Verify recall completion with the seller or NHTSA.`,
+      probability: "observed",
     });
   }
 
@@ -538,14 +618,11 @@ function calculateBatteryRisk(input: ScoringInput): BatteryRiskScore {
   const vehicleAge = currentYear - input.year;
 
   // Calculate expected degradation based on BOTH age and mileage
-  // Time-based degradation
-  // CRITICAL FIX: Air-cooled Nissan Leaf needs higher base degradation
-  let baseRate = chemistryData.degradation_rate_per_year;
+  // Use model-specific curve (falls back to chemistry bucket if no model entry)
   const normalizedModel = input.model.toLowerCase();
-  if (normalizedModel.includes("leaf") && input.year <= 2022) {
-    // Pre-2023 Leafs use air-cooled battery (no thermal management)
-    baseRate = 3.0; // 3%/year vs 2%/year for liquid-cooled NMC
-  }
+  const parsedMake = normalizeMakeFromModel(normalizedModel);
+  const curve = getModelDegradationCurve(parsedMake, normalizedModel, input.year, chemistry);
+  const baseRate = curve.annualRate;
 
   const ageDegradation = baseRate * vehicleAge;
 
@@ -979,7 +1056,11 @@ export function calculateBuyConfidence(input: ScoringInput): BuyConfidence {
   const battery_health_context = generateBatteryHealthContext(
     battery_risk.degradation_percent,
     vehicleAge,
-    battery_risk.chemistry
+    battery_risk.chemistry,
+    normalizeMakeFromModel(input.model.toLowerCase()),
+    input.model,
+    input.year,
+    input.currentMileage
   );
 
   // Generate EV-specific history flags

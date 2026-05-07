@@ -94,10 +94,12 @@ export function scoreReceipt(signals: string[]): ReceiptScoringResult {
   evidenceScore = Math.max(0, Math.min(100, evidenceScore));
 
   // 4. Determine evidence label (computed before verdict — caps GREEN when MISSING)
+  // PARTIAL threshold lowered from 45 → 35: typical clean listings with title + VIN
+  // don't reach 45 even when the car is genuinely a good deal (battery report is rare).
   let evidenceLabel: EvidenceLabel;
   if (evidenceScore >= 75) {
     evidenceLabel = "STRONG";
-  } else if (evidenceScore >= 45) {
+  } else if (evidenceScore >= 35) {
     evidenceLabel = "PARTIAL";
   } else {
     evidenceLabel = "MISSING";

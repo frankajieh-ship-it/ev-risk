@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { sendChecklistEmail } from "@/lib/resend";
 
 // Rate limiting map (in-memory, per instance)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -145,6 +146,22 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[Report Feedback API] Feedback saved successfully:", data.id);
+
+    // Notify admin — fire-and-forget
+    const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
+    if (adminEmail && (sanitizedText || rating <= 2)) {
+      const ratingLabel = rating === 5 ? "👍 Helpful" : rating === 3 ? "😐 Okay" : "👎 Not useful";
+      const html = `
+        <h2 style="margin:0 0 12px;font-family:sans-serif;font-size:16px">New report feedback</h2>
+        <table style="font-family:sans-serif;font-size:14px;border-collapse:collapse">
+          <tr><td style="padding:4px 12px 4px 0;color:#666">Rating</td><td><strong>${ratingLabel}</strong></td></tr>
+          <tr><td style="padding:4px 12px 4px 0;color:#666">Would recommend</td><td>${wouldRecommend === true ? "Yes" : wouldRecommend === false ? "No" : "—"}</td></tr>
+          ${sanitizedText ? `<tr><td style="padding:4px 12px 4px 0;color:#666;vertical-align:top">Comment</td><td style="white-space:pre-wrap">${sanitizedText.replace(/</g, "&lt;")}</td></tr>` : ""}
+          <tr><td style="padding:4px 12px 4px 0;color:#666">Report ID</td><td style="color:#999;font-size:12px">${validReportId ?? "—"}</td></tr>
+          <tr><td style="padding:4px 12px 4px 0;color:#666">Feedback ID</td><td style="color:#999;font-size:12px">${data.id}</td></tr>
+        </table>`;
+      sendChecklistEmail(adminEmail, `[OFFO] Feedback: ${ratingLabel}${sanitizedText ? " (with comment)" : ""}`, html).catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,

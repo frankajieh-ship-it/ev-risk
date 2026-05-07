@@ -8,8 +8,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Loader2, RefreshCw, MessageSquare, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, RefreshCw, MessageSquare, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { getOrCreateReceiptToken } from "@/lib/session-utils";
 import type { ListingAISummary } from "@/lib/receipt-sections";
 
 interface ReceiptSummaryCardProps {
@@ -19,6 +20,7 @@ interface ReceiptSummaryCardProps {
   initialSummary?: ListingAISummary | null;
   initialStatus?: string;
   verdict: "GREEN" | "YELLOW" | "RED";
+  vin?: string | null;
 }
 
 type Tone = "proceed" | "caution" | "stop";
@@ -77,9 +79,32 @@ export default function ReceiptSummaryCard({
   initialSummary,
   initialStatus,
   verdict,
+  vin,
 }: ReceiptSummaryCardProps) {
   const { trackEvent } = useEventTracking();
   const retryCountRef = useRef(0);
+
+  // Fetch VinAudit NMVTIS result to show a reconciliation note when the AI summary
+  // was written before VinAudit ran (the common case for stored receipts).
+  const [vinAuditClean, setVinAuditClean] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!vin) return;
+    const token = getOrCreateReceiptToken();
+    if (!token) return;
+    fetch("/api/vin/history", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vin, receipt_token: token }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.summary) {
+          const clean = data.summary.accident_count === 0 && !data.summary.theft_reported;
+          setVinAuditClean(clean);
+        }
+      })
+      .catch(() => {});
+  }, [vin]);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isUpgradingRef = useRef(isUpgrading);
   useEffect(() => { isUpgradingRef.current = isUpgrading; });
@@ -266,6 +291,16 @@ export default function ReceiptSummaryCard({
         <div className="px-5 py-2.5 border-t border-white/[0.05]">
           <p className="text-[11px] text-white/35 leading-relaxed">
             {summary.confidence_note}
+          </p>
+        </div>
+      )}
+
+      {/* NMVTIS reconciliation note — shown when VinAudit confirmed clean after summary was written */}
+      {vinAuditClean === true && (
+        <div className="px-5 py-2.5 border-t border-white/[0.05] flex items-center gap-1.5">
+          <CheckCircle className="w-3 h-3 text-green-400/70 shrink-0" />
+          <p className="text-[11px] text-green-400/70 leading-relaxed">
+            NMVTIS confirmed: no accident or theft records found for this VIN.
           </p>
         </div>
       )}

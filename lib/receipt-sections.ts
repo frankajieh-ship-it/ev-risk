@@ -425,6 +425,11 @@ RECALL RULES (important):
 - If recall status is unknown: you may note it as something to verify.
 - Never list, describe, or quantify specific recalls in the summary.
 
+ACCIDENT/THEFT RULES (important):
+- If ACCIDENTS field says "none — NMVTIS confirmed clean", do NOT say "verify accident history" — it is already confirmed. Treat it as a positive signal.
+- If THEFT field says "none — NMVTIS confirmed clean", do NOT say "verify theft history" — it is already confirmed.
+- Only use "verify" language for fields that are genuinely unknown or unconfirmed.
+
 VOICE:
 - Write "this listing" not "this vehicle" or "this car"
 - No verdict language in body: no "good deal", "bad deal", "skip it", "buy it", "hard pass"
@@ -446,6 +451,11 @@ export async function generateReceiptSummary(
     fit_summary?: string | null;
   } | null,
   hasActiveRecalls?: boolean | null,
+  vinAuditSummary?: {
+    accident_count: number;
+    theft_reported: boolean;
+    salvage_reported: boolean;
+  } | null,
 ): Promise<ListingAISummary> {
   const ls = receipt.listing_summary;
   const label = `${ls.year} ${ls.make} ${ls.model}${ls.trim ? " " + ls.trim : ""}`;
@@ -491,7 +501,18 @@ PRICE: ${priceStr}
 MILEAGE: ${mileageStr}
 SELLER: ${ls.seller_type}
 TITLE: ${ls.title_status}
-ACCIDENTS: ${ls.accidents_reported}
+ACCIDENTS: ${
+  vinAuditSummary != null
+    ? vinAuditSummary.accident_count > 0
+      ? `${vinAuditSummary.accident_count} accident record(s) confirmed by NMVTIS`
+      : "none — NMVTIS confirmed clean"
+    : ls.accidents_reported
+}
+THEFT: ${
+  vinAuditSummary != null
+    ? vinAuditSummary.theft_reported ? "theft record found in NMVTIS" : "none — NMVTIS confirmed clean"
+    : "unknown"
+}
 SERVICE HISTORY: ${ls.service_history}
 OWNERS: ${ls.owners ?? "unknown"}
 RECALLS: ${recallStatus}

@@ -357,6 +357,37 @@ export function findRecallsForVehicle(model: string, year: number): RecallRow[] 
   });
 }
 
+// Known battery-affecting recall campaigns (sourced from NHTSA / data_v1.0/recalls.csv)
+export const BATTERY_RECALL_CAMPAIGNS = {
+  ids: new Set([
+    "21V-650",  // Chevrolet Bolt EV 2017-2019 battery fire
+    "21V-861",  // Chevrolet Bolt EV 2019-2022 fire expanded
+    "21V-224",  // Hyundai Kona Electric / Ioniq fire
+  ]),
+  issueTypeKeywords: ["battery fire", "thermal runaway", "fire", "overheating", "battery cell", "battery pack"],
+};
+
+export function hasBatteryAffectingRecall(recalls: RecallRow[]): {
+  hasBatteryRecall: boolean;
+  campaigns: string[];
+  isKnownFireRisk: boolean;
+} {
+  const campaigns: string[] = [];
+  let isKnownFireRisk = false;
+
+  for (const recall of recalls) {
+    const isKnownId = BATTERY_RECALL_CAMPAIGNS.ids.has(recall.recall_id);
+    const descLower = `${recall.issue_type} ${recall.description}`.toLowerCase();
+    const isKeywordMatch = BATTERY_RECALL_CAMPAIGNS.issueTypeKeywords.some(kw => descLower.includes(kw));
+    if (isKnownId || isKeywordMatch) {
+      campaigns.push(recall.recall_id);
+      if (isKnownId) isKnownFireRisk = true;
+    }
+  }
+
+  return { hasBatteryRecall: campaigns.length > 0, campaigns, isKnownFireRisk };
+}
+
 /**
  * Find owner issues for model
  */
@@ -596,6 +627,119 @@ export interface RangeStack {
 export function loadRangeStackData(): RangeStack[] {
   if (!fs.existsSync(PATHS.rangeStack)) return [];
   return JSON.parse(fs.readFileSync(PATHS.rangeStack, "utf-8")) as RangeStack[];
+}
+
+/**
+ * Model-specific degradation curves sourced from published fleet studies
+ * (Recurrent Auto, Geotab, Plug In America).
+ *
+ * Keys: "make:normalized_model:yearFrom-yearTo" or "make:normalized_model:yearFrom+"
+ * Values override the chemistry bucket rate with platform-specific data.
+ */
+export interface DegradationCurve {
+  annualRate: number;  // % per year (base, before climate modifier)
+  bandMin: number;     // lower band multiplier × vehicleAge
+  bandMax: number;     // upper band multiplier × vehicleAge
+  source: string;
+}
+
+export const MODEL_DEGRADATION_CURVES: Record<string, DegradationCurve> = {
+  // Chevrolet Bolt EV — gen1 (2017-2019) thermal issues, faster decay
+  "chevrolet:bolt ev:2017-2019":  { annualRate: 2.4, bandMin: 1.8, bandMax: 3.2, source: "Recurrent/Geotab" },
+  "chevrolet:bolt ev:2020-2023":  { annualRate: 1.8, bandMin: 1.3, bandMax: 2.6, source: "Recurrent" },
+  "chevrolet:bolt euv:2022-2023": { annualRate: 1.8, bandMin: 1.3, bandMax: 2.6, source: "Recurrent" },
+
+  // Hyundai/Kia E-GMP platform — strong retention, tighter band
+  "hyundai:ioniq 5:2022+": { annualRate: 1.6, bandMin: 1.1, bandMax: 2.2, source: "Recurrent" },
+  "hyundai:ioniq 6:2023+": { annualRate: 1.6, bandMin: 1.1, bandMax: 2.2, source: "Recurrent" },
+  "kia:ev6:2022+":         { annualRate: 1.6, bandMin: 1.1, bandMax: 2.2, source: "Recurrent" },
+  "kia:ev9:2024+":         { annualRate: 1.6, bandMin: 1.1, bandMax: 2.2, source: "estimated" },
+
+  // Ford Mustang Mach-E
+  "ford:mustang mach-e:2021+": { annualRate: 1.9, bandMin: 1.4, bandMax: 2.7, source: "Recurrent" },
+
+  // Nissan Leaf — air-cooled, split by generation (significant cliff risk)
+  "nissan:leaf:2011-2017": { annualRate: 3.5, bandMin: 2.5, bandMax: 5.0, source: "Plug In America" },
+  "nissan:leaf:2018-2022": { annualRate: 2.8, bandMin: 2.0, bandMax: 4.0, source: "Plug In America" },
+
+  // Tesla Model 3 — gen1 vs Highland refresh
+  "tesla:model 3:2017-2023": { annualRate: 1.9, bandMin: 1.3, bandMax: 2.6, source: "Recurrent" },
+  "tesla:model 3:2024+":     { annualRate: 1.7, bandMin: 1.2, bandMax: 2.3, source: "estimated" },
+
+  // Tesla Model Y
+  "tesla:model y:2020+": { annualRate: 1.8, bandMin: 1.3, bandMax: 2.5, source: "Recurrent" },
+
+  // Tesla Model S/X — classic vs Plaid-era refresh
+  "tesla:model s:2012-2020": { annualRate: 2.1, bandMin: 1.5, bandMax: 3.0, source: "Recurrent" },
+  "tesla:model s:2021+":     { annualRate: 1.9, bandMin: 1.4, bandMax: 2.7, source: "Recurrent" },
+  "tesla:model x:2015-2020": { annualRate: 2.1, bandMin: 1.5, bandMax: 3.0, source: "Recurrent" },
+  "tesla:model x:2021+":     { annualRate: 1.9, bandMin: 1.4, bandMax: 2.7, source: "Recurrent" },
+
+  // Volkswagen ID.4
+  "volkswagen:id.4:2021+": { annualRate: 1.9, bandMin: 1.4, bandMax: 2.7, source: "Recurrent" },
+
+  // Rivian
+  "rivian:r1t:2022+": { annualRate: 1.8, bandMin: 1.3, bandMax: 2.5, source: "estimated" },
+  "rivian:r1s:2022+": { annualRate: 1.8, bandMin: 1.3, bandMax: 2.5, source: "estimated" },
+};
+
+// Chemistry-level fallback bands when no model curve exists
+const CHEMISTRY_FALLBACK_CURVES: Record<string, DegradationCurve> = {
+  "NMC":    { annualRate: 2.0, bandMin: 1.5, bandMax: 3.0, source: "chemistry_fallback" },
+  "NMC811": { annualRate: 1.8, bandMin: 1.3, bandMax: 2.7, source: "chemistry_fallback" },
+  "NCA":    { annualRate: 2.3, bandMin: 1.7, bandMax: 3.2, source: "chemistry_fallback" },
+  "LFP":    { annualRate: 1.5, bandMin: 1.0, bandMax: 2.5, source: "chemistry_fallback" },
+  "NCM":    { annualRate: 2.0, bandMin: 1.5, bandMax: 3.0, source: "chemistry_fallback" },
+};
+
+/**
+ * Look up a model-specific degradation curve.
+ * Tries the most-specific year-range key first, then falls back to chemistry bucket.
+ * Returns a DegradationCurve with annualRate, bandMin, bandMax, source.
+ */
+export function getModelDegradationCurve(
+  make: string,
+  model: string,
+  year: number,
+  chemistry?: string
+): DegradationCurve {
+  const normMake = make.toLowerCase().trim();
+  // Normalize model: strip make prefix if present, lowercase, collapse spaces
+  let normModel = model.toLowerCase().trim();
+  if (normModel.startsWith(normMake + " ")) {
+    normModel = normModel.slice(normMake.length + 1).trim();
+  }
+  // Strip common trim suffixes to reach the base model name
+  for (const suf of [" rwd", " awd", " fwd", " standard range", " long range", " performance",
+                      " plus", " pro", " gt", " sel", " se", " sv", " sl", " lt", " premier",
+                      " ev", " electric"]) {
+    if (normModel.endsWith(suf)) {
+      normModel = normModel.slice(0, normModel.length - suf.length).trim();
+    }
+  }
+
+  // Collect all keys for this make:model prefix
+  const prefix = `${normMake}:${normModel}:`;
+  const candidates = Object.keys(MODEL_DEGRADATION_CURVES).filter(k => k.startsWith(prefix));
+
+  for (const key of candidates) {
+    const rangeStr = key.slice(prefix.length); // e.g. "2017-2023" or "2022+"
+    if (rangeStr.endsWith("+")) {
+      const from = parseInt(rangeStr.slice(0, -1), 10);
+      if (year >= from) return MODEL_DEGRADATION_CURVES[key];
+    } else {
+      const [fromStr, toStr] = rangeStr.split("-");
+      const from = parseInt(fromStr, 10);
+      const to = parseInt(toStr, 10);
+      if (year >= from && year <= to) return MODEL_DEGRADATION_CURVES[key];
+    }
+  }
+
+  // Fall back to chemistry bucket
+  if (chemistry && CHEMISTRY_FALLBACK_CURVES[chemistry]) {
+    return CHEMISTRY_FALLBACK_CURVES[chemistry];
+  }
+  return CHEMISTRY_FALLBACK_CURVES["NMC"]; // ultimate fallback
 }
 
 /**
