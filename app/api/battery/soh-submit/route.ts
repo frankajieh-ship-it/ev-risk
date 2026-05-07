@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Fire-and-forget analytics event
-  supabase.from("user_events").insert({
+  void Promise.resolve(supabase.from("user_events").insert({
     event_name: "soh_submitted",
     event_data: {
       vehicle_year: vehicleYear,
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     },
     visitor_id: resolvedAnonId,
     page_path: "/report",
-  }).then(() => {}).catch(() => {});
+  })).catch(() => {});
 
   return NextResponse.json({ success: true, submissionId: data.id });
 }
