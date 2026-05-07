@@ -112,13 +112,9 @@ export interface VehicleRecommendation {
     year: number | null;
     price: number | null;
     mileage: number | null;
-    verdict: "GREEN" | "YELLOW" | "RED" | null;
-    risk_flags: string[] | null;
-    deal_quality_score: number | null;
     receipt_id: string | null;
     photo_url: string | null;
     url_domain: string | null;
-    last_analyzed_at: string | null;
   }>;
 }
 

@@ -49,30 +49,20 @@ function MatchedDealStrip({ deal }: { deal: NonNullable<VehicleRecommendation["m
     } catch { /* ignore */ }
   }, [saved, deal.id]);
 
-  const verdictGreen = deal.verdict === "GREEN";
-
   return (
     <div className="border-t border-white/[0.08] px-5 py-3 bg-white/[0.02]">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30 mb-2">Best Listed Deal</p>
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30 mb-2">Deal Watch Match</p>
       <div className="rounded-xl border border-white/[0.08] bg-[#161b22] overflow-hidden">
         {deal.photo_url && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={deal.photo_url} alt={deal.vehicle_label} className="w-full h-24 object-cover" />
         )}
         <div className="p-3">
-          <div className="flex items-start justify-between gap-2 mb-1">
-            <p className="text-xs font-semibold text-white/90 leading-tight">{deal.vehicle_label}</p>
-            <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${verdictGreen ? "bg-[#00d97e]/15 text-[#00d97e]" : "bg-yellow-500/15 text-yellow-400"}`}>
-              {verdictGreen ? "Good Deal" : "Caution"}
-            </span>
-          </div>
+          <p className="text-xs font-semibold text-white/90 leading-tight mb-1">{deal.vehicle_label}</p>
           <div className="text-sm font-bold text-white">
             {deal.price ? `$${deal.price.toLocaleString()}` : "—"}
             {deal.mileage ? <span className="text-white/40 text-xs font-normal ml-1.5">· {deal.mileage.toLocaleString()} mi</span> : null}
           </div>
-          {deal.risk_flags?.[0] && (
-            <p className="text-[10px] text-white/35 mt-1 truncate">{deal.risk_flags[0]}</p>
-          )}
           <div className="flex gap-2 mt-2.5">
             <button
               onClick={toggleSave}
@@ -91,16 +81,14 @@ function MatchedDealStrip({ deal }: { deal: NonNullable<VehicleRecommendation["m
             >
               View Listing →
             </a>
-            {deal.receipt_id && (
-              <a
-                href={`/receipt?id=${deal.receipt_id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 text-center text-xs py-1.5 rounded-lg bg-[#00d97e]/10 text-[#00d97e] hover:bg-[#00d97e]/20 transition-colors"
-              >
-                Full Report →
-              </a>
-            )}
+            <a
+              href={`/receipt?url=${encodeURIComponent(deal.listing_url)}&src=ev_routine`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 text-center text-xs py-1.5 rounded-lg bg-[#00d97e]/10 text-[#00d97e] hover:bg-[#00d97e]/20 transition-colors"
+            >
+              Run Analysis →
+            </a>
           </div>
         </div>
       </div>

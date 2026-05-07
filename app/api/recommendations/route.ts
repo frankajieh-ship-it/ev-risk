@@ -194,23 +194,23 @@ export async function POST(request: NextRequest) {
       if (topMakes.length > 0) {
         const { data: dealRows } = await supabaseForDeals
           .from("curated_deals")
-          .select("id, listing_url, vehicle_label, make, model, year, price, mileage, verdict, risk_flags, deal_quality_score, receipt_id, photo_url, url_domain, last_analyzed_at")
+          .select("id, listing_url, vehicle_label, make, model, year, price, mileage, receipt_id, photo_url, url_domain")
           .in("make", topMakes)
           .eq("is_active", true)
-          .neq("verdict", "RED")
-          .order("deal_quality_score", { ascending: false })
-          .limit(topMakes.length * 3);
+          .not("receipt_id", "is", null)
+          .order("price", { ascending: true, nullsFirst: false })
+          .limit(topMakes.length * 10);
 
         if (dealRows && dealRows.length > 0) {
-          const dealsByMake = new Map<string, typeof dealRows>();
-          for (const deal of dealRows) {
-            const m = (deal.make ?? "").toLowerCase();
-            if (!dealsByMake.has(m)) dealsByMake.set(m, []);
-            dealsByMake.get(m)!.push(deal);
-          }
           for (const rec of recommendations) {
             if (rec.fit_score >= 70) {
-              rec.matched_deals = dealsByMake.get(rec.make.toLowerCase())?.slice(0, 2) ?? [];
+              const makeLower = rec.make.toLowerCase();
+              const modelLower = rec.model_short.toLowerCase();
+              const matched = dealRows.filter((d) =>
+                (d.make ?? "").toLowerCase() === makeLower &&
+                (d.model ?? "").toLowerCase().includes(modelLower)
+              );
+              rec.matched_deals = matched.slice(0, 1);
             }
           }
         }
