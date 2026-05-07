@@ -1,18 +1,23 @@
 /**
  * POST /api/admin/deals-generate-receipts
  *
- * Batch-generates full receipts for curated deals that have receipt_id = null.
- * Calls /api/receipt with a fresh receipt token per deal so receipts are saved to DB.
- * FLAG_FREE_MODE bypasses daily limits. On success, updates curated_deals.receipt_id.
+ * Batch-generates lite receipts for curated deals that have receipt_id = null.
+ * Calls the receipt pipeline directly (no HTTP self-call) to avoid Netlify
+ * serverless networking issues. Processes the cheapest N active deals first.
  *
  * Query params:
  *   ?batch=N  — number of deals to process per run (default 10, max 20)
  *
- * Returns { generated, skipped, failed, total } inline (not fire-and-forget).
+ * Returns { generated, skipped, failed, total, errors } inline.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
+import { buildEnhancedFallbackReceipt } from "@/lib/receipt-openai";
+import { extractSignalsFromText } from "@/lib/receipt-signal-extractor";
+import { scoreReceipt } from "@/lib/receipt-scoring";
+import { classifyVehicle } from "@/lib/vehicle-classifier";
+import type { ReceiptGenerateRequest } from "@/types/receipt";
 
 export const maxDuration = 60;
 
@@ -28,18 +33,10 @@ export async function POST(request: NextRequest) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return NextResponse.json({ error: "DB not configured" }, { status: 500 });
 
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
-  const internalSecret = process.env.INTERNAL_API_SECRET;
-  const dealWatchToken = process.env.DEAL_WATCH_TOKEN;
-
-  if (!internalSecret && !dealWatchToken) {
-    return NextResponse.json({ error: "INTERNAL_API_SECRET or DEAL_WATCH_TOKEN must be set" }, { status: 500 });
-  }
-
   const { searchParams } = new URL(request.url);
   const batch = Math.min(20, Math.max(1, parseInt(searchParams.get("batch") || "10", 10)));
 
-  // Fetch deals with no receipt yet
+  // Fetch cheapest active deals with no receipt yet
   const { data: rows, error } = await supabase
     .from("curated_deals")
     .select("id, listing_url, make, model, year, trim, price, mileage, location, vin")
@@ -47,85 +44,97 @@ export async function POST(request: NextRequest) {
     .eq("is_active", true)
     .not("listing_url", "is", null)
     .not("make", "is", null)
+    .order("price", { ascending: true, nullsFirst: false })
     .limit(batch);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!rows?.length) return NextResponse.json({ generated: 0, skipped: 0, failed: 0, total: 0 });
+  if (!rows?.length) return NextResponse.json({ generated: 0, skipped: 0, failed: 0, total: 0, errors: [] });
 
-  let generated = 0, skipped = 0, failed = 0;
+  let generated = 0, failed = 0;
+  const skipped = 0;
   const errors: string[] = [];
 
   for (const row of rows) {
     try {
-      // Generate a valid receipt token per deal so the receipt is saved to DB normally.
-      // tokenIsInternal (DEAL_WATCH_TOKEN) skips DB writes — we need the row persisted.
       const receiptToken = `rt_${Date.now()}_${crypto.randomUUID().replace(/-/g, "").substring(0, 24)}`;
 
-      const body: Record<string, unknown> = {
-        receipt_token: receiptToken,
-        listing_url: row.listing_url,
-        mode: "single",
+      const input: ReceiptGenerateRequest = {
+        listing_url: row.listing_url || null,
+        listing_text: null,
+        year: row.year ?? undefined,
+        make: row.make ?? undefined,
+        model: row.model ?? undefined,
+        trim: row.trim ?? undefined,
+        mileage: row.mileage ?? undefined,
+        price: row.price ?? undefined,
+        vin: row.vin ?? undefined,
+        location: row.location ?? undefined,
         region: "US",
-        input_mode: "deal_watch",
-        page_source: "deal_watch_batch",
+        mode: "single",
+        receipt_token: receiptToken,
       };
 
-      // Pass all structured fields we have so the AI doesn't need to extract
-      if (row.make) body.make = row.make;
-      if (row.model) body.model = row.model;
-      if (row.year) body.year = row.year;
-      if (row.trim) body.trim = row.trim;
-      if (row.price) body.price = row.price;
-      if (row.mileage) body.mileage = row.mileage;
-      if (row.location) body.location = row.location;
-      if (row.vin) body.vin = row.vin;
-
-      const res = await fetch(`${siteUrl}/api/receipt`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(internalSecret ? { "x-internal-secret": internalSecret } : {}),
+      // Build lite receipt directly — no HTTP call, no AI, ~500ms
+      const classification = classifyVehicle(input.make || "", input.model || "", input.trim, null);
+      const signals = extractSignalsFromText(
+        null,
+        {
+          vin: input.vin,
+          mileage: input.mileage,
+          year: input.year,
+          title_status: undefined,
+          service_history: undefined,
+          accidents_reported: undefined,
+          owners: undefined,
+          carfax_available: undefined,
         },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(25000),
+        classification
+      );
+      const scoring = scoreReceipt(signals);
+      const liteReceipt = buildEnhancedFallbackReceipt(input, signals, scoring);
+
+      const urlDomain = row.listing_url
+        ? (() => { try { return new URL(row.listing_url).hostname.replace("www.", ""); } catch { return null; } })()
+        : null;
+
+      const { error: insertErr } = await supabase.from("receipts").insert({
+        id: liteReceipt.receipt_id,
+        session_id: receiptToken,
+        user_id: null,
+        source: "deal_watch",
+        page_source: "deal_watch_batch",
+        listing_url: row.listing_url || null,
+        url_domain: urlDomain,
+        listing_text: null,
+        input_json: input,
+        output_json: liteReceipt,
+        mode: "single",
+        is_pro: false,
+        generation_status: "lite",
       });
 
-      const data = await res.json() as {
-        success: boolean;
-        receipt_id?: string;
-        source?: string;
-        generation_status?: string;
-        receipt?: { verdict?: string };
-      };
-
-      if (!data.success || !data.receipt_id) {
-        const reason = (data as Record<string, unknown>).error ?? (data as Record<string, unknown>).message ?? JSON.stringify(data);
-        console.warn(`[deals-generate-receipts] No receipt for ${row.listing_url}: HTTP ${res.status} — ${reason}`);
-        errors.push(`${row.listing_url}: HTTP ${res.status} — ${reason}`);
+      if (insertErr) {
+        console.warn(`[deals-generate-receipts] DB insert failed for ${row.listing_url}:`, insertErr.message);
+        errors.push(`${row.listing_url}: insert error — ${insertErr.message}`);
         failed++;
         continue;
       }
 
-      // On cache hit the receipt_id is already correct — still write it back if missing
-      if (data.source === "deal_cache") {
-        skipped++;
-        continue;
-      }
-
-      const receiptVerdict = data.receipt?.verdict;
+      const receiptVerdict = liteReceipt.verdict;
       const { error: updateErr } = await supabase
         .from("curated_deals")
         .update({
-          receipt_id: data.receipt_id,
+          receipt_id: liteReceipt.receipt_id,
           ...(receiptVerdict ? { verdict: receiptVerdict } : {}),
         })
         .eq("id", row.id);
 
       if (updateErr) {
-        console.warn(`[deals-generate-receipts] Failed to update receipt_id for ${row.id}:`, updateErr.message);
+        console.warn(`[deals-generate-receipts] Failed to link receipt for deal ${row.id}:`, updateErr.message);
+        errors.push(`${row.listing_url}: link error — ${updateErr.message}`);
         failed++;
       } else {
-        console.log(`[deals-generate-receipts] Linked receipt ${data.receipt_id} → deal ${row.id}`);
+        console.log(`[deals-generate-receipts] Linked receipt ${liteReceipt.receipt_id} → deal ${row.id} (${receiptVerdict})`);
         generated++;
       }
     } catch (err) {
@@ -142,6 +151,6 @@ export async function POST(request: NextRequest) {
     skipped,
     failed,
     total: rows.length,
-    errors: errors.slice(0, 3), // first 3 errors for diagnosis
+    errors: errors.slice(0, 3),
   });
 }
