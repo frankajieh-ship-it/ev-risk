@@ -211,6 +211,8 @@ export default function ReceiptPage() {
   const [prefillUrl, setPrefillUrl] = useState<string | null>(null);
   const [prefillVin, setPrefillVin] = useState<string | null>(null);
   const [pageSource, setPageSource] = useState<string | null>(null);
+  // When coming from deal_watch with a known listing_url, skip extraction and generate directly
+  const [dealWatchDirectUrl, setDealWatchDirectUrl] = useState<string | null>(null);
 
   // Receipt history (merged server + localStorage)
   const {
@@ -401,9 +403,14 @@ export default function ReceiptPage() {
     // Check for URL prefill (?url=...&ext=true or ?url=...&src=landing)
     const extUrl = params.get("url");
     if (extUrl) {
-      setPrefillUrl(extUrl);
       const src = srcParam || (params.get("ext") === "true" ? "extension" : "direct_url");
       setPageSource(src);
+      if (src === "deal_watch") {
+        // Skip extraction — go straight to generate so the deal cache can return the stored receipt
+        setDealWatchDirectUrl(extUrl);
+      } else {
+        setPrefillUrl(extUrl);
+      }
       window.history.replaceState({}, "", "/receipt");
     }
 
@@ -595,6 +602,39 @@ export default function ReceiptPage() {
     },
     [handleGenerateCore, setCompareReceipt, setShowCompareView]
   );
+
+  // Deal Watch direct-generate: skip extraction, hit receipt API directly so deal cache fires.
+  // If there's no cached receipt (400), fall back to prefillUrl so the user can extract normally.
+  const dealWatchFiredRef = useRef(false);
+  useEffect(() => {
+    if (!dealWatchDirectUrl || !receiptToken || dealWatchFiredRef.current) return;
+    dealWatchFiredRef.current = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/receipt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            receipt_token: receiptToken,
+            listing_url: dealWatchDirectUrl,
+            mode: "single",
+            input_mode: "deal_watch",
+            page_source: "deal_watch",
+          }),
+        });
+        const result = await res.json();
+        if (result.success && result.source === "deal_cache") {
+          // Cache hit — render the stored receipt directly
+          setReceipt(result.receipt);
+        } else {
+          // Cache miss — fall back to extraction flow
+          setPrefillUrl(dealWatchDirectUrl);
+        }
+      } catch {
+        setPrefillUrl(dealWatchDirectUrl);
+      }
+    })();
+  }, [dealWatchDirectUrl, receiptToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Post receipt event to dedicated endpoint (fire-and-forget)
   const postReceiptEvent = useCallback(
