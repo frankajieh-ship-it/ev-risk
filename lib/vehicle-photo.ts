@@ -99,8 +99,8 @@ export const STATIC_PHOTO_MAP: Record<string, string> = {
   "lyriq": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/2023_Cadillac_Lyriq_Luxury_1%2C_front_right%2C_08-22-2024.jpg/960px-2023_Cadillac_Lyriq_Luxury_1%2C_front_right%2C_08-22-2024.jpg",
   "optiq": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/2023_Cadillac_Lyriq_Luxury_1%2C_front_right%2C_08-22-2024.jpg/960px-2023_Cadillac_Lyriq_Luxury_1%2C_front_right%2C_08-22-2024.jpg",
   // Volvo
-  "c40 recharge": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Volvo_C40_Recharge_P8_AWD_IMG_4802.jpg/960px-Volvo_C40_Recharge_P8_AWD_IMG_4802.jpg",
-  "c40": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Volvo_C40_Recharge_P8_AWD_IMG_4802.jpg/960px-Volvo_C40_Recharge_P8_AWD_IMG_4802.jpg",
+  "c40 recharge": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Volvo_C40_Recharge_2021_P01_front.jpg/960px-Volvo_C40_Recharge_2021_P01_front.jpg",
+  "c40": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Volvo_C40_Recharge_2021_P01_front.jpg/960px-Volvo_C40_Recharge_2021_P01_front.jpg",
   "xc40 recharge": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Volvo_XC40_Recharge_Facelift_IMG_8127.jpg/960px-Volvo_XC40_Recharge_Facelift_IMG_8127.jpg",
   "xc40": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Volvo_XC40_Recharge_Facelift_IMG_8127.jpg/960px-Volvo_XC40_Recharge_Facelift_IMG_8127.jpg",
   // Audi

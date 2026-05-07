@@ -421,6 +421,29 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
           || listing.vehicle?.vin || listing.listingDetails?.vin;
         data.location = data.location || listing.dealer?.cityState || listing.dealerInfo?.cityState;
 
+        // Title status — CarGurus uses "titleStatus" or "title" with values like "CLEAN", "SALVAGE"
+        if (!data.title_status) {
+          const rawTitle = (listing.titleStatus ?? listing.title_status ?? listing.titleHistory?.status ?? "").toString().toLowerCase();
+          if (rawTitle.includes("clean")) data.title_status = "clean";
+          else if (rawTitle.includes("salvage")) data.title_status = "salvage";
+          else if (rawTitle.includes("rebuilt") || rawTitle.includes("reconstructed")) data.title_status = "rebuilt";
+        }
+
+        // Accident history — CarGurus uses "accidentCount" or "hasAccidents"
+        if (!data.accidents_reported) {
+          const accCount = listing.accidentCount ?? listing.numberOfAccidents ?? listing.accidentsReported;
+          const hasAcc = listing.hasAccidents ?? listing.accidentHistory;
+          if (typeof accCount === "number") data.accidents_reported = accCount > 0 ? "yes" : "no";
+          else if (hasAcc === false || hasAcc === "NO_ACCIDENTS") data.accidents_reported = "no";
+          else if (hasAcc === true) data.accidents_reported = "yes";
+        }
+
+        // Owner count
+        if (!data.owners) {
+          const ownerCount = listing.ownerCount ?? listing.numberOfOwners ?? listing.owners;
+          if (typeof ownerCount === "number" && ownerCount > 0) data.owners = ownerCount;
+        }
+
         // EV specs — CarGurus nests these under various keys
         const specs = listing.specs || listing.vehicleSpecs || listing.attributes || {};
         const fuelEcon = listing.fuelEconomy || listing.mpg || {};
