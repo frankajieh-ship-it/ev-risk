@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
   // 2. Static curated map — zero-latency, always the correct car, covers all common EVs
   // Skip when caller already tried the static URL and it 404'd
   if (!skipStatic) {
-    const staticUrl = getStaticPhotoUrl(make, rawModel);
+    const staticUrl = getStaticPhotoUrl(make, rawModel, year ?? undefined);
     if (staticUrl) {
       return NextResponse.json({ photo_urls: [staticUrl], source: "static" });
     }
@@ -251,9 +251,9 @@ export async function GET(request: NextRequest) {
         const modelWords = expectedModel.split(" ").filter((w) => w.length > 1);
         if (modelWords.length > 0 && !modelWords.every((w) => recordModel.includes(w))) continue;
       }
-      // Year check: record year must be within ±2 of requested year (avoids completely wrong era)
+      // Year check: record year must be within ±1 of requested year (avoids redesign-era mismatch)
       if (year && record.year) {
-        if (Math.abs(Number(record.year) - year) > 2) continue;
+        if (Math.abs(Number(record.year) - year) > 1) continue;
       }
       if (record.primaryPhotoUrl && !photoUrls.includes(record.primaryPhotoUrl)) {
         photoUrls.push(record.primaryPhotoUrl);

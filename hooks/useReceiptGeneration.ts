@@ -320,7 +320,12 @@ export function useReceiptGeneration({
 
         addReceipt(result.receipt);
 
-        if (result.generation_status === "lite" && result.receipt_id) {
+        if (result.source === "deal_cache") {
+          trackEvent("receipt_deal_cache_hit", {
+            receipt_id: result.receipt_id,
+            verdict: result.receipt.verdict,
+          });
+        } else if (result.generation_status === "lite" && result.receipt_id) {
           startUpgradePolling(result.receipt_id);
           trackEvent("receipt_lite_shown", {
             receipt_id: result.receipt.receipt_id,

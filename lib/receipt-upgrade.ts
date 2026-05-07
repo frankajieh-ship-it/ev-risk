@@ -86,6 +86,8 @@ export async function runReceiptUpgrade(payload: UpgradePayload): Promise<void> 
     schemaName: "receipt",
     temperature: 0.3,
     maxTokens: 1800,
+    hedgeDelays: [4000, 7000],
+    timeoutMs: 15_000,
     validate: (json) => {
       const v = validateReceiptSchema(json);
       return { valid: v.valid, errors: v.errors };
@@ -100,10 +102,9 @@ export async function runReceiptUpgrade(payload: UpgradePayload): Promise<void> 
   let lintErrors = validation.lintErrors;
   let finalReceipt = validation.sanitized || hedgeResult.result.json;
 
-  // Schema hard fail
+  // Schema hard fail — leave receipt as "lite" so user keeps the deterministic result
   if (!validation.sanitized && validation.errors.length > 0 && validation.lintErrors.length === 0) {
-    await supabase.from("receipts").update({ generation_status: "failed" }).eq("id", receipt_id);
-    console.log(`[receipt-upgrade] Schema fail for ${receipt_id}`);
+    console.log(`[receipt-upgrade] Schema fail for ${receipt_id} — leaving as lite`);
     return;
   }
 

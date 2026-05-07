@@ -222,3 +222,80 @@ def build_drafts(plan: ReplyPlan, tone: Tone = "standard") -> Dict[str, str]:
 def get_tool_blurb() -> str:
     """Get the standard tool introduction blurb."""
     return TOOL_BLURB
+
+
+# -------------------------
+# Weekly "Rate My Listing" thread templates
+# -------------------------
+
+WEEKLY_THREAD_TITLE = "📋 Rate My Listing — Drop your used EV link and we'll run the numbers"
+
+WEEKLY_THREAD_BODY = """Every week we open this thread for anyone actively shopping a used EV.
+
+Drop a link to the listing you're considering (CarGurus, AutoTrader, Cars.com, Facebook Marketplace — anything works) and tell us:
+- What you're being asked to pay
+- Your rough commute / weekly miles
+- Whether you have home charging
+
+We'll run an OFFO receipt on it — recalls, battery health estimate, price vs. comparables, and what to watch out for — and post it as a reply.
+
+No pitch. Just the data.
+
+---
+*Thread resets every Monday. Powered by [OFFO](https://offolab.com) — free EV deal analysis.*"""
+
+# Reply format when responding to a listing URL dropped in the weekly thread.
+# Fill in: verdict, price_direction ("Over"/"Under"/"At"), price_delta, comp_count,
+#          recall_count, recall_titles, watch_items (list[str]), receipt_url
+THREAD_REPLY_TEMPLATE = """Ran this through OFFO — here's what came back:
+
+**Verdict:** {verdict}
+**Price check:** {price_direction} market by ~${price_delta} vs {comp_count} similar listings
+**Open recalls:** {recall_count}{recall_titles}
+**What to watch:** {watch_items}
+
+Full receipt (battery health, inspection checklist, negotiation scripts): {receipt_url}
+
+---
+*OFFO scans NHTSA, title history, and live listings — not affiliated with the seller.*"""
+
+
+def format_thread_reply(
+    verdict: str,
+    price_direction: str,
+    price_delta: int,
+    comp_count: int,
+    recall_count: int,
+    recall_titles: list[str],
+    watch_items: list[str],
+    receipt_url: str,
+) -> str:
+    """
+    Format a structured reply for a listing URL dropped in the weekly Rate My Listing thread.
+
+    Args:
+        verdict: "🟢 GREEN", "🟡 YELLOW", or "🔴 RED"
+        price_direction: "Over", "Under", or "At"
+        price_delta: dollar amount over/under market
+        comp_count: number of comparable listings used for price check
+        recall_count: number of open recalls
+        recall_titles: list of recall title strings (empty list if none)
+        watch_items: list of 2-3 top concern strings
+        receipt_url: full offolab.com receipt URL
+    """
+    recall_suffix = ""
+    if recall_count > 0 and recall_titles:
+        recall_suffix = " (" + ", ".join(recall_titles[:3]) + ")"
+
+    watch_formatted = "\n".join(f"- {item}" for item in watch_items[:3])
+
+    return THREAD_REPLY_TEMPLATE.format(
+        verdict=verdict,
+        price_direction=price_direction,
+        price_delta=price_delta,
+        comp_count=comp_count,
+        recall_count=recall_count,
+        recall_titles=recall_suffix,
+        watch_items=watch_formatted,
+        receipt_url=receipt_url,
+    )

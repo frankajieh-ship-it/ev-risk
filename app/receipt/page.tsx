@@ -372,7 +372,11 @@ export default function ReceiptPage() {
     }
 
     // Capture UTM attribution BEFORE cleaning the URL (replaceState wipes params)
-    initAttribution();
+    const attribution = initAttribution();
+    // Fall back to attribution-derived source when no sessionStorage page_source was set
+    if (!sessionStorage.getItem("offo_page_source") && attribution.page_source) {
+      setPageSource(attribution.page_source);
+    }
 
     // Check for return-to-routine flow (?return_to=routine&run_id=X)
     const params = new URLSearchParams(window.location.search);
@@ -940,6 +944,29 @@ export default function ReceiptPage() {
               />
               </div>
 
+              {/* Email capture — placed high so it's visible without scrolling */}
+              {!hasEmailed && (
+                <div id="email-capture-card">
+                  <EmailCaptureCard
+                    receiptId={receipt.receipt_id}
+                    onSubmit={() => {
+                      setHasEmailed(true);
+                      trackEvent("email_checklist_submit", {
+                        receipt_id: receipt.receipt_id,
+                      });
+                    }}
+                    onGarageSave={() => {
+                      addToAnonGarage({
+                        type: "receipt",
+                        label: `${receipt.listing_summary?.year ?? ""} ${receipt.listing_summary?.make ?? ""} ${receipt.listing_summary?.model ?? ""}`.trim() || "Saved Receipt",
+                        data: receipt as unknown as Record<string, unknown>,
+                      });
+                      setHasSaved(true);
+                    }}
+                  />
+                </div>
+              )}
+
               {/* ── All sections always visible (free mode) ── */}
               <>
                 {!isUpgrading && receipt.receipt_id && (
@@ -985,29 +1012,6 @@ export default function ReceiptPage() {
               {/* Workspace save nudge */}
               {!isAuthenticated && (
                 <WorkspaceSaveNudge onSignIn={() => setShowAuthPrompt(true)} />
-              )}
-
-              {/* Email capture */}
-              {!hasEmailed && (
-                <div id="email-capture-card">
-                  <EmailCaptureCard
-                    receiptId={receipt.receipt_id}
-                    onSubmit={() => {
-                      setHasEmailed(true);
-                      trackEvent("email_checklist_submit", {
-                        receipt_id: receipt.receipt_id,
-                      });
-                    }}
-                    onGarageSave={() => {
-                      addToAnonGarage({
-                        type: "receipt",
-                        label: `${receipt.listing_summary?.year ?? ""} ${receipt.listing_summary?.make ?? ""} ${receipt.listing_summary?.model ?? ""}`.trim() || "Saved Receipt",
-                        data: receipt as unknown as Record<string, unknown>,
-                      });
-                      setHasSaved(true);
-                    }}
-                  />
-                </div>
               )}
 
               {/* ── Next-step CTA bar ────────────────────────────────── */}

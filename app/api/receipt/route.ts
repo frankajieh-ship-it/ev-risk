@@ -128,6 +128,34 @@ export async function POST(request: NextRequest) {
     return handleFixOnly(body.receipt_json, body.lint_errors as LintError[] | undefined, receiptToken);
   }
 
+  // 3b. Curated deal cache — instant receipt for already-analyzed listings
+  if (body.listing_url && typeof body.listing_url === "string" && isSupabaseConfigured()) {
+    const { data: deal } = await supabase
+      .from("curated_deals")
+      .select("receipt_id")
+      .eq("listing_url", body.listing_url)
+      .eq("is_active", true)
+      .single();
+
+    if (deal?.receipt_id) {
+      const { data: stored } = await supabase
+        .from("receipts")
+        .select("output_json, generation_status")
+        .eq("id", deal.receipt_id)
+        .single();
+
+      if (stored?.output_json && stored.generation_status === "full") {
+        return NextResponse.json({
+          success: true,
+          receipt: stored.output_json,
+          receipt_id: deal.receipt_id,
+          generation_status: "full",
+          source: "deal_cache",
+        });
+      }
+    }
+  }
+
   // 4. Validate actual content (bare URLs are not enough — OpenAI can't visit them)
   const hasText =
     body.listing_text &&

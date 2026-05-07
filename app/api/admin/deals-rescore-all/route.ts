@@ -54,12 +54,12 @@ function mergeSignals(aiSignals: string[], structured: string[]): string[] {
 export async function runRescore(since?: string) {
   const [
     { scoreWithAi, inferSignalsFromListing },
-    { scoreReceiptV2 },
+    { scoreReceipt },
     { computeDealQualityScore },
     { getSupabaseAdmin },
   ] = await Promise.all([
     import("@/lib/deals-score"),
-    import("@/lib/receipt-scoring-v2"),
+    import("@/lib/receipt-scoring"),
     import("@/lib/deal-quality-score"),
     import("@/lib/api-auth"),
   ]);
@@ -132,23 +132,24 @@ export async function runRescore(since?: string) {
       const aiSignals = aiResult.signals.length > 0 ? aiResult.signals : inferSignalsFromListing(d);
       const mergedSignals = mergeSignals(aiSignals, allStructured);
       const signals = mergedSignals;
-      const scoring = scoreReceiptV2(signals);
+      const scoring = scoreReceipt(signals);
+      const riskPoints = Math.max(0, Math.round((100 - scoring.fit_score) / 10));
       const dealQualityScore = computeDealQualityScore(
-        scoring.evidence_score, scoring.risk_points, scoring.fit_score
+        scoring.evidence_score, riskPoints, scoring.fit_score
       );
       const riskFlags = aiResult.riskFlags.length > 0
         ? aiResult.riskFlags
         : scoring.scoring_reasons
-            .filter((r) => r.points <= 0)
-            .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
+            .filter((r: { points: number }) => r.points <= 0)
+            .sort((a: { points: number }, b: { points: number }) => Math.abs(b.points) - Math.abs(a.points))
             .slice(0, 3)
-            .map((r) => r.label);
+            .map((r: { label: string }) => r.label);
 
       const { error: updateErr } = await supabase.from("curated_deals").update({
         verdict: scoring.verdict,
         evidence_score: scoring.evidence_score,
         fit_score: scoring.fit_score,
-        risk_points: scoring.risk_points,
+        risk_points: riskPoints,
         deal_quality_score: dealQualityScore,
         risk_flags: riskFlags.length > 0 ? riskFlags : null,
         is_active: true,

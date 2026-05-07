@@ -1,13 +1,11 @@
 /**
- * ReceiptInputCard — Prefilled manual form as primary entry method
+ * ReceiptInputCard — URL/listing paste as primary entry method
  *
  * Primary flow:
- *   1. Select Make → filtered Model dropdown auto-populates
- *   2. Enter Year, Mileage (required), Price (optional)
- *   3. Enter VIN (optional) → VIN lookup autofills make/model/year
+ *   1. Paste listing URL or text → auto-extract fields
+ *   2. If VIN not found → amber compel prompt
+ *   3. Confirm / fill missing details in manual form
  *   4. Generate Receipt
- *
- * Secondary: "Paste listing" panel (URL or text) for power users
  */
 
 "use client";
@@ -18,7 +16,6 @@ import {
   Sparkles,
   Loader2,
   AlertCircle,
-  ChevronDown,
   Check,
   ShieldCheck,
   Link,
@@ -156,10 +153,11 @@ export default function ReceiptInputCard({
   const [vinStatus, setVinStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [vinError, setVinError] = useState<string | null>(null);
   const [vinFilled, setVinFilled] = useState(false);
+  // vinCompelDismissed: user typed in compel prompt or skipped — hide the amber banner
+  const [vinCompelDismissed, setVinCompelDismissed] = useState(false);
   const priceInputRef = useRef<HTMLInputElement | null>(null);
 
-  // ── Paste panel (secondary) ───────────────────────────────────────────────
-  const [pasteOpen, setPasteOpen] = useState(false);
+  // ── Paste panel (primary — always visible) ───────────────────────────────
   const [pasteMode, setPasteMode] = useState<PasteMode>("url");
   const [listingUrl, setListingUrl] = useState("");
   const [listingText, setListingText] = useState("");
@@ -231,7 +229,6 @@ export default function ReceiptInputCard({
   // ── Prefill from external sources ─────────────────────────────────────────
   useEffect(() => {
     if (prefillText) {
-      setPasteOpen(true);
       setPasteMode("text");
       setListingText(prefillText);
     }
@@ -241,7 +238,6 @@ export default function ReceiptInputCard({
   useEffect(() => {
     if (prefillUrl && !prefillUrlHandled.current) {
       prefillUrlHandled.current = true;
-      setPasteOpen(true);
       setPasteMode("url");
       setListingUrl(prefillUrl);
       autoExtractTimerRef.current = setTimeout(() => handleExtract(prefillUrl), 800);
@@ -332,7 +328,6 @@ export default function ReceiptInputCard({
     if (isVinLike(pasted)) {
       e.preventDefault();
       setVinValue(pasted.toUpperCase());
-      setPasteOpen(false);
       setTimeout(() => handleVinLookupWithVin(pasted.toUpperCase()), 100);
       return;
     }
@@ -433,11 +428,11 @@ export default function ReceiptInputCard({
       const f: FetchedListingFields = data.fields;
       applyExtractedFields(f);
       setHasExtracted(true);
+      setVinCompelDismissed(false);
       setExtractionId(data.extraction_id || null);
       setExtractedRawText(data.raw_text || null);
       setListingSource(data.listing_source || null);
       setExtractError(null);
-      setPasteOpen(false); // collapse paste panel after success
 
       trackEvent?.("receipt_extract_succeeded", {
         input_mode: pasteMode, anon_id: receiptToken,
@@ -472,17 +467,19 @@ export default function ReceiptInputCard({
     if (isGenerating || isExtracting) return;
     lastGenerateRef.current = now;
 
+    const submitFields: StructuredListingFields = { ...allFields };
+
     trackEvent?.("vehicle_facts_form_submitted", {
       input_mode: hasExtracted ? "extracted" : "manual",
       anon_id: receiptToken,
-      fields_filled: Object.values(allFields).filter(Boolean).length,
+      fields_filled: Object.values(submitFields).filter(Boolean).length,
       listing_source: listingSource || "manual",
     });
 
     onGenerate({
       listing_url: pasteMode === "url" ? listingUrl.trim() || undefined : undefined,
       listing_text: pasteMode === "text" ? listingText.trim() || undefined : (extractedRawText || undefined),
-      fields: allFields,
+      fields: submitFields,
       extraction_id: extractionId || undefined,
       input_mode: hasExtracted ? "extracted" : prefillVin ? "vin" : "manual",
     });
@@ -509,9 +506,133 @@ export default function ReceiptInputCard({
 
       <div className="p-5 space-y-4">
 
+        {/* ── PRIMARY: Listing URL / text paste (always visible) ──────── */}
+        <div>
+          <p className="text-sm font-semibold text-white mb-3">Start with your listing</p>
+
+          {/* Mode toggle */}
+          <div className="flex gap-1 bg-white/[0.04] rounded-lg p-1 mb-3">
+            <button
+              onClick={() => setPasteMode("url")}
+              className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-md flex items-center justify-center gap-1.5 transition-colors ${
+                pasteMode === "url" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/60"
+              }`}
+            >
+              <Link className="w-3.5 h-3.5" /> Paste URL
+            </button>
+            <button
+              onClick={() => setPasteMode("text")}
+              className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-md flex items-center justify-center gap-1.5 transition-colors ${
+                pasteMode === "text" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/60"
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" /> Paste Text
+            </button>
+          </div>
+
+          {/* URL mode */}
+          {pasteMode === "url" && (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  ref={urlInputRef}
+                  type="url"
+                  value={listingUrl}
+                  onChange={(e) => { setListingUrl(e.target.value); setExtractError(null); }}
+                  onPaste={handleUrlPaste}
+                  placeholder="Paste a listing URL (CarGurus, AutoTrader…)"
+                  className="form-input flex-1 text-sm"
+                  disabled={isGenerating || isExtracting}
+                  autoFocus
+                />
+                <button
+                  onClick={() => handleExtract()}
+                  disabled={!listingUrl.trim() || isExtracting || isGenerating}
+                  className="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap bg-white/10 text-white hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Extract"}
+                </button>
+              </div>
+
+              {/* CarGurus search URL banner */}
+              {showCarGurusBanner && !isExtracting && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+                  <div className="flex-1">
+                    {carGurusCleanId ? (
+                      <>
+                        <span className="text-amber-300">Search page detected.</span>
+                        <button
+                          onClick={() => {
+                            const cleanUrl = `https://www.cargurus.com/details/${carGurusCleanId}`;
+                            setListingUrl(cleanUrl);
+                            setShowCarGurusBanner(false);
+                            handleExtract(cleanUrl);
+                          }}
+                          className="ml-2 font-semibold text-amber-400 underline hover:text-amber-300"
+                        >
+                          Clean &amp; Extract
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-amber-300">Open a specific listing and copy that URL.</span>
+                    )}
+                  </div>
+                  <button onClick={() => setShowCarGurusBanner(false)} className="text-amber-400/70 hover:text-amber-400">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {isExtracting && (
+                <div className="flex items-center gap-2 text-xs text-[#00d97e] bg-[#00d97e]/10 p-2.5 rounded-lg">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
+                  <span>{EXTRACT_STEPS[extractStep] || EXTRACT_STEPS[0]}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Text mode */}
+          {pasteMode === "text" && (
+            <div className="space-y-2">
+              <textarea
+                ref={textareaRef}
+                value={listingText}
+                onChange={(e) => setListingText(e.target.value)}
+                placeholder={`Paste listing text here...\n\nExample:\n2022 Tesla Model 3 Long Range AWD\n28,000 miles · $38,500\nDenver, CO · Clean title`}
+                rows={5}
+                maxLength={8000}
+                className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/10 text-white text-sm placeholder-white/25 resize-none focus:border-[#00d97e]/50 focus:outline-none focus:ring-1 focus:ring-[#00d97e]/30"
+                disabled={isGenerating || isExtracting}
+              />
+              <button
+                onClick={() => handleExtract()}
+                disabled={listingText.trim().length < 20 || isExtracting || isGenerating}
+                className="w-full py-2 rounded-lg text-sm font-medium bg-white/10 text-white hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {isExtracting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {EXTRACT_STEPS[extractStep] || EXTRACT_STEPS[0]}
+                  </span>
+                ) : "Extract Details"}
+              </button>
+            </div>
+          )}
+
+          {/* Extract error — suppressed once VIN filled or all required fields complete */}
+          {extractError && !isExtracting && !vinFilled && !fieldsComplete && (
+            <div className="flex items-start gap-2 text-xs p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 mt-2">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+              <span>{extractError.message}</span>
+            </div>
+          )}
+        </div>
+
         {/* ── Extraction success banner ────────────────────────────────── */}
         <AnimatePresence>
-          {hasExtracted && !pasteOpen && (
+          {hasExtracted && (
             <motion.div
               key="extract-success"
               initial={{ opacity: 0, y: -6 }}
@@ -528,49 +649,106 @@ export default function ReceiptInputCard({
           )}
         </AnimatePresence>
 
-        {/* ── VIN section ──────────────────────────────────────────────── */}
-        <div>
-          <label className="text-xs font-medium text-white/60 mb-1 block">
-            VIN{" "}
-            <span className="font-normal text-white/35">(optional — autofills make, model & year)</span>
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              maxLength={17}
-              placeholder="17-character VIN"
-              value={vinValue}
-              onChange={(e) => {
-                setVinValue(e.target.value.toUpperCase());
-                setVinError(null);
-                setVinStatus("idle");
-                if (hasResult) setDirtyAfterResult(true);
-              }}
-              onKeyDown={(e) => { if (e.key === "Enter" && vinValue.length === 17) handleVinLookup(); }}
-              className="flex-1 px-3 py-2 text-sm font-mono bg-white/[0.06] border border-white/10 text-white rounded-lg focus:ring-2 focus:ring-[#00d97e]/40 focus:border-[#00d97e]/50 outline-none uppercase tracking-wider placeholder-white/25"
-              disabled={vinStatus === "loading" || isGenerating}
-            />
-            <button
-              onClick={handleVinLookup}
-              disabled={vinValue.length !== 17 || vinStatus === "loading" || isGenerating}
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-white/10 text-white hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 whitespace-nowrap"
+        {/* ── Post-extraction VIN compel ───────────────────────────────── */}
+        <AnimatePresence>
+          {hasExtracted && !vinFilled && !vinCompelDismissed && (
+            <motion.div
+              key="vin-compel"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="bg-amber-500/10 border border-amber-500/25 rounded-xl p-3 flex items-start gap-2.5"
             >
-              {vinStatus === "loading" ? (
-                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Looking up…</>
-              ) : vinStatus === "success" ? (
-                <><Check className="w-3.5 h-3.5 text-[#00d97e]" /> Autofilled</>
-              ) : (
-                <><ShieldCheck className="w-3.5 h-3.5" /> Autofill</>
-              )}
-            </button>
-          </div>
-          {vinError && <p className="text-xs text-red-400 mt-1">{vinError}</p>}
-          {vinFilled && (
-            <p className="text-xs text-[#00d97e]/80 mt-1">
-              Make, model &amp; year filled from VIN — confirm below and add price/mileage
-            </p>
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-amber-300">VIN not found in listing</p>
+                <p className="text-xs text-amber-400/70 mt-0.5">
+                  Adding your VIN unlocks NMVTIS accident history, open recalls, and a more accurate battery estimate.
+                </p>
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    maxLength={17}
+                    placeholder="17-character VIN"
+                    value={vinValue}
+                    onChange={(e) => { setVinValue(e.target.value.toUpperCase()); setVinError(null); setVinStatus("idle"); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && vinValue.length === 17) handleVinLookup(); }}
+                    className="flex-1 px-3 py-2 text-sm font-mono bg-white/[0.06] border border-amber-500/30 text-white rounded-lg focus:ring-2 focus:ring-amber-400/40 outline-none uppercase tracking-wider placeholder-white/25"
+                  />
+                  <button
+                    onClick={handleVinLookup}
+                    disabled={vinValue.length !== 17 || vinStatus === "loading"}
+                    className="px-3 py-2 text-sm font-semibold rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 disabled:opacity-40 transition-colors whitespace-nowrap flex items-center gap-1.5"
+                  >
+                    {vinStatus === "loading" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Add VIN"}
+                  </button>
+                </div>
+                {vinError && <p className="text-xs text-red-400 mt-1">{vinError}</p>}
+                <button
+                  onClick={() => { setVinCompelDismissed(true); }}
+                  className="text-xs text-white/30 hover:text-white/50 mt-1.5 transition-colors"
+                >
+                  Skip — continue without VIN
+                </button>
+              </div>
+            </motion.div>
           )}
+        </AnimatePresence>
+
+        {/* ── Divider: manual form ─────────────────────────────────────── */}
+        <div className="flex items-center gap-3 pt-1">
+          <div className="flex-1 h-px bg-white/[0.06]" />
+          <span className="text-xs text-white/30 shrink-0">
+            {hasExtracted ? "Confirm details" : "Or enter manually"}
+          </span>
+          <div className="flex-1 h-px bg-white/[0.06]" />
         </div>
+
+        {/* ── VIN section (shown only when NOT in post-extraction compel) */}
+        {!(hasExtracted && !vinFilled && !vinCompelDismissed) && (
+          <div>
+            <label className="text-xs font-medium text-white/60 mb-1 block">
+              VIN{" "}
+              <span className="font-normal text-white/35">(optional — autofills make, model & year)</span>
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                maxLength={17}
+                placeholder="17-character VIN"
+                value={vinValue}
+                onChange={(e) => {
+                  setVinValue(e.target.value.toUpperCase());
+                  setVinError(null);
+                  setVinStatus("idle");
+                  if (hasResult) setDirtyAfterResult(true);
+                }}
+                onKeyDown={(e) => { if (e.key === "Enter" && vinValue.length === 17) handleVinLookup(); }}
+                className="flex-1 px-3 py-2 text-sm font-mono bg-white/[0.06] border border-white/10 text-white rounded-lg focus:ring-2 focus:ring-[#00d97e]/40 focus:border-[#00d97e]/50 outline-none uppercase tracking-wider placeholder-white/25"
+                disabled={vinStatus === "loading" || isGenerating}
+              />
+              <button
+                onClick={handleVinLookup}
+                disabled={vinValue.length !== 17 || vinStatus === "loading" || isGenerating}
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-white/10 text-white hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 whitespace-nowrap"
+              >
+                {vinStatus === "loading" ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Looking up…</>
+                ) : vinStatus === "success" ? (
+                  <><Check className="w-3.5 h-3.5 text-[#00d97e]" /> Autofilled</>
+                ) : (
+                  <><ShieldCheck className="w-3.5 h-3.5" /> Autofill</>
+                )}
+              </button>
+            </div>
+            {vinError && <p className="text-xs text-red-400 mt-1">{vinError}</p>}
+            {vinFilled && (
+              <p className="text-xs text-[#00d97e]/80 mt-1">
+                Make, model &amp; year filled from VIN — confirm below and add price/mileage
+              </p>
+            )}
+          </div>
+        )}
 
         {/* ── Make + Model ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3">
@@ -688,149 +866,6 @@ export default function ReceiptInputCard({
               disabled={isGenerating}
             />
           </div>
-        </div>
-
-        {/* ── Paste listing panel (secondary) ─────────────────────────── */}
-        <div className="border-t border-white/[0.06] pt-3">
-          <button
-            type="button"
-            onClick={() => setPasteOpen((o) => !o)}
-            className="flex items-center gap-1.5 text-xs font-medium text-white/40 hover:text-white/60 transition-colors w-full"
-          >
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${pasteOpen ? "rotate-180" : ""}`} />
-            {pasteOpen ? "Hide listing URL / text" : "Have a listing URL or listing text? Import it →"}
-          </button>
-
-          <AnimatePresence>
-            {pasteOpen && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="pt-3 space-y-3">
-                  {/* Mode toggle */}
-                  <div className="flex gap-1 bg-white/[0.04] rounded-lg p-1">
-                    <button
-                      onClick={() => setPasteMode("url")}
-                      className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-md flex items-center justify-center gap-1.5 transition-colors ${
-                        pasteMode === "url" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/60"
-                      }`}
-                    >
-                      <Link className="w-3.5 h-3.5" /> Paste URL
-                    </button>
-                    <button
-                      onClick={() => setPasteMode("text")}
-                      className={`flex-1 py-1.5 px-3 text-xs font-medium rounded-md flex items-center justify-center gap-1.5 transition-colors ${
-                        pasteMode === "text" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/60"
-                      }`}
-                    >
-                      <FileText className="w-3.5 h-3.5" /> Paste Text
-                    </button>
-                  </div>
-
-                  {/* URL mode */}
-                  {pasteMode === "url" && (
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <input
-                          ref={urlInputRef}
-                          type="url"
-                          value={listingUrl}
-                          onChange={(e) => { setListingUrl(e.target.value); setExtractError(null); }}
-                          onPaste={handleUrlPaste}
-                          placeholder="https://www.cargurus.com/Cars/..."
-                          className="form-input flex-1 text-sm"
-                          disabled={isGenerating || isExtracting}
-                        />
-                        <button
-                          onClick={() => handleExtract()}
-                          disabled={!listingUrl.trim() || isExtracting || isGenerating}
-                          className="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap bg-white/10 text-white hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        >
-                          {isExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Extract"}
-                        </button>
-                      </div>
-
-                      {/* CarGurus search URL banner */}
-                      {showCarGurusBanner && !isExtracting && (
-                        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs">
-                          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
-                          <div className="flex-1">
-                            {carGurusCleanId ? (
-                              <>
-                                <span className="text-amber-300">Search page detected.</span>
-                                <button
-                                  onClick={() => {
-                                    const cleanUrl = `https://www.cargurus.com/details/${carGurusCleanId}`;
-                                    setListingUrl(cleanUrl);
-                                    setShowCarGurusBanner(false);
-                                    handleExtract(cleanUrl);
-                                  }}
-                                  className="ml-2 font-semibold text-amber-400 underline hover:text-amber-300"
-                                >
-                                  Clean &amp; Extract
-                                </button>
-                              </>
-                            ) : (
-                              <span className="text-amber-300">Open a specific listing and copy that URL.</span>
-                            )}
-                          </div>
-                          <button onClick={() => setShowCarGurusBanner(false)} className="text-amber-400/70 hover:text-amber-400">
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      )}
-
-                      {isExtracting && (
-                        <div className="flex items-center gap-2 text-xs text-[#00d97e] bg-[#00d97e]/10 p-2.5 rounded-lg">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
-                          <span>{EXTRACT_STEPS[extractStep] || EXTRACT_STEPS[0]}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Text mode */}
-                  {pasteMode === "text" && (
-                    <div className="space-y-2">
-                      <textarea
-                        ref={textareaRef}
-                        value={listingText}
-                        onChange={(e) => setListingText(e.target.value)}
-                        placeholder={`Paste listing text here...\n\nExample:\n2022 Tesla Model 3 Long Range AWD\n28,000 miles · $38,500\nDenver, CO · Clean title`}
-                        rows={5}
-                        maxLength={8000}
-                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/10 text-white text-sm placeholder-white/25 resize-none focus:border-[#00d97e]/50 focus:outline-none focus:ring-1 focus:ring-[#00d97e]/30"
-                        disabled={isGenerating || isExtracting}
-                      />
-                      <button
-                        onClick={() => handleExtract()}
-                        disabled={listingText.trim().length < 20 || isExtracting || isGenerating}
-                        className="w-full py-2 rounded-lg text-sm font-medium bg-white/10 text-white hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {isExtracting ? (
-                          <span className="flex items-center justify-center gap-2">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            {EXTRACT_STEPS[extractStep] || EXTRACT_STEPS[0]}
-                          </span>
-                        ) : "Extract Details"}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Extract error — suppressed once VIN filled or all required fields complete */}
-                  {extractError && !isExtracting && !vinFilled && !fieldsComplete && (
-                    <div className="flex items-start gap-2 text-xs p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">
-                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-                      <span>{extractError.message}</span>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
         {/* ── API error ────────────────────────────────────────────────── */}

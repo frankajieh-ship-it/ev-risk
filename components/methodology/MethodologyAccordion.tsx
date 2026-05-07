@@ -12,7 +12,7 @@ export default function MethodologyAccordion({ items }: Props) {
   const [openId, setOpenId] = useState<string | null>(items[0]?.id ?? null);
 
   return (
-    <div className="divide-y divide-gray-100 rounded-2xl border border-gray-200 overflow-hidden">
+    <div className="divide-y divide-white/[0.06] rounded-2xl border border-white/[0.08] overflow-hidden">
       {items.map((item) => {
         const isOpen = openId === item.id;
         return (
@@ -21,20 +21,20 @@ export default function MethodologyAccordion({ items }: Props) {
               onClick={() => setOpenId(isOpen ? null : item.id)}
               aria-expanded={isOpen}
               aria-controls={`methodology-${item.id}`}
-              className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/[0.03] transition-colors"
             >
-              <span className="text-sm font-semibold text-gray-900">{item.title}</span>
+              <span className="text-sm font-semibold text-white">{item.title}</span>
               {isOpen ? (
-                <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                <ChevronUp className="w-4 h-4 text-white/30 shrink-0" />
               ) : (
-                <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                <ChevronDown className="w-4 h-4 text-white/30 shrink-0" />
               )}
             </button>
             {isOpen && (
               <div id={`methodology-${item.id}`} className="px-5 pb-5">
-                <p className="text-sm text-gray-600 leading-relaxed">{item.body}</p>
+                <p className="text-sm text-white/50 leading-relaxed">{item.body}</p>
                 {item.note && (
-                  <p className="mt-3 text-xs text-gray-400 italic">{item.note}</p>
+                  <p className="mt-3 text-xs text-white/30 italic">{item.note}</p>
                 )}
               </div>
             )}

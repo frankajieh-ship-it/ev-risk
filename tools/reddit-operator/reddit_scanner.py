@@ -19,6 +19,7 @@ import argparse
 import os
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -27,6 +28,7 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env")
 
 from qualification_engine import qualify_post  # noqa: E402 — after dotenv
+from reply_generator import WEEKLY_THREAD_TITLE, WEEKLY_THREAD_BODY  # noqa: E402
 
 # -------------------------
 # Config
@@ -40,8 +42,12 @@ SUBREDDITS = [
 ]
 
 SEEN_IDS_FILE = Path(__file__).parent / ".seen_post_ids.txt"
+WEEKLY_THREAD_FILE = Path(__file__).parent / ".last_weekly_thread.txt"
 API_BASE = os.getenv("REDDIT_OPERATOR_URL", "http://localhost:8088")
 DEFAULT_INTERVAL = 300  # seconds between scans
+
+# Subreddit to post the weekly Rate My Listing thread to (set via env or default)
+WEEKLY_THREAD_SUBREDDIT = os.getenv("WEEKLY_THREAD_SUBREDDIT", "EVRoutine")
 
 
 # -------------------------
@@ -88,6 +94,63 @@ def _build_reddit():
         client_secret=client_secret,
         user_agent=user_agent,
     )
+
+
+# -------------------------
+# Weekly Rate My Listing thread
+# -------------------------
+
+def _last_thread_iso() -> str | None:
+    """Return ISO timestamp of last posted weekly thread, or None."""
+    if WEEKLY_THREAD_FILE.exists():
+        return WEEKLY_THREAD_FILE.read_text().strip() or None
+    return None
+
+
+def _save_thread_timestamp() -> None:
+    WEEKLY_THREAD_FILE.write_text(datetime.now(timezone.utc).isoformat())
+
+
+def should_post_weekly_thread() -> bool:
+    """
+    Return True if it's Monday (UTC) and we haven't already posted this week.
+    Checks weekday and whether the last post was before this week's Monday.
+    """
+    now = datetime.now(timezone.utc)
+    if now.weekday() != 0:  # 0 = Monday
+        return False
+
+    last = _last_thread_iso()
+    if last is None:
+        return True
+
+    last_dt = datetime.fromisoformat(last)
+    # This week's Monday at 00:00 UTC
+    days_since_monday = now.weekday()  # 0 on Monday
+    this_monday = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return last_dt < this_monday
+
+
+def post_weekly_thread(reddit, dry_run: bool = False) -> bool:
+    """
+    Post the Rate My Listing weekly thread to WEEKLY_THREAD_SUBREDDIT.
+    Returns True on success.
+    """
+    if dry_run:
+        print(f"  [DRY RUN] Would post weekly thread to r/{WEEKLY_THREAD_SUBREDDIT}:")
+        print(f"    Title: {WEEKLY_THREAD_TITLE}")
+        _save_thread_timestamp()
+        return True
+
+    try:
+        sub = reddit.subreddit(WEEKLY_THREAD_SUBREDDIT)
+        submission = sub.submit(title=WEEKLY_THREAD_TITLE, selftext=WEEKLY_THREAD_BODY)
+        _save_thread_timestamp()
+        print(f"  [WEEKLY] Posted Rate My Listing thread → https://reddit.com{submission.permalink}")
+        return True
+    except Exception as e:
+        print(f"  [ERROR] Failed to post weekly thread to r/{WEEKLY_THREAD_SUBREDDIT}: {e}")
+        return False
 
 
 # -------------------------
@@ -197,6 +260,10 @@ def main():
     while True:
         print(f"[{time.strftime('%H:%M:%S')}] Scanning...")
         try:
+            # Post weekly Rate My Listing thread on Mondays (once per week)
+            if should_post_weekly_thread():
+                post_weekly_thread(reddit, dry_run=args.dry_run)
+
             counts = scan_once(reddit, dry_run=args.dry_run)
             print(
                 f"  Done — scanned={counts['scanned']} qualified={counts['qualified']} "

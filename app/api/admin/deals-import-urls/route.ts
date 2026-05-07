@@ -21,7 +21,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { extractVehicleData } from "@/lib/listing-scraper";
-import { scoreReceiptV2 } from "@/lib/receipt-scoring-v2";
+import { scoreReceipt } from "@/lib/receipt-scoring";
 import { computeDealQualityScore } from "@/lib/deal-quality-score";
 import { scoreWithAi, inferSignalsFromListing } from "@/lib/deals-score";
 
@@ -152,10 +152,11 @@ export async function POST(request: NextRequest) {
     // Run AI scoring (same pipeline as /api/receipt); falls back to deterministic on failure
     const aiResult = await scoreWithAi(url, d);
 
-    // Run deterministic V2 scorer on AI-extracted signals (same as receipt-upgrade.ts)
-    const scoring = scoreReceiptV2(
+    // Run deterministic V1 scorer on AI-extracted signals
+    const scoring = scoreReceipt(
       aiResult.signals.length > 0 ? aiResult.signals : inferSignalsFromListing(d)
     );
+    const riskPoints = Math.max(0, Math.round((100 - scoring.fit_score) / 10));
 
     // Build vehicle label
     const vehicleLabel = [d.year, d.make, d.model, d.trim]
@@ -173,7 +174,7 @@ export async function POST(request: NextRequest) {
     // Compute composite deal quality score
     const dealQualityScore = computeDealQualityScore(
       scoring.evidence_score,
-      scoring.risk_points,
+      riskPoints,
       scoring.fit_score,
     );
 
@@ -181,10 +182,10 @@ export async function POST(request: NextRequest) {
     const riskFlags = aiResult.riskFlags.length > 0
       ? aiResult.riskFlags
       : scoring.scoring_reasons
-          .filter((r) => r.points <= 0)
-          .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
+          .filter((r: { points: number }) => r.points <= 0)
+          .sort((a: { points: number }, b: { points: number }) => Math.abs(b.points) - Math.abs(a.points))
           .slice(0, 3)
-          .map((r) => r.label);
+          .map((r: { label: string }) => r.label);
 
     // Auto-fetch photo
     let photoUrl: string | null = null;
@@ -208,7 +209,7 @@ export async function POST(request: NextRequest) {
         verdict: scoring.verdict,
         evidence_score: scoring.evidence_score,
         fit_score: scoring.fit_score,
-        risk_points: scoring.risk_points,
+        risk_points: riskPoints,
         deal_quality_score: dealQualityScore,
         risk_flags: riskFlags.length > 0 ? riskFlags : null,
         photo_url: photoUrl,
@@ -236,7 +237,7 @@ export async function POST(request: NextRequest) {
         verdict: scoring.verdict,
         fit_score: scoring.fit_score,
         evidence_score: scoring.evidence_score,
-        risk_points: scoring.risk_points,
+        risk_points: riskPoints,
         deal_quality_score: dealQualityScore,
         extraction_confidence: d.confidence,
         scoring_source: aiResult.source,

@@ -23,7 +23,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { computeDealQualityScore } from "@/lib/deal-quality-score";
-import { scoreReceiptV2 } from "@/lib/receipt-scoring-v2";
+import { scoreReceipt } from "@/lib/receipt-scoring";
 
 /**
  * Derive listing_signals from structured CSV fields (no AI needed).
@@ -199,20 +199,20 @@ export async function POST(request: NextRequest) {
 
     if (hasStructuredData) {
       const signals = signalsFromStructuredData({ vin, title_status, battery_report, service_records });
-      const scoring = scoreReceiptV2(signals);
+      const scoring = scoreReceipt(signals);
       evidenceScore = scoring.evidence_score;
       fitScore = scoring.fit_score;
-      riskPoints = scoring.risk_points;
+      riskPoints = Math.max(0, Math.round((100 - scoring.fit_score) / 10));
       dealQualityScore = computeDealQualityScore(evidenceScore, riskPoints, fitScore);
       // Override verdict from scoring unless manually set in CSV
       if (!verdictRaw) computedVerdict = scoring.verdict;
       // Override risk flags from scoring unless manually set in CSV
       if (!computedRiskFlags) {
         computedRiskFlags = scoring.scoring_reasons
-          .filter((r) => r.points <= 0)
-          .sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
+          .filter((r: { points: number }) => r.points <= 0)
+          .sort((a: { points: number }, b: { points: number }) => Math.abs(b.points) - Math.abs(a.points))
           .slice(0, 3)
-          .map((r) => r.label);
+          .map((r: { label: string }) => r.label);
       }
     }
 

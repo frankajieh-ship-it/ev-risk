@@ -137,6 +137,57 @@ export default function HowWeVetEveryEvDealPage() {
           </div>
         </section>
 
+        {/* Step 2b — Battery health */}
+        <section className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 bg-blue-500/15 rounded-full flex items-center justify-center text-blue-400 font-bold text-sm flex-shrink-0">
+              2b
+            </div>
+            <h2 className="text-2xl font-bold text-white">Battery Health Estimation</h2>
+          </div>
+          <p className="text-white/70 leading-relaxed mb-4">
+            This is the part most people ask about — and where we want to be precise about what we&apos;re actually doing.
+          </p>
+          <p className="text-white/70 leading-relaxed mb-4">
+            We don&apos;t pull a live SOH reading from the car. What we build is an <span className="text-white font-medium">expected health range</span> based
+            on VIN-level data: model year, trim, EPA-rated range, reported mileage, and the known degradation curve
+            for that battery chemistry. The result is a range like &ldquo;88–93% expected at this mileage&rdquo; — not a
+            single number we can&apos;t honestly claim from a listing alone.
+          </p>
+
+          <div className="bg-[#161b22] border border-white/[0.08] rounded-xl p-5 mb-5">
+            <p className="text-xs font-semibold text-white/30 uppercase tracking-wide mb-4">Degradation rates by chemistry</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { chem: "NMC / NCM", rate: "~2.0% / year", note: "Most common — Hyundai, Kia, VW, Ford" },
+                { chem: "LFP", rate: "~1.5% / year", note: "Tesla Standard Range, BYD — better longevity" },
+                { chem: "NCA", rate: "~2.3% / year", note: "Older Tesla Model S/X pre-2021" },
+                { chem: "Air-cooled", rate: "~3.0% / year", note: "Pre-2023 Nissan Leaf — highest degradation risk" },
+              ].map(({ chem, rate, note }) => (
+                <div key={chem} className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-4 py-3">
+                  <p className="text-sm font-semibold text-white mb-0.5">{chem}</p>
+                  <p className="text-[#00d97e] text-sm font-mono mb-1">{rate}</p>
+                  <p className="text-xs text-white/40">{note}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-4">
+            <p className="text-sm text-amber-300/80 leading-relaxed">
+              <span className="font-semibold text-amber-300">What we&apos;re explicit about:</span> OBD2 SOH readings
+              are noisy — a reading in February in a cold climate isn&apos;t the same as one after several warm-weather
+              full cycles. Our estimate is &ldquo;expected range for this VIN at this mileage&rdquo; based on chemistry and
+              age, not a live measurement. Confidence is shown accordingly in the receipt.
+            </p>
+          </div>
+
+          <p className="text-white/50 text-sm leading-relaxed">
+            Why it still matters: two identical listings, one at 92% and one at 78%, can differ by $2,000–$4,000
+            at resale. Sellers almost never disclose it. The buyer who checks wins.
+          </p>
+        </section>
+
         {/* Step 3 */}
         <section className="mb-10">
           <div className="flex items-center gap-3 mb-4">

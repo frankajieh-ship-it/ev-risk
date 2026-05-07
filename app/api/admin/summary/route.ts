@@ -290,6 +290,14 @@ export async function GET(request: NextRequest) {
       .select("user_id")
       .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
+    // 11b. EVFit completions — all-time, for high-intent segment (must not be windowed)
+    const evfitCompletionsPromise = supabase
+      .from("user_events")
+      .select("user_id")
+      .in("event_name", ["evfit_completed_server", "evfit_completed"])
+      .not("user_id", "is", null)
+      .or(`user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`);
+
     // 12. Extraction attempts — URL vs text success/failure breakdown
     const extractionAttemptsPromise = supabase
       .from("extraction_attempts")
@@ -330,6 +338,7 @@ export async function GET(request: NextRequest) {
       { data: purchases },
       { data: garageUsers },
       { data: savedScenariosUsers },
+      { data: evfitCompletions },
       { data: extractionAttempts },
       { data: chatAnalyticsRaw },
       { data: chatMessagesRaw },
@@ -346,6 +355,7 @@ export async function GET(request: NextRequest) {
       purchasesPromise,
       garageUsersPromise,
       savedScenariosUsersPromise,
+      evfitCompletionsPromise,
       extractionAttemptsPromise,
       chatAnalyticsPromise,
       chatMessagesPromise,
@@ -1405,23 +1415,19 @@ export async function GET(request: NextRequest) {
       visitorSessionCounts.set(p.visitor_id, (visitorSessionCounts.get(p.visitor_id) || 0) + 1);
     }
 
-    // High intent: completed EVFit + saved ≥1 garage vehicle + returned ≥2 sessions in window
-    // We match on user_id from user_events (when authenticated)
+    // High intent: completed EVFit (all-time) + saved ≥1 garage vehicle (all-time) + ≥2 sessions in window
+    // evfitCompletions is all-time so users who completed EVFit before the window are included
     const evfitCompletedUserIds = new Set(
-      filteredUserEvents
-        .filter(e => e.event_name === "evfit_completed_server" || e.event_name === "evfit_completed")
-        .map(e => (e as any).user_id)
-        .filter(Boolean)
+      (evfitCompletions || []).map((r: any) => r.user_id).filter(Boolean)
     );
     let highIntentCount = 0;
     for (const uid of evfitCompletedUserIds) {
       if (usersWithGarage.has(uid)) {
-        // Count sessions for this user's visitor_id(s) in the window
-        const userVisitorSessions = filteredUserEvents
+        const userSessions = filteredUserEvents
           .filter(e => (e as any).user_id === uid)
           .map(e => (e as any).session_id)
           .filter(Boolean);
-        const distinctSessions = new Set(userVisitorSessions).size;
+        const distinctSessions = new Set(userSessions).size;
         if (distinctSessions >= 2) highIntentCount++;
       }
     }
@@ -2056,6 +2062,21 @@ export async function GET(request: NextRequest) {
       dealers,
       auction_metrics,
       revenue,
+      provider_health: await (async () => {
+        const { data } = await supabase.from("provider_health").select("*").order("provider");
+        if (!data) return null;
+        return data.map((r: Record<string, unknown>) => ({
+          provider: r.provider,
+          success_count: r.success_count,
+          failure_count: r.failure_count,
+          success_rate: (() => {
+            const total = (r.success_count as number) + (r.failure_count as number);
+            return total > 0 ? Math.round(((r.success_count as number) / total) * 1000) / 10 : null;
+          })(),
+          last_success_at: r.last_success_at,
+          last_failure_at: r.last_failure_at,
+        }));
+      })(),
     });
   } catch (err) {
     console.error("Admin summary error:", err);

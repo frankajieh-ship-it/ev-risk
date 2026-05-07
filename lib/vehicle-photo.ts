@@ -7,7 +7,22 @@
  *
  * All URLs are stable Wikimedia CDN thumb URLs (Creative Commons licensed).
  * Keys are lowercase normalized model names (make prefix stripped, trim stripped).
+ * Year-ranged keys (e.g. "model 3:2017-2023") take priority over bare model keys
+ * for vehicles with distinct visual redesigns across generations.
  */
+
+// Generation ranges for models with mid-cycle redesigns.
+// Checked before bare model key: first matching range wins.
+const GENERATION_RANGES: Record<string, Array<{ from: number; to: number; key: string }>> = {
+  "model 3": [
+    { from: 2024, to: 9999, key: "model 3:2024+" },     // Highland redesign
+    { from: 2017, to: 2023, key: "model 3:2017-2023" },  // Gen 1
+  ],
+  "model s": [
+    { from: 2021, to: 9999, key: "model s:2021+" },      // Plaid-era refresh (no B-pillar)
+    { from: 2012, to: 2020, key: "model s:2012-2020" },  // Classic
+  ],
+};
 
 export const STATIC_PHOTO_MAP: Record<string, string> = {
   // Hyundai
@@ -22,10 +37,14 @@ export const STATIC_PHOTO_MAP: Record<string, string> = {
   "niro": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Kia_Niro_EV_%282023%29_%2852920493406%29.jpg/960px-Kia_Niro_EV_%282023%29_%2852920493406%29.jpg",
   "soul ev": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Kia_Soul_EV_auto_z%C3%BCrich_2023.jpg/960px-Kia_Soul_EV_auto_z%C3%BCrich_2023.jpg",
   "soul": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Kia_Soul_EV_auto_z%C3%BCrich_2023.jpg/960px-Kia_Soul_EV_auto_z%C3%BCrich_2023.jpg",
-  // Tesla
-  "model 3": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Tesla_Model_3_%282023%29_IMG_9488_%28cropped%29.jpg/960px-Tesla_Model_3_%282023%29_IMG_9488_%28cropped%29.jpg",
+  // Tesla — year-ranged keys for redesigned generations (used by getStaticPhotoUrl when year is known)
+  "model 3:2024+":     "https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Tesla_Model_3_%282023%29_IMG_9488_%28cropped%29.jpg/960px-Tesla_Model_3_%282023%29_IMG_9488_%28cropped%29.jpg",
+  "model 3:2017-2023": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/2019_Tesla_Model_3_Facelift%2C_front_8.21.19.jpg/960px-2019_Tesla_Model_3_Facelift%2C_front_8.21.19.jpg",
+  "model 3":           "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/2019_Tesla_Model_3_Facelift%2C_front_8.21.19.jpg/960px-2019_Tesla_Model_3_Facelift%2C_front_8.21.19.jpg",
+  "model s:2021+":     "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Tesla_Model_S_%282023%29_Motorworld_Munich_1X7A0025.jpg/960px-Tesla_Model_S_%282023%29_Motorworld_Munich_1X7A0025.jpg",
+  "model s:2012-2020": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Tesla_Model_S_Facelift_ab_2016_trimmed.jpg/960px-Tesla_Model_S_Facelift_ab_2016_trimmed.jpg",
+  "model s":           "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Tesla_Model_S_%282023%29_Motorworld_Munich_1X7A0025.jpg/960px-Tesla_Model_S_%282023%29_Motorworld_Munich_1X7A0025.jpg",
   "model y": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Tesla_Model_in_M%C3%BCnchen.jpg/960px-Tesla_Model_in_M%C3%BCnchen.jpg",
-  "model s": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Tesla_Model_S_%282023%29_Motorworld_Munich_1X7A0025.jpg/960px-Tesla_Model_S_%282023%29_Motorworld_Munich_1X7A0025.jpg",
   "model x": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Tesla_Model_X_100D_1X7A6736.jpg/960px-Tesla_Model_X_100D_1X7A6736.jpg",
   "cybertruck": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/2024_Tesla_Cybertruck_Foundation_Series_IMG_0634_%28cropped%29.jpg/960px-2024_Tesla_Cybertruck_Foundation_Series_IMG_0634_%28cropped%29.jpg",
   // Chevrolet
@@ -176,13 +195,16 @@ const TRIM_STRIP_SUFFIXES = [
 ];
 
 /**
- * Look up a curated Wikimedia Commons photo for a make/model.
+ * Look up a curated Wikimedia Commons photo for a make/model/year.
  * Strips make prefix and trim suffixes to find the base model key.
+ * When year is provided, checks GENERATION_RANGES first so redesigned
+ * models (e.g. Model 3 Highland vs gen-1) return the correct-era photo.
  * Returns a URL if matched, otherwise null.
  */
 export function getStaticPhotoUrl(
   make: string | undefined,
-  model: string | undefined
+  model: string | undefined,
+  year?: number
 ): string | null {
   if (!make || !model) return null;
 
@@ -195,7 +217,22 @@ export function getStaticPhotoUrl(
   }
 
   // Exact match first (handles "niro ev", "focus electric", "cooper se", etc.)
-  if (STATIC_PHOTO_MAP[m.toLowerCase()]) return STATIC_PHOTO_MAP[m.toLowerCase()];
+  const baseKey = m.toLowerCase();
+  if (STATIC_PHOTO_MAP[baseKey]) {
+    // Before returning the bare key hit, check if a year-ranged key applies
+    if (year) {
+      const ranges = GENERATION_RANGES[baseKey];
+      if (ranges) {
+        for (const range of ranges) {
+          if (year >= range.from && year <= range.to) {
+            const rangedUrl = STATIC_PHOTO_MAP[range.key];
+            if (rangedUrl) return rangedUrl;
+          }
+        }
+      }
+    }
+    return STATIC_PHOTO_MAP[baseKey];
+  }
 
   // Strip suffixes iteratively, checking the map after each strip
   let stripped = true;
@@ -205,7 +242,22 @@ export function getStaticPhotoUrl(
     for (const suf of TRIM_STRIP_SUFFIXES) {
       if (mLow.endsWith(suf)) {
         m = m.slice(0, m.length - suf.length).trim();
-        if (STATIC_PHOTO_MAP[m.toLowerCase()]) return STATIC_PHOTO_MAP[m.toLowerCase()];
+        const key = m.toLowerCase();
+        if (STATIC_PHOTO_MAP[key]) {
+          // Check year-ranged key before returning bare key
+          if (year) {
+            const ranges = GENERATION_RANGES[key];
+            if (ranges) {
+              for (const range of ranges) {
+                if (year >= range.from && year <= range.to) {
+                  const rangedUrl = STATIC_PHOTO_MAP[range.key];
+                  if (rangedUrl) return rangedUrl;
+                }
+              }
+            }
+          }
+          return STATIC_PHOTO_MAP[key];
+        }
         stripped = true;
         break;
       }

@@ -21,7 +21,7 @@ export function getFeatureFlags(isPro: boolean): FeatureFlags {
         detailsAccordionFull: true,
         redditDraftStyleToggle: true,
         dailyFreeLimit: 999,
-        scoringV2: true,
+        scoringV2: false,
       }
     : {
         compareMode: false,
@@ -30,6 +30,6 @@ export function getFeatureFlags(isPro: boolean): FeatureFlags {
         detailsAccordionFull: false,
         redditDraftStyleToggle: false,
         dailyFreeLimit: 1,
-        scoringV2: true,
+        scoringV2: false,
       };
 }

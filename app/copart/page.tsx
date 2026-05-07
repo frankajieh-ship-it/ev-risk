@@ -638,6 +638,17 @@ export default function CopartPage() {
     <div className="min-h-screen bg-[#0d1117] flex flex-col">
       <Header variant="homepage" />
 
+      {/* Under development banner */}
+      <div className="bg-amber-500/10 border-b border-amber-500/20">
+        <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+          <p className="text-sm text-amber-300/90">
+            <span className="font-semibold text-amber-300">This section is under active development.</span>{" "}
+            Results may be incomplete or change as we improve the auction analysis pipeline.
+          </p>
+        </div>
+      </div>
+
       {/* Hero */}
       <div className="bg-[#0d1117] border-b border-white/[0.08]">
         <div className="max-w-5xl mx-auto px-4 py-10">

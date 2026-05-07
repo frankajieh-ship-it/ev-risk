@@ -414,7 +414,7 @@ export async function POST(request: NextRequest) {
     if (autoDevData.photo_urls.length > 0) {
       fields.photo_urls = autoDevData.photo_urls;
     } else {
-      const staticUrl = getStaticPhotoUrl(fields.make, fields.model);
+      const staticUrl = getStaticPhotoUrl(fields.make, fields.model, fields.year ?? undefined);
       if (staticUrl) fields.photo_urls = [staticUrl];
     }
     if (autoDevData.market_price_range) {

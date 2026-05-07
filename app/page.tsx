@@ -99,15 +99,23 @@ export default function Home() {
     trackLandingView();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Homepage VIN input
-  const [homeVin, setHomeVin] = useState("");
-  const homeVinValid = homeVin.trim().length === 17;
+  // Homepage URL/VIN input (URL-first; detects VIN automatically)
+  const [homeInput, setHomeInput] = useState("");
+  const isVinInput = /^[A-HJ-NPR-Z0-9]{17}$/i.test(homeInput.trim());
+  const isUrlInput = /^https?:\/\/.+/.test(homeInput.trim());
+  const homeInputValid = isVinInput || isUrlInput;
 
-  const handleHomeVinSubmit = () => {
-    const vin = homeVin.trim().toUpperCase();
-    if (vin.length !== 17) return;
-    trackEvent("vin_submit_homepage", { page_source: "homepage", vin_length: vin.length });
-    router.push(`/receipt?vin=${encodeURIComponent(vin)}&src=homepage`);
+  const handleHomeSubmit = () => {
+    const val = homeInput.trim();
+    if (!val) return;
+    if (/^[A-HJ-NPR-Z0-9]{17}$/i.test(val)) {
+      trackEvent("vin_submit_homepage", { page_source: "homepage" });
+      router.push(`/receipt?vin=${encodeURIComponent(val.toUpperCase())}&src=homepage`);
+    } else {
+      trackEvent("url_submit_homepage", { page_source: "homepage" });
+      try { sessionStorage.setItem("offo_page_source", "homepage"); } catch {}
+      router.push(`/receipt?url=${encodeURIComponent(val)}&src=homepage`);
+    }
   };
 
   // ── V2 Wizard state ──────────────────────────────────────────────────────────
@@ -442,33 +450,32 @@ export default function Home() {
           {/* Headline */}
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-5 tracking-tight" style={{ lineHeight: "1.05" }}>
             Know before you buy.<br />
-            <span className="text-[#00d97e]">Paste your VIN.</span>
+            <span className="text-[#00d97e]">Paste any listing.</span>
           </h1>
 
           <p className="text-base md:text-lg text-white/50 mb-10 max-w-xl mx-auto" style={{ lineHeight: "1.6" }}>
             Instantly see open recalls, accident &amp; title history, battery health estimate, market price vs. comparables, and 3 copy-paste negotiation scripts — for that exact listing.
           </p>
 
-          {/* VIN input row */}
+          {/* URL / VIN input row */}
           <div className="flex flex-col sm:flex-row gap-3 max-w-2xl mx-auto">
             <input
               id="listing-input"
               data-tutorial="url-input"
               type="text"
-              value={homeVin}
-              onChange={(e) => setHomeVin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-              onKeyDown={(e) => { if (e.key === "Enter") handleHomeVinSubmit(); }}
-              placeholder="Paste your 17-character VIN"
-              maxLength={17}
-              className="flex-1 px-5 py-4 rounded-xl bg-white/[0.07] border border-white/10 text-sm text-white placeholder-white/30 font-mono tracking-widest focus:outline-none focus:border-[#00d97e]/60 focus:ring-1 focus:ring-[#00d97e]/30 transition-colors uppercase"
+              value={homeInput}
+              onChange={(e) => setHomeInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && homeInputValid) handleHomeSubmit(); }}
+              placeholder="Paste a listing URL or 17-character VIN"
+              className="flex-1 px-5 py-4 rounded-xl bg-white/[0.07] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/60 focus:ring-1 focus:ring-[#00d97e]/30 transition-colors"
               autoFocus
             />
             <button
               data-tutorial="analyze-btn"
-              onClick={handleHomeVinSubmit}
-              disabled={!homeVinValid}
+              onClick={handleHomeSubmit}
+              disabled={!homeInputValid}
               className={`px-7 py-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all whitespace-nowrap ${
-                homeVinValid
+                homeInputValid
                   ? "bg-[#00d97e] text-[#0d1117] hover:bg-[#00f090]"
                   : "bg-white/10 text-white/30 cursor-not-allowed"
               }`}
@@ -477,16 +484,16 @@ export default function Home() {
             </button>
           </div>
 
-          {homeVin.length > 0 && homeVin.length < 17 && (
-            <p className="text-xs text-white/40 mt-3">{17 - homeVin.length} characters remaining</p>
+          {isVinInput && (
+            <p className="text-xs text-[#00d97e] mt-3">VIN detected — click Analyze to autofill</p>
           )}
-          {homeVinValid && (
-            <p className="text-xs text-[#00d97e] mt-3">VIN ready — click Analyze</p>
+          {isUrlInput && (
+            <p className="text-xs text-[#00d97e] mt-3">Listing URL detected — we&apos;ll extract the details</p>
           )}
 
           <p className="text-xs text-white/30 mt-4">
             <Link href="/receipt" className="text-white/40 hover:text-white/60 underline underline-offset-2 transition-colors">
-              No VIN? Enter details manually →
+              No URL or VIN? Enter details manually →
             </Link>
           </p>
         </section>
@@ -838,6 +845,18 @@ export default function Home() {
       </section>
 
       <Footer />
+
+      {/* Sticky bottom CTA — visible on mobile for spike traffic that scrolls past hero */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-[#0d1117]/95 backdrop-blur-sm border-t border-white/[0.08] px-4 py-3 flex items-center gap-3">
+        <p className="flex-1 text-sm text-white/60 leading-tight">Got a listing? Get your free EV receipt.</p>
+        <Link
+          href="/receipt"
+          onClick={() => { try { sessionStorage.setItem("offo_page_source", "homepage_sticky"); } catch {} }}
+          className="shrink-0 px-4 py-2 rounded-lg bg-[#00d97e] text-[#0d1117] text-sm font-semibold hover:bg-[#00f090] transition-colors"
+        >
+          Try it free →
+        </Link>
+      </div>
 
       {/* Modals */}
       <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
