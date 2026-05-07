@@ -202,7 +202,6 @@ export async function GET(request: NextRequest) {
       .gte("created_at", window.start)
       .lt("created_at", window.end)
       .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`)
-      .eq("is_internal", false)
       .in("generation_status", ["lite", "full"])
       .limit(5000);
 

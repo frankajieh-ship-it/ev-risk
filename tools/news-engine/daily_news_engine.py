@@ -433,23 +433,25 @@ def fetch_existing_article_ids() -> set[str]:
     """Fetch article_ids already stored in Supabase (last 14 days) to skip re-scoring."""
     if not SUPABASE_URL or not SUPABASE_KEY:
         return set()
+    from datetime import timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=14)).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         resp = requests.get(
             f"{SUPABASE_URL}/rest/v1/daily_routine_news",
             headers={
                 "apikey": SUPABASE_KEY,
                 "Authorization": f"Bearer {SUPABASE_KEY}",
-                "Range": "0-999",
+                "Range": "0-4999",
             },
             params={
                 "select": "article_id",
-                "scored_at": f"gte.{(datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()[:10] + 'T00:00:00Z')}",
+                "scored_at": f"gte.{cutoff}",
             },
             timeout=10,
         )
         if resp.status_code == 200:
             ids = {row["article_id"] for row in resp.json()}
-            print(f"[news-engine] Found {len(ids)} articles already in Supabase today — will skip re-scoring")
+            print(f"[news-engine] Found {len(ids)} articles already in Supabase (last 14 days) — will skip re-scoring")
             return ids
     except Exception as e:
         print(f"[news-engine] Could not fetch existing article IDs: {e}", file=sys.stderr)
