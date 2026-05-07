@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { RefreshCw, ExternalLink, Loader2, AlertTriangle, Newspaper } from "lucide-react";
+import { RefreshCw, ExternalLink, Loader2, AlertTriangle, Newspaper, Play } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -207,6 +207,9 @@ export default function AdminNewsPage() {
   const [generating, setGenerating] = useState(false);
   const [generatedPosts, setGeneratedPosts] = useState<GeneratedPosts | null>(null);
   const [genError, setGenError] = useState("");
+  const [triggering, setTriggering] = useState(false);
+  const [triggerStatus, setTriggerStatus] = useState("");
+  const adminKey = typeof window !== "undefined" ? (localStorage.getItem("offo_admin_key") ?? "") : "";
 
   const fetchArticles = useCallback(async () => {
     setLoading(true);
@@ -231,6 +234,27 @@ export default function AdminNewsPage() {
   const filtered = articles
     .filter((a) => a.impact_score >= minScore)
     .filter((a) => !postWorthyOnly || a.post_worthy);
+
+  async function handleTriggerEngine() {
+    setTriggering(true);
+    setTriggerStatus("");
+    try {
+      const res = await fetch("/api/admin/trigger-news-engine", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${adminKey}` },
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setTriggerStatus("✓ News engine triggered — refresh in ~5 min to see new articles");
+      } else {
+        setTriggerStatus(`✗ ${data.error}`);
+      }
+    } catch {
+      setTriggerStatus("✗ Request failed");
+    } finally {
+      setTriggering(false);
+    }
+  }
 
   async function handleGenerate() {
     const topArticles = filtered.slice(0, topN);
@@ -275,14 +299,29 @@ export default function AdminNewsPage() {
           </div>
           <p className="text-sm text-gray-500">{today}</p>
         </div>
-        <button
-          onClick={fetchArticles}
-          disabled={loading}
-          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleTriggerEngine}
+            disabled={triggering}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
+          >
+            {triggering ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            {triggering ? "Triggering..." : "Run Now"}
+          </button>
+          <button
+            onClick={fetchArticles}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        </div>
+        {triggerStatus && (
+          <p className={`text-xs mt-1 ${triggerStatus.startsWith("✓") ? "text-green-600" : "text-red-600"}`}>
+            {triggerStatus}
+          </p>
+        )}
       </div>
 
       {/* Filters */}

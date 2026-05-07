@@ -178,6 +178,8 @@ const INVERSE_EVIDENCE: {
   penaltyId: ListingSignalId;
   skipWhenField?: (fields: StructuredFields) => boolean;
   onlyForEV?: boolean;
+  // When true: skip this penalty if there is no listing text (can't penalise for absent info we never had)
+  skipWhenNoText?: boolean;
 }[] = [
   {
     bonusId: "clean_title_explicit",
@@ -185,8 +187,8 @@ const INVERSE_EVIDENCE: {
     skipWhenField: (f) =>
       !!f.title_status && f.title_status !== "unknown",
   },
-  { bonusId: "battery_report_recent", penaltyId: "battery_proof_missing" },
-  { bonusId: "battery_warranty_info", penaltyId: "battery_warranty_unclear" },
+  { bonusId: "battery_report_recent", penaltyId: "battery_proof_missing", skipWhenNoText: true },
+  { bonusId: "battery_warranty_info", penaltyId: "battery_warranty_unclear", skipWhenNoText: true },
   {
     bonusId: "service_records_shown",
     penaltyId: "service_records_missing",
@@ -340,6 +342,9 @@ export function extractSignalsFromText(
 
     // Skip when structured field already provides the info
     if (inv.skipWhenField && inv.skipWhenField(fields)) continue;
+
+    // Skip text-only penalties when there is no listing text — can't penalise for absent info
+    if (inv.skipWhenNoText && !hasText) continue;
 
     signals.add(inv.penaltyId);
   }
