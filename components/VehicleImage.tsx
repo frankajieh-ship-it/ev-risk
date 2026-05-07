@@ -76,6 +76,7 @@ export default function VehicleImage({
     if (model) params.set("model", model);
     if (year) params.set("year", String(year));
 
+    params.set("no_market", "1"); // never use Auto.dev listing photos for vehicle cards
     let cancelled = false;
     fetch(`/api/photos?${params.toString()}`)
       .then((r) => r.json())

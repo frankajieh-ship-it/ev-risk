@@ -328,6 +328,29 @@ export function buildUserPrompt(input: ReceiptGenerateRequest): string {
   }
   parts.push("");
 
+  // User routine context — inject when present so AI can personalize signals and advice
+  if (input.routine_context) {
+    const mvr = input.routine_context;
+    const chargeLabel =
+      mvr.charging_access === "home"
+        ? `home charging${mvr.home_charging_type === "L2" ? " (Level 2)" : mvr.home_charging_type === "L1" ? " (Level 1/slow)" : ""}`
+        : mvr.charging_access === "work"
+        ? "workplace charging (no home charging)"
+        : "public charging only (no home or work charging)";
+    const routineLines: string[] = ["USER ROUTINE — personalize signals and advice to match this buyer:"];
+    routineLines.push(`- Charging access: ${chargeLabel}`);
+    if (mvr.commute_miles_roundtrip) routineLines.push(`- Daily commute: ${mvr.commute_miles_roundtrip} miles roundtrip`);
+    else if (mvr.weekly_miles) routineLines.push(`- Weekly driving: ~${mvr.weekly_miles} miles`);
+    if (mvr.climate === "winter") routineLines.push("- Climate: cold (significant range loss expected in winter)");
+    else if (mvr.climate === "hot") routineLines.push("- Climate: hot (moderate range loss, fast-charging heat sensitivity)");
+    if (mvr.longest_day_pattern === "once_a_week") routineLines.push("- Longest day: frequent (weekly 100+ mi trips)");
+    else if (mvr.longest_day_pattern === "monthly_trip") routineLines.push("- Longest day: occasional (monthly 100+ mi trips)");
+    else if (mvr.longest_day_pattern === "rare_road_trip") routineLines.push("- Longest day: rare (road trips only)");
+    if (mvr.public_charging_dependency) routineLines.push(`- Public charging dependency: ${mvr.public_charging_dependency.toLowerCase()}`);
+    parts.push(routineLines.join("\n"));
+    parts.push("");
+  }
+
   // Location conflict detection
   if (input.location && input.zip_or_postcode) {
     parts.push(

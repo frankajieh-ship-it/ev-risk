@@ -337,6 +337,8 @@ export async function POST(request: NextRequest) {
     } catch {
       // Non-blocking — routine fit failure must not break the receipt
     }
+    // Carry routine context into input so the AI upgrade prompt can see it
+    (input as Record<string, unknown>).routine_context = routineCtx;
   }
 
   // --- RECEIPT LITE: Return deterministic receipt immediately (<2s) ---
@@ -368,6 +370,7 @@ export async function POST(request: NextRequest) {
       output_json: liteReceipt,
       mode: "single",
       is_pro: isPro,
+      is_internal: tokenIsInternal,
       generation_status: "lite",
     });
     if (insertErr) {
