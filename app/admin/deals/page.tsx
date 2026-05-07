@@ -30,6 +30,7 @@ interface DealRow {
   receipt_id: string | null;
   last_analyzed_at: string | null;
   is_active: boolean;
+  sold_report_count: number | null;
   created_at: string | null;
 }
 
@@ -45,6 +46,7 @@ export default function AdminDealsPage() {
   const [filter, setFilter] = useState("");
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [showFlagged, setShowFlagged] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [adminKey, setAdminKey] = useState("");
   const authHeader = adminKey ? `Bearer ${adminKey}` : "";
@@ -229,7 +231,10 @@ export default function AdminDealsPage() {
     }
   };
 
+  const flaggedCount = deals.filter((d) => (d.sold_report_count ?? 0) > 0).length;
+
   const filtered = deals.filter((d) => {
+    if (showFlagged && (d.sold_report_count ?? 0) === 0) return false;
     if (!filter) return true;
     const q = filter.toLowerCase();
     return (
@@ -283,6 +288,12 @@ export default function AdminDealsPage() {
               onChange={(e) => setFilter(e.target.value)}
               className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 w-56 focus:outline-none focus:border-[#00d97e]/40"
             />
+            <button
+              onClick={() => setShowFlagged((v) => !v)}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${showFlagged ? "text-red-400 border-red-400/30 bg-red-400/10" : "text-white/40 hover:text-red-400 border-white/[0.08]"}`}
+            >
+              🚩 Flagged{flaggedCount > 0 ? ` (${flaggedCount})` : ""}
+            </button>
             <Link
               href="/admin/deals-import-urls"
               className="flex items-center gap-1.5 text-xs text-[#00d97e] hover:text-[#00c270] border border-[#00d97e]/30 hover:border-[#00d97e]/50 rounded-lg px-3 py-2 transition-colors font-medium"
@@ -377,6 +388,7 @@ export default function AdminDealsPage() {
                 <th className="text-center px-3 py-3">Bat. Report</th>
                 <th className="text-center px-3 py-3">Svc Records</th>
                 <th className="text-center px-3 py-3"><SortBtn k="is_active" label="Active" /></th>
+                <th className="text-center px-3 py-3"><SortBtn k="sold_report_count" label="Reports" /></th>
                 <th className="px-3 py-3"></th>
               </tr>
             </thead>
@@ -384,7 +396,7 @@ export default function AdminDealsPage() {
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="border-b border-white/[0.04]">
-                    {Array.from({ length: 10 }).map((__, j) => (
+                    {Array.from({ length: 11 }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-3 bg-white/[0.04] rounded animate-pulse" />
                       </td>
@@ -393,7 +405,7 @@ export default function AdminDealsPage() {
                 ))
               ) : sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-12 text-white/30">No deals found</td>
+                  <td colSpan={11} className="text-center py-12 text-white/30">No deals found</td>
                 </tr>
               ) : (
                 sorted.map((d) => (
@@ -459,6 +471,15 @@ export default function AdminDealsPage() {
                       >
                         {d.is_active ? "✓" : "✗"}
                       </button>
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      {(d.sold_report_count ?? 0) > 0 ? (
+                        <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-semibold">
+                          {d.sold_report_count}
+                        </span>
+                      ) : (
+                        <span className="text-white/15">—</span>
+                      )}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2">

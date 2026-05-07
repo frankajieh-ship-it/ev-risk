@@ -60,6 +60,9 @@ export interface VehicleData {
   // Raw text from the page (first 5000 chars, stripped of HTML tags)
   raw_text?: string;
 
+  // Primary photo URL extracted from listing page
+  photo_url?: string;
+
   // Title and accident status extracted from listing text
   title_status?: "clean" | "salvage" | "rebuilt" | "unknown";
   accidents_reported?: "yes" | "no" | "unknown";
@@ -436,6 +439,19 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
         if (mpge && !data.efficiency_mi_per_kwh) {
           const eff = Math.round((Number(mpge) / 33.7) * 10) / 10;
           if (eff >= 1 && eff <= 10) data.efficiency_mi_per_kwh = eff;
+        }
+
+        // Extract primary listing photo — actual car photo, not a stock image
+        if (!data.photo_url) {
+          const photoArr = listing.photos ?? listing.images ?? listing.vehiclePhotos ?? listing.photoUrls ?? [];
+          const rawPhoto = listing.primaryPhoto ?? listing.mainPhoto ?? listing.primaryPhotoUrl
+            ?? listing.heroPhoto ?? listing.coverPhoto
+            ?? (Array.isArray(photoArr) && photoArr.length > 0
+              ? (typeof photoArr[0] === "string" ? photoArr[0] : photoArr[0]?.url ?? photoArr[0]?.src ?? photoArr[0]?.href ?? photoArr[0]?.largeUrl ?? photoArr[0]?.mediumUrl)
+              : null);
+          if (rawPhoto && typeof rawPhoto === "string" && rawPhoto.startsWith("http")) {
+            data.photo_url = rawPhoto;
+          }
         }
       }
     } catch (e) {

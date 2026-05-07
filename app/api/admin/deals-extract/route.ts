@@ -96,7 +96,7 @@ async function runExtract(since?: string) {
 
   let query = supabase
     .from("curated_deals")
-    .select("id, listing_url, vehicle_label, vin, make, model, year, mileage, trim")
+    .select("id, listing_url, vehicle_label, vin, make, model, year, mileage, trim, photo_url")
     .eq("is_active", true)
     .not("listing_url", "is", null)
     .order("created_at", { ascending: true });
@@ -165,6 +165,9 @@ async function runExtract(since?: string) {
       if (inferredService) update.service_records = inferredService;
       if (!row.vehicle_label && d.year && d.make && d.model) {
         update.vehicle_label = [d.year, d.make, d.model, d.trim].filter(Boolean).join(" ");
+      }
+      if (d.photo_url && !(row as Record<string, unknown>).photo_url) {
+        update.photo_url = d.photo_url;
       }
 
       const { error: updateErr } = await supabase.from("curated_deals").update(update).eq("id", row.id as string);

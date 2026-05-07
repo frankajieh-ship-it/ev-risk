@@ -111,6 +111,19 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
 
   const [saved, setSaved] = useState(() => isSavedLocally(deal.id));
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [reported, setReported] = useState(false);
+  const [reporting, setReporting] = useState(false);
+
+  const handleReportSold = async () => {
+    if (reported || reporting) return;
+    setReporting(true);
+    try {
+      await fetch(`/api/deals/${deal.id}/report-sold`, { method: "POST" });
+      setReported(true);
+    } finally {
+      setReporting(false);
+    }
+  };
 
   const handleSave = async () => {
     if (saved) {
@@ -259,6 +272,13 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
             <ExternalLink className="w-3 h-3" />
             View on {deal.url_domain ?? "listing"}
           </a>
+          <button
+            onClick={handleReportSold}
+            disabled={reported || reporting}
+            className="text-[11px] text-white/20 hover:text-white/40 transition-colors text-center py-0.5 disabled:cursor-default"
+          >
+            {reported ? "Thanks — we'll review it" : reporting ? "Reporting..." : "Flag as sold"}
+          </button>
         </div>
       </div>
     </div>
