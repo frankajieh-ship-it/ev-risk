@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ExternalLink, ShieldCheck, AlertTriangle, XCircle, Bookmark, BookmarkCheck, ChevronDown } from "lucide-react";
+import { ExternalLink, Bookmark, BookmarkCheck } from "lucide-react";
 import { addToAnonGarage } from "@/lib/anon-garage";
 import { useAuth } from "@/hooks/useAuth";
 import LoginModal from "@/components/auth/LoginModal";
@@ -19,62 +19,11 @@ export interface CuratedDeal {
   price: number | null;
   mileage: number | null;
   location: string | null;
-  verdict: "GREEN" | "YELLOW" | "RED" | null;
-  evidence_score: number | null;
-  fit_score: number | null;
-  risk_points: number | null;
-  deal_quality_score: number | null;
-  risk_flags: string[] | null;
   receipt_id: string | null;
   photo_url: string | null;
   last_analyzed_at: string | null;
   vin: string | null;
 }
-
-const VERDICT_CONFIG = {
-  GREEN: {
-    label: "Good Deal",
-    icon: ShieldCheck,
-    bg: "bg-[#00d97e]/10",
-    border: "border-[#00d97e]/20",
-    text: "text-[#00d97e]",
-    dot: "bg-[#00d97e]",
-  },
-  YELLOW: {
-    label: "Proceed with Caution",
-    icon: AlertTriangle,
-    bg: "bg-yellow-500/10",
-    border: "border-yellow-500/20",
-    text: "text-yellow-400",
-    dot: "bg-yellow-400",
-  },
-  RED: {
-    label: "High Risk",
-    icon: XCircle,
-    bg: "bg-red-500/10",
-    border: "border-red-500/20",
-    text: "text-red-400",
-    dot: "bg-red-400",
-  },
-};
-
-const EVIDENCE_BADGES = {
-  verified: {
-    label: "Verified",
-    cls: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
-    tooltip: "Strong listing documentation — title, service history, or battery report shown.",
-  },
-  partial: {
-    label: "Partial",
-    cls: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20",
-    tooltip: "Some documentation present, but key details are missing.",
-  },
-  limited: {
-    label: "Limited",
-    cls: "text-white/40 bg-white/[0.05] border-white/10",
-    tooltip: "Little or no supporting documentation found in this listing.",
-  },
-};
 
 const SAVED_DEALS_KEY = "offo_saved_deals";
 
@@ -101,33 +50,29 @@ function removeLocally(dealId: string): void {
   } catch { /* ignore */ }
 }
 
-
 function FreshnessLabel({ timestamp }: { timestamp: string }) {
   const diffMs = new Date().getTime() - new Date(timestamp).getTime();
   const h = Math.floor(diffMs / 3600000);
   const d = Math.floor(diffMs / 86400000);
   const label = h < 1 ? "just now" : h < 24 ? `${h}h ago` : `${d}d ago`;
-  return <p className="text-[10px] text-white/20">Checked {label}</p>;
+  return <p className="text-[10px] text-white/20">Listed {label}</p>;
 }
 
 interface DealCardProps {
   deal: CuratedDeal;
   compact?: boolean;
-  preview?: boolean; // minimal card for landing page 5-col grid
+  preview?: boolean;
   rank?: number;
   totalDeals?: number;
 }
 
 export default function DealCard({ deal, compact = false, preview = false, rank, totalDeals }: DealCardProps) {
-  const vc = deal.verdict ? VERDICT_CONFIG[deal.verdict] : VERDICT_CONFIG.YELLOW;
-  const VerdictIcon = vc.icon;
   const { isAuthenticated, session } = useAuth();
 
   const priceStr = deal.price ? `$${deal.price.toLocaleString()}` : "Price unlisted";
   const mileageStr = deal.mileage ? `${deal.mileage.toLocaleString()} mi` : null;
 
   // Photo — client-side fetch when DB has no photo_url
-  // rank-based delay staggers concurrent requests so mobile doesn't drop them
   const [photoUrl, setPhotoUrl] = useState<string | null>(deal.photo_url);
   useEffect(() => {
     if (photoUrl || !deal.make) return;
@@ -144,7 +89,7 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
       ...(model ? { model } : {}),
       ...(deal.year ? { year: String(deal.year) } : {}),
     });
-    const delay = Math.min((rank ?? 1) * 100, 1500); // stagger: 100ms per rank, cap at 1.5s
+    const delay = Math.min((rank ?? 1) * 100, 1500);
     const t = setTimeout(() => {
       fetch(`/api/photos?${params}`)
         .then((r) => r.json())
@@ -152,7 +97,6 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
           const url = d.photo_urls?.[0];
           if (url) {
             setPhotoUrl(url);
-            // Persist back to DB so future loads skip this external call
             fetch("/api/deals/backfill-photo", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -165,18 +109,11 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
     return () => clearTimeout(t);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Save to garage state
   const [saved, setSaved] = useState(() => isSavedLocally(deal.id));
-
-  // Verdict expand state
-  const [expandedVerdict, setExpandedVerdict] = useState(false);
-
-  // Login modal (shown after anon save)
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   const handleSave = async () => {
     if (saved) {
-      // Unsave
       setSaved(false);
       removeLocally(deal.id);
       return;
@@ -194,7 +131,6 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
           deal_id: deal.id,
           listing_url: deal.listing_url,
           receipt_id: deal.receipt_id,
-          verdict: deal.verdict,
           price: deal.price,
           mileage: deal.mileage,
           make: deal.make,
@@ -202,7 +138,6 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
           year: deal.year,
         },
       });
-      // Prompt guest to sign in so their saved item persists
       setLoginModalOpen(true);
       return;
     }
@@ -225,15 +160,6 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
       }).catch(() => {});
     }
   };
-
-  const topFlags = (deal.risk_flags ?? []).slice(0, 2);
-
-  // Evidence badge config
-  const es = deal.evidence_score;
-  const evidenceBadge =
-    es == null || es < 40 ? EVIDENCE_BADGES.limited
-    : es < 65 ? EVIDENCE_BADGES.partial
-    : EVIDENCE_BADGES.verified;
 
   return (
     <>
@@ -267,16 +193,6 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
             </span>
           </div>
         )}
-
-        {/* Verdict badge — clickable to expand breakdown */}
-        <button
-          onClick={() => setExpandedVerdict((v) => !v)}
-          className={`absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-full ${vc.bg} ${vc.border} border backdrop-blur-sm transition-opacity hover:opacity-80`}
-        >
-          <span className={`w-1.5 h-1.5 rounded-full ${vc.dot}`} />
-          <span className={`text-xs font-semibold ${vc.text}`}>{vc.label}</span>
-          <ChevronDown className={`w-3 h-3 ${vc.text} transition-transform ${expandedVerdict ? "rotate-180" : ""}`} />
-        </button>
 
         {/* Rank badge or domain badge */}
         {rank && totalDeals ? (
@@ -313,9 +229,6 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
           <a href={deal.listing_url} target="_blank" rel="noopener noreferrer" className={`font-semibold text-white leading-snug hover:text-white/80 transition-colors ${preview ? "text-[11px]" : compact ? "text-xs" : "text-sm"}`}>
             {deal.vehicle_label}
           </a>
-          {!preview && deal.verdict === "YELLOW" && deal.risk_flags?.[0] && (
-            <p className="text-[10px] text-white/35 italic mt-0.5 line-clamp-1">{deal.risk_flags[0]}</p>
-          )}
           <div className={`flex items-center flex-wrap gap-x-2 mt-0.5 ${preview ? "gap-y-0" : "gap-y-0.5"}`}>
             <span className={`font-bold text-white ${preview ? "text-sm" : compact ? "text-base" : "text-lg"}`}>{priceStr}</span>
             {mileageStr && (
@@ -324,77 +237,20 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
           </div>
         </div>
 
-        {/* Verdict expand panel — not shown in preview */}
-        {!preview && expandedVerdict && (
-          <div className={`rounded-lg border p-3 text-xs space-y-1.5 ${vc.bg} ${vc.border}`}>
-            {deal.verdict === "GREEN" || !topFlags.length ? (
-              <p className="text-[#00d97e]/70">No major risk flags detected.</p>
-            ) : (
-              topFlags.map((f, i) => (
-                <p key={i} className="text-white/50 flex gap-1.5">
-                  <span className={`${vc.text} flex-shrink-0`}>›</span>
-                  {f}
-                </p>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Scores row — not shown in preview */}
-        {!preview && (
-          <div className="flex items-center gap-2">
-            <div className="relative group/ev">
-              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border cursor-help ${evidenceBadge.cls}`}>
-                {evidenceBadge.label}
-              </span>
-              <div className="absolute bottom-full left-0 mb-1.5 w-52 p-2 rounded-lg bg-[#1c2128] border border-white/10 text-[10px] text-white/50 leading-relaxed opacity-0 group-hover/ev:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl">
-                {evidenceBadge.tooltip}
-              </div>
-            </div>
-            {deal.risk_points != null && (
-              <div className="flex items-center gap-1.5">
-                <VerdictIcon className={`w-3.5 h-3.5 ${vc.text}`} />
-                <span className="text-xs text-white/50">Risk</span>
-                <span className={`text-xs font-semibold ${vc.text}`}>{deal.risk_points}/10</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Risk flags — not shown in preview */}
-        {!preview && topFlags.length > 0 && !expandedVerdict && (
-          <div className="flex flex-col gap-1">
-            {topFlags.map((flag, i) => (
-              <p key={i} className="text-xs text-white/40 flex items-start gap-1.5">
-                <span className="text-yellow-500/60 mt-0.5 flex-shrink-0">!</span>
-                <span>{flag}</span>
-              </p>
-            ))}
-          </div>
-        )}
-
         {/* Freshness — not shown in preview */}
         {!preview && deal.last_analyzed_at && (
           <FreshnessLabel timestamp={deal.last_analyzed_at} />
         )}
 
-
         {/* Actions */}
         <div className="mt-auto flex gap-2 pt-1">
-          {/* Primary action: view existing receipt if available, else analyze */}
           <Link
             href={deal.receipt_id
               ? `/receipt?id=${deal.receipt_id}${deal.vin ? `&vin=${encodeURIComponent(deal.vin)}` : ""}&src=deal_watch`
               : `/receipt?url=${encodeURIComponent(deal.listing_url)}${deal.vin ? `&vin=${encodeURIComponent(deal.vin)}` : ""}&src=deal_watch`}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg transition-colors ${
-              deal.receipt_id
-                ? "bg-[#00d97e]/10 hover:bg-[#00d97e]/20 border border-[#00d97e]/20 text-[#00d97e]"
-                : "bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.08] text-white/70"
-            }`}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg transition-colors bg-[#00d97e]/10 hover:bg-[#00d97e]/20 border border-[#00d97e]/20 text-[#00d97e]"
           >
-            {deal.receipt_id
-              ? (preview ? "View Receipt" : "View Full Receipt")
-              : (preview ? "Analyze" : "Analyze This Listing")}
+            {preview ? "Run Analysis" : "Run Full Analysis"}
           </Link>
           {!preview && (
             <a

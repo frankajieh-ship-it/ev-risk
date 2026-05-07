@@ -10,7 +10,7 @@ export default function FeaturedDeals() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/deals?verdict=GREEN,YELLOW&per_page=10&page=1")
+    fetch("/api/deals?sort=price_asc&per_page=10&page=1")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data?.deals?.length) setDeals(data.deals);
@@ -34,7 +34,7 @@ export default function FeaturedDeals() {
             Today&apos;s Best EV Deals
           </h2>
           <p className="text-white/40 text-sm mt-1 max-w-md">
-            Pre-analyzed by OFFO — verdict and risk score included.
+            Curated EV listings sorted by price — run analysis to see if it&apos;s a good deal.
           </p>
         </div>
         <Link

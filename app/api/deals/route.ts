@@ -5,13 +5,12 @@
  * Sorted by deal_quality_score DESC. Supports filtering and pagination.
  *
  * Query params:
- *   verdict     = GREEN | YELLOW | RED (comma-separated, default: GREEN,YELLOW)
  *   make        = e.g. Tesla
  *   model       = e.g. Model 3
  *   price_max   = max price in USD
  *   mileage_max = max mileage
  *   year_min    = min year
- *   sort        = quality | price_asc | price_desc | mileage | newest (default: quality)
+ *   sort        = price_asc | price_desc | mileage | newest (default: price_asc)
  *   page        = page number (default: 1)
  *   per_page    = results per page (default: 20, max: 50)
  */
@@ -21,8 +20,6 @@ import { getSupabaseAdmin } from "@/lib/api-auth";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 
 const rateLimiter = new RateLimiter(60 * 1000, 30); // 30 req/min per IP
-
-const VALID_VERDICTS = new Set(["GREEN", "YELLOW", "RED"]);
 
 // Leading 3-digit ZIP prefix ranges per US state.
 // Used to filter by state when the location column stores bare ZIP codes
@@ -95,10 +92,6 @@ export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
 
   // Parse filters
-  const verdictParam = params.get("verdict") ?? null;
-  const verdicts = verdictParam
-    ? verdictParam.split(",").map((v) => v.trim().toUpperCase()).filter((v) => VALID_VERDICTS.has(v))
-    : [];
   const make = params.get("make")?.trim() ?? null;
   const model = params.get("model")?.trim() ?? null;
   const priceMax = params.get("price_max") ? parseInt(params.get("price_max")!) : null;
@@ -114,13 +107,12 @@ export async function GET(request: NextRequest) {
 
   // Determine sort column + direction
   const sortMap: Record<string, { col: string; asc: boolean }> = {
-    quality:    { col: "deal_quality_score", asc: false },
-    price_asc:  { col: "price",              asc: true  },
-    price_desc: { col: "price",              asc: false },
-    mileage:    { col: "mileage",            asc: true  },
-    newest:     { col: "year",               asc: false },
+    price_asc:  { col: "price",   asc: true  },
+    price_desc: { col: "price",   asc: false },
+    mileage:    { col: "mileage", asc: true  },
+    newest:     { col: "year",    asc: false },
   };
-  const { col: sortCol, asc: sortAsc } = sortMap[sort] ?? sortMap.quality;
+  const { col: sortCol, asc: sortAsc } = sortMap[sort] ?? sortMap.price_asc;
 
   // When a location filter is active we need a higher cap — state-specific deals
   // may all rank below the global top 500, causing the filter to appear broken.
@@ -128,7 +120,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("curated_deals")
-    .select("id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, verdict, evidence_score, fit_score, risk_points, deal_quality_score, risk_flags, receipt_id, photo_url, last_analyzed_at, vin")
+    .select("id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, receipt_id, photo_url, last_analyzed_at, vin")
     .eq("is_active", true)
     .not("vehicle_label", "is", null)
     .not("make", "is", null)
@@ -137,9 +129,6 @@ export async function GET(request: NextRequest) {
     .order(sortCol, { ascending: sortAsc, nullsFirst: false })
     .limit(fetchLimit);
 
-  if (verdicts.length > 0) {
-    query = query.in("verdict", verdicts);
-  }
   if (make) {
     query = query.ilike("make", `%${make}%`);
   }

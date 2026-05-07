@@ -5,8 +5,7 @@ import { SlidersHorizontal, RefreshCw, Zap } from "lucide-react";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import DealCard, { type CuratedDeal } from "@/components/deals/DealCard";
-type VerdictFilter = "ALL" | "GREEN" | "YELLOW" | "RED";
-type SortOption = "quality" | "price_asc" | "price_desc" | "mileage" | "newest";
+type SortOption = "price_asc" | "price_desc" | "mileage" | "newest";
 
 const MAKES = ["All Makes", "Tesla", "Chevrolet", "Hyundai", "Volkswagen", "Ford", "Kia", "Nissan", "BMW", "Rivian"];
 const US_STATES = ["Any State","AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"];
@@ -26,7 +25,6 @@ const MILEAGE_OPTIONS = [
   { label: "Under 80k mi", value: 80000 },
 ];
 const SORT_OPTIONS: { label: string; value: SortOption }[] = [
-  { label: "Best Match", value: "quality" },
   { label: "Price: Low → High", value: "price_asc" },
   { label: "Price: High → Low", value: "price_desc" },
   { label: "Lowest Mileage", value: "mileage" },
@@ -41,18 +39,16 @@ export default function DealsPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   // Filters
-  const [verdict, setVerdict] = useState<VerdictFilter>("ALL");
   const [make, setMake] = useState("All Makes");
   const [priceMax, setPriceMax] = useState<number | null>(null);
   const [mileageMax, setMileageMax] = useState<number | null>(null);
   const [locationState, setLocationState] = useState("Any State");
-  const [sort, setSort] = useState<SortOption>("quality");
+  const [sort, setSort] = useState<SortOption>("price_asc");
 
   const fetchDeals = useCallback(async (p = 1) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(p), per_page: "20", sort });
-      if (verdict !== "ALL") params.set("verdict", verdict);
       if (make !== "All Makes") params.set("make", make);
       if (priceMax) params.set("price_max", String(priceMax));
       if (mileageMax) params.set("mileage_max", String(mileageMax));
@@ -70,7 +66,7 @@ export default function DealsPage() {
     } finally {
       setLoading(false);
     }
-  }, [verdict, make, priceMax, mileageMax, locationState, sort]);
+  }, [make, priceMax, mileageMax, locationState, sort]);
 
   useEffect(() => {
     fetchDeals(1);
@@ -91,11 +87,11 @@ export default function DealsPage() {
             Today&apos;s Best EV Deals
           </h1>
           <p className="text-white/50 text-base max-w-xl">
-            Every listing is pre-analyzed by OFFO — verdict, risk flags, and evidence score included. No browsing blind.
+            EV listings sorted by price. Run a free analysis on any deal to see battery health, risk flags, and whether it&apos;s worth it.
           </p>
           <div className="flex items-center gap-2 mt-3">
             {total > 0 && (
-              <span className="text-white/30 text-sm">{total.toLocaleString()} deals analyzed</span>
+              <span className="text-white/30 text-sm">{total.toLocaleString()} EV listings</span>
             )}
             {total > 0 && <span className="text-white/15 text-sm">·</span>}
             <span className="text-white/25 text-xs">Updated every 24 hours — some listings may have sold</span>
@@ -107,29 +103,6 @@ export default function DealsPage() {
           <div className="flex items-center gap-2 text-white/40">
             <SlidersHorizontal className="w-4 h-4" />
             <span className="text-xs font-medium">Filters</span>
-          </div>
-
-          {/* Verdict toggle */}
-          <div className="flex items-center gap-1 bg-[#161b22] border border-white/[0.08] rounded-lg p-1">
-            {(["ALL", "GREEN", "YELLOW", "RED"] as VerdictFilter[]).map((v) => (
-              <button
-                key={v}
-                onClick={() => setVerdict(v)}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
-                  verdict === v
-                    ? v === "GREEN"
-                      ? "bg-[#00d97e]/15 text-[#00d97e]"
-                      : v === "YELLOW"
-                      ? "bg-yellow-500/15 text-yellow-400"
-                      : v === "RED"
-                      ? "bg-red-500/15 text-red-400"
-                      : "bg-white/[0.10] text-white"
-                    : "text-white/40 hover:text-white/70"
-                }`}
-              >
-                {v === "ALL" ? "All" : v === "GREEN" ? "Good Deals" : v === "YELLOW" ? "Caution" : "Avoid"}
-              </button>
-            ))}
           </div>
 
           {/* Make select */}
@@ -257,7 +230,7 @@ export default function DealsPage() {
 
         {/* Disclaimer */}
         <p className="text-center text-xs text-white/20 mt-12 max-w-xl mx-auto">
-          Deals are automatically analyzed by OFFO and are for informational purposes only. Always verify listings independently before purchase.
+          Listings are curated by OFFO for informational purposes only. Always verify independently before purchase.
         </p>
       </main>
 
