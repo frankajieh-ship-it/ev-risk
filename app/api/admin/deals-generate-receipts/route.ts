@@ -30,6 +30,11 @@ export async function POST(request: NextRequest) {
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
   const internalSecret = process.env.INTERNAL_API_SECRET;
+  const dealWatchToken = process.env.DEAL_WATCH_TOKEN;
+
+  if (!internalSecret && !dealWatchToken) {
+    return NextResponse.json({ error: "INTERNAL_API_SECRET or DEAL_WATCH_TOKEN must be set" }, { status: 500 });
+  }
 
   const { searchParams } = new URL(request.url);
   const batch = Math.min(20, Math.max(1, parseInt(searchParams.get("batch") || "10", 10)));
@@ -48,6 +53,7 @@ export async function POST(request: NextRequest) {
   if (!rows?.length) return NextResponse.json({ generated: 0, skipped: 0, failed: 0, total: 0 });
 
   let generated = 0, skipped = 0, failed = 0;
+  const errors: string[] = [];
 
   for (const row of rows) {
     try {
@@ -93,7 +99,9 @@ export async function POST(request: NextRequest) {
       };
 
       if (!data.success || !data.receipt_id) {
-        console.warn(`[deals-generate-receipts] No receipt for ${row.listing_url}:`, data);
+        const reason = (data as Record<string, unknown>).error ?? (data as Record<string, unknown>).message ?? JSON.stringify(data);
+        console.warn(`[deals-generate-receipts] No receipt for ${row.listing_url}: HTTP ${res.status} — ${reason}`);
+        errors.push(`${row.vehicle_label ?? row.listing_url}: HTTP ${res.status} — ${reason}`);
         failed++;
         continue;
       }
@@ -121,7 +129,9 @@ export async function POST(request: NextRequest) {
         generated++;
       }
     } catch (err) {
-      console.warn(`[deals-generate-receipts] Error for ${row.listing_url}:`, err instanceof Error ? err.message : err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[deals-generate-receipts] Error for ${row.listing_url}:`, msg);
+      errors.push(`${row.listing_url}: ${msg}`);
       failed++;
     }
   }
@@ -132,5 +142,6 @@ export async function POST(request: NextRequest) {
     skipped,
     failed,
     total: rows.length,
+    errors: errors.slice(0, 3), // first 3 errors for diagnosis
   });
 }

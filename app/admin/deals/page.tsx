@@ -165,7 +165,8 @@ export default function AdminDealsPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        setImportStatus(`✓ Receipts: ${data.generated} generated, ${data.skipped} already cached, ${data.failed} failed (${data.total} processed)`);
+        const errSample = data.errors?.length ? ` | First error: ${data.errors[0]}` : "";
+        setImportStatus(`✓ Receipts: ${data.generated} generated, ${data.skipped} already cached, ${data.failed} failed (${data.total} processed)${errSample}`);
         fetchDeals();
       } else {
         setImportStatus(`✗ ${data.error}`);
