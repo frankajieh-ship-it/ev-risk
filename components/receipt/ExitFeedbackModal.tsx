@@ -1,8 +1,9 @@
 /**
- * ExitFeedbackModal — exit-intent quick feedback
+ * ExitFeedbackModal — subtle timed feedback prompt
  *
- * Triggers when a user generated a receipt and navigates away / switches tabs
- * without having submitted feedback. One-click 3-option response.
+ * Appears as a bottom-right toast 45s after a receipt is ready.
+ * One-click 3-option response. Cooldown: 14 days.
+ * Does NOT trigger on every tab-switch — passive and non-intrusive.
  */
 
 "use client";
@@ -15,105 +16,82 @@ interface ExitFeedbackModalProps {
   receiptId?: string;
 }
 
-const STORAGE_KEY = "offo_exit_feedback_done";
-// Only prompt once every 7 days, not on every tab-switch
-const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
-// Must have had the receipt for at least 20s before we prompt
-const MIN_RECEIPT_AGE_MS = 20_000;
+const STORAGE_KEY = "offo_feedback_last_shown";
+// Show at most once every 14 days
+const COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000;
+// Wait 45s after receipt appears before showing
+const DELAY_MS = 45_000;
 
 export default function ExitFeedbackModal({ hasReceipt, receiptId }: ExitFeedbackModalProps) {
   const [visible, setVisible] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  // Use a ref so we can read it inside the event handler without adding it as a dep
-  const receiptReadyAtRef = useRef(0);
-
-  useEffect(() => {
-    receiptReadyAtRef.current = performance.now();
-  }, [hasReceipt]);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!hasReceipt) return;
-    // Don't show if already shown within the cooldown window
+
+    // Check cooldown
     try {
       const lastShown = localStorage.getItem(STORAGE_KEY);
       if (lastShown && Date.now() - Number(lastShown) < COOLDOWN_MS) return;
     } catch { /* ignore */ }
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        // Don't show if user switched away before even reading the receipt
-        if (performance.now() - receiptReadyAtRef.current < MIN_RECEIPT_AGE_MS) return;
-        setVisible(true);
-        // Record shown time so the cooldown applies even if dismissed without rating
-        const now = new Date().getTime().toString();
-        try { localStorage.setItem(STORAGE_KEY, now); } catch { /* ignore */ }
-        // Track shown so it counts in analytics alongside FeedbackWidget
-        fetch("/api/track-event", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            eventName: "feedback_shown",
-            eventData: { source: "exit_intent", receipt_id: receiptId },
-          }),
-        }).catch(() => {});
-      }
-    };
+    // Schedule the prompt — passive delay, no exit-intent aggression
+    timerRef.current = setTimeout(() => {
+      setVisible(true);
+      try { localStorage.setItem(STORAGE_KEY, Date.now().toString()); } catch { /* ignore */ }
+      fetch("/api/track-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventName: "feedback_shown",
+          eventData: { source: "timed_prompt", receipt_id: receiptId },
+        }),
+      }).catch(() => {});
+    }, DELAY_MS);
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [hasReceipt, receiptId]);
 
   const handleSelect = async (rating: "helpful" | "okay" | "not_useful") => {
     setSubmitted(true);
-    const now = new Date().getTime().toString();
-    try {
-      localStorage.setItem(STORAGE_KEY, now);
-    } catch { /* ignore */ }
-
-    // Track event (fire-and-forget)
-    try {
-      await fetch("/api/track-event", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventName: "feedback_submitted",
-          eventData: {
-            source: "exit_intent",
-            rating,
-            receipt_id: receiptId,
-          },
-        }),
-      });
-    } catch { /* non-critical */ }
-
-    setTimeout(() => setVisible(false), 1800);
+    try { localStorage.setItem(STORAGE_KEY, Date.now().toString()); } catch { /* ignore */ }
+    fetch("/api/track-event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventName: "feedback_submitted",
+        eventData: { source: "timed_prompt", rating, receipt_id: receiptId },
+      }),
+    }).catch(() => {});
+    setTimeout(() => setVisible(false), 2000);
   };
 
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 relative">
+    <div className="fixed bottom-6 right-4 z-50 w-72 animate-in slide-in-from-bottom-4 fade-in duration-300">
+      <div className="bg-[#161b22] border border-white/[0.10] rounded-2xl shadow-2xl p-4 relative">
         <button
           onClick={() => setVisible(false)}
-          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-3 right-3 text-white/30 hover:text-white/60 transition-colors"
           aria-label="Close"
         >
-          <X className="w-4 h-4" />
+          <X className="w-3.5 h-3.5" />
         </button>
 
         {submitted ? (
-          <div className="text-center py-2">
-            <p className="text-base font-semibold text-gray-900">Thanks for the feedback!</p>
-            <p className="text-sm text-gray-500 mt-1">It helps us improve.</p>
+          <div className="py-1">
+            <p className="text-sm font-semibold text-white/90">Thanks for the feedback!</p>
+            <p className="text-xs text-white/40 mt-0.5">Helps us keep improving.</p>
           </div>
         ) : (
           <>
-            <p className="text-sm font-semibold text-gray-900 mb-1">
-              Before you go — how was your analysis?
+            <p className="text-sm font-semibold text-white/90 pr-5 mb-0.5">
+              Was this analysis helpful?
             </p>
-            <p className="text-xs text-gray-500 mb-4">Takes 1 second, no account needed.</p>
-            <div className="flex gap-3">
+            <p className="text-xs text-white/40 mb-3">Takes one tap, no sign-up needed.</p>
+            <div className="flex gap-2">
               {([
                 { value: "helpful" as const, emoji: "👍", label: "Helpful" },
                 { value: "okay" as const, emoji: "😐", label: "Okay" },
@@ -122,10 +100,10 @@ export default function ExitFeedbackModal({ hasReceipt, receiptId }: ExitFeedbac
                 <button
                   key={value}
                   onClick={() => handleSelect(value)}
-                  className="flex-1 flex flex-col items-center gap-1 py-3 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all text-center"
+                  className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border border-white/[0.08] hover:border-[#00d97e]/40 hover:bg-[#00d97e]/[0.06] transition-all text-center"
                 >
-                  <span className="text-xl">{emoji}</span>
-                  <span className="text-xs font-medium text-gray-700">{label}</span>
+                  <span className="text-lg">{emoji}</span>
+                  <span className="text-[11px] font-medium text-white/60">{label}</span>
                 </button>
               ))}
             </div>
