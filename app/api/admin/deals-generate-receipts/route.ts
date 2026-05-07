@@ -2,8 +2,8 @@
  * POST /api/admin/deals-generate-receipts
  *
  * Batch-generates full receipts for curated deals that have receipt_id = null.
- * Uses DEAL_WATCH_TOKEN to call /api/receipt internally — bypasses rate limits
- * and Turnstile. On success, updates curated_deals.receipt_id.
+ * Calls /api/receipt with a fresh receipt token per deal so receipts are saved to DB.
+ * FLAG_FREE_MODE bypasses daily limits. On success, updates curated_deals.receipt_id.
  *
  * Query params:
  *   ?batch=N  — number of deals to process per run (default 10, max 20)
@@ -28,11 +28,6 @@ export async function POST(request: NextRequest) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return NextResponse.json({ error: "DB not configured" }, { status: 500 });
 
-  const dealWatchToken = process.env.DEAL_WATCH_TOKEN;
-  if (!dealWatchToken) {
-    return NextResponse.json({ error: "DEAL_WATCH_TOKEN not set" }, { status: 500 });
-  }
-
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
 
   const { searchParams } = new URL(request.url);
@@ -55,12 +50,17 @@ export async function POST(request: NextRequest) {
 
   for (const row of rows) {
     try {
+      // Generate a valid receipt token per deal so the receipt is saved to DB normally.
+      // tokenIsInternal (DEAL_WATCH_TOKEN) skips DB writes — we need the row persisted.
+      const receiptToken = `rt_${Date.now()}_${crypto.randomUUID().replace(/-/g, "").substring(0, 24)}`;
+
       const body: Record<string, unknown> = {
-        receipt_token: dealWatchToken,
+        receipt_token: receiptToken,
         listing_url: row.listing_url,
         mode: "single",
         region: "US",
         input_mode: "deal_watch",
+        page_source: "deal_watch_batch",
       };
 
       // Pass all structured fields we have so the AI doesn't need to extract
