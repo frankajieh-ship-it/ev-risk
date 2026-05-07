@@ -277,7 +277,7 @@ export default function ReceiptInputCard({
     if (f.year) setFields((prev) => ({ ...prev, year: f.year }));
     if (f.mileage !== undefined) setFields((prev) => ({ ...prev, mileage: f.mileage }));
     if (f.price !== undefined) setFields((prev) => ({ ...prev, price: f.price }));
-    if (f.vin) { setVinValue(f.vin); setFields((prev) => ({ ...prev, vin: f.vin })); }
+    if (f.vin) { setVinValue(f.vin); setFields((prev) => ({ ...prev, vin: f.vin })); setVinFilled(true); }
     if (f.trim) setFields((prev) => ({ ...prev, trim: f.trim }));
     if (f.location) setFields((prev) => ({ ...prev, location: f.location }));
     if (f.title_status) setFields((prev) => ({ ...prev, title_status: f.title_status }));

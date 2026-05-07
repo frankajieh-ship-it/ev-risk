@@ -209,7 +209,9 @@ export default function AdminNewsPage() {
   const [genError, setGenError] = useState("");
   const [triggering, setTriggering] = useState(false);
   const [triggerStatus, setTriggerStatus] = useState("");
-  const adminKey = typeof window !== "undefined" ? (localStorage.getItem("offo_admin_key") ?? "") : "";
+  const [adminKey, setAdminKey] = useState(() =>
+    typeof window !== "undefined" ? (localStorage.getItem("offo_admin_key") ?? "") : ""
+  );
 
   const fetchArticles = useCallback(async () => {
     setLoading(true);
@@ -300,6 +302,16 @@ export default function AdminNewsPage() {
           <p className="text-sm text-gray-500">{today}</p>
         </div>
         <div className="flex items-center gap-2">
+          <input
+            type="password"
+            placeholder="Admin API key..."
+            value={adminKey}
+            onChange={(e) => {
+              setAdminKey(e.target.value);
+              localStorage.setItem("offo_admin_key", e.target.value);
+            }}
+            className="text-sm border border-gray-200 rounded-lg px-3 py-2 w-44 focus:ring-2 focus:ring-blue-500 outline-none"
+          />
           <button
             onClick={handleTriggerEngine}
             disabled={triggering}

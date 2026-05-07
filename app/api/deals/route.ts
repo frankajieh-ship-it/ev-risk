@@ -181,10 +181,8 @@ export async function GET(request: NextRequest) {
   // but guard against any duplicates introduced by imports.
   const seen = new Map<string, (typeof allDeals)[0]>();
   for (const deal of allDeals ?? []) {
-    const key = deal.listing_url;
-    const existing = seen.get(key);
-    if (!existing || (deal.deal_quality_score ?? 0) > (existing.deal_quality_score ?? 0)) {
-      seen.set(key, deal);
+    if (!seen.has(deal.listing_url)) {
+      seen.set(deal.listing_url, deal);
     }
   }
   const deduped = Array.from(seen.values());
