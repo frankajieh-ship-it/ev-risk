@@ -62,6 +62,7 @@ export default function AdminDealsPage() {
   const authHeader = adminKey ? `Bearer ${adminKey}` : "";
   const [rescoring, setRescoring] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [generatingReceipts, setGeneratingReceipts] = useState(false);
   const rescoringPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const extractPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
@@ -147,6 +148,32 @@ export default function AdminDealsPage() {
       }
     } catch {
       setImportStatus("✗ Backfill failed");
+    }
+  };
+
+  const handleGenerateReceipts = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    const noReceipt = deals.filter((d) => d.is_active && !d.receipt_id).length;
+    if (noReceipt === 0) { alert("All active deals already have receipts."); return; }
+    if (!confirm(`Generate receipts for up to 10 active deals (${noReceipt} total missing)? This runs AI per deal and may take ~2 min.`)) return;
+    setGeneratingReceipts(true);
+    setImportStatus("⏳ Generating receipts...");
+    try {
+      const res = await fetch("/api/admin/deals-generate-receipts", {
+        method: "POST",
+        headers: { Authorization: authHeader },
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setImportStatus(`✓ Receipts: ${data.generated} generated, ${data.skipped} already cached, ${data.failed} failed (${data.total} processed)`);
+        fetchDeals();
+      } else {
+        setImportStatus(`✗ ${data.error}`);
+      }
+    } catch {
+      setImportStatus("✗ Failed to generate receipts");
+    } finally {
+      setGeneratingReceipts(false);
     }
   };
 
@@ -389,6 +416,10 @@ export default function AdminDealsPage() {
             <button onClick={handleCheckSold} disabled={rescoring}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${rescoring ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-red-400 border-white/[0.08]"}`}>
               Check Sold
+            </button>
+            <button onClick={handleGenerateReceipts} disabled={rescoring || generatingReceipts}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${(rescoring || generatingReceipts) ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}>
+              {generatingReceipts ? "Generating..." : "Generate Receipts"}
             </button>
             <button onClick={handleBackfillPhotos}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#00d97e] border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
