@@ -5,7 +5,7 @@
  *
  * Stage 1: Grok classifier (intent + key concern)
  * Stage 2: Parallel VIN data fetch (Auto.dev / VINaudit, optional)
- * Stage 3: Parallel Gemini (empathy) + GPT-4o (technical)
+ * Stage 3: Parallel Claude (empathy) + GPT-4o (technical)
  * Stage 4: Grok synthesis → OFFO voice
  */
 
@@ -17,7 +17,7 @@ import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import { guardTurnstile } from "@/lib/turnstile";
 import { grokAdapter } from "@/lib/providers/grok-adapter";
 import { openaiAdapter } from "@/lib/providers/openai-adapter";
-import { geminiAdapter } from "@/lib/providers/gemini-adapter";
+import { anthropicAdapter } from "@/lib/providers/anthropic-adapter";
 import type { GenerateOpts } from "@/lib/providers/types";
 
 // ---------------------------------------------------------------------------
@@ -310,18 +310,18 @@ export async function POST(request: NextRequest) {
         : "";
 
     // -------------------------------------------------------------------
-    // Stage 3: Parallel Gemini (empathy) + GPT-4o (technical)
+    // Stage 3: Parallel Claude (empathy) + GPT-4o (technical)
     // -------------------------------------------------------------------
     const stageSystemPrompt = `${offoContext}\n\nUser intent: ${classify.intent}\nKey concern: ${classify.key_concern}\nSuggested angle: ${classify.suggested_angle}${vinSummary}`;
 
     const stageUserPrompt = `User asked: "${message}"\n\nProvide your perspective as instructed. Be concise (2-4 sentences max).`;
 
-    let geminiReply = "";
+    let claudeReply = "";
     let openaiReply = "";
 
-    const [geminiResult, openaiResult] = await Promise.allSettled([
-      geminiAdapter.isConfigured()
-        ? geminiAdapter.generate({
+    const [claudeResult, openaiResult] = await Promise.allSettled([
+      anthropicAdapter.isConfigured()
+        ? anthropicAdapter.generate({
             systemPrompt:
               stageSystemPrompt +
               "\n\nYour angle: Focus on how this decision FEELS for the buyer. Empathetic and human.",
@@ -330,10 +330,10 @@ export async function POST(request: NextRequest) {
             schemaName: "ChatReply",
             temperature: 0.7,
             maxTokens: 300,
-            timeoutMs: 6_000,
+            timeoutMs: 8_000,
             signal: masterController.signal,
           })
-        : Promise.reject(new Error("Gemini not configured")),
+        : Promise.reject(new Error("Anthropic not configured")),
       openaiAdapter.isConfigured()
         ? openaiAdapter.generate({
             systemPrompt:
@@ -350,16 +350,16 @@ export async function POST(request: NextRequest) {
         : Promise.reject(new Error("OpenAI not configured")),
     ]);
 
-    if (geminiResult.status === "fulfilled") {
-      geminiReply = (geminiResult.value.json.reply as string) || "";
-      sources.push("gemini");
+    if (claudeResult.status === "fulfilled") {
+      claudeReply = (claudeResult.value.json.reply as string) || "";
+      sources.push("anthropic");
     }
     if (openaiResult.status === "fulfilled") {
       openaiReply = (openaiResult.value.json.reply as string) || "";
       sources.push("openai");
     }
 
-    if (!geminiReply && !openaiReply) {
+    if (!claudeReply && !openaiReply) {
       // Both failed — graceful degradation
       fallback = true;
       const latencyMs = Date.now() - t0;
@@ -376,7 +376,7 @@ export async function POST(request: NextRequest) {
     // Stage 4: Grok synthesis
     // -------------------------------------------------------------------
     let finalReply = "";
-    const draftInputs = [geminiReply, openaiReply].filter(Boolean).join("\n\n---\n\n");
+    const draftInputs = [claudeReply, openaiReply].filter(Boolean).join("\n\n---\n\n");
 
     if (grokAdapter.isConfigured()) {
       try {

@@ -388,39 +388,42 @@ export default function ReceiptInputCard({
 
       if (!res.ok || !data.success) {
         if (data.partial_fields) applyExtractedFields(data.partial_fields);
+        const _activeUrl = urlOverride ?? listingUrl.trim();
+        const _domain = (() => { try { return new URL(_activeUrl).hostname.replace(/^www\./, ""); } catch { return "unknown"; } })();
+        const _trackFail = (reason: string) => trackEvent?.("receipt_extract_failed", { reason, input_mode: pasteMode, anon_id: receiptToken, domain: _domain });
         if (data.diagnostics?.botProtectionDetected) {
-          const msg = (urlOverride ?? listingUrl.trim()).toLowerCase().includes("cargurus.com")
-            ? "CarGurus blocked auto-fetch — scroll down to fill in details manually."
-            : "This site blocked auto-extraction — fill in the details below.";
+          const msg = _domain.includes("cargurus.com")
+            ? "CarGurus blocked auto-fetch. Copy the year, make, model, price, and mileage from the listing and fill them in below — takes 30 seconds."
+            : "This site blocked auto-extraction. Fill in the year, make, model, price, and mileage below to get your analysis.";
           setExtractError({ message: msg });
-          trackEvent?.("receipt_extract_failed", { reason: "bot_protection", input_mode: pasteMode, anon_id: receiptToken });
+          _trackFail("bot_protection");
         } else if (data.diagnostics?.failureReason === "timeout") {
           if (!autoRetryDoneRef.current && (urlOverride || pasteMode === "url")) {
             autoRetryDoneRef.current = true;
             setExtractError({ message: "Taking a moment — retrying automatically..." });
-            autoExtractTimerRef.current = setTimeout(() => handleExtract(urlOverride ?? listingUrl.trim()), 1500);
+            autoExtractTimerRef.current = setTimeout(() => handleExtract(_activeUrl), 1500);
           } else {
             setExtractError({ message: "Timed out — fill in the details below." });
-            trackEvent?.("receipt_extract_failed", { reason: "timeout", input_mode: pasteMode, anon_id: receiptToken });
+            _trackFail("timeout");
           }
         } else if (data.diagnostics?.failureReason === "listing_sold") {
           setExtractError({ message: "This listing has sold or been removed." });
-          trackEvent?.("receipt_extract_failed", { reason: "listing_sold", input_mode: pasteMode, anon_id: receiptToken });
+          _trackFail("listing_sold");
         } else if (data.diagnostics?.failureReason === "search_page") {
-          const id = extractCarGurusListingId(urlOverride ?? listingUrl.trim());
+          const id = extractCarGurusListingId(_activeUrl);
           if (id) { setCarGurusCleanId(id); setShowCarGurusBanner(true); setExtractError(null); }
           else {
             setExtractError({ message: "That looks like a search page — open a specific listing." });
-            trackEvent?.("receipt_extract_failed", { reason: "search_page", input_mode: pasteMode, anon_id: receiptToken });
+            _trackFail("search_page");
           }
         } else {
           if (!autoRetryDoneRef.current && (urlOverride || pasteMode === "url")) {
             autoRetryDoneRef.current = true;
             setExtractError({ message: "Taking a moment — retrying automatically..." });
-            autoExtractTimerRef.current = setTimeout(() => handleExtract(urlOverride ?? listingUrl.trim()), 1500);
+            autoExtractTimerRef.current = setTimeout(() => handleExtract(_activeUrl), 1500);
           } else {
-            setExtractError({ message: "Couldn't extract listing details — fill in below." });
-            trackEvent?.("receipt_extract_failed", { reason: data.diagnostics?.failureReason || "unknown", input_mode: pasteMode, anon_id: receiptToken });
+            setExtractError({ message: "Couldn't extract listing details — fill in the year, make, model, price, and mileage below." });
+            _trackFail(data.diagnostics?.failureReason || "unknown");
           }
         }
         return;
@@ -446,12 +449,13 @@ export default function ReceiptInputCard({
       onExtractionFields?.({ year: f.year, make: f.make, model: f.model, trim: f.trim, mileage: f.mileage });
       if (data.photo_urls?.length) onPhotosExtracted?.(data.photo_urls);
     } catch (err) {
+      const _domain = (() => { try { return new URL((urlOverride ?? listingUrl).trim()).hostname.replace(/^www\./, ""); } catch { return "unknown"; } })();
       if (err instanceof Error && err.name === "AbortError") {
         setExtractError({ message: "Extraction timed out — fill in the details below." });
-        trackEvent?.("receipt_extract_failed", { reason: "abort_timeout", input_mode: pasteMode, anon_id: receiptToken });
+        trackEvent?.("receipt_extract_failed", { reason: "abort_timeout", input_mode: pasteMode, anon_id: receiptToken, domain: _domain });
       } else {
         setExtractError({ message: "Network error — try again or fill in below." });
-        trackEvent?.("receipt_extract_failed", { reason: "network_error", input_mode: pasteMode, anon_id: receiptToken });
+        trackEvent?.("receipt_extract_failed", { reason: "network_error", input_mode: pasteMode, anon_id: receiptToken, domain: _domain });
       }
     } finally {
       clearTimeout(timeoutId);

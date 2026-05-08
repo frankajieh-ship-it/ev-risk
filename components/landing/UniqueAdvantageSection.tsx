@@ -1,32 +1,44 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Zap, Car, Thermometer, Battery } from "lucide-react";
+import { Zap, ShieldCheck, TrendingDown, MessageSquare, Battery, Search } from "lucide-react";
 
 const advantages = [
   {
-    icon: Zap,
-    title: "Charging access",
-    description: "Do you have home charging, or will you rely on public stations?",
-    color: "bg-yellow-100 text-yellow-600",
-  },
-  {
-    icon: Car,
-    title: "Daily driving",
-    description: "How far is your commute? What's your longest regular trip?",
-    color: "bg-blue-100 text-blue-600",
-  },
-  {
-    icon: Thermometer,
-    title: "Climate impact",
-    description: "Cold weather affects range. We factor in your local conditions.",
-    color: "bg-red-100 text-red-600",
+    icon: ShieldCheck,
+    color: "text-[#00d97e]",
+    title: "Missing proof = red flag",
+    description: "No battery report? No service records? OFFO penalizes missing evidence — not just confirmed problems. Silence can hide as much as a bad Carfax.",
   },
   {
     icon: Battery,
-    title: "Battery buffer",
-    description: "Will this EV's range give you comfortable headroom?",
-    color: "bg-green-100 text-green-600",
+    color: "text-blue-400",
+    title: "Battery health from mileage + age",
+    description: "OFFO estimates battery state of health using degradation curves even when the seller provides no report — then flags if the claimed range looks optimistic.",
+  },
+  {
+    icon: Zap,
+    color: "text-yellow-400",
+    title: "Routine fit, not just specs",
+    description: "Scores whether this EV fits your actual charging setup, commute, climate, and longest day. Cold winters cut range 20–30% — we calculate that for your conditions.",
+  },
+  {
+    icon: TrendingDown,
+    color: "text-purple-400",
+    title: "Price vs. real comps in your area",
+    description: "Compares the listing to verified comparable listings nearby, shows where the price sits in the distribution, and reports how many buyers are competing.",
+  },
+  {
+    icon: MessageSquare,
+    color: "text-orange-400",
+    title: "Negotiation script, ready to send",
+    description: "Generates a buyer-specific opening message and 3 scenario scripts tied to what was actually found in the listing. Not generic tips — copy-paste ready.",
+  },
+  {
+    icon: Search,
+    color: "text-red-400",
+    title: "38 EV-specific risk signals",
+    description: "Checks for DC fast charging availability, odometer/VIN mismatches, dealer add-on pressure, and known model limitations against your specific use case.",
   },
 ];
 
@@ -55,13 +67,13 @@ export default function UniqueAdvantageSection() {
         >
           <p className="text-xs font-semibold uppercase tracking-widest text-[#00d97e] mb-2">Why OFFO</p>
           <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
-            OFFO&apos;s Unique Advantage
+            What OFFO actually checks
           </h2>
           <p className="text-lg font-medium text-white/70 mb-2">
-            Will this EV fit your life?
+            35 seconds. No sign-up. Things Carfax doesn&apos;t check.
           </p>
           <p className="text-sm text-white/40 max-w-xl mx-auto">
-            A good deal on paper isn&apos;t always a good fit in real life. OFFO checks if the car matches your actual driving routine.
+            OFFO runs 38 EV-specific signals on every listing — checking battery health, title history, price vs. market, and whether the car fits your charging life.
           </p>
         </motion.div>
 
@@ -70,7 +82,7 @@ export default function UniqueAdvantageSection() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto"
         >
           {advantages.map((item) => {
             const Icon = item.icon;
@@ -81,7 +93,7 @@ export default function UniqueAdvantageSection() {
                 className="bg-white/[0.05] border border-white/10 rounded-xl p-6 hover:bg-white/[0.08] transition-colors"
               >
                 <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center mb-4">
-                  <Icon className="w-5 h-5 text-white/60" />
+                  <Icon className={`w-5 h-5 ${item.color}`} />
                 </div>
                 <h3 className="text-base font-semibold text-white mb-1.5">
                   {item.title}

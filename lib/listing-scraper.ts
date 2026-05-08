@@ -66,6 +66,7 @@ export interface VehicleData {
   // Title and accident status extracted from listing text
   title_status?: "clean" | "salvage" | "rebuilt" | "unknown";
   accidents_reported?: "yes" | "no" | "unknown";
+  owners?: number;
 
   // Data quality tracking
   dataSource: 'autotrader' | 'cargurus' | 'cars.com' | 'carvana' | 'facebook' | 'carfax' | 'truecar' | 'edmunds' | 'kbb' | 'vroom' | 'carmax' | 'autotempest' | 'hemmings' | 'unknown';
@@ -1065,3 +1066,8 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
     };
   }
 }
+
+// Test-only exports — not part of the public API.
+export const _testExports = {
+  extractFromCarGurus,
+};

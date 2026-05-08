@@ -21,7 +21,7 @@ import {
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const DEFAULT_API = "http://localhost:8088";
+const DEFAULT_API = "http://localhost:8089";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,6 +74,15 @@ interface AnalyzeResponse {
   draft_reply_long?: string;
   tool_blurb?: string;
   safety_flags?: string[];
+}
+
+interface SocialPostsResult {
+  reddit: Array<{ title: string; body: string; subreddit: string }>;
+  x: Array<{ text: string }>;
+  linkedin: Array<{ text: string }>;
+  facebook: Array<{ text: string }>;
+  item_count: number;
+  dry_run: boolean;
 }
 
 interface Session {
@@ -215,7 +224,7 @@ function Collapsible({ label, children }: { label: string; children: React.React
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-const TABS = ["Assist (v2)", "Analyze (v1)", "Analytics", "Scan Feed", "Posted"] as const;
+const TABS = ["Assist (v2)", "Analyze (v1)", "Analytics", "Scan Feed", "Posted", "Social Posts"] as const;
 type Tab = typeof TABS[number];
 
 const TONES = ["ultra_short", "standard", "empathetic", "technical"] as const;
@@ -335,6 +344,9 @@ export default function RedditOperatorPage() {
         )}
         {activeTab === "Posted" && (
           <PostedTab get={get} />
+        )}
+        {activeTab === "Social Posts" && (
+          <SocialPostsTab post={post} />
         )}
       </div>
     </div>
@@ -1111,6 +1123,183 @@ function PostedTab({ get }: { get: GetFn }) {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Social Posts Tab ─────────────────────────────────────────────────────────
+
+type SocialPlatform = "reddit" | "x" | "linkedin" | "facebook";
+
+function SocialPostsTab({ post }: {
+  post: (ep: string, payload: unknown) => Promise<unknown>;
+}) {
+  const [days, setDays] = useState(7);
+  const [dryRun, setDryRun] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<SocialPostsResult | null>(null);
+  const [error, setError] = useState("");
+  const [platform, setPlatform] = useState<SocialPlatform>("reddit");
+  const [copied, setCopied] = useState<number | null>(null);
+
+  const run = async () => {
+    setError(""); setLoading(true); setResult(null);
+    try {
+      const data = await post("/social/generate-weekly", { days, dry_run: dryRun }) as SocialPostsResult;
+      setResult(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "API error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyText = (text: string, idx: number) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(idx);
+      setTimeout(() => setCopied(null), 1500);
+    });
+  };
+
+  const PLATFORMS: SocialPlatform[] = ["reddit", "x", "linkedin", "facebook"];
+
+  const posts = result
+    ? (platform === "reddit" ? result.reddit
+      : platform === "x" ? result.x
+      : platform === "linkedin" ? result.linkedin
+      : result.facebook)
+    : [];
+
+  return (
+    <div className="space-y-5">
+      {/* Controls */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600">Lookback:</span>
+          {[7, 14, 30].map((d) => (
+            <button
+              key={d}
+              onClick={() => setDays(d)}
+              className={`px-3 py-1 text-xs rounded-full border font-medium transition-colors ${
+                days === d
+                  ? "bg-gray-900 text-white border-gray-900"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+              }`}
+            >
+              {d}d
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={dryRun}
+            onChange={(e) => setDryRun(e.target.checked)}
+            className="rounded"
+          />
+          Dry run (don&apos;t save)
+        </label>
+        <button
+          onClick={run}
+          disabled={loading}
+          className="px-4 py-2 bg-gray-900 hover:bg-gray-800 disabled:opacity-50 text-white text-sm font-semibold rounded-lg flex items-center gap-2"
+        >
+          {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+          {loading ? "Generating…" : "Generate Posts →"}
+        </button>
+      </div>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
+      {/* Result meta */}
+      {result && (
+        <div className="flex items-center gap-3 text-xs text-gray-500">
+          <span className="font-medium text-gray-700">{result.item_count} knowledge base items</span>
+          {result.dry_run && (
+            <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full font-medium">dry run</span>
+          )}
+          {!result.dry_run && (
+            <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">saved</span>
+          )}
+        </div>
+      )}
+
+      {/* Platform tabs */}
+      {result && (
+        <>
+          <div className="flex gap-1 border-b border-gray-200">
+            {PLATFORMS.map((p) => {
+              const count = result[p]?.length ?? 0;
+              return (
+                <button
+                  key={p}
+                  onClick={() => setPlatform(p)}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize ${
+                    platform === p
+                      ? "border-blue-600 text-blue-700"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {p === "x" ? "X / Twitter" : p} ({count})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Post cards */}
+          <div className="space-y-3">
+            {(posts as Array<{ title?: string; body?: string; subreddit?: string; text?: string }>).map((p, i) => (
+              <div key={i} className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    {/* Reddit-specific header */}
+                    {platform === "reddit" && p.subreddit && (
+                      <p className="text-xs font-semibold text-blue-600 mb-1">{p.subreddit}</p>
+                    )}
+                    {platform === "reddit" && p.title && (
+                      <p className="text-sm font-semibold text-gray-800 mb-1">{p.title}</p>
+                    )}
+                    {/* X char count */}
+                    {platform === "x" && p.text && (
+                      <p className={`text-xs mb-1 font-medium ${p.text.length > 280 ? "text-red-500" : "text-gray-400"}`}>
+                        {p.text.length}/280
+                      </p>
+                    )}
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                      {platform === "reddit" ? p.body : p.text}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => copyText(
+                      platform === "reddit"
+                        ? `${p.title ?? ""}\n\n${p.body ?? ""}`
+                        : (p.text ?? ""),
+                      i
+                    )}
+                    className="shrink-0 flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 border border-gray-200 rounded-lg px-2 py-1 transition-colors"
+                  >
+                    {copied === i ? <CheckCircle className="w-3.5 h-3.5 text-green-500" /> : null}
+                    {copied === i ? "Copied" : "Copy"}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400">Post {i + 1} of {posts.length}</p>
+              </div>
+            ))}
+
+            {posts.length === 0 && (
+              <div className="text-sm text-gray-400 italic text-center py-8 border border-dashed border-gray-200 rounded-xl">
+                No posts generated for this platform.
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {!result && !loading && (
+        <div className="text-sm text-gray-400 italic text-center py-12 border border-dashed border-gray-200 rounded-xl">
+          Click Generate Posts to pull from the knowledge base and create social content.
         </div>
       )}
     </div>

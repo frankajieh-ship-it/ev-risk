@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -370,6 +371,52 @@ def get_posted_sessions_db(limit: int = 50) -> list:
         .limit(limit)
         .execute()
     )
+    return result.data or []
+
+
+# -------------------------
+# Knowledge base
+# -------------------------
+
+def upsert_knowledge_base(row: dict) -> str:
+    """
+    Upsert one item into offo_knowledge_base.
+    `row` must contain `source` and `source_id` (the UNIQUE constraint key).
+    Returns the id of the upserted row, or "" on error.
+    """
+    try:
+        result = (
+            _client()
+            .table("offo_knowledge_base")
+            .upsert(row, on_conflict="source,source_id")
+            .execute()
+        )
+        rows = result.data or []
+        return rows[0]["id"] if rows else ""
+    except Exception as e:
+        print(f"  [WARN] upsert_knowledge_base failed: {e}")
+        return ""
+
+
+def get_knowledge_base_items(
+    post_worthy_only: bool = True,
+    days: int = 7,
+    limit: int = 50,
+) -> list[dict]:
+    """Fetch recent knowledge base items for social post generation."""
+    from datetime import timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    q = (
+        _client()
+        .table("offo_knowledge_base")
+        .select("*")
+        .gte("created_at", cutoff)
+        .order("score", desc=True)
+        .limit(limit)
+    )
+    if post_worthy_only:
+        q = q.eq("post_worthy", True)
+    result = q.execute()
     return result.data or []
 
 

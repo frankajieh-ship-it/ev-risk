@@ -28,19 +28,19 @@ export const STATIC_PHOTO_MAP: Record<string, string> = {
   // Hyundai
   "ioniq 5": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Hyundai_Ioniq_5_1X7A7085.jpg/960px-Hyundai_Ioniq_5_1X7A7085.jpg",
   "ioniq 6": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Hyundai_Ioniq_6_1X7A7258.jpg/960px-Hyundai_Ioniq_6_1X7A7258.jpg",
-  "kona electric": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/2024_Hyundai_Kona_Electric_%28GK%29%2C_front_8.27.24.jpg/960px-2024_Hyundai_Kona_Electric_%28GK%29%2C_front_8.27.24.jpg",
-  "kona": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/2024_Hyundai_Kona_Electric_%28GK%29%2C_front_8.27.24.jpg/960px-2024_Hyundai_Kona_Electric_%28GK%29%2C_front_8.27.24.jpg",
+  "kona electric": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/23_Hyundai_Kona_Electric_%28SX2%29_1.jpg/960px-23_Hyundai_Kona_Electric_%28SX2%29_1.jpg",
+  "kona": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/23_Hyundai_Kona_Electric_%28SX2%29_1.jpg/960px-23_Hyundai_Kona_Electric_%28SX2%29_1.jpg",
   // Kia
   "ev6": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Kia_EV6_GT_IMG_8171.jpg/960px-Kia_EV6_GT_IMG_8171.jpg",
   "ev9": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Kia_EV9_MV1_Aurora_Black_Pearl_%285%29.jpg/960px-Kia_EV9_MV1_Aurora_Black_Pearl_%285%29.jpg",
   "niro ev": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Kia_Niro_EV_%282023%29_%2852920493406%29.jpg/960px-Kia_Niro_EV_%282023%29_%2852920493406%29.jpg",
   "niro": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Kia_Niro_EV_%282023%29_%2852920493406%29.jpg/960px-Kia_Niro_EV_%282023%29_%2852920493406%29.jpg",
-  "soul ev": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Kia_Soul_EV_auto_z%C3%BCrich_2023.jpg/960px-Kia_Soul_EV_auto_z%C3%BCrich_2023.jpg",
-  "soul": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Kia_Soul_EV_auto_z%C3%BCrich_2023.jpg/960px-Kia_Soul_EV_auto_z%C3%BCrich_2023.jpg",
+  "soul ev": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/2019_Kia_Soul_EV_Front.jpg/960px-2019_Kia_Soul_EV_Front.jpg",
+  "soul": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/2019_Kia_Soul_EV_Front.jpg/960px-2019_Kia_Soul_EV_Front.jpg",
   // Tesla — year-ranged keys for redesigned generations (used by getStaticPhotoUrl when year is known)
   "model 3:2024+":     "https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Tesla_Model_3_%282023%29_IMG_9488_%28cropped%29.jpg/960px-Tesla_Model_3_%282023%29_IMG_9488_%28cropped%29.jpg",
-  "model 3:2017-2023": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/2019_Tesla_Model_3_Facelift%2C_front_8.21.19.jpg/960px-2019_Tesla_Model_3_Facelift%2C_front_8.21.19.jpg",
-  "model 3":           "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/2019_Tesla_Model_3_Facelift%2C_front_8.21.19.jpg/960px-2019_Tesla_Model_3_Facelift%2C_front_8.21.19.jpg",
+  "model 3:2017-2023": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/2019_Tesla_Model_3_Long_Range_AWD_Front.jpg/960px-2019_Tesla_Model_3_Long_Range_AWD_Front.jpg",
+  "model 3":           "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/2019_Tesla_Model_3_Long_Range_AWD_Front.jpg/960px-2019_Tesla_Model_3_Long_Range_AWD_Front.jpg",
   "model s:2021+":     "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Tesla_Model_S_%282023%29_Motorworld_Munich_1X7A0025.jpg/960px-Tesla_Model_S_%282023%29_Motorworld_Munich_1X7A0025.jpg",
   "model s:2012-2020": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Tesla_Model_S_Facelift_ab_2016_trimmed.jpg/960px-Tesla_Model_S_Facelift_ab_2016_trimmed.jpg",
   "model s":           "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Tesla_Model_S_%282023%29_Motorworld_Munich_1X7A0025.jpg/960px-Tesla_Model_S_%282023%29_Motorworld_Munich_1X7A0025.jpg",
@@ -64,15 +64,15 @@ export const STATIC_PHOTO_MAP: Record<string, string> = {
   // Ford
   "mustang mach-e": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/Ford_Mustang_Mach-E_Rally_Auto_Zuerich_2023_1X7A1182.jpg/960px-Ford_Mustang_Mach-E_Rally_Auto_Zuerich_2023_1X7A1182.jpg",
   "f-150 lightning": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Ford_F-150_Lightning_IAA_2023_1X7A0596.jpg/960px-Ford_F-150_Lightning_IAA_2023_1X7A0596.jpg",
-  "focus electric": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Ford_Focus_Electric_C346_%28Facelift%2C_2014%29_front.jpg/960px-Ford_Focus_Electric_C346_%28Facelift%2C_2014%29_front.jpg",
-  "focus": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Ford_Focus_Electric_C346_%28Facelift%2C_2014%29_front.jpg/960px-Ford_Focus_Electric_C346_%28Facelift%2C_2014%29_front.jpg",
+  "focus electric": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Ford_Focus_Electric_front.jpg/960px-Ford_Focus_Electric_front.jpg",
+  "focus": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Ford_Focus_Electric_front.jpg/960px-Ford_Focus_Electric_front.jpg",
   // Rivian
   "r1t": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Rivian_R1T_-_2nd_Row_07.png/960px-Rivian_R1T_-_2nd_Row_07.png",
   "r1s": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Rivian_R1S_-_3.jpg/960px-Rivian_R1S_-_3.jpg",
   // Volkswagen
   "id.4": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/VW_ID4_CRI_03_2023_2386.jpg/960px-VW_ID4_CRI_03_2023_2386.jpg",
   "id4": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/VW_ID4_CRI_03_2023_2386.jpg/960px-VW_ID4_CRI_03_2023_2386.jpg",
-  "id.3": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/2020_Volkswagen_ID.3_1st_Edition_in_Blue%2C_front_8.18.20.jpg/960px-2020_Volkswagen_ID.3_1st_Edition_in_Blue%2C_front_8.18.20.jpg",
+  "id.3": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/2020_Volkswagen_ID.3_1st_Front.jpg/960px-2020_Volkswagen_ID.3_1st_Front.jpg",
   "e-golf": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Volkswagen_e-Golf_IMG_8133.jpg/960px-Volkswagen_e-Golf_IMG_8133.jpg",
   // BMW
   "ix": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/2023_BMW_iX_12_2022_CRI_0831.jpg/960px-2023_BMW_iX_12_2022_CRI_0831.jpg",
@@ -104,15 +104,15 @@ export const STATIC_PHOTO_MAP: Record<string, string> = {
   "xc40 recharge": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Volvo_XC40_Recharge_Facelift_IMG_8127.jpg/960px-Volvo_XC40_Recharge_Facelift_IMG_8127.jpg",
   "xc40": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Volvo_XC40_Recharge_Facelift_IMG_8127.jpg/960px-Volvo_XC40_Recharge_Facelift_IMG_8127.jpg",
   // Audi
-  "e-tron": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/2019_Audi_e-tron_55_quattro%2C_front_8.1.19.jpg/960px-2019_Audi_e-tron_55_quattro%2C_front_8.1.19.jpg",
+  "e-tron": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/2019_Audi_e-Tron_Front.jpg/960px-2019_Audi_e-Tron_Front.jpg",
   "e-tron gt": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Audi_e-tron_GT_IAA_2021_IMG_2040.jpg/960px-Audi_e-tron_GT_IAA_2021_IMG_2040.jpg",
   "q4 e-tron": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Audi_Q4_e-tron_IAA_2021_IMG_2048.jpg/960px-Audi_Q4_e-tron_IAA_2021_IMG_2048.jpg",
   "q8 e-tron": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Audi_Q8_e-tron_55_quattro_IAA_2023_IMG_0432.jpg/960px-Audi_Q8_e-tron_55_quattro_IAA_2023_IMG_0432.jpg",
   "rs e-tron gt": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Audi_e-tron_GT_IAA_2021_IMG_2040.jpg/960px-Audi_e-tron_GT_IAA_2021_IMG_2040.jpg",
   // Mini
   "countryman": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/2024_Mini_Countryman_SE_All4_Electric_%28F66%29%2C_front_8.9.24.jpg/960px-2024_Mini_Countryman_SE_All4_Electric_%28F66%29%2C_front_8.9.24.jpg",
-  "cooper se": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/2020_MINI_Cooper_SE_%28facelift%2C_blue%29%2C_front_8.11.20.jpg/960px-2020_MINI_Cooper_SE_%28facelift%2C_blue%29%2C_front_8.11.20.jpg",
-  "cooper": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/2020_MINI_Cooper_SE_%28facelift%2C_blue%29%2C_front_8.11.20.jpg/960px-2020_MINI_Cooper_SE_%28facelift%2C_blue%29%2C_front_8.11.20.jpg",
+  "cooper se": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/2023_Mini_Electric_Convertible_Cooper_S.jpg/960px-2023_Mini_Electric_Convertible_Cooper_S.jpg",
+  "cooper": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/2023_Mini_Electric_Convertible_Cooper_S.jpg/960px-2023_Mini_Electric_Convertible_Cooper_S.jpg",
   // Porsche
   "taycan": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Porsche_Taycan_IAA_2023_1X7A0387.jpg/960px-Porsche_Taycan_IAA_2023_1X7A0387.jpg",
   "macan": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Porsche_Macan_Electric_IAA_2023_1X7A0476.jpg/960px-Porsche_Macan_Electric_IAA_2023_1X7A0476.jpg",
@@ -120,7 +120,7 @@ export const STATIC_PHOTO_MAP: Record<string, string> = {
   "i-pace": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/Jaguar_I-PACE_EV400_IAA_2023_1X7A0302.jpg/960px-Jaguar_I-PACE_EV400_IAA_2023_1X7A0302.jpg",
   // Toyota / Subaru
   "bz4x": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/2023_Toyota_bZ4X_XLE_AWD_in_Supersonic_Red%2C_front_left.jpg/960px-2023_Toyota_bZ4X_XLE_AWD_in_Supersonic_Red%2C_front_left.jpg",
-  "solterra": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/2023_Subaru_Solterra_in_Ice_Silver_%26_Magnetite_Gray%2C_front_left.jpg/960px-2023_Subaru_Solterra_in_Ice_Silver_%26_Magnetite_Gray%2C_front_left.jpg",
+  "solterra": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/2026_Subaru_Solterra_Premium%2C_front_left%2C_03-15-2026.jpg/960px-2026_Subaru_Solterra_Premium%2C_front_left%2C_03-15-2026.jpg",
 };
 
 // One representative photo per make — used when model-level lookup fails entirely.

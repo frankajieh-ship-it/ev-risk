@@ -279,5 +279,43 @@ export async function runReceiptUpgrade(payload: UpgradePayload): Promise<void> 
     ip_hash: ip_hash || null,
   }).then(() => {}, () => {});
 
+  // Upsert into knowledge base for social content generation
+  const fr = finalReceipt as Record<string, unknown>;
+  const ls = (fr.listing_summary as Record<string, unknown>) || {};
+  const fitScore = typeof fr.fit_score === "number" ? fr.fit_score : null;
+  const verdict = fr.verdict as string | null;
+  const make = ls.make as string | null;
+  const model = ls.model as string | null;
+  const year = ls.year as number | null;
+  const price = ls.price as number | null;
+  const mileage = ls.mileage as number | null;
+  const evidenceScore = typeof fr.evidence_score === "number" ? fr.evidence_score : 0;
+  const vehicleLabel = [year, make, model].filter(Boolean).join(" ") || "EV";
+  const priceSanity = (fr.price_sanity as Record<string, unknown>) || {};
+  const priceLabel = priceSanity.label as string | null;
+  const kbSummary = [
+    `${vehicleLabel}: ${verdict} verdict, fit score ${fitScore}`,
+    price ? `$${price.toLocaleString()}` : null,
+    mileage ? `${mileage.toLocaleString()} mi` : null,
+    priceLabel ? `price ${priceLabel}` : null,
+  ].filter(Boolean).join(", ");
+  const postWorthy = verdict === "GREEN" || verdict === "RED"
+    ? (fitScore ?? 0) >= 65 && evidenceScore >= 40
+    : false;
+
+  supabase.from("offo_knowledge_base").upsert({
+    source: "receipt",
+    source_id: receipt_id,
+    make,
+    model,
+    year,
+    verdict,
+    score: fitScore,
+    summary: kbSummary,
+    tags: [],
+    url: input.listing_url || null,
+    post_worthy: postWorthy,
+  }, { onConflict: "source,source_id" }).then(() => {}, () => {});
+
   console.log(`[receipt-upgrade] ✓ ${receipt_id} upgraded via ${usedProvider} in ${Date.now() - t0}ms, verdict=${aiVerdict}`);
 }

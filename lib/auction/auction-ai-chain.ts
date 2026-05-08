@@ -4,7 +4,7 @@
  * Implements the CEO-directed optimized routing:
  *
  *   Step 1  Grok     → classification + damage tone
- *   Step 2  Gemini ┐ → parallel: routine impact + owner-facing translation
+ *   Step 2  Claude ┐ → parallel: routine impact + owner-facing translation
  *           GPT-4o ┘ → parallel: repair cost calculations (skip if deterministic data sufficient)
  *   Step 3  Grok     → final polish + report assembly
  *
@@ -23,7 +23,7 @@
  */
 
 import { grokAdapter } from "@/lib/providers/grok-adapter";
-import { geminiAdapter } from "@/lib/providers/gemini-adapter";
+import { anthropicAdapter } from "@/lib/providers/anthropic-adapter";
 import { openaiAdapter } from "@/lib/providers/openai-adapter";
 import type { GenerateOpts } from "@/lib/providers/types";
 import type {
@@ -207,7 +207,7 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
     lot.auction_source === "manheim" ? buildRepairCostPromptManheim : buildRepairCostPrompt;
 
   // ── Steps 1+2: All three run in parallel ─────────────────────────────────
-  // classify used to block Gemini+GPT-4o. Now all fire at t=0.
+  // classify used to block Claude+GPT-4o. Now all fire at t=0.
   // buildRoutineImpactPrompt + buildRepairCostPrompt accept null classification gracefully.
   const skipRepairCost = canSkipRepairCost(metrics, arv, isPaid);
   console.log(`[AiChain][SKIP] skipRepairCost=${skipRepairCost} isPaid=${isPaid} damage_severity_baseline=${metrics.damage_severity_baseline} arv=${arv}`);
@@ -231,10 +231,10 @@ export async function runAuctionAiChain(input: AiChainInput): Promise<AiChainOut
       logs
     ).then((r) => { if (r) totalCalls++; return r; }),
 
-    // Gemini: routine impact + owner translation
+    // Claude: routine impact + owner translation
     runStep(
       "routine_impact",
-      geminiAdapter,
+      anthropicAdapter,
       {
         systemPrompt: AUCTION_SYSTEM_PROMPTS.auction_routine_impact,
         userPrompt: buildRoutineImpactPrompt(lot, null, recalls, routineContext, charging_profile, range_projection, electricity_context),

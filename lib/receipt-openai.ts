@@ -714,6 +714,17 @@ export function buildEnhancedFallbackReceipt(
           ? "no"
           : "unknown";
 
+  // Infer title_status from signals when user didn't provide it
+  // title_salvage covers salvage/rebuilt/flood/lemon (single hard-blocker signal)
+  const inferredTitle: "clean" | "salvage" | "rebuilt" | "unknown" =
+    input.title_status && input.title_status !== "unknown"
+      ? input.title_status
+      : signalSet.has("title_salvage" as ListingSignalId)
+        ? "salvage"
+        : signalSet.has("clean_title_explicit" as ListingSignalId)
+          ? "clean"
+          : "unknown";
+
   return {
     receipt_id: uuidv4(),
     schema_version: "v1",
@@ -752,7 +763,7 @@ export function buildEnhancedFallbackReceipt(
       model,
       trim: input.trim || null,
       seller_type: input.seller_type || "unknown",
-      title_status: input.title_status || "unknown",
+      title_status: inferredTitle,
       accidents_reported: inferredAccidents,
       service_history: input.service_history || "unknown",
       owners: input.owners || null,

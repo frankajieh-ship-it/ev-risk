@@ -7,17 +7,16 @@
  *
  * Default hedge schedule:
  *   T+0s    → OpenAI starts
- *   T+8s    → Gemini starts (if OpenAI hasn't returned valid)
+ *   T+8s    → Anthropic starts (if OpenAI hasn't returned valid)
  *   T+14s   → Grok starts (if neither has returned valid)
  *
  * For on-demand sections (user-initiated):
  *   T+0s    → OpenAI starts
- *   T+10s   → Gemini starts
+ *   T+10s   → Anthropic starts
  *   T+18s   → Grok starts
  */
 
 import { openaiAdapter } from "./openai-adapter";
-import { geminiAdapter } from "./gemini-adapter";
 import { grokAdapter } from "./grok-adapter";
 import { anthropicAdapter } from "./anthropic-adapter";
 import { getProviderOrder, recordSuccess, recordFailure } from "./circuit-breaker";
@@ -32,7 +31,6 @@ import { AllProvidersFailedError } from "./types";
 
 const ALL_ADAPTERS: Record<string, ProviderAdapter> = {
   openai: openaiAdapter,
-  gemini: geminiAdapter,
   grok: grokAdapter,
   anthropic: anthropicAdapter,
 };

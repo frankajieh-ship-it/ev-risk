@@ -21,38 +21,38 @@ interface PaywallGateProps {
 const LOCKED_SECTIONS = [
   {
     icon: Shield,
-    label: "Title, accident & recall history",
-    detail: "Clean title? Any accidents on record? Open recalls?",
+    label: "Title, accident & NMVTIS history",
+    detail: "Cross-checked against NHTSA + VinAudit salvage, theft, and accident records.",
   },
   {
     icon: TrendingDown,
-    label: "Market price comparison",
-    detail: "Is this listing overpriced vs. comparable EVs sold nearby?",
+    label: "Price vs. real comps in your area",
+    detail: "Where this listing sits vs. verified comparables — and how many buyers are competing.",
   },
   {
     icon: ClipboardList,
-    label: "10-point inspection checklist",
-    detail: "Exactly what to check before you hand over a dollar.",
+    label: "15-point inspection checklist",
+    detail: "Model-specific items to physically check before you hand over money.",
   },
   {
     icon: FileText,
-    label: "3 negotiation scripts",
-    detail: "Copy-paste messages to get money off — for this exact listing.",
+    label: "3 negotiation scripts, ready to send",
+    detail: "Copy-paste openers for: issues found, fair condition, competitive interest.",
   },
   {
     icon: Zap,
-    label: "Battery health deep dive",
-    detail: "Estimated degradation, range loss, and red flags to ask about.",
+    label: "Battery health + degradation estimate",
+    detail: "SOH estimate from mileage and age, plus what to ask the seller to verify.",
   },
   {
     icon: DollarSign,
     label: "3-year cost of ownership",
-    detail: "Insurance, maintenance, charging, depreciation — all in.",
+    detail: "Insurance, maintenance, charging, and depreciation — all in.",
   },
   {
     icon: AlertCircle,
-    label: "Model-specific known issues",
-    detail: "Common problems owners report for this exact make & model.",
+    label: "Known issues for this model + year",
+    detail: "Common complaints and failure patterns reported for this specific vehicle.",
   },
 ];
 
@@ -97,7 +97,7 @@ export default function PaywallGate({ receiptToken, scenarioId, onCheckout }: Pa
         <div className="flex items-center gap-2 mb-1.5">
           <Lock className="w-4 h-4 text-[#00d97e]" />
           <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wider">
-            Full analysis ready
+            Full analysis ready — 38 signals checked
           </span>
         </div>
         <h2 className="text-lg font-bold text-white leading-snug">

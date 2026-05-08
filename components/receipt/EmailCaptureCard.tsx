@@ -102,9 +102,14 @@ export default function EmailCaptureCard({ receiptId, onSubmit, onGarageSave }: 
       <div className="flex items-center gap-2 mb-2">
         <Mail className="w-4 h-4 text-[#00d97e]/70" />
         <p className="text-sm font-medium text-white/80">
-          {receiptId ? "Email yourself the full verdict + questions to ask" : "Get the OFFO checklist free."}
+          {receiptId ? "Save this analysis + get recall alerts for this vehicle" : "Get your OFFO analysis emailed."}
         </p>
       </div>
+      <p className="text-xs text-white/50 mb-2.5">
+        {receiptId
+          ? "We'll email you the full verdict, negotiation script, and alert you if a recall is issued for this vehicle."
+          : "Verdict, risk flags, and negotiation script — direct to your inbox. No sign-up required."}
+      </p>
       <form onSubmit={handleSubmit} className="flex gap-2">
         <input
           type="email"
@@ -127,7 +132,7 @@ export default function EmailCaptureCard({ receiptId, onSubmit, onGarageSave }: 
         </button>
       </form>
       <p className="text-xs text-white/30 mt-1.5">
-        {receiptId ? "Includes negotiation script. Opens in any email — no app needed." : "One email. No spam."}
+        Free. No spam. Unsubscribe any time.
       </p>
       {status === "error" && (
         <p className="text-xs text-red-400 mt-1">

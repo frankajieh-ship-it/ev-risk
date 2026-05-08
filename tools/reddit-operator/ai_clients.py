@@ -197,63 +197,6 @@ def call_gpt4o(
 
 
 # -------------------------
-# Gemini (Google) client
-# -------------------------
-
-_gemini_client = None
-
-
-def get_gemini_client():
-    """Return a lazy-initialized Google Gemini client."""
-    global _gemini_client
-    if _gemini_client is not None:
-        return _gemini_client
-
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return None
-
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        _gemini_client = genai
-        return _gemini_client
-    except Exception:
-        return None
-
-
-def call_gemini(
-    system: str,
-    user: str,
-    temperature: float = 0.7,
-    max_tokens: int = 800,
-    model: str = "gemini-1.5-pro",
-) -> Optional[str]:
-    """
-    Call Gemini and return the text response.
-    Returns None on any error so the caller can fall back.
-    """
-    client = get_gemini_client()
-    if client is None:
-        return None
-
-    try:
-        genai_model = client.GenerativeModel(
-            model_name=model,
-            system_instruction=system,
-            generation_config={
-                "temperature": temperature,
-                "max_output_tokens": max_tokens,
-            },
-        )
-        response = genai_model.generate_content(user)
-        return response.text
-    except Exception as e:
-        print(f"[ai_clients] call_gemini ERROR ({model}): {e}", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
-        return None
-
-
 # -------------------------
 # Availability helpers
 # -------------------------
@@ -263,6 +206,5 @@ def clients_available() -> dict:
     return {
         "grok": get_grok_client() is not None,
         "claude": get_claude_client() is not None,
-        "gemini": get_gemini_client() is not None,
         "gpt4o": get_openai_client() is not None,
     }

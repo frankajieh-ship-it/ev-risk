@@ -20,6 +20,7 @@ import RoutineStep from "@/components/RoutineStep";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
+import UniqueAdvantageSection from "@/components/landing/UniqueAdvantageSection";
 import TutorialVideoSection from "@/components/landing/TutorialVideoSection";
 import FeaturedDeals from "@/components/landing/FeaturedDeals";
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
@@ -636,6 +637,9 @@ export default function Home() {
 
       {/* ── Section 3: How It Works ──────────────────────────────────── */}
       <HowItWorksSection variant="homepage" dark />
+
+      {/* ── Section: What OFFO checks ────────────────────────────────── */}
+      <UniqueAdvantageSection />
 
       {/* ── Section: Tutorial Video ──────────────────────────────────── */}
       <TutorialVideoSection />

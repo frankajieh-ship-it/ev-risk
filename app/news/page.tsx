@@ -295,7 +295,7 @@ function NewsPageInner() {
             What&apos;s happening in the used EV market
           </h1>
           <p className="text-white/40 text-[0.9375rem] leading-relaxed max-w-xl">
-            Recalls, pricing shifts, charging updates, and ownership news — scored by AI and updated every morning.
+            Recalls, pricing shifts, charging updates, and ownership news — scored by OFFO AI and updated every morning.
           </p>
         </div>
       </header>

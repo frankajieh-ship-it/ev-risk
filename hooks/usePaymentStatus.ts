@@ -64,16 +64,17 @@ export function usePaymentStatus(
 
       const data = await res.json();
 
+      const isFree = data.free_mode === true || data.payments_enabled !== true;
       setPurchaseStatus(data.purchase_status || "none");
-      setIsUnlocked(data.unlocked_base === true);
+      setIsUnlocked(isFree || data.unlocked_base === true);
       setPackTier(data.pack_tier || null);
       setCompareRemaining(data.compare_remaining || 0);
       setCompareBoundTo(data.compare_bound_to || null);
       setPurchaseId(data.purchase_id || null);
       setPaymentsEnabled(data.payments_enabled === true);
-      setFreeMode(data.free_mode === true);
-      setEntitlementLevel(data.entitlement_level || "free");
-      setSellerPackUnlocked(data.seller_pack_unlocked === true);
+      setFreeMode(isFree);
+      setEntitlementLevel(isFree ? "buyer_pass" : (data.entitlement_level || "free"));
+      setSellerPackUnlocked(isFree || data.seller_pack_unlocked === true);
     } catch {
       // Silently fail — payment UI just won't show
     } finally {

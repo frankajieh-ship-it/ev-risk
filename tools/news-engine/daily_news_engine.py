@@ -504,6 +504,44 @@ def save_to_supabase(articles: list[dict]) -> int:
         return 0
 
 
+def upsert_news_to_knowledge_base(articles: list[dict]) -> None:
+    """Upsert scored news articles into offo_knowledge_base for content generation."""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return
+    rows = []
+    for a in articles:
+        if (a.get("impact_score") or 0) < 65:
+            continue
+        rows.append({
+            "source": "news",
+            "source_id": a["article_id"],
+            "verdict": a.get("category"),
+            "score": a.get("impact_score"),
+            "summary": a.get("ai_summary") or a.get("title", ""),
+            "tags": a.get("key_routine_effects") or [],
+            "url": a.get("url"),
+            "post_worthy": bool(a.get("post_worthy", False)),
+        })
+    if not rows:
+        return
+    try:
+        resp = requests.post(
+            f"{SUPABASE_URL}/rest/v1/offo_knowledge_base?on_conflict=source,source_id",
+            headers={
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Content-Type": "application/json",
+                "Prefer": "resolution=merge-duplicates",
+            },
+            json=rows,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        print(f"[news-engine] Knowledge base: {len(rows)} news items upserted")
+    except Exception as e:
+        print(f"[news-engine] Knowledge base upsert warning: {e}", file=sys.stderr)
+
+
 def run_daily_digest(dry_run: bool = False) -> None:
     print(f"[news-engine] Starting daily digest — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
 
@@ -546,6 +584,9 @@ def run_daily_digest(dry_run: bool = False) -> None:
     # Step 3: Persist
     saved = save_to_supabase(scored)
     print(f"[news-engine] Done — {saved} articles saved to Supabase")
+
+    # Step 4: Upsert post-worthy articles into knowledge base
+    upsert_news_to_knowledge_base(scored)
 
 
 if __name__ == "__main__":

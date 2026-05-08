@@ -32,7 +32,7 @@ export function middleware(request: NextRequest) {
       "font-src 'self' data:",
       "frame-src https://js.stripe.com https://challenges.cloudflare.com https://www.googletagmanager.com https://td.doubleclick.net",
       "frame-ancestors 'none'",
-      "connect-src 'self' https://api.stripe.com https://*.supabase.co https://*.nsvcs.net https://vpic.nhtsa.dot.gov https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://googleads.g.doubleclick.net https://www.googleadservices.com https://www.google.com https://api.openweathermap.org https://developer.nrel.gov",
+      `connect-src 'self' https://api.stripe.com https://*.supabase.co https://*.nsvcs.net https://vpic.nhtsa.dot.gov https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://analytics.google.com https://googleads.g.doubleclick.net https://www.googleadservices.com https://www.google.com https://api.openweathermap.org https://developer.nrel.gov${isDev ? " http://localhost:8089" : ""}`,
     ].join("; ")
   );
 
