@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { searchListings } from "@/lib/auto-dev-client";
 import { getVehicleImages } from "@/lib/vinaudit-client";
 import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
+import { extractVehicleImages } from "@/lib/image-extractor";
 
 export const maxDuration = 10;
 
@@ -199,6 +200,14 @@ export async function GET(request: NextRequest) {
 
   if (!vin && !make) {
     return NextResponse.json({ photo_urls: [] });
+  }
+
+  // 0. OFFO image cache — return immediately if we have a cached result
+  if (make && rawModel && year) {
+    const cached = await extractVehicleImages({ make, model: rawModel, year, vin, trim: undefined });
+    if (cached.cache_hit && cached.urls.length > 0) {
+      return NextResponse.json({ photo_urls: cached.urls, source: cached.source, quality_score: cached.quality_score, cache_hit: true });
+    }
   }
 
   // 1. VinAudit VIN lookup — highest quality, exact vehicle match
