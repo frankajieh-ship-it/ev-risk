@@ -41,7 +41,12 @@ app = FastAPI(
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
+    "http://localhost:8888",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
     "https://ev-risk.netlify.app",
+    "https://offolab.com",
+    "https://www.offolab.com",
     os.getenv("NEXTJS_ORIGIN", ""),
 ]
 

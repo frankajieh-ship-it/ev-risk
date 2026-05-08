@@ -215,7 +215,7 @@ def generate_weekly_posts(
         print(f"[social-gen] Generating {platform} posts...")
         posts = generate_posts_for_platform(platform, context)
         all_posts[platform] = posts
-        print(f"[social-gen]   → {len(posts)} posts generated")
+        print(f"[social-gen]   -> {len(posts)} posts generated")
 
     if not dry_run:
         save_generated_posts(items, all_posts)
