@@ -1137,7 +1137,7 @@ function SocialPostsTab({ post }: {
   post: (ep: string, payload: unknown) => Promise<unknown>;
 }) {
   const [days, setDays] = useState(7);
-  const [dryRun, setDryRun] = useState(true);
+  const [dryRun, setDryRun] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SocialPostsResult | null>(null);
   const [error, setError] = useState("");
