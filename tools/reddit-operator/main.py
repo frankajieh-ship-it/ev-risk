@@ -298,17 +298,27 @@ def social_generate_weekly(req: SocialGenerateRequest = SocialGenerateRequest())
     top post-worthy items in offo_knowledge_base over the last `days` days.
     Saves results back to the knowledge base unless dry_run=True.
     """
-    from social_post_generator import generate_weekly_posts, fetch_post_worthy_items
-    items = fetch_post_worthy_items(days=req.days, limit=40)
-    result = generate_weekly_posts(days=req.days, dry_run=req.dry_run)
-    return {
-        "reddit": result.get("reddit", []),
-        "x": result.get("x", []),
-        "linkedin": result.get("linkedin", []),
-        "facebook": result.get("facebook", []),
-        "item_count": len(items),
-        "dry_run": req.dry_run,
-    }
+    import traceback
+    import json
+    from fastapi.responses import JSONResponse
+    try:
+        from social_post_generator import generate_weekly_posts, fetch_post_worthy_items
+        items = fetch_post_worthy_items(days=req.days, limit=40)
+        result = generate_weekly_posts(days=req.days, dry_run=req.dry_run)
+        payload = {
+            "reddit": result.get("reddit", []),
+            "x": result.get("x", []),
+            "linkedin": result.get("linkedin", []),
+            "facebook": result.get("facebook", []),
+            "item_count": len(items),
+            "dry_run": req.dry_run,
+        }
+        # Serialize manually to catch any non-JSON-serializable values
+        return JSONResponse(content=json.loads(json.dumps(payload, default=str)))
+    except Exception as e:
+        tb = traceback.format_exc()
+        print(f"[social-gen] EXCEPTION: {e}\n{tb}", file=sys.stderr)
+        return JSONResponse(status_code=500, content={"error": f"{type(e).__name__}: {e}", "traceback": tb})
 
 
 class VoicePreviewRequest(BaseModel):
