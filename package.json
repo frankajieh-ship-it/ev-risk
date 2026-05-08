@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:netlify": "netlify dev",
-    "dev:reddit": "cd tools/reddit-operator && python -X utf8 -m uvicorn main:app --reload --port 8088",
+    "dev:reddit": "cd tools/reddit-operator && python -X utf8 -m uvicorn main:app --reload --port 8088 --no-access-log",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

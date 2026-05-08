@@ -313,8 +313,9 @@ def social_generate_weekly(req: SocialGenerateRequest = SocialGenerateRequest())
             "item_count": len(items),
             "dry_run": req.dry_run,
         }
-        # Serialize manually to catch any non-JSON-serializable values
-        return JSONResponse(content=json.loads(json.dumps(payload, default=str)))
+        # encode/decode to strip surrogates; default=str handles non-serializable values
+        safe = json.dumps(payload, default=str, ensure_ascii=False)
+        return JSONResponse(content=json.loads(safe))
     except Exception as e:
         tb = traceback.format_exc()
         print(f"[social-gen] EXCEPTION: {e}\n{tb}", file=sys.stderr)
