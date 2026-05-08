@@ -399,7 +399,7 @@ export async function POST(request: NextRequest) {
 
     // If Grok synthesis failed, use best available from Stage 3
     if (!finalReply) {
-      finalReply = openaiReply || geminiReply;
+      finalReply = openaiReply || claudeReply;
       fallback = !finalReply;
     }
 
