@@ -76,7 +76,7 @@ export async function POST(
     ruleClassification
   );
   const ruleScoring = scoreReceipt(ruleSignals);
-  const features = await getFeatureFlags(null);
+  const features = await getFeatureFlags(false);
 
   try {
     await runReceiptUpgrade({
