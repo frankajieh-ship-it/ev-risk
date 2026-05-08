@@ -313,8 +313,8 @@ def social_generate_weekly(req: SocialGenerateRequest = SocialGenerateRequest())
             "item_count": len(items),
             "dry_run": req.dry_run,
         }
-        # encode/decode to strip surrogates; default=str handles non-serializable values
-        safe = json.dumps(payload, default=str, ensure_ascii=False)
+        # ensure_ascii=True escapes all unicode to \uXXXX — safe for any Windows encoding
+        safe = json.dumps(payload, default=str, ensure_ascii=True)
         return JSONResponse(content=json.loads(safe))
     except Exception as e:
         tb = traceback.format_exc()
