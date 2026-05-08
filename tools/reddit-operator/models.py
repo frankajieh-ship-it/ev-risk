@@ -14,18 +14,18 @@ from pydantic import BaseModel, Field
 # -------------------------
 
 Intent = Literal[
-    "listing_rating",        # User has a specific listing link/details → /receipt
-    "dealer_questions",      # Wants to know what to ask the seller → dealer Q&A
+    "listing_rating",        # User has a specific listing link/details -> /receipt
+    "dealer_questions",      # Wants to know what to ask the seller -> dealer Q&A
     "pricing_deal",          # "Is this a good deal?" price evaluation
     "vin_analysis",          # VIN mentioned, wants decode + risk check
-    "compare_listings",      # Two EVs mentioned → /compare
-    "dealer_upload",         # Seller/dealer post → dealer workspace
-    "routine_fit",           # Charging fit / does this EV work for me → /routine
+    "compare_listings",      # Two EVs mentioned -> /compare
+    "dealer_upload",         # Seller/dealer post -> dealer workspace
+    "routine_fit",           # Charging fit / does this EV work for me -> /routine
     "purchase_advice",       # General pre-purchase uncertainty
     "ownership_support",     # Existing owner needs help
     "charging_question",     # Charging infrastructure only
-    "debate",                # Brand war / ideology → don't engage
-    "news",                  # Article/announcement → skip
+    "debate",                # Brand war / ideology -> don't engage
+    "news",                  # Article/announcement -> skip
     "other",                 # Catch-all
 ]
 
@@ -126,8 +126,8 @@ class AnalyzeResponse(BaseModel):
     ownership_phase: OwnershipPhase
     friction_tags: List[str]
     reply_plan: ReplyPlan
-    draft_reply_short: str  # ≤800 chars
-    draft_reply_long: str   # ≤2500 chars
+    draft_reply_short: str  # ?800 chars
+    draft_reply_long: str   # ?2500 chars
     tool_blurb: Optional[str] = None  # Only if tool_intro != "no"
     safety_flags: List[str] = Field(default_factory=list)
     debug: Dict[str, Any] = Field(default_factory=dict)
@@ -197,13 +197,13 @@ class DetectedVehicle(BaseModel):
 class MarketAnalytics(BaseModel):
     """
     Real-time local market data from Auto.dev Listings API.
-    Populated by Stage 3.5 — only present when needs_market_data = true
-    and Auto.dev returns ≥2 comparable listings.
+    Populated by Stage 3.5 -- only present when needs_market_data = true
+    and Auto.dev returns ?2 comparable listings.
     """
     local_comps: List[Dict[str, Any]] = Field(default_factory=list)
     average_price: Optional[int] = None
     median_price: Optional[int] = None
-    price_spread: Optional[str] = None      # e.g. "$22k–$31k"
+    price_spread: Optional[str] = None      # e.g. "$22k-$31k"
     price_percentile: Optional[int] = None  # 0-100, where listing_price sits vs comps
     sample_size: int = 0
     depreciation_trend: Optional[str] = None
@@ -212,7 +212,7 @@ class MarketAnalytics(BaseModel):
 
 
 class RedditPostInput(BaseModel):
-    """Input model for POST /reddit/scan — matches PRAW post fields."""
+    """Input model for POST /reddit/scan -- matches PRAW post fields."""
     title: str
     selftext: str = ""
     subreddit: str = ""
@@ -230,7 +230,7 @@ class TechSupportFlag(BaseModel):
 
 
 class RedditDraftStyle(BaseModel):
-    """Style config for a Reddit draft — must match TypeScript RedditDraftStyle."""
+    """Style config for a Reddit draft -- must match TypeScript RedditDraftStyle."""
     format: str = "short_paragraph"   # "short_paragraph" | "standard" | "bullets"
     max_questions: int = 1
 
@@ -250,14 +250,14 @@ class RedditDraftOutput(BaseModel):
 
 
 class AssistResponse(BaseModel):
-    """Unified output for /assist — covers both operator and receipt modes."""
+    """Unified output for /assist -- covers both operator and receipt modes."""
     mode: AssistMode
     session_id: str                       # UUID from Supabase insert
     pipeline_stages_used: List[str]       # which stages ran (for debug/transparency)
 
     # OFFO relevance gate (from Stage 1 Grok)
     is_offo_relevant: bool = True         # False = not an EV fit/friction topic
-    confidence_score: int = 100           # 0-100 — Grok's confidence this is relevant
+    confidence_score: int = 100           # 0-100 -- Grok's confidence this is relevant
 
     # Classification (always present for operator mode; also present in receipt mode)
     intent: Optional[Intent] = None
@@ -270,8 +270,8 @@ class AssistResponse(BaseModel):
     friction_tags: List[str] = Field(default_factory=list)
 
     # Operator mode primary output
-    draft_reply_short: Optional[str] = None   # ≤800 chars, Grok-polished
-    draft_reply_long: Optional[str] = None    # ≤2500 chars
+    draft_reply_short: Optional[str] = None   # ?800 chars, Grok-polished
+    draft_reply_long: Optional[str] = None    # ?2500 chars
     reply_plan: Optional[ReplyPlan] = None
     tool_blurb: Optional[str] = None
 

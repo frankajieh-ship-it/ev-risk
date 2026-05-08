@@ -1,37 +1,37 @@
 """
 Multi-AI pipeline orchestrator for OFFO Reddit Operator Tool v2.
 
-Pipeline (operator mode) — Generic EV Assistant:
+Pipeline (operator mode) -- Generic EV Assistant:
 
   Stage 1: Grok (temp=0.0)
-    → Classification + OFFO relevance gate
-    → Returns: intent, friction_tags, user_state, is_offo_relevant, confidence (0-100),
+    -> Classification + OFFO relevance gate
+    -> Returns: intent, friction_tags, user_state, is_offo_relevant, confidence (0-100),
                needs_market_data, market_focus, detected_vehicle
-    → If confidence < 60 or not relevant: short-circuit → neutral reply, no tool mention
+    -> If confidence < 60 or not relevant: short-circuit -> neutral reply, no tool mention
 
   Stage 2: Gemini 1.5 Pro (temp=0.7)
-    → Empathetic structure: validate + hidden_tradeoff + reframe + reflective_question
-    → Warm, human, analytical. Max 600 chars. Personal and non-salesy.
-    → Fallback: TONE_TEMPLATES
+    -> Empathetic structure: validate + hidden_tradeoff + reframe + reflective_question
+    -> Warm, human, analytical. Max 600 chars. Personal and non-salesy.
+    -> Fallback: TONE_TEMPLATES
 
   Stage 3: GPT-4o (temp=0.3)
-    → Full reply polish: takes Stage 2 draft + adds precise EV technical knowledge
-    → Intent-aware: listing/VIN/compare → LISTING_FOCUSED_SYSTEM_PROMPT
-    → Battery, range, charging, used-EV risks, deal evaluation accuracy
-    → Max 900 chars total. Returns final draft_reply_short + draft_reply_long.
+    -> Full reply polish: takes Stage 2 draft + adds precise EV technical knowledge
+    -> Intent-aware: listing/VIN/compare -> LISTING_FOCUSED_SYSTEM_PROMPT
+    -> Battery, range, charging, used-EV risks, deal evaluation accuracy
+    -> Max 900 chars total. Returns final draft_reply_short + draft_reply_long.
 
-  Stage 3.5: Market Analytics (conditional — only when needs_market_data = true)
-    → Auto.dev Listings API: local comps, avg price, price percentile
-    → 24h Supabase cache per VIN/YMM to avoid redundant API calls
-    → Falls back gracefully if Auto.dev key missing or API errors
+  Stage 3.5: Market Analytics (conditional -- only when needs_market_data = true)
+    -> Auto.dev Listings API: local comps, avg price, price percentile
+    -> 24h Supabase cache per VIN/YMM to avoid redundant API calls
+    -> Falls back gracefully if Auto.dev key missing or API errors
 
   Stage 4: Grok (temp=0.3)
-    → Final tone check: sounds like helpful experienced EV owner
-    → If market data present: instructs Grok to weave in comps/percentile naturally
-    → Calm, analytical, never evangelical. Adjust tone only if needed.
+    -> Final tone check: sounds like helpful experienced EV owner
+    -> If market data present: instructs Grok to weave in comps/percentile naturally
+    -> Calm, analytical, never evangelical. Adjust tone only if needed.
 
 Receipt mode:
-  → Single GPT-4o structured call for RedditDraft JSON output
+  -> Single GPT-4o structured call for RedditDraft JSON output
 """
 from __future__ import annotations
 
@@ -61,14 +61,14 @@ from services.market_analytics import get_market_analytics, format_market_contex
 
 def _stage1_classify(combined: str) -> dict:
     """
-    Stage 1: Grok (temp=0.0) — full classification with OFFO relevance gate.
+    Stage 1: Grok (temp=0.0) -- full classification with OFFO relevance gate.
     Falls back to regex classifier on failure.
     """
     result = classify_full(combined)
     if result:
         return result
 
-    # Regex fallback — mark as relevant by default
+    # Regex fallback -- mark as relevant by default
     intent = _regex_detect_intent(combined)
     user_state = _regex_detect_user_state(combined)
     phase = _regex_detect_phase(combined)
@@ -88,24 +88,24 @@ def _stage1_classify(combined: str) -> dict:
 
 
 # -------------------------
-# Stage 2: Gemini — Empathetic Structure
+# Stage 2: Gemini -- Empathetic Structure
 # -------------------------
 
 GEMINI_EMPATHY_SYSTEM = """You are writing a Reddit reply for the OFFO EV community assistant.
-OFFO helps people understand real-world EV friction — charging predictability, routine fit,
+OFFO helps people understand real-world EV friction -- charging predictability, routine fit,
 used-EV risks, deal evaluation. Not range anxiety or brand wars.
 
 Voice: calm, warm, analytical, non-salesy. Like a knowledgeable friend who owns an EV.
 
-Your task: given the post and its key_concern, write a structured draft with EXACTLY these 4 elements — tailored to the ACTUAL question, not generic charging/routine templates:
-1. validate_line   — 1-2 sentences acknowledging the SPECIFIC concern warmly (reference the actual car model, price, mileage, scenario if present)
-2. hidden_tradeoff — the non-obvious thing they are really trading off — specific to THIS post (1 sentence)
-3. reframe_line    — gently shift perspective in a way relevant to THIS post (1 sentence)
-4. question        — 1 reflective question that helps them think about their specific situation
+Your task: given the post and its key_concern, write a structured draft with EXACTLY these 4 elements -- tailored to the ACTUAL question, not generic charging/routine templates:
+1. validate_line   -- 1-2 sentences acknowledging the SPECIFIC concern warmly (reference the actual car model, price, mileage, scenario if present)
+2. hidden_tradeoff -- the non-obvious thing they are really trading off -- specific to THIS post (1 sentence)
+3. reframe_line    -- gently shift perspective in a way relevant to THIS post (1 sentence)
+4. question        -- 1 reflective question that helps them think about their specific situation
 
 Rules:
 - Address what they ACTUALLY asked. If it is about model-year differences, address that. If it is about mileage at a specific price, address that. Do NOT default to "charging predictability" or "routine anchor" unless the post is actually about charging.
-- "That makes sense" / "Totally fair" — not "I understand your concern"
+- "That makes sense" / "Totally fair" -- not "I understand your concern"
 - No verdict language (buy, skip, avoid, good deal)
 - No OFFO/tool URLs in these lines (handled separately)
 - Total combined length max 600 chars
@@ -116,7 +116,7 @@ def _build_few_shot_block(examples: list[dict]) -> str:
     """Format few-shot examples into a compact prompt block."""
     if not examples:
         return ""
-    lines = ["\nHere are real Reddit replies that resonated with EV communities — use them as a style reference (do NOT copy, just match the natural voice):"]
+    lines = ["\nHere are real Reddit replies that resonated with EV communities -- use them as a style reference (do NOT copy, just match the natural voice):"]
     for i, ex in enumerate(examples, 1):
         title = ex.get("post_title", "")
         reply = ex.get("successful_reply", "")
@@ -134,7 +134,7 @@ def _stage2_gemini_empathy(
     key_concern: str = "",
 ) -> dict:
     """
-    Stage 2: Gemini 1.5 Pro (temp=0.7) — empathetic structure.
+    Stage 2: Gemini 1.5 Pro (temp=0.7) -- empathetic structure.
     Falls back to TONE_TEMPLATES + HIDDEN_TRADEOFF_TEMPLATES on failure.
     """
     tpl = TONE_TEMPLATES.get(tone, TONE_TEMPLATES["standard"])
@@ -207,29 +207,29 @@ Now write the 4-part empathy draft for THIS specific post."""
 
 
 # -------------------------
-# Stage 3: GPT-4o — Technical Polish + Full Reply
+# Stage 3: GPT-4o -- Technical Polish + Full Reply
 # -------------------------
 
 GPT4O_POLISH_SYSTEM = """You are the technical editor for an OFFO EV community Reddit reply.
 OFFO helps people understand real-world EV friction at offolab.com.
 
 Tools available (mention ONLY if tool_invite_permitted = true AND it directly solves the key_concern):
-- offolab.com/routine  → 7-question fit check, 60 seconds, free, anonymous
-- offolab.com/receipt  → paste any listing URL → friction receipt + VIN + dealer questions
-- offolab.com/compare  → side-by-side routine-fit comparison of two EVs
+- offolab.com/routine  -> 7-question fit check, 60 seconds, free, anonymous
+- offolab.com/receipt  -> paste any listing URL -> friction receipt + VIN + dealer questions
+- offolab.com/compare  -> side-by-side routine-fit comparison of two EVs
 
 Your task: take the empathy draft and produce the final reply that DIRECTLY addresses the key_concern.
 1. Add precise, specific EV technical knowledge relevant to THIS post (model-year differences, actual battery chemistry, charging curve reality, specific recall data, used-EV mileage benchmarks, real price-value signals for the mentioned car/price)
-2. Fix any factual gaps or vague claims — be specific about the actual car/situation mentioned
+2. Fix any factual gaps or vague claims -- be specific about the actual car/situation mentioned
 3. Do NOT default to generic charging/routine framing if the post is about something else (model year, mileage, price, sunroof, etc.)
-4. Ensure reply sounds like an experienced EV owner — helpful, calm, never evangelical
+4. Ensure reply sounds like an experienced EV owner -- helpful, calm, never evangelical
 5. If tool_invite_permitted = true: end with a soft, single-sentence tool mention using the correct URL
 6. If tool_invite_permitted = false: end with only the reflective question, no tool mention
 
 Output JSON:
 {
-  "draft_reply_short": "...",  // ≤900 chars, 1-2 flowing paragraphs
-  "draft_reply_long": "...",   // ≤2500 chars, same content with more technical detail
+  "draft_reply_short": "...",  // ?900 chars, 1-2 flowing paragraphs
+  "draft_reply_long": "...",   // ?2500 chars, same content with more technical detail
   "facts_added": ["..."]       // brief list of any specific technical facts you added
 }"""
 
@@ -238,8 +238,8 @@ OFFO helps people understand real-world EV friction at offolab.com.
 
 The user is asking about a SPECIFIC vehicle listing, VIN, price, or dealer situation.
 Tools (mention ONLY if tool_invite_permitted = true):
-- offolab.com/receipt  → paste listing URL → VIN check + friction receipt + dealer questions
-- offolab.com/compare  → if two listings mentioned, compare side-by-side
+- offolab.com/receipt  -> paste listing URL -> VIN check + friction receipt + dealer questions
+- offolab.com/compare  -> if two listings mentioned, compare side-by-side
 
 Your task: take the empathy draft and produce the final reply for THIS specific listing concern.
 1. Address the detected vehicle details (year/make/model/price/mileage) explicitly in your reply
@@ -247,13 +247,13 @@ Your task: take the empathy draft and produce the final reply for THIS specific 
 3. Mention specific price-value signals: is this price above/below market for this year/mileage? (use your training knowledge)
 4. For VIN questions: explain what CARFAX/AutoCheck would surface and what the OFFO receipt adds (auction history, lemon title, odometer flags)
 5. For dealer questions: frame what the user should specifically ask given this vehicle
-6. Sound like a knowledgeable friend who has researched this exact car — specific, calm, not salesy
+6. Sound like a knowledgeable friend who has researched this exact car -- specific, calm, not salesy
 7. If tool_invite_permitted = true: end with the correct tool invite text
 
 Output JSON:
 {
-  "draft_reply_short": "...",  // ≤900 chars, 1-2 flowing paragraphs
-  "draft_reply_long": "...",   // ≤2500 chars, same content with more technical detail
+  "draft_reply_short": "...",  // ?900 chars, 1-2 flowing paragraphs
+  "draft_reply_long": "...",   // ?2500 chars, same content with more technical detail
   "facts_added": ["..."]       // list of specific price/risk facts you added
 }"""
 
@@ -262,19 +262,19 @@ OFFO helps people understand real-world EV friction at offolab.com.
 
 The post is from someone SELLING an EV, not buying.
 Tools (mention ONLY if tool_invite_permitted = true):
-- offolab.com/workspace → dealer workspace to upload listing and get matched with serious buyers
+- offolab.com/workspace -> dealer workspace to upload listing and get matched with serious buyers
 
 Your task: write a helpful reply that:
 1. Acknowledges their listing with specifics (year/make/model/price/mileage) if present
 2. Offers useful seller-side perspective: typical buyer concerns for this model, what documentation to have ready, how to stand out vs dealer listings
-3. Keeps tone neutral and helpful — this is a seller community post, not a buyer negotiation
+3. Keeps tone neutral and helpful -- this is a seller community post, not a buyer negotiation
 4. If tool_invite_permitted = true: mention OFFO workspace for dealer listings
 5. Do NOT challenge the price or suggest the car is overpriced
 
 Output JSON:
 {
-  "draft_reply_short": "...",  // ≤900 chars
-  "draft_reply_long": "...",   // ≤2500 chars
+  "draft_reply_short": "...",  // ?900 chars
+  "draft_reply_long": "...",   // ?2500 chars
   "facts_added": ["..."]
 }"""
 
@@ -291,7 +291,7 @@ def _stage3_gpt4o_polish(
     detected_vehicle: Optional[dict] = None,
 ) -> dict:
     """
-    Stage 3: GPT-4o (temp=0.3) — technical accuracy + full reply assembly.
+    Stage 3: GPT-4o (temp=0.3) -- technical accuracy + full reply assembly.
     Intent-aware: listing/VIN/compare posts use LISTING_FOCUSED_SYSTEM_PROMPT,
     dealer posts use DEALER_SYSTEM_PROMPT, all others use GPT4O_POLISH_SYSTEM.
     Falls back to string concat on failure.
@@ -365,7 +365,7 @@ tool_invite_text (use verbatim if permitted): {tool_invite_text if tool_invite_p
 
     short = f"{v} {h} {r} {q}{tool}".strip()
     if len(short) > 900:
-        short = short[:899].rstrip() + "…"
+        short = short[:899].rstrip() + "..."
 
     long_ = "\n\n".join(filter(None, [v, h, r, q, tool_invite_text if tool_invite_permitted else ""]))
     if len(long_) > 2500:
@@ -408,28 +408,28 @@ def _stage35_market_analytics(
 
 
 # -------------------------
-# Stage 4: Grok — Final Tone Check
+# Stage 4: Grok -- Final Tone Check
 # -------------------------
 
 GROK_TONE_CHECK_SYSTEM = """You are the final tone editor for an OFFO EV community Reddit reply.
-Check that the reply sounds like a helpful, experienced EV owner — calm, analytical, never evangelical.
+Check that the reply sounds like a helpful, experienced EV owner -- calm, analytical, never evangelical.
 
 Rules:
 - If tone is already good: return it unchanged
 - Remove any salesy language, hype, or unsolicited enthusiasm
 - Remove any brand disparagement
 - Remove double tool mentions (keep only the last one if duplicated)
-- Ensure the reply ends naturally — not abruptly
+- Ensure the reply ends naturally -- not abruptly
 - Short version max 900 chars, long version max 2500 chars
 - Return ONLY JSON: {"draft_reply_short": "...", "draft_reply_long": "..."}"""
 
 GROK_TONE_CHECK_WITH_MARKET_SYSTEM = """You are the final tone editor for an OFFO EV community Reddit reply.
 You have access to real-time local market pricing data. Your job is to:
-1. Check that the reply sounds like a helpful, experienced EV owner — calm, analytical, never evangelical
+1. Check that the reply sounds like a helpful, experienced EV owner -- calm, analytical, never evangelical
 2. Naturally weave in the market context where it adds value (1 sentence, specific numbers)
-   - Example: "Locally, similar 2023 Mach-Es are averaging $26.8k — this one at $25k is in the 18th percentile."
-   - Example: "For context, 14 local comps put the market range at $22k–$29k, with this listing near the low end."
-3. Only mention price numbers if they are accurate and add value — don't force it
+   - Example: "Locally, similar 2023 Mach-Es are averaging $26.8k -- this one at $25k is in the 18th percentile."
+   - Example: "For context, 14 local comps put the market range at $22k-$29k, with this listing near the low end."
+3. Only mention price numbers if they are accurate and add value -- don't force it
 4. Do NOT add market context if it's already in the reply
 
 Rules:
@@ -445,7 +445,7 @@ def _stage4_grok_tone_check(
     market_context: str = "",
 ) -> dict:
     """
-    Stage 4: Grok (temp=0.3) — final tone check + optional market context injection.
+    Stage 4: Grok (temp=0.3) -- final tone check + optional market context injection.
     Returns input unchanged if Grok fails.
     """
     if market_context:
@@ -490,9 +490,9 @@ draft_reply_long: {draft_long}"""
 NOT_FIT_SYSTEM = """You are an EV community assistant. This post is NOT a good fit for detailed EV friction analysis.
 Write a short, helpful, neutral reply (max 200 chars). Be honest that you may not have the best data for this.
 Examples:
-- Pure spec debate: "This one's more of a spec showdown — happy to share general thoughts but I don't have strong data on the exact model-year difference here."
-- Brand war: "I'll sit this one out — seems more like a preference debate than a practical question I can add much to."
-- General news: "Interesting news — not something I can add much technical context to beyond what's already out there."
+- Pure spec debate: "This one's more of a spec showdown -- happy to share general thoughts but I don't have strong data on the exact model-year difference here."
+- Brand war: "I'll sit this one out -- seems more like a preference debate than a practical question I can add much to."
+- General news: "Interesting news -- not something I can add much technical context to beyond what's already out there."
 Return ONLY the plain reply text, no JSON."""
 
 
@@ -509,8 +509,8 @@ def _not_a_fit_reply(intent: str, post_text: str) -> str:
 
     # Hard fallback
     fallbacks = {
-        "debate": "This feels more like a preference debate — happy to weigh in on the practical side if there's a specific question.",
-        "news": "Interesting development — not much I can add technically here beyond what's been shared.",
+        "debate": "This feels more like a preference debate -- happy to weigh in on the practical side if there's a specific question.",
+        "news": "Interesting development -- not much I can add technically here beyond what's been shared.",
         "default": "Not sure this is the best place for me to add value, but happy to help if there's a specific practical question.",
     }
     return fallbacks.get(intent, fallbacks["default"])
@@ -535,7 +535,7 @@ def run_operator_pipeline(req: AssistRequest) -> AssistResponse:
         "\n".join(req.top_comment_context or []),
     ])).strip()
 
-    # ── Stage 1: Classification + relevance gate ──────────────────────────
+    # ?? Stage 1: Classification + relevance gate ??????????????????????????
     t0 = int(time.time() * 1000)
     cls = _stage1_classify(combined)
     debug["grok_classify_ms"] = int(time.time() * 1000) - t0
@@ -564,7 +564,7 @@ def run_operator_pipeline(req: AssistRequest) -> AssistResponse:
     if secondary_intent:
         debug["secondary_intent"] = secondary_intent
 
-    # ── Relevance gate: short-circuit if not a good fit ───────────────────
+    # ?? Relevance gate: short-circuit if not a good fit ???????????????????
     if not is_relevant or confidence < 60:
         stages_used.append("not_a_fit_reply")
         neutral = _not_a_fit_reply(intent, combined)
@@ -585,13 +585,13 @@ def run_operator_pipeline(req: AssistRequest) -> AssistResponse:
             friction_tags=friction_tags,
             draft_reply_short=neutral,
             draft_reply_long=neutral,
-            safety_flags=["Not OFFO-relevant — no tool mention, short neutral reply only."],
+            safety_flags=["Not OFFO-relevant -- no tool mention, short neutral reply only."],
             evroutine_invite=__import__("models").EVRoutineInviteDecision(should_invite=False),
             latency_ms=latency_ms,
             debug=debug,
         )
 
-    # ── Stage 2: Gemini empathy structure ─────────────────────────────────
+    # ?? Stage 2: Gemini empathy structure ?????????????????????????????????
     t0 = int(time.time() * 1000)
     # Fetch few-shot examples once (shared by Stage 2 and Stage 3)
     few_shot_examples = get_few_shot_examples(intent, limit=3)
@@ -599,7 +599,7 @@ def run_operator_pipeline(req: AssistRequest) -> AssistResponse:
     debug["gemini_empathy_ms"] = int(time.time() * 1000) - t0
     stages_used.append("gemini_empathy")
 
-    # ── Tool invite decision (before Stage 3 so GPT-4o can embed it) ──────
+    # ?? Tool invite decision (before Stage 3 so GPT-4o can embed it) ??????
     tool_invite = decide_tool_invite(friction_tags, user_state, intent, combined, detected_vehicle)
     tool_invite_permitted = (
         tool_intro in ("offer_by_permission", "asked_directly")
@@ -608,7 +608,7 @@ def run_operator_pipeline(req: AssistRequest) -> AssistResponse:
     )
     tool_invite_text = tool_invite.invite_text or ""
 
-    # ── Stage 3: GPT-4o technical polish + full reply ─────────────────────
+    # ?? Stage 3: GPT-4o technical polish + full reply ?????????????????????
     t0 = int(time.time() * 1000)
     polished = _stage3_gpt4o_polish(
         empathy, intent, friction_tags,
@@ -620,7 +620,7 @@ def run_operator_pipeline(req: AssistRequest) -> AssistResponse:
     debug["gpt4o_polish_ms"] = int(time.time() * 1000) - t0
     stages_used.append("gpt4o_polish")
 
-    # ── Stage 3.5: Market Analytics (conditional) ────────────────────────
+    # ?? Stage 3.5: Market Analytics (conditional) ????????????????????????
     market_data: Optional[dict] = None
     market_context: str = ""
     if needs_market_data:
@@ -635,7 +635,7 @@ def run_operator_pipeline(req: AssistRequest) -> AssistResponse:
         if market_data:
             stages_used.append("market_analytics")
 
-    # ── Stage 4: Grok tone check + optional market injection ─────────────
+    # ?? Stage 4: Grok tone check + optional market injection ?????????????
     t0 = int(time.time() * 1000)
     final = _stage4_grok_tone_check(
         polished["draft_reply_short"],
@@ -648,16 +648,16 @@ def run_operator_pipeline(req: AssistRequest) -> AssistResponse:
     if polished.get("facts_added"):
         debug["facts_added"] = polished["facts_added"]
 
-    # ── Safety flags ──────────────────────────────────────────────────────
+    # ?? Safety flags ??????????????????????????????????????????????????????
     safety: List[str] = []
     if "BRAND_WAR_RISK" in friction_tags:
-        safety.append("Brand-war risk — keep neutral, avoid dunking.")
+        safety.append("Brand-war risk -- keep neutral, avoid dunking.")
     if intent == "debate":
-        safety.append("Debate context — focus on education, not winning.")
+        safety.append("Debate context -- focus on education, not winning.")
     if user_state == "frustrated":
-        safety.append("User frustrated — lead with validation.")
+        safety.append("User frustrated -- lead with validation.")
 
-    # ── ReplyPlan (for Streamlit display) ────────────────────────────────
+    # ?? ReplyPlan (for Streamlit display) ????????????????????????????????
     reply_plan = ReplyPlan(
         validate_line=empathy.get("validate_line", ""),
         hidden_tradeoff_line=empathy.get("hidden_tradeoff", ""),

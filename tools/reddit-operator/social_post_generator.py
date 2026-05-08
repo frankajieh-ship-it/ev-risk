@@ -34,13 +34,13 @@ GROK_API_KEY = os.getenv("GROK_API_KEY")
 # ---------------------------------------------------------------------------
 
 VOICE_PREAMBLE = """You are OFFO's content writer. OFFO is an EV friction analysis platform at offolab.com.
-OFFO voice: calm, analytical, never hype, never evangelical. Like a knowledgeable EV owner helping their community understand what actually matters in daily ownership — charging access, battery behaviour, real-world range, cost realities.
+OFFO voice: calm, analytical, never hype, never evangelical. Like a knowledgeable EV owner helping their community understand what actually matters in daily ownership -- charging access, battery behaviour, real-world range, cost realities.
 
 Rules for ALL platforms:
 - Focus on how each story or data point affects real daily ownership, not specs or politics
 - No hype. No "game changer". No "revolutionary". No "exciting". Just grounded, useful analysis.
 - Include offolab.com/receipt or offolab.com/routine at most ONCE across the entire batch of posts (not per post)
-- Each post must stand alone — assume the reader hasn't seen the others
+- Each post must stand alone -- assume the reader hasn't seen the others
 """
 
 PLATFORM_PROMPTS: dict[str, str] = {
@@ -106,7 +106,7 @@ def build_context_block(items: list[dict]) -> str:
         score = item.get("score")
         score_str = f" (score {score})" if score else ""
         tag_str = f" [{tags}]" if tags else ""
-        lines.append(f"{i}. [{source.upper()}]{score_str} {verdict} — {summary}{tag_str}")
+        lines.append(f"{i}. [{source.upper()}]{score_str} {verdict} -- {summary}{tag_str}")
     return "\n".join(lines)
 
 
@@ -121,7 +121,7 @@ def generate_posts_for_platform(
 ) -> list[dict]:
     """Call Grok to generate posts for one platform. Returns list of post dicts."""
     if not GROK_API_KEY:
-        print(f"  [WARN] GROK_API_KEY not set — skipping {platform}", file=sys.stderr)
+        print(f"  [WARN] GROK_API_KEY not set -- skipping {platform}", file=sys.stderr)
         return []
 
     from openai import OpenAI
@@ -156,10 +156,10 @@ def generate_posts_for_platform(
         print(f"  [WARN] {platform}: unexpected JSON shape", file=sys.stderr)
         return []
     except json.JSONDecodeError as e:
-        print(f"  [WARN] {platform}: JSON parse error — {e}", file=sys.stderr)
+        print(f"  [WARN] {platform}: JSON parse error -- {e}", file=sys.stderr)
         return []
     except Exception as e:
-        print(f"  [WARN] {platform}: Grok error — {e}", file=sys.stderr)
+        print(f"  [WARN] {platform}: Grok error -- {e}", file=sys.stderr)
         return []
 
 
@@ -200,7 +200,7 @@ def generate_weekly_posts(
     print(f"[social-gen] Fetching post-worthy items (last {days} days)...")
     items = fetch_post_worthy_items(days=days, limit=40)
     if not items:
-        print("[social-gen] No post-worthy items found — nothing to generate")
+        print("[social-gen] No post-worthy items found -- nothing to generate")
         return {"reddit": [], "x": [], "linkedin": [], "facebook": []}
 
     print(f"[social-gen] {len(items)} items: "
@@ -258,9 +258,9 @@ if __name__ == "__main__":
             best = facebook_posts[0]
             script = (best.get("text") or "").strip()
             slug = f"facebook_{datetime.date.today().strftime('%Y_%m_%d')}_001"
-            print(f"\n[voice] Generating voiceover for best Facebook post → {slug}.mp3")
+            print(f"\n[voice] Generating voiceover for best Facebook post -> {slug}.mp3")
             path = generate_voice(script, slug)
             if path:
                 print(f"[voice] Audio ready: {path}")
             else:
-                print("[voice] Voiceover generation failed — check ELEVENLABS_API_KEY")
+                print("[voice] Voiceover generation failed -- check ELEVENLABS_API_KEY")

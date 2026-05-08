@@ -5,8 +5,8 @@ Replaces the SQLite-based db.py. Function signatures are unchanged
 so callers (main.py, pipeline.py) require no modifications.
 
 Tables (see supabase_migrations.sql):
-  - reddit_operator_sessions   — all /analyze and /assist calls
-  - reddit_operator_funnel_events — EVRoutine funnel event log
+  - reddit_operator_sessions   -- all /analyze and /assist calls
+  - reddit_operator_funnel_events -- EVRoutine funnel event log
 """
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ def _client():
 # -------------------------
 
 def init_db() -> None:
-    """No-op — tables are created via supabase_migrations.sql, not at runtime."""
+    """No-op -- tables are created via supabase_migrations.sql, not at runtime."""
     pass
 
 
@@ -117,7 +117,7 @@ def save_assist_session(req: Any, resp: Any) -> str:
         "receipt_id": getattr(req, "receipt_id", None),
         "intent": resp.intent,
         "secondary_intent": resp.secondary_intent,
-        "detected_vehicle": resp.detected_vehicle,  # JSONB — stored as dict
+        "detected_vehicle": resp.detected_vehicle,  # JSONB -- stored as dict
         "suggested_tool": resp.suggested_tool,
         "user_state": resp.user_state,
         "ownership_phase": resp.ownership_phase,
@@ -138,7 +138,7 @@ def save_assist_session(req: Any, resp: Any) -> str:
         "offer_by_permission": bool(
             resp.evroutine_invite.should_invite if resp.evroutine_invite else False
         ),
-        "market_data": resp.market_data,  # JSONB — None if Stage 3.5 skipped/failed
+        "market_data": resp.market_data,  # JSONB -- None if Stage 3.5 skipped/failed
         "total_latency_ms": resp.latency_ms,
         # Scanner metadata
         "reddit_post_id": getattr(req, "reddit_post_id", None),
@@ -255,7 +255,7 @@ def save_invite_outcome(session_id: str, accepted: bool) -> None:
 # -------------------------
 
 def log_funnel_event(session_id: str, event_name: str, event_data: dict) -> None:
-    """Log a funnel event (fire-and-forget — errors are swallowed)."""
+    """Log a funnel event (fire-and-forget -- errors are swallowed)."""
     try:
         _client().table("reddit_operator_funnel_events").insert({
             "session_id": session_id,

@@ -9,7 +9,7 @@ Public API (unchanged from v1):
   detect_user_state(text) -> UserState
   detect_phase(text) -> OwnershipPhase
   decide_tool_intro(text, user_state) -> ToolIntro
-  classify_full(text, context) -> dict  [NEW — returns all fields in one LLM call]
+  classify_full(text, context) -> dict  [NEW -- returns all fields in one LLM call]
 """
 from __future__ import annotations
 
@@ -98,12 +98,12 @@ def _has_any(text: str, patterns: List[str]) -> bool:
 
 GROK_SYSTEM_PROMPT = """You are an EV ownership expert and community classifier for the OFFO Reddit Operator Tool v2.
 
-OFFO runs offolab.com — a free EV friction analysis platform with these tools:
-- /routine    → 7-question fit check (60s, anonymous). For: general EV uncertainty, no specific car yet.
-- /receipt    → Paste any listing URL → instant friction receipt + VIN + dealer questions. For: specific listing evaluation or VIN analysis.
-- /compare    → Side-by-side routine-fit comparison of two EVs. For: choosing between two specific options.
-- /dealer-qa  → Generates personalized seller follow-up questions. For: pre-purchase question prep.
-- /dealer     → Dealer workspace for uploading and matching listings with buyers.
+OFFO runs offolab.com -- a free EV friction analysis platform with these tools:
+- /routine    -> 7-question fit check (60s, anonymous). For: general EV uncertainty, no specific car yet.
+- /receipt    -> Paste any listing URL -> instant friction receipt + VIN + dealer questions. For: specific listing evaluation or VIN analysis.
+- /compare    -> Side-by-side routine-fit comparison of two EVs. For: choosing between two specific options.
+- /dealer-qa  -> Generates personalized seller follow-up questions. For: pre-purchase question prep.
+- /dealer     -> Dealer workspace for uploading and matching listings with buyers.
 
 Analyze the Reddit post and return a single JSON object with these exact keys:
 
@@ -122,7 +122,7 @@ Analyze the Reddit post and return a single JSON object with these exact keys:
   },
   "user_state": one of ["uncertain","confident","frustrated","excited","skeptical","unknown"],
   "ownership_phase": one of ["buyer","0_3","4_12","12_plus","unknown"],
-  "friction_tags": array of strings — use UPPER_CASE tags describing the actual concern,
+  "friction_tags": array of strings -- use UPPER_CASE tags describing the actual concern,
   "key_concern": "one sentence summarizing the core question or worry the user actually has",
   "offer_by_permission": true if you should suggest the OFFO tool to this user, false otherwise,
   "suggested_tool": one of ["receipt","compare","routine","dealer_qa","dealer","none"],
@@ -133,7 +133,7 @@ Analyze the Reddit post and return a single JSON object with these exact keys:
 }
 
 is_offo_relevant / confidence rules:
-- true / ≥70: post is directly about EV purchase decision, charging fit, used-EV risk, listing evaluation, VIN, model comparison, dealer interaction — OFFO can add real value
+- true / ?70: post is directly about EV purchase decision, charging fit, used-EV risk, listing evaluation, VIN, model comparison, dealer interaction -- OFFO can add real value
 - true / 60-70: adjacent topic where OFFO might help (e.g. "should I consider an EV at all?")
 - false / <60: pure spec debate, brand war, general car market news, ICE-only question, meme
 
@@ -144,7 +144,7 @@ main_intent definitions:
 - "vin_analysis": VIN is mentioned, user wants decode + risk check
 - "compare_listings": two specific EVs are mentioned side-by-side
 - "dealer_upload": seller or dealer post, looking to reach buyers
-- "routine_fit": charging fit / "does this EV work for my life?" — no specific listing
+- "routine_fit": charging fit / "does this EV work for my life?" -- no specific listing
 - "purchase_advice": general pre-purchase uncertainty, no specific listing
 - "ownership_support": existing owner seeking help with their car
 - "charging_question": charging access, infrastructure, home vs public only
@@ -152,35 +152,35 @@ main_intent definitions:
 - "news": sharing articles or announcements
 - "other": any EV topic not covered above
 
-detected_vehicle: extract from the post text whatever is present. Set fields to null if not mentioned. For price, convert to integer USD (e.g. "$28k" → 28000).
+detected_vehicle: extract from the post text whatever is present. Set fields to null if not mentioned. For price, convert to integer USD (e.g. "$28k" -> 28000).
 
 friction_tags: be specific and descriptive. Use these standard tags where they fit, invent new UPPER_CASE tags for edge cases:
 - Standard: NO_HOME_CHARGING, HOME_CHARGING_AVAILABLE, PUBLIC_ANCHOR_PRESENT, PREDICTABILITY_HIGH, PREDICTABILITY_LOW, SEASONAL_SENSITIVITY, PLANNING_TOLERANCE_HIGH, PLANNING_TOLERANCE_LOW, ROUTINE_VARIABILITY_HIGH, COMPARING_TWO_OPTIONS, BATTERY_HEALTH_ANXIETY, SOFTWARE_TOLERANCE_UNKNOWN, BRAND_WAR_RISK
 - v2 additions: PRICE_UNCERTAINTY, HIGH_MILEAGE_CONCERN, WARRANTABLE_MILES, SPECIFIC_LISTING_PRESENT, VIN_MENTIONED, TWO_LISTINGS_MENTIONED, DEALER_REPUTATION_UNKNOWN, PRIVATE_SELLER, READY_TO_BUY, EARLY_RESEARCH
 
 suggested_tool rules:
-- "receipt"    → VIN mentioned, OR intent is listing_rating / vin_analysis / pricing_deal (specific car)
-- "compare"    → intent is compare_listings OR two named EVs mentioned side by side
-- "dealer_qa"  → intent is dealer_questions
-- "dealer"     → intent is dealer_upload
-- "routine"    → user is uncertain, no specific listing, general EV fit anxiety, routine_fit / purchase_advice / charging_question
-- "none"       → debate, brand war, news, confident user, simple ownership question
+- "receipt"    -> VIN mentioned, OR intent is listing_rating / vin_analysis / pricing_deal (specific car)
+- "compare"    -> intent is compare_listings OR two named EVs mentioned side by side
+- "dealer_qa"  -> intent is dealer_questions
+- "dealer"     -> intent is dealer_upload
+- "routine"    -> user is uncertain, no specific listing, general EV fit anxiety, routine_fit / purchase_advice / charging_question
+- "none"       -> debate, brand war, news, confident user, simple ownership question
 
 tool_intro rules:
-- "asked_directly"     → user explicitly asks for a tool, link, checklist, or sanity-check
-- "offer_by_permission"→ user_state is "uncertain" AND they express a genuine question (offer_by_permission = true)
-- "no"                 → all other cases
+- "asked_directly"     -> user explicitly asks for a tool, link, checklist, or sanity-check
+- "offer_by_permission"-> user_state is "uncertain" AND they express a genuine question (offer_by_permission = true)
+- "no"                 -> all other cases
 
-needs_market_data rules (real-time Auto.dev pricing data — call only when genuinely useful):
+needs_market_data rules (real-time Auto.dev pricing data -- call only when genuinely useful):
 - true for: listing_rating (user has a specific price to compare), pricing_deal, compare_listings (side-by-side price context), dealer_upload (demand signal)
 - false for: routine_fit, charging_question, ownership_support, debate, news, other
 
 market_focus options:
-- "local_pricing"    → listing_rating or pricing_deal — user wants to know if the price is fair vs local comps
-- "comps"            → compare_listings — user wants side-by-side pricing context for two EVs
-- "depreciation"     → user explicitly asks about long-term value / resale
-- "regional_demand"  → dealer_upload — seller wants to know if demand is strong locally
-- null               → all other intents
+- "local_pricing"    -> listing_rating or pricing_deal -- user wants to know if the price is fair vs local comps
+- "comps"            -> compare_listings -- user wants side-by-side pricing context for two EVs
+- "depreciation"     -> user explicitly asks about long-term value / resale
+- "regional_demand"  -> dealer_upload -- seller wants to know if demand is strong locally
+- null               -> all other intents
 
 Think step by step, then output ONLY the JSON object."""
 
@@ -250,7 +250,7 @@ def classify_full(text: str, context: Optional[str] = None) -> Optional[dict]:
     if data.get("tool_intro") not in valid_tool_intros:
         data["tool_intro"] = "no"
 
-    # Sanitize friction_tags — keep any UPPER_CASE tag; strip empty strings
+    # Sanitize friction_tags -- keep any UPPER_CASE tag; strip empty strings
     raw_tags = data.get("friction_tags") or []
     tags = [str(t).strip().upper().replace(" ", "_") for t in raw_tags if t and str(t).strip()]
     data["friction_tags"] = tags
@@ -268,7 +268,7 @@ def classify_full(text: str, context: Optional[str] = None) -> Optional[dict]:
     else:
         data["secondary_intent"] = None
 
-    # v2: detected_vehicle — normalize fields
+    # v2: detected_vehicle -- normalize fields
     dv = data.get("detected_vehicle")
     if dv and isinstance(dv, dict):
         data["detected_vehicle"] = {
@@ -304,19 +304,19 @@ def classify_full(text: str, context: Optional[str] = None) -> Optional[dict]:
 
 def _regex_detect_intent(text: str) -> Intent:
     t = text.lower()
-    # VIN pattern check → vin_analysis
+    # VIN pattern check -> vin_analysis
     if VIN_PATTERN.search(text) or re.search(r'\bvin\b', t):
         return "vin_analysis"
-    # Listing URL present → listing_rating
+    # Listing URL present -> listing_rating
     if LISTING_URL_PATTERN.search(t):
         return "listing_rating"
-    # Two listings → compare_listings
+    # Two listings -> compare_listings
     if _has_any(t, COMPARISON_PATTERNS) and re.search(r'\b(model|tesla|nissan|chevy|bolt|leaf|ioniq|id\.\d|mach.?e|kia|rivian|gm|ford|hyundai)\b', t):
         return "compare_listings"
     # Dealer questions
     if re.search(r'\b(what (to|should i) ask|questions? (for|to ask|the dealer)|dealer questions?)\b', t):
         return "dealer_questions"
-    # Seller/dealer post → dealer_upload
+    # Seller/dealer post -> dealer_upload
     if re.search(r'\b(selling my|i.?m selling|for sale|listed it|put it up)\b', t) and re.search(r'\bev\b|\belectric\b', t):
         return "dealer_upload"
     # Pricing deal

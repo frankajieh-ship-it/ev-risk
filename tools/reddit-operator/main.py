@@ -2,9 +2,9 @@
 OFFO Reddit Community Operator Tool v2
 
 FastAPI service for:
-  POST /analyze              — v1 endpoint (backward compat, regex + templates)
-  POST /assist               — v2 unified endpoint (multi-AI pipeline, operator + receipt modes)
-  POST /social/generate-weekly — generate 10 posts per platform from knowledge base
+  POST /analyze              -- v1 endpoint (backward compat, regex + templates)
+  POST /assist               -- v2 unified endpoint (multi-AI pipeline, operator + receipt modes)
+  POST /social/generate-weekly -- generate 10 posts per platform from knowledge base
 
 Run with:
     uvicorn main:app --reload --port 8088
@@ -41,7 +41,7 @@ from ai_clients import clients_available
 
 app = FastAPI(
     title="OFFO Reddit Community Operator Tool",
-    description="v2 — Multi-AI pipeline for Reddit operator replies and receipt drafts",
+    description="v2 -- Multi-AI pipeline for Reddit operator replies and receipt drafts",
     version="2.2.0",
 )
 
@@ -77,7 +77,7 @@ def assist(req: AssistRequest):
     Unified endpoint for the v2 multi-AI pipeline.
 
     Modes:
-    - operator: Analyze a Reddit thread → generate reply plan + short/long drafts
+    - operator: Analyze a Reddit thread -> generate reply plan + short/long drafts
     - receipt:  Generate a structured Reddit draft from a car-purchase receipt
 
     Both modes apply the EVRoutine invite logic and tech support detection.
@@ -101,7 +101,7 @@ def assist(req: AssistRequest):
 
 
 # -------------------------
-# v1 /analyze endpoint (backward compat — unchanged)
+# v1 /analyze endpoint (backward compat -- unchanged)
 # -------------------------
 
 @app.post("/analyze", response_model=AnalyzeResponse)
@@ -127,11 +127,11 @@ def analyze(req: AnalyzeRequest):
 
     safety: List[str] = []
     if "BRAND_WAR_RISK" in tags:
-        safety.append("Potential brand-war tone — keep neutral, avoid dunking or evangelism.")
+        safety.append("Potential brand-war tone -- keep neutral, avoid dunking or evangelism.")
     if intent == "debate":
-        safety.append("Debate context detected — focus on education, not winning.")
+        safety.append("Debate context detected -- focus on education, not winning.")
     if user_state == "frustrated":
-        safety.append("User seems frustrated — lead with validation, be extra empathetic.")
+        safety.append("User seems frustrated -- lead with validation, be extra empathetic.")
 
     plan = build_reply_plan(tags, intent, tool_intro, req.tone)
     drafts = build_drafts(plan, req.tone)
@@ -249,7 +249,7 @@ def get_session_comments(session_id: str, limit: int = 20):
 
 @app.get("/health")
 def health():
-    """Health check — also reports which AI clients are available."""
+    """Health check -- also reports which AI clients are available."""
     import os
     return {
         "status": "ok",
@@ -338,7 +338,7 @@ def social_voice_preview(req: VoicePreviewRequest):
     path = generate_voice(req.text, req.filename)
     if path:
         return {"file_path": path}
-    return {"error": "Voice generation failed — check ELEVENLABS_API_KEY and logs"}
+    return {"error": "Voice generation failed -- check ELEVENLABS_API_KEY and logs"}
 
 
 if __name__ == "__main__":

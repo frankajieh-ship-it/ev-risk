@@ -2,9 +2,9 @@
 AI client initialization for the OFFO Reddit Operator Tool v2.
 
 Lazily initializes three clients:
-- Grok (xAI, OpenAI-compatible API)  — classification + final polish
-- Claude (Anthropic)                  — empathetic validation + reframe
-- GPT-4o (OpenAI)                     — technical accuracy + structured receipt drafts
+- Grok (xAI, OpenAI-compatible API)  -- classification + final polish
+- Claude (Anthropic)                  -- empathetic validation + reframe
+- GPT-4o (OpenAI)                     -- technical accuracy + structured receipt drafts
 
 Each client gracefully returns None if its API key is absent,
 allowing the pipeline to fall back to template-based generation.

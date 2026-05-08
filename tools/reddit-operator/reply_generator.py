@@ -22,69 +22,69 @@ from friction_tagger import get_primary_friction
 TONE_TEMPLATES = {
     "ultra_short": {
         "validate_default": "Makes sense.",
-        "validate_no_home": "Totally fair — public charging can work if it's predictable.",
-        "validate_comparison": "Good question — two EVs can feel very different week to week.",
-        "validate_seasonal": "Good question — winter is where setups that 'work' start requiring planning.",
-        "validate_battery": "Reasonable concern — battery uncertainty tends to keep resurfacing.",
+        "validate_no_home": "Totally fair -- public charging can work if it's predictable.",
+        "validate_comparison": "Good question -- two EVs can feel very different week to week.",
+        "validate_seasonal": "Good question -- winter is where setups that 'work' start requiring planning.",
+        "validate_battery": "Reasonable concern -- battery uncertainty tends to keep resurfacing.",
         "reframe_default": "This is mostly about how often you have to think about charging.",
         "reframe_home": "With a reliable home/work anchor, most EV friction fades.",
         "hidden_default": "The hidden tradeoff is predictability vs availability.",
-        "hidden_seasonal": "The hidden tradeoff is seasonal buffer — winter is where it shows.",
+        "hidden_seasonal": "The hidden tradeoff is seasonal buffer -- winter is where it shows.",
         "hidden_battery": "The hidden tradeoff is confidence buffer.",
         "question_default": "Where would charging *actually* happen in a normal week?",
-        "question_no_home": "Do you have a reliable Plan B charger within ~10–15 minutes?",
-        "question_comparison": "Do you have reliable home/work charging — and how variable are your weeks?",
+        "question_no_home": "Do you have a reliable Plan B charger within ~10-15 minutes?",
+        "question_comparison": "Do you have reliable home/work charging -- and how variable are your weeks?",
         "tool_line": " If you want, I can share a 30s routine sanity-check.",
         "max_short_chars": 520,
     },
     "standard": {
-        "validate_default": "That makes sense — you're thinking about the part of ownership that usually matters more than headline specs.",
-        "validate_no_home": "Totally fair — public-charging setups can work, but only when they become predictable enough to fade into the background.",
-        "validate_comparison": "You're asking the right question — two EVs can look similar on paper but feel very different week to week.",
-        "validate_seasonal": "Good question — winter is where many setups that 'work on paper' start requiring more active management.",
-        "validate_battery": "That's a reasonable concern — battery uncertainty is one of the things that can keep resurfacing mentally even when the numbers look fine.",
-        "reframe_default": "This isn't really about the car — it's about how often you have to think about charging.",
-        "reframe_home": "With a reliable home/work anchor, most EV friction disappears — the edge cases are what reveal fit.",
+        "validate_default": "That makes sense -- you're thinking about the part of ownership that usually matters more than headline specs.",
+        "validate_no_home": "Totally fair -- public-charging setups can work, but only when they become predictable enough to fade into the background.",
+        "validate_comparison": "You're asking the right question -- two EVs can look similar on paper but feel very different week to week.",
+        "validate_seasonal": "Good question -- winter is where many setups that 'work on paper' start requiring more active management.",
+        "validate_battery": "That's a reasonable concern -- battery uncertainty is one of the things that can keep resurfacing mentally even when the numbers look fine.",
+        "reframe_default": "This isn't really about the car -- it's about how often you have to think about charging.",
+        "reframe_home": "With a reliable home/work anchor, most EV friction disappears -- the edge cases are what reveal fit.",
         "hidden_default": "The hidden tradeoff is usually predictability vs availability: it's not how many chargers exist, it's whether charging becomes a repeatable anchor.",
         "hidden_seasonal": "The hidden tradeoff is seasonal buffer: winter months (or disrupted weeks) are where setups that 'work' start resurfacing mentally.",
         "hidden_battery": "The hidden tradeoff is confidence buffer: it's less about the number and more about how often you'll second-guess 'did I top up enough?'",
-        "question_default": "In a normal week, where would charging actually happen — as part of something you're already doing, or as a separate errand?",
-        "question_no_home": "Do you have one reliable 'Plan B' location you can count on within ~10–15 minutes when a week goes sideways?",
-        "question_comparison": "Do you have reliable home/work charging, and how often do you hit disrupted weeks or 150–200+ mile days?",
+        "question_default": "In a normal week, where would charging actually happen -- as part of something you're already doing, or as a separate errand?",
+        "question_no_home": "Do you have one reliable 'Plan B' location you can count on within ~10-15 minutes when a week goes sideways?",
+        "question_comparison": "Do you have reliable home/work charging, and how often do you hit disrupted weeks or 150-200+ mile days?",
         "tool_line": " Happy to share a quick routine sanity-check if you want structure.",
         "max_short_chars": 780,
     },
     "empathetic": {
-        "validate_default": "Totally get why you're thinking about this — EV ownership is easy when it fades into the background, and stressful when it keeps resurfacing.",
-        "validate_no_home": "That's completely fair. Plenty of people make public charging work — the difference is whether it's predictable enough to stop feeling like a separate task.",
-        "validate_comparison": "You're not overthinking it — the day-to-day feel can differ a lot even when two options look similar on paper.",
-        "validate_seasonal": "That's a fair concern — winter is where a lot of people start noticing the mental overhead that didn't exist in summer.",
-        "validate_battery": "I hear you — battery uncertainty is one of those things that can keep circling back mentally, even when the actual numbers suggest it's fine.",
-        "reframe_default": "Nothing is 'broken' when it feels annoying — it's usually the routine doing extra work.",
+        "validate_default": "Totally get why you're thinking about this -- EV ownership is easy when it fades into the background, and stressful when it keeps resurfacing.",
+        "validate_no_home": "That's completely fair. Plenty of people make public charging work -- the difference is whether it's predictable enough to stop feeling like a separate task.",
+        "validate_comparison": "You're not overthinking it -- the day-to-day feel can differ a lot even when two options look similar on paper.",
+        "validate_seasonal": "That's a fair concern -- winter is where a lot of people start noticing the mental overhead that didn't exist in summer.",
+        "validate_battery": "I hear you -- battery uncertainty is one of those things that can keep circling back mentally, even when the actual numbers suggest it's fine.",
+        "reframe_default": "Nothing is 'broken' when it feels annoying -- it's usually the routine doing extra work.",
         "reframe_home": "If you've got a stable anchor (home/work), most of the anxiety disappears and it becomes buffer management.",
         "hidden_default": "The hidden tradeoff is usually predictability vs availability.",
         "hidden_seasonal": "The hidden tradeoff is seasonal buffer: winter is when routines that 'work' start requiring conscious attention again.",
-        "hidden_battery": "The hidden tradeoff is confidence buffer — the feeling of 'is this enough?' matters as much as the actual number.",
-        "question_default": "What would make charging feel boring for you — one consistent anchor, or hopping between options?",
+        "hidden_battery": "The hidden tradeoff is confidence buffer -- the feeling of 'is this enough?' matters as much as the actual number.",
+        "question_default": "What would make charging feel boring for you -- one consistent anchor, or hopping between options?",
         "question_no_home": "What's your Plan B when your usual chargers are busy or out of service?",
         "question_comparison": "What's your charging anchor, and how much do your weeks change (late nights, weekend trips, unpredictable days)?",
         "tool_line": " If you want a bit of structure, we built a short routine sanity-check (not a recommendation tool). Happy to share.",
         "max_short_chars": 950,
     },
     "technical": {
-        "validate_default": "Reasonable question — the experience is mostly determined by predictability, buffer, and how often you need to intervene.",
+        "validate_default": "Reasonable question -- the experience is mostly determined by predictability, buffer, and how often you need to intervene.",
         "validate_no_home": "Public charging can work if you have stable anchors (repeatable locations, known uptime/queue patterns, predictable dwell time).",
-        "validate_comparison": "Comparison is valid — two vehicles can differ mainly in charging curve, winter efficiency, and service/software maturity.",
-        "validate_seasonal": "Valid concern — winter introduces variables: cabin heating load, battery preconditioning, reduced regen, and potential charger queueing.",
-        "validate_battery": "Fair question — degradation curves vary by chemistry, thermal management, and charging patterns. The uncertainty is often worse than the actual number.",
+        "validate_comparison": "Comparison is valid -- two vehicles can differ mainly in charging curve, winter efficiency, and service/software maturity.",
+        "validate_seasonal": "Valid concern -- winter introduces variables: cabin heating load, battery preconditioning, reduced regen, and potential charger queueing.",
+        "validate_battery": "Fair question -- degradation curves vary by chemistry, thermal management, and charging patterns. The uncertainty is often worse than the actual number.",
         "reframe_default": "The key variable is intervention frequency: how often you must actively plan/stop to maintain buffer.",
         "reframe_home": "A home/work AC anchor typically converts the problem into low-frequency buffer top-ups.",
-        "hidden_default": "The hidden tradeoff: charger density ≠ charger reliability. Availability matters less than predictable uptime at your anchors.",
+        "hidden_default": "The hidden tradeoff: charger density ? charger reliability. Availability matters less than predictable uptime at your anchors.",
         "hidden_seasonal": "The hidden tradeoff is seasonal buffer compression: 15-30% winter range reduction compounds with existing margin.",
-        "hidden_battery": "The hidden tradeoff is confidence vs actuals — perceived degradation often exceeds measured SoH impact on usable range.",
+        "hidden_battery": "The hidden tradeoff is confidence vs actuals -- perceived degradation often exceeds measured SoH impact on usable range.",
         "question_default": "What are your weekly miles, charging anchors (home/work/public), and how often do disrupted days occur?",
         "question_no_home": "What's the nearest reliable backup site, and what's the typical queue/downtime pattern there?",
-        "question_comparison": "Do you have home/work charging, winter conditions, and how often you do >150–200-mile days?",
+        "question_comparison": "Do you have home/work charging, winter conditions, and how often you do >150-200-mile days?",
         "tool_line": " If you want structure, we built a quick sanity-check focused on charging predictability and routine friction (not specs). Happy to share.",
         "max_short_chars": 1000,
     },
@@ -97,7 +97,7 @@ TONE_TEMPLATES = {
 
 HIDDEN_TRADEOFF_TEMPLATES = {
     "default": "The hidden tradeoff is usually predictability vs availability: it's not how many chargers exist, it's whether charging becomes a repeatable anchor.",
-    "NO_HOME_CHARGING": "The hidden tradeoff is that public charging can work, but it needs to become a predictable anchor — not a hunt every time.",
+    "NO_HOME_CHARGING": "The hidden tradeoff is that public charging can work, but it needs to become a predictable anchor -- not a hunt every time.",
     "PREDICTABILITY_LOW": "The hidden tradeoff is that charger density doesn't matter much if the ones you need are unreliable or crowded when you need them.",
     "SEASONAL_SENSITIVITY": "The hidden tradeoff is seasonal buffer: winter months (or disrupted weeks) are where setups that 'work' start resurfacing mentally.",
     "BATTERY_HEALTH_ANXIETY": "The hidden tradeoff is confidence buffer: it's less about the number and more about how often you'll second-guess 'did I top up enough?'",
@@ -170,7 +170,7 @@ def build_drafts(plan: ReplyPlan, tone: Tone = "standard") -> Dict[str, str]:
     Build short and long draft replies from a reply plan.
 
     Short: Character limit varies by tone (520-1000 chars)
-    Long: ≤2500 chars (for detailed responses)
+    Long: ?2500 chars (for detailed responses)
     """
     tpl = TONE_TEMPLATES[tone]
 
@@ -191,7 +191,7 @@ def build_drafts(plan: ReplyPlan, tone: Tone = "standard") -> Dict[str, str]:
     max_chars = int(tpl["max_short_chars"])
     short = short.strip()
     if len(short) > max_chars:
-        short = short[:max_chars - 1].rstrip() + "…"
+        short = short[:max_chars - 1].rstrip() + "..."
 
     # Build long version
     long_parts = [
@@ -228,26 +228,26 @@ def get_tool_blurb() -> str:
 # Weekly "Rate My Listing" thread templates
 # -------------------------
 
-WEEKLY_THREAD_TITLE = "📋 Rate My Listing — Drop your used EV link and we'll run the numbers"
+WEEKLY_THREAD_TITLE = "? Rate My Listing -- Drop your used EV link and we'll run the numbers"
 
 WEEKLY_THREAD_BODY = """Every week we open this thread for anyone actively shopping a used EV.
 
-Drop a link to the listing you're considering (CarGurus, AutoTrader, Cars.com, Facebook Marketplace — anything works) and tell us:
+Drop a link to the listing you're considering (CarGurus, AutoTrader, Cars.com, Facebook Marketplace -- anything works) and tell us:
 - What you're being asked to pay
 - Your rough commute / weekly miles
 - Whether you have home charging
 
-We'll run an OFFO receipt on it — recalls, battery health estimate, price vs. comparables, and what to watch out for — and post it as a reply.
+We'll run an OFFO receipt on it -- recalls, battery health estimate, price vs. comparables, and what to watch out for -- and post it as a reply.
 
 No pitch. Just the data.
 
 ---
-*Thread resets every Monday. Powered by [OFFO](https://offolab.com) — free EV deal analysis.*"""
+*Thread resets every Monday. Powered by [OFFO](https://offolab.com) -- free EV deal analysis.*"""
 
 # Reply format when responding to a listing URL dropped in the weekly thread.
 # Fill in: verdict, price_direction ("Over"/"Under"/"At"), price_delta, comp_count,
 #          recall_count, recall_titles, watch_items (list[str]), receipt_url
-THREAD_REPLY_TEMPLATE = """Ran this through OFFO — here's what came back:
+THREAD_REPLY_TEMPLATE = """Ran this through OFFO -- here's what came back:
 
 **Verdict:** {verdict}
 **Price check:** {price_direction} market by ~${price_delta} vs {comp_count} similar listings
@@ -257,7 +257,7 @@ THREAD_REPLY_TEMPLATE = """Ran this through OFFO — here's what came back:
 Full receipt (battery health, inspection checklist, negotiation scripts): {receipt_url}
 
 ---
-*OFFO scans NHTSA, title history, and live listings — not affiliated with the seller.*"""
+*OFFO scans NHTSA, title history, and live listings -- not affiliated with the seller.*"""
 
 
 def format_thread_reply(
@@ -274,7 +274,7 @@ def format_thread_reply(
     Format a structured reply for a listing URL dropped in the weekly Rate My Listing thread.
 
     Args:
-        verdict: "🟢 GREEN", "🟡 YELLOW", or "🔴 RED"
+        verdict: "? GREEN", "? YELLOW", or "? RED"
         price_direction: "Over", "Under", or "At"
         price_delta: dollar amount over/under market
         comp_count: number of comparable listings used for price check
