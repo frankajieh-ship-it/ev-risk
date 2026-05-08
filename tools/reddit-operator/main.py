@@ -67,6 +67,21 @@ app.add_middleware(
 )
 
 
+# Global exception handler — catches anything uvicorn would otherwise swallow
+from fastapi import Request
+from fastapi.responses import JSONResponse as _JSONResponse
+import traceback as _traceback
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    tb = _traceback.format_exc()
+    print(f"[UNHANDLED] {type(exc).__name__}: {exc}\n{tb}", file=sys.stderr)
+    return _JSONResponse(
+        status_code=500,
+        content={"error": f"{type(exc).__name__}: {str(exc).encode('ascii', 'replace').decode('ascii')}", "traceback": tb.encode('ascii', 'replace').decode('ascii')},
+    )
+
+
 # -------------------------
 # v2 /assist endpoint
 # -------------------------
