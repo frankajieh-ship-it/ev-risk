@@ -50,7 +50,7 @@ from classifier import classify_full, _regex_detect_intent, _regex_detect_user_s
 from friction_tagger import tag_frictions, get_primary_friction
 from reply_generator import TONE_TEMPLATES, HIDDEN_TRADEOFF_TEMPLATES, build_reply_plan, build_drafts, get_tool_blurb
 from evroutine_logic import decide_tool_invite, detect_tech_support, get_tool_blurb as get_tool_blurb_for
-from ai_clients import call_grok, call_gemini, call_gpt4o
+from ai_clients import call_grok, call_gpt4o
 from db import get_few_shot_examples
 from services.market_analytics import get_market_analytics, format_market_context
 
@@ -157,7 +157,7 @@ Classification:
 
 Now write the 4-part empathy draft for THIS specific post."""
 
-    raw = call_gemini(GEMINI_EMPATHY_SYSTEM, user_msg, temperature=0.7, max_tokens=400)
+    raw = call_grok(GEMINI_EMPATHY_SYSTEM, user_msg, temperature=0.7, max_tokens=400)
 
     if raw:
         raw = raw.strip()
