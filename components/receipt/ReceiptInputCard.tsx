@@ -177,6 +177,7 @@ export default function ReceiptInputCard({
   const autoExtractTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoRetryDoneRef = useRef(false);
   const lastAutoExtractedUrl = useRef<string | null>(null);
+  const networkErrorCountRef = useRef(0);
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const modelOptions = selectedMake && EV_CATALOG[selectedMake] ? EV_CATALOG[selectedMake] : [];
@@ -454,8 +455,12 @@ export default function ReceiptInputCard({
         setExtractError({ message: "Extraction timed out — fill in the details below." });
         trackEvent?.("receipt_extract_failed", { reason: "abort_timeout", input_mode: pasteMode, anon_id: receiptToken, domain: _domain });
       } else {
-        setExtractError({ message: "Network error — try again or fill in below." });
-        trackEvent?.("receipt_extract_failed", { reason: "network_error", input_mode: pasteMode, anon_id: receiptToken, domain: _domain });
+        networkErrorCountRef.current += 1;
+        const msg = networkErrorCountRef.current >= 2
+          ? "Connection seems unstable. Fill in the year, make, model, price, and mileage below to continue."
+          : "Network error — tap again or fill in the details below.";
+        setExtractError({ message: msg });
+        trackEvent?.("receipt_extract_failed", { reason: "network_error", input_mode: pasteMode, anon_id: receiptToken, domain: _domain, attempt: networkErrorCountRef.current });
       }
     } finally {
       clearTimeout(timeoutId);
