@@ -11,8 +11,16 @@ Run with:
 """
 from __future__ import annotations
 
+import io
 import os
+import sys
 from typing import List, Optional
+
+# Force UTF-8 stdout/stderr on Windows to prevent cp1252 crashes on unicode chars
+if sys.stdout.encoding != "utf-8":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+if sys.stderr.encoding != "utf-8":
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
