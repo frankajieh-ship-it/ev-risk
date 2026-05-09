@@ -56,6 +56,11 @@ export default function AdminDealsPage() {
   const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
   const [rescopeDate, setRescopeDate] = useState(todayStr);
   const [rescopeOnly, setRescopeOnly] = useState(true);
+  const [isLocal, setIsLocal] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setIsLocal(window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  }, []);
 
   const fetchDeals = useCallback(async () => {
     setLoading(true);
@@ -294,6 +299,20 @@ export default function AdminDealsPage() {
   return (
     <div className="min-h-screen bg-[#0d1117] text-white p-6">
       <div className="max-w-[1400px] mx-auto">
+        {/* Environment indicator */}
+        {isLocal !== null && (
+          <div className={`mb-5 px-3 py-2 rounded-lg text-xs font-medium flex items-center gap-2 ${
+            isLocal
+              ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
+              : "bg-green-500/10 text-green-400 border border-green-500/20"
+          }`}>
+            <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${isLocal ? "bg-yellow-400" : "bg-green-400"}`} />
+            {isLocal
+              ? "Local — changes here do NOT appear on offolab.com. Open offolab.com/admin/deals to update the live site."
+              : "Production — changes are live on offolab.com"}
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
