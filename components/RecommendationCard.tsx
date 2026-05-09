@@ -79,7 +79,7 @@ function MatchedDealStrip({ deal }: { deal: NonNullable<VehicleRecommendation["m
               rel="noopener noreferrer"
               className="flex-1 text-center text-xs py-1.5 rounded-lg border border-white/[0.10] text-white/60 hover:text-white hover:border-white/20 transition-colors"
             >
-              View Listing →
+              See Listing →
             </a>
             <a
               href={`/receipt?url=${encodeURIComponent(deal.listing_url)}&src=ev_routine`}
@@ -87,7 +87,7 @@ function MatchedDealStrip({ deal }: { deal: NonNullable<VehicleRecommendation["m
               rel="noopener noreferrer"
               className="flex-1 text-center text-xs py-1.5 rounded-lg bg-[#00d97e]/10 text-[#00d97e] hover:bg-[#00d97e]/20 transition-colors"
             >
-              Run Analysis →
+              See Full Report →
             </a>
           </div>
         </div>

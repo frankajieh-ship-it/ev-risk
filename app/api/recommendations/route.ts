@@ -161,16 +161,43 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================
-    // 3. Score all vehicles (with V2 scoring if real-time data available)
+    // 3. Score only deal-backed vehicles
     // ============================
-    const rangeData = loadRangeDeltaData();
-    const scored = batchScoreVehicles(
-      routine,
-      rangeData,
-      weatherData || chargerCount > 0
-        ? { weather: weatherData, chargerCount }
-        : undefined
-    );
+    const supabase = getSupabaseAdmin();
+    const csvData = loadRangeDeltaData();
+
+    // Fetch active curated deals — these become the scoring universe
+    const activeDeals = supabase ? await fetchActiveCuratedDeals(supabase) : [];
+
+    let scored: Awaited<ReturnType<typeof batchScoreVehicles>>;
+    let dealsByKey: Map<string, typeof activeDeals>;
+
+    if (activeDeals.length > 0) {
+      // Build synthetic RangeDeltaRows from deals, enriched with CSV specs
+      const { rangeRows, dealsByKey: dbk } = buildRangeRowsFromDeals(activeDeals, csvData);
+      dealsByKey = dbk;
+      scored = batchScoreVehicles(
+        routine,
+        rangeRows,
+        weatherData || chargerCount > 0
+          ? { weather: weatherData, chargerCount }
+          : undefined
+      );
+      // Wire matched deals back to each scored recommendation
+      attachDealsToRecommendations(scored, dealsByKey);
+      // Keep only vehicles that have at least one matched deal
+      scored = scored.filter((v) => v.matched_deals && v.matched_deals.length > 0);
+    } else {
+      // No deals in DB — fall back to full CSV catalog (graceful degradation)
+      dealsByKey = new Map();
+      scored = batchScoreVehicles(
+        routine,
+        csvData,
+        weatherData || chargerCount > 0
+          ? { weather: weatherData, chargerCount }
+          : undefined
+      );
+    }
 
     // 4. Query dealer inventory (optional — gracefully degrades)
     const dealerMap = await fetchDealerInventoryMatches(scored);
@@ -184,38 +211,6 @@ export async function POST(request: NextRequest) {
 
     // 6. Randomize within score tiers to avoid brand bias
     const recommendations = randomizeWithinScoreTiers(withDealers);
-
-    // 6b. Attach matching curated deals for top recommendations (fit_score >= 70)
-    const supabaseForDeals = getSupabaseAdmin();
-    if (supabaseForDeals) {
-      const topMakes = [...new Set(
-        recommendations.filter((r) => r.fit_score >= 70).map((r) => r.make)
-      )];
-      if (topMakes.length > 0) {
-        const { data: dealRows } = await supabaseForDeals
-          .from("curated_deals")
-          .select("id, listing_url, vehicle_label, make, model, year, price, mileage, receipt_id, photo_url, url_domain")
-          .in("make", topMakes)
-          .eq("is_active", true)
-          .not("receipt_id", "is", null)
-          .order("price", { ascending: true, nullsFirst: false })
-          .limit(topMakes.length * 10);
-
-        if (dealRows && dealRows.length > 0) {
-          for (const rec of recommendations) {
-            if (rec.fit_score >= 70) {
-              const makeLower = rec.make.toLowerCase();
-              const modelLower = rec.model_short.toLowerCase();
-              const matched = dealRows.filter((d) =>
-                (d.make ?? "").toLowerCase() === makeLower &&
-                (d.model ?? "").toLowerCase().includes(modelLower)
-              );
-              rec.matched_deals = matched.slice(0, 1);
-            }
-          }
-        }
-      }
-    }
 
     // Emit evfit_completed — list-level completion event (server source of truth)
     const topScore = recommendations[0]?.fit_score ?? null;
@@ -284,6 +279,179 @@ export async function POST(request: NextRequest) {
       { error: "Failed to generate recommendations" },
       { status: 500 }
     );
+  }
+}
+
+// ============================================
+// Curated Deal Sourcing Helpers
+// ============================================
+
+type CuratedDealRow = {
+  id: string;
+  listing_url: string;
+  vehicle_label: string;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  price: number | null;
+  mileage: number | null;
+  receipt_id: string | null;
+  photo_url: string | null;
+  url_domain: string | null;
+};
+
+/** Conservative defaults used when a deal has no matching CSV spec row. */
+const DEAL_SPEC_DEFAULTS = {
+  epa_range_mi: 220,
+  real_world_range_mi: 195,
+  delta_percent: 0.11,
+  chemistry: "NMC",
+  battery_kwh: 75,
+  dc_fast_kw: 80,
+  msrp_usd: 0,
+  incentive_new: false,
+} as const;
+
+/**
+ * Fetch all active curated deals that have a receipt_id (fully analyzed).
+ */
+async function fetchActiveCuratedDeals(
+  supabase: NonNullable<ReturnType<typeof getSupabaseAdmin>>
+): Promise<CuratedDealRow[]> {
+  const { data, error } = await supabase
+    .from("curated_deals")
+    .select("id, listing_url, vehicle_label, make, model, year, price, mileage, receipt_id, photo_url, url_domain")
+    .eq("is_active", true)
+    .order("price", { ascending: true, nullsFirst: false });
+
+  if (error || !data) {
+    console.warn("[recommendations] fetchActiveCuratedDeals failed:", error?.message);
+    return [];
+  }
+  return data as CuratedDealRow[];
+}
+
+/**
+ * Build RangeDeltaRow[] from curated deals, enriching each with CSV specs via make+model match.
+ * Returns one RangeDeltaRow per unique make+model+year, plus a map of that key → all deals.
+ */
+function buildRangeRowsFromDeals(
+  deals: CuratedDealRow[],
+  csvData: import("@/lib/data").RangeDeltaRow[]
+): {
+  rangeRows: import("@/lib/data").RangeDeltaRow[];
+  dealsByKey: Map<string, CuratedDealRow[]>;
+} {
+  const dealsByKey = new Map<string, CuratedDealRow[]>();
+
+  // Group deals by normalized make|model|year key
+  for (const deal of deals) {
+    if (!deal.make || !deal.model) continue;
+    const key = `${deal.make.toLowerCase()}|${deal.model.toLowerCase().replace(/\s+/g, " ")}|${deal.year ?? 0}`;
+    if (!dealsByKey.has(key)) dealsByKey.set(key, []);
+    dealsByKey.get(key)!.push(deal);
+  }
+
+  const rangeRows: import("@/lib/data").RangeDeltaRow[] = [];
+
+  for (const [key, groupDeals] of dealsByKey) {
+    const representative = groupDeals[0];
+    const make = representative.make!;
+    const model = representative.model!;
+    const year = representative.year ?? new Date().getFullYear();
+
+    // Try to find a CSV row for this make+model+year
+    const csvRow = findCsvMatch(make, model, year, csvData);
+
+    if (csvRow) {
+      // Use real specs, override the model name to match the deal listing
+      rangeRows.push({
+        ...csvRow,
+        model: `${make} ${model}`,
+        year,
+      });
+    } else {
+      // Conservative defaults — won't inflate scores
+      rangeRows.push({
+        model: `${make} ${model}`,
+        year,
+        ...DEAL_SPEC_DEFAULTS,
+      });
+    }
+  }
+
+  return { rangeRows, dealsByKey };
+}
+
+/**
+ * Find the best-matching CSV row for a given make+model+year.
+ * Tries exact year match first, then falls back to any year (closest year wins).
+ */
+function findCsvMatch(
+  make: string,
+  model: string,
+  year: number,
+  csvData: import("@/lib/data").RangeDeltaRow[]
+): import("@/lib/data").RangeDeltaRow | null {
+  const makeLower = make.toLowerCase().trim();
+  const modelLower = model.toLowerCase().trim();
+
+  // Candidates: rows where model string contains the make and the model fragment
+  const candidates = csvData.filter((row) => {
+    const rowModel = row.model.toLowerCase();
+    return rowModel.includes(makeLower) && (
+      rowModel.includes(modelLower) || modelLower.includes(
+        // Extract model portion after make (e.g. "model 3" from "tesla model 3 long range")
+        rowModel.replace(makeLower, "").trim().split(" ").slice(0, 2).join(" ")
+      )
+    );
+  });
+
+  if (candidates.length === 0) return null;
+
+  // Prefer exact year, then closest year
+  const exact = candidates.find((r) => r.year === year);
+  if (exact) return exact;
+
+  return candidates.sort((a, b) => Math.abs(a.year - year) - Math.abs(b.year - year))[0];
+}
+
+/**
+ * Wire matched curated deals back to each scored recommendation.
+ * Matches by normalized make|model key (ignores year for flexibility).
+ */
+function attachDealsToRecommendations(
+  scored: Omit<VehicleRecommendation, "dealer_listings">[],
+  dealsByKey: Map<string, CuratedDealRow[]>
+): void {
+  for (const rec of scored) {
+    // Find deal groups whose key starts with make|model (year may differ)
+    const makeLower = rec.make.toLowerCase();
+    const modelShortLower = rec.model_short.toLowerCase();
+
+    const matched: CuratedDealRow[] = [];
+    for (const [key, deals] of dealsByKey) {
+      const [keyMake, keyModel] = key.split("|");
+      if (keyMake === makeLower && (keyModel.includes(modelShortLower) || modelShortLower.includes(keyModel))) {
+        matched.push(...deals);
+      }
+    }
+
+    if (matched.length > 0) {
+      rec.matched_deals = matched.slice(0, 3).map((d) => ({
+        id: d.id,
+        listing_url: d.listing_url,
+        vehicle_label: d.vehicle_label,
+        make: d.make,
+        model: d.model,
+        year: d.year,
+        price: d.price,
+        mileage: d.mileage,
+        receipt_id: d.receipt_id,
+        photo_url: d.photo_url,
+        url_domain: d.url_domain,
+      }));
+    }
   }
 }
 

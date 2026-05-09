@@ -56,6 +56,8 @@ export type VehicleBasics = {
   seating_capacity?: number;
   /** Cargo volume behind rear seats (cu ft) — used for utility fit scoring */
   cargo_volume_cuft?: number;
+  /** Battery winter sensitivity — inferred from chemistry. LFP loses ~35%, NMC811 ~25%, NMC ~18% */
+  winter_sensitivity_band?: "mild" | "moderate" | "strong";
 };
 
 /** Charger availability context for the user's home area */
@@ -154,8 +156,9 @@ export function computeRoutineFit(
     chargingScore = 65;
 
     // 4B: Charger density affects work charging fallback reliability
-    if (chargerCtx?.density_score === "Poor")     chargingScore = Math.max(0, chargingScore - 8);
-    else if (chargerCtx?.density_score === "Excellent") chargingScore = Math.min(100, chargingScore + 5);
+    if (chargerCtx?.density_score === "Poor")           chargingScore = Math.max(0,   chargingScore - 8);
+    else if (chargerCtx?.density_score === "Good")      chargingScore = Math.min(100, chargingScore + 5);
+    else if (chargerCtx?.density_score === "Excellent") chargingScore = Math.min(100, chargingScore + 10);
 
     // Single public charger = no backup
     if (chargerCtx?.dcfc_count !== undefined && chargerCtx.dcfc_count <= 1) {
@@ -163,13 +166,14 @@ export function computeRoutineFit(
     }
 
   } else {
-    // Public only
-    chargingScore = 28;
+    // Public only — base is now 38 (up from 28); density can swing it ±20
+    chargingScore = 38;
 
     // 4B: Density directly impacts public charging reliability
-    if (chargerCtx?.density_score === "Poor")       chargingScore = Math.max(0, chargingScore - 12);
-    else if (chargerCtx?.density_score === "Moderate") chargingScore = Math.max(0, chargingScore - 5);
-    else if (chargerCtx?.density_score === "Excellent") chargingScore = Math.min(100, chargingScore + 6);
+    if (chargerCtx?.density_score === "Poor")           chargingScore = Math.max(0,   chargingScore - 18);
+    else if (chargerCtx?.density_score === "Moderate")  chargingScore = Math.max(0,   chargingScore - 6);
+    else if (chargerCtx?.density_score === "Good")      chargingScore = Math.min(100, chargingScore + 10);
+    else if (chargerCtx?.density_score === "Excellent") chargingScore = Math.min(100, chargingScore + 20);
 
     // Single charger = no redundancy
     if (chargerCtx?.dcfc_count !== undefined && chargerCtx.dcfc_count <= 1) {
@@ -189,7 +193,11 @@ export function computeRoutineFit(
   // 4C: Three-factor winter range model (replaces flat multipliers)
   let adjustedRange = effectiveRange;
   if (mvr.climate === "winter") {
-    const climate_factor = 0.82;
+    // Climate factor varies by battery chemistry: LFP loses ~35%, NMC811 ~25%, NMC ~18%
+    const climate_factor =
+      vehicle?.winter_sensitivity_band === "mild"   ? 0.65   // LFP: severe cold loss
+      : vehicle?.winter_sensitivity_band === "strong" ? 0.75  // NMC811: high energy density but poor cold
+      : 0.82;                                                  // NMC default (moderate)
     const speed_factor   = effectiveDailyMiles > 70 ? 0.96 : 1.0;  // highway drain in cold
     const battery_factor = vehicle?.has_heat_pump ? 1.09 : 1.0;     // heat pump recovers ~9%
     adjustedRange = effectiveRange * climate_factor * speed_factor * battery_factor;
@@ -210,15 +218,28 @@ export function computeRoutineFit(
   let rangeScore = rangeScoreFromUsagePct(dailyUsagePct);
 
   // ── DIMENSION 3: Recovery Resilience (10%) ────────────────────────────────
+  // Base: how often does the user push range limits?
   let recoveryScore: number;
-  if (mvr.longest_day_pattern === "once_a_week")    recoveryScore = 50;
-  else if (mvr.longest_day_pattern === "monthly_trip") recoveryScore = 75;
-  else                                               recoveryScore = 95;
+  if (mvr.longest_day_pattern === "once_a_week")       recoveryScore = 45;
+  else if (mvr.longest_day_pattern === "monthly_trip") recoveryScore = 72;
+  else                                                  recoveryScore = 95;
 
-  if (mvr.charging_access === "public" && mvr.longest_day_pattern === "once_a_week") {
-    recoveryScore = Math.max(0, recoveryScore - 22);
-  } else if (mvr.charging_access === "work" && mvr.longest_day_pattern === "once_a_week") {
-    recoveryScore = Math.max(0, recoveryScore - 12);
+  // Charging access shapes recovery ability: home L2 = reliable nightly reset
+  if (mvr.charging_access === "home") {
+    recoveryScore = Math.min(100, recoveryScore + 15);
+  } else if (mvr.charging_access === "work") {
+    recoveryScore = Math.min(100, recoveryScore + 5);
+    if (mvr.longest_day_pattern === "once_a_week") {
+      recoveryScore = Math.max(0, recoveryScore - 10);
+    }
+  } else {
+    // Public only: recovery depends heavily on density
+    if (mvr.longest_day_pattern === "once_a_week") {
+      recoveryScore = Math.max(0, recoveryScore - 20);
+    }
+    if (chargerCtx?.density_score === "Excellent") recoveryScore = Math.min(100, recoveryScore + 12);
+    else if (chargerCtx?.density_score === "Good")  recoveryScore = Math.min(100, recoveryScore + 6);
+    else if (chargerCtx?.density_score === "Poor")  recoveryScore = Math.max(0,   recoveryScore - 10);
   }
 
   if (mvr.charging_access === "public" && effectiveDailyMiles > 80) {
@@ -228,8 +249,8 @@ export function computeRoutineFit(
   // 12D: DC fast charge speed affects road-trip recovery ability
   if (mvr.longest_day_pattern === "once_a_week" || mvr.longest_day_pattern === "monthly_trip") {
     if (vehicle?.dc_fast_kw !== undefined) {
-      if (vehicle.dc_fast_kw >= 150)     recoveryScore = Math.min(100, recoveryScore + 8);
-      else if (vehicle.dc_fast_kw < 75)  recoveryScore = Math.max(0,   recoveryScore - 10);
+      if (vehicle.dc_fast_kw >= 150)     recoveryScore = Math.min(100, recoveryScore + 10);
+      else if (vehicle.dc_fast_kw < 75)  recoveryScore = Math.max(0,   recoveryScore - 12);
     }
   }
 
@@ -252,8 +273,9 @@ export function computeRoutineFit(
   }
 
   // ── DIMENSION 5: Budget Fit (15%) ─────────────────────────────────────────
-  let budgetScore: number;
-  if (mvr.budget_max && vehicle?.msrp_usd) {
+  // null = dimension excluded from weighted sum (no data to score it)
+  let budgetScore: number | null = null;
+  if (mvr.budget_max && vehicle?.msrp_usd != null && vehicle.msrp_usd > 0) {
     // 12C: Used market discount — used EVs trade below MSRP, ~6% per year up to 30%
     const currentYear = new Date().getFullYear();
     const vehicleAge = vehicle.year ? Math.max(0, currentYear - vehicle.year) : 0;
@@ -264,56 +286,53 @@ export function computeRoutineFit(
     const effectivePrice = vehicle.msrp_usd * (1 - usedDiscount) - (vehicle.incentive_amount ?? 0);
     const overBudgetRatio = (effectivePrice - mvr.budget_max) / mvr.budget_max;
     budgetScore = budgetScoreFromRatio(overBudgetRatio);
-  } else {
-    budgetScore = 75;
   }
+  // When budget or vehicle price is absent, this dimension is excluded (null)
+  // so the other dimensions' weights are renormalized to sum to 1.0.
 
   // ── DIMENSION 6: Utility Fit (10%) ────────────────────────────────────────
-  let utilityScore: number;
-  if (mvr.body_style && mvr.body_style !== "any" && vehicle?.sub_category) {
-    utilityScore = vehicle.sub_category === mvr.body_style ? 100 : 50;
-  } else {
-    utilityScore = 85;
-  }
-
-  if (mvr.towing_needs === "heavy" && vehicle?.sub_category) {
-    if (vehicle.sub_category === "sedan" || vehicle.sub_category === "hatchback") {
-      utilityScore = Math.min(utilityScore, 28);
+  // null = excluded when there's no vehicle or user preference to evaluate against
+  let utilityScore: number | null = null;
+  const hasUtilityData = !!(vehicle?.sub_category || mvr.towing_needs === "heavy" || mvr.towing_needs === "light");
+  if (hasUtilityData) {
+    if (mvr.body_style && mvr.body_style !== "any" && vehicle?.sub_category) {
+      utilityScore = vehicle.sub_category === mvr.body_style ? 100 : 50;
+    } else {
+      utilityScore = 85;
     }
-  } else if (mvr.towing_needs === "light" && vehicle?.sub_category) {
-    if (vehicle.sub_category === "sedan" || vehicle.sub_category === "hatchback") {
-      utilityScore = Math.min(utilityScore, 52);
-    }
-  }
 
-  // Seating fit — penalize if vehicle can't seat the requested passenger count
-  if (mvr.passenger_count && vehicle?.seating_capacity) {
-    if (mvr.passenger_count > vehicle.seating_capacity) {
-      const shortfall = mvr.passenger_count - vehicle.seating_capacity;
-      // 1 seat short → -15 pts; 2+ seats short → -30 pts (capped)
-      utilityScore = Math.max(0, utilityScore - Math.min(30, shortfall * 15));
+    if (mvr.towing_needs === "heavy" && vehicle?.sub_category) {
+      if (vehicle.sub_category === "sedan" || vehicle.sub_category === "hatchback") {
+        utilityScore = Math.min(utilityScore, 28);
+      }
+    } else if (mvr.towing_needs === "light" && vehicle?.sub_category) {
+      if (vehicle.sub_category === "sedan" || vehicle.sub_category === "hatchback") {
+        utilityScore = Math.min(utilityScore, 52);
+      }
     }
-  }
 
-  // Cargo fit — SUV buyers needing cargo space: penalize low-cargo vehicles (<20 cu ft)
-  if (mvr.body_style === "suv" && vehicle?.cargo_volume_cuft !== undefined) {
-    if (vehicle.cargo_volume_cuft < 20) {
-      utilityScore = Math.max(0, utilityScore - 15);
+    // Seating fit — penalize if vehicle can't seat the requested passenger count
+    if (mvr.passenger_count && vehicle?.seating_capacity) {
+      if (mvr.passenger_count > vehicle.seating_capacity) {
+        const shortfall = mvr.passenger_count - vehicle.seating_capacity;
+        utilityScore = Math.max(0, utilityScore - Math.min(30, shortfall * 15));
+      }
+    }
+
+    // Cargo fit — SUV buyers needing cargo space: penalize low-cargo vehicles (<20 cu ft)
+    if (mvr.body_style === "suv" && vehicle?.cargo_volume_cuft !== undefined) {
+      if (vehicle.cargo_volume_cuft < 20) {
+        utilityScore = Math.max(0, utilityScore - 15);
+      }
     }
   }
 
   // ── 12A: CONFIDENCE PENALTY — missing range data inflates uncertainty ────────
-  // Applied to individual dims before the weighted sum so it propagates correctly.
-  // Confidence is determined by vehicle data availability (computed below for now
-  // we derive it inline here since we need it before the confidence struct).
+  // Applied only to range score (the most impacted dimension). Recovery is now
+  // shaped by real infrastructure data so we don't double-penalize it.
   const hasRangeData = !!vehicle?.real_world_range_mi;
   if (!hasRangeData) {
-    // low confidence: range and recovery scores are unreliable — apply pessimism
-    rangeScore    = Math.max(0, rangeScore    - 10);
-    recoveryScore = Math.max(0, recoveryScore - 10);
-  } else if (!vehicle?.msrp_usd) {
-    // medium confidence: range known but price missing — slight range pessimism
-    rangeScore = Math.max(0, rangeScore - 5);
+    rangeScore = Math.max(0, rangeScore - 8);
   }
 
   // ── CROSS-DIMENSION INTERACTIONS ──────────────────────────────────────────
@@ -347,14 +366,28 @@ export function computeRoutineFit(
     interactionMultiplier *= 0.85;
   }
 
-  // ── WEIGHTED TOTAL ─────────────────────────────────────────────────────────
-  const rawScore =
+  // ── WEIGHTED TOTAL — renormalize when budget/utility are absent ───────────
+  // Base weights: charging 30%, range 25%, recovery 10%, climate 10%, budget 15%, utility 10%
+  // When budget or utility are null (no data), redistribute their weight to the
+  // core operational dimensions (charging + range) proportionally.
+  let totalWeight = 0.75; // charging + range + recovery + climate always present
+  let rawScore =
     chargingScore * 0.30 +
     rangeScore    * 0.25 +
     recoveryScore * 0.10 +
-    climateScore  * 0.10 +
-    budgetScore   * 0.15 +
-    utilityScore  * 0.10;
+    climateScore  * 0.10;
+
+  if (budgetScore !== null) {
+    rawScore    += budgetScore * 0.15;
+    totalWeight += 0.15;
+  }
+  if (utilityScore !== null) {
+    rawScore    += utilityScore * 0.10;
+    totalWeight += 0.10;
+  }
+
+  // Renormalize to a 0-100 scale
+  rawScore = rawScore / totalWeight;
 
   const score = Math.max(0, Math.min(100, Math.round(rawScore * interactionMultiplier)));
 
@@ -378,7 +411,7 @@ export function computeRoutineFit(
 
   // ── CONFIDENCE ─────────────────────────────────────────────────────────────
   const hasRange  = !!vehicle?.real_world_range_mi;
-  const hasMsrp   = !!vehicle?.msrp_usd;
+  const hasMsrp   = vehicle?.msrp_usd != null && vehicle.msrp_usd > 0;
   const hasSubCat = !!vehicle?.sub_category;
 
   const confidenceLevel: RoutineFitConfidence["level"] =
@@ -410,24 +443,25 @@ export function computeRoutineFit(
     1 - (score / 100) * (1 - 0.3 * interactionPenaltyDepth)
   ));
 
-  // top_risk_dimension: the weakest scoring dimension
-  const dimScores = {
+  // top_risk_dimension: the weakest scoring dimension among present dimensions
+  const dimScores: Record<string, number> = {
     charging: chargingScore,
     range: rangeScore,
     recovery: recoveryScore,
     climate: climateScore,
-    budget: budgetScore,
-    utility: utilityScore,
-  } as const;
+    ...(budgetScore !== null  ? { budget:  budgetScore  } : {}),
+    ...(utilityScore !== null ? { utility: utilityScore } : {}),
+  };
 
   const top_risk_dimension = (Object.keys(dimScores) as Array<keyof typeof dimScores>)
-    .reduce((a, b) => dimScores[a] < dimScores[b] ? a : b);
+    .reduce((a, b) => dimScores[a] < dimScores[b] ? a : b) as RoutineFitScore["top_risk_dimension"];
 
-  // confidence_adjusted_score: penalizes scores when data is missing
+  // confidence_adjusted_score: small nudge for missing data (not a 25% hammer)
+  // The dimension penalties already account for uncertainty — keep multiplier tight.
   const confMultiplier =
     confidenceLevel === "high"   ? 1.0
-    : confidenceLevel === "medium" ? 0.9
-    :                               0.75;
+    : confidenceLevel === "medium" ? 0.95
+    :                               0.88;
   const confidence_adjusted_score = Math.round(score * confMultiplier);
 
   return {
@@ -442,8 +476,8 @@ export function computeRoutineFit(
       range: rangeScore,
       recovery: recoveryScore,
       climate: climateScore,
-      budget: budgetScore,
-      utility: utilityScore,
+      budget: budgetScore ?? undefined,
+      utility: utilityScore ?? undefined,
     },
     failure_probability,
     top_risk_dimension,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Search, AlertCircle, MessageSquare, ChevronDown, ChevronUp, Lightbulb, SlidersHorizontal, Bookmark, BookmarkCheck, Check, LayoutGrid, LayoutList, List, ArrowRight, Zap, ExternalLink } from "lucide-react";
+import { ArrowLeft, Search, AlertCircle, MessageSquare, ChevronDown, ChevronUp, Lightbulb, SlidersHorizontal, Bookmark, BookmarkCheck, Check, LayoutGrid, LayoutList, List, ArrowRight, Zap } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import RecommendationCard from "./RecommendationCard";
 import RecommendationCardGrid from "./RecommendationCardGrid";
@@ -12,7 +12,6 @@ import RefineStep, { type RefinePrefs } from "./RefineStep";
 import VehicleImage from "./VehicleImage";
 import Link from "next/link";
 import { addToAnonGarage } from "@/lib/anon-garage";
-import { getCarGurusUrl } from "@/lib/cargurus-links";
 import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import { DataSourcesBadge } from "@/components/blocks/DataSourcesBadge";
 import DealCard, { type CuratedDeal } from "@/components/deals/DealCard";
@@ -174,22 +173,13 @@ function WatchPickCard({
   rec,
   isSaved,
   onSave,
-  userZipCode,
-  weeklyMiles,
 }: {
   rec: VehicleRecommendation;
   isSaved: boolean;
   onSave: () => void;
-  userZipCode: string | null;
-  weeklyMiles: number;
 }) {
   const fitLabel = scoreToLabel(rec.fit_score);
   const fc = FIT_COLORS[fitLabel] ?? FIT_COLORS["Mixed Fit"];
-  const carGurusUrl = getCarGurusUrl(rec.make, rec.model_short, {
-    year: rec.year,
-    zip: userZipCode ?? undefined,
-    weekly_miles: weeklyMiles,
-  });
 
   return (
     <div className="relative flex flex-col bg-[#161b22] border border-white/[0.08] rounded-xl overflow-hidden hover:border-white/[0.16] transition-all group">
@@ -239,24 +229,6 @@ function WatchPickCard({
           )}
         </div>
 
-        {/* Actions */}
-        <div className="mt-auto flex gap-2 pt-1">
-          <Link
-            href={`/receipt?make=${encodeURIComponent(rec.make)}&model=${encodeURIComponent(rec.model_short)}&year=${rec.year}&src=routine_rec`}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg bg-[#00d97e]/10 hover:bg-[#00d97e]/20 border border-[#00d97e]/20 text-[#00d97e] transition-colors"
-          >
-            Analyze a listing →
-          </Link>
-          <a
-            href={carGurusUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Search on CarGurus"
-            className="flex items-center justify-center w-9 h-9 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/40 hover:text-white/70 rounded-lg transition-colors flex-shrink-0"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-        </div>
       </div>
     </div>
   );
@@ -303,6 +275,7 @@ export default function VehicleRecommendations({
   // Trust & methodology state
   const [dataSources, setDataSources] = useState<DataSources | null>(null);
   const [showMethodology, setShowMethodology] = useState(false);
+
 
   const handleToggleCompare = (model: string) => {
     setCompareSelected((prev) => {
@@ -780,28 +753,122 @@ export default function VehicleRecommendations({
             </div>
           )}
 
+          {/* Dim overlay on cards during recompute */}
+          <div className={isRecomputing ? "opacity-60 pointer-events-none transition-opacity" : "transition-opacity"}>
+
+          {/* Save & Compare CTA — above the fold */}
+          {recommendations.length >= 2 && refinePhase === "browse" && (
+            <div className="flex gap-3 mb-5">
+              <Link
+                href="/saved"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white/[0.07] border border-white/10 text-white/80 rounded-xl text-sm font-semibold hover:bg-white/[0.10] transition-colors"
+              >
+                <Bookmark className="w-4 h-4" />
+                View Saved Results
+              </Link>
+              <Link
+                href="/compare?from=shortlist"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 border border-[#00d97e]/30 text-[#00d97e] rounded-xl text-sm font-semibold hover:bg-[#00d97e]/10 transition-colors"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                Compare →
+              </Link>
+            </div>
+          )}
+
+          {/* Save routine to Garage prompt */}
+          <AnimatePresence>
+            {showSavePrompt && !saveConfirmed && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+                className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 bg-white/[0.05] border border-white/[0.10] rounded-2xl"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white/80">Save this routine to your Garage</p>
+                  <p className="text-xs text-white/50 mt-0.5">Your OFFO extension will use it automatically on CarGurus listings.</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      // Push routine to extension (best-effort)
+                      try {
+                        const extId = process.env.NEXT_PUBLIC_EXTENSION_ID;
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const cr = (window as any).chrome;
+                        if (extId && cr?.runtime?.sendMessage) {
+                          cr.runtime.sendMessage(extId, { type: "save_routine", routine });
+                        }
+                      } catch { /* ignore */ }
+                      try { sessionStorage.setItem("offo_routine_save_prompted", "1"); } catch { /* ignore */ }
+                      setSaveConfirmed(true);
+                      setTimeout(() => setShowSavePrompt(false), 2500);
+                    }}
+                    className="px-3 py-1.5 bg-[#00d97e] text-[#0d1117] rounded-xl text-xs font-semibold hover:bg-[#00f090] transition-colors"
+                  >
+                    {saveConfirmed ? "Saved!" : "Save to Garage"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      try { sessionStorage.setItem("offo_routine_save_prompted", "1"); } catch { /* ignore */ }
+                      setShowSavePrompt(false);
+                    }}
+                    className="text-xs text-white/40 hover:text-white/60 transition-colors"
+                  >
+                    Not now
+                  </button>
+                </div>
+              </motion.div>
+            )}
+            {saveConfirmed && showSavePrompt && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="mb-4 flex items-center gap-2 px-4 py-3 bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-2xl text-sm text-[#00d97e]"
+              >
+                <Check className="w-4 h-4 shrink-0" />
+                Saved! Opens automatically in extension.
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+
+
           {/* Quick-adjust bar */}
           {showAdjustBar && recommendations.length > 0 && (
             <div className="mb-5">
               {/* Collapsed summary line */}
               {!adjustExpanded && (
-                <div className="flex items-center justify-between gap-2 text-xs text-white/50 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2">
-                  <span className="truncate">
-                    Budget: {localRoutine.budget_max ? `$${Math.round(localRoutine.budget_max / 1000)}k` : "Any"}
-                    {" · "}Body: {localRoutine.body_style ?? "Any"}
-                    {" · "}
-                    {localRoutine.weekly_miles
-                      ? `~${Math.round(localRoutine.weekly_miles / 7)} mi/day`
-                      : localRoutine.commute_miles_roundtrip
-                      ? `~${Math.round(localRoutine.commute_miles_roundtrip * 5 / 7)} mi/day`
-                      : "~14 mi/day"}
-                    {" · "}Charging: {chargingLabels[localRoutine.charging_access] ?? localRoutine.charging_access}
-                  </span>
+                <div className="flex items-center justify-between gap-2 text-sm text-white/70 bg-white/[0.06] border border-white/[0.12] rounded-2xl px-4 py-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <SlidersHorizontal className="w-4 h-4 text-[#00d97e] shrink-0" />
+                    <span className="truncate">
+                      Budget: {localRoutine.budget_max ? `$${Math.round(localRoutine.budget_max / 1000)}k` : "Any"}
+                      {" · "}Body: {localRoutine.body_style ?? "Any"}
+                      {" · "}
+                      {localRoutine.weekly_miles
+                        ? `~${Math.round(localRoutine.weekly_miles / 7)} mi/day`
+                        : localRoutine.commute_miles_roundtrip
+                        ? `~${Math.round(localRoutine.commute_miles_roundtrip * 5 / 7)} mi/day`
+                        : "~14 mi/day"}
+                      {" · "}Charging: {chargingLabels[localRoutine.charging_access] ?? localRoutine.charging_access}
+                      {localRoutine.parking_exposure && ` · Parking: ${
+                        localRoutine.parking_exposure === "garage" ? "Garage"
+                        : localRoutine.parking_exposure === "outdoor" ? "Covered"
+                        : "Street"
+                      }`}
+                      {localRoutine.towing_needs && localRoutine.towing_needs !== "none" && " · Towing"}
+                      {localRoutine.passenger_count && localRoutine.passenger_count >= 7 && " · 7+ seats"}
+                    </span>
+                  </div>
                   <button
                     onClick={() => setAdjustExpanded(true)}
-                    className="shrink-0 flex items-center gap-1 text-[#00d97e] font-medium hover:text-[#00f090] transition-colors"
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-[#00d97e] text-[#0d1117] text-xs font-bold rounded-xl hover:bg-[#00f090] transition-colors"
                   >
-                    Adjust <ChevronDown className="w-3 h-3" />
+                    Adjust <ChevronDown className="w-3.5 h-3.5" />
                   </button>
                 </div>
               )}
@@ -922,6 +989,129 @@ export default function VehicleRecommendations({
                       </div>
                     </div>
 
+                    {/* Parking */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Where do you park overnight?</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: "Garage", value: "garage" },
+                          { label: "Covered/outdoor", value: "outdoor" },
+                          { label: "Street", value: "street" },
+                        ].map(({ label, value }) => (
+                          <button
+                            key={value}
+                            onClick={() => setLocalRoutine(r => ({ ...r, parking_exposure: value as "garage" | "outdoor" | "street" }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              localRoutine.parking_exposure === value
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Longest driving day */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Longest driving day you expect?</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: "Under 100 mi", value: 80 },
+                          { label: "100–150 mi", value: 125 },
+                          { label: "150–250 mi", value: 200 },
+                          { label: "250+ mi", value: 280 },
+                        ].map(({ label, value }) => (
+                          <button
+                            key={value}
+                            onClick={() => setLocalRoutine(r => ({ ...r, longest_day_miles: value }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              localRoutine.longest_day_miles === value
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Passengers */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">How many seats do you need?</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: "2–4", value: 4 },
+                          { label: "5", value: 5 },
+                          { label: "7+", value: 7 },
+                        ].map(({ label, value }) => (
+                          <button
+                            key={value}
+                            onClick={() => setLocalRoutine(r => ({ ...r, passenger_count: value }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              localRoutine.passenger_count === value
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Towing */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Do you need towing capacity?</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: "No towing", value: "none" },
+                          { label: "Light (trailer/boat)", value: "light" },
+                          { label: "Heavy (5k+ lbs)", value: "heavy" },
+                        ].map(({ label, value }) => (
+                          <button
+                            key={value}
+                            onClick={() => setLocalRoutine(r => ({ ...r, towing_needs: value as "none" | "light" | "heavy" }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              localRoutine.towing_needs === value
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Home charger type — only when charging_access === "home" */}
+                    {localRoutine.charging_access === "home" && (
+                      <div>
+                        <p className="text-xs font-semibold text-white/60 mb-1.5">Home charger type?</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { label: "Level 2 (240V)", value: "L2" },
+                            { label: "Level 1 (120V)", value: "L1" },
+                            { label: "Not sure", value: "UNKNOWN" },
+                          ].map(({ label, value }) => (
+                            <button
+                              key={value}
+                              onClick={() => setLocalRoutine(r => ({ ...r, home_charging_type: value as "L1" | "L2" | "UNKNOWN" }))}
+                              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                localRoutine.home_charging_type === value
+                                  ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                  : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Actions */}
                     <div className="flex items-center gap-2 pt-1 border-t border-white/[0.08]">
                       <button
@@ -933,6 +1123,10 @@ export default function VehicleRecommendations({
                             body_style: localRoutine.body_style,
                             weekly_miles: localRoutine.weekly_miles,
                             charging_access: localRoutine.charging_access,
+                            parking_exposure: localRoutine.parking_exposure,
+                            longest_day_miles: localRoutine.longest_day_miles,
+                            passenger_count: localRoutine.passenger_count,
+                            towing_needs: localRoutine.towing_needs,
                           });
                         }}
                         disabled={isRecomputing}
@@ -987,88 +1181,6 @@ export default function VehicleRecommendations({
               )}
             </div>
           )}
-
-          {/* Dim overlay on cards during recompute */}
-          <div className={isRecomputing ? "opacity-60 pointer-events-none transition-opacity" : "transition-opacity"}>
-
-          {/* Save & Compare CTA — above the fold */}
-          {recommendations.length >= 2 && refinePhase === "browse" && (
-            <div className="flex gap-3 mb-5">
-              <Link
-                href="/saved"
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-white/[0.07] border border-white/10 text-white/80 rounded-xl text-sm font-semibold hover:bg-white/[0.10] transition-colors"
-              >
-                <Bookmark className="w-4 h-4" />
-                View Saved Results
-              </Link>
-              <Link
-                href="/compare?from=shortlist"
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 border border-[#00d97e]/30 text-[#00d97e] rounded-xl text-sm font-semibold hover:bg-[#00d97e]/10 transition-colors"
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-                Compare →
-              </Link>
-            </div>
-          )}
-
-          {/* Save routine to Garage prompt */}
-          <AnimatePresence>
-            {showSavePrompt && !saveConfirmed && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
-                className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 bg-white/[0.05] border border-white/[0.10] rounded-2xl"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white/80">Save this routine to your Garage</p>
-                  <p className="text-xs text-white/50 mt-0.5">Your OFFO extension will use it automatically on CarGurus listings.</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => {
-                      // Push routine to extension (best-effort)
-                      try {
-                        const extId = process.env.NEXT_PUBLIC_EXTENSION_ID;
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const cr = (window as any).chrome;
-                        if (extId && cr?.runtime?.sendMessage) {
-                          cr.runtime.sendMessage(extId, { type: "save_routine", routine });
-                        }
-                      } catch { /* ignore */ }
-                      try { sessionStorage.setItem("offo_routine_save_prompted", "1"); } catch { /* ignore */ }
-                      setSaveConfirmed(true);
-                      setTimeout(() => setShowSavePrompt(false), 2500);
-                    }}
-                    className="px-3 py-1.5 bg-[#00d97e] text-[#0d1117] rounded-xl text-xs font-semibold hover:bg-[#00f090] transition-colors"
-                  >
-                    {saveConfirmed ? "Saved!" : "Save to Garage"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      try { sessionStorage.setItem("offo_routine_save_prompted", "1"); } catch { /* ignore */ }
-                      setShowSavePrompt(false);
-                    }}
-                    className="text-xs text-white/40 hover:text-white/60 transition-colors"
-                  >
-                    Not now
-                  </button>
-                </div>
-              </motion.div>
-            )}
-            {saveConfirmed && showSavePrompt && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="mb-4 flex items-center gap-2 px-4 py-3 bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-2xl text-sm text-[#00d97e]"
-              >
-                <Check className="w-4 h-4 shrink-0" />
-                Saved! Opens automatically in extension.
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* RefineStep panel */}
           {refinePhase === "refine" && (
@@ -1348,8 +1460,6 @@ export default function VehicleRecommendations({
                     rec={rec}
                     isSaved={savedIds.has(`${rec.year}-${rec.model}`)}
                     onSave={() => handleAddToGarage(rec)}
-                    userZipCode={userZipCode}
-                    weeklyMiles={weeklyMiles}
                   />
                 ))}
               </div>
@@ -1421,6 +1531,22 @@ export default function VehicleRecommendations({
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {refinePhase === "browse" && recommendations.length === 0 && (
+            <div className="text-center py-12 px-4">
+              <div className="w-12 h-12 rounded-full bg-white/[0.06] border border-white/[0.10] flex items-center justify-center mx-auto mb-4">
+                <Search className="w-5 h-5 text-white/30" />
+              </div>
+              <p className="text-white/70 font-medium mb-1">No deals in Deal Watch match your routine right now.</p>
+              <p className="text-white/40 text-sm mb-5">Check back soon — new listings are added daily.</p>
+              <Link
+                href="/deals"
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#00d97e]/10 border border-[#00d97e]/20 text-[#00d97e] text-sm font-semibold rounded-xl hover:bg-[#00d97e]/20 transition-colors"
+              >
+                Browse all deals →
+              </Link>
             </div>
           )}
 
