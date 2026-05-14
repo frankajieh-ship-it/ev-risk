@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, RefreshCw, Zap } from "lucide-react";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
@@ -32,17 +33,26 @@ const SORT_OPTIONS: { label: string; value: SortOption }[] = [
 ];
 
 export default function DealsPage() {
+  const searchParams = useSearchParams();
   const [deals, setDeals] = useState<CuratedDeal[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Filters
-  const [make, setMake] = useState("All Makes");
+  // Filters — initialise from URL params so Reddit deep links pre-filter the grid
+  const paramMake = searchParams.get("make");
+  const paramState = searchParams.get("state") || searchParams.get("location");
+  const [make, setMake] = useState(() => {
+    if (!paramMake) return "All Makes";
+    return MAKES.find((m) => m.toLowerCase() === paramMake.toLowerCase()) ?? "All Makes";
+  });
   const [priceMax, setPriceMax] = useState<number | null>(null);
   const [mileageMax, setMileageMax] = useState<number | null>(null);
-  const [locationState, setLocationState] = useState("Any State");
+  const [locationState, setLocationState] = useState(() => {
+    if (!paramState) return "Any State";
+    return US_STATES.find((s) => s.toLowerCase() === paramState.toLowerCase()) ?? "Any State";
+  });
   const [sort, setSort] = useState<SortOption>("price_asc");
 
   const fetchDeals = useCallback(async (p = 1) => {
@@ -84,7 +94,11 @@ export default function DealsPage() {
             <span className="text-xs font-semibold uppercase tracking-widest text-[#00d97e]">Deal Watch</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
-            Today&apos;s Best EV Deals
+            {make !== "All Makes"
+              ? `${make} EV Deals`
+              : locationState !== "Any State"
+                ? `EV Deals in ${locationState}`
+                : "Today's Best EV Deals"}
           </h1>
           <p className="text-white/50 text-base max-w-xl">
             EV listings sorted by price. Run a free analysis on any deal to see battery health, risk flags, and whether it&apos;s worth it.
@@ -95,6 +109,17 @@ export default function DealsPage() {
             )}
             {total > 0 && <span className="text-white/15 text-sm">·</span>}
             <span className="text-white/25 text-xs">Updated every 24 hours — some listings may have sold</span>
+            {(make !== "All Makes" || locationState !== "Any State") && (
+              <>
+                <span className="text-white/15 text-sm">·</span>
+                <button
+                  onClick={() => { setMake("All Makes"); setLocationState("Any State"); }}
+                  className="text-xs text-[#00d97e]/70 hover:text-[#00d97e] transition-colors underline underline-offset-2"
+                >
+                  Clear filters
+                </button>
+              </>
+            )}
           </div>
         </div>
 

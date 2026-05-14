@@ -34,16 +34,27 @@ from models import EVRoutineInviteDecision, TechSupportFlag
 # -------------------------
 
 TOOL_URLS = {
-    "routine":   "https://offolab.com/routine",
-    "receipt":   "https://offolab.com/receipt",
-    "compare":   "https://offolab.com/compare",
-    "dealer_qa": "https://offolab.com/receipt",  # dealer Q&A is part of the receipt flow
-    "dealer":    "https://offolab.com/workspace",
+    "routine":   "https://offolab.com/routine?utm_source=reddit&utm_medium=community&utm_campaign=routine_invite",
+    "receipt":   "https://offolab.com/receipt?utm_source=reddit&utm_medium=community&utm_campaign=receipt_invite",
+    "compare":   "https://offolab.com/compare?utm_source=reddit&utm_medium=community&utm_campaign=compare_invite",
+    "dealer_qa": "https://offolab.com/receipt?utm_source=reddit&utm_medium=community&utm_campaign=receipt_invite",
+    "dealer":    "https://offolab.com/workspace?utm_source=reddit&utm_medium=community&utm_campaign=dealer_invite",
+}
+
+# Base URLs without UTM — used for building vehicle-specific deep links (UTM appended after params)
+_BASE_URLS = {
+    "routine": "https://offolab.com/routine",
+    "receipt": "https://offolab.com/receipt",
+    "compare": "https://offolab.com/compare",
 }
 
 
+_UTM_RECEIPT = "utm_source=reddit&utm_medium=community&utm_campaign=receipt_invite"
+_UTM_COMPARE = "utm_source=reddit&utm_medium=community&utm_campaign=compare_invite"
+
+
 def _build_receipt_url(detected_vehicle: Optional[dict]) -> str:
-    """Build a pre-populated receipt URL from detected vehicle data."""
+    """Build a pre-populated receipt URL from detected vehicle data, with UTM tracking."""
     if not detected_vehicle:
         return TOOL_URLS["receipt"]
     import urllib.parse
@@ -60,11 +71,11 @@ def _build_receipt_url(detected_vehicle: Optional[dict]) -> str:
         params["mileage"] = str(detected_vehicle["mileage_mentioned"])
     if not params:
         return TOOL_URLS["receipt"]
-    return f"{TOOL_URLS['receipt']}?{urllib.parse.urlencode(params)}"
+    return f"{_BASE_URLS['receipt']}?{urllib.parse.urlencode(params)}&{_UTM_RECEIPT}"
 
 
 def _build_compare_url(detected_vehicle: Optional[dict]) -> str:
-    """Build a pre-populated compare URL from detected vehicle data (first vehicle)."""
+    """Build a pre-populated compare URL from detected vehicle data (first vehicle), with UTM tracking."""
     if not detected_vehicle:
         return TOOL_URLS["compare"]
     import urllib.parse
@@ -77,7 +88,7 @@ def _build_compare_url(detected_vehicle: Optional[dict]) -> str:
         params["mo1"] = detected_vehicle["model"]
     if not params:
         return TOOL_URLS["compare"]
-    return f"{TOOL_URLS['compare']}?{urllib.parse.urlencode(params)}"
+    return f"{_BASE_URLS['compare']}?{urllib.parse.urlencode(params)}&{_UTM_COMPARE}"
 
 # -------------------------
 # Invite text per tool

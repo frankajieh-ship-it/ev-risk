@@ -85,6 +85,51 @@ function consumeActiveReceipt(): string | null {
 // --- On-demand Receipt Details wrapper ---
 // Renders a "Generate Details" trigger; when ready, hands off to ReceiptDetailsAccordion.
 
+// Live example deals strip — shown on empty state so users see the product before pasting
+function LiveExampleDeals({ onSelect }: { onSelect: (url: string) => void }) {
+  const [deals, setDeals] = useState<import("@/components/deals/DealCard").CuratedDeal[]>([]);
+
+  useEffect(() => {
+    fetch("/api/deals?sort=mileage&per_page=3&mileage_max=40000")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.deals?.length) setDeals(d.deals); })
+      .catch(() => {});
+  }, []);
+
+  if (!deals.length) return null;
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 pb-2">
+      <div className="rounded-2xl border border-[#00d97e]/20 bg-[#00d97e]/[0.03] p-5">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[#00d97e] mb-1">See it in action</p>
+        <p className="text-sm text-white/50 mb-4">Click any listing below to run a live analysis — no sign-up needed.</p>
+        <div className="space-y-2">
+          {deals.map((deal) => (
+            <button
+              key={deal.id}
+              onClick={() => onSelect(deal.listing_url)}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[#161b22] border border-white/[0.08] hover:border-[#00d97e]/30 hover:bg-[#00d97e]/[0.04] transition-all text-left group"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white truncate">{deal.vehicle_label}</p>
+                <p className="text-xs text-white/40 mt-0.5">
+                  {deal.price ? `$${deal.price.toLocaleString()}` : ""}
+                  {deal.price && deal.mileage ? " · " : ""}
+                  {deal.mileage ? `${deal.mileage.toLocaleString()} mi` : ""}
+                </p>
+              </div>
+              <span className="shrink-0 text-xs font-bold text-[#00d97e] bg-[#00d97e]/10 px-2 py-0.5 rounded-full group-hover:bg-[#00d97e]/20 transition-colors">
+                Analyze →
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function ReceiptDetailsOnDemand({
   receiptId,
   operatorNotes,
@@ -1228,11 +1273,10 @@ export default function ReceiptPage() {
       {/* Marketing sections — visible before first receipt */}
       {!receipt && (
         <>
+          <LiveExampleDeals onSelect={(url) => setPrefillUrl(url)} />
           <HowItWorksSection dark />
           <ExampleAnalysisSection />
           <UniqueAdvantageSection />
-          {/* One-time purchase section removed per user request */}
-          {/* <PricingSection /> */}
         </>
       )}
 
