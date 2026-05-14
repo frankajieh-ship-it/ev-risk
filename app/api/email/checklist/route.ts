@@ -290,20 +290,20 @@ export async function POST(req: NextRequest) {
       const normalizedEmail = email.trim().toLowerCase();
       const vehicle = [summary.year, summary.make, summary.model].filter(Boolean).join(" ");
 
-      supabase.from("email_sequences").insert({
+      void supabase.from("email_sequences").insert({
         email: normalizedEmail,
         anon_id: anon_id || null,
         trigger_event: "receipt_generated",
         trigger_id: receipt_id,
         metadata: { vehicle, verdict: receiptData.verdict },
-      }).catch(() => {});
+      });
 
-      supabase.from("checklist_email_captures").upsert({
+      void supabase.from("checklist_email_captures").upsert({
         email: normalizedEmail,
         anon_id: anon_id || null,
         funnel_stage: "receipt_generated",
         page_source: "/receipt",
-      }, { onConflict: "email", ignoreDuplicates: false }).catch(() => {});
+      }, { onConflict: "email", ignoreDuplicates: false });
     }
 
     return NextResponse.json({
