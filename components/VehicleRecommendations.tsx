@@ -92,7 +92,7 @@ function computeTieScore(
   return (
     d.range    * w.range    +
     d.charging * w.charging +
-    d.budget   * w.budget   +
+    (d.budget ?? 0) * w.budget   +
     d.recovery * w.recovery +
     d.utility  * w.utility
   );
