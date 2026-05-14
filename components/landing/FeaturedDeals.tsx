@@ -10,7 +10,7 @@ export default function FeaturedDeals() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/deals?sort=mileage_asc&per_page=10&page=1")
+    fetch("/api/deals?sort=mileage&per_page=10&page=1")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data?.deals?.length) setDeals(data.deals);
