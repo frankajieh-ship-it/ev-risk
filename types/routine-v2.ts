@@ -149,6 +149,7 @@ export interface RoutineProfile {
   vehicle_year?: number;
   vehicle_make?: string;
   vehicle_model?: string;
+  vehicle_range_mi?: number;
 
   // Routine pattern (MVR fields)
   weekly_miles?: number;
