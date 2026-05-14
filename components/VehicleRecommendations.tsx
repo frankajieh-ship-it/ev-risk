@@ -94,7 +94,7 @@ function computeTieScore(
     d.charging * w.charging +
     (d.budget ?? 0) * w.budget   +
     d.recovery * w.recovery +
-    d.utility  * w.utility
+    (d.utility ?? 0) * w.utility
   );
 }
 
