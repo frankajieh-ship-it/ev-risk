@@ -197,7 +197,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { email?: unknown; receipt_id?: unknown; anon_id?: unknown };
+  let body: { email?: string; receipt_id?: string; anon_id?: string };
   try {
     body = await req.json();
   } catch {
