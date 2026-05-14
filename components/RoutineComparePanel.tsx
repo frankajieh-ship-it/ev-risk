@@ -58,8 +58,8 @@ function getBestForNote(rec: VehicleRecommendation, routine: MinimumViableRoutin
   if (dims.range >= 85) return `Best range buffer for your ${chargingLabel} setup`;
   if (dims.charging >= 85) return `Lowest charging friction for ${chargingLabel}`;
   if (dims.climate >= 85 && routine.climate === "winter") return "Strong cold-weather range performance";
-  if (dims.budget >= 85 && routine.budget_max) return "Best value within your budget";
-  if (dims.utility >= 85 && routine.towing_needs) return "Handles your towing and utility needs";
+  if ((dims.budget ?? 0) >= 85 && routine.budget_max) return "Best value within your budget";
+  if ((dims.utility ?? 0) >= 85 && routine.towing_needs) return "Handles your towing and utility needs";
   return `${rec.fit_label} across charging, range, and climate`;
 }
 
