@@ -665,10 +665,10 @@ export default function Home() {
           <p className="text-sm text-white/40 text-center mb-8">Real posts. Real decisions. No made-up names.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { subreddit: "r/whatcarshouldIbuy", title: "This 2022 Ford Mustang Mach‑E was listed as a 'Great Deal' at $24,255 — here's what the OFFO receipt actually showed", views: "8,372", tag: "Used-EV receipt", photo: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/2021_Ford_Mustang_Mach-E%2C_front_8.28.21.jpg/320px-2021_Ford_Mustang_Mach-E%2C_front_8.28.21.jpg" },
-              { subreddit: "r/electriccars", title: "Dealer called this 2013 Tesla Model S a 'Good Deal' at $12,995… here's what the full OFFO receipt actually showed", views: "5,759", tag: "Salvage deal check", photo: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/2019_Tesla_Model_S_facelift%2C_front_8.28.21.jpg/320px-2019_Tesla_Model_S_facelift%2C_front_8.28.21.jpg" },
-              { subreddit: "r/EVRoutine", title: "Just moved and thinking about an EV without home charging? Here's what actually ends up mattering.", views: "108,023", tag: "Routine Fit check", photo: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/2018_Nissan_Leaf_front.jpg/320px-2018_Nissan_Leaf_front.jpg" },
-              { subreddit: "r/EVRoutine", title: "Apartment dweller with no home charging, tows a small boat weekly, $25–40k budget — here's what EVRoutine recommends", views: "7,575", tag: "Routine Fit check", photo: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/2022_Chevrolet_Bolt_EV%2C_front_8.3.22.jpg/320px-2022_Chevrolet_Bolt_EV%2C_front_8.3.22.jpg" },
+              { subreddit: "r/whatcarshouldIbuy", title: "This 2022 Ford Mustang Mach‑E was listed as a 'Great Deal' at $24,255 — here's what the OFFO receipt actually showed", views: "8,372", tag: "Used-EV receipt", photo: "/car-mustang-mache.webp" },
+              { subreddit: "r/electriccars", title: "Dealer called this 2013 Tesla Model S a 'Good Deal' at $12,995… here's what the full OFFO receipt actually showed", views: "5,759", tag: "Salvage deal check", photo: "/car-tesla-model3.webp" },
+              { subreddit: "r/EVRoutine", title: "Just moved and thinking about an EV without home charging? Here's what actually ends up mattering.", views: "108,023", tag: "Routine Fit check", photo: "/car-nissan-leaf.webp" },
+              { subreddit: "r/EVRoutine", title: "Apartment dweller with no home charging, tows a small boat weekly, $25–40k budget — here's what EVRoutine recommends", views: "7,575", tag: "Routine Fit check", photo: "/car-bolt-ev.webp" },
             ].map(({ subreddit, title, views, tag, photo }) => (
               <div key={title} className="overflow-hidden flex flex-col rounded-xl border border-white/10 bg-white/5">
                 <div className="h-36 overflow-hidden bg-white/5">
