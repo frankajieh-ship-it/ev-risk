@@ -52,6 +52,7 @@ export default function AdminDealsPage() {
   const [adminKey, setAdminKey] = useState("");
   const authHeader = adminKey ? `Bearer ${adminKey}` : "";
   const [extracting, setExtracting] = useState(false);
+  const [syncingPhotos, setSyncingPhotos] = useState(false);
   const extractPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
   const [rescopeDate, setRescopeDate] = useState(todayStr);
@@ -141,6 +142,29 @@ export default function AdminDealsPage() {
       }
     } catch {
       setImportStatus("✗ Backfill failed");
+    }
+  };
+
+  const handleSyncLocalPhotos = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    setSyncingPhotos(true);
+    setImportStatus("Syncing local CSV photos...");
+    try {
+      const res = await fetch("/api/admin/deals-sync-local-photos", {
+        method: "POST",
+        headers: { Authorization: authHeader },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setImportStatus(`✓ Synced photos: ${data.updated} updated, ${data.skipped} skipped (${data.total} total)`);
+        fetchDeals();
+      } else {
+        setImportStatus(`✗ ${data.error}`);
+      }
+    } catch {
+      setImportStatus("✗ Sync failed");
+    } finally {
+      setSyncingPhotos(false);
     }
   };
 
@@ -380,6 +404,10 @@ export default function AdminDealsPage() {
             <button onClick={handleCheckSold} disabled={extracting}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${extracting ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-red-400 border-white/[0.08]"}`}>
               Check Sold
+            </button>
+            <button onClick={handleSyncLocalPhotos} disabled={syncingPhotos}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${syncingPhotos ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}>
+              {syncingPhotos ? "Syncing..." : "Sync Photos"}
             </button>
             <button onClick={handleBackfillPhotos}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#00d97e] border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
