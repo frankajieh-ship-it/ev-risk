@@ -16,6 +16,26 @@ import { createHash } from "crypto";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+type ListingSummary = {
+  year?: string | number;
+  make?: string;
+  model?: string;
+  trim?: string;
+  price?: string | number;
+  mileage?: string | number;
+  seller_type?: string;
+};
+
+type ReceiptData = {
+  listing_summary?: ListingSummary;
+  verdict?: string;
+  verdict_reason?: string;
+  risk_flags?: string[];
+  must_answer_questions?: string[];
+  inspect_first?: string[];
+  negotiation_opener?: string;
+};
+
 // In-memory rate limiters (per instance)
 const ipLimiter = new Map<string, { count: number; resetAt: number }>();
 const anonLimiter = new Map<string, { count: number; resetAt: number }>();
@@ -68,8 +88,8 @@ function getVerdictLabel(verdict: string): string {
   }
 }
 
-function buildChecklistHtml(receipt: Record<string, unknown>): string {
-  const summary = receipt.listing_summary || {};
+function buildChecklistHtml(receipt: ReceiptData): string {
+  const summary: ListingSummary = receipt.listing_summary ?? {};
   const vehicle = [summary.year, summary.make, summary.model, summary.trim].filter(Boolean).join(" ");
   const verdictColor = getVerdictColor(receipt.verdict);
   const verdictLabel = getVerdictLabel(receipt.verdict);
@@ -214,7 +234,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // Fetch receipt data from DB
-    let receiptData: Record<string, unknown> | null = null;
+    let receiptData: ReceiptData | null = null;
 
     if (isSupabaseConfigured()) {
       const { data } = await supabase
