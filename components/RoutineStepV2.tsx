@@ -88,6 +88,11 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
   const [vehicleProfiles, setVehicleProfiles] = useState<VehicleProfile[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const [vehiclesLoading, setVehiclesLoading] = useState(true);
+  const [showManualVehicle, setShowManualVehicle] = useState(false);
+  const [manualMake, setManualMake] = useState("");
+  const [manualModel, setManualModel] = useState("");
+  const [manualYear, setManualYear] = useState("");
+  const [manualRange, setManualRange] = useState("");
 
   // Derive charging_access for MVR backward compat
   const chargingAccess: MinimumViableRoutine["charging_access"] | null =
@@ -293,6 +298,7 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
     }
 
     const selectedVehicle = vehicleProfiles.find((v) => v.id === selectedVehicleId);
+    const usingManual = showManualVehicle && !selectedVehicleId && manualMake && manualModel;
 
     // Track routine check started (when user submits the form)
     trackEvent("routine_check_started", {
@@ -320,9 +326,10 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
       climate_auto_detected: climateAutoDetected,
       home_charging: chargingAccess!,
       vehicle_profile_id: selectedVehicleId || undefined,
-      vehicle_year: selectedVehicle?.year,
-      vehicle_make: selectedVehicle?.make,
-      vehicle_model: selectedVehicle?.model,
+      vehicle_year: usingManual ? (manualYear ? Number(manualYear) : undefined) : selectedVehicle?.year,
+      vehicle_make: usingManual ? manualMake : selectedVehicle?.make,
+      vehicle_model: usingManual ? manualModel : selectedVehicle?.model,
+      vehicle_range_mi: usingManual && manualRange ? Number(manualRange) : undefined,
       weekly_miles: milesMode === "weekly" && weeklyMiles ? Number(weeklyMiles) : undefined,
       commute_miles_roundtrip: milesMode === "commute" && commuteMiles ? Number(commuteMiles) : undefined,
       longest_day_pattern: longestDay ?? "monthly_trip",
@@ -726,24 +733,94 @@ export default function RoutineStepV2({ onComplete }: RoutineStepV2Props) {
                 <div className="form-input text-white/30 bg-[#161b22] border-white/[0.10]">
                   Loading vehicles...
                 </div>
-              ) : vehicleProfiles.length > 0 ? (
-                <select
-                  value={selectedVehicleId}
-                  onChange={(e) => {
-                    setSelectedVehicleId(e.target.value);
-                    if (e.target.value) trackField("vehicle");
-                  }}
-                  className="form-input text-white bg-[#161b22] border-white/[0.10]"
-                >
-                  <option value="">Select your EV (optional)</option>
-                  {vehicleProfiles.map((vp) => (
-                    <option key={vp.id} value={vp.id}>
-                      {vp.year} {vp.make} {vp.model}{vp.trim ? ` ${vp.trim}` : ""}
-                    </option>
-                  ))}
-                </select>
+              ) : !showManualVehicle ? (
+                <>
+                  {vehicleProfiles.length > 0 ? (
+                    <select
+                      value={selectedVehicleId}
+                      onChange={(e) => {
+                        setSelectedVehicleId(e.target.value);
+                        if (e.target.value) trackField("vehicle");
+                      }}
+                      className="form-input text-white bg-[#161b22] border-white/[0.10]"
+                    >
+                      <option value="">Select your EV (optional)</option>
+                      {/* Group by make */}
+                      {Array.from(new Set(vehicleProfiles.map((v) => v.make)))
+                        .sort()
+                        .map((make) => (
+                          <optgroup key={make} label={make}>
+                            {vehicleProfiles
+                              .filter((v) => v.make === make)
+                              .sort((a, b) => b.year - a.year)
+                              .map((vp) => (
+                                <option key={vp.id} value={vp.id}>
+                                  {vp.year} {vp.make} {vp.model}
+                                  {vp.trim ? ` ${vp.trim}` : ""}
+                                  {vp.usable_range_mi_estimate ? ` (${vp.usable_range_mi_estimate} mi)` : ""}
+                                </option>
+                              ))}
+                          </optgroup>
+                        ))}
+                    </select>
+                  ) : (
+                    <p className="text-sm text-white/30">No vehicle profiles available yet.</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedVehicleId(""); setShowManualVehicle(true); }}
+                    className="text-xs text-white/40 hover:text-white/70 mt-2 underline underline-offset-2 transition-colors"
+                  >
+                    Don&apos;t see your vehicle? Enter it manually
+                  </button>
+                </>
               ) : (
-                <p className="text-sm text-white/30">No vehicle profiles available yet.</p>
+                /* Manual vehicle entry */
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Make (e.g. Hyundai)"
+                      value={manualMake}
+                      onChange={(e) => setManualMake(e.target.value)}
+                      className="form-input text-white bg-[#161b22] border-white/[0.10] text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Model (e.g. Kona Electric)"
+                      value={manualModel}
+                      onChange={(e) => setManualModel(e.target.value)}
+                      className="form-input text-white bg-[#161b22] border-white/[0.10] text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      placeholder="Year (e.g. 2022)"
+                      value={manualYear}
+                      onChange={(e) => setManualYear(e.target.value)}
+                      className="form-input text-white bg-[#161b22] border-white/[0.10] text-sm"
+                      min={2010}
+                      max={2026}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Est. range in miles"
+                      value={manualRange}
+                      onChange={(e) => setManualRange(e.target.value)}
+                      className="form-input text-white bg-[#161b22] border-white/[0.10] text-sm"
+                      min={50}
+                      max={600}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setShowManualVehicle(false); setManualMake(""); setManualModel(""); setManualYear(""); setManualRange(""); }}
+                    className="text-xs text-white/40 hover:text-white/70 underline underline-offset-2 transition-colors"
+                  >
+                    Back to vehicle list
+                  </button>
+                </div>
               )}
               <p className="text-xs text-white/30 mt-2">
                 Selecting your EV improves range and charging speed estimates.

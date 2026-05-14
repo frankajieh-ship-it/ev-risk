@@ -155,8 +155,8 @@ export interface RoutineFitScore {
     range: number;
     recovery: number;
     climate: number;
-    budget: number;
-    utility: number;
+    budget?: number;
+    utility?: number;
   };
   /** 0.0–1.0 probability that the routine fails (runs out of charge, can't recover) */
   failure_probability: number;

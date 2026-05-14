@@ -24,9 +24,49 @@ export interface BlogPost {
   readTime: string;
   datePublished: string;   // ISO 8601 date, e.g. "2026-04-01"
   dateModified?: string;   // defaults to datePublished if omitted
+  audioUrl?: string;       // if present, this is a podcast episode
+  duration?: string;       // e.g. "22 min"
 }
 
 export const BLOG_POSTS: BlogPost[] = [
+  {
+    slug: "ev-vin-report-guide",
+    badge: "Buyer's Guide",
+    badgeColor: "bg-blue-500/20 text-blue-300",
+    title: "EV VIN Report: What It Shows, What It Misses, and the Free Tool That Does It Better",
+    description:
+      "A standard VIN report doesn't show battery degradation, DC fast charge capability, or EV-specific recalls. Here's what an EV VIN report should cover — and the free tool that does it.",
+    excerpt:
+      "Carfax and AutoCheck miss battery degradation, DCFC speed, chemistry type, and EV-specific recalls. Here's what a real EV VIN report should include.",
+    readTime: "8 min read",
+    datePublished: "2026-05-09",
+  },
+  {
+    slug: "cheapest-evs-you-can-buy",
+    badge: "Buyer's Guide",
+    badgeColor: "bg-green-500/20 text-green-300",
+    title: "Cheapest EVs You Can Buy in 2026 (Under $15K, Real-World Tested)",
+    description:
+      "The honest guide to cheap EVs under $15K in 2026 — Chevy Bolt, Nissan Leaf, VW e-Golf, and Kia Soul EV. Which ones are real deals and which are money pits.",
+    excerpt:
+      "Sub-$15K used EVs are real now. But not all cheap EVs are good deals — some have fire-risk recalls, fading charging networks, or range too low for real life. Here's the honest breakdown.",
+    readTime: "7 min read",
+    datePublished: "2026-05-09",
+  },
+  {
+    slug: "navigating-used-ev-market",
+    badge: "Podcast",
+    badgeColor: "bg-purple-500/20 text-purple-300",
+    title: "Navigating the Used EV Market: Inventory Lows & Charging Challenges",
+    description:
+      "A discussion on low used EV inventory, what's driving it, and how to find deals without getting burned on charging infrastructure or battery health.",
+    excerpt:
+      "Inventory is tight, prices are still elevated, and charging anxiety is real. Here's how to navigate the used EV market right now — without overpaying or buying a lemon.",
+    readTime: "22 min listen",
+    datePublished: "2026-05-09",
+    audioUrl: "/podcasts/navigating-used-ev-market.mp3",
+    duration: "22 min",
+  },
   {
     slug: "used-model-y-buyer-checklist",
     badge: "Buyer's Checklist",

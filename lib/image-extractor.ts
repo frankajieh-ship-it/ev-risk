@@ -2,13 +2,15 @@
  * OFFO Image Extractor
  *
  * Unified vehicle image pipeline with Supabase caching, quality scoring,
- * and a 4-tier extraction chain:
- *   Tier 1: VinAudit by VIN      (quality 95) — exact vehicle match
- *   Tier 2: VinAudit by YMM      (quality 80) — model stock photos
+ * and a 5-tier extraction chain:
+ *   Tier 0: OFFO local CSV DB     (quality 100) — your own curated photos
+ *   Tier 1: VinAudit by VIN      (quality 95)  — exact vehicle match
+ *   Tier 2: VinAudit by YMM      (quality 80)  — model stock photos
  *   Tier 3: Listing scrape        (quality 50-70) — actual listing photos
- *   Tier 4: Wikimedia static map  (quality 70) — curated fallback
+ *   Tier 4: Wikimedia static map  (quality 70)  — curated fallback
  *
  * Cache TTLs:
+ *   Local CSV:    no cache (reads file, hot-reloads on CSV change)
  *   VIN-keyed:    90 days  (exact vehicle, photos don't change)
  *   YMM-keyed:    30 days  (model photos are stable)
  *   Scrape-sourced: 7 days (listing photos expire when listing sells)
@@ -18,12 +20,14 @@
 import { getVehicleImages } from "@/lib/vinaudit-client";
 import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { lookupLocalImages } from "@/lib/vehicle-image-db";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export type ImageSource =
+  | "offo_local"
   | "vinaudit_vin"
   | "vinaudit_ymm"
   | "listing_scrape"
@@ -98,7 +102,8 @@ async function cacheGet(params: ImageExtractParams): Promise<ExtractedImages | n
 async function cacheSet(params: ImageExtractParams, result: Omit<ExtractedImages, "cache_hit">): Promise<void> {
   if (!isSupabaseConfigured() || result.urls.length === 0) return;
 
-  const ttlDays = result.source === "vinaudit_vin" ? 90
+  const ttlDays = result.source === "offo_local" ? 1   // short TTL: re-reads CSV daily so edits propagate
+    : result.source === "vinaudit_vin" ? 90
     : result.source === "wikimedia" ? 60
     : result.source === "listing_scrape" ? 7
     : 30;
@@ -220,6 +225,7 @@ export function extractPhotosFromHtml(html: string, limit = 8): string[] {
 // ---------------------------------------------------------------------------
 
 function scoreResult(source: ImageSource, urls: string[], trim?: string, trimMatched?: boolean): number {
+  if (source === "offo_local") return 100;
   if (source === "vinaudit_vin") return 95;
   if (source === "vinaudit_ymm") return trimMatched ? 85 : 80;
   if (source === "wikimedia") return 70;
@@ -242,6 +248,23 @@ export async function extractVehicleImages(params: ImageExtractParams): Promise<
   // --- Cache check ---
   const cached = await cacheGet(params);
   if (cached) return cached;
+
+  // --- Tier 0: OFFO local CSV image database ---
+  // Your own curated photos — edit data/vehicle-images.csv to add entries.
+  // Local /vehicles/ paths are served from public/vehicles/.
+  // This tier is NOT cached (file is hot-reloaded when CSV changes).
+  const localResult = lookupLocalImages(params.make, params.model, params.year);
+  if (localResult.matched && localResult.urls.length > 0) {
+    const out: Omit<ExtractedImages, "cache_hit"> = {
+      urls: localResult.urls,
+      primary_url: localResult.urls[0],
+      source: "offo_local",
+      quality_score: 100,
+      extraction_ms: Date.now() - start,
+    };
+    cacheSet(params, out);
+    return { ...out, cache_hit: false };
+  }
 
   // --- Tier 1: VinAudit by VIN ---
   if (params.vin) {

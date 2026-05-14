@@ -2,6 +2,13 @@
 
 import Link from "next/link";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
+import RelatedPosts from "@/components/RelatedPosts";
+
+const RELATED_POSTS = [
+  { slug: "cheapest-evs-you-can-buy", title: "Cheapest EVs You Can Buy in 2026 (Under $15K, Real-World Tested)", badge: "Buyer's Guide", badgeColor: "bg-green-500/20 text-green-300", excerpt: "Chevy Bolt, Nissan Leaf, VW e-Golf — the honest breakdown of which cheap EVs are actually worth it." },
+  { slug: "used-ev-buying-checklist", title: "Used EV Buying Checklist: 10 Things to Check Before You Buy", badge: "Checklist", badgeColor: "bg-amber-500/20 text-amber-300", excerpt: "The complete pre-purchase checklist for used EV buyers." },
+  { slug: "apartment-ev-ownership", title: "Can You Own an EV Without a Garage? A Realistic Guide", badge: "Guide", badgeColor: "bg-indigo-500/20 text-indigo-300", excerpt: "How apartment dwellers are making EV ownership work — and the vehicles that make it easiest." },
+];
 
 export default function BestBudgetEvs2025() {
   useVisitorTracking();
@@ -109,6 +116,10 @@ export default function BestBudgetEvs2025() {
           </div>
         </div>
       </article>
+
+      <div className="max-w-3xl mx-auto px-4 pb-12 bg-[#0d1117]">
+        <RelatedPosts posts={RELATED_POSTS} />
+      </div>
     </div>
   );
 }

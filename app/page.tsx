@@ -342,7 +342,7 @@ export default function Home() {
     { q: "Can I charge an EV at an apartment without a garage?", a: "Yes — many apartment dwellers rely on Level 2 public chargers or workplace charging. OFFO's routine fit check accounts for your charging access and flags if a given vehicle's range makes apartment charging viable for your daily pattern." },
     { q: "Can I drive long distances with an EV?", a: "Absolutely. Most modern EVs have 250–350 mi EPA range. OFFO maps your longest single-day drive against the vehicle's real-world range (accounting for climate and highway speed) and tells you if you'll need a mid-trip charge stop." },
     { q: "What are the benefits of buying a used EV?", a: "Used EVs often cost 30–50% less than new, still qualify for up to $4,000 federal used-EV tax credits, and have fewer mechanical parts to fail. OFFO helps you avoid the pitfalls — high-degradation batteries, open recalls, and overpriced salvage vehicles." },
-    { q: "What does OFFO's OFFO Score actually mean?", a: "The OFFO Score is a 0–100 composite of routine fit (does this vehicle work for your daily life?), value assessment (is the price fair for the condition?), and risk flags (recalls, battery health, title issues). Higher is better — 80+ is a confident buy." },
+    { q: "Is OFFO a Carfax alternative for used EVs?", a: "Yes — OFFO is built specifically for used EV buyers. Unlike Carfax, OFFO includes battery health estimates, DC fast charge capability, EV-specific recall tracking, and a routine fit score showing whether the vehicle matches your commute and charging situation. The basic report is free with no sign-up." },
   ];
 
 
@@ -454,8 +454,12 @@ export default function Home() {
             <span className="text-[#00d97e]">Paste any listing.</span>
           </h1>
 
-          <p className="text-base md:text-lg text-white/50 mb-10 max-w-xl mx-auto" style={{ lineHeight: "1.6" }}>
+          <p className="text-base md:text-lg text-white/50 mb-5 max-w-xl mx-auto" style={{ lineHeight: "1.6" }}>
             Instantly see open recalls, accident &amp; title history, battery health estimate, market price vs. comparables, and 3 copy-paste negotiation scripts — for that exact listing.
+          </p>
+
+          <p className="text-sm text-white/30 mb-10 max-w-xl mx-auto">
+            The Carfax alternative built for EVs — battery health, charging fit, and real price. Free.
           </p>
 
           {/* URL / VIN input row */}

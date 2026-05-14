@@ -235,20 +235,45 @@ export async function POST(req: NextRequest) {
       if (vp) vehicle = vp as VehicleProfile;
     }
 
-    // Fallback: manual vehicle from listing extraction
+    // Fallback: manual vehicle from listing extraction or RoutineStepV2 manual entry
     if (!vehicle && manualVehicleMake && manualVehicleYear) {
+      const manualMakeLower = manualVehicleMake.toLowerCase();
+      const manualModelLower = (manualVehicleModel || "").toLowerCase();
+      const estimatedRange = manualVehicleRange || 200;
+
+      // Infer connector type from make — Tesla uses NACS, older Nissan uses CHAdeMO, all others CCS
+      const connector_types =
+        manualMakeLower === "tesla" ? ["NACS"]
+        : (manualMakeLower === "nissan" && manualModelLower.includes("leaf")) ? ["CHAdeMO", "CCS"]
+        : ["CCS"];
+
+      // Infer winter sensitivity from known chemistries:
+      // LFP vehicles (Tesla Standard Range, Bolt) lose more in cold; NMC811 (Tesla LR) moderate
+      const isLfp = manualMakeLower === "tesla" && (
+        manualModelLower.includes("standard") || manualModelLower.includes("rwd")
+      );
+      const isNmc811 = manualMakeLower === "tesla" && (
+        manualModelLower.includes("long range") || manualModelLower.includes("performance")
+      );
+      const winter_sensitivity_band: "mild" | "moderate" | "strong" =
+        isLfp ? "mild" : isNmc811 ? "strong" : "moderate";
+
+      // Infer range band from estimate
+      const usable_range_band: "low" | "medium" | "high" =
+        estimatedRange < 200 ? "low" : estimatedRange < 300 ? "medium" : "high";
+
       vehicle = {
         id: "manual",
         year: manualVehicleYear,
         make: manualVehicleMake,
         model: manualVehicleModel || "Unknown",
-        usable_range_band: "medium",
-        usable_range_mi_estimate: manualVehicleRange || 200,
+        usable_range_band,
+        usable_range_mi_estimate: estimatedRange,
         dc_fast_band: "okay",
         ac_home_charge_band: "okay",
-        winter_sensitivity_band: "moderate",
+        winter_sensitivity_band,
         efficiency_band: "medium",
-        connector_types: [],
+        connector_types,
         is_active: true,
         data_source: "listing_extraction",
         created_at: new Date().toISOString(),

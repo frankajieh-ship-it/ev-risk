@@ -2,6 +2,13 @@
 
 import Link from "next/link";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
+import RelatedPosts from "@/components/RelatedPosts";
+
+const RELATED_POSTS = [
+  { slug: "best-carfax-alternatives-2026", title: "Best Carfax Alternatives of 2026 — Tested Head-to-Head", badge: "Comparison", badgeColor: "bg-green-500/20 text-green-300", excerpt: "We tested 7 VIN report services. OFFO ranks #1 for used EV buyers." },
+  { slug: "best-budget-evs-2025", title: "Best Used EVs Under $25K in 2025", badge: "Buyer's Guide", badgeColor: "bg-green-500/20 text-green-300", excerpt: "The models delivering the most range, reliability, and charging speed per dollar." },
+  { slug: "how-we-vet-every-ev-deal", title: "How We Find and Vet Every Used EV Deal on OFFO", badge: "How It Works", badgeColor: "bg-indigo-500/20 text-indigo-300", excerpt: "From listing page to GREEN verdict — the full sourcing and AI scoring pipeline." },
+];
 
 export default function UsedEVBuyingChecklistPost() {
   useVisitorTracking();
@@ -293,6 +300,10 @@ export default function UsedEVBuyingChecklistPost() {
       <footer className="max-w-3xl mx-auto px-4 py-12 text-center text-gray-500 text-sm border-t border-gray-200">
         <p>OFFO Labs &middot; Building decision intelligence that reduces regret</p>
       </footer>
+
+      <div className="max-w-3xl mx-auto px-4 pb-12">
+        <RelatedPosts posts={RELATED_POSTS} />
+      </div>
     </div>
   );
 }

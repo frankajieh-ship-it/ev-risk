@@ -1,4 +1,11 @@
 import Link from "next/link";
+import RelatedPosts from "@/components/RelatedPosts";
+
+const RELATED_POSTS = [
+  { slug: "best-carfax-alternatives-2026", title: "Best Carfax Alternatives of 2026 — Tested Head-to-Head", badge: "Comparison", badgeColor: "bg-green-500/20 text-green-300", excerpt: "We tested 7 VIN report services. OFFO ranks #1 for used EV buyers." },
+  { slug: "ev-vin-report-guide", title: "EV VIN Report: What It Shows and What It Misses", badge: "Buyer's Guide", badgeColor: "bg-blue-500/20 text-blue-300", excerpt: "Standard reports miss battery degradation, DCFC speed, and EV-specific signals." },
+  { slug: "how-we-vet-every-ev-deal", title: "How We Find and Vet Every Used EV Deal on OFFO", badge: "How It Works", badgeColor: "bg-indigo-500/20 text-indigo-300", excerpt: "From listing page to GREEN verdict — the full sourcing and AI scoring pipeline." },
+];
 
 export default function CarfaxAlternativeUsedEvPage() {
   return (
@@ -288,6 +295,8 @@ export default function CarfaxAlternativeUsedEvPage() {
             Try OFFO free →
           </Link>
         </div>
+
+        <RelatedPosts posts={RELATED_POSTS} />
       </main>
     </div>
   );

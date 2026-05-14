@@ -26,12 +26,17 @@ export interface EnhancedInputs {
 export function computeRoutineFitV2(inputs: EnhancedInputs): RoutineFitScore {
   const { routine, vehicle, weather, chargerCount = 0 } = inputs;
 
-  // Map vehicle profile to baseline VehicleBasics
+  // Map vehicle profile to baseline VehicleBasics — pass all fields the engine uses
   const vehicleBasics = vehicle
     ? {
         model: vehicle.model,
         year: vehicle.year,
         real_world_range_mi: vehicle.usable_range_mi_estimate,
+        winter_sensitivity_band: vehicle.winter_sensitivity_band,
+        // Map dc_fast_band → numeric kW so the recovery resilience engine can use it
+        dc_fast_kw: vehicle.dc_fast_band === "strong" ? 200
+          : vehicle.dc_fast_band === "okay" ? 115
+          : 50,  // "slow" — Level 2 home-only vehicles like old Leaf
       }
     : undefined;
 

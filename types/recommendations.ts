@@ -30,8 +30,8 @@ export interface FitDimensions {
   range: number;
   recovery: number;
   climate: number;
-  budget: number;
-  utility: number;
+  budget?: number;
+  utility?: number;
 }
 
 /** Bucketed chip labels for the tie-break comparison UI */

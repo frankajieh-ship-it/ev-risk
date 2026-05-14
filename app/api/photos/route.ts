@@ -202,11 +202,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ photo_urls: [] });
   }
 
-  // 0. OFFO image cache — return immediately if we have a cached result
+  // 0. OFFO image extractor — local CSV (Tier 0) or Supabase cache hit
+  // Returns immediately for: cached results OR local CSV matches (no external API needed)
   if (make && rawModel && year) {
-    const cached = await extractVehicleImages({ make, model: rawModel, year, vin, trim: undefined });
-    if (cached.cache_hit && cached.urls.length > 0) {
-      return NextResponse.json({ photo_urls: cached.urls, source: cached.source, quality_score: cached.quality_score, cache_hit: true });
+    const extracted = await extractVehicleImages({ make, model: rawModel, year, vin, trim: undefined });
+    if (extracted.urls.length > 0 && (extracted.cache_hit || extracted.source === "offo_local")) {
+      return NextResponse.json({ photo_urls: extracted.urls, source: extracted.source, quality_score: extracted.quality_score, cache_hit: extracted.cache_hit });
     }
   }
 

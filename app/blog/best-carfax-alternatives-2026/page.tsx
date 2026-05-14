@@ -1,4 +1,11 @@
 import Link from "next/link";
+import RelatedPosts from "@/components/RelatedPosts";
+
+const RELATED_POSTS = [
+  { slug: "carfax-alternative-used-ev", title: "I Was Paying $45 for Carfax Reports. Then I Found a Better Way.", badge: "Buyer's Guide", badgeColor: "bg-blue-500/20 text-blue-300", excerpt: "After testing every major VIN report on real EV listings, one free tool changed everything." },
+  { slug: "ev-vin-report-guide", title: "EV VIN Report: What It Shows and What It Misses", badge: "Buyer's Guide", badgeColor: "bg-blue-500/20 text-blue-300", excerpt: "Standard VIN reports miss battery degradation, DCFC speed, and EV-specific recalls." },
+  { slug: "used-ev-buying-checklist", title: "Used EV Buying Checklist: 10 Things to Check Before You Buy", badge: "Checklist", badgeColor: "bg-amber-500/20 text-amber-300", excerpt: "The complete pre-purchase checklist for used EV buyers." },
+];
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -1206,6 +1213,8 @@ export default function BestCarfaxAlternatives2026() {
                 Try OFFO free →
               </Link>
             </div>
+
+            <RelatedPosts posts={RELATED_POSTS} />
           </main>
         </div>
       </div>

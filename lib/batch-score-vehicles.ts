@@ -98,32 +98,33 @@ function computeTieScore(
   mvr: MinimumViableRoutine
 ): number {
   const homePriority = mvr.charging_access === "home";
-  const w = {
-    range:    homePriority ? 0.35 : 0.25,
-    charging: homePriority ? 0.20 : 0.40,
-    budget:   0.20,
-    recovery: homePriority ? 0.10 : 0.15,
-    utility:  0.15,
-  };
+  let score =
+    dimensions.range    * (homePriority ? 0.35 : 0.25) +
+    dimensions.charging * (homePriority ? 0.20 : 0.40) +
+    dimensions.recovery * (homePriority ? 0.10 : 0.15);
+  let totalW = homePriority ? 0.65 : 0.80;
 
-  return (
-    dimensions.range    * w.range    +
-    dimensions.charging * w.charging +
-    dimensions.budget   * w.budget   +
-    dimensions.recovery * w.recovery +
-    dimensions.utility  * w.utility
-  );
+  if (dimensions.budget !== undefined) {
+    score   += dimensions.budget * 0.20;
+    totalW  += 0.20;
+  }
+  if (dimensions.utility !== undefined) {
+    score   += dimensions.utility * 0.15;
+    totalW  += 0.15;
+  }
+
+  return score / totalW;
 }
 
 function getTopStressFlag(dimensions: FitDimensions): string {
   const candidates: [number, string][] = [
     [dimensions.range,    "Range buffer is tight for your longest day"],
     [dimensions.charging, "Charging setup adds weekly friction"],
-    [dimensions.budget,   "Likely above your budget band"],
     [dimensions.recovery, "Recovery on long days may need planning"],
     [dimensions.climate,  "Cold weather will reduce effective range"],
-    [dimensions.utility,  "Body style or towing doesn't match well"],
   ];
+  if (dimensions.budget !== undefined)  candidates.push([dimensions.budget,  "Likely above your budget band"]);
+  if (dimensions.utility !== undefined) candidates.push([dimensions.utility, "Body style or towing doesn't match well"]);
 
   candidates.sort((a, b) => a[0] - b[0]);
   return candidates[0][1];
@@ -134,7 +135,7 @@ function computeTieChips(dimensions: FitDimensions, subCategory: string): TieChi
     buffer:   dimensions.range    >= 70 ? "strong" : dimensions.range    >= 45 ? "ok"       : "tight",
     charging: dimensions.charging >= 70 ? "low"    : dimensions.charging >= 45 ? "medium"   : "high",
     winter:   dimensions.climate  >= 80 ? "safe"   : dimensions.climate  >= 55 ? "moderate" : "tight",
-    budget:   dimensions.budget   >= 60 ? "likely" : "uncertain",
+    budget:   (dimensions.budget ?? 50) >= 60 ? "likely" : "uncertain",
     space:    subCategory === "truck" ? "large"
               : subCategory === "suv" ? "midsize"
               : "compact",
@@ -212,7 +213,7 @@ export function batchScoreVehicles(
     const scoreImprovements = computeScoreImprovements(mvr, vehicleBasics, fit);
 
     const dimensions: FitDimensions = fit.dimensions ?? {
-      charging: 50, range: 50, recovery: 50, climate: 50, budget: 50, utility: 50,
+      charging: 50, range: 50, recovery: 50, climate: 50,
     };
 
     // ── UNIFIED FINAL SCORE (Phase 5/6D) ────────────────────────────────────

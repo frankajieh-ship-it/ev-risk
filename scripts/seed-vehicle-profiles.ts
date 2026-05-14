@@ -79,18 +79,35 @@ function parseModelName(fullModel: string): { make: string; model: string } {
   const makes = [
     "Ford Mustang",
     "Ford F-150",
+    "Ford Focus",
     "Tesla Model",
+    "Tesla Cybertruck",
     "Chevrolet Bolt",
     "Hyundai Ioniq",
+    "Hyundai Kona",
+    "Genesis GV",
+    "Genesis G",
+    "Kia Soul",
+    "Kia EV",
     "Kia",
     "Volkswagen",
     "Nissan",
     "Rivian",
     "BMW",
     "Mercedes",
+    "Cadillac",
+    "Volvo",
+    "Porsche",
     "Lucid",
     "Polestar",
+    "Honda",
+    "Subaru",
+    "Toyota",
+    "Mini",
+    "Audi",
     "Ford",
+    "Chevrolet",
+    "Hyundai",
   ];
 
   for (const prefix of makes) {
@@ -108,6 +125,8 @@ function parseModelName(fullModel: string): { make: string; model: string } {
 }
 
 async function main() {
+  const force = process.argv.includes("--force");
+
   const csvPath = resolve(__dirname, "../data_v1.0/range_delta.csv");
   const csvContent = readFileSync(csvPath, "utf-8");
 
@@ -115,22 +134,16 @@ async function main() {
     columns: true,
     skip_empty_lines: true,
     trim: true,
+    // Skip comment lines
+    comment: "#",
   });
 
   console.log(`Parsed ${rows.length} rows from range_delta.csv`);
+  if (force) console.log("--force: will overwrite existing rows");
 
-  // Check if data already exists
-  const { count } = await supabase
-    .from("vehicle_profiles")
-    .select("*", { count: "exact", head: true });
+  let upserted = 0;
+  let skipped = 0;
 
-  if (count && count > 0) {
-    console.log(`vehicle_profiles already has ${count} rows. Skipping seed.`);
-    console.log("To re-seed, delete existing rows first.");
-    return;
-  }
-
-  let inserted = 0;
   for (const row of rows) {
     const { make, model } = parseModelName(row.model);
     const bands = inferBands(row);
@@ -138,7 +151,7 @@ async function main() {
     const isTesla = make === "Tesla";
     const connector_types = isTesla ? ["NACS"] : ["CCS"];
 
-    const { error } = await supabase.from("vehicle_profiles").insert({
+    const record = {
       year: parseInt(row.year),
       make,
       model,
@@ -149,20 +162,50 @@ async function main() {
       chemistry: row.chemistry,
       connector_types,
       data_source: "range_delta_csv",
+      is_active: true,
       ...bands,
-    });
+    };
 
-    if (error) {
-      console.error(`Error inserting ${row.model}:`, error.message);
+    if (force) {
+      // Overwrite everything — upsert by (year, make, model)
+      const { error } = await supabase
+        .from("vehicle_profiles")
+        .upsert(record, { onConflict: "year,make,model" });
+      if (error) {
+        console.error(`Error upserting ${row.model}:`, error.message);
+      } else {
+        upserted++;
+        console.log(`  [upsert] ${make} ${model} (${row.year})`);
+      }
     } else {
-      inserted++;
-      console.log(
-        `  ${make} ${model} (${row.year}) — range: ${bands.usable_range_band}, winter: ${bands.winter_sensitivity_band}`
-      );
+      // Default: insert only if not already present (check by year+make+model)
+      const { data: existing } = await supabase
+        .from("vehicle_profiles")
+        .select("id")
+        .eq("year", record.year)
+        .eq("make", record.make)
+        .eq("model", record.model)
+        .maybeSingle();
+
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      const { error } = await supabase.from("vehicle_profiles").insert(record);
+      if (error) {
+        console.error(`Error inserting ${row.model}:`, error.message);
+      } else {
+        upserted++;
+        console.log(
+          `  [new] ${make} ${model} (${row.year}) — range: ${bands.usable_range_band}, winter: ${bands.winter_sensitivity_band}`
+        );
+      }
     }
   }
 
-  console.log(`\nSeeded ${inserted}/${rows.length} vehicle profiles.`);
+  console.log(`\nDone: ${upserted} added/updated, ${skipped} already existed.`);
+  console.log("Tip: run with --force to overwrite all existing rows.");
 }
 
 main().catch(console.error);
