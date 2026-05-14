@@ -91,8 +91,9 @@ function getVerdictLabel(verdict: string): string {
 function buildChecklistHtml(receipt: ReceiptData): string {
   const summary: ListingSummary = receipt.listing_summary ?? {};
   const vehicle = [summary.year, summary.make, summary.model, summary.trim].filter(Boolean).join(" ");
-  const verdictColor = getVerdictColor(receipt.verdict);
-  const verdictLabel = getVerdictLabel(receipt.verdict);
+  const verdict = receipt.verdict ?? "unknown";
+  const verdictColor = getVerdictColor(verdict);
+  const verdictLabel = getVerdictLabel(verdict);
 
   const riskFlagsHtml = (receipt.risk_flags || [])
     .map((flag: string) => `<li style="margin-bottom:6px;color:#374151;">${humanizeFlag(flag)}</li>`)
