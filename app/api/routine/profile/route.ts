@@ -59,6 +59,13 @@ export async function POST(req: NextRequest) {
       commute_miles_roundtrip,
       longest_day_pattern,
       shared_charger = false,
+      // Questionnaire v2 — buyer context fields
+      ev_experience,
+      vehicle_condition,
+      has_backup_vehicle,
+      ownership_timeline,
+      charging_stop_tolerance,
+      priority_weights,
     } = body;
 
     // Validate required fields
@@ -122,6 +129,13 @@ export async function POST(req: NextRequest) {
         commute_miles_roundtrip: commute_miles_roundtrip || null,
         longest_day_pattern,
         shared_charger,
+        // Questionnaire v2 fields
+        ev_experience: ev_experience || null,
+        vehicle_condition: vehicle_condition || null,
+        has_backup_vehicle: has_backup_vehicle || null,
+        ownership_timeline: ownership_timeline || null,
+        charging_stop_tolerance: charging_stop_tolerance || null,
+        priority_weights: priority_weights || null,
       })
       .select("id")
       .single();

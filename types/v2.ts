@@ -42,6 +42,14 @@ export interface MinimumViableRoutine {
   wants_carplay?: boolean;
   /** Number of passengers to seat regularly (used for utility fit scoring) */
   passenger_count?: number;
+
+  // Buyer context (questionnaire v2 — used for filter panel deep dive)
+  ev_experience?: "first_time" | "experienced" | "researching";
+  vehicle_condition?: "new" | "used" | "any";
+  has_backup_vehicle?: "yes_daily" | "yes_rarely" | "no";
+  ownership_timeline?: "lease_1_3" | "medium_3_5" | "long_5_plus";
+  charging_stop_tolerance?: "ok" | "prefer_limit" | "rather_not";
+  priority_weights?: Array<"range" | "charging" | "cost" | "reliability" | "interior" | "tech">;
 }
 
 // ============================================

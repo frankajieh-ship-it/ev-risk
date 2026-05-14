@@ -27,6 +27,9 @@ const toolNavLinks = [
   { label: "Receipt Check",      href: "/receipt" },
   { label: "Routine Fit",        href: "/routine" },
   { label: "Copart Arbitrage",   href: "/copart" },
+  { label: "Warranty Checker",   href: "/tools/warranty" },
+  { label: "Charging Calc",      href: "/tools/charging-time" },
+  { label: "Cost Calculator",    href: "/tools/tco" },
 ];
 
 const navLinkCls = "text-[0.8125rem] font-medium tracking-[-0.01em] text-white/50 hover:text-white/90 transition-colors";

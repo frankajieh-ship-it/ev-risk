@@ -98,18 +98,37 @@ function computeTieScore(
   mvr: MinimumViableRoutine
 ): number {
   const homePriority = mvr.charging_access === "home";
+  const pw = mvr.priority_weights;
+
+  // If the user ranked priorities, use their order to shape tie-break weights.
+  // Each priority maps to a dimension; top pick gets +0.15, second +0.08, third +0.04.
+  const priorityBoosts: Record<string, number> = {};
+  if (pw && pw.length > 0) {
+    const dimMap: Record<string, string> = {
+      range: "range", charging: "charging", cost: "budget",
+      reliability: "recovery", interior: "utility", tech: "range",
+    };
+    const boosts = [0.15, 0.08, 0.04];
+    pw.slice(0, 3).forEach((key, i) => {
+      const dim = dimMap[key];
+      if (dim) priorityBoosts[dim] = (priorityBoosts[dim] ?? 0) + boosts[i];
+    });
+  }
+
+  const boost = (dim: string) => priorityBoosts[dim] ?? 0;
+
   let score =
-    dimensions.range    * (homePriority ? 0.35 : 0.25) +
-    dimensions.charging * (homePriority ? 0.20 : 0.40) +
-    dimensions.recovery * (homePriority ? 0.10 : 0.15);
+    dimensions.range    * (homePriority ? 0.35 : 0.25) + boost("range") * dimensions.range / 100 +
+    dimensions.charging * (homePriority ? 0.20 : 0.40) + boost("charging") * dimensions.charging / 100 +
+    dimensions.recovery * (homePriority ? 0.10 : 0.15) + boost("recovery") * dimensions.recovery / 100;
   let totalW = homePriority ? 0.65 : 0.80;
 
   if (dimensions.budget !== undefined) {
-    score   += dimensions.budget * 0.20;
+    score   += dimensions.budget * 0.20 + boost("budget") * dimensions.budget / 100;
     totalW  += 0.20;
   }
   if (dimensions.utility !== undefined) {
-    score   += dimensions.utility * 0.15;
+    score   += dimensions.utility * 0.15 + boost("utility") * dimensions.utility / 100;
     totalW  += 0.15;
   }
 
@@ -232,11 +251,18 @@ export function batchScoreVehicles(
     // reliability: from JD Power / CR tier in traits
     const reliability = reliabilityTierToScore(traits.reliability_tier);
 
+    // Long ownership horizon boosts reliability weight at the expense of utility
+    const longOwner = mvr.ownership_timeline === "long_5_plus";
+    const reliabilityW = longOwner ? 0.15 : 0.10;
+    const ownCostW     = longOwner ? 0.20 : 0.20;
+    const routineFitW  = longOwner ? 0.40 : 0.45;
+    const hwMatchW     = longOwner ? 0.25 : 0.25;
+
     const unified_score = Math.min(100, Math.max(0, Math.round(
-      routine_fit  * 0.45 +
-      hw_match     * 0.25 +
-      own_cost     * 0.20 +
-      reliability  * 0.10
+      routine_fit  * routineFitW +
+      hw_match     * hwMatchW +
+      own_cost     * ownCostW +
+      reliability  * reliabilityW
     )));
 
     const offoScore: OffoScore = computeOffoScore({

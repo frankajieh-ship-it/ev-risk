@@ -262,7 +262,6 @@ export default function VehicleRecommendations({
 
   // Quick-adjust state
   const [localRoutine, setLocalRoutine] = useState<MinimumViableRoutine>(() => routine);
-  const [prevRecommendations, setPrevRecommendations] = useState<VehicleRecommendation[]>([]);
   const [isRecomputing, setIsRecomputing] = useState(false);
   const [adjustedLabel, setAdjustedLabel] = useState(false);
   const [showAdjustBar, setShowAdjustBar] = useState(false);
@@ -299,7 +298,6 @@ export default function VehicleRecommendations({
   // Re-POST with a mutated routine (quick-adjust)
   async function recomputeWithRoutine(updated: MinimumViableRoutine) {
     setIsRecomputing(true);
-    setPrevRecommendations(recommendations);
     try {
       const res = await fetch("/api/recommendations", {
         method: "POST",
@@ -1209,7 +1207,7 @@ export default function VehicleRecommendations({
                   const key = `${rec.year}-${rec.model}`;
                   const isSaved = savedIds.has(key);
                   return (
-                    <div key={rec.model} className="bg-white/[0.05] border border-white/10 rounded-xl p-4">
+                    <div key={`${rec.year}-${rec.model}`} className="bg-white/[0.05] border border-white/10 rounded-xl p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
@@ -1343,20 +1341,20 @@ export default function VehicleRecommendations({
             <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4" : "space-y-4 mb-4"}>
               {top3.map((rec, i) => viewMode === "grid" ? (
                 <RecommendationCardGrid
-                  key={rec.model}
+                  key={`${rec.year}-${rec.model}`}
                   recommendation={rec}
                   onSelect={() => handleSelect(rec, i + 1)}
                 />
               ) : viewMode === "list" ? (
                 <RecommendationCardList
-                  key={rec.model}
+                  key={`${rec.year}-${rec.model}`}
                   recommendation={rec}
                   onSelect={() => handleSelect(rec, i + 1)}
                   rank={i + 1}
                 />
               ) : (
                 <RecommendationCard
-                  key={rec.model}
+                  key={`${rec.year}-${rec.model}`}
                   recommendation={rec}
                   onSelect={() => handleSelect(rec, i + 1)}
                   userZipCode={userZipCode}
@@ -1456,7 +1454,7 @@ export default function VehicleRecommendations({
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {top3.map((rec) => (
                   <WatchPickCard
-                    key={rec.model}
+                    key={`${rec.year}-${rec.model}`}
                     rec={rec}
                     isSaved={savedIds.has(`${rec.year}-${rec.model}`)}
                     onSave={() => handleAddToGarage(rec)}
@@ -1505,20 +1503,20 @@ export default function VehicleRecommendations({
                 <div className={viewMode === "grid" ? "grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4" : "space-y-4 mt-4"}>
                   {alsoFits.map((rec, i) => viewMode === "grid" ? (
                     <RecommendationCardGrid
-                      key={rec.model}
+                      key={`${rec.year}-${rec.model}`}
                       recommendation={rec}
                       onSelect={() => handleSelect(rec, top3.length + i + 1)}
                     />
                   ) : viewMode === "list" ? (
                     <RecommendationCardList
-                      key={rec.model}
+                      key={`${rec.year}-${rec.model}`}
                       recommendation={rec}
                       onSelect={() => handleSelect(rec, top3.length + i + 1)}
                       rank={top3.length + i + 1}
                     />
                   ) : (
                     <RecommendationCard
-                      key={rec.model}
+                      key={`${rec.year}-${rec.model}`}
                       recommendation={rec}
                       onSelect={() => handleSelect(rec, top3.length + i + 1)}
                       userZipCode={userZipCode}
@@ -1569,7 +1567,7 @@ export default function VehicleRecommendations({
                 <div className="space-y-4 mt-4">
                   {lowFit.map((rec) => (
                     <RecommendationCard
-                      key={rec.model}
+                      key={`${rec.year}-${rec.model}`}
                       recommendation={rec}
                       onSelect={() => handleSelect(rec, -1)}
                       muted

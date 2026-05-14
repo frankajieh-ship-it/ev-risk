@@ -18,6 +18,7 @@ import { WhatBreaksFirstV2Block } from "@/components/blocks/WhatBreaksFirstV2Blo
 import { StressFlagsV2Block } from "@/components/blocks/StressFlagsV2Block";
 import WhyTheseCarsBlock from "@/components/blocks/WhyTheseCarsBlock";
 import HowWeDecidedBlock from "@/components/blocks/HowWeDecidedBlock";
+import EVMatchFilterPanel from "@/components/EVMatchFilterPanel";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { getOrCreatePersistentSessionId, getOrCreateReceiptToken } from "@/lib/session-utils";
 import RoutineResultsPaywallCard from "@/components/routine/RoutineResultsPaywallCard";
@@ -261,6 +262,14 @@ function RoutineResultsContent() {
   // Specs & accessories state
   const [specsPrefs, setSpecsPrefs] = useState<VehicleSpecsPrefs | null>(null);
   const [specsResults, setSpecsResults] = useState<SpecsMatchResult[]>([]);
+
+  // EV match recommendations + filter state
+  const [recommendations, setRecommendations] = useState<Array<{
+    make: string; model_short: string; year: number; fit_score: number; fit_label: string;
+    real_world_range_mi: number; matched_deals?: Array<{ id: string; listing_url: string; price: number | null; photo_url: string | null }>;
+  }>>([]);
+  const [recLoading, setRecLoading] = useState(false);
+  const [filteredRoutine, setFilteredRoutine] = useState<MinimumViableRoutine | null>(null);
 
   // Payment gate state
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -579,6 +588,32 @@ function RoutineResultsContent() {
     }
   }, [runId]);
 
+  // Fetch EV recommendations whenever result loads or filter routine changes
+  useEffect(() => {
+    const routine = filteredRoutine ?? result?.routine;
+    if (!routine) return;
+    let cancelled = false;
+    setRecLoading(true);
+    fetch("/api/recommendations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ routine, zip_code: result?.data_sources?.has_zip ? undefined : undefined }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data.recommendations) {
+          setRecommendations(data.recommendations.slice(0, 6));
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setRecLoading(false); });
+    return () => { cancelled = true; };
+  }, [filteredRoutine, result?.routine]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleFilterChange = useCallback((updated: MinimumViableRoutine) => {
+    setFilteredRoutine(updated);
+  }, []);
+
   // Check payment status after result loads
   useEffect(() => {
     if (!result?.run_id) return;
@@ -781,6 +816,61 @@ function RoutineResultsContent() {
         <WhyTheseCarsBlock
           routine={result.routine}
           zipCode={result.data_sources?.location_name || null}
+        />
+      )}
+
+      {/* EV Matches */}
+      {(recLoading || recommendations.length > 0) && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-white">Top EV Matches for Your Routine</h3>
+            {recLoading && <div className="w-4 h-4 border-2 border-[#00d97e] border-t-transparent rounded-full animate-spin" />}
+          </div>
+          <div className="space-y-3">
+            {recommendations.map((rec) => (
+              <div key={`${rec.make}-${rec.model_short}-${rec.year}`} className="flex items-center gap-4 p-4 bg-[#161b22] rounded-xl border border-white/[0.08] hover:border-white/[0.14] transition-colors">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{rec.year} {rec.make} {rec.model_short}</p>
+                  <p className="text-xs text-white/40">{rec.real_world_range_mi} mi real-world range</p>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-[#00d97e]">{rec.fit_score}</p>
+                    <p className="text-xs text-white/30">{rec.fit_label}</p>
+                  </div>
+                  {rec.matched_deals && rec.matched_deals[0] && (
+                    <a
+                      href={rec.matched_deals[0].listing_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 text-xs font-medium bg-[#00d97e] text-[#0d1117] rounded-lg hover:bg-[#00c970] transition-colors"
+                    >
+                      {rec.matched_deals[0].price ? `$${rec.matched_deals[0].price.toLocaleString()}` : "View deal"}
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Nudge to use filter panel — shown once results load */}
+      {!recLoading && recommendations.length > 0 && result?.routine && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#00d97e]/8 border border-[#00d97e]/20">
+          <span className="text-[#00d97e] text-lg leading-none">↓</span>
+          <p className="text-sm text-white/70">
+            <span className="text-white font-semibold">Not seeing the right fit?</span>{" "}
+            Use <span className="text-[#00d97e] font-medium">Refine your results</span> below to dial in ownership timeline, driving style, priorities, and more.
+          </p>
+        </div>
+      )}
+
+      {/* Filter panel — deep dive refiner */}
+      {result?.routine && (
+        <EVMatchFilterPanel
+          routine={filteredRoutine ?? result.routine}
+          onChange={handleFilterChange}
         />
       )}
 

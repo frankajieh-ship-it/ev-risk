@@ -346,7 +346,7 @@ export default function RedditOperatorPage() {
           <PostedTab get={get} />
         )}
         {activeTab === "Social Posts" && (
-          <SocialPostsTab post={post} />
+          <SocialPostsTab apiBase={apiBase} />
         )}
       </div>
     </div>
@@ -1133,8 +1133,8 @@ function PostedTab({ get }: { get: GetFn }) {
 
 type SocialPlatform = "reddit" | "x" | "linkedin" | "facebook";
 
-function SocialPostsTab({ post }: {
-  post: (ep: string, payload: unknown) => Promise<unknown>;
+function SocialPostsTab({ apiBase }: {
+  apiBase: string;
 }) {
   const [days, setDays] = useState(7);
   const [dryRun, setDryRun] = useState(false);
@@ -1147,7 +1147,15 @@ function SocialPostsTab({ post }: {
   const run = async () => {
     setError(""); setLoading(true); setResult(null);
     try {
-      const data = await post("/social/generate-weekly", { days, dry_run: dryRun }) as SocialPostsResult;
+      // Grok generates 4 platforms sequentially — allow up to 3 minutes
+      const r = await fetch(`${apiBase}/social/generate-weekly`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days, dry_run: dryRun }),
+        signal: AbortSignal.timeout(180_000),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json() as SocialPostsResult;
       setResult(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "API error");

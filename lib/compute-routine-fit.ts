@@ -246,6 +246,16 @@ export function computeRoutineFit(
     recoveryScore = Math.max(0, recoveryScore - 10);
   }
 
+  // Backup vehicle: if user has a daily backup, recovery resilience improves
+  if (mvr.has_backup_vehicle === "yes_daily") {
+    recoveryScore = Math.min(100, recoveryScore + 8);
+  }
+
+  // Low charging-stop tolerance on high-frequency long days compounds recovery stress
+  if (mvr.charging_stop_tolerance === "rather_not" && mvr.longest_day_pattern === "once_a_week") {
+    recoveryScore = Math.max(0, recoveryScore - 10);
+  }
+
   // 12D: DC fast charge speed affects road-trip recovery ability
   if (mvr.longest_day_pattern === "once_a_week" || mvr.longest_day_pattern === "monthly_trip") {
     if (vehicle?.dc_fast_kw !== undefined) {
