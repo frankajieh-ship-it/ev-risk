@@ -250,7 +250,7 @@ function NewsPageInner() {
   const sorted = useMemo(() =>
     [...articles]
       .filter(a => a.impact_score >= 60)
-      .sort((a, b) => b.impact_score - a.impact_score),
+      .sort((a, b) => new Date(b.scored_at).getTime() - new Date(a.scored_at).getTime()),
     [articles]
   );
 
