@@ -297,7 +297,7 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
               className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-[#00d97e]/30 text-[#00d97e]/80 bg-[#00d97e]/[0.06] hover:bg-[#00d97e]/10 transition-colors"
             >
               <Lock className="w-3 h-3" />
-              Unlock — $3.99
+              View full report
             </button>
           </>
         )}

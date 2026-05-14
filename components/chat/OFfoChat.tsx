@@ -122,7 +122,7 @@ function PaywallCard({
         disabled={loading}
         className="w-full bg-[#00d97e] hover:bg-[#00c970] disabled:opacity-50 text-[#0d1117] text-sm font-medium py-2.5 rounded-lg transition-colors"
       >
-        {loading ? "Preparing checkout…" : "Unlock for $9.99 — one time"}
+        {loading ? "Loading…" : "Unlock — free"}
       </button>
       <p className="text-xs text-white/30 mt-1.5">No subscriptions. Ever.</p>
     </div>
@@ -137,7 +137,7 @@ function NudgeBanner({ onUnlock, onDismiss, loading }: { onUnlock: () => void; o
   return (
     <div className="mx-1 mb-1 rounded-lg bg-white/[0.06] border border-white/[0.10] px-3 py-2 flex items-center gap-2 text-xs">
       <Lock className="w-3.5 h-3.5 text-[#00d97e] flex-shrink-0" />
-      <span className="text-white/60 flex-1">Getting value? Unlock unlimited for $9.99 →</span>
+      <span className="text-white/60 flex-1">Getting value? Unlock unlimited →</span>
       <button onClick={onUnlock} disabled={loading} className="text-[#00d97e] font-medium hover:underline">
         {loading ? "…" : "Unlock"}
       </button>

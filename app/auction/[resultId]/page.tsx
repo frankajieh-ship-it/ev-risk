@@ -121,7 +121,7 @@ function AuctionUnlockButton({ resultId }: { resultId: string }) {
         {loading ? (
           <><Loader2 className="w-4 h-4 animate-spin" /> Redirecting to checkout...</>
         ) : (
-          <><Lock className="w-4 h-4" /> Unlock Auction Audit — $49</>
+          <><Lock className="w-4 h-4" /> View Auction Audit</>
         )}
       </button>
       {error && <p className="text-xs text-red-500 mt-2 text-center">{error}</p>}

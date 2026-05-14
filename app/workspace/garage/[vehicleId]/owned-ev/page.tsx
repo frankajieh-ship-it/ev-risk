@@ -444,7 +444,7 @@ export default function OwnedEvReportPage({ params }: { params: Promise<{ vehicl
                 {purchaseLoading ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Loading…</>
                 ) : (
-                  <><FileText className="w-4 h-4" /> Generate Sellers Report — $9.99</>
+                  <><FileText className="w-4 h-4" /> Generate Sellers Report</>
                 )}
               </button>
             </div>

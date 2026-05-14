@@ -92,7 +92,7 @@ export default function CopartUnlockCard({ resultId, onDismiss }: CopartUnlockCa
         <div className="flex items-center gap-2 mb-2">
           <Lock className="w-4 h-4 text-amber-600" />
           <span className="text-xs font-semibold text-amber-700 uppercase tracking-wide">
-            Auction Audit — $49
+            Auction Audit
           </span>
         </div>
         <h3 className="text-base font-bold text-gray-900 leading-snug">
@@ -142,7 +142,8 @@ export default function CopartUnlockCard({ resultId, onDismiss }: CopartUnlockCa
           {loading ? (
             <><Loader2 className="w-4 h-4 animate-spin" /> Redirecting to checkout...</>
           ) : (
-            <><Lock className="w-4 h-4" /> Unlock Auction Audit — $49</>
+            <><Lock className="w-4 h-4" /> View Auction Audit</>
+
           )}
         </button>
         <p className="text-center text-xs text-gray-400 mt-2">

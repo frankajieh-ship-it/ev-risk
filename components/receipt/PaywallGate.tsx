@@ -101,7 +101,7 @@ export default function PaywallGate({ receiptToken, scenarioId, onCheckout }: Pa
           </span>
         </div>
         <h2 className="text-lg font-bold text-white leading-snug">
-          Get the complete deep dive — $3.99, one time
+          Get the complete deep dive — free
         </h2>
         <p className="text-sm text-white/40 mt-1">
           Everything below is unlocked instantly. No subscription.
@@ -138,7 +138,7 @@ export default function PaywallGate({ receiptToken, scenarioId, onCheckout }: Pa
           ) : (
             <>
               <Zap className="w-4 h-4" />
-              Unlock full deep dive — $3.99
+              View full deep dive
             </>
           )}
         </button>

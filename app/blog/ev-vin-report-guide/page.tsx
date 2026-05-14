@@ -164,7 +164,7 @@ export default function EvVinReportGuidePage() {
           </p>
           <p className="text-white/70 mb-6">
             The free report includes open recalls, accident summary, battery health estimate, and
-            market price vs. comparables. The full report ($3.99) adds a plain-English risk verdict,
+            market price vs. comparables. The full report adds a plain-English risk verdict,
             three copy-paste negotiation scripts, and a charging fit score for your specific routine.
           </p>
 
@@ -196,7 +196,7 @@ export default function EvVinReportGuidePage() {
               },
               {
                 q: "Is an EV VIN report free?",
-                a: "OFFO provides a free EV VIN report — paste any listing URL and get recalls, battery health estimate, and price comparison instantly with no sign-up. A detailed report with negotiation scripts is $3.99.",
+                a: "OFFO provides a free EV VIN report — paste any listing URL and get recalls, battery health estimate, and price comparison instantly with no sign-up. A detailed report with negotiation scripts is available free.",
               },
               {
                 q: "What's the most important thing in an EV VIN report?",

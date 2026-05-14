@@ -120,7 +120,7 @@ export default function OwnedEvCard({
             className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-medium text-white/35 hover:text-white/60 border border-dashed border-white/[0.12] hover:border-white/20 transition-colors"
           >
             <ExternalLink className="w-3.5 h-3.5" />
-            Generate Sellers Report &mdash; $9.99
+            Generate Sellers Report
           </Link>
         )}
       </div>

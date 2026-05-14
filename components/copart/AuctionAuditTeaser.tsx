@@ -121,7 +121,7 @@ export default function AuctionAuditTeaser({
           className="shrink-0 flex items-center gap-1.5 bg-[#00d97e] hover:bg-[#00c970] text-[#0d1117] font-bold text-sm px-4 py-2 rounded-xl transition-colors"
         >
           <Lock className="w-3.5 h-3.5" />
-          Unlock Full Audit — $49
+          View Full Audit
         </Link>
       </div>
     </div>

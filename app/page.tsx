@@ -445,7 +445,7 @@ export default function Home() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full border border-white/10 bg-white/5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e] animate-pulse" />
-            <span className="text-xs font-medium text-white/70 tracking-wide">Free analysis · No sign-up · Full report from $3.99</span>
+            <span className="text-xs font-medium text-white/70 tracking-wide">Free analysis · No sign-up required</span>
           </div>
 
           {/* Headline */}

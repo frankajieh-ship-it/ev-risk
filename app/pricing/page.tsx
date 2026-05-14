@@ -6,12 +6,12 @@ import Header from "@/components/landing/Header";
 export const metadata: Metadata = {
   title: "Pricing — OFFO",
   description:
-    "Full AI-powered EV deal analysis for $3.99. No subscription. Instant risk verdict, deal quality score, battery assessment, and negotiation insights.",
+    "Free AI-powered EV deal analysis. No subscription. Instant risk verdict, deal quality score, battery assessment, and negotiation insights.",
   alternates: { canonical: "https://offolab.com/pricing" },
   openGraph: {
-    title: "OFFO Pricing — $3.99 per analysis. No subscription.",
+    title: "OFFO — Free EV deal analysis. No subscription.",
     description:
-      "Full EV deal analysis for $3.99. Risk verdict, deal quality score, battery assessment, negotiation insights. Auction Audit $49.",
+      "Free EV deal analysis. Risk verdict, deal quality score, battery assessment, negotiation insights.",
     url: "https://offolab.com/pricing",
     type: "website",
     siteName: "OFFO",
@@ -23,7 +23,7 @@ const TIERS = [
     id: "receipt_single",
     icon: Sparkles,
     label: "Receipt Analysis",
-    price: "$3.99",
+    price: "Free",
     badge: "Per listing",
     badgeColor: "blue",
     cta: "Analyze a listing",
@@ -43,7 +43,7 @@ const TIERS = [
     id: "auction_audit",
     icon: Zap,
     label: "Auction Audit",
-    price: "$49",
+    price: "Free",
     badge: "For salvage buyers",
     badgeColor: "orange",
     cta: "Audit a Copart lot",
@@ -63,7 +63,7 @@ const TIERS = [
     id: "sellers_report_pdf",
     icon: FileText,
     label: "Seller Report PDF",
-    price: "$9.99",
+    price: "Free",
     badge: null,
     badgeColor: null,
     cta: "Create seller report",
@@ -95,13 +95,13 @@ export default function PricingPage() {
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 bg-[#00d97e]/10 rounded-full border border-[#00d97e]/20">
             <Sparkles className="w-3.5 h-3.5 text-[#00d97e]" />
-            <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wider">No subscription · Pay per listing</span>
+            <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wider">Free · No subscription required</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-3 leading-tight">
-            $3.99 per analysis
+            Free EV deal analysis
           </h1>
           <p className="text-base text-white/40 max-w-xl mx-auto">
-            Full AI-powered EV deal analysis for every listing. One-time payment — no account, no subscription.
+            Full AI-powered EV deal analysis for every listing — no account, no subscription.
           </p>
         </div>
 
@@ -197,12 +197,12 @@ export default function PricingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[
               {
-                q: "What do I get for $3.99?",
+                q: "What's included in the free analysis?",
                 a: "A full AI-powered analysis of one listing: risk verdict (GREEN/YELLOW/RED), deal quality score, price vs. market comparison, battery health assessment, open recall check, negotiation insights, and a pre-purchase inspection checklist.",
               },
               {
                 q: "Do I need an account or subscription?",
-                a: "No. Paste a listing URL, pay $3.99, and get your analysis instantly. One-time payment — nothing recurring.",
+                a: "No. Paste a listing URL and get your analysis instantly — completely free, nothing recurring.",
               },
               {
                 q: "What if the analysis fails or I'm not satisfied?",
@@ -210,7 +210,7 @@ export default function PricingPage() {
               },
               {
                 q: "What's the Auction Audit?",
-                a: "A separate $49 product for Copart/IAAI salvage lots. It adds arbitrage scoring, damage classification, battery pack exposure, and repair cost estimates — specific to auction buying.",
+                a: "A free tool for Copart/IAAI salvage lots. It adds arbitrage scoring, damage classification, battery pack exposure, and repair cost estimates — specific to auction buying.",
               },
               {
                 q: "What listing sites are supported?",
@@ -236,7 +236,7 @@ export default function PricingPage() {
             href="/receipt"
             className="inline-flex items-center gap-2 px-6 py-3 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-xl hover:bg-[#00c970] transition-colors"
           >
-            Analyze a listing — $3.99 →
+            Analyze a listing — free →
           </Link>
         </div>
       </div>

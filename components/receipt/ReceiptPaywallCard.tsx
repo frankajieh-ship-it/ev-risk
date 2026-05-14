@@ -72,7 +72,7 @@ export default function ReceiptPaywallCard({
           <p className="text-sm text-white/50 mt-1">
             Market comparables · inspection checklist · 3 negotiation scripts.
             <br />
-            One-time, $3.99. No subscription.
+            Free. No subscription.
           </p>
         </div>
 
@@ -103,7 +103,7 @@ export default function ReceiptPaywallCard({
             ) : (
               <>
                 <Zap className="w-4 h-4" />
-                Unlock full deep dive — $3.99
+                View full deep dive
               </>
             )}
           </button>

@@ -93,7 +93,7 @@ export default function EvVinReportGuideLayout({ children }: { children: React.R
                   name: "Is an EV VIN report free?",
                   acceptedAnswer: {
                     "@type": "Answer",
-                    text: "OFFO provides a free EV VIN report by pasting any used EV listing URL. The free report includes open recalls, accident history, battery health estimate, and market price comparison. A full detailed report with negotiation scripts is available for $3.99.",
+                    text: "OFFO provides a free EV VIN report by pasting any used EV listing URL. The free report includes open recalls, accident history, battery health estimate, and market price comparison. A full detailed report with negotiation scripts is available free.",
                   },
                 },
                 {

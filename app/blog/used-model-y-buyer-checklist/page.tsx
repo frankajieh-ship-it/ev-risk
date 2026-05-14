@@ -417,7 +417,7 @@ export default function UsedModelYBuyerChecklist() {
             >
               Check a Model Y listing &rarr;
             </Link>
-            <p className="text-xs text-gray-400 mt-3">Free instant check · Full report from $3.99 · No account needed</p>
+            <p className="text-xs text-gray-400 mt-3">Free instant check · No account needed</p>
           </div>
 
           {/* Related */}
