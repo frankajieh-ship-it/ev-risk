@@ -12,7 +12,9 @@ interface EVMatchFilterPanelProps {
 
 type Section = "ownership" | "driving" | "utility" | "priorities";
 
-const PRIORITY_OPTIONS: Array<{ key: MinimumViableRoutine["priority_weights"] extends Array<infer T> ? T : never; label: string; desc: string }> = [
+type PriorityKey = "range" | "charging" | "cost" | "reliability" | "interior" | "tech";
+
+const PRIORITY_OPTIONS: Array<{ key: PriorityKey; label: string; desc: string }> = [
   { key: "range",       label: "Max range",          desc: "Never worry about distance" },
   { key: "charging",    label: "Low charging hassle", desc: "Simple, predictable charging" },
   { key: "cost",        label: "Lowest cost",         desc: "Purchase price + running costs" },
