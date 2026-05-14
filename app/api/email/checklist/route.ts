@@ -68,7 +68,7 @@ function getVerdictLabel(verdict: string): string {
   }
 }
 
-function buildChecklistHtml(receipt: any): string {
+function buildChecklistHtml(receipt: Record<string, unknown>): string {
   const summary = receipt.listing_summary || {};
   const vehicle = [summary.year, summary.make, summary.model, summary.trim].filter(Boolean).join(" ");
   const verdictColor = getVerdictColor(receipt.verdict);
@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: any;
+  let body: { email?: unknown; receipt_id?: unknown; anon_id?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -214,7 +214,7 @@ export async function POST(req: NextRequest) {
 
   try {
     // Fetch receipt data from DB
-    let receiptData: any = null;
+    let receiptData: Record<string, unknown> | null = null;
 
     if (isSupabaseConfigured()) {
       const { data } = await supabase
@@ -283,6 +283,27 @@ export async function POST(req: NextRequest) {
         { success: false, error: result.error || "Failed to send email. Please try again." },
         { status: 500 }
       );
+    }
+
+    // Enroll in activation sequence (Day 1/3/7 emails via Netlify cron)
+    if (isSupabaseConfigured()) {
+      const normalizedEmail = email.trim().toLowerCase();
+      const vehicle = [summary.year, summary.make, summary.model].filter(Boolean).join(" ");
+
+      supabase.from("email_sequences").insert({
+        email: normalizedEmail,
+        anon_id: anon_id || null,
+        trigger_event: "receipt_generated",
+        trigger_id: receipt_id,
+        metadata: { vehicle, verdict: receiptData.verdict },
+      }).catch(() => {});
+
+      supabase.from("checklist_email_captures").upsert({
+        email: normalizedEmail,
+        anon_id: anon_id || null,
+        funnel_stage: "receipt_generated",
+        page_source: "/receipt",
+      }, { onConflict: "email", ignoreDuplicates: false }).catch(() => {});
     }
 
     return NextResponse.json({

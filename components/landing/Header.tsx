@@ -17,19 +17,18 @@ interface HeaderProps {
 
 // Main site nav (homepage, blog, methodology, etc.)
 const homepageNavLinks = [
-  { label: "Browse Vehicles", href: "/vehicles/browse" },
-  { label: "Pricing",         href: "/pricing" },
-  { label: "Blog",            href: "/blog" },
+  { label: "EV News",    href: "/news" },
+  { label: "Deal Watch", href: "/deals" },
+  { label: "Blog",       href: "/blog" },
 ];
 
 // Tool-focused nav (copart, receipt, auction pages)
 const toolNavLinks = [
-  { label: "Receipt Check",      href: "/receipt" },
-  { label: "Routine Fit",        href: "/routine" },
-  { label: "Copart Arbitrage",   href: "/copart" },
-  { label: "Warranty Checker",   href: "/tools/warranty" },
-  { label: "Charging Calc",      href: "/tools/charging-time" },
-  { label: "Cost Calculator",    href: "/tools/tco" },
+  { label: "Receipt Check",    href: "/receipt" },
+  { label: "Deal Watch",       href: "/deals" },
+  { label: "Copart Arbitrage", href: "/copart" },
+  { label: "EV News",          href: "/news" },
+  { label: "Routine Fit",      href: "/routine" },
 ];
 
 const navLinkCls = "text-[0.8125rem] font-medium tracking-[-0.01em] text-white/50 hover:text-white/90 transition-colors";

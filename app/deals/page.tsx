@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, RefreshCw, Zap } from "lucide-react";
 import Header from "@/components/landing/Header";
@@ -32,7 +32,7 @@ const SORT_OPTIONS: { label: string; value: SortOption }[] = [
   { label: "Newest Year", value: "newest" },
 ];
 
-export default function DealsPage() {
+function DealsPageInner() {
   const searchParams = useSearchParams();
   const [deals, setDeals] = useState<CuratedDeal[]>([]);
   const [total, setTotal] = useState(0);
@@ -261,5 +261,17 @@ export default function DealsPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function DealsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-[#00d97e]/30 border-t-[#00d97e] rounded-full animate-spin" />
+      </div>
+    }>
+      <DealsPageInner />
+    </Suspense>
   );
 }

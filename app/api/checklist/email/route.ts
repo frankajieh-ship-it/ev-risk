@@ -95,6 +95,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Enroll in activation sequence (Day 1/3/7 emails via Netlify cron)
+    supabase.from("email_sequences").insert({
+      email: normalizedEmail,
+      anon_id: anon_id || persistent_session_id || null,
+      trigger_event: "newsletter_signup",
+      trigger_id: null,
+      metadata: { source: attribution?.page_source || "unknown" },
+    }).catch(() => {});
+
     // Track in user_events for analytics visibility
     const emailHash = createHash("sha256").update(normalizedEmail).digest("hex");
     supabase.from("user_events").insert({

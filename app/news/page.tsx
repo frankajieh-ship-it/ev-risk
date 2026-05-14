@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { Loader2, ExternalLink, Zap, AlertTriangle, TrendingUp, Battery, Radio } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
+import Header from "@/components/landing/Header";
 import { type NewsArticle, type NewsCategory } from "@/components/NewsCard";
 
 // ---------------------------------------------------------------------------
@@ -207,6 +207,66 @@ function CtaNudge({ context }: { context: "recall" | "used_market" | "generic" }
 }
 
 // ---------------------------------------------------------------------------
+// Sidebar email capture
+// ---------------------------------------------------------------------------
+
+function NewsEmailCapture() {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.includes("@")) return;
+    setState("loading");
+    try {
+      const r = await fetch("/api/checklist/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, attribution: { page_source: "/news" } }),
+      });
+      setState(r.ok ? "done" : "error");
+    } catch {
+      setState("error");
+    }
+  }
+
+  if (state === "done") {
+    return (
+      <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-5 text-center">
+        <p className="text-sm font-semibold text-[#00d97e] mb-1">You&apos;re in</p>
+        <p className="text-xs text-white/40">Weekly EV deal alerts in your inbox.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-5">
+      <p className="text-xs font-semibold text-[#00d97e] uppercase tracking-wide mb-2">Weekly digest</p>
+      <p className="text-sm font-bold text-white mb-1">Get this in your inbox</p>
+      <p className="text-xs text-white/40 mb-3 leading-relaxed">Top EV recalls, price shifts, and deal alerts — every week, free.</p>
+      <form onSubmit={handleSubmit} className="space-y-2">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="your@email.com"
+          required
+          className="w-full px-3 py-2 rounded-lg bg-white/[0.06] border border-white/[0.10] text-white text-sm placeholder-white/20 focus:outline-none focus:border-[#00d97e]/40"
+        />
+        <button
+          type="submit"
+          disabled={state === "loading"}
+          className="w-full py-2 rounded-lg bg-[#00d97e] text-[#0d1117] text-sm font-semibold hover:bg-[#00c970] transition-colors disabled:opacity-60"
+        >
+          {state === "loading" ? "Subscribing…" : "Subscribe free"}
+        </button>
+      </form>
+      {state === "error" && <p className="text-xs text-red-400/70 mt-2 text-center">Something went wrong — try again.</p>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
@@ -263,26 +323,7 @@ function NewsPageInner() {
 
   return (
     <div className="min-h-screen bg-[#0d1117]">
-
-      {/* ── Nav ── */}
-      <nav className="sticky top-0 z-50 bg-[#0d1117]/90 backdrop-blur-md border-b border-white/[0.06]">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <Image src="/offo-logo.png" alt="OFFO" width={200} height={103} className="w-28 sm:w-32 h-auto" priority />
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/blog" className="hidden sm:block text-sm text-white/40 hover:text-white/70 transition-colors">
-              Blog
-            </Link>
-            <Link
-              href="/"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#00d97e] text-[#0d1117] text-sm font-semibold hover:bg-[#00c970] transition-colors"
-            >
-              Analyze a listing
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Header variant="homepage" />
 
       {/* ── Header ── */}
       <header className="border-b border-white/[0.06]">
@@ -350,7 +391,7 @@ function NewsPageInner() {
 
             {/* ── Sidebar ── */}
             <aside className="space-y-4">
-              <div className="sticky top-20 space-y-4">
+              <div className="sticky top-16 space-y-4">
 
                 {/* Analyze CTA */}
                 <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-5">
@@ -369,6 +410,9 @@ function NewsPageInner() {
                   </Link>
                   <p className="text-xs text-white/20 text-center mt-2">No account needed · 30 seconds</p>
                 </div>
+
+                {/* Weekly digest email capture */}
+                <NewsEmailCapture />
 
                 {/* Topic nav */}
                 <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4">

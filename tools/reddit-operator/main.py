@@ -307,19 +307,22 @@ class SocialGenerateRequest(BaseModel):
 
 
 @app.post("/social/generate-weekly")
-def social_generate_weekly(req: SocialGenerateRequest = SocialGenerateRequest()):
+async def social_generate_weekly(req: SocialGenerateRequest = SocialGenerateRequest()):
     """
     Generate 10 posts per platform (Reddit, X, LinkedIn, Facebook) from the
     top post-worthy items in offo_knowledge_base over the last `days` days.
     Saves results back to the knowledge base unless dry_run=True.
+    Runs in a thread pool so the async event loop is not blocked.
     """
     import traceback
     import json
+    import asyncio
     from fastapi.responses import JSONResponse
     try:
         from social_post_generator import generate_weekly_posts, fetch_post_worthy_items
-        items = fetch_post_worthy_items(days=req.days, limit=40)
-        result = generate_weekly_posts(days=req.days, dry_run=req.dry_run)
+        loop = asyncio.get_event_loop()
+        items = await loop.run_in_executor(None, lambda: fetch_post_worthy_items(days=req.days, limit=40))
+        result = await loop.run_in_executor(None, lambda: generate_weekly_posts(days=req.days, dry_run=req.dry_run))
         payload = {
             "reddit": result.get("reddit", []),
             "x": result.get("x", []),
@@ -328,7 +331,6 @@ def social_generate_weekly(req: SocialGenerateRequest = SocialGenerateRequest())
             "item_count": len(items),
             "dry_run": req.dry_run,
         }
-        # ensure_ascii=True escapes all unicode to \uXXXX — safe for any Windows encoding
         safe = json.dumps(payload, default=str, ensure_ascii=True)
         return JSONResponse(content=json.loads(safe))
     except Exception as e:
