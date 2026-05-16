@@ -9,6 +9,17 @@ export interface WarrantyEntry {
   start_year: number; // first model year this warranty applies to
 }
 
+export interface WarrantyOverride {
+  years: number;
+  miles: number;
+  before_year: number; // applies when vehicle year < before_year
+}
+
+// Model+year-specific exceptions to the make-level defaults
+export const WARRANTY_OVERRIDES: Record<string, WarrantyOverride> = {
+  "nissan leaf": { years: 5, miles: 60_000, before_year: 2019 },
+};
+
 export const WARRANTY_TABLE: Record<string, WarrantyEntry> = {
   "tesla":          { years: 8, miles: 100_000, start_year: 2012 },
   "hyundai":        { years: 10, miles: 100_000, start_year: 2019 },
@@ -39,9 +50,16 @@ export const WARRANTY_TABLE: Record<string, WarrantyEntry> = {
   "default":        { years: 8, miles: 100_000, start_year: 2015 },
 };
 
-export function getWarranty(make: string): WarrantyEntry {
-  const key = make.toLowerCase().trim();
-  return WARRANTY_TABLE[key] ?? WARRANTY_TABLE["default"];
+export function getWarranty(make: string, model?: string, year?: number): WarrantyEntry {
+  if (model && year) {
+    const key = `${make.toLowerCase().trim()} ${model.toLowerCase().trim()}`;
+    const override = WARRANTY_OVERRIDES[key];
+    if (override && year < override.before_year) {
+      return { years: override.years, miles: override.miles, start_year: year };
+    }
+  }
+  const makeKey = make.toLowerCase().trim();
+  return WARRANTY_TABLE[makeKey] ?? WARRANTY_TABLE["default"];
 }
 
 /** Battery replacement cost estimate based on kWh at 2024 industry rates. */
@@ -83,7 +101,7 @@ export function computeWarrantyResult(
   currentYear: number,
   battery_kwh?: number
 ): WarrantyResult {
-  const entry = getWarranty(make);
+  const entry = getWarranty(make, model, year);
   const expiry_year = year + entry.years;
   const years_remaining = Math.max(0, expiry_year - currentYear);
   const miles_remaining = Math.max(0, entry.miles - currentMileage);

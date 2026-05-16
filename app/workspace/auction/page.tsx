@@ -361,7 +361,15 @@ export default function WorkspaceAuctionPage() {
           <Gavel className="w-5 h-5 text-orange-400" />
           <h1 className="text-2xl font-bold text-white">Auction Analyzer</h1>
         </div>
-        <p className="text-sm text-white/40">AI-powered risk scoring for Copart &amp; IAAI salvage auctions</p>
+        <p className="text-sm text-white/40">Risk scoring for Copart &amp; IAAI salvage auctions</p>
+      </div>
+
+      {/* ── Under development banner ─────────────────────────────── */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-amber-500/25 bg-amber-500/10">
+        <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-300/80 leading-relaxed">
+          This section is still under active development. Some features may be incomplete or change without notice.
+        </p>
       </div>
 
       {/* ── Main layout: left column + right sidebar ────────────── */}
@@ -380,7 +388,7 @@ export default function WorkspaceAuctionPage() {
               </div>
               <h2 className="text-2xl font-black text-white mb-1">Paste an Auction Lot URL</h2>
               <p className="text-sm text-white/40 max-w-md mx-auto">
-                Get an instant AI risk score, repair cost estimate, and arbitrage breakdown before you bid.
+                Get an instant risk score, repair cost estimate, and arbitrage breakdown before you bid.
               </p>
             </div>
 
@@ -451,9 +459,9 @@ export default function WorkspaceAuctionPage() {
                   desc: "Copy any Copart or IAAI auction lot URL and paste it above.",
                 },
                 {
-                  num: "02", icon: "🤖", accent: "text-blue-400",
-                  title: "AI Risk Analysis",
-                  desc: "Our AI scores 6 risk dimensions: structural, battery, title, market, and more.",
+                  num: "02", icon: "🔍", accent: "text-blue-400",
+                  title: "Risk Analysis",
+                  desc: "Scores 6 risk dimensions: structural, battery, title, market, and more.",
                 },
                 {
                   num: "03", icon: "📊", accent: "text-[#00d97e]",

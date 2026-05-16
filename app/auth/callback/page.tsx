@@ -26,7 +26,7 @@ function getPostAuthRedirect(session: Session | null): string {
   }
   const role = session?.user?.user_metadata?.role;
   if (!role) return "/onboarding";
-  // dealer workspace not yet launched — send all roles to workspace
+  if (role === "dealer_admin" || role === "dealer_user") return "/dealer";
   return "/workspace";
 }
 

@@ -20,6 +20,7 @@ const homepageNavLinks = [
   { label: "EV News",    href: "/news" },
   { label: "Deal Watch", href: "/deals" },
   { label: "Blog",       href: "/blog" },
+  { label: "For Dealers", href: "/for-dealers" },
 ];
 
 // Tool-focused nav (copart, receipt, auction pages)

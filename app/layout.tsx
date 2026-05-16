@@ -36,6 +36,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    site: "@offolab",
     title: "OFFO | Used EV Deal Checker & Charging Fit Score",
     description: "Paste a used EV listing. Get an instant risk verdict and charging fit score in seconds.",
   },

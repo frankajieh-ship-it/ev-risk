@@ -27,6 +27,7 @@ import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 import { getReceiptHistory } from "@/lib/receipt-history";
 import { anonGarageCount } from "@/lib/anon-garage";
 import type { MinimumViableRoutine } from "@/types/v2";
+import SampleReportPreview from "@/components/landing/SampleReportPreview";
 
 type WizardStep = "routine" | "recommendations" | "vehicle_manual" | "generating";
 
@@ -441,7 +442,7 @@ export default function Home() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full border border-white/10 bg-white/5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e] animate-pulse" />
-            <span className="text-xs font-medium text-white/70 tracking-wide">Free analysis · No sign-up required</span>
+            <span className="text-xs font-medium text-white/70 tracking-wide">Free analysis</span>
           </div>
 
           {/* Headline */}
@@ -495,6 +496,11 @@ export default function Home() {
               No URL or VIN? Enter details manually →
             </Link>
           </p>
+
+          {/* Sample result preview — visual proof of what the tool produces */}
+          <div className="max-w-2xl mx-auto mt-6">
+            <SampleReportPreview />
+          </div>
         </section>
 
         {/* Return visitor nudge — shown when local receipt history exists but not signed in */}

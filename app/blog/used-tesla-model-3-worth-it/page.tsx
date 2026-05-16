@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
+import BlogVehicleCTA from "@/components/BlogVehicleCTA";
 
 export default function UsedTeslaModel3Post() {
   useVisitorTracking();
@@ -349,6 +350,10 @@ export default function UsedTeslaModel3Post() {
       </article>
 
       {/* Footer */}
+      <div className="max-w-3xl mx-auto px-4">
+        <BlogVehicleCTA make="Tesla" model="Model 3" />
+      </div>
+
       <footer className="max-w-3xl mx-auto px-4 py-12 text-center text-gray-500 text-sm border-t border-gray-200">
         <p>OFFO Labs &middot; Building decision intelligence that reduces regret</p>
       </footer>

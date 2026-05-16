@@ -197,6 +197,11 @@ function DealsPageInner() {
 
         {/* Grid */}
         {loading ? (
+          <>
+            <p className="text-xs text-white/30 mb-3 flex items-center gap-1.5">
+              <span className="inline-block w-3 h-3 border border-white/20 border-t-white/60 rounded-full animate-spin" />
+              Loading deals — refreshed 3× daily
+            </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {Array.from({ length: 10 }).map((_, i) => (
               <div key={i} className="bg-[#161b22] border border-white/[0.06] rounded-xl overflow-hidden animate-pulse">
@@ -209,6 +214,7 @@ function DealsPageInner() {
               </div>
             ))}
           </div>
+          </>
         ) : deals.length === 0 ? (
           <div className="text-center py-24">
             <Zap className="w-10 h-10 text-white/10 mx-auto mb-4" />

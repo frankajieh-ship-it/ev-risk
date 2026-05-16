@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Copy,
@@ -292,9 +293,10 @@ export default function ReceiptOutputCard({
                 <button
                   onClick={onSave}
                   title={saveState === "saved" ? "Saved to garage" : "Save to My Garage"}
-                  className={`p-1.5 rounded-lg transition-colors ${saveState === "saved" ? "text-[#00d97e]" : "text-white/40 hover:text-white/70 hover:bg-white/[0.06]"}`}
+                  className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${saveState === "saved" ? "text-[#00d97e]" : "text-white/40 hover:text-white/70 hover:bg-white/[0.06]"}`}
                 >
                   <Bookmark className={`w-4 h-4 ${saveState === "saved" ? "fill-[#00d97e]" : ""}`} />
+                  <span className="hidden sm:inline">{saveState === "saved" ? "Saved" : "Save report"}</span>
                 </button>
               )}
               {onCompare && showCompare && (
@@ -427,6 +429,11 @@ export default function ReceiptOutputCard({
         <p className={`text-sm mt-3 ${isUpgrading ? "text-white/40 italic" : "text-white/70"}`}>
           {isUpgrading ? "Verdict and full reasoning will appear when analysis completes." : receipt.verdict_reason}
         </p>
+        {!isUpgrading && (
+          <Link href="/methodology" className="inline-block mt-2 text-xs text-white/30 hover:text-white/55 underline underline-offset-2 transition-colors">
+            How we calculate this →
+          </Link>
+        )}
         {region === "UK" && (
           <p className="text-xs text-white/40 mt-1.5">UK Mode (beta) — prices in pounds, UK wording</p>
         )}

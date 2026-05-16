@@ -88,7 +88,13 @@ export default function Footer() {
               <li><Link href="/copart" className="hover:text-white transition-colors">Auction Audit</Link></li>
               <li><Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link></li>
               <li><Link href="/news" className="hover:text-white transition-colors">EV News Digest</Link></li>
-              <li><Link href="/dealer" className="hover:text-white transition-colors">Dealer Workspace</Link></li>
+              <li><Link href="/for-dealers" className="hover:text-white transition-colors">For Dealers</Link></li>
+            </ul>
+            <h4 className="text-[0.6875rem] font-semibold text-gray-400 uppercase tracking-widest mb-3 mt-5">Free Tools</h4>
+            <ul className="space-y-2 text-[0.8125rem]">
+              <li><Link href="/tools/warranty" className="hover:text-white transition-colors">Battery Warranty Checker</Link></li>
+              <li><Link href="/tools/charging-time" className="hover:text-white transition-colors">Charging Time Calculator</Link></li>
+              <li><Link href="/tools/tco" className="hover:text-white transition-colors">EV vs Gas Cost Calculator</Link></li>
             </ul>
           </div>
 

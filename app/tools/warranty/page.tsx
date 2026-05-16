@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/landing/Header";
-import { CheckCircle, AlertTriangle, XCircle, ChevronRight } from "lucide-react";
+import { CheckCircle, AlertTriangle, XCircle, ChevronRight, Copy, Check } from "lucide-react";
 
-// Popular EV makes and their common models
 const MAKE_MODEL_MAP: Record<string, string[]> = {
   "Tesla": ["Model 3", "Model Y", "Model S", "Model X", "Cybertruck"],
   "Hyundai": ["IONIQ 5", "IONIQ 6", "Kona Electric"],
@@ -33,6 +33,13 @@ const MAKE_MODEL_MAP: Record<string, string[]> = {
 const MAKES = Object.keys(MAKE_MODEL_MAP).sort();
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: CURRENT_YEAR - 2010 + 1 }, (_, i) => CURRENT_YEAR - i);
+
+// Inline X logo SVG — no dependency
+const XIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" aria-hidden="true">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.73-8.835L1.254 2.25H8.08l4.26 5.632 5.905-5.632Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
 
 interface WarrantyResult {
   make: string;
@@ -68,14 +75,33 @@ function fmt(n: number) {
   return n.toLocaleString();
 }
 
-export default function WarrantyCheckerPage() {
-  const [make, setMake] = useState("");
-  const [model, setModel] = useState("");
-  const [year, setYear] = useState<number | "">("");
+const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/i;
+
+function WarrantyCheckerInner() {
+  const searchParams = useSearchParams();
+
+  const paramMake = searchParams.get("make") ?? "";
+  const paramModel = searchParams.get("model") ?? "";
+  const paramYear = parseInt(searchParams.get("year") ?? "");
+
+  const [make, setMake] = useState(() => (MAKES.includes(paramMake) ? paramMake : ""));
+  const [model, setModel] = useState(() => {
+    if (!paramMake || !paramModel) return "";
+    return (MAKE_MODEL_MAP[paramMake] ?? []).includes(paramModel) ? paramModel : "";
+  });
+  const [year, setYear] = useState<number | "">(() => (!isNaN(paramYear) && paramYear >= 2010 && paramYear <= CURRENT_YEAR ? paramYear : ""));
   const [mileage, setMileage] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WarrantyResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // VIN decode state
+  const [vin, setVin] = useState("");
+  const [vinLoading, setVinLoading] = useState(false);
+  const [vinError, setVinError] = useState<string | null>(null);
+
+  // Share state
+  const [copied, setCopied] = useState(false);
 
   const models = make ? (MAKE_MODEL_MAP[make] ?? []) : [];
 
@@ -85,6 +111,49 @@ export default function WarrantyCheckerPage() {
     setResult(null);
     setError(null);
   };
+
+  const handleVinChange = (v: string) => {
+    setVin(v.toUpperCase());
+    setVinError(null);
+  };
+
+  const handleVinDecode = useCallback(async () => {
+    const clean = vin.replace(/\s/g, "");
+    if (!VIN_REGEX.test(clean)) {
+      setVinError("VINs are 17 characters (letters and numbers, no I/O/Q).");
+      return;
+    }
+    setVinLoading(true);
+    setVinError(null);
+    try {
+      const res = await fetch("/api/vin/decode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vin: clean }),
+      });
+      const json = await res.json();
+      if (!json.success || !json.decoded) {
+        setVinError("Couldn't decode that VIN — fill in the fields below.");
+        return;
+      }
+      const d = json.decoded;
+      const decodedMake = MAKES.find((m) => m.toLowerCase() === (d.make ?? "").toLowerCase()) ?? "";
+      const decodedYear = parseInt(d.year ?? "");
+      if (decodedMake) {
+        setMake(decodedMake);
+        const availableModels = MAKE_MODEL_MAP[decodedMake] ?? [];
+        const decodedModel = availableModels.find((m) => m.toLowerCase().includes((d.model ?? "").toLowerCase())) ?? "";
+        setModel(decodedModel);
+      }
+      if (!isNaN(decodedYear)) setYear(decodedYear);
+      setResult(null);
+      setError(null);
+    } catch {
+      setVinError("Couldn't decode that VIN — fill in the fields below.");
+    } finally {
+      setVinLoading(false);
+    }
+  }, [vin]);
 
   const canSubmit = make && model && year !== "" && mileage && !loading;
 
@@ -114,7 +183,40 @@ export default function WarrantyCheckerPage() {
   const reset = () => {
     setResult(null);
     setError(null);
+    setVin("");
+    setVinError(null);
   };
+
+  const handleTweetShare = useCallback(() => {
+    if (!result) return;
+    const emoji = result.status === "covered" ? "✅" : result.status === "expiring_soon" ? "⚠️" : "❌";
+    const statusLabel = result.status === "covered" ? "COVERED" : result.status === "expiring_soon" ? "EXPIRING SOON" : "EXPIRED";
+    const remaining = result.status === "expired"
+      ? "No coverage remaining"
+      : `${result.years_remaining} yr${result.years_remaining !== 1 ? "s" : ""} / ${fmt(result.miles_remaining)} mi remaining`;
+    const text = `Checked a ${result.year} ${result.make} ${result.model}'s battery warranty on @offolab — ${emoji} ${statusLabel}\n${remaining}\nFree check → offolab.com/tools/warranty #UsedEV #EVBuying`;
+    window.open(
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }, [result]);
+
+  const handleCopyLink = useCallback(async () => {
+    const url = "https://offolab.com/tools/warranty?utm_source=twitter&utm_medium=share&utm_campaign=warranty_share";
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const el = document.createElement("textarea");
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, []);
 
   const StatusBadge = ({ status }: { status: WarrantyResult["status"] }) => {
     if (status === "covered")
@@ -160,6 +262,35 @@ export default function WarrantyCheckerPage() {
         {/* Input form */}
         {!result && (
           <div className="rounded-2xl border border-white/[0.08] bg-[#161b22] p-6 space-y-5">
+            {/* VIN input */}
+            <div>
+              <label className="block text-xs font-medium text-white/50 mb-2">VIN <span className="text-white/25 font-normal">(optional — auto-fills fields below)</span></label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  maxLength={17}
+                  placeholder="e.g. 5YJ3E1EA1JF000001"
+                  value={vin}
+                  onChange={(e) => handleVinChange(e.target.value)}
+                  className="flex-1 min-w-0 bg-[#0d1117] border border-white/[0.12] rounded-lg px-3 py-2.5 text-white text-sm font-mono focus:outline-none focus:border-[#00d97e]/50 placeholder:text-white/20"
+                />
+                <button
+                  onClick={handleVinDecode}
+                  disabled={vin.length < 17 || vinLoading}
+                  className="px-4 py-2.5 bg-white/[0.06] hover:bg-white/[0.10] text-white/70 text-sm rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {vinLoading ? "Decoding…" : "Decode"}
+                </button>
+              </div>
+              {vinError && <p className="text-yellow-400/80 text-xs mt-1.5">{vinError}</p>}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-white/[0.06]" />
+              <span className="text-xs text-white/25">or enter manually</span>
+              <div className="flex-1 h-px bg-white/[0.06]" />
+            </div>
+
             {/* Make */}
             <div>
               <label className="block text-xs font-medium text-white/50 mb-2">Make</label>
@@ -311,7 +442,6 @@ export default function WarrantyCheckerPage() {
                 </div>
               </div>
 
-              {/* Current mileage note */}
               <p className="text-white/30 text-xs mt-3">
                 Based on {fmt(result.current_mileage)} miles at time of check.
               </p>
@@ -346,6 +476,24 @@ export default function WarrantyCheckerPage() {
                 Check another vehicle
               </button>
             </div>
+
+            {/* Share row */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleTweetShare}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-black text-white hover:bg-gray-900 transition-colors"
+              >
+                <XIcon />
+                Post to X
+              </button>
+              <button
+                onClick={handleCopyLink}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-white/[0.12] text-white/60 hover:text-white hover:border-white/20 transition-colors"
+              >
+                {copied ? <Check className="w-4 h-4 text-[#00d97e]" /> : <Copy className="w-4 h-4" />}
+                {copied ? "Copied!" : "Copy link"}
+              </button>
+            </div>
           </div>
         )}
 
@@ -355,5 +503,17 @@ export default function WarrantyCheckerPage() {
         </p>
       </main>
     </div>
+  );
+}
+
+export default function WarrantyCheckerPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0d1117] flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-[#00d97e]/30 border-t-[#00d97e] rounded-full animate-spin" />
+      </div>
+    }>
+      <WarrantyCheckerInner />
+    </Suspense>
   );
 }

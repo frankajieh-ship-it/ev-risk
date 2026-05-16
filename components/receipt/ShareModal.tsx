@@ -7,7 +7,14 @@ import { QRCodeCanvas } from "qrcode.react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { generateShareCard } from "@/lib/share-card-renderer";
 import { humanizeFlag } from "@/lib/receipt-rules";
+import { buildTweetText } from "@/lib/tweet-share";
 import type { ListingReceipt } from "@/types/receipt";
+
+const XIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" aria-hidden="true">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.73-8.835L1.254 2.25H8.08l4.26 5.632 5.905-5.632Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -89,7 +96,7 @@ export default function ShareModal({
     }, 150); // delay for QRCodeCanvas to finish rendering
 
     return () => clearTimeout(timer);
-  }, [isOpen, receipt, shareSlug]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen, receipt, shareSlug]);  
 
   const handleCopy = useCallback(async () => {
     try {
@@ -120,6 +127,17 @@ export default function ShareModal({
 
     trackEvent("share_card_downloaded", { share_slug: shareSlug, receipt_id: receiptId });
   }, [cardDataUrl, shareSlug, receiptId, trackEvent]);
+
+  const handleTweetShare = useCallback(() => {
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://offolab.com";
+    const text = buildTweetText(receipt, shareSlug, baseUrl);
+    window.open(
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
+    trackEvent("share_tweet_clicked", { share_slug: shareSlug, receipt_id: receiptId, verdict: receipt.verdict });
+  }, [receipt, shareSlug, receiptId, trackEvent]);
 
   return (
     <AnimatePresence>
@@ -213,6 +231,14 @@ export default function ShareModal({
                 >
                   <Download className="w-4 h-4" />
                   Card
+                </button>
+
+                <button
+                  onClick={handleTweetShare}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-black text-white hover:bg-gray-900 transition-colors"
+                >
+                  <XIcon />
+                  Post
                 </button>
               </div>
             </div>

@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Shield, ShieldAlert, AlertTriangle, CheckCircle, Zap, ExternalLink, Loader2, Lock } from "lucide-react";
 import type { ListingReceipt } from "@/types/receipt";
 import type { VinAuditLiteResult } from "@/lib/vinaudit-client";
@@ -330,7 +331,9 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
           <span>
             <span className="font-medium text-white/80">Battery est.</span>{" "}
             ~{100 - degradation}% health · ~{estimatedRange} mi range
-            <span className="text-white/30 ml-1">(listed {mileage.toLocaleString()} mi · confirm with seller)</span>
+            <span className="text-white/30 ml-1">(est. from mileage &amp; age · confirm with seller ·{" "}
+              <Link href="/methodology#battery" className="underline hover:text-white/50 transition-colors">how?</Link>
+            )</span>
           </span>
         </div>
       )}

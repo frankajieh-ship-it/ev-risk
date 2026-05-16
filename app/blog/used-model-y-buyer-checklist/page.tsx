@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import BlogVehicleCTA from "@/components/BlogVehicleCTA";
 
 export default function UsedModelYBuyerChecklist() {
   useVisitorTracking();
@@ -449,6 +450,10 @@ export default function UsedModelYBuyerChecklist() {
 
         </div>
       </article>
+
+      <div className="max-w-3xl mx-auto px-4">
+        <BlogVehicleCTA make="Tesla" model="Model Y" />
+      </div>
 
       <footer className="max-w-3xl mx-auto px-4 py-12 text-center text-gray-500 text-sm border-t border-gray-200">
         <p>OFFO Labs &middot; Building decision intelligence that reduces regret</p>

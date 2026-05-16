@@ -12,7 +12,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Receipt, Loader2, QrCode, Menu, X, Zap, Bell, Bookmark, MessageCircle } from "lucide-react";
+import { Receipt, Loader2, QrCode, Menu, X, Zap, Bell, Bookmark, MessageCircle, ShieldCheck } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { addToAnonGarage } from "@/lib/anon-garage";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
@@ -25,6 +25,7 @@ import AuthLoginModal from "@/components/auth/LoginModal";
 import ReceiptInputCard from "@/components/receipt/ReceiptInputCard";
 import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
 import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
+import RoutineFitMiniStep from "@/components/receipt/RoutineFitMiniStep";
 // EmailGateModal removed — 100% skip rate, replaced by inline EmailCaptureCard
 import FeedbackWidget from "@/components/FeedbackWidget";
 import ExitFeedbackModal from "@/components/receipt/ExitFeedbackModal";
@@ -56,6 +57,7 @@ import ReturnToRoutinePrompt from "@/components/receipt/ReturnToRoutinePrompt";
 import RecallBanner from "@/components/receipt/RecallBanner";
 import WorkspaceSaveNudge from "@/components/receipt/WorkspaceSaveNudge";
 import PostReceiptPopup from "@/components/receipt/PostReceiptPopup";
+import { buildTweetUrl } from "@/lib/tweet-share";
 import { useReceiptGeneration } from "@/hooks/useReceiptGeneration";
 import { useDeepDive } from "@/hooks/useDeepDive";
 import { useCompareState } from "@/hooks/useCompareState";
@@ -357,6 +359,10 @@ export default function ReceiptPage() {
     } catch { setHasSaved(false); }
   }, [receipt?.receipt_id]);
   const [hasEmailed, setHasEmailed] = useState(false);
+  const [showScrollEmailBar, setShowScrollEmailBar] = useState(false);
+  const [scrollEmailDismissed, setScrollEmailDismissed] = useState(false);
+  const [scrollBarEmail, setScrollBarEmail] = useState("");
+  const [scrollBarSubmitting, setScrollBarSubmitting] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
   // Post-receipt popup (save + compare) — shown 5s after result
@@ -570,6 +576,19 @@ export default function ReceiptPage() {
       resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Scroll-triggered email bar — fires once when output card leaves viewport
+  useEffect(() => {
+    if (!receipt || hasEmailed || scrollEmailDismissed || isAuthenticated) return;
+    const el = document.querySelector('[data-tutorial="receipt-output"]');
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (!entry.isIntersecting) setShowScrollEmailBar(true); },
+      { threshold: 0, rootMargin: "-100px 0px 0px 0px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [receipt?.receipt_id, hasEmailed, scrollEmailDismissed, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch matching deals for this vehicle when a receipt loads
   useEffect(() => {
@@ -1029,6 +1048,19 @@ export default function ReceiptPage() {
               />
               </div>
 
+              {/* Retention hook — shown immediately after result so unauthenticated users see it first */}
+              {!isAuthenticated && (
+                <WorkspaceSaveNudge onSignIn={() => setShowAuthPrompt(true)} />
+              )}
+
+              {/* Routine fit inline — surfaces OFFO's key differentiator on every result */}
+              <RoutineFitMiniStep
+                receiptMileage={receipt.listing_summary?.mileage as number | undefined}
+                receiptPrice={receipt.listing_summary?.price as number | undefined}
+                receiptSellerType={receipt.listing_summary?.seller_type as string | undefined}
+                trackEvent={trackEvent}
+              />
+
               {/* Email capture — placed high so it's visible without scrolling */}
               {!hasEmailed && (
                 <div id="email-capture-card">
@@ -1094,15 +1126,10 @@ export default function ReceiptPage() {
                 ) : null}
               </>
 
-              {/* Workspace save nudge */}
-              {!isAuthenticated && (
-                <WorkspaceSaveNudge onSignIn={() => setShowAuthPrompt(true)} />
-              )}
-
               {/* ── Next-step CTA bar ────────────────────────────────── */}
               <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
                 <p className="text-xs text-white/40 uppercase tracking-wider mb-3">What&apos;s next?</p>
-                <div className="grid grid-cols-2 gap-2 mb-2">
+                <div className="grid grid-cols-4 gap-2 mb-2">
                   <Link
                     href={`/receipt?compare=${receipt.receipt_id}`}
                     onClick={() => trackEvent("cta_compare_clicked", { receipt_id: receipt.receipt_id })}
@@ -1118,6 +1145,28 @@ export default function ReceiptPage() {
                   >
                     <Bell className="w-4 h-4" />
                     <span className="text-xs leading-tight">Set up<br />deal watch</span>
+                  </Link>
+                  {shareSlug && (
+                    <a
+                      href={buildTweetUrl(receipt, shareSlug)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => trackEvent("cta_tweet_clicked", { receipt_id: receipt.receipt_id, verdict: receipt.verdict })}
+                      className="flex flex-col items-center gap-1.5 py-3 rounded-lg border border-white/[0.08] text-white/60 hover:text-white hover:border-white/20 hover:bg-white/[0.04] transition-colors text-center"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" aria-hidden="true">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.74l7.73-8.835L1.254 2.25H8.08l4.26 5.632 5.905-5.632Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                      </svg>
+                      <span className="text-xs leading-tight">Post to X</span>
+                    </a>
+                  )}
+                  <Link
+                    href={`/tools/warranty?make=${encodeURIComponent(receipt.listing_summary?.make ?? "")}&model=${encodeURIComponent(receipt.listing_summary?.model ?? "")}&year=${receipt.listing_summary?.year ?? ""}`}
+                    onClick={() => trackEvent("cta_warranty_clicked", { receipt_id: receipt.receipt_id })}
+                    className="flex flex-col items-center gap-1.5 py-3 rounded-lg border border-white/[0.08] text-white/60 hover:text-white hover:border-white/20 hover:bg-white/[0.04] transition-colors text-center"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    <span className="text-xs leading-tight">Warranty<br />check</span>
                   </Link>
                 </div>
                 <button
@@ -1360,6 +1409,63 @@ export default function ReceiptPage() {
           receiptId={receipt.receipt_id}
           receipt={receipt}
         />
+      )}
+
+      {/* Scroll-triggered sticky email bar — appears when output card leaves viewport */}
+      {showScrollEmailBar && !scrollEmailDismissed && !hasEmailed && !isAuthenticated && receipt && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#0d1117]/95 backdrop-blur-md border-t border-white/[0.10] px-4 py-3">
+          <div className="max-w-2xl mx-auto flex items-center gap-3">
+            <p className="text-sm text-white/80 shrink-0 hidden sm:block">Get this checklist in your inbox</p>
+            <form
+              className="flex flex-1 gap-2"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!scrollBarEmail || scrollBarSubmitting) return;
+                setScrollBarSubmitting(true);
+                try {
+                  await fetch("/api/email/checklist", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      email: scrollBarEmail.trim(),
+                      receipt_id: receipt.receipt_id,
+                      anon_id: receipt.anon_id ?? null,
+                    }),
+                  });
+                  setHasEmailed(true);
+                  setShowScrollEmailBar(false);
+                } catch {
+                  // Silent
+                } finally {
+                  setScrollBarSubmitting(false);
+                }
+              }}
+            >
+              <input
+                type="email"
+                required
+                value={scrollBarEmail}
+                onChange={(e) => setScrollBarEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="flex-1 min-w-0 px-3 py-2 text-sm bg-white/[0.07] border border-white/[0.10] text-white placeholder:text-white/30 rounded-lg outline-none focus:ring-1 focus:ring-[#00d97e] focus:border-[#00d97e]"
+              />
+              <button
+                type="submit"
+                disabled={scrollBarSubmitting}
+                className="px-4 py-2 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-lg hover:bg-[#00f090] disabled:opacity-60 shrink-0 transition-colors"
+              >
+                {scrollBarSubmitting ? "..." : "Send"}
+              </button>
+            </form>
+            <button
+              onClick={() => { setScrollEmailDismissed(true); setShowScrollEmailBar(false); }}
+              className="p-1.5 text-white/40 hover:text-white/70 transition-colors shrink-0"
+              aria-label="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       )}
 
     </div>

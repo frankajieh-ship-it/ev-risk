@@ -27,6 +27,7 @@ import { loadSpecsPrefs, applySpecsFilter } from "@/lib/specs-scorer";
 import { generateFitOneLiner } from "@/lib/fit-verdict-liner";
 import type { RoutineFitScore, MinimumViableRoutine, VehicleSpecsPrefs } from "@/types/v2";
 import type { FitVerdict, StressFlagContract } from "@/types/v2-contract";
+import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
 import type { SpecsMatchResult } from "@/lib/specs-scorer";
 import type {
   WeatherData,
@@ -1423,6 +1424,16 @@ function RoutineResultsContent() {
             Open tie-breaker coach →
           </a>
         </motion.div>
+      )}
+
+      {/* Email capture — shown before nudge to capture leads early */}
+      {!nudgeEnrolled && result && (
+        <EmailCaptureCard
+          onSubmit={() => {
+            localStorage.setItem("offo_nudge_enrolled", "1");
+            setNudgeEnrolled(true);
+          }}
+        />
       )}
 
       {/* Email nudge opt-in — shown once, hidden after enrollment */}
