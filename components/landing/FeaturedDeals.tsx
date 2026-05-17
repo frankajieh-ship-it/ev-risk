@@ -1,23 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Zap, ArrowRight, Bell } from "lucide-react";
 import DealCard, { type CuratedDeal } from "@/components/deals/DealCard";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 export default function FeaturedDeals() {
   const [deals, setDeals] = useState<CuratedDeal[]>([]);
   const [loading, setLoading] = useState(true);
+  const { trackEvent } = useEventTracking();
+  const viewedFired = useRef(false);
 
   useEffect(() => {
     fetch("/api/deals?sort=mileage&per_page=10&page=1")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
-        if (data?.deals?.length) setDeals(data.deals);
+        if (data?.deals?.length) {
+          setDeals(data.deals);
+          if (!viewedFired.current) {
+            viewedFired.current = true;
+            trackEvent("featured_deals_section_viewed", { deal_count: data.deals.length });
+          }
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <section className="max-w-7xl mx-auto px-4 py-16">
@@ -39,6 +48,7 @@ export default function FeaturedDeals() {
         </div>
         <Link
           href="/deals"
+          onClick={() => trackEvent("view_all_deals_clicked", { source: "featured_deals" })}
           className="hidden sm:flex items-center gap-1.5 text-sm text-[#00d97e] hover:text-[#00d97e]/80 transition-colors font-medium"
         >
           View all deals
@@ -67,12 +77,25 @@ export default function FeaturedDeals() {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {deals.map((deal, i) => (
-              <DealCard key={deal.id} deal={deal} preview rank={i + 1} />
+              <DealCard
+                key={deal.id}
+                deal={deal}
+                preview
+                rank={i + 1}
+                onAnalyzeClick={() => trackEvent("featured_deal_clicked", {
+                  deal_id: deal.id,
+                  rank: i + 1,
+                  make: deal.make,
+                  model: deal.model,
+                  year: deal.year,
+                })}
+              />
             ))}
           </div>
           <div className="flex sm:hidden justify-center mt-6">
             <Link
               href="/deals"
+              onClick={() => trackEvent("view_all_deals_clicked", { source: "featured_deals" })}
               className="flex items-center gap-1.5 text-sm text-[#00d97e] font-medium"
             >
               View all deals
@@ -102,6 +125,7 @@ export default function FeaturedDeals() {
         </div>
         <Link
           href="/deals"
+          onClick={() => trackEvent("deal_watch_cta_clicked", { source: "featured_deals" })}
           className="shrink-0 px-4 py-2 rounded-lg bg-[#00d97e] text-[#0d1117] text-sm font-semibold hover:bg-[#00f090] transition-colors whitespace-nowrap"
         >
           Set up deal watch →

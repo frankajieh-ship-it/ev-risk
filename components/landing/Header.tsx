@@ -7,6 +7,7 @@ import { History, Menu, X, User, Building, Bookmark } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { totalGarageCount } from "@/lib/anon-garage";
 import LoginModal from "@/components/LoginModal";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface HeaderProps {
   variant?: "receipt" | "homepage" | "compare";
@@ -36,6 +37,7 @@ const navLinkCls = "text-[0.8125rem] font-medium tracking-[-0.01em] text-white/5
 
 export default function Header({ variant = "receipt", historyCount, onHistoryClick, regionSelector }: HeaderProps) {
   const { isAuthenticated, isDealer, logout } = useAuth();
+  const { trackEvent } = useEventTracking();
   const [showLogin, setShowLogin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [garageCount, setGarageCount] = useState(0);
@@ -74,7 +76,12 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
             {/* Desktop nav — shown for both variants but with different link sets */}
             <div className="hidden md:flex items-center gap-5">
               {navLinks.map((link) => (
-                <Link key={link.label} href={link.href} className={navLinkCls}>
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  onClick={link.href === "/for-dealers" ? () => trackEvent("for_dealers_nav_clicked", {}) : undefined}
+                  className={navLinkCls}
+                >
                   {link.label}
                 </Link>
               ))}
@@ -165,7 +172,10 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                 <Link
                   key={link.label}
                   href={link.href}
-                  onClick={() => setMobileOpen(false)}
+                  onClick={() => {
+                    setMobileOpen(false);
+                    if (link.href === "/for-dealers") trackEvent("for_dealers_nav_clicked", {});
+                  }}
                   className="block text-sm font-medium text-white/60 hover:text-white/90 py-2.5 border-b border-white/[0.05] last:border-0"
                 >
                   {link.label}

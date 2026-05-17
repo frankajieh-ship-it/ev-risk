@@ -64,9 +64,10 @@ interface DealCardProps {
   preview?: boolean;
   rank?: number;
   totalDeals?: number;
+  onAnalyzeClick?: () => void;
 }
 
-export default function DealCard({ deal, compact = false, preview = false, rank, totalDeals }: DealCardProps) {
+export default function DealCard({ deal, compact = false, preview = false, rank, totalDeals, onAnalyzeClick }: DealCardProps) {
   const { isAuthenticated, session } = useAuth();
 
   const priceStr = deal.price ? `$${deal.price.toLocaleString()}` : "Price unlisted";
@@ -259,6 +260,7 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
         <div className="mt-auto flex flex-col gap-1.5 pt-1">
           <Link
             href={`/receipt?url=${encodeURIComponent(deal.listing_url)}${deal.vin ? `&vin=${encodeURIComponent(deal.vin)}` : ""}&src=deal_watch`}
+            onClick={onAnalyzeClick}
             className="flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg transition-colors bg-[#00d97e]/10 hover:bg-[#00d97e]/20 border border-[#00d97e]/20 text-[#00d97e]"
           >
             Run Analysis

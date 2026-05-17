@@ -410,6 +410,18 @@ interface SummaryData {
     chat_pass_revenue_cents: number;
     chat_conversion_pct: number;
   };
+  homepage_funnel?: {
+    landing_views: number;
+    featured_deals_viewed: number;
+    featured_deal_clicked: number;
+    view_all_deals_clicked: number;
+    deal_watch_cta_clicked: number;
+    for_dealers_nav_clicked: number;
+    for_dealers_page_viewed: number;
+    dealer_apply_cta_clicked: number;
+    deals_section_to_click_rate: number;
+    dealer_apply_rate: number;
+  };
   deal_watch?: {
     total_searches: number;
     alert_searches: number;
@@ -1677,6 +1689,30 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
+
+        {/* Homepage Funnel */}
+        {s.homepage_funnel && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">🏠 Homepage Funnel</h2>
+            <p className="text-sm text-gray-500 mb-4">Engagement with recently-added homepage features</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <FunnelCard label="Page Views" value={s.homepage_funnel.landing_views} color="blue" />
+              <FunnelCard label="Deal Watch Section Shown" value={s.homepage_funnel.featured_deals_viewed} color="green" />
+              <FunnelCard label="Deal Card → Run Analysis" value={s.homepage_funnel.featured_deal_clicked} color="green" />
+              <FunnelCard label="Deal Section CTR" value={`${s.homepage_funnel.deals_section_to_click_rate}%`} color="indigo" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <FunnelCard label="View All Deals →" value={s.homepage_funnel.view_all_deals_clicked} color="purple" />
+              <FunnelCard label="Set Up Deal Watch CTA" value={s.homepage_funnel.deal_watch_cta_clicked} color="purple" />
+              <FunnelCard label="For Dealers Nav Clicks" value={s.homepage_funnel.for_dealers_nav_clicked} color="yellow" />
+              <FunnelCard label="For Dealers Page Views" value={s.homepage_funnel.for_dealers_page_viewed} color="yellow" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <FunnelCard label="Dealer Apply CTA Clicked" value={s.homepage_funnel.dealer_apply_cta_clicked} color="red" />
+              <FunnelCard label="Dealer Page → Apply Rate" value={`${s.homepage_funnel.dealer_apply_rate}%`} color="red" />
+            </div>
+          </div>
+        )}
 
         {/* Saved Listings */}
         {s.saved_listings.total > 0 && (

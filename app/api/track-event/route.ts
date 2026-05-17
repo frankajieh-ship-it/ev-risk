@@ -267,6 +267,16 @@ const VALID_EVENT_NAMES = [
   "auction_teaser_shown",
   "auction_teaser_cta_clicked",
   "auction_email_captured",
+  // Homepage & Deal Watch Events
+  "featured_deals_section_viewed",
+  "featured_deal_clicked",
+  "view_all_deals_clicked",
+  "deal_watch_cta_clicked",
+  // For Dealers Events
+  "for_dealers_page_viewed",
+  "dealer_apply_cta_clicked",
+  // Homepage Nav Events
+  "for_dealers_nav_clicked",
 ] as const;
 
 // Events that should be deduplicated by report_id (to prevent double-counting)

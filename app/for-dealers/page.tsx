@@ -1,6 +1,10 @@
+"use client";
+
+import { useEffect } from "react";
 import Link from "next/link";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 const VALUE_PROPS = [
   {
@@ -46,6 +50,12 @@ const KPI_CARDS = [
 ];
 
 export default function ForDealersPage() {
+  const { trackEvent } = useEventTracking();
+
+  useEffect(() => {
+    trackEvent("for_dealers_page_viewed", {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="min-h-screen bg-[#0d1117] text-white">
       <Header variant="homepage" />
@@ -68,6 +78,7 @@ export default function ForDealersPage() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
             href="/dealers/join"
+            onClick={() => trackEvent("dealer_apply_cta_clicked", { position: "hero" })}
             className="px-6 py-3 bg-[#00d97e] text-[#0d1117] font-semibold rounded-xl hover:bg-[#00f090] transition-colors text-sm"
           >
             Apply for dealer access
@@ -147,6 +158,7 @@ export default function ForDealersPage() {
           </p>
           <Link
             href="/dealers/join"
+            onClick={() => trackEvent("dealer_apply_cta_clicked", { position: "bottom" })}
             className="inline-block px-7 py-3.5 bg-[#00d97e] text-[#0d1117] font-semibold rounded-xl hover:bg-[#00f090] transition-colors text-sm"
           >
             Apply for dealer access

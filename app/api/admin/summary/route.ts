@@ -1402,6 +1402,34 @@ export async function GET(request: NextRequest) {
     };
 
     // -----------------------------------------------------------------------
+    // Homepage funnel (new feature tracking)
+    // -----------------------------------------------------------------------
+
+    const safeRate = (num: number, den: number) => den > 0 ? Math.round((num / den) * 100) : 0;
+
+    const hpLandingViews = countEvents(filteredUserEvents, "landing_view");
+    const hpDealsViewed = countEvents(filteredUserEvents, "featured_deals_section_viewed");
+    const hpDealClicked = countEvents(filteredUserEvents, "featured_deal_clicked");
+    const hpViewAllDeals = countEvents(filteredUserEvents, "view_all_deals_clicked");
+    const hpDealWatchCta = countEvents(filteredUserEvents, "deal_watch_cta_clicked");
+    const hpForDealersNav = countEvents(filteredUserEvents, "for_dealers_nav_clicked");
+    const hpForDealersPage = countEvents(filteredUserEvents, "for_dealers_page_viewed");
+    const hpDealerApplyCta = countEvents(filteredUserEvents, "dealer_apply_cta_clicked");
+
+    const homepage_funnel = {
+      landing_views: hpLandingViews,
+      featured_deals_viewed: hpDealsViewed,
+      featured_deal_clicked: hpDealClicked,
+      view_all_deals_clicked: hpViewAllDeals,
+      deal_watch_cta_clicked: hpDealWatchCta,
+      for_dealers_nav_clicked: hpForDealersNav,
+      for_dealers_page_viewed: hpForDealersPage,
+      dealer_apply_cta_clicked: hpDealerApplyCta,
+      deals_section_to_click_rate: safeRate(hpDealClicked, hpDealsViewed),
+      dealer_apply_rate: safeRate(hpDealerApplyCta, hpForDealersPage),
+    };
+
+    // -----------------------------------------------------------------------
     // User segments (cross-table, all-time for garage/scenarios)
     // -----------------------------------------------------------------------
 
@@ -2043,6 +2071,7 @@ export async function GET(request: NextRequest) {
       ai_generation,
       routine_engagement,
       evfit_funnel,
+      homepage_funnel,
       user_segments,
       entry_mode,
       extraction_domains,
