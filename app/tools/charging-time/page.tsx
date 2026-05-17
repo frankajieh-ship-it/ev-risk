@@ -31,6 +31,9 @@ const VEHICLE_PRESETS: VehiclePreset[] = [
   { label: "Rivian R1T (LR+)",       battery_kwh: 135, real_world_range_mi: 314, onboard_ac_kw: 11.5, dc_fast_kw: 200, charging_curve: "tapered" },
   { label: "BMW iX xDrive50",        battery_kwh: 111, real_world_range_mi: 305, onboard_ac_kw: 11,   dc_fast_kw: 200, charging_curve: "tapered" },
   { label: "Volkswagen ID.4 (LR)",   battery_kwh: 82,  real_world_range_mi: 275, onboard_ac_kw: 11,   dc_fast_kw: 135, charging_curve: "tapered" },
+  { label: "Audi e-tron 55 quattro", battery_kwh: 86.5, real_world_range_mi: 222, onboard_ac_kw: 11,  dc_fast_kw: 150, charging_curve: "tapered" },
+  { label: "Audi Q8 e-tron",         battery_kwh: 106, real_world_range_mi: 285, onboard_ac_kw: 11,   dc_fast_kw: 160, charging_curve: "tapered" },
+  { label: "Audi e-tron GT",         battery_kwh: 85,  real_world_range_mi: 238, onboard_ac_kw: 11,   dc_fast_kw: 270, charging_curve: "flat" },
   { label: "Nissan Leaf (40 kWh)",   battery_kwh: 40,  real_world_range_mi: 149, onboard_ac_kw: 6.6,  dc_fast_kw: 50,  charging_curve: "steep_taper" },
   { label: "Lucid Air (Grand Touring)", battery_kwh: 112, real_world_range_mi: 516, onboard_ac_kw: 19.2, dc_fast_kw: 300, charging_curve: "flat" },
 ];
