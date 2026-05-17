@@ -6,10 +6,14 @@ import { ListPlus, ChevronLeft, GitCompare } from "lucide-react";
 import ShortlistCoach from "@/components/shortlist/ShortlistCoach";
 import { getShortlist } from "@/lib/shortlist-store";
 import type { ShortlistCandidate } from "@/lib/shortlist-coach";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 export default function ShortlistPage() {
+  const { trackEvent } = useEventTracking();
   const [candidates, setCandidates] = useState<ShortlistCandidate[]>([]);
   const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => { trackEvent("shortlist_page_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

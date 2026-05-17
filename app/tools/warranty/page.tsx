@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/landing/Header";
+import { useEventTracking } from "@/hooks/useEventTracking";
 import { CheckCircle, AlertTriangle, XCircle, ChevronRight, Copy, Check } from "lucide-react";
 
 const MAKE_MODEL_MAP: Record<string, string[]> = {
@@ -78,6 +79,7 @@ function fmt(n: number) {
 const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/i;
 
 function WarrantyCheckerInner() {
+  const { trackEvent } = useEventTracking();
   const searchParams = useSearchParams();
 
   const paramMake = searchParams.get("make") ?? "";
@@ -102,6 +104,9 @@ function WarrantyCheckerInner() {
 
   // Share state
   const [copied, setCopied] = useState(false);
+  const resultFiredRef = useRef(false);
+
+  useEffect(() => { trackEvent("warranty_tool_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const models = make ? (MAKE_MODEL_MAP[make] ?? []) : [];
 
@@ -146,6 +151,7 @@ function WarrantyCheckerInner() {
         setModel(decodedModel);
       }
       if (!isNaN(decodedYear)) setYear(decodedYear);
+      trackEvent("warranty_vin_decoded", { make: decodedMake ?? "", year: decodedYear });
       setResult(null);
       setError(null);
     } catch {
@@ -159,6 +165,7 @@ function WarrantyCheckerInner() {
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    trackEvent("warranty_check_submitted", { make, model, year: Number(year), mileage: Number(mileage.replace(/,/g, "")) });
     setLoading(true);
     setError(null);
     setResult(null);
@@ -172,7 +179,12 @@ function WarrantyCheckerInner() {
       const res = await fetch(`/api/tools/warranty?${params}`);
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Unknown error");
-      setResult(json.result as WarrantyResult);
+      const r = json.result as WarrantyResult;
+      setResult(r);
+      if (!resultFiredRef.current) {
+        resultFiredRef.current = true;
+        trackEvent("warranty_result_viewed", { status: r.status, make: r.make, model: r.model, year: r.year, pct_time_used: r.pct_time_used, pct_miles_used: r.pct_miles_used });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -189,6 +201,7 @@ function WarrantyCheckerInner() {
 
   const handleTweetShare = useCallback(() => {
     if (!result) return;
+    trackEvent("warranty_tweet_clicked", { status: result.status });
     const emoji = result.status === "covered" ? "✅" : result.status === "expiring_soon" ? "⚠️" : "❌";
     const statusLabel = result.status === "covered" ? "COVERED" : result.status === "expiring_soon" ? "EXPIRING SOON" : "EXPIRED";
     const remaining = result.status === "expired"
@@ -203,6 +216,7 @@ function WarrantyCheckerInner() {
   }, [result]);
 
   const handleCopyLink = useCallback(async () => {
+    trackEvent("warranty_link_copied", {});
     const url = "https://offolab.com/tools/warranty?utm_source=twitter&utm_medium=share&utm_campaign=warranty_share";
     try {
       await navigator.clipboard.writeText(url);
@@ -464,6 +478,7 @@ function WarrantyCheckerInner() {
             <div className="grid grid-cols-2 gap-3">
               <Link
                 href="/routine"
+                onClick={() => result && trackEvent("warranty_cta_clicked", { from_status: result.status })}
                 className="flex items-center justify-center gap-2 bg-[#00d97e] hover:bg-[#00c070] text-black font-semibold py-3 px-4 rounded-xl transition-colors text-sm"
               >
                 Run Full Routine Check

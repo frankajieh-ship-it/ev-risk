@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, Loader2, Car, MapPin, Shield, X, Zap, ArrowLeft } from "lucide-react";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
@@ -142,6 +143,9 @@ function VehicleCard({ v }: { v: VehicleListing }) {
 }
 
 export default function VehicleBrowsePage() {
+  const { trackEvent } = useEventTracking();
+  useEffect(() => { trackEvent("vehicles_browse_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [vehicles, setVehicles] = useState<VehicleListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);

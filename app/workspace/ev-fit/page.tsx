@@ -17,6 +17,7 @@ import {
 import { getShortlist } from "@/lib/shortlist-store";
 import type { ShortlistCandidate } from "@/lib/shortlist-coach";
 import { getOrCreatePersistentSessionId } from "@/lib/session-utils";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface RoutineHistoryEntry {
   id: string;
@@ -54,9 +55,12 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function EvFitPage() {
+  const { trackEvent } = useEventTracking();
   const [loading, setLoading] = useState(true);
   const [latestRun, setLatestRun] = useState<RoutineHistoryEntry | null>(null);
   const [shortlist, setShortlist] = useState<ShortlistCandidate[]>([]);
+
+  useEffect(() => { trackEvent("workspace_evfit_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setShortlist(getShortlist());

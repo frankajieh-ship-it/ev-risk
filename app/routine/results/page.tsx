@@ -226,6 +226,7 @@ function RoutineResultsContent() {
   const runId = searchParams.get("run_id");
   const applyVehicle = searchParams.get("apply_vehicle") === "true";
   const { trackEvent } = useEventTracking();
+  useEffect(() => { trackEvent("routine_results_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [result, setResult] = useState<RunResult | null>(null);
   const [loading, setLoading] = useState(true);
 

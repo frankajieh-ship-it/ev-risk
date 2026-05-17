@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import Header from "@/components/landing/Header";
 import { type NewsArticle, type NewsCategory } from "@/components/NewsCard";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -64,7 +65,7 @@ function timeAgo(iso: string): string {
 // Article cards
 // ---------------------------------------------------------------------------
 
-function FeaturedCard({ article }: { article: NewsArticle }) {
+function FeaturedCard({ article, onArticleClick }: { article: NewsArticle; onArticleClick?: (article: NewsArticle) => void }) {
   const catLabel = article.category ? CATEGORY_LABEL[article.category] : null;
   const catBadge = article.category ? CATEGORY_BADGE[article.category] : "";
   const isRecall = article.category === "recall";
@@ -74,6 +75,7 @@ function FeaturedCard({ article }: { article: NewsArticle }) {
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => onArticleClick?.(article)}
       className="group block bg-white/[0.04] border border-white/[0.10] rounded-2xl p-6 md:p-8 hover:border-white/20 hover:bg-white/[0.06] transition-all"
     >
       <div className="flex items-center gap-2 mb-4">
@@ -124,7 +126,7 @@ function FeaturedCard({ article }: { article: NewsArticle }) {
   );
 }
 
-function ArticleCard({ article }: { article: NewsArticle }) {
+function ArticleCard({ article, onArticleClick }: { article: NewsArticle; onArticleClick?: (article: NewsArticle) => void }) {
   const catLabel = article.category ? CATEGORY_LABEL[article.category] : null;
   const catBadge = article.category ? CATEGORY_BADGE[article.category] : "";
 
@@ -133,6 +135,7 @@ function ArticleCard({ article }: { article: NewsArticle }) {
       href={article.url}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => onArticleClick?.(article)}
       className="group flex items-start gap-4 p-4 bg-white/[0.03] border border-white/[0.07] rounded-xl hover:border-white/20 hover:bg-white/[0.05] transition-all"
     >
       <div className="flex-1 min-w-0">
@@ -271,8 +274,11 @@ function NewsEmailCapture() {
 // ---------------------------------------------------------------------------
 
 function NewsPageInner() {
+  const { trackEvent } = useEventTracking();
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  useEffect(() => { trackEvent("news_page_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const initialCategory = (searchParams.get("category") as NewsCategory | "all") || "all";
   const [articles, setArticles] = useState<NewsArticle[]>([]);
@@ -301,10 +307,19 @@ function NewsPageInner() {
 
   function handleCategoryChange(cat: NewsCategory | "all") {
     setActiveCategory(cat);
+    trackEvent("news_category_filtered", { category: cat });
     const params = new URLSearchParams(searchParams.toString());
     if (cat === "all") params.delete("category");
     else params.set("category", cat);
     router.replace(`/news?${params.toString()}`, { scroll: false });
+  }
+
+  function handleArticleClick(article: NewsArticle) {
+    trackEvent("news_article_clicked", {
+      article_id: article.id,
+      category: article.category ?? "unknown",
+      title: article.title,
+    });
   }
 
   const sorted = useMemo(() =>
@@ -379,11 +394,11 @@ function NewsPageInner() {
 
             {/* ── Main feed ── */}
             <div className="lg:col-span-2 space-y-3">
-              {featured && <FeaturedCard article={featured} />}
+              {featured && <FeaturedCard article={featured} onArticleClick={handleArticleClick} />}
               {rest.map((article, i) => (
                 <div key={article.id}>
                   {i === 4 && <CtaNudge context={ctaContext} />}
-                  <ArticleCard article={article} />
+                  <ArticleCard article={article} onArticleClick={handleArticleClick} />
                 </div>
               ))}
               {rest.length < 4 && <CtaNudge context={ctaContext} />}

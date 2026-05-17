@@ -422,6 +422,40 @@ interface SummaryData {
     deals_section_to_click_rate: number;
     dealer_apply_rate: number;
   };
+  tools_engagement?: {
+    charging_tool_views: number;
+    charging_tool_preset_uses: number;
+    charging_tool_results: number;
+    charging_tool_cta_clicks: number;
+    tco_tool_views: number;
+    tco_tool_results: number;
+    tco_breakdown_opens: number;
+    tco_tool_cta_clicks: number;
+    warranty_tool_views: number;
+    warranty_checks: number;
+    warranty_results: number;
+    warranty_tweets: number;
+    charging_view_to_result: number;
+    warranty_view_to_check: number;
+    tco_view_to_result: number;
+  };
+  page_reach?: {
+    deals_views: number;
+    news_views: number;
+    news_article_clicks: number;
+    routine_entry_views: number;
+    routine_results_views: number;
+    pricing_views: number;
+    methodology_views: number;
+    shortlist_views: number;
+    auth_login_views: number;
+    auth_signup_views: number;
+    workspace_evfit_views: number;
+    workspace_dealwatch_views: number;
+    report_page_views: number;
+    auction_result_views: number;
+    copart_batch_views: number;
+  };
   deal_watch?: {
     total_searches: number;
     alert_searches: number;
@@ -1710,6 +1744,64 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <FunnelCard label="Dealer Apply CTA Clicked" value={s.homepage_funnel.dealer_apply_cta_clicked} color="red" />
               <FunnelCard label="Dealer Page → Apply Rate" value={`${s.homepage_funnel.dealer_apply_rate}%`} color="red" />
+            </div>
+          </div>
+        )}
+
+        {/* Free Tools Engagement */}
+        {s.tools_engagement && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">🔧 Free Tools Engagement</h2>
+            <p className="text-sm text-gray-500 mb-4">Charging Time, TCO, and Warranty tool usage</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Charging Time Tool</p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+              <FunnelCard label="Views" value={s.tools_engagement.charging_tool_views} color="blue" />
+              <FunnelCard label="Preset Uses" value={s.tools_engagement.charging_tool_preset_uses} color="green" />
+              <FunnelCard label="Results Shown" value={s.tools_engagement.charging_tool_results} color="green" />
+              <FunnelCard label="CTA Clicks" value={s.tools_engagement.charging_tool_cta_clicks} color="indigo" />
+              <FunnelCard label="View → Result" value={`${s.tools_engagement.charging_view_to_result}%`} color="purple" />
+            </div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">TCO Calculator</p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+              <FunnelCard label="Views" value={s.tools_engagement.tco_tool_views} color="blue" />
+              <FunnelCard label="Results Calculated" value={s.tools_engagement.tco_tool_results} color="green" />
+              <FunnelCard label="Breakdown Opens" value={s.tools_engagement.tco_breakdown_opens} color="yellow" />
+              <FunnelCard label="CTA Clicks" value={s.tools_engagement.tco_tool_cta_clicks} color="indigo" />
+              <FunnelCard label="View → Result" value={`${s.tools_engagement.tco_view_to_result}%`} color="purple" />
+            </div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Warranty Checker</p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <FunnelCard label="Views" value={s.tools_engagement.warranty_tool_views} color="blue" />
+              <FunnelCard label="Checks Run" value={s.tools_engagement.warranty_checks} color="green" />
+              <FunnelCard label="Results Shown" value={s.tools_engagement.warranty_results} color="green" />
+              <FunnelCard label="X Posts" value={s.tools_engagement.warranty_tweets} color="gray" />
+              <FunnelCard label="View → Check" value={`${s.tools_engagement.warranty_view_to_check}%`} color="purple" />
+            </div>
+          </div>
+        )}
+
+        {/* Page Reach */}
+        {s.page_reach && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">📊 Page Reach</h2>
+            <p className="text-sm text-gray-500 mb-4">Views across deals, news, auth, workspace, and content pages</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <FunnelCard label="Deals Page" value={s.page_reach.deals_views} color="blue" />
+              <FunnelCard label="News Page" value={s.page_reach.news_views} color="blue" />
+              <FunnelCard label="News Article Clicks" value={s.page_reach.news_article_clicks} color="indigo" />
+              <FunnelCard label="Routine Entry" value={s.page_reach.routine_entry_views} color="green" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <FunnelCard label="Routine Results" value={s.page_reach.routine_results_views} color="green" />
+              <FunnelCard label="Auth Login" value={s.page_reach.auth_login_views} color="yellow" />
+              <FunnelCard label="Auth Signup" value={s.page_reach.auth_signup_views} color="yellow" />
+              <FunnelCard label="Workspace EV Fit" value={s.page_reach.workspace_evfit_views} color="purple" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <FunnelCard label="Deal Watch WS" value={s.page_reach.workspace_dealwatch_views} color="purple" />
+              <FunnelCard label="Report Pages" value={s.page_reach.report_page_views} color="gray" />
+              <FunnelCard label="Auction Results" value={s.page_reach.auction_result_views} color="gray" />
+              <FunnelCard label="Pricing Page" value={s.page_reach.pricing_views} color="gray" />
             </div>
           </div>
         )}

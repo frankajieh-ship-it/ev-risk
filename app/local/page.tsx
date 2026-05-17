@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cities } from "@/content/cities";
+import PageTracker from "@/components/PageTracker";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
 
@@ -64,6 +65,7 @@ export default function LocalIndexPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      <PageTracker event="local_page_viewed" />
       <div className="max-w-3xl mx-auto px-4 py-10">
         {/* Header */}
         <div className="mb-2">

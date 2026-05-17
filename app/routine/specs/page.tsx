@@ -7,16 +7,20 @@
  * and navigates back to /routine/results?run_id=...
  */
 
-import { Suspense } from "react";
+import { useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import SpecsQuestionnaire from "@/components/SpecsQuestionnaire";
 import { saveSpecsPrefs } from "@/lib/specs-scorer";
+import { useEventTracking } from "@/hooks/useEventTracking";
 import type { VehicleSpecsPrefs } from "@/types/v2";
 
 function SpecsPageInner() {
+  const { trackEvent } = useEventTracking();
   const searchParams = useSearchParams();
   const router = useRouter();
   const runId = searchParams.get("run_id") ?? "";
+
+  useEffect(() => { trackEvent("routine_specs_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = (prefs: VehicleSpecsPrefs) => {
     if (runId) {

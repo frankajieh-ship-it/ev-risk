@@ -7,7 +7,8 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useEventTracking } from "@/hooks/useEventTracking";
 import Link from "next/link";
 import {
   Layers,
@@ -69,6 +70,9 @@ function VerdictBadge({ verdict }: { verdict?: string }) {
 }
 
 export default function BatchAnalysisPage() {
+  const { trackEvent } = useEventTracking();
+  useEffect(() => { trackEvent("copart_batch_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [source, setSource] = useState<AuctionSource>("copart");
   const [lotsText, setLotsText] = useState("");
   const [loading, setLoading] = useState(false);

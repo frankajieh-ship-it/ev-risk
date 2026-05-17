@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 export default function FeedbackPage() {
+  const { trackEvent } = useEventTracking();
+  useEffect(() => { trackEvent("feedback_page_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [formData, setFormData] = useState({
     email: "",
     feedbackType: "general",
@@ -132,7 +136,7 @@ export default function FeedbackPage() {
                 htmlFor="email"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                Email (optional - if you'd like a response)
+                Email (optional - if you&apos;d like a response)
               </label>
               <input
                 type="email"

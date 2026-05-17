@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Bell, Plus, Trash2, Loader2, Mail, MailX } from "lucide-react";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface DealWatchSearch {
   id: string;
@@ -36,6 +37,9 @@ const VERDICT_DOT: Record<string, string> = {
 };
 
 export default function DealWatchPage() {
+  const { trackEvent } = useEventTracking();
+  useEffect(() => { trackEvent("workspace_dealwatch_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [searches, setSearches] = useState<DealWatchSearch[]>([]);
   const [garageVehicles, setGarageVehicles] = useState<GarageVehicleMini[]>([]);
   const [loading, setLoading] = useState(true);

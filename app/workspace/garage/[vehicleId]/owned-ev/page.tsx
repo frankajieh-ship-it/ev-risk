@@ -87,6 +87,8 @@ export default function OwnedEvReportPage({ params }: { params: Promise<{ vehicl
   const searchParams = useSearchParams();
   const { trackEvent } = useEventTracking();
 
+  useEffect(() => { if (vehicleId) trackEvent("owned_ev_page_viewed", { vehicle_id: vehicleId }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [vehicle, setVehicle] = useState<GarageVehicle | null>(null);
   const [report, setReport] = useState<RoutineHealthPayload | null>(null);
   const [loading, setLoading] = useState(true);

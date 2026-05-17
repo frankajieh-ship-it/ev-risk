@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Check, Sparkles, Zap, FileText, MessageSquare, Car, ArrowLeft } from "lucide-react";
 import Header from "@/components/landing/Header";
+import PageTracker from "@/components/PageTracker";
 
 export const metadata: Metadata = {
   title: "Pricing — OFFO",
@@ -82,6 +83,7 @@ const TIERS = [
 export default function PricingPage() {
   return (
     <div className="min-h-screen bg-[#0d1117]">
+      <PageTracker event="pricing_page_viewed" />
       <Header variant="homepage" />
 
       <div className="max-w-5xl mx-auto px-4 py-14">

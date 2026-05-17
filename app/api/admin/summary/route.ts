@@ -2045,6 +2045,54 @@ export async function GET(request: NextRequest) {
     })();
 
     // -----------------------------------------------------------------------
+    // Free Tools Engagement
+    // -----------------------------------------------------------------------
+
+    const tools_engagement = {
+      // Charging Time Tool
+      charging_tool_views: countEvents(filteredUserEvents, "charging_tool_viewed"),
+      charging_tool_preset_uses: countEvents(filteredUserEvents, "charging_tool_preset_selected"),
+      charging_tool_results: countEvents(filteredUserEvents, "charging_tool_result_viewed"),
+      charging_tool_cta_clicks: countEvents(filteredUserEvents, "charging_tool_cta_clicked"),
+      // TCO Tool
+      tco_tool_views: countEvents(filteredUserEvents, "tco_tool_viewed"),
+      tco_tool_results: countEvents(filteredUserEvents, "tco_tool_result_calculated"),
+      tco_breakdown_opens: countEvents(filteredUserEvents, "tco_breakdown_expanded"),
+      tco_tool_cta_clicks: countEvents(filteredUserEvents, "tco_tool_cta_clicked"),
+      // Warranty Tool
+      warranty_tool_views: countEvents(filteredUserEvents, "warranty_tool_viewed"),
+      warranty_checks: countEvents(filteredUserEvents, "warranty_check_submitted"),
+      warranty_results: countEvents(filteredUserEvents, "warranty_result_viewed"),
+      warranty_tweets: countEvents(filteredUserEvents, "warranty_tweet_clicked"),
+      // Conversion rates
+      charging_view_to_result: safeRate(countEvents(filteredUserEvents, "charging_tool_result_viewed"), countEvents(filteredUserEvents, "charging_tool_viewed")),
+      warranty_view_to_check: safeRate(countEvents(filteredUserEvents, "warranty_check_submitted"), countEvents(filteredUserEvents, "warranty_tool_viewed")),
+      tco_view_to_result: safeRate(countEvents(filteredUserEvents, "tco_tool_result_calculated"), countEvents(filteredUserEvents, "tco_tool_viewed")),
+    };
+
+    // -----------------------------------------------------------------------
+    // Page Reach
+    // -----------------------------------------------------------------------
+
+    const page_reach = {
+      deals_views: countEvents(filteredUserEvents, "deals_page_viewed"),
+      news_views: countEvents(filteredUserEvents, "news_page_viewed"),
+      news_article_clicks: countEvents(filteredUserEvents, "news_article_clicked"),
+      routine_entry_views: countEvents(filteredUserEvents, "routine_page_viewed"),
+      routine_results_views: countEvents(filteredUserEvents, "routine_results_viewed"),
+      pricing_views: countEvents(filteredUserEvents, "pricing_page_viewed"),
+      methodology_views: countEvents(filteredUserEvents, "methodology_page_viewed"),
+      shortlist_views: countEvents(filteredUserEvents, "shortlist_page_viewed"),
+      auth_login_views: countEvents(filteredUserEvents, "auth_login_page_viewed"),
+      auth_signup_views: countEvents(filteredUserEvents, "auth_signup_page_viewed"),
+      workspace_evfit_views: countEvents(filteredUserEvents, "workspace_evfit_viewed"),
+      workspace_dealwatch_views: countEvents(filteredUserEvents, "workspace_dealwatch_viewed"),
+      report_page_views: countEvents(filteredUserEvents, "report_page_viewed"),
+      auction_result_views: countEvents(filteredUserEvents, "auction_result_page_viewed"),
+      copart_batch_views: countEvents(filteredUserEvents, "copart_batch_viewed"),
+    };
+
+    // -----------------------------------------------------------------------
     // Response
     // -----------------------------------------------------------------------
 
@@ -2072,6 +2120,8 @@ export async function GET(request: NextRequest) {
       routine_engagement,
       evfit_funnel,
       homepage_funnel,
+      tools_engagement,
+      page_reach,
       user_segments,
       entry_mode,
       extraction_domains,

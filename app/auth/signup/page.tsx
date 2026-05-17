@@ -14,6 +14,7 @@ import Image from "next/image";
 import { ArrowLeft, Mail, Lock, User, Loader2, Check, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { signInWithGoogle, signUpWithEmailPassword } from "@/lib/supabase-auth";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 function GoogleIcon() {
   return (
@@ -66,9 +67,12 @@ function FieldError({ msg }: { msg: string | undefined }) {
 
 function SignupForm() {
   const { isAuthenticated, isReady, role, isDealer } = useAuth();
+  const { trackEvent } = useEventTracking();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/workspace";
+
+  useEffect(() => { trackEvent("auth_signup_page_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");

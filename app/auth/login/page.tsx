@@ -14,6 +14,7 @@ import Link from "next/link";
 import { ArrowLeft, Mail, Lock, Loader2, Check, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { signInWithGoogle, sendMagicLink, signInWithEmailPassword } from "@/lib/supabase-auth";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 // Inline Google "G" logo
 function GoogleIcon() {
@@ -29,9 +30,12 @@ function GoogleIcon() {
 
 function LoginForm() {
   const { isAuthenticated, isReady, role, isDealer } = useAuth();
+  const { trackEvent } = useEventTracking();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/workspace";
+
+  useEffect(() => { trackEvent("auth_login_page_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

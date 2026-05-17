@@ -277,6 +277,63 @@ const VALID_EVENT_NAMES = [
   "dealer_apply_cta_clicked",
   // Homepage Nav Events
   "for_dealers_nav_clicked",
+  // Charging Time Tool
+  "charging_tool_viewed",
+  "charging_tool_mode_switched",
+  "charging_tool_preset_selected",
+  "charging_tool_daily_miles_set",
+  "charging_tool_result_viewed",
+  "charging_tool_cta_clicked",
+  // TCO Tool
+  "tco_tool_viewed",
+  "tco_tool_result_calculated",
+  "tco_breakdown_expanded",
+  "tco_tool_cta_clicked",
+  "tco_incentive_changed",
+  // Warranty Tool
+  "warranty_tool_viewed",
+  "warranty_vin_decoded",
+  "warranty_check_submitted",
+  "warranty_result_viewed",
+  "warranty_tweet_clicked",
+  "warranty_link_copied",
+  "warranty_cta_clicked",
+  // Deals Page
+  "deals_page_viewed",
+  "deals_filter_applied",
+  "deals_page_changed",
+  "deals_results_loaded",
+  // News Page
+  "news_page_viewed",
+  "news_category_filtered",
+  "news_article_clicked",
+  // Routine Pages
+  "routine_page_viewed",
+  "routine_results_viewed",
+  "routine_specs_viewed",
+  // Report / Auction
+  "report_page_viewed",
+  "auction_result_page_viewed",
+  // Copart Batch
+  "copart_batch_viewed",
+  // Auth Pages
+  "auth_login_page_viewed",
+  "auth_signup_page_viewed",
+  "auth_reset_password_viewed",
+  // Workspace Pages
+  "workspace_evfit_viewed",
+  "workspace_dealwatch_viewed",
+  "owned_ev_page_viewed",
+  // Content Pages
+  "pricing_page_viewed",
+  "methodology_page_viewed",
+  "shortlist_page_viewed",
+  "feedback_page_viewed",
+  "hub_page_viewed",
+  "vehicles_browse_viewed",
+  "guides_page_viewed",
+  "local_page_viewed",
+  "news_garage_viewed",
 ] as const;
 
 // Events that should be deduplicated by report_id (to prevent double-counting)

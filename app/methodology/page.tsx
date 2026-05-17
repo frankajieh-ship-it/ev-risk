@@ -4,6 +4,7 @@ import { FileSearch, Gavel, Route, ArrowLeft } from "lucide-react";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import MethodologyAccordion from "@/components/methodology/MethodologyAccordion";
+import PageTracker from "@/components/PageTracker";
 import {
   METHODOLOGY_VERSION,
   METHODOLOGY_UPDATED,
@@ -84,6 +85,7 @@ const CONFIDENCE_LEVELS = [
 export default function MethodologyPage() {
   return (
     <div className="min-h-screen bg-[#0d1117]">
+      <PageTracker event="methodology_page_viewed" />
       <Header variant="homepage" />
 
       {/* 1. Hero */}

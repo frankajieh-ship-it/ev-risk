@@ -13,10 +13,14 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShoppingCart, Building, ArrowLeft, Loader2, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 export default function HubPage() {
   const { isAuthenticated, isLoading, isReady, isDealer, logout } = useAuth();
+  const { trackEvent } = useEventTracking();
   const router = useRouter();
+
+  useEffect(() => { trackEvent("hub_page_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {

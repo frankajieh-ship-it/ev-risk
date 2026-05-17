@@ -7,12 +7,16 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Mail, Loader2, Check } from "lucide-react";
 import { sendPasswordReset } from "@/lib/supabase-auth";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 export default function ResetPasswordPage() {
+  const { trackEvent } = useEventTracking();
+  useEffect(() => { trackEvent("auth_reset_password_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);

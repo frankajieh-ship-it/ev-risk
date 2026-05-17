@@ -31,6 +31,8 @@ function RoutinePageContent() {
   const router = useRouter();
   const { trackEvent, trackRoutineFormCompleted } = useEventTracking();
 
+  useEffect(() => { trackEvent("routine_page_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Session tokens
   const [persistentId, setPersistentId] = useState("");
   const [receiptToken, setReceiptToken] = useState("");

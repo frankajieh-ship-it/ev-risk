@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import Header from "@/components/landing/Header";
+import { useEventTracking } from "@/hooks/useEventTracking";
 import { computeGasTCO, computeBreakevenYear } from "@/lib/gas-tco";
 import { ChevronRight, TrendingDown, DollarSign, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -78,6 +79,7 @@ function CostBar({
 }
 
 export default function TCOPage() {
+  const { trackEvent } = useEventTracking();
   // EV inputs
   const [evPrice, setEvPrice] = useState(35_000);
   const [batteryKwh, setBatteryKwh] = useState(75);
@@ -92,6 +94,9 @@ export default function TCOPage() {
   const [gasPricePerGal, setGasPricePerGal] = useState(350); // stored as cents
 
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const resultFiredRef = useRef(false);
+
+  useEffect(() => { trackEvent("tco_tool_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const annualMiles = weeklyMiles * 52;
 
@@ -117,6 +122,16 @@ export default function TCOPage() {
     () => computeBreakevenYear(purchasePremium, annualEvCost, annualGasCost),
     [purchasePremium, annualEvCost, annualGasCost]
   );
+
+  useEffect(() => {
+    if (resultFiredRef.current) return;
+    resultFiredRef.current = true;
+    trackEvent("tco_tool_result_calculated", {
+      ev_saves: savings >= 0,
+      savings_abs: Math.abs(savings),
+      breakeven_year: breakeven.never ? null : breakeven.year,
+    });
+  }, [savings, breakeven]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const maxBar = Math.max(...breakeven.cumulative_savings_by_year.map(Math.abs), 1);
 
@@ -157,7 +172,7 @@ export default function TCOPage() {
                 {[7_500, 3_750, 0].map((v) => (
                   <button
                     key={v}
-                    onClick={() => setFederalIncentive(v)}
+                    onClick={() => { setFederalIncentive(v); trackEvent("tco_incentive_changed", { incentive: v }); }}
                     className={`py-1.5 rounded-lg border text-xs font-medium transition-all ${
                       federalIncentive === v
                         ? "border-[#00d97e] bg-[#00d97e]/10 text-white"
@@ -276,7 +291,7 @@ export default function TCOPage() {
         {/* Detailed breakdown toggle */}
         <div className="rounded-xl border border-white/[0.08] bg-[#161b22] overflow-hidden mb-6">
           <button
-            onClick={() => setShowBreakdown((v) => !v)}
+            onClick={() => { setShowBreakdown((v) => { if (!v) trackEvent("tco_breakdown_expanded", {}); return !v; }); }}
             className="w-full flex items-center justify-between px-5 py-3.5 text-sm text-white/60 hover:text-white transition-colors"
           >
             <span className="font-medium">Full cost breakdown</span>
@@ -341,6 +356,7 @@ export default function TCOPage() {
         {/* CTA */}
         <Link
           href="/routine"
+          onClick={() => trackEvent("tco_tool_cta_clicked", {})}
           className="flex items-center justify-center gap-2 bg-[#00d97e] hover:bg-[#00c070] text-black font-semibold py-3.5 px-6 rounded-xl transition-colors w-full"
         >
           Find EVs that fit your routine and budget

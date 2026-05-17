@@ -15,6 +15,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { useEventTracking } from "@/hooks/useEventTracking";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -263,10 +264,13 @@ function EmailCaptureCard({ resultId }: { resultId: string }) {
 export default function AuctionResultPage() {
   const { resultId } = useParams<{ resultId: string }>();
   const { isAuthenticated } = useAuth();
+  const { trackEvent } = useEventTracking();
 
   const [pageState, setPageState] = useState<PageState>("loading");
   const [data, setData] = useState<AuctionResultApiResponse | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  useEffect(() => { if (resultId) trackEvent("auction_result_page_viewed", { result_id: resultId }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!resultId) return;

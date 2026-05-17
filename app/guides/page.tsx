@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { guides } from "@/content/guides";
 import type { SeoPageContent } from "@/content/types";
+import PageTracker from "@/components/PageTracker";
 
 export const metadata: Metadata = {
   title: "EV Guides — Charging, Winter, Budget & More | OFFO",
@@ -101,15 +102,16 @@ function getSupportingGuides(pillarId: string): SeoPageContent[] {
 export default function GuidesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      <PageTracker event="guides_page_viewed" />
       <div className="max-w-3xl mx-auto px-4 py-10">
         {/* Header */}
         <div className="flex items-center gap-2 mb-8">
-          <a
+          <Link
             href="/"
             className="text-xs font-medium text-blue-600 uppercase tracking-wider hover:text-blue-800 transition-colors"
           >
             OFFO
-          </a>
+          </Link>
           <span className="text-gray-300">/</span>
           <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
             Guides

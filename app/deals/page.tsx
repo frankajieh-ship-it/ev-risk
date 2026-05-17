@@ -6,6 +6,7 @@ import { SlidersHorizontal, RefreshCw, Zap } from "lucide-react";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import DealCard, { type CuratedDeal } from "@/components/deals/DealCard";
+import { useEventTracking } from "@/hooks/useEventTracking";
 type SortOption = "price_asc" | "price_desc" | "mileage" | "newest";
 
 const MAKES = ["All Makes", "Tesla", "Chevrolet", "Hyundai", "Volkswagen", "Ford", "Kia", "Nissan", "BMW", "Rivian"];
@@ -33,8 +34,11 @@ const SORT_OPTIONS: { label: string; value: SortOption }[] = [
 ];
 
 function DealsPageInner() {
+  const { trackEvent } = useEventTracking();
   const searchParams = useSearchParams();
   const [deals, setDeals] = useState<CuratedDeal[]>([]);
+
+  useEffect(() => { trackEvent("deals_page_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -71,6 +75,7 @@ function DealsPageInner() {
       setTotal(data.total ?? 0);
       setTotalPages(data.total_pages ?? 1);
       setPage(p);
+      trackEvent("deals_results_loaded", { count: data.deals?.length ?? 0, total: data.total ?? 0 });
     } catch {
       setDeals([]);
     } finally {
@@ -133,7 +138,7 @@ function DealsPageInner() {
           {/* Make select */}
           <select
             value={make}
-            onChange={(e) => setMake(e.target.value)}
+            onChange={(e) => { setMake(e.target.value); trackEvent("deals_filter_applied", { filter: "make", value: e.target.value }); }}
             className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-[#00d97e]/40"
           >
             {MAKES.map((m) => (
@@ -144,7 +149,7 @@ function DealsPageInner() {
           {/* Price select */}
           <select
             value={priceMax ?? ""}
-            onChange={(e) => setPriceMax(e.target.value ? parseInt(e.target.value) : null)}
+            onChange={(e) => { setPriceMax(e.target.value ? parseInt(e.target.value) : null); trackEvent("deals_filter_applied", { filter: "price", value: e.target.value || "any" }); }}
             className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-[#00d97e]/40"
           >
             {PRICE_OPTIONS.map((o) => (
@@ -155,7 +160,7 @@ function DealsPageInner() {
           {/* Mileage select */}
           <select
             value={mileageMax ?? ""}
-            onChange={(e) => setMileageMax(e.target.value ? parseInt(e.target.value) : null)}
+            onChange={(e) => { setMileageMax(e.target.value ? parseInt(e.target.value) : null); trackEvent("deals_filter_applied", { filter: "mileage", value: e.target.value || "any" }); }}
             className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-[#00d97e]/40"
           >
             {MILEAGE_OPTIONS.map((o) => (
@@ -166,7 +171,7 @@ function DealsPageInner() {
           {/* State select */}
           <select
             value={locationState}
-            onChange={(e) => setLocationState(e.target.value)}
+            onChange={(e) => { setLocationState(e.target.value); trackEvent("deals_filter_applied", { filter: "location", value: e.target.value }); }}
             className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-[#00d97e]/40"
           >
             {US_STATES.map((s) => (
@@ -177,7 +182,7 @@ function DealsPageInner() {
           {/* Sort select */}
           <select
             value={sort}
-            onChange={(e) => setSort(e.target.value as SortOption)}
+            onChange={(e) => { setSort(e.target.value as SortOption); trackEvent("deals_filter_applied", { filter: "sort", value: e.target.value }); }}
             className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-[#00d97e]/40"
           >
             {SORT_OPTIONS.map((o) => (
@@ -238,7 +243,7 @@ function DealsPageInner() {
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-3 mt-10">
                 <button
-                  onClick={() => fetchDeals(page - 1)}
+                  onClick={() => { fetchDeals(page - 1); trackEvent("deals_page_changed", { page: page - 1, total_pages: totalPages }); }}
                   disabled={page <= 1 || loading}
                   className="px-4 py-2 text-sm text-white/50 hover:text-white/80 border border-white/[0.08] rounded-lg disabled:opacity-30 transition-colors"
                 >
@@ -248,7 +253,7 @@ function DealsPageInner() {
                   Page {page} of {totalPages}
                 </span>
                 <button
-                  onClick={() => fetchDeals(page + 1)}
+                  onClick={() => { fetchDeals(page + 1); trackEvent("deals_page_changed", { page: page + 1, total_pages: totalPages }); }}
                   disabled={page >= totalPages || loading}
                   className="px-4 py-2 text-sm text-white/50 hover:text-white/80 border border-white/[0.08] rounded-lg disabled:opacity-30 transition-colors"
                 >

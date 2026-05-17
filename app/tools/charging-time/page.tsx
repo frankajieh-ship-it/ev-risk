@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import Header from "@/components/landing/Header";
+import { useEventTracking } from "@/hooks/useEventTracking";
 import { computeChargingTimes, formatHours } from "@/lib/charging-time";
 import type { ChargingCurve, ChargerResult } from "@/lib/charging-time";
 import { CheckCircle, AlertTriangle, ChevronRight, Zap } from "lucide-react";
@@ -52,6 +53,7 @@ function ChargerRow({ r, highlight }: { r: ChargerResult; highlight?: boolean })
 }
 
 export default function ChargingTimeCalculatorPage() {
+  const { trackEvent } = useEventTracking();
   const [mode, setMode] = useState<"preset" | "manual">("preset");
   const [selectedPreset, setSelectedPreset] = useState<VehiclePreset | null>(null);
   const [batteryKwh, setBatteryKwh] = useState(75);
@@ -59,6 +61,9 @@ export default function ChargingTimeCalculatorPage() {
   const [onboardAc, setOnboardAc] = useState(11.5);
   const [dcFast, setDcFast] = useState(150);
   const [dailyMiles, setDailyMiles] = useState(40);
+  const resultFiredRef = useRef(false);
+
+  useEffect(() => { trackEvent("charging_tool_viewed", {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyPreset = (p: VehiclePreset) => {
     setSelectedPreset(p);
@@ -72,6 +77,15 @@ export default function ChargingTimeCalculatorPage() {
     const curve: ChargingCurve = selectedPreset?.charging_curve ?? "tapered";
     return computeChargingTimes(batteryKwh, rangeKwh, onboardAc, dcFast, curve, dailyMiles);
   }, [batteryKwh, rangeKwh, onboardAc, dcFast, dailyMiles, selectedPreset]);
+
+  useEffect(() => {
+    if (resultFiredRef.current) return;
+    resultFiredRef.current = true;
+    trackEvent("charging_tool_result_viewed", {
+      vehicle: selectedPreset?.label ?? "manual",
+      morning_readiness: result.morning_readiness.l1_sufficient,
+    });
+  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { l1, l2_720, l2_1150, l2_192, dcfc, morning_readiness } = result;
 
@@ -98,7 +112,7 @@ export default function ChargingTimeCalculatorPage() {
           {(["preset", "manual"] as const).map((m) => (
             <button
               key={m}
-              onClick={() => setMode(m)}
+              onClick={() => { setMode(m); trackEvent("charging_tool_mode_switched", { mode: m }); }}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 mode === m ? "bg-[#00d97e] text-black" : "text-white/50 hover:text-white"
               }`}
@@ -117,7 +131,7 @@ export default function ChargingTimeCalculatorPage() {
                 value={selectedPreset?.label ?? ""}
                 onChange={(e) => {
                   const p = VEHICLE_PRESETS.find((v) => v.label === e.target.value);
-                  if (p) applyPreset(p);
+                  if (p) { applyPreset(p); trackEvent("charging_tool_preset_selected", { vehicle: p.label }); }
                   else setSelectedPreset(null);
                 }}
                 className="w-full bg-[#0d1117] border border-white/[0.12] rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#00d97e]/50 mb-4"
@@ -186,6 +200,8 @@ export default function ChargingTimeCalculatorPage() {
             <input
               type="range" min={5} max={200} step={5} value={dailyMiles}
               onChange={(e) => setDailyMiles(Number(e.target.value))}
+              onMouseUp={(e) => trackEvent("charging_tool_daily_miles_set", { miles: Number((e.target as HTMLInputElement).value) })}
+              onTouchEnd={(e) => trackEvent("charging_tool_daily_miles_set", { miles: Number((e.target as HTMLInputElement).value) })}
               className="w-full accent-[#00d97e]"
             />
             <div className="flex justify-between text-xs text-white/20 mt-0.5">
@@ -254,6 +270,7 @@ export default function ChargingTimeCalculatorPage() {
         {/* CTA */}
         <Link
           href="/routine"
+          onClick={() => trackEvent("charging_tool_cta_clicked", {})}
           className="flex items-center justify-center gap-2 bg-[#00d97e] hover:bg-[#00c070] text-black font-semibold py-3.5 px-6 rounded-xl transition-colors w-full"
         >
           See which EVs work best for your setup
