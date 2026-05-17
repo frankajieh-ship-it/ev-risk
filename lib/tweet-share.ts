@@ -9,10 +9,11 @@ export function buildTweetText(receipt: ListingReceipt, shareSlug: string, baseU
   const verdictEmoji = verdict === "GREEN" ? "🟢" : verdict === "RED" ? "🔴" : "🟡";
 
   let context = "";
-  if (receipt.price_sanity_label && receipt.price_sanity_label !== "UNKNOWN") {
+  const priceSanityLabel = receipt.price_sanity?.label;
+  if (priceSanityLabel && priceSanityLabel !== "UNKNOWN") {
     const label =
-      receipt.price_sanity_label === "OVERPRICED" ? "overpriced"
-      : receipt.price_sanity_label === "UNDERPRICED" ? "underpriced"
+      priceSanityLabel === "OVERPRICED" ? "overpriced"
+      : priceSanityLabel === "UNDERPRICED" ? "underpriced"
       : "fair price";
     context = `\n${label} vs. comparables`;
   } else if (receipt.risk_flags?.[0]) {
