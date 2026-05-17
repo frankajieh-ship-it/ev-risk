@@ -7,7 +7,6 @@ import { History, Menu, X, User, Building, Bookmark } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { totalGarageCount } from "@/lib/anon-garage";
 import LoginModal from "@/components/LoginModal";
-import { useEventTracking } from "@/hooks/useEventTracking";
 
 interface HeaderProps {
   variant?: "receipt" | "homepage" | "compare";
@@ -16,28 +15,28 @@ interface HeaderProps {
   regionSelector?: ReactNode;
 }
 
-// Main site nav (homepage, blog, methodology, etc.)
+// Main site nav (homepage, blog, news, deals, guides)
 const homepageNavLinks = [
-  { label: "EV News",    href: "/news" },
-  { label: "Deal Watch", href: "/deals" },
-  { label: "Blog",       href: "/blog" },
-  { label: "For Dealers", href: "/for-dealers" },
+  { label: "EV Fit Check", href: "/routine" },
+  { label: "Deal Watch",   href: "/deals" },
+  { label: "EV News",      href: "/news" },
+  { label: "Guides",       href: "/guides" },
+  { label: "Free Tools",   href: "/tools/charging-time" },
 ];
 
-// Tool-focused nav (copart, receipt, auction pages)
+// Tool-focused nav (receipt, copart, auction pages)
 const toolNavLinks = [
+  { label: "EV Fit Check",     href: "/routine" },
   { label: "Receipt Check",    href: "/receipt" },
   { label: "Deal Watch",       href: "/deals" },
   { label: "Copart Arbitrage", href: "/copart" },
   { label: "EV News",          href: "/news" },
-  { label: "Routine Fit",      href: "/routine" },
 ];
 
 const navLinkCls = "text-[0.8125rem] font-medium tracking-[-0.01em] text-white/50 hover:text-white/90 transition-colors";
 
 export default function Header({ variant = "receipt", historyCount, onHistoryClick, regionSelector }: HeaderProps) {
   const { isAuthenticated, isDealer, logout } = useAuth();
-  const { trackEvent } = useEventTracking();
   const [showLogin, setShowLogin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [garageCount, setGarageCount] = useState(0);
@@ -79,7 +78,6 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                 <Link
                   key={link.label}
                   href={link.href}
-                  onClick={link.href === "/for-dealers" ? () => trackEvent("for_dealers_nav_clicked", {}) : undefined}
                   className={navLinkCls}
                 >
                   {link.label}
@@ -166,78 +164,76 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
 
         {/* Mobile dropdown */}
         {mobileOpen && (
-          <div className="md:hidden border-t border-white/[0.08] bg-[#0d1117]/95 backdrop-blur-md">
-            <div className="px-4 py-4 space-y-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => {
-                    setMobileOpen(false);
-                    if (link.href === "/for-dealers") trackEvent("for_dealers_nav_clicked", {});
-                  }}
-                  className="block text-sm font-medium text-white/60 hover:text-white/90 py-2.5 border-b border-white/[0.05] last:border-0"
-                >
-                  {link.label}
-                </Link>
-              ))}
-
-              <div className="pt-2">
+          <div className="md:hidden border-t border-white/[0.08] bg-[#0d1117] backdrop-blur-md">
+            <div className="px-4 py-3">
+              {/* Auth / account buttons — prominent at top on mobile */}
+              <div className="flex gap-2 mb-4">
                 <Link
                   href={isAuthenticated ? "/workspace/garage" : "/shortlist"}
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-1.5 text-sm font-medium text-white/60 hover:text-white/90 py-2.5"
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white/[0.06] border border-white/[0.10] text-white/70 rounded-lg text-sm font-medium flex-1 justify-center"
                 >
                   <Bookmark className="w-4 h-4" />
                   {isAuthenticated ? "My Garage" : "Garage"}
                   {garageCount > 0 && (
-                    <span className="bg-[#00d97e]/20 text-[#00d97e] text-xs px-1.5 py-0.5 rounded-full">
+                    <span className="bg-[#00d97e]/20 text-[#00d97e] text-xs px-1.5 py-0.5 rounded-full font-medium">
                       {garageCount}
                     </span>
                   )}
                 </Link>
-              </div>
-
-              <div className="border-t border-white/[0.08] pt-3 space-y-2">
-                {isAuthenticated && (
-                  <>
-                    <Link
-                      href="/workspace"
-                      onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-[#00d97e]/15 border border-[#00d97e]/25 text-[#00d97e] rounded-lg text-sm font-medium"
-                    >
-                      <User className="w-3.5 h-3.5" />
-                      My Workspace
-                    </Link>
-                    {isDealer && (
-                      <Link
-                        href="/dealer"
-                        onClick={() => setMobileOpen(false)}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-white/[0.06] border border-white/[0.10] text-white/70 rounded-lg text-sm font-medium"
-                      >
-                        <Building className="w-3.5 h-3.5" />
-                        Dealer
-                      </Link>
-                    )}
-                  </>
-                )}
-
                 {isAuthenticated ? (
-                  <button
-                    onClick={() => { logout(); setMobileOpen(false); }}
-                    className="block text-sm font-medium text-white/40 hover:text-white/70 py-2"
+                  <Link
+                    href="/workspace"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[#00d97e]/15 border border-[#00d97e]/25 text-[#00d97e] rounded-lg text-sm font-medium flex-1 justify-center"
                   >
-                    Sign out
-                  </button>
+                    <User className="w-3.5 h-3.5" />
+                    My Workspace
+                  </Link>
                 ) : (
                   <button
                     onClick={() => { setShowLogin(true); setMobileOpen(false); }}
-                    className="block text-sm font-medium text-[#00d97e] hover:text-[#00c970] py-2"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[#00d97e] text-[#0d1117] rounded-lg text-sm font-semibold flex-1 justify-center"
                   >
                     Sign in
                   </button>
                 )}
+                {isAuthenticated && isDealer && (
+                  <Link
+                    href="/dealer"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white/[0.06] border border-white/[0.10] text-white/70 rounded-lg text-sm font-medium"
+                  >
+                    <Building className="w-3.5 h-3.5" />
+                    Dealer
+                  </Link>
+                )}
               </div>
+
+              {/* Nav links */}
+              <div className="border-t border-white/[0.06] pt-2 space-y-0">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.label}
+                    href={link.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="block text-sm font-medium text-white/60 hover:text-white/90 py-2.5 border-b border-white/[0.05] last:border-0 transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+
+              {isAuthenticated && (
+                <div className="pt-3">
+                  <button
+                    onClick={() => { logout(); setMobileOpen(false); }}
+                    className="text-sm font-medium text-white/30 hover:text-white/60 transition-colors"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

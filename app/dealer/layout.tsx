@@ -11,14 +11,14 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Package, Loader2, Clock, Settings, LogOut, Users, Bookmark, ArrowLeftRight } from "lucide-react";
+import Image from "next/image";
+import { LayoutDashboard, Package, Loader2, Clock, Settings, LogOut, Bookmark, ArrowLeftRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 
 const NAV_ITEMS = [
   { href: "/dealer",           label: "Dashboard",      icon: LayoutDashboard, exact: true },
   { href: "/dealer/inventory", label: "Inventory",      icon: Package,         exact: false },
-  { href: "/dealer/buyers",    label: "Buyers",         icon: Users,           exact: false },
   { href: "/dealer/saved",     label: "Saved Listings", icon: Bookmark,        exact: false },
 ];
 
@@ -125,9 +125,11 @@ export default function DealerLayout({
       {/* Sidebar */}
       <aside className="w-60 bg-[#0d1117] border-r border-white/[0.08] flex flex-col shrink-0 hidden md:flex">
         {/* Logo */}
-        <div className="p-5 border-b border-white/[0.08]">
-          <span className="text-sm font-bold text-white tracking-wide">OFFO LABS</span>
-          <span className="text-xs text-white/40 block mt-0.5">Dealer Workspace</span>
+        <div className="p-5 border-b border-white/[0.08] flex items-center gap-3">
+          <Link href="/" className="flex items-center">
+            <Image src="/offo-logo.jpg" alt="OFFO" width={88} height={45} className="h-7 w-auto" />
+          </Link>
+          <span className="text-xs font-medium text-white/30 border border-white/[0.10] rounded px-1.5 py-0.5">Dealer</span>
         </div>
 
         <nav className="flex-1 p-3 space-y-0.5">
@@ -189,11 +191,11 @@ export default function DealerLayout({
       </aside>
 
       {/* Mobile top bar */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#0d1117] border-b border-white/[0.08] px-4 py-3 flex items-center gap-3">
-        <Link href="/hub" className="text-white/60">
-          <span className="text-sm font-bold text-white tracking-wide">OFFO</span>
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-[#0d1117] border-b border-white/[0.08] px-4 py-2.5 flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-2">
+          <Image src="/offo-logo.jpg" alt="OFFO" width={72} height={37} className="h-6 w-auto" />
+          <span className="text-xs font-medium text-white/30 border border-white/[0.10] rounded px-1.5 py-0.5">Dealer</span>
         </Link>
-        <span className="font-semibold text-white/60 text-sm">Dealer</span>
         <div className="flex-1" />
         {NAV_ITEMS.slice(0, 4).map((item) => {
           const isActive = item.exact

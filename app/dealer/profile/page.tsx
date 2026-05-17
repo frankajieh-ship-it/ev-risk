@@ -175,10 +175,12 @@ export default function DealerProfilePage() {
     setProfile((prev) => ({ ...prev, [field]: value }));
   };
 
+  const inputCls = "w-full px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/50";
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#00d97e]" />
       </div>
     );
   }
@@ -186,38 +188,38 @@ export default function DealerProfilePage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-gray-900">Dealership Profile</h1>
+        <h1 className="text-xl font-bold text-white">Dealership Profile</h1>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-[#00d97e] text-[#0d1117] rounded-lg text-sm font-semibold hover:bg-[#00f090] disabled:opacity-40 transition-colors"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
           {saved ? "Saved" : "Save Changes"}
         </button>
       </div>
 
-      {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 
       <div className="space-y-4">
         {/* Logo Upload */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">Dealership Logo</h2>
+        <div className="bg-white/[0.05] rounded-xl border border-white/[0.08] p-6">
+          <h2 className="text-sm font-semibold text-white/70 mb-4">Dealership Logo</h2>
           <div className="flex items-center gap-5">
             {/* Preview */}
-            <div className="w-20 h-20 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 overflow-hidden relative">
+            <div className="w-20 h-20 rounded-xl bg-white/[0.06] border border-white/[0.10] flex items-center justify-center shrink-0 overflow-hidden relative">
               {logoPreview ? (
                 <>
                   <Image src={logoPreview} alt="Logo" fill className="object-cover" unoptimized />
                   <button
                     onClick={handleRemoveLogo}
-                    className="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full border border-gray-200 flex items-center justify-center shadow-sm hover:bg-red-50"
+                    className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/70 rounded-full flex items-center justify-center hover:bg-red-900/80 transition-colors"
                   >
-                    <X className="w-3 h-3 text-gray-500" />
+                    <X className="w-3 h-3 text-white" />
                   </button>
                 </>
               ) : (
-                <Building className="w-8 h-8 text-gray-300" />
+                <Building className="w-8 h-8 text-white/20" />
               )}
             </div>
 
@@ -233,58 +235,58 @@ export default function DealerProfilePage() {
               <button
                 onClick={() => logoInputRef.current?.click()}
                 disabled={logoUploading}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-[#00d97e] text-[#0d1117] rounded-lg text-sm font-semibold hover:bg-[#00f090] disabled:opacity-40 transition-colors"
               >
                 {logoUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 {logoUploading ? "Uploading…" : logoPreview ? "Change Logo" : "Upload Logo"}
               </button>
-              <p className="text-xs text-gray-400 mt-1.5">JPEG, PNG, or WebP · Max 2MB</p>
-              {logoError && <p className="text-xs text-red-500 mt-1">{logoError}</p>}
+              <p className="text-xs text-white/30 mt-1.5">JPEG, PNG, or WebP · Max 2MB</p>
+              {logoError && <p className="text-xs text-red-400 mt-1">{logoError}</p>}
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+        <div className="bg-white/[0.05] rounded-xl border border-white/[0.08] p-6 space-y-5">
           {/* Basic Info */}
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">Basic Information</h2>
+            <h2 className="text-sm font-semibold text-white/70 mb-3">Basic Information</h2>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Dealership Name</label>
+                <label className="block text-xs font-medium text-white/40 mb-1">Dealership Name</label>
                 <input
                   value={profile.name}
                   onChange={(e) => updateField("name", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className={inputCls}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Phone</label>
+                  <label className="block text-xs font-medium text-white/40 mb-1">Phone</label>
                   <input
                     value={profile.phone}
                     onChange={(e) => updateField("phone", e.target.value)}
                     placeholder="(555) 123-4567"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    className={inputCls}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Website</label>
+                  <label className="block text-xs font-medium text-white/40 mb-1">Website</label>
                   <input
                     value={profile.website}
                     onChange={(e) => updateField("website", e.target.value)}
                     placeholder="https://..."
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    className={inputCls}
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
+                <label className="block text-xs font-medium text-white/40 mb-1">Description</label>
                 <textarea
                   value={profile.description}
                   onChange={(e) => updateField("description", e.target.value)}
                   rows={3}
                   placeholder="Tell buyers about your dealership..."
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none"
+                  className="w-full px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/50 resize-none"
                 />
               </div>
             </div>
@@ -292,32 +294,32 @@ export default function DealerProfilePage() {
 
           {/* Address */}
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">Address</h2>
+            <h2 className="text-sm font-semibold text-white/70 mb-3">Address</h2>
             <div className="space-y-3">
               <input
                 value={profile.address_line1}
                 onChange={(e) => updateField("address_line1", e.target.value)}
                 placeholder="Street address"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                className={inputCls}
               />
               <div className="grid grid-cols-3 gap-3">
                 <input
                   value={profile.city}
                   onChange={(e) => updateField("city", e.target.value)}
                   placeholder="City"
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/50"
                 />
                 <input
                   value={profile.state}
                   onChange={(e) => updateField("state", e.target.value)}
                   placeholder="State"
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/50"
                 />
                 <input
                   value={profile.zip}
                   onChange={(e) => updateField("zip", e.target.value)}
                   placeholder="ZIP"
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/50"
                 />
               </div>
             </div>
@@ -325,8 +327,8 @@ export default function DealerProfilePage() {
 
           {/* Slug (read-only) */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Profile URL Slug</label>
-            <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500">
+            <label className="block text-xs font-medium text-white/40 mb-1">Profile URL Slug</label>
+            <div className="px-3 py-2 bg-white/[0.03] border border-white/[0.08] rounded-lg text-sm text-white/40 font-mono">
               /dealers/{profile.slug}
             </div>
           </div>

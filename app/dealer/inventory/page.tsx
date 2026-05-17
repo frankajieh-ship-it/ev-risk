@@ -81,11 +81,11 @@ function PricingPanel({
 
   const positionIcon =
     insight?.market_position === "below" ? (
-      <TrendingDown className="w-4 h-4 text-green-600" />
+      <TrendingDown className="w-4 h-4 text-[#00d97e]" />
     ) : insight?.market_position === "above" ? (
-      <TrendingUp className="w-4 h-4 text-red-500" />
+      <TrendingUp className="w-4 h-4 text-red-400" />
     ) : (
-      <Minus className="w-4 h-4 text-gray-500" />
+      <Minus className="w-4 h-4 text-white/40" />
     );
 
   const positionLabel =
@@ -97,39 +97,39 @@ function PricingPanel({
 
   const positionColor =
     insight?.market_position === "below"
-      ? "text-green-700 bg-green-50"
+      ? "text-[#00d97e] bg-[#00d97e]/10"
       : insight?.market_position === "above"
-        ? "text-red-700 bg-red-50"
-        : "text-gray-700 bg-gray-50";
+        ? "text-red-400 bg-red-500/10"
+        : "text-white/60 bg-white/[0.05]";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-[#161b22] rounded-xl border border-white/[0.10] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-              <BarChart2 className="w-4 h-4 text-purple-600" />
+            <h2 className="font-semibold text-white flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-purple-400" />
               Pricing Intelligence
             </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-white/40 mt-0.5">
               {item.year ? `${item.year} ` : ""}{item.make} {item.model}
               {item.trim ? ` · ${item.trim}` : ""}
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-white/40 hover:text-white/80 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {loading && (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-7 h-7 animate-spin text-purple-600" />
+            <Loader2 className="w-7 h-7 animate-spin text-purple-400" />
           </div>
         )}
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 rounded-lg px-4 py-3">{error}</p>
+          <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-4 py-3">{error}</p>
         )}
 
         {!loading && !error && insight && (
@@ -151,25 +151,25 @@ function PricingPanel({
             {/* Suggested range */}
             {insight.suggested_price_target_usd && (
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                <p className="text-xs font-medium text-white/40 uppercase tracking-wide mb-2">
                   Suggested Price Range
                 </p>
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="bg-gray-50 rounded-lg px-3 py-2">
-                    <p className="text-xs text-gray-400">Low</p>
-                    <p className="text-sm font-semibold text-gray-700">
+                  <div className="bg-white/[0.05] rounded-lg px-3 py-2">
+                    <p className="text-xs text-white/40">Low</p>
+                    <p className="text-sm font-semibold text-white/70">
                       ${insight.suggested_price_low_usd?.toLocaleString() ?? "—"}
                     </p>
                   </div>
-                  <div className="bg-purple-50 rounded-lg px-3 py-2 ring-1 ring-purple-200">
-                    <p className="text-xs text-purple-500">Target</p>
-                    <p className="text-sm font-bold text-purple-700">
+                  <div className="bg-purple-500/10 rounded-lg px-3 py-2 ring-1 ring-purple-500/30">
+                    <p className="text-xs text-purple-400">Target</p>
+                    <p className="text-sm font-bold text-purple-300">
                       ${insight.suggested_price_target_usd.toLocaleString()}
                     </p>
                   </div>
-                  <div className="bg-gray-50 rounded-lg px-3 py-2">
-                    <p className="text-xs text-gray-400">High</p>
-                    <p className="text-sm font-semibold text-gray-700">
+                  <div className="bg-white/[0.05] rounded-lg px-3 py-2">
+                    <p className="text-xs text-white/40">High</p>
+                    <p className="text-sm font-semibold text-white/70">
                       ${insight.suggested_price_high_usd?.toLocaleString() ?? "—"}
                     </p>
                   </div>
@@ -179,14 +179,14 @@ function PricingPanel({
 
             {/* AI explanation */}
             {insight.explanation && (
-              <div className="border border-gray-100 rounded-lg px-4 py-3 space-y-2">
-                <p className="text-sm font-semibold text-gray-800">{insight.explanation.headline}</p>
-                <p className="text-xs text-gray-600">{insight.explanation.why}</p>
-                <p className="text-xs text-purple-700 font-medium">{insight.explanation.action}</p>
+              <div className="border border-white/[0.08] rounded-lg px-4 py-3 space-y-2">
+                <p className="text-sm font-semibold text-white">{insight.explanation.headline}</p>
+                <p className="text-xs text-white/50">{insight.explanation.why}</p>
+                <p className="text-xs text-purple-400 font-medium">{insight.explanation.action}</p>
                 {insight.explanation.caveats.length > 0 && (
                   <ul className="space-y-0.5">
                     {insight.explanation.caveats.map((c, i) => (
-                      <li key={i} className="text-xs text-gray-400 flex gap-1.5">
+                      <li key={i} className="text-xs text-white/30 flex gap-1.5">
                         <span>·</span> {c}
                       </li>
                     ))}
@@ -198,7 +198,7 @@ function PricingPanel({
             {/* Demand sensitivity curve */}
             {insight.price_sensitivity?.buckets && insight.price_sensitivity.buckets.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                <p className="text-xs font-medium text-white/40 uppercase tracking-wide mb-2">
                   Price Sensitivity
                 </p>
                 <div className="space-y-1.5">
@@ -209,17 +209,17 @@ function PricingPanel({
                       Math.abs(b.price - insight.asking_price_usd) < 500;
                     return (
                       <div key={b.price} className="flex items-center gap-3">
-                        <span className={`text-xs w-20 text-right shrink-0 ${isAsking ? "font-semibold text-gray-900" : "text-gray-500"}`}>
+                        <span className={`text-xs w-20 text-right shrink-0 ${isAsking ? "font-semibold text-white" : "text-white/40"}`}>
                           ${b.price.toLocaleString()}
                           {isAsking && " ←"}
                         </span>
-                        <div className="flex-1 bg-gray-100 rounded-full h-2">
+                        <div className="flex-1 bg-white/[0.08] rounded-full h-2">
                           <div
-                            className={`h-2 rounded-full transition-all ${isAsking ? "bg-purple-500" : "bg-purple-200"}`}
+                            className={`h-2 rounded-full transition-all ${isAsking ? "bg-purple-500" : "bg-purple-500/30"}`}
                             style={{ width: `${pct}%` }}
                           />
                         </div>
-                        <span className="text-xs text-gray-400 w-16 shrink-0">
+                        <span className="text-xs text-white/30 w-16 shrink-0">
                           ~{b.estimated_buyers} buyers
                         </span>
                       </div>
@@ -230,7 +230,7 @@ function PricingPanel({
             )}
 
             {/* Footer meta */}
-            <div className="flex items-center justify-between text-xs text-gray-400 border-t border-gray-100 pt-3">
+            <div className="flex items-center justify-between text-xs text-white/30 border-t border-white/[0.08] pt-3">
               <span>
                 {insight.comp_count} comps · {insight.buyer_count} interested buyers
               </span>
@@ -541,7 +541,7 @@ export default function DealerInventoryPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#00d97e]" />
       </div>
     );
   }
@@ -551,18 +551,18 @@ export default function DealerInventoryPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-gray-900">Inventory</h1>
+        <h1 className="text-xl font-bold text-white">Inventory</h1>
         <div className="flex items-center gap-2">
           <Link
             href="/dealer/inventory/import"
-            className="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
+            className="flex items-center gap-2 px-3 py-2 border border-white/[0.12] text-white/70 rounded-lg text-sm font-medium hover:bg-white/[0.06] hover:text-white transition-colors"
           >
             <Upload className="w-4 h-4" />
             Import CSV
           </Link>
           <button
             onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
+            className="flex items-center gap-2 px-4 py-2 bg-[#00d97e] text-[#0d1117] rounded-lg text-sm font-semibold hover:bg-[#00f090] transition-colors"
           >
             <Plus className="w-4 h-4" />
             Add Vehicle
@@ -581,11 +581,11 @@ export default function DealerInventoryPage() {
 
       {/* Add/Edit form modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-[#161b22] rounded-xl border border-white/[0.10] shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-900">{editId ? "Edit Vehicle" : "Add Vehicle"}</h2>
-              <button onClick={() => { setShowForm(false); resetFormState(); }} className="text-gray-400 hover:text-gray-600">
+              <h2 className="font-semibold text-white">{editId ? "Edit Vehicle" : "Add Vehicle"}</h2>
+              <button onClick={() => { setShowForm(false); resetFormState(); }} className="text-white/40 hover:text-white/80 transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -599,24 +599,24 @@ export default function DealerInventoryPage() {
                     value={form.vin}
                     onChange={(e) => { setForm({ ...form, vin: e.target.value.toUpperCase() }); setVinDecoded(""); setVinError(""); }}
                     maxLength={17}
-                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono uppercase"
+                    className="flex-1 px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-sm font-mono uppercase text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/50"
                   />
                   <button
                     onClick={handleVinDecode}
                     disabled={vinDecoding || !form.vin.trim()}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-500 disabled:opacity-40 flex items-center gap-1.5 shrink-0 transition-colors"
                   >
                     {vinDecoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                     Scan VIN
                   </button>
                 </div>
                 {vinDecoded && (
-                  <p className="mt-1.5 text-xs text-green-600 font-medium">
+                  <p className="mt-1.5 text-xs text-[#00d97e] font-medium">
                     Decoded: {vinDecoded}
                   </p>
                 )}
                 {vinError && (
-                  <p className="mt-1.5 text-xs text-red-600">{vinError}</p>
+                  <p className="mt-1.5 text-xs text-red-400">{vinError}</p>
                 )}
               </div>
 
@@ -625,13 +625,13 @@ export default function DealerInventoryPage() {
                   placeholder="Make *"
                   value={form.make}
                   onChange={(e) => setForm({ ...form, make: e.target.value })}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/50"
                 />
                 <input
                   placeholder="Model *"
                   value={form.model}
                   onChange={(e) => setForm({ ...form, model: e.target.value })}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/50"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -640,13 +640,13 @@ export default function DealerInventoryPage() {
                   type="number"
                   value={form.year}
                   onChange={(e) => setForm({ ...form, year: e.target.value })}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/50"
                 />
                 <input
                   placeholder="Trim"
                   value={form.trim}
                   onChange={(e) => setForm({ ...form, trim: e.target.value })}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/50"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -656,7 +656,7 @@ export default function DealerInventoryPage() {
                   min="0"
                   value={form.price}
                   onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/50"
                 />
                 <input
                   placeholder="Mileage"
@@ -664,19 +664,19 @@ export default function DealerInventoryPage() {
                   min="0"
                   value={form.mileage}
                   onChange={(e) => setForm({ ...form, mileage: e.target.value })}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/50"
                 />
               </div>
               <input
                 placeholder="Exterior Color"
                 value={form.exterior_color}
                 onChange={(e) => setForm({ ...form, exterior_color: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                className="w-full px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/50"
               />
 
               {/* Photo upload section */}
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-2">
+                <label className="block text-xs font-medium text-white/40 mb-2">
                   Photos ({totalPhotoCount}/6)
                 </label>
 
@@ -684,22 +684,24 @@ export default function DealerInventoryPage() {
                 {(existingPhotos.length > 0 || newPhotoPreviews.length > 0) && (
                   <div className="flex flex-wrap gap-2 mb-2">
                     {existingPhotos.map((url, i) => (
-                      <div key={`existing-${i}`} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
+                      <div key={`existing-${i}`} className="relative w-20 h-20 rounded-lg overflow-hidden border border-white/[0.10]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={url} alt="" className="w-full h-full object-cover" />
                         <button
                           onClick={() => removeExistingPhoto(i)}
-                          className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
+                          className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/70 rounded-full flex items-center justify-center"
                         >
                           <X className="w-3 h-3 text-white" />
                         </button>
                       </div>
                     ))}
                     {newPhotoPreviews.map((url, i) => (
-                      <div key={`new-${i}`} className="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-green-300">
+                      <div key={`new-${i}`} className="relative w-20 h-20 rounded-lg overflow-hidden border-2 border-[#00d97e]/50">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={url} alt="" className="w-full h-full object-cover" />
                         <button
                           onClick={() => removeNewPhoto(i)}
-                          className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center"
+                          className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/70 rounded-full flex items-center justify-center"
                         >
                           <X className="w-3 h-3 text-white" />
                         </button>
@@ -714,13 +716,13 @@ export default function DealerInventoryPage() {
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center cursor-pointer hover:border-green-400 hover:bg-green-50/50 transition-colors"
+                    className="border-2 border-dashed border-white/[0.10] rounded-lg p-4 text-center cursor-pointer hover:border-[#00d97e]/40 hover:bg-[#00d97e]/[0.04] transition-colors"
                   >
-                    <div className="flex items-center justify-center gap-2 text-gray-400">
+                    <div className="flex items-center justify-center gap-2 text-white/40">
                       <ImagePlus className="w-5 h-5" />
                       <span className="text-sm">Drop photos here or click to browse</span>
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP up to 5MB</p>
+                    <p className="text-xs text-white/30 mt-1">JPEG, PNG, WebP up to 5MB</p>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -734,19 +736,19 @@ export default function DealerInventoryPage() {
               </div>
             </div>
 
-            {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+            {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
 
             <div className="flex gap-3 mt-5">
               <button
                 onClick={() => { setShowForm(false); resetFormState(); }}
-                className="flex-1 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+                className="flex-1 py-2.5 border border-white/[0.12] rounded-lg text-sm text-white/60 hover:bg-white/[0.05] hover:text-white transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving || uploading}
-                className="flex-1 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 bg-[#00d97e] text-[#0d1117] rounded-lg text-sm font-semibold hover:bg-[#00f090] disabled:opacity-40 flex items-center justify-center gap-2 transition-colors"
               >
                 {(saving || uploading) && <Loader2 className="w-4 h-4 animate-spin" />}
                 {uploading ? "Uploading photos..." : saving ? "Saving..." : editId ? "Update" : "Add"}
@@ -758,21 +760,21 @@ export default function DealerInventoryPage() {
 
       {/* Inventory list */}
       {items.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">No vehicles in your inventory yet.</p>
+        <div className="bg-white/[0.04] rounded-xl border border-white/[0.08] p-12 text-center">
+          <Package className="w-12 h-12 text-white/20 mx-auto mb-3" />
+          <p className="text-white/50 text-sm">No vehicles in your inventory yet.</p>
           <button
             onClick={openAdd}
-            className="mt-4 text-sm text-green-600 hover:text-green-700 font-medium"
+            className="mt-4 text-sm text-[#00d97e] hover:text-[#00f090] font-medium transition-colors"
           >
             Add your first vehicle
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white/[0.04] rounded-xl border border-white/[0.08] overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 text-left text-gray-500">
+              <tr className="border-b border-white/[0.08] text-left text-white/40">
                 <th className="px-5 py-3 font-medium">Vehicle</th>
                 <th className="px-5 py-3 font-medium hidden md:table-cell">VIN</th>
                 <th className="px-5 py-3 font-medium hidden md:table-cell">Price</th>
@@ -780,44 +782,45 @@ export default function DealerInventoryPage() {
                 <th className="px-5 py-3 font-medium w-20"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-white/[0.06]">
               {items.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50">
+                <tr key={item.id} className="hover:bg-white/[0.04] transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       {item.photo_urls && item.photo_urls.length > 0 ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.photo_urls[0]}
                           alt=""
-                          className="w-10 h-10 rounded-lg object-cover border border-gray-200 shrink-0"
+                          className="w-10 h-10 rounded-lg object-cover border border-white/[0.10] shrink-0"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                          <Camera className="w-4 h-4 text-gray-400" />
+                        <div className="w-10 h-10 rounded-lg bg-white/[0.06] flex items-center justify-center shrink-0">
+                          <Camera className="w-4 h-4 text-white/30" />
                         </div>
                       )}
                       <div>
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-white">
                           {item.year ? `${item.year} ` : ""}{item.make} {item.model}
                         </p>
-                        {item.trim && <p className="text-xs text-gray-500">{item.trim}</p>}
+                        {item.trim && <p className="text-xs text-white/40">{item.trim}</p>}
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-gray-600 hidden md:table-cell font-mono text-xs">
+                  <td className="px-5 py-3 text-white/50 hidden md:table-cell font-mono text-xs">
                     {item.vin || "—"}
                   </td>
-                  <td className="px-5 py-3 text-gray-600 hidden md:table-cell">
+                  <td className="px-5 py-3 text-white/70 hidden md:table-cell">
                     {item.price_cents
                       ? `$${(item.price_cents / 100).toLocaleString()}`
                       : "—"}
                   </td>
                   <td className="px-5 py-3 hidden sm:table-cell">
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      item.status === "active" ? "bg-green-50 text-green-700" :
-                      item.status === "sold" ? "bg-gray-100 text-gray-600" :
-                      item.status === "pending" ? "bg-yellow-50 text-yellow-700" :
-                      "bg-red-50 text-red-700"
+                      item.status === "active" ? "bg-[#00d97e]/15 text-[#00d97e]" :
+                      item.status === "sold" ? "bg-white/[0.08] text-white/50" :
+                      item.status === "pending" ? "bg-amber-500/15 text-amber-400" :
+                      "bg-red-500/15 text-red-400"
                     }`}>
                       {item.status}
                     </span>
@@ -828,20 +831,20 @@ export default function DealerInventoryPage() {
                         <button
                           onClick={() => setPricingItem(item)}
                           title="Pricing Intelligence"
-                          className="p-1.5 text-gray-400 hover:text-purple-600 rounded"
+                          className="p-1.5 text-white/30 hover:text-purple-400 rounded transition-colors"
                         >
                           <BarChart2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                       <button
                         onClick={() => openEdit(item)}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 rounded"
+                        className="p-1.5 text-white/30 hover:text-blue-400 rounded transition-colors"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDelete(item.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 rounded"
+                        className="p-1.5 text-white/30 hover:text-red-400 rounded transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

@@ -129,7 +129,7 @@ export default function DealerInquiriesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#00d97e]" />
       </div>
     );
   }
@@ -140,71 +140,71 @@ export default function DealerInquiriesPage() {
       <div>
         <button
           onClick={() => setSelected(null)}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
+          className="flex items-center gap-1 text-sm text-white/40 hover:text-white/70 mb-4 transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
           Back to Inquiries
         </button>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-4">
-          <h2 className="font-semibold text-gray-900">{selected.subject}</h2>
-          <p className="text-xs text-gray-500 mt-1">
+        <div className="bg-white/[0.05] rounded-xl border border-white/[0.08] p-5 mb-4">
+          <h2 className="font-semibold text-white">{selected.subject}</h2>
+          <p className="text-xs text-white/40 mt-1">
             {selected.inquiry_type} &middot; {new Date(selected.created_at).toLocaleDateString()}
             {selected.buyer_email && ` &middot; ${selected.buyer_email}`}
           </p>
           {selected.inventory_item && (
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-white/40 mt-1">
               Vehicle: {selected.inventory_item.year} {selected.inventory_item.make} {selected.inventory_item.model}
             </p>
           )}
-          <p className="text-sm text-gray-700 mt-3">{selected.message}</p>
+          <p className="text-sm text-white/70 mt-3">{selected.message}</p>
         </div>
 
         {/* Messages thread */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100">
-            <h3 className="text-sm font-medium text-gray-700">Conversation</h3>
+        <div className="bg-white/[0.05] rounded-xl border border-white/[0.08] overflow-hidden">
+          <div className="px-5 py-3 border-b border-white/[0.08]">
+            <h3 className="text-sm font-medium text-white/70">Conversation</h3>
           </div>
 
           {loadingMessages ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+              <Loader2 className="w-5 h-5 animate-spin text-white/30" />
             </div>
           ) : messages.length === 0 ? (
-            <div className="px-5 py-8 text-center text-sm text-gray-500">
+            <div className="px-5 py-8 text-center text-sm text-white/30">
               No replies yet. Send the first response below.
             </div>
           ) : (
-            <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
+            <div className="divide-y divide-white/[0.05] max-h-80 overflow-y-auto">
               {messages.map((msg) => (
-                <div key={msg.id} className={`px-5 py-3 ${msg.sender_role === "dealer" ? "bg-green-50/50" : ""}`}>
+                <div key={msg.id} className={`px-5 py-3 ${msg.sender_role === "dealer" ? "bg-[#00d97e]/[0.04]" : ""}`}>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-xs font-medium ${msg.sender_role === "dealer" ? "text-green-700" : "text-blue-700"}`}>
+                    <span className={`text-xs font-medium ${msg.sender_role === "dealer" ? "text-[#00d97e]" : "text-blue-400"}`}>
                       {msg.sender_role === "dealer" ? "You" : "Buyer"}
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-white/30">
                       {new Date(msg.created_at).toLocaleString()}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-700">{msg.message}</p>
+                  <p className="text-sm text-white/70">{msg.message}</p>
                 </div>
               ))}
             </div>
           )}
 
           {/* Reply box */}
-          <div className="px-5 py-3 border-t border-gray-100 flex gap-2">
+          <div className="px-5 py-3 border-t border-white/[0.08] flex gap-2">
             <input
               value={reply}
               onChange={(e) => setReply(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendReply()}
               placeholder="Type your reply..."
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
+              className="flex-1 px-3 py-2 bg-white/[0.06] border border-white/[0.10] rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00d97e]/50"
             />
             <button
               onClick={sendReply}
               disabled={sending || !reply.trim()}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
+              className="px-4 py-2 bg-[#00d97e] text-[#0d1117] rounded-lg text-sm font-semibold hover:bg-[#00f090] disabled:opacity-40 flex items-center gap-1 transition-colors"
             >
               {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
@@ -220,7 +220,7 @@ export default function DealerInquiriesPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-gray-900 mb-6">Inquiries</h1>
+      <h1 className="text-xl font-bold text-white mb-6">Inquiries</h1>
 
       {/* Filter tabs */}
       <div className="flex gap-1 mb-4 overflow-x-auto">
@@ -230,8 +230,8 @@ export default function DealerInquiriesPage() {
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
               filter === f
-                ? "bg-green-50 text-green-700"
-                : "text-gray-500 hover:bg-gray-100"
+                ? "bg-[#00d97e]/15 text-[#00d97e]"
+                : "text-white/40 hover:bg-white/[0.06] hover:text-white/70"
             }`}
           >
             {f}
@@ -240,9 +240,9 @@ export default function DealerInquiriesPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">No inquiries found.</p>
+        <div className="bg-white/[0.04] rounded-xl border border-white/[0.08] p-12 text-center">
+          <MessageSquare className="w-12 h-12 text-white/20 mx-auto mb-3" />
+          <p className="text-white/40 text-sm">No inquiries found.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -250,21 +250,21 @@ export default function DealerInquiriesPage() {
             <button
               key={inq.id}
               onClick={() => openInquiry(inq)}
-              className="w-full bg-white rounded-xl border border-gray-200 p-4 text-left hover:border-gray-300 transition-colors"
+              className="w-full bg-white/[0.04] rounded-xl border border-white/[0.08] p-4 text-left hover:bg-white/[0.07] hover:border-white/[0.14] transition-colors"
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{inq.subject}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-sm font-medium text-white">{inq.subject}</p>
+                  <p className="text-xs text-white/40 mt-0.5">
                     {inq.inquiry_type} &middot; {new Date(inq.created_at).toLocaleDateString()}
                   </p>
-                  <p className="text-sm text-gray-600 mt-1 line-clamp-1">{inq.message}</p>
+                  <p className="text-sm text-white/50 mt-1 line-clamp-1">{inq.message}</p>
                 </div>
                 <span className={`text-xs px-2 py-1 rounded-full font-medium shrink-0 ml-3 ${
-                  inq.status === "open" ? "bg-yellow-50 text-yellow-700" :
-                  inq.status === "replied" ? "bg-green-50 text-green-700" :
-                  inq.status === "closed" ? "bg-gray-100 text-gray-600" :
-                  "bg-blue-50 text-blue-700"
+                  inq.status === "open" ? "bg-amber-500/15 text-amber-400" :
+                  inq.status === "replied" ? "bg-[#00d97e]/15 text-[#00d97e]" :
+                  inq.status === "closed" ? "bg-white/[0.08] text-white/40" :
+                  "bg-blue-500/15 text-blue-400"
                 }`}>
                   {inq.status}
                 </span>
