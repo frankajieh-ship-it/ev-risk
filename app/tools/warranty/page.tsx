@@ -126,7 +126,7 @@ function WarrantyCheckerInner() {
     setVinLoading(true);
     setVinError(null);
     try {
-      const res = await fetch("/api/vin/decode", {
+      const res = await fetch("/api/tools/vin-decode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vin: clean }),
