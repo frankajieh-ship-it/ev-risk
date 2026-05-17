@@ -7,7 +7,7 @@
  * fits the buyer's daily routine. Deterministic scoring, no API calls.
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Activity, Check, RotateCcw } from "lucide-react";
 import {
   computeRoutineFitReceipt,
@@ -19,7 +19,7 @@ interface RoutineFitMiniStepProps {
   receiptMileage?: number;
   receiptPrice?: number;
   receiptSellerType?: string;
-  trackEvent?: (eventName: string, eventData?: Record<string, any>) => void;
+  trackEvent?: (eventName: string, eventData?: Record<string, unknown>) => void;
 }
 
 type ChargingAccess = "home" | "work" | "public";
@@ -71,13 +71,13 @@ function SelectionCard({
       aria-pressed={selected}
       className={`relative px-3 py-2.5 rounded-xl border-2 text-center transition-all text-sm font-medium ${
         selected
-          ? "border-blue-600 bg-blue-100 text-blue-900 shadow-sm"
-          : "border-gray-200 hover:border-gray-300 bg-white text-gray-700"
+          ? "border-[#00d97e] bg-[#00d97e]/10 text-[#00d97e]"
+          : "border-white/[0.10] hover:border-white/[0.20] bg-white/[0.04] text-white/70 hover:text-white"
       }`}
     >
       {selected && (
         <span className="absolute top-1 right-1">
-          <Check className="w-3.5 h-3.5 text-blue-600" />
+          <Check className="w-3.5 h-3.5 text-[#00d97e]" />
         </span>
       )}
       {label}
@@ -86,20 +86,20 @@ function SelectionCard({
 }
 
 function getScoreColor(score: number): string {
-  if (score >= 80) return "text-green-700 bg-green-50 border-green-200";
-  if (score >= 60) return "text-blue-700 bg-blue-50 border-blue-200";
-  if (score >= 40) return "text-yellow-700 bg-yellow-50 border-yellow-200";
-  return "text-red-700 bg-red-50 border-red-200";
+  if (score >= 80) return "text-[#00d97e] bg-[#00d97e]/10 border-[#00d97e]/30";
+  if (score >= 60) return "text-blue-400 bg-blue-400/10 border-blue-400/30";
+  if (score >= 40) return "text-yellow-400 bg-yellow-400/10 border-yellow-400/30";
+  return "text-red-400 bg-red-400/10 border-red-400/30";
 }
 
 function getMentalLoadPill(load: string): { text: string; cls: string } {
   switch (load) {
     case "low":
-      return { text: "Low mental load", cls: "bg-green-100 text-green-700" };
+      return { text: "Low mental load", cls: "bg-[#00d97e]/10 text-[#00d97e]" };
     case "medium":
-      return { text: "Medium mental load", cls: "bg-yellow-100 text-yellow-700" };
+      return { text: "Medium mental load", cls: "bg-yellow-400/10 text-yellow-400" };
     default:
-      return { text: "High mental load", cls: "bg-red-100 text-red-700" };
+      return { text: "High mental load", cls: "bg-red-400/10 text-red-400" };
   }
 }
 
@@ -107,36 +107,24 @@ export default function RoutineFitMiniStep({
   receiptMileage,
   trackEvent,
 }: RoutineFitMiniStepProps) {
-  const [charging, setCharging] = useState<ChargingAccess | null>(null);
-  const [weeklyMiles, setWeeklyMiles] = useState<string>("");
-  const [climate, setClimate] = useState<Climate | null>(null);
-  const [longestTrip, setLongestTrip] = useState<LongestTrip | null>(null);
-  const [result, setResult] = useState<RoutineFitReceiptResult | null>(null);
-  const hasTrackedStart = useRef(false);
-
-  // Hydrate from localStorage on mount
-  useEffect(() => {
-    const saved = getSavedRoutineFit();
-    if (!saved) return;
-
-    setCharging(saved.charging);
-    setWeeklyMiles(saved.weeklyMiles);
-    setClimate(saved.climate);
-    setLongestTrip(saved.longestTrip);
-
-    // Auto-compute if all fields are valid
+  const saved = getSavedRoutineFit();
+  const [charging, setCharging] = useState<ChargingAccess | null>(saved?.charging ?? null);
+  const [weeklyMiles, setWeeklyMiles] = useState<string>(saved?.weeklyMiles ?? "");
+  const [climate, setClimate] = useState<Climate | null>(saved?.climate ?? null);
+  const [longestTrip, setLongestTrip] = useState<LongestTrip | null>(saved?.longestTrip ?? null);
+  const [result, setResult] = useState<RoutineFitReceiptResult | null>(() => {
+    if (!saved) return null;
     const miles = Number(saved.weeklyMiles);
-    if (saved.charging && miles > 0 && saved.climate && saved.longestTrip) {
-      const input: RoutineFitReceiptInput = {
-        charging_access: saved.charging,
-        weekly_miles: miles,
-        climate: saved.climate,
-        longest_trip: saved.longestTrip,
-        mileage: receiptMileage,
-      };
-      setResult(computeRoutineFitReceipt(input));
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!saved.charging || miles <= 0 || !saved.climate || !saved.longestTrip) return null;
+    return computeRoutineFitReceipt({
+      charging_access: saved.charging,
+      weekly_miles: miles,
+      climate: saved.climate,
+      longest_trip: saved.longestTrip,
+      mileage: receiptMileage,
+    });
+  });
+  const hasTrackedStart = useRef(false);
 
   const trackInteraction = () => {
     if (!hasTrackedStart.current) {
@@ -212,11 +200,11 @@ export default function RoutineFitMiniStep({
   };
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+    <div className="rounded-2xl border border-white/[0.08] bg-[#161b22] overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-gray-100">
-        <Activity className="w-5 h-5 text-blue-600" />
-        <h3 className="text-sm font-semibold text-gray-900">
+      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-white/[0.06]">
+        <Activity className="w-5 h-5 text-[#00d97e]" />
+        <h3 className="text-sm font-semibold text-white">
           Make this routine-aware
         </h3>
       </div>
@@ -226,7 +214,7 @@ export default function RoutineFitMiniStep({
           <>
             {/* Q1: Charging */}
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">
+              <p className="text-sm font-medium text-white/70 mb-2">
                 Where will you charge most often?
               </p>
               <div className="grid grid-cols-3 gap-2">
@@ -247,7 +235,7 @@ export default function RoutineFitMiniStep({
 
             {/* Q2: Weekly miles */}
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">
+              <p className="text-sm font-medium text-white/70 mb-2">
                 How many miles do you drive per week?
               </p>
               <input
@@ -262,13 +250,13 @@ export default function RoutineFitMiniStep({
                 }}
                 placeholder="e.g. 150"
                 min={1}
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-1 focus:border-blue-600 focus:ring-blue-600"
+                className="w-full px-3 py-2.5 rounded-lg border border-white/[0.10] bg-white/[0.04] text-white placeholder:text-white/30 text-sm focus:outline-none focus:ring-1 focus:border-[#00d97e] focus:ring-[#00d97e]"
               />
             </div>
 
             {/* Q3: Climate */}
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">
+              <p className="text-sm font-medium text-white/70 mb-2">
                 What&apos;s your climate like?
               </p>
               <div className="grid grid-cols-3 gap-2">
@@ -289,7 +277,7 @@ export default function RoutineFitMiniStep({
 
             {/* Q4: Longest trip frequency */}
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">
+              <p className="text-sm font-medium text-white/70 mb-2">
                 How often do you have long driving days?
               </p>
               <div className="grid grid-cols-3 gap-2">
@@ -314,14 +302,14 @@ export default function RoutineFitMiniStep({
               disabled={!canCompute}
               className={`w-full py-3 rounded-xl text-sm font-semibold transition-all ${
                 canCompute
-                  ? "bg-blue-600 text-white hover:bg-blue-700"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  ? "bg-[#00d97e] text-[#0d1117] hover:bg-[#00f090]"
+                  : "bg-white/[0.06] text-white/30 cursor-not-allowed"
               }`}
             >
               Check Routine Fit
             </button>
             {showMilesHint && (
-              <p className="text-xs text-amber-600 text-center mt-1">
+              <p className="text-xs text-yellow-400/80 text-center mt-1">
                 Enter your weekly miles above to continue
               </p>
             )}
@@ -357,9 +345,9 @@ export default function RoutineFitMiniStep({
                 {result.stress_flags.map((flag, i) => (
                   <li
                     key={i}
-                    className="flex items-start gap-2 text-sm text-gray-700"
+                    className="flex items-start gap-2 text-sm text-white/70"
                   >
-                    <span className="text-yellow-500 mt-0.5">&#9679;</span>
+                    <span className="text-yellow-400 mt-0.5">&#9679;</span>
                     {flag}
                   </li>
                 ))}
@@ -369,7 +357,7 @@ export default function RoutineFitMiniStep({
             {/* Recalculate */}
             <button
               onClick={handleReset}
-              className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
+              className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 font-medium"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               Recalculate

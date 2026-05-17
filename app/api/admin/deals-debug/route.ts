@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase
     .from("curated_deals")
     .select(
-      "id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, vin, title_status, battery_report, service_records, vin_audit_summary, extracted_signals, receipt_id, last_analyzed_at, is_active, sold_report_count, created_at"
+      "id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, vin, title_status, battery_report, service_records, vin_audit_summary, extracted_signals, receipt_id, last_analyzed_at, is_active, sold_report_count, created_at, verdict"
     )
     .order("created_at", { ascending: false, nullsFirst: false })
     .limit(200);

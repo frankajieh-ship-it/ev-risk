@@ -32,10 +32,34 @@ interface DealRow {
   is_active: boolean;
   sold_report_count: number | null;
   created_at: string | null;
+  verdict: "GREEN" | "YELLOW" | "RED" | null;
+}
+
+interface RescoredDiff {
+  id: string;
+  label: string;
+  old_verdict: string | null;
+  new_verdict: string;
+  changed: boolean;
 }
 
 type SortKey = keyof DealRow;
 type SortDir = "asc" | "desc";
+
+function VerdictPill({ verdict }: { verdict: string | null | undefined }) {
+  if (!verdict) return <span className="text-white/15">—</span>;
+  const cls =
+    verdict === "GREEN"
+      ? "bg-[#00d97e]/15 text-[#00d97e]"
+      : verdict === "RED"
+      ? "bg-red-500/15 text-red-400"
+      : "bg-yellow-400/15 text-yellow-400";
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${cls}`}>
+      {verdict}
+    </span>
+  );
+}
 
 export default function AdminDealsPage() {
   const [deals, setDeals] = useState<DealRow[]>([]);
@@ -52,6 +76,9 @@ export default function AdminDealsPage() {
   const [adminKey, setAdminKey] = useState("");
   const authHeader = adminKey ? `Bearer ${adminKey}` : "";
   const [extracting, setExtracting] = useState(false);
+  const [rescoring, setRescoring] = useState(false);
+  const [qaChecking, setQaChecking] = useState(false);
+  const [qaDiffs, setQaDiffs] = useState<RescoredDiff[] | null>(null);
   const [syncingPhotos, setSyncingPhotos] = useState(false);
   const extractPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
@@ -224,6 +251,55 @@ export default function AdminDealsPage() {
       setImportStatus("✗ Receipt generation failed");
     } finally {
       setGeneratingReceipts(false);
+    }
+  };
+
+  const handleQaCheck = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    setQaChecking(true);
+    setImportStatus("⏳ Running QA check — comparing stored vs re-scored verdicts...");
+    try {
+      const res = await fetch("/api/admin/deals-rescore?qa=true&batch=100", {
+        method: "POST",
+        headers: { Authorization: authHeader },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setQaDiffs(data.diffs ?? []);
+        const changed = (data.diffs ?? []).filter((d: RescoredDiff) => d.changed).length;
+        setImportStatus(`✓ QA complete — ${changed} of ${data.total} verdicts would change`);
+      } else {
+        setImportStatus(`✗ ${data.error}`);
+      }
+    } catch {
+      setImportStatus("✗ QA check failed");
+    } finally {
+      setQaChecking(false);
+    }
+  };
+
+  const handleRescore = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    const active = deals.filter((d) => d.is_active).length;
+    if (!confirm(`Re-score all ${active} active deals using the deterministic pipeline? This is fast (no AI) and will overwrite stored verdicts.`)) return;
+    setRescoring(true);
+    setImportStatus("⏳ Re-scoring active deals...");
+    try {
+      const res = await fetch("/api/admin/deals-rescore?batch=100", {
+        method: "POST",
+        headers: { Authorization: authHeader },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setImportStatus(`✓ Re-scored ${data.rescored} deals — ${data.changed} verdicts changed, ${data.unchanged} unchanged, ${data.failed} failed`);
+        fetchDeals();
+      } else {
+        setImportStatus(`✗ ${data.error}`);
+      }
+    } catch {
+      setImportStatus("✗ Re-score failed");
+    } finally {
+      setRescoring(false);
     }
   };
 
@@ -417,6 +493,14 @@ export default function AdminDealsPage() {
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${generatingReceipts ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-purple-400 border-white/[0.08]"}`}>
               {generatingReceipts ? "Generating..." : "Generate Receipts"}
             </button>
+            <button onClick={handleQaCheck} disabled={qaChecking || rescoring}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${qaChecking ? "text-yellow-400 border-yellow-400/20 cursor-not-allowed" : "text-white/40 hover:text-yellow-400 border-white/[0.08]"}`}>
+              {qaChecking ? "QA..." : "QA Check"}
+            </button>
+            <button onClick={handleRescore} disabled={rescoring || qaChecking}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${rescoring ? "text-[#00d97e] border-[#00d97e]/20 cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}>
+              {rescoring ? "Re-scoring..." : "Re-score All"}
+            </button>
             <button onClick={() => handleExport("template")}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#00d97e] border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">
               <Download className="w-3.5 h-3.5" />
@@ -452,6 +536,49 @@ export default function AdminDealsPage() {
           </div>
         )}
 
+        {/* QA Diff Modal */}
+        {qaDiffs && (
+          <div className="mb-6 rounded-xl border border-yellow-500/20 bg-yellow-500/5 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-yellow-500/10">
+              <span className="text-xs font-semibold text-yellow-400">
+                QA Diff — {qaDiffs.filter((d) => d.changed).length} of {qaDiffs.length} would change verdict
+              </span>
+              <button onClick={() => setQaDiffs(null)} className="text-white/30 hover:text-white/60 text-xs">✕ Close</button>
+            </div>
+            <div className="overflow-x-auto max-h-64">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-white/30 border-b border-white/[0.06]">
+                    <th className="text-left px-4 py-2">Vehicle</th>
+                    <th className="text-center px-3 py-2">Old</th>
+                    <th className="text-center px-3 py-2">New</th>
+                    <th className="text-center px-3 py-2">Changed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {qaDiffs.filter((d) => d.changed).map((d) => (
+                    <tr key={d.id} className="border-b border-white/[0.04]">
+                      <td className="px-4 py-2 text-white/70 truncate max-w-[300px]">{d.label}</td>
+                      <td className="px-3 py-2 text-center">
+                        <VerdictPill verdict={d.old_verdict} />
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <VerdictPill verdict={d.new_verdict} />
+                      </td>
+                      <td className="px-3 py-2 text-center text-yellow-400 font-semibold">→</td>
+                    </tr>
+                  ))}
+                  {qaDiffs.filter((d) => d.changed).length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="text-center py-4 text-white/30">No verdicts would change</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* Table */}
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full text-xs">
@@ -465,6 +592,7 @@ export default function AdminDealsPage() {
                 <th className="text-center px-3 py-3"><SortBtn k="title_status" label="Title" /></th>
                 <th className="text-center px-3 py-3">Bat. Report</th>
                 <th className="text-center px-3 py-3">Svc Records</th>
+                <th className="text-center px-3 py-3"><SortBtn k="verdict" label="Verdict" /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="is_active" label="Active" /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="sold_report_count" label="Reports" /></th>
                 <th className="px-3 py-3"></th>
@@ -474,7 +602,7 @@ export default function AdminDealsPage() {
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="border-b border-white/[0.04]">
-                    {Array.from({ length: 11 }).map((__, j) => (
+                    {Array.from({ length: 12 }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-3 bg-white/[0.04] rounded animate-pulse" />
                       </td>
@@ -483,7 +611,7 @@ export default function AdminDealsPage() {
                 ))
               ) : sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="text-center py-12 text-white/30">No deals found</td>
+                  <td colSpan={12} className="text-center py-12 text-white/30">No deals found</td>
                 </tr>
               ) : (
                 sorted.map((d) => (
@@ -540,6 +668,9 @@ export default function AdminDealsPage() {
                         : d.service_records === "no"
                         ? <span className="text-red-400">no</span>
                         : <span className="text-white/20">—</span>}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <VerdictPill verdict={d.verdict} />
                     </td>
                     <td className="px-3 py-3 text-center">
                       <button
