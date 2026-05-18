@@ -1510,6 +1510,27 @@ function RoutineResultsContent() {
           Check your inbox tomorrow for your results summary + tip.
         </motion.div>
       )}
+
+      {result && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="mt-6 bg-white/[0.05] border border-white/[0.08] rounded-xl px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4"
+        >
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-white/80 mb-0.5">Found a listing you like?</p>
+            <p className="text-xs text-white/40">Paste any CarGurus or AutoTrader URL — we check battery, recalls, price vs. comparables, and flag risks before you visit.</p>
+          </div>
+          <Link
+            href="/receipt"
+            onClick={() => trackEvent("routine_to_receipt_cta_clicked", { source: "routine_results" })}
+            className="flex-shrink-0 px-4 py-2 rounded-xl bg-[#00d97e] text-[#0d1117] text-sm font-semibold hover:bg-[#00c970] transition-colors whitespace-nowrap"
+          >
+            Analyze it before you buy →
+          </Link>
+        </motion.div>
+      )}
     </motion.div>
   );
 }

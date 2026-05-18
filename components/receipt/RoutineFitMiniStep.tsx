@@ -8,6 +8,7 @@
  */
 
 import { useState, useRef } from "react";
+import Link from "next/link";
 import { Activity, Check, RotateCcw } from "lucide-react";
 import {
   computeRoutineFitReceipt,
@@ -362,6 +363,14 @@ export default function RoutineFitMiniStep({
               <RotateCcw className="w-3.5 h-3.5" />
               Recalculate
             </button>
+
+            <Link
+              href="/routine"
+              onClick={() => trackEvent?.("routine_mini_cta_clicked", { source: "receipt" })}
+              className="inline-flex items-center gap-1 text-sm font-medium text-[#00d97e] hover:text-[#00f090] transition-colors"
+            >
+              Get your full EV Fit analysis →
+            </Link>
           </div>
         )}
       </div>

@@ -216,14 +216,16 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
   const aiJobStartMs = Date.now();
 
   try {
-    // Hedged generation: OpenAI starts immediately, Gemini hedges at T+8s, Grok at T+14s
+    // Hedged generation: OpenAI starts immediately, Anthropic at T+4s, Grok at T+8s
     const hedgeResult = await hedgedGenerate({
       systemPrompt: SYSTEM_PROMPT,
       userPrompt: buildUserPrompt(input),
       jsonSchema: RECEIPT_JSON_SCHEMA as Record<string, unknown>,
       schemaName: "receipt",
       temperature: 0.3,
-      maxTokens: 1800,
+      maxTokens: 1400,
+      hedgeDelays: [4000, 8000],
+      timeoutMs: 12000,
       validate: (json) => {
         // Only reject on Zod schema failures — lint errors are cosmetic and
         // handled post-win by the formatter. Rejecting on lint causes all three

@@ -52,6 +52,7 @@ const OFfoChat = dynamic(() => import("@/components/chat/OFfoChat"), { ssr: fals
 const PdfDownloadButton = dynamic(() => import("@/components/receipt/PdfDownloadButton"), { ssr: false });
 const CompareBadge = dynamic(() => import("@/components/receipt/CompareBadge"), { ssr: false });
 const DealCard = dynamic(() => import("@/components/deals/DealCard").then(m => ({ default: m.default })), { ssr: false });
+const FeaturedDeals = dynamic(() => import("@/components/landing/FeaturedDeals"), { ssr: false });
 import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import ReturnToRoutinePrompt from "@/components/receipt/ReturnToRoutinePrompt";
 import RecallBanner from "@/components/receipt/RecallBanner";
@@ -1202,6 +1203,9 @@ export default function ReceiptPage() {
                   </div>
                 </div>
               )}
+
+              {/* ── Deal Watch (full curated section) ───────────────── */}
+              <FeaturedDeals />
 
               {/* Compare — shown when auth is configured */}
               {authConfigured && (

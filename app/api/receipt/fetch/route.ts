@@ -406,8 +406,12 @@ export async function POST(request: NextRequest) {
       if (derived >= 1 && derived <= 10) fields.efficiency_mi_per_kwh = derived;
     }
 
-    // Await Auto.dev enrichment (already running in parallel above)
-    const autoDevData = await autoDevPromise;
+    // Await Auto.dev enrichment (already running in parallel above).
+    // Skip the wait entirely when no VIN was extracted — Auto.dev can't enrich
+    // without a VIN and would only burn the 6s timeout budget for nothing.
+    const autoDevData = result.data.vin
+      ? await autoDevPromise
+      : (autoDevPromise.catch(() => {}), { photo_urls: [], market_price_range: undefined, vin_data: undefined, source: "none" as const });
 
     // Merge Auto.dev enrichment into fields; fall back to static Wikimedia photo
     // if Auto.dev returns nothing (avoids broken/wrong-car market listing images)

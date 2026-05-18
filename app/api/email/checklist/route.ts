@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { sendChecklistEmail, isResendConfigured } from "@/lib/resend";
 import { humanizeFlag } from "@/lib/receipt-rules";
+import { emailFooter } from "@/lib/crm-email";
 import { createHash } from "crypto";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -72,23 +73,28 @@ function hashEmail(email: string): string {
 
 function getVerdictColor(verdict: string): string {
   switch (verdict) {
-    case "GREEN": return "#16a34a";
-    case "YELLOW": return "#ca8a04";
-    case "RED": return "#dc2626";
-    default: return "#6b7280";
+    case "GREEN": return "#238636";
+    case "YELLOW": return "#d29922";
+    case "RED": return "#da3633";
+    default: return "#8b949e";
   }
 }
 
 function getVerdictLabel(verdict: string): string {
   switch (verdict) {
-    case "GREEN": return "Good Deal";
-    case "YELLOW": return "Fair Deal — Verify These Items";
-    case "RED": return "Poor Deal — Proceed With Caution";
+    case "GREEN": return "Clean Deal";
+    case "YELLOW": return "Needs Review";
+    case "RED": return "High Risk";
     default: return verdict;
   }
 }
 
-function buildChecklistHtml(receipt: ReceiptData): string {
+const OFFO_HEADER = `
+  <div style="text-align:center;padding-bottom:24px;margin-bottom:24px;border-bottom:1px solid #21262d;">
+    <span style="font-size:22px;font-weight:800;color:#00d97e;letter-spacing:-0.5px;">OFFO</span><span style="font-size:22px;font-weight:800;color:#e6edf3;letter-spacing:-0.5px;"> Lab</span>
+  </div>`;
+
+function buildChecklistHtml(receipt: ReceiptData, email: string): string {
   const summary: ListingSummary = receipt.listing_summary ?? {};
   const vehicle = [summary.year, summary.make, summary.model, summary.trim].filter(Boolean).join(" ");
   const verdict = receipt.verdict ?? "unknown";
@@ -96,15 +102,15 @@ function buildChecklistHtml(receipt: ReceiptData): string {
   const verdictLabel = getVerdictLabel(verdict);
 
   const riskFlagsHtml = (receipt.risk_flags || [])
-    .map((flag: string) => `<li style="margin-bottom:6px;color:#374151;">${humanizeFlag(flag)}</li>`)
+    .map((flag: string) => `<li style="margin-bottom:6px;color:#c9d1d9;">${humanizeFlag(flag)}</li>`)
     .join("");
 
   const mustAskHtml = (receipt.must_answer_questions || [])
-    .map((q: string) => `<li style="margin-bottom:6px;color:#374151;">${q}</li>`)
+    .map((q: string) => `<li style="margin-bottom:6px;color:#c9d1d9;">${q}</li>`)
     .join("");
 
   const inspectHtml = (receipt.inspect_first || [])
-    .map((item: string) => `<li style="margin-bottom:6px;color:#374151;">${item}</li>`)
+    .map((item: string) => `<li style="margin-bottom:6px;color:#c9d1d9;">${item}</li>`)
     .join("");
 
   const price = summary.price ? `$${Number(summary.price).toLocaleString()}` : "N/A";
@@ -114,66 +120,69 @@ function buildChecklistHtml(receipt: ReceiptData): string {
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<body style="margin:0;padding:0;background:#0d1117;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:600px;margin:0 auto;padding:24px 16px;">
+    ${OFFO_HEADER}
+
     <!-- Header -->
     <div style="text-align:center;margin-bottom:24px;">
-      <h1 style="font-size:20px;color:#1e293b;margin:0 0 4px;">Your OFFO Checklist</h1>
-      <p style="font-size:14px;color:#64748b;margin:0;">${vehicle || "Vehicle"} — ${price}</p>
+      <h1 style="font-size:20px;color:#e6edf3;margin:0 0 4px;">Your OFFO Checklist</h1>
+      <p style="font-size:14px;color:#8b949e;margin:0;">${vehicle || "Vehicle"} — ${price}</p>
     </div>
 
     <!-- Verdict -->
-    <div style="background:white;border-radius:12px;padding:20px;margin-bottom:16px;border:2px solid ${verdictColor};">
+    <div style="background:#161b22;border-radius:12px;padding:20px;margin-bottom:16px;border:2px solid ${verdictColor};">
       <div style="text-align:center;">
-        <span style="display:inline-block;padding:6px 16px;border-radius:20px;font-size:14px;font-weight:600;color:white;background:${verdictColor};">
+        <span style="display:inline-block;padding:6px 16px;border-radius:20px;font-size:14px;font-weight:700;color:white;background:${verdictColor};">
           ${verdictLabel}
         </span>
-        <p style="font-size:14px;color:#374151;margin:12px 0 0;">${receipt.verdict_reason || ""}</p>
+        <p style="font-size:14px;color:#c9d1d9;margin:12px 0 0;">${receipt.verdict_reason || ""}</p>
       </div>
     </div>
 
     <!-- Risk Flags -->
     ${riskFlagsHtml ? `
-    <div style="background:white;border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #e5e7eb;">
-      <h2 style="font-size:16px;color:#dc2626;margin:0 0 12px;">Risk Flags</h2>
+    <div style="background:#161b22;border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #30363d;">
+      <h2 style="font-size:16px;color:#f87171;margin:0 0 12px;">Risk Flags</h2>
       <ul style="margin:0;padding-left:20px;font-size:14px;">${riskFlagsHtml}</ul>
     </div>` : ""}
 
     <!-- Must-Ask Questions -->
     ${mustAskHtml ? `
-    <div style="background:white;border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #e5e7eb;">
-      <h2 style="font-size:16px;color:#1e293b;margin:0 0 12px;">Must-Ask Questions</h2>
+    <div style="background:#161b22;border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #30363d;">
+      <h2 style="font-size:16px;color:#e6edf3;margin:0 0 12px;">Must-Ask Questions</h2>
       <ol style="margin:0;padding-left:20px;font-size:14px;">${mustAskHtml}</ol>
     </div>` : ""}
 
     <!-- Inspect First -->
     ${inspectHtml ? `
-    <div style="background:white;border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #e5e7eb;">
-      <h2 style="font-size:16px;color:#1e293b;margin:0 0 12px;">Inspect First</h2>
+    <div style="background:#161b22;border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #30363d;">
+      <h2 style="font-size:16px;color:#e6edf3;margin:0 0 12px;">Inspect First</h2>
       <ol style="margin:0;padding-left:20px;font-size:14px;">${inspectHtml}</ol>
     </div>` : ""}
 
     <!-- Negotiation Opener -->
     ${receipt.negotiation_opener ? `
-    <div style="background:#f0fdf4;border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #bbf7d0;">
-      <h2 style="font-size:16px;color:#166534;margin:0 0 8px;">Seller Message</h2>
-      <p style="font-size:14px;color:#374151;margin:0;font-style:italic;">"${receipt.negotiation_opener}"</p>
+    <div style="background:rgba(0,217,126,0.08);border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid rgba(0,217,126,0.2);">
+      <h2 style="font-size:16px;color:#86efac;margin:0 0 8px;">Seller Message</h2>
+      <p style="font-size:14px;color:#c9d1d9;margin:0;font-style:italic;">"${receipt.negotiation_opener}"</p>
     </div>` : ""}
 
     <!-- Quick Stats -->
-    <div style="background:white;border-radius:12px;padding:16px;margin-bottom:24px;border:1px solid #e5e7eb;">
-      <table style="width:100%;font-size:13px;color:#374151;" cellpadding="4">
-        <tr><td style="color:#6b7280;">Price</td><td style="text-align:right;font-weight:600;">${price}</td></tr>
-        <tr><td style="color:#6b7280;">Mileage</td><td style="text-align:right;font-weight:600;">${mileage}</td></tr>
-        ${summary.seller_type ? `<tr><td style="color:#6b7280;">Seller</td><td style="text-align:right;font-weight:600;">${summary.seller_type}</td></tr>` : ""}
+    <div style="background:#161b22;border-radius:12px;padding:16px;margin-bottom:24px;border:1px solid #30363d;">
+      <table style="width:100%;font-size:13px;" cellpadding="4">
+        <tr><td style="color:#8b949e;">Price</td><td style="text-align:right;font-weight:600;color:#e6edf3;">${price}</td></tr>
+        <tr><td style="color:#8b949e;">Mileage</td><td style="text-align:right;font-weight:600;color:#e6edf3;">${mileage}</td></tr>
+        ${summary.seller_type ? `<tr><td style="color:#8b949e;">Seller</td><td style="text-align:right;font-weight:600;color:#e6edf3;">${summary.seller_type}</td></tr>` : ""}
       </table>
     </div>
 
-    <!-- Footer -->
-    <div style="text-align:center;padding-top:16px;border-top:1px solid #e5e7eb;">
-      <a href="https://offolab.com/receipt" style="display:inline-block;padding:10px 24px;background:#4f46e5;color:white;border-radius:8px;font-size:14px;font-weight:500;text-decoration:none;">Check Another Listing</a>
-      <p style="font-size:12px;color:#9ca3af;margin:16px 0 0;">Sent by OFFO Lab — offolab.com</p>
+    <!-- CTA -->
+    <div style="text-align:center;padding-top:16px;border-top:1px solid #21262d;margin-bottom:24px;">
+      <a href="https://offolab.com/receipt" style="display:inline-block;padding:13px 28px;background:#00d97e;color:#0d1117;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;">Analyze another listing →</a>
     </div>
+
+    ${emailFooter(email, "activation")}
   </div>
 </body>
 </html>`;
@@ -260,7 +269,7 @@ export async function POST(req: NextRequest) {
     const summary = receiptData.listing_summary || {};
     const vehicle = [summary.year, summary.make, summary.model].filter(Boolean).join(" ");
     const subject = `Your OFFO Checklist — ${vehicle || "Vehicle Receipt"}`;
-    const html = buildChecklistHtml(receiptData);
+    const html = buildChecklistHtml(receiptData, email.trim());
 
     const result = await sendChecklistEmail(email.trim(), subject, html);
 

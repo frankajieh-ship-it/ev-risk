@@ -184,7 +184,7 @@ export function useReceiptGeneration({
           reason: "max_attempts",
         });
       }
-    }, 3000);
+    }, 2000);
 
     upgradePollingRef.current = poll;
   }, [trackEvent, addReceipt]);

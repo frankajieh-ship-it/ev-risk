@@ -64,6 +64,11 @@ export default function SellerPackCard({
     setCheckingOut(true);
     setError(null);
 
+    trackEvent("teaser_cta_clicked", {
+      receipt_id: receiptId,
+      pack_tier: "seller_questions",
+    });
+
     trackEvent("seller_pack_checkout_started", {
       receipt_id: receiptId,
       display_price: displayPrice,

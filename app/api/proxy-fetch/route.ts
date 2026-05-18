@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     // --- Nimbleway path for JS-rendered sites ---
     if (needsJsRender && NIMBLEWAY_KEY) {
       const nmController = new AbortController();
-      const nmTimeoutId = setTimeout(() => nmController.abort(), 30000);
+      const nmTimeoutId = setTimeout(() => nmController.abort(), 15000);
       try {
         console.log('[Proxy Fetch] Trying Nimbleway:', url.substring(0, 80));
         const nmResponse = await fetch('https://sdk.nimbleway.com/v1/extract', {

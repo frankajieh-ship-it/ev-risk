@@ -270,7 +270,7 @@ export default function ChargingTimeCalculatorPage() {
           </div>
         </div>
 
-        {/* CTA */}
+        {/* CTAs */}
         <Link
           href="/routine"
           onClick={() => trackEvent("charging_tool_cta_clicked", {})}
@@ -278,6 +278,13 @@ export default function ChargingTimeCalculatorPage() {
         >
           See which EVs work best for your setup
           <ChevronRight className="w-4 h-4" />
+        </Link>
+        <Link
+          href="/receipt"
+          onClick={() => trackEvent("charging_tool_receipt_cta_clicked", {})}
+          className="flex items-center justify-center gap-2 border border-white/[0.12] text-white/60 hover:text-white/90 hover:border-white/25 font-medium py-3 px-6 rounded-xl transition-colors w-full text-sm"
+        >
+          Analyze a specific EV listing →
         </Link>
 
         <p className="text-center text-white/20 text-xs mt-6">

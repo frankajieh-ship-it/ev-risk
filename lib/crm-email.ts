@@ -35,11 +35,11 @@ export function unsubscribeLink(email: string, seq: SequenceType): string {
 export function emailFooter(email: string, seq: SequenceType): string {
   const unsub = unsubscribeLink(email, seq);
   return `
-  <div style="text-align:center;padding-top:20px;border-top:1px solid #e5e7eb;margin-top:32px;">
-    <p style="font-size:12px;color:#9ca3af;margin:0;line-height:1.6;">
-      Sent by <a href="${SITE_URL}" style="color:#6b7280;text-decoration:none;">OFFO Lab</a>
+  <div style="text-align:center;padding-top:20px;border-top:1px solid #21262d;margin-top:32px;">
+    <p style="font-size:12px;color:#8b949e;margin:0;line-height:1.6;">
+      Sent by <a href="${SITE_URL}" style="color:#00d97e;text-decoration:none;">OFFO Lab</a>
       &nbsp;&middot;&nbsp;
-      <a href="${unsub}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a>
+      <a href="${unsub}" style="color:#8b949e;text-decoration:underline;">Unsubscribe</a>
     </p>
   </div>`;
 }
@@ -51,7 +51,7 @@ export function emailWrapper(bodyHtml: string): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
 </head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<body style="margin:0;padding:0;background:#0d1117;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
     ${bodyHtml}
   </div>

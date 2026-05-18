@@ -8,11 +8,11 @@ export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com
 
 export function verdictColor(verdict: "GREEN" | "YELLOW" | "RED"): string {
   const map: Record<string, string> = {
-    GREEN: "#16a34a",
-    YELLOW: "#ca8a04",
-    RED: "#dc2626",
+    GREEN: "#238636",
+    YELLOW: "#d29922",
+    RED: "#da3633",
   };
-  return map[verdict] ?? "#6b7280";
+  return map[verdict] ?? "#8b949e";
 }
 
 export function verdictLabel(verdict: "GREEN" | "YELLOW" | "RED"): string {
@@ -38,6 +38,6 @@ export function verdictBadge(verdict: "GREEN" | "YELLOW" | "RED"): string {
   return `<span style="display:inline-block;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700;color:#fff;background:${color};">${label}</span>`;
 }
 
-export function ctaButton(text: string, href: string, color = "#4f46e5"): string {
-  return `<a href="${href}" style="display:inline-block;padding:12px 28px;background:${color};color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">${text}</a>`;
+export function ctaButton(text: string, href: string, color = "#00d97e"): string {
+  return `<a href="${href}" style="display:inline-block;padding:13px 28px;background:${color};color:#0d1117;text-decoration:none;border-radius:10px;font-size:14px;font-weight:700;">${text}</a>`;
 }

@@ -92,6 +92,11 @@ export default function DecisionPackCard({
 
     const displayPrice = getDisplayPriceForRegion("999", region);
 
+    trackEvent("teaser_cta_clicked", {
+      receipt_id: receiptId,
+      pack_tier: "buyer_pass",
+    });
+
     trackEvent("checkout_started", {
       receipt_id: receiptId,
       pack_tier: "buyer_pass",
@@ -184,7 +189,7 @@ export default function DecisionPackCard({
               <h3 className="text-sm font-bold mb-1">{headline}</h3>
               {upgradeContext === "listing_analysis" && (
                 <p className="text-xs text-indigo-100 leading-relaxed">
-                  Verify the car's identity, check open recalls, and detect listing mismatches — before you hand over a deposit.
+                  Verify the car&apos;s identity, check open recalls, and detect listing mismatches — before you hand over a deposit.
                 </p>
               )}
               {upgradeContext === "ev_routine_check" && (
@@ -202,7 +207,7 @@ export default function DecisionPackCard({
           {upgradeContext === "listing_analysis" && (
             <div className="mt-3 flex items-center gap-1.5 text-xs text-indigo-200">
               <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>1 in 5 listings has a detail that doesn't match the VIN record</span>
+              <span>1 in 5 listings has a detail that doesn&apos;t match the VIN record</span>
             </div>
           )}
         </div>

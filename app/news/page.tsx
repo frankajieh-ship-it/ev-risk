@@ -175,6 +175,7 @@ function ArticleCard({ article, onArticleClick }: { article: NewsArticle; onArti
 // ---------------------------------------------------------------------------
 
 function CtaNudge({ context }: { context: "recall" | "used_market" | "generic" }) {
+  const { trackEvent } = useEventTracking();
   const copy = {
     recall: {
       headline: "See if your listing has open recalls",
@@ -201,6 +202,7 @@ function CtaNudge({ context }: { context: "recall" | "used_market" | "generic" }
       </div>
       <Link
         href="/"
+        onClick={() => trackEvent("news_cta_clicked", { context })}
         className="flex-shrink-0 px-4 py-2 rounded-xl bg-[#00d97e] text-[#0d1117] text-sm font-semibold hover:bg-[#00c970] transition-colors whitespace-nowrap"
       >
         {copy.cta} →
