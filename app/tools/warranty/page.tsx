@@ -14,21 +14,30 @@ const MAKE_MODEL_MAP: Record<string, string[]> = {
   "Ford": ["F-150 Lightning", "Mustang Mach-E"],
   "Chevrolet": ["Bolt EV", "Bolt EUV", "Silverado EV", "Equinox EV"],
   "Rivian": ["R1T", "R1S"],
-  "BMW": ["iX", "i4", "i5", "i7", "iX3"],
+  "BMW": ["iX", "i4", "i5", "i7", "iX3", "X5 xDrive50e", "330e", "745e"],
   "Volkswagen": ["ID.4", "ID.Buzz"],
   "Audi": ["Q4 e-tron", "e-tron GT", "Q8 e-tron"],
   "Mercedes-Benz": ["EQS", "EQE", "EQB", "EQS SUV"],
   "Polestar": ["Polestar 2", "Polestar 3"],
-  "Volvo": ["XC40 Recharge", "C40 Recharge", "EX30", "EX90"],
+  "Volvo": ["XC40 Recharge", "C40 Recharge", "EX30", "EX90", "XC60 Recharge", "XC90 Recharge"],
   "Lucid": ["Air"],
   "Nissan": ["Leaf", "Ariya"],
   "GMC": ["Hummer EV", "Sierra EV"],
   "Genesis": ["GV60", "GV70 Electrified", "G80 Electrified"],
-  "Toyota": ["bZ4X", "Prius Prime"],
+  "Toyota": ["bZ4X", "Prius Prime", "RAV4 Prime", "Venza"],
   "Honda": ["Prologue"],
   "Subaru": ["Solterra"],
-  "Jeep": ["Wrangler 4xe", "Grand Cherokee 4xe"],
+  "Jeep": ["Wrangler 4xe", "Grand Cherokee 4xe", "Avenger 4xe", "Compass 4xe"],
   "Fisker": ["Ocean"],
+  "Cadillac": ["Lyriq", "Optiq", "Escalade IQ"],
+  "Ram": ["1500 REV"],
+  "Dodge": ["Charger Daytona"],
+  "Porsche": ["Taycan", "Cayenne E-Hybrid", "Panamera E-Hybrid"],
+  "Lexus": ["RZ 450e", "UX 300e"],
+  "Mini": ["Cooper SE", "Countryman E"],
+  "Mazda": ["CX-90 PHEV"],
+  "Alfa Romeo": ["Tonale PHEV"],
+  "Land Rover": ["Range Rover PHEV", "Defender PHEV"],
 };
 
 const MAKES = Object.keys(MAKE_MODEL_MAP).sort();
@@ -144,14 +153,17 @@ function WarrantyCheckerInner() {
       const d = json.decoded;
       const decodedMake = MAKES.find((m) => m.toLowerCase() === (d.make ?? "").toLowerCase()) ?? "";
       const decodedYear = parseInt(d.year ?? "");
+      if (!isNaN(decodedYear)) setYear(decodedYear);
       if (decodedMake) {
         setMake(decodedMake);
         const availableModels = MAKE_MODEL_MAP[decodedMake] ?? [];
         const decodedModel = availableModels.find((m) => m.toLowerCase().includes((d.model ?? "").toLowerCase())) ?? "";
         setModel(decodedModel);
+        setVinError(null);
+      } else if (d.make) {
+        setVinError(`Decoded: ${d.year ?? ""} ${d.make} ${d.model ?? ""} — select make and model below.`);
       }
-      if (!isNaN(decodedYear)) setYear(decodedYear);
-      trackEvent("warranty_vin_decoded", { make: decodedMake ?? "", year: decodedYear });
+      trackEvent("warranty_vin_decoded", { make: decodedMake || (d.make ?? ""), year: decodedYear });
       setResult(null);
       setError(null);
     } catch {

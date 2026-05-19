@@ -47,6 +47,11 @@ export const WARRANTY_TABLE: Record<string, WarrantyEntry> = {
   "ram":            { years: 8, miles: 100_000, start_year: 2024 },
   "dodge":          { years: 8, miles: 100_000, start_year: 2024 },
   "fisker":         { years: 8, miles: 100_000, start_year: 2023 },
+  "porsche":        { years: 8, miles: 100_000, start_year: 2020 },
+  "lexus":          { years: 8, miles: 100_000, start_year: 2023 },
+  "mazda":          { years: 8, miles: 100_000, start_year: 2023 },
+  "alfa romeo":     { years: 8, miles: 100_000, start_year: 2023 },
+  "land rover":     { years: 8, miles: 100_000, start_year: 2021 },
   "default":        { years: 8, miles: 100_000, start_year: 2015 },
 };
 
