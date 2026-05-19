@@ -94,6 +94,7 @@ function WarrantyCheckerInner() {
   const paramMake = searchParams.get("make") ?? "";
   const paramModel = searchParams.get("model") ?? "";
   const paramYear = parseInt(searchParams.get("year") ?? "");
+  const paramMileage = parseInt(searchParams.get("mileage") ?? "");
 
   const [make, setMake] = useState(() => (MAKES.includes(paramMake) ? paramMake : ""));
   const [model, setModel] = useState(() => {
@@ -101,7 +102,7 @@ function WarrantyCheckerInner() {
     return (MAKE_MODEL_MAP[paramMake] ?? []).includes(paramModel) ? paramModel : "";
   });
   const [year, setYear] = useState<number | "">(() => (!isNaN(paramYear) && paramYear >= 2010 && paramYear <= CURRENT_YEAR ? paramYear : ""));
-  const [mileage, setMileage] = useState("");
+  const [mileage, setMileage] = useState(() => (!isNaN(paramMileage) && paramMileage > 0 ? String(paramMileage) : ""));
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WarrantyResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -367,12 +368,12 @@ function WarrantyCheckerInner() {
               <div>
                 <label className="block text-xs font-medium text-white/50 mb-2">Current mileage</label>
                 <input
-                  type="number"
-                  min={0}
-                  max={500000}
-                  placeholder="e.g. 45000"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="e.g. 45,000"
                   value={mileage}
-                  onChange={(e) => { setMileage(e.target.value); setResult(null); }}
+                  onChange={(e) => { setMileage(e.target.value.replace(/[^0-9,]/g, "")); setResult(null); }}
                   className="w-full bg-[#0d1117] border border-white/[0.12] rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#00d97e]/50 placeholder:text-white/20"
                 />
               </div>
