@@ -18,9 +18,11 @@ interface EmailCaptureCardProps {
   receiptId?: string;
   onSubmit?: () => void;
   onGarageSave?: () => void;
+  /** When true, renders as a full unlock gate instead of a subtle nudge card */
+  gateMode?: boolean;
 }
 
-export default function EmailCaptureCard({ receiptId, onSubmit, onGarageSave }: EmailCaptureCardProps) {
+export default function EmailCaptureCard({ receiptId, onSubmit, onGarageSave, gateMode = false }: EmailCaptureCardProps) {
   const { trackEvent } = useEventTracking();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
@@ -93,6 +95,55 @@ export default function EmailCaptureCard({ receiptId, onSubmit, onGarageSave }: 
         <p className="text-sm text-[#00d97e] font-medium">
           {receiptId ? "Check your inbox!" : "You are on the list."}
         </p>
+      </div>
+    );
+  }
+
+  // Gate mode — prominent unlock card replacing the paywall
+  if (gateMode) {
+    return (
+      <div className="rounded-2xl border border-[#00d97e]/25 bg-[#0d1117] overflow-hidden">
+        <div className="bg-[#00d97e]/[0.07] border-b border-[#00d97e]/15 px-5 pt-5 pb-4">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Mail className="w-4 h-4 text-[#00d97e]" />
+            <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wider">
+              Full analysis ready
+            </span>
+          </div>
+          <h2 className="text-lg font-bold text-white leading-snug">
+            Unlock your full receipt — free
+          </h2>
+          <p className="text-sm text-white/40 mt-1">
+            Drop your email and we&apos;ll send you the complete analysis + recall alerts for this vehicle.
+          </p>
+        </div>
+        <div className="px-5 py-5">
+          <form onSubmit={handleSubmit} className="flex gap-2 mb-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              className="flex-1 px-3 py-2.5 text-sm bg-white/[0.06] border border-white/10 rounded-xl text-white/80 placeholder:text-white/25 focus:outline-none focus:ring-1 focus:ring-[#00d97e]/50"
+              required
+            />
+            <button
+              type="submit"
+              disabled={status === "submitting"}
+              className="px-5 py-2.5 text-sm font-bold text-[#0d1117] bg-[#00d97e] rounded-xl hover:bg-[#00c970] disabled:opacity-50 transition-colors whitespace-nowrap"
+            >
+              {status === "submitting" ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Unlock free"
+              )}
+            </button>
+          </form>
+          {status === "error" && (
+            <p className="text-xs text-red-400 mb-2">{errorMsg || "Something went wrong. Try again."}</p>
+          )}
+          <p className="text-xs text-white/25">No spam. Unsubscribe any time. We&apos;ll also alert you if a recall is issued for this vehicle.</p>
+        </div>
       </div>
     );
   }

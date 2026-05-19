@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/api-auth";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import {
   getVariantForTier,
@@ -62,7 +63,20 @@ export async function POST(request: NextRequest) {
   const scenarioType = body.scenario_type as string;
   const scenarioId = body.scenario_id as string;
   const anonId = body.anon_id as string;
-  const userId = (body.user_id as string) || null;
+
+  // Resolve authenticated user_id from Supabase session (takes priority over body)
+  let userId = (body.user_id as string) || null;
+  try {
+    const adminDb = getSupabaseAdmin();
+    const authHeader = request.headers.get("authorization") ?? "";
+    const accessToken = authHeader.replace("Bearer ", "").trim();
+    if (adminDb && accessToken) {
+      const { data: { user } } = await adminDb.auth.getUser(accessToken);
+      if (user?.id) userId = user.id;
+    }
+  } catch {
+    // Non-critical — proceed with body user_id or null
+  }
   const pageSource = (body.page_source as string) || null;
   const rawTier = (body.pack_tier as string) || "buyer_pass";
   const packTier: PackTier = VALID_PACK_TIERS.includes(rawTier as PackTier)

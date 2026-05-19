@@ -17,6 +17,7 @@ export interface PaymentFlags {
   deepdive_enabled: boolean;
   compare_enabled: boolean;
   free_mode: boolean;
+  email_gate_enabled: boolean;
 }
 
 export interface IntelligenceFlags {
@@ -34,7 +35,16 @@ export function getPaymentFlags(): PaymentFlags {
     deepdive_enabled: process.env.FLAG_DEEPDIVE_ENABLED === "true",
     compare_enabled: process.env.FLAG_COMPARE_ENABLED === "true",
     free_mode: process.env.FLAG_FREE_MODE === "true",
+    email_gate_enabled: process.env.FLAG_EMAIL_GATE_ENABLED !== "false",
   };
+}
+
+/**
+ * Check if the email gate is active.
+ * Default ON — set FLAG_EMAIL_GATE_ENABLED=false in env to disable.
+ */
+export function isEmailGateEnabled(): boolean {
+  return process.env.FLAG_EMAIL_GATE_ENABLED !== "false";
 }
 
 /**

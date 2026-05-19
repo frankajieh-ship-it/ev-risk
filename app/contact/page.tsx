@@ -156,31 +156,36 @@ function ContactForm() {
           </p>
 
           <div className="space-y-6">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#00d97e]/10 border border-[#00d97e]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Mail className="w-4 h-4 text-[#00d97e]" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white/80">Email us directly</p>
-                <a href="mailto:support@offolab.com" className="text-sm text-[#00d97e] hover:text-[#00c970] transition-colors">
-                  support@offolab.com
-                </a>
-              </div>
+            {/* Create profile nudge */}
+            <div className="bg-[#161b22] border border-white/[0.08] rounded-xl p-4">
+              <p className="text-sm font-medium text-white/80 mb-1">Get faster support</p>
+              <p className="text-xs text-white/40 mb-3 leading-relaxed">
+                Create a free profile so we can link your message directly to your receipts and history — no back-and-forth needed.
+              </p>
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#00d97e] hover:text-[#00c970] transition-colors"
+              >
+                Create a free profile →
+              </Link>
             </div>
 
-            <div className="flex flex-col gap-3 pt-2">
+            <div className="flex flex-col gap-3">
               {[
                 { icon: "💬", label: "General questions & advice" },
                 { icon: "🐛", label: "Bug or unexpected result" },
                 { icon: "💡", label: "Feature requests & ideas" },
                 { icon: "⭐", label: "Share a success story" },
-                { icon: "🔒", label: "Privacy — privacy@offolab.com" },
               ].map((item) => (
                 <div key={item.label} className="flex items-center gap-2.5 text-sm text-white/40">
                   <span>{item.icon}</span>
                   <span>{item.label}</span>
                 </div>
               ))}
+              <div className="flex items-center gap-2.5 text-sm text-white/40">
+                <span>🔒</span>
+                <span>Privacy inquiries — use type &ldquo;General Question&rdquo; above</span>
+              </div>
             </div>
           </div>
         </div>

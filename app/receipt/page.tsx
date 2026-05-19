@@ -1049,6 +1049,51 @@ export default function ReceiptPage() {
               />
               </div>
 
+              {/* Full report teaser — shown when email not yet captured, scrolls to gate on click */}
+              {!hasEmailed && (
+                <div
+                  className="relative rounded-2xl border border-white/[0.08] bg-[#161b22] overflow-hidden cursor-pointer group"
+                  onClick={() => {
+                    document.getElementById("email-capture-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    trackEvent("full_report_teaser_clicked", { receipt_id: receipt.receipt_id });
+                  }}
+                >
+                  {/* Blurred preview rows */}
+                  <div className="px-5 pt-5 pb-2 space-y-3 select-none pointer-events-none" aria-hidden>
+                    {/* Section label */}
+                    <p className="text-[11px] font-semibold text-white/30 uppercase tracking-wider">Full analysis — 38 signals</p>
+                    {/* Mock market comp row */}
+                    <div className="flex items-center justify-between py-2 border-b border-white/[0.06]">
+                      <span className="text-sm text-white/50">Price vs. local comps</span>
+                      <span className="text-sm font-semibold text-[#00d97e] blur-sm">$1,200 below market</span>
+                    </div>
+                    {/* Mock battery row */}
+                    <div className="flex items-center justify-between py-2 border-b border-white/[0.06]">
+                      <span className="text-sm text-white/50">Battery health estimate</span>
+                      <span className="text-sm font-semibold text-white blur-sm">91% SOH — good</span>
+                    </div>
+                    {/* Mock inspection item */}
+                    <div className="flex items-center justify-between py-2 border-b border-white/[0.06]">
+                      <span className="text-sm text-white/50">Inspection checklist</span>
+                      <span className="text-sm font-semibold text-white blur-sm">14 items flagged</span>
+                    </div>
+                    {/* Mock negotiation script */}
+                    <div className="py-2">
+                      <p className="text-xs text-white/30 mb-1">Negotiation opener</p>
+                      <p className="text-sm text-white/50 italic blur-sm line-clamp-2">&ldquo;I noticed the listing has been up for 3 weeks and the battery report shows some degradation — would you consider $X?&rdquo;</p>
+                    </div>
+                  </div>
+
+                  {/* Gradient fade + CTA overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#161b22] via-[#161b22]/60 to-transparent flex flex-col items-center justify-end pb-5 px-5">
+                    <button className="w-full bg-[#00d97e] group-hover:bg-[#00c970] text-[#0d1117] font-bold text-sm py-3 rounded-xl transition-colors">
+                      See your full report — free
+                    </button>
+                    <p className="text-xs text-white/30 mt-2">Enter your email below to unlock</p>
+                  </div>
+                </div>
+              )}
+
               {/* Retention hook — shown immediately after result so unauthenticated users see it first */}
               {!isAuthenticated && (
                 <WorkspaceSaveNudge onSignIn={() => setShowAuthPrompt(true)} />
@@ -1062,15 +1107,17 @@ export default function ReceiptPage() {
                 trackEvent={trackEvent}
               />
 
-              {/* Email capture — placed high so it's visible without scrolling */}
-              {!hasEmailed && (
+              {/* ── Email gate: unlocks deep sections ── */}
+              {!hasEmailed ? (
                 <div id="email-capture-card">
                   <EmailCaptureCard
                     receiptId={receipt.receipt_id}
+                    gateMode={true}
                     onSubmit={() => {
                       setHasEmailed(true);
                       trackEvent("email_checklist_submit", {
                         receipt_id: receipt.receipt_id,
+                        gate_mode: true,
                       });
                     }}
                     onGarageSave={() => {
@@ -1083,49 +1130,48 @@ export default function ReceiptPage() {
                     }}
                   />
                 </div>
+              ) : (
+                <>
+                  {!isUpgrading && receipt.receipt_id && (
+                    <NegotiationDeepSection
+                      receiptId={receipt.receipt_id}
+                      initialScripts={(receipt as unknown as Record<string, unknown>).negotiation_deep as import("@/lib/receipt-sections").NegotiationScript[] ?? null}
+                      initialStatus={sections?.negotiation_deep?.status}
+                      isUnlocked={true}
+                      paymentsEnabled={false}
+                    />
+                  )}
+                  {deepDive && (
+                    <DeepDiveSection
+                      deepDive={deepDive}
+                      receiptId={receipt.receipt_id}
+                      region={region}
+                    />
+                  )}
+                  {isLoadingDeepDive && !deepDive && (
+                    <div className="flex items-center justify-center gap-2 py-8 text-sm text-white/40">
+                      <Loader2 className="w-4 h-4 animate-spin text-[#00d97e]" />
+                      Generating your deep dive analysis...
+                    </div>
+                  )}
+                  {receipt.receipt_details ? (
+                    <ReceiptDetailsAccordion
+                      details={receipt.receipt_details}
+                      operatorNotes={receipt.operator_notes}
+                      listingSummary={receipt.listing_summary}
+                      region={region}
+                    />
+                  ) : !isUpgrading && receipt.receipt_id ? (
+                    <ReceiptDetailsOnDemand
+                      receiptId={receipt.receipt_id}
+                      operatorNotes={receipt.operator_notes}
+                      listingSummary={receipt.listing_summary}
+                      region={region}
+                      initialStatus={sections?.receipt_details?.status}
+                    />
+                  ) : null}
+                </>
               )}
-
-              {/* ── All sections always visible (free mode) ── */}
-              <>
-                {!isUpgrading && receipt.receipt_id && (
-                  <NegotiationDeepSection
-                    receiptId={receipt.receipt_id}
-                    initialScripts={(receipt as unknown as Record<string, unknown>).negotiation_deep as import("@/lib/receipt-sections").NegotiationScript[] ?? null}
-                    initialStatus={sections?.negotiation_deep?.status}
-                    isUnlocked={true}
-                    paymentsEnabled={false}
-                  />
-                )}
-                {deepDive && (
-                  <DeepDiveSection
-                    deepDive={deepDive}
-                    receiptId={receipt.receipt_id}
-                    region={region}
-                  />
-                )}
-                {isLoadingDeepDive && !deepDive && (
-                  <div className="flex items-center justify-center gap-2 py-8 text-sm text-white/40">
-                    <Loader2 className="w-4 h-4 animate-spin text-[#00d97e]" />
-                    Generating your deep dive analysis...
-                  </div>
-                )}
-                {receipt.receipt_details ? (
-                  <ReceiptDetailsAccordion
-                    details={receipt.receipt_details}
-                    operatorNotes={receipt.operator_notes}
-                    listingSummary={receipt.listing_summary}
-                    region={region}
-                  />
-                ) : !isUpgrading && receipt.receipt_id ? (
-                  <ReceiptDetailsOnDemand
-                    receiptId={receipt.receipt_id}
-                    operatorNotes={receipt.operator_notes}
-                    listingSummary={receipt.listing_summary}
-                    region={region}
-                    initialStatus={sections?.receipt_details?.status}
-                  />
-                ) : null}
-              </>
 
               {/* ── Next-step CTA bar ────────────────────────────────── */}
               <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">

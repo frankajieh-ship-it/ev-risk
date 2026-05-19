@@ -664,7 +664,7 @@ export default function Home() {
               ? `Trusted by ${totalReceipts.toLocaleString()}+ EV buyers`
               : "Trusted by thousands of EV buyers"}
           </h2>
-          <p className="text-sm text-white/40 text-center mb-8">Real posts. Real decisions. No made-up names.</p>
+          <p className="text-sm text-white/40 text-center mb-8">From real Reddit threads, not case studies.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { subreddit: "r/whatcarshouldIbuy", title: "This 2022 Ford Mustang Mach‑E was listed as a 'Great Deal' at $24,255 — here's what the OFFO receipt actually showed", views: "8,372", tag: "Used-EV receipt", photo: "/car-mustang-mache.webp" },
@@ -752,20 +752,14 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <div className="mt-auto flex flex-col sm:flex-row gap-3">
+              <div className="mt-auto">
                 <Link
                   href="/contact"
-                  className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] text-white/70 rounded-xl text-sm font-semibold transition-colors"
-                >
-                  Open Contact Form
-                </Link>
-                <a
-                  href="mailto:support@offolab.com"
-                  className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-[#00d97e] hover:bg-[#00c970] text-[#0d1117] rounded-xl text-sm font-semibold transition-colors"
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#00d97e] hover:bg-[#00c970] text-[#0d1117] rounded-xl text-sm font-semibold transition-colors w-full"
                 >
                   <Mail className="w-4 h-4" />
-                  Email Us
-                </a>
+                  Get in touch
+                </Link>
               </div>
             </div>
           </div>
@@ -780,13 +774,13 @@ export default function Home() {
               <h2 className="text-2xl font-bold text-white mb-3" style={{ lineHeight: "var(--leading-snug)" }}>Your questions,<br />answered</h2>
               <p className="text-sm text-white/40 mb-1">Can&apos;t find what you&apos;re looking for?</p>
               <p className="text-sm text-white/40 mb-5">Check out our <Link href="/receipt" className="text-[#00d97e] hover:text-[#00f090] transition-colors">Analyze tool</Link> or reach out.</p>
-              <a
-                href="mailto:support@offolab.com"
+              <Link
+                href="/contact"
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#00d97e] hover:bg-[#00f090] text-[#0d1117] text-sm font-semibold rounded-xl transition-colors"
               >
                 <Mail className="w-4 h-4" />
                 Contact us
-              </a>
+              </Link>
             </div>
 
             <div className="flex-1 divide-y divide-white/[0.07]">
