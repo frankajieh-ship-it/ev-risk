@@ -7,6 +7,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
+
+const recallsRateLimiter = new RateLimiter(60 * 1000, 30); // 30 req/min per IP
 
 interface NhtsaRecall {
   NHTSACampaignNumber: string;
@@ -38,6 +41,15 @@ function normModelForNhtsa(model: string): string {
 }
 
 export async function GET(req: NextRequest) {
+  const ip = getClientIP(req);
+  const rateCheck = recallsRateLimiter.check(ip);
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      { success: false, error: "Too many requests. Please wait a moment." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rateCheck.resetAt - Date.now()) / 1000)) } }
+    );
+  }
+
   const { searchParams } = req.nextUrl;
   const make = (searchParams.get("make") || "").trim();
   const rawModel = (searchParams.get("model") || "").trim();

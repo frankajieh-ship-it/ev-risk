@@ -48,7 +48,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { url, timeout = 10000 } = body;
+    const { url } = body;
+    // Clamp timeout — never trust caller-supplied value
+    const timeout = Math.min(Math.max(Number(body.timeout) || 10000, 1000), 30000);
 
     if (!url || typeof url !== 'string') {
       return NextResponse.json(
@@ -67,7 +69,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Security: only allow known car listing domains
+    // Security: only allow known car listing domains.
+    // Uses hostname.endsWith() for suffix matching — prevents subdomain bypass
+    // (evil.autotrader.com.attacker.com would not end with "autotrader.com").
+    // facebook.com removed — overly broad, not a car listing source.
     const allowedDomains = [
       'autotrader.com',
       'cargurus.com',
@@ -81,12 +86,31 @@ export async function POST(request: NextRequest) {
       'carmax.com',
       'autotempest.com',
       'hemmings.com',
-      'facebook.com',
       'copart.com',
       'iaai.com',
     ];
 
-    const isAllowed = allowedDomains.some(domain => parsedUrl.hostname.endsWith(domain));
+    // Also block private/internal IP ranges even if domain passes the check
+    const hostname = parsedUrl.hostname;
+    const isPrivateIp =
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.startsWith("10.") ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("169.254.") || // AWS/GCP metadata
+      hostname.startsWith("172.16.") ||
+      hostname.startsWith("100.64.") ||  // Tailscale
+      hostname === "::1" ||
+      hostname === "0.0.0.0";
+
+    if (isPrivateIp) {
+      return NextResponse.json(
+        { success: false, error: "Domain not allowed." },
+        { status: 403 }
+      );
+    }
+
+    const isAllowed = allowedDomains.some(domain => parsedUrl.hostname.endsWith(`.${domain}`) || parsedUrl.hostname === domain);
 
     if (!isAllowed) {
       return NextResponse.json(

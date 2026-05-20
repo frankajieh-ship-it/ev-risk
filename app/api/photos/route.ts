@@ -12,6 +12,9 @@ import { searchListings } from "@/lib/auto-dev-client";
 import { getVehicleImages } from "@/lib/vinaudit-client";
 import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
 import { extractVehicleImages } from "@/lib/image-extractor";
+import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
+
+const photosRateLimiter = new RateLimiter(60 * 1000, 30); // 30 req/min per IP
 
 export const maxDuration = 10;
 
@@ -188,6 +191,15 @@ function normalizeForAutodev(
 
 
 export async function GET(request: NextRequest) {
+  const ip = getClientIP(request);
+  const rateCheck = photosRateLimiter.check(ip);
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      { success: false, error: "Too many requests. Please wait a moment." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rateCheck.resetAt - Date.now()) / 1000)) } }
+    );
+  }
+
   const p = request.nextUrl.searchParams;
   const vin = p.get("vin") || undefined;
   const make = p.get("make") || undefined;

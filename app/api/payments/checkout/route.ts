@@ -155,7 +155,17 @@ export async function POST(request: NextRequest) {
   // 4. Get Stripe Price ID or use inline price
   const stripePriceId = getStripePriceId(variant);
   const amountCents = getAmountCents(variant);
-  const origin = request.headers.get("origin") ?? "http://localhost:3002";
+  // Validate origin against allowed hosts to prevent open redirect after checkout
+  const requestOrigin = request.headers.get("origin") ?? "";
+  const allowedOrigins = [
+    process.env.NEXT_PUBLIC_SITE_URL ?? "",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+  ].filter(Boolean);
+  const origin = allowedOrigins.includes(requestOrigin)
+    ? requestOrigin
+    : (process.env.NEXT_PUBLIC_SITE_URL ?? "https://offolab.com");
 
   // Build UTM metadata
   const utmFields: Record<string, string> = {};

@@ -86,8 +86,16 @@ export async function POST(req: NextRequest) {
   // Upload each file
   const newUrls: string[] = [];
 
+  // Map MIME type → extension — never trust file.name (prevents .exe/.php spoofing)
+  const MIME_TO_EXT: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+  };
+
   for (const file of files) {
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const ext = MIME_TO_EXT[file.type] ?? "jpg";
     const uuid = crypto.randomUUID();
     const path = `${dealershipId}/${itemId}/${uuid}.${ext}`;
 
