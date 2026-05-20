@@ -134,13 +134,13 @@ export async function POST(request: NextRequest) {
       const nmTimeoutId = setTimeout(() => nmController.abort(), 15000);
       try {
         console.log('[Proxy Fetch] Trying Nimbleway:', url.substring(0, 80));
-        const nmResponse = await fetch('https://sdk.nimbleway.com/v1/extract', {
+        const nmResponse = await fetch('https://api.nimbleway.com/v1/realtime/web', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${NIMBLEWAY_KEY}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ url, render: true, country: 'US', locale: 'en-US' }),
+          body: JSON.stringify({ url, render: true, country: 'US' }),
           signal: nmController.signal,
         });
         clearTimeout(nmTimeoutId);
@@ -148,9 +148,14 @@ export async function POST(request: NextRequest) {
         console.log('[Proxy Fetch] Nimbleway status:', nmResponse.status);
 
         if (nmResponse.ok) {
-          // Nimbleway returns JSON: { status, status_code, data: { html } }
-          const nmJson = await nmResponse.json() as { status?: string; status_code?: number; data?: { html?: string } };
-          const html = nmJson?.data?.html ?? '';
+          // realtime/web returns { html_content: "..." }; legacy extract used { data: { html } }
+          const nmJson = await nmResponse.json() as {
+            html_content?: string;
+            data?: { html?: string };
+            status?: string;
+            status_code?: number;
+          };
+          const html = nmJson?.html_content ?? nmJson?.data?.html ?? '';
           const nmStatusCode = nmJson?.status_code ?? 200;
           console.log('[Proxy Fetch] Nimbleway html length:', html.length, 'status_code:', nmStatusCode);
 
@@ -177,14 +182,8 @@ export async function POST(request: NextRequest) {
           console.warn('[Proxy Fetch] Nimbleway returned blocked/empty page, length:', html.length);
         } else {
           const errText = await nmResponse.text().catch(() => '');
-          console.warn('[Proxy Fetch] Nimbleway error', nmResponse.status, errText.substring(0, 200));
-          // JS-render domains won't work via direct fetch either — fail fast
-          return NextResponse.json({
-            success: false,
-            error: `Nimbleway error ${nmResponse.status} — site requires JS rendering`,
-            blocked: true,
-            nm_status: nmResponse.status,
-          }, { status: 422 });
+          console.warn('[Proxy Fetch] Nimbleway error', nmResponse.status, errText.substring(0, 200), '— falling through to direct fetch');
+          // Fall through to direct fetch — partial data is better than hard failure
         }
       } catch (nmErr) {
         clearTimeout(nmTimeoutId);
