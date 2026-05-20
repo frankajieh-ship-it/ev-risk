@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -62,6 +62,8 @@ interface ReceiptOutputCardProps {
   saveState?: "idle" | "saved";
   onCompare?: () => void;
   showCompare?: boolean;
+  firstSeenAt?: string | null;
+  priceDropCents?: number | null;
 }
 
 const VERDICT_STYLES = {
@@ -133,6 +135,8 @@ export default function ReceiptOutputCard({
   saveState = "idle",
   onCompare,
   showCompare = false,
+  firstSeenAt,
+  priceDropCents,
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [scoringTooltipOpen, setScoringTooltipOpen] = useState(false);
@@ -222,6 +226,22 @@ export default function ReceiptOutputCard({
   const priceStr = ls?.price
     ? formatPrice(ls.price, region)
     : null;
+
+  // eslint-disable-next-line react-hooks/purity
+  const nowMs = useRef(Date.now()).current;
+  type ListingAgeBadge = { label: string; cls: string } | null;
+  const listingAgeBadge = useMemo((): ListingAgeBadge => {
+    if (priceDropCents && priceDropCents > 0) {
+      const dropped = Math.round(priceDropCents / 100);
+      return { label: `Price dropped $${dropped.toLocaleString()}`, cls: "text-[#00d97e] bg-[#00d97e]/[0.08] border-[#00d97e]/20" };
+    }
+    if (!firstSeenAt) return null;
+    const daysDiff = Math.floor((nowMs - new Date(firstSeenAt).getTime()) / 86_400_000);
+    if (daysDiff < 3) return { label: "Just listed", cls: "text-white/50 bg-white/[0.06] border-white/10" };
+    if (daysDiff >= 30) return { label: `${daysDiff}+ days on market — room to negotiate`, cls: "text-amber-400 bg-amber-500/[0.08] border-amber-500/20" };
+    if (daysDiff >= 15) return { label: `Listed ${daysDiff} days ago`, cls: "text-yellow-400 bg-yellow-500/[0.08] border-yellow-500/20" };
+    return null;
+  }, [firstSeenAt, priceDropCents, nowMs]);
 
   return (
     <motion.div
@@ -339,6 +359,11 @@ export default function ReceiptOutputCard({
                 {vehicleDesc}
                 {priceStr && <span className="font-semibold"> · {priceStr}</span>}
               </p>
+            )}
+            {listingAgeBadge && (
+              <span className={`inline-block mt-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border ${listingAgeBadge.cls}`}>
+                {listingAgeBadge.label}
+              </span>
             )}
           </div>
         </div>

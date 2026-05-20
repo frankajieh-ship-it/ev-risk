@@ -110,6 +110,53 @@ export function buildActivationDay1(ctx: ActivationContext): { subject: string; 
   };
 }
 
+// ── Purchase Confirmation ────────────────────────────────────────────────────
+
+export interface PurchaseConfirmContext {
+  email: string;
+  vehicle: string;
+  vehicleId: string;
+}
+
+export function buildPurchaseConfirmEmail(ctx: PurchaseConfirmContext): { subject: string; html: string } {
+  const { email, vehicle, vehicleId } = ctx;
+  const SITE_URL_LOCAL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
+  const ownedEvUrl = `${SITE_URL_LOCAL}/workspace/garage/${vehicleId}/owned-ev`;
+
+  const body = `
+    ${OFFO_HEADER}
+    <div style="text-align:center;margin-bottom:24px;">
+      <h1 style="font-size:22px;color:#e6edf3;margin:0 0 6px;">You bought it. Now track it.</h1>
+      <p style="font-size:14px;color:#8b949e;margin:0;">${vehicle}</p>
+    </div>
+    <div style="background:#161b22;border-radius:12px;padding:20px;margin-bottom:20px;border:1px solid #30363d;">
+      <p style="font-size:14px;color:#c9d1d9;margin:0 0 12px;">
+        Congrats on your <strong style="color:#e6edf3;">${vehicle}</strong>. Your OFFO ownership report is now active —
+        tracking battery health, warranty status, and resale timing.
+      </p>
+      <ul style="margin:0;padding-left:18px;font-size:14px;color:#c9d1d9;">
+        <li style="margin-bottom:6px;">Battery warranty countdown — know before it expires</li>
+        <li style="margin-bottom:6px;">Routine health check schedule for the first 90 days</li>
+        <li style="margin-bottom:6px;">Resale signal — we'll tell you when the timing is right</li>
+      </ul>
+    </div>
+    <div style="text-align:center;margin-bottom:24px;">
+      ${ctaButton("Open ownership report →", ownedEvUrl)}
+    </div>
+    <div style="background:rgba(0,217,126,0.08);border-radius:10px;padding:14px 18px;border:1px solid rgba(0,217,126,0.2);">
+      <p style="font-size:13px;color:#86efac;margin:0;">
+        <strong>First 90 days matter most.</strong> Set your charge limit to 80% for daily use and check tire pressure monthly.
+        Your ownership report has the full checklist.
+      </p>
+    </div>
+    ${emailFooter(email, "activation")}`;
+
+  return {
+    subject: `Your ${vehicle} ownership report is ready`,
+    html: emailWrapper(body),
+  };
+}
+
 // ── Day 3 ────────────────────────────────────────────────────────────────────
 
 export function buildActivationDay3(ctx: ActivationContext): { subject: string; html: string } {

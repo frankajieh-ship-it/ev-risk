@@ -353,10 +353,39 @@ export async function POST(request: NextRequest) {
   // Batch generation passes an explicit rt_ token with x-internal-secret — we do want to save those.
   const skipDbWrite = tokenIsInternal && (receiptToken as string).startsWith("internal-");
   let liteDbSaved = false;
+  // Phase 2: listing age + price drift signals — hoisted so litePayload can include them
+  const _now = new Date().toISOString();
+  const _listingPriceCents = input.price ? Math.round(Number(input.price) * 100) : null;
+  let firstSeenAt: string = _now;
+  let priceDropCents: number | null = null;
+
   if (!skipDbWrite && isSupabaseConfigured()) {
     const urlDomain = input.listing_url
       ? (() => { try { return new URL(input.listing_url!).hostname.replace("www.", ""); } catch { return null; } })()
       : null;
+
+    // Check if we've seen this listing URL before to compute first_seen_at and price drops
+    const now = _now;
+    const listingPriceCents = _listingPriceCents;
+
+    if (input.listing_url && listingPriceCents) {
+      const { data: prior } = await supabase
+        .from("receipts")
+        .select("first_seen_at, last_price_cents")
+        .eq("listing_url", input.listing_url)
+        .not("first_seen_at", "is", null)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (prior) {
+        firstSeenAt = (prior.first_seen_at as string) ?? now;
+        if (prior.last_price_cents && prior.last_price_cents > listingPriceCents) {
+          priceDropCents = prior.last_price_cents - listingPriceCents;
+        }
+      }
+    }
+
     const { error: insertErr } = await supabase.from("receipts").insert({
       id: liteReceipt.receipt_id,
       session_id: receiptToken,
@@ -372,6 +401,11 @@ export async function POST(request: NextRequest) {
       is_pro: isPro,
       is_internal: tokenIsInternal,
       generation_status: "lite",
+      first_seen_at: firstSeenAt,
+      last_seen_at: now,
+      last_price_cents: listingPriceCents,
+      price_drop_cents: priceDropCents,
+      is_active: true,
     });
     if (insertErr) {
       console.error("[Receipt API] Lite DB insert failed:", insertErr.message, insertErr.code);
@@ -466,6 +500,9 @@ export async function POST(request: NextRequest) {
     routine_fit_score: routineFit?.score_0_100 ?? null,
     routine_fit_summary: routineFit && routineCtx ? buildRoutineSummary(routineFit, routineCtx) : null,
     photo_urls: (body.photo_urls as string[] | undefined) ?? [],
+    // Phase 2: listing age signals
+    first_seen_at: firstSeenAt,
+    price_drop_cents: priceDropCents,
   };
 
   // Cache for idempotency

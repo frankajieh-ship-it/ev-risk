@@ -248,6 +248,27 @@ export default function OwnedEvReportPage({ params }: { params: Promise<{ vehicl
     ? `/receipt?vehicle=${encodeURIComponent(report.ai_chat_context.vehicle_label)}&mode=chat&owned_ev=1`
     : null;
 
+  const justPurchased = searchParams.get("just_purchased") === "true";
+  const make = vehicle?.make?.toLowerCase() ?? "";
+
+  const MAKE_TIPS: Record<string, string[]> = {
+    tesla: ["Set charge limit to 80% for daily use — only charge to 100% before a long trip.", "Enable Scheduled Charging to charge during off-peak hours.", "Run the battery to <10% once every 2–3 months to calibrate the state-of-charge display."],
+    chevrolet: ["Keep battery between 20–80% for longest lifespan.", "Use Hilltop Reserve (90% cap) as your daily limit.", "Check for open recalls on the Bolt — battery replacement was covered under warranty."],
+    nissan: ["Set charge timer to stop at 80% via the charging settings app.", "Cold weather significantly reduces range — pre-condition the cabin while still plugged in.", "Watch the 12V battery — Leaf 12V issues are more common than on other EVs."],
+    hyundai: ["Use vehicle-to-load (V2L) sparingly — draws from the main pack.", "Set charging limit to 80% in the EV menu under Charging Settings.", "Ioniq 5/6 NACS adapter available for Supercharger access."],
+    kia: ["Keep charge between 20–80% for daily use.", "EV6/EV9 supports 800V ultra-fast charging — use it, it's safe.", "Cold weather pre-conditioning is most effective when plugged in."],
+    ford: ["Charge to 90% max for daily use — the Mach-E allows setting a charge limit.", "Ford Blue Oval charging network offers good coverage — activate via FordPass.", "Monitor range estimates in cold weather — actual range can drop 20–30%."],
+    rivian: ["Set charge limit to 90% for daily use, 100% for road trips.", "Gear Guard security camera drains about 2–3% per day when parked.", "Camp Mode is efficient — roughly 1% per hour in mild weather."],
+    volkswagen: ["ID.4 supports 135kW DC fast charging — use CCS adapters at Tesla Superchargers with Magic Dock.", "Keep battery above 20% in winter to maintain thermal conditioning.", "Over-the-air updates bring new features — check Settings for pending updates."],
+    bmw: ["iX and i4 support DC fast charging up to 200kW — fastest charging is between 10–80%.", "Use the BMW app to pre-condition the cabin on cold mornings.", "Set charging profile to stop at 80% for daily driving."],
+  };
+
+  const tips = MAKE_TIPS[make] ?? [
+    "Keep battery between 20–80% for longest lifespan.",
+    "Pre-condition the cabin while plugged in before cold-weather drives.",
+    "Schedule regular tire pressure checks — low pressure reduces range.",
+  ];
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
       {/* Back nav */}
@@ -257,6 +278,25 @@ export default function OwnedEvReportPage({ params }: { params: Promise<{ vehicl
       >
         <ChevronLeft className="w-4 h-4" /> My Garage
       </Link>
+
+      {/* Just purchased welcome banner */}
+      {justPurchased && (
+        <div className="rounded-2xl border border-[#00d97e]/30 bg-[#00d97e]/10 p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-lg">🎉</span>
+            <h2 className="text-sm font-bold text-[#00d97e]">Welcome to your {vehicleLabel}</h2>
+          </div>
+          <p className="text-xs text-[#00d97e]/80 mb-3">Here&apos;s what to watch in the first 90 days.</p>
+          <ul className="space-y-2">
+            {tips.map((tip, i) => (
+              <li key={i} className="flex gap-2 text-xs text-gray-300">
+                <span className="text-[#00d97e] mt-0.5 flex-shrink-0">✓</span>
+                <span>{tip}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Vehicle heading */}
       <div>

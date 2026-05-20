@@ -46,6 +46,10 @@ interface GarageVehicle {
   location?: string | null;
   estimated_range?: number | null;
   battery_health_pct?: number | null;
+  // Phase 2: listing staleness (from linked receipt)
+  listing_last_seen_at?: string | null;
+  listing_is_active?: boolean | null;
+  purchased_at?: string | null;
 }
 
 type GarageFilter = "all" | "shortlisted" | "owned";
@@ -955,6 +959,8 @@ function VehicleCard({
 }) {
   const label = vehicleLabel(v);
   const vc = verdictColor(v.verdict);
+  // eslint-disable-next-line react-hooks/purity
+  const nowMs = Date.now();
 
   return (
     <div
@@ -1050,6 +1056,14 @@ function VehicleCard({
             <span className={`font-semibold flex-shrink-0 ml-2 ${v.vs_market < 0 ? "text-[#00d97e]" : "text-red-400"}`}>
               {v.vs_market < 0 ? "-" : "+"}${Math.abs(v.vs_market).toLocaleString()} vs market
             </span>
+          )}
+          {v.listing_is_active === false && !v.purchased_at && (
+            <span className="text-[10px] text-white/30 flex-shrink-0 ml-2 line-through">Listing gone</span>
+          )}
+          {v.listing_last_seen_at && v.listing_is_active !== false && !v.purchased_at && (
+            Math.floor((nowMs - new Date(v.listing_last_seen_at).getTime()) / 86_400_000) > 21
+              ? <span className="text-[10px] text-white/30 flex-shrink-0 ml-2">Listing may be gone</span>
+              : null
           )}
         </div>
 

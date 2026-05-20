@@ -58,6 +58,7 @@ import ReturnToRoutinePrompt from "@/components/receipt/ReturnToRoutinePrompt";
 import RecallBanner from "@/components/receipt/RecallBanner";
 import WorkspaceSaveNudge from "@/components/receipt/WorkspaceSaveNudge";
 import PostReceiptPopup from "@/components/receipt/PostReceiptPopup";
+import { PurchaseConfirmButton } from "@/components/receipt/PurchaseConfirmButton";
 import { buildTweetUrl } from "@/lib/tweet-share";
 import { useReceiptGeneration } from "@/hooks/useReceiptGeneration";
 import { useDeepDive } from "@/hooks/useDeepDive";
@@ -213,7 +214,7 @@ export default function ReceiptPage() {
   const { trackEvent } = useEventTracking();
   useVisitorTracking();
   const router = useRouter();
-  const { isAuthenticated, isConfigured: authConfigured } = useAuth();
+  const { isAuthenticated, isConfigured: authConfigured, session } = useAuth();
   const { region, setRegion } = useRegion();
 
   // Routine context — read from sessionStorage when available
@@ -250,6 +251,10 @@ export default function ReceiptPage() {
 
   // Pro state
   const [isPro, setIsPro] = useState(false);
+
+  // Phase 2: listing age signals from receipt API response
+  const [listingFirstSeenAt, setListingFirstSeenAt] = useState<string | null>(null);
+  const [listingPriceDropCents, setListingPriceDropCents] = useState<number | null>(null);
 
   // Receipt token
   const [receiptToken, setReceiptToken] = useState("");
@@ -307,6 +312,10 @@ export default function ReceiptPage() {
     },
     onRecallsLoaded: setActiveRecalls,
     onIsProChanged: setIsPro,
+    onListingAgeLoaded: ({ firstSeenAt, priceDropCents }) => {
+      setListingFirstSeenAt(firstSeenAt);
+      setListingPriceDropCents(priceDropCents);
+    },
   });
 
   // Payment status hook (needs receipt which comes from useReceiptGeneration above)
@@ -612,10 +621,12 @@ export default function ReceiptPage() {
   // directly from the listing page (onPhotosExtracted). Generic make/model
   // lookups return wrong-year or wrong-trim stock images that mislead users.
 
-  // Reset popup when a new receipt comes in
+  // Reset popup + listing age signals when a new receipt comes in
   useEffect(() => {
     setShowPostReceiptPopup(false);
     if (postReceiptTimerRef.current) clearTimeout(postReceiptTimerRef.current);
+    setListingFirstSeenAt(null);
+    setListingPriceDropCents(null);
   }, [receipt?.receipt_id]);
 
   // Post-receipt popup: show 12s after deep dive loads so user can read it first
@@ -1046,6 +1057,8 @@ export default function ReceiptPage() {
                 saveState={hasSaved ? "saved" : "idle"}
                 onCompare={() => setShowCompareModal(true)}
                 showCompare={authConfigured}
+                firstSeenAt={listingFirstSeenAt}
+                priceDropCents={listingPriceDropCents}
               />
               </div>
 
@@ -1216,6 +1229,16 @@ export default function ReceiptPage() {
                     <span className="text-xs leading-tight">Warranty<br />check</span>
                   </Link>
                 </div>
+                {/* "I bought this" — only shown to authenticated users whose garage has this car */}
+                {isAuthenticated && session?.access_token && receipt && (
+                  <PurchaseConfirmButton
+                    receiptId={receipt.receipt_id}
+                    authToken={session.access_token}
+                    verdict={receipt.verdict}
+                    vin={receipt.vin ?? null}
+                  />
+                )}
+
                 <button
                   onClick={() => {
                     trackEvent("cta_chat_clicked", { receipt_id: receipt.receipt_id });

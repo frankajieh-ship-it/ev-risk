@@ -67,6 +67,7 @@ interface UseReceiptGenerationOpts {
     ai_summary: string;
   }>) => void;
   onIsProChanged?: (isPro: boolean) => void;
+  onListingAgeLoaded?: (data: { firstSeenAt: string | null; priceDropCents: number | null }) => void;
 }
 
 export function useReceiptGeneration({
@@ -80,6 +81,7 @@ export function useReceiptGeneration({
   onRoutineContextUsed,
   onRecallsLoaded,
   onIsProChanged,
+  onListingAgeLoaded,
 }: UseReceiptGenerationOpts) {
   const [receipt, setReceipt] = useState<ListingReceipt | null>(null);
   const [lintPassed, setLintPassed] = useState(true);
@@ -318,6 +320,13 @@ export function useReceiptGeneration({
           onRecallsLoaded(result.recalls);
         }
 
+        if (onListingAgeLoaded) {
+          onListingAgeLoaded({
+            firstSeenAt: (result.first_seen_at as string | null) ?? null,
+            priceDropCents: (result.price_drop_cents as number | null) ?? null,
+          });
+        }
+
         addReceipt(result.receipt);
 
         if (result.source === "deal_cache") {
@@ -354,7 +363,7 @@ export function useReceiptGeneration({
         inFlightRef.current = false;
       }
     },
-    [receiptToken, region, trackEvent, addReceipt, executeTurnstile, startUpgradePolling, routineContext, pageSource, onRoutineContextUsed, onIsProChanged, onRecallsLoaded]
+    [receiptToken, region, trackEvent, addReceipt, executeTurnstile, startUpgradePolling, routineContext, pageSource, onRoutineContextUsed, onIsProChanged, onRecallsLoaded, onListingAgeLoaded]
   );
 
   const handleRegenerate = useCallback(() => {
