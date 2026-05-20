@@ -8,7 +8,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Copy,
@@ -250,26 +249,6 @@ export default function ReceiptOutputCard({
       transition={{ duration: 0.4 }}
       className="bg-[#161b22] border border-white/[0.08] rounded-2xl overflow-hidden"
     >
-      {/* Fallback banner */}
-      {isFallback && (
-        <div className={`${isSimilarityMatch ? "bg-blue-500/[0.08] border-b border-blue-500/20" : "bg-amber-500/[0.08] border-b border-amber-500/20"} px-5 py-3 flex items-center justify-between`}>
-          <p className={`text-sm ${isSimilarityMatch ? "text-blue-300" : "text-amber-300"}`}>
-            {isSimilarityMatch
-              ? "Based on a similar vehicle — Tap Regenerate for vehicle-specific analysis."
-              : "Quick receipt — analysis timed out. Tap Regenerate for a full analysis."}
-          </p>
-          {onRegenerate && (
-            <button
-              onClick={onRegenerate}
-              disabled={isRegenerating}
-              className={`text-sm font-medium underline whitespace-nowrap ml-3 ${isRegenerating ? "opacity-50 cursor-not-allowed" : ""} ${isSimilarityMatch ? "text-blue-300 hover:text-blue-200" : "text-amber-300 hover:text-amber-200"}`}
-            >
-              {isRegenerating ? "Generating..." : "Regenerate"}
-            </button>
-          )}
-        </div>
-      )}
-
       {/* Full analysis in progress — prominent banner with animated bar */}
       {isUpgrading && (
         <div className="bg-[#161b22] border-b border-white/[0.08] px-5 py-3.5">
@@ -454,11 +433,6 @@ export default function ReceiptOutputCard({
         <p className={`text-sm mt-3 ${isUpgrading ? "text-white/40 italic" : "text-white/70"}`}>
           {isUpgrading ? "Verdict and full reasoning will appear when analysis completes." : receipt.verdict_reason}
         </p>
-        {!isUpgrading && (
-          <Link href="/methodology" className="inline-block mt-2 text-xs text-white/30 hover:text-white/55 underline underline-offset-2 transition-colors">
-            How we calculate this →
-          </Link>
-        )}
         {region === "UK" && (
           <p className="text-xs text-white/40 mt-1.5">UK Mode (beta) — prices in pounds, UK wording</p>
         )}
