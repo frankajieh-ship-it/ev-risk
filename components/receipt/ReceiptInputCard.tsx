@@ -651,10 +651,15 @@ export default function ReceiptInputCard({
               className="flex items-center gap-2 bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-lg px-3 py-2 text-sm text-[#00d97e]"
             >
               <Check className="w-4 h-4 shrink-0" />
-              <span>
+              <span className="flex-1">
                 Details filled from listing
                 {listingSource ? ` (${listingSource})` : ""} — review and confirm below
               </span>
+              {vinFilled && fields.vin && (
+                <span className="text-[11px] text-[#00d97e]/60 whitespace-nowrap shrink-0">
+                  VIN ···{fields.vin.slice(-6)}
+                </span>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

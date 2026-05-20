@@ -611,6 +611,14 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
 
     // Try similarity match on timeout
     if (isTimeoutOrAIError) {
+      console.warn("[Upgrade BG] All AI providers failed — attempting similarity match", {
+        receipt_id,
+        has_listing_text: !!input.listing_text,
+        listing_text_len: input.listing_text?.length ?? 0,
+        input_fields: (["year", "make", "model", "vin", "title_status", "accidents_reported"] as const).filter(
+          (k) => !!(input as Record<string, unknown>)[k]
+        ),
+      });
       try {
         const similarResult = await findSimilarReceipt(input);
         if (similarResult) {
@@ -627,6 +635,10 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
               trim: input.trim || similarResult.receipt.listing_summary?.trim || null,
               price: input.price || similarResult.receipt.listing_summary?.price || 0,
               mileage: input.mileage || similarResult.receipt.listing_summary?.mileage || 0,
+              // Always use the actual listing's known values over the similar car's
+              title_status: input.title_status ?? null,
+              accidents_reported: input.accidents_reported ?? null,
+              vin: input.vin ?? null,
             },
             verdict_reason: `Based on analysis of a similar ${input.year || ""} ${input.make || ""} ${input.model || "vehicle"}. ${similarResult.confidence >= 0.7 ? "High" : "Medium"} confidence match.`.trim().replace(/\s+/g, " "),
           };

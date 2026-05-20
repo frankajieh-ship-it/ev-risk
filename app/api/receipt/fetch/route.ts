@@ -344,6 +344,7 @@ export async function POST(request: NextRequest) {
         vin: result.data.vin,
         location: result.data.location,
         title_status: result.data.title_status,
+        accidents_reported: result.data.accidents_reported,
       } : {};
       const partialFieldCount = Object.values(partialFields).filter(
         (v) => v !== undefined && v !== null
