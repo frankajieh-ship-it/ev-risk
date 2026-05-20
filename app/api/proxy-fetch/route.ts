@@ -134,13 +134,13 @@ export async function POST(request: NextRequest) {
       const nmTimeoutId = setTimeout(() => nmController.abort(), 15000);
       try {
         console.log('[Proxy Fetch] Trying Nimbleway:', url.substring(0, 80));
-        const nmResponse = await fetch('https://api.nimbleway.com/v1/realtime/web', {
+        const nmResponse = await fetch('https://sdk.nimbleway.com/v1/extract', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${NIMBLEWAY_KEY}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ url, render: true, country: 'US' }),
+          body: JSON.stringify({ url, render: true, country: 'US', locale: 'en-US' }),
           signal: nmController.signal,
         });
         clearTimeout(nmTimeoutId);
@@ -148,14 +148,13 @@ export async function POST(request: NextRequest) {
         console.log('[Proxy Fetch] Nimbleway status:', nmResponse.status);
 
         if (nmResponse.ok) {
-          // realtime/web returns { html_content: "..." }; legacy extract used { data: { html } }
+          // Nimbleway returns { status, status_code, data: { html, redirects }, metadata, task_id, url }
           const nmJson = await nmResponse.json() as {
-            html_content?: string;
-            data?: { html?: string };
             status?: string;
             status_code?: number;
+            data?: { html?: string };
           };
-          const html = nmJson?.html_content ?? nmJson?.data?.html ?? '';
+          const html = nmJson?.data?.html ?? '';
           const nmStatusCode = nmJson?.status_code ?? 200;
           console.log('[Proxy Fetch] Nimbleway html length:', html.length, 'status_code:', nmStatusCode);
 
