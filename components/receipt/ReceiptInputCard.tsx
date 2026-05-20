@@ -550,7 +550,7 @@ export default function ReceiptInputCard({
                   value={listingUrl}
                   onChange={(e) => { setListingUrl(e.target.value); setExtractError(null); }}
                   onPaste={handleUrlPaste}
-                  placeholder="Paste a listing URL (CarGurus, AutoTrader…)"
+                  placeholder="Paste a CarGurus or AutoTrader listing URL…"
                   className="form-input flex-1 text-sm"
                   disabled={isGenerating || isExtracting}
                   autoFocus
@@ -563,6 +563,13 @@ export default function ReceiptInputCard({
                   {isExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Extract"}
                 </button>
               </div>
+
+              {/* Supported sites hint */}
+              {!listingUrl && !isExtracting && (
+                <p className="text-[11px] text-white/30 px-0.5">
+                  Best results with <span className="text-white/50">CarGurus</span> and <span className="text-white/50">AutoTrader</span> listing pages. Other sites may require pasting text instead.
+                </p>
+              )}
 
               {/* CarGurus search URL banner */}
               {showCarGurusBanner && !isExtracting && (
