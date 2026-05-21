@@ -21,7 +21,6 @@ import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import UniqueAdvantageSection from "@/components/landing/UniqueAdvantageSection";
-import TutorialVideoSection from "@/components/landing/TutorialVideoSection";
 import FeaturedDeals from "@/components/landing/FeaturedDeals";
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 import { getReceiptHistory } from "@/lib/receipt-history";
@@ -646,9 +645,6 @@ export default function Home() {
 
       {/* ── Section: What OFFO checks ────────────────────────────────── */}
       <UniqueAdvantageSection />
-
-      {/* ── Section: Tutorial Video ──────────────────────────────────── */}
-      <TutorialVideoSection />
 
       {/* ── Section: Featured Deals (Deal Watch) ────────────────────── */}
       <div className="bg-[#0d1117]">
