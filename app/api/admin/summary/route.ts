@@ -189,31 +189,53 @@ export async function GET(request: NextRequest) {
     ];
 
     // -----------------------------------------------------------------------
+    // Pagination helper — works around Supabase PostgREST max_rows=1000 cap.
+    // Fetches in 1000-row pages until an empty page is returned.
+    // -----------------------------------------------------------------------
+    async function fetchAllRows<T>(
+      buildQuery: (from: number) => ReturnType<ReturnType<typeof supabase.from>["select"]>
+    ): Promise<T[]> {
+      const PAGE = 1000;
+      const rows: T[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await buildQuery(from) as { data: T[] | null; error: unknown };
+        if (error || !data || data.length === 0) break;
+        rows.push(...data);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      return rows;
+    }
+
+    // -----------------------------------------------------------------------
     // Parallel queries
     // -----------------------------------------------------------------------
 
-    // 1. Receipts — explicit limit avoids Supabase's default 1000-row silent cap.
+    // 1. Receipts — paginated to bypass Supabase PostgREST max_rows=1000 cap.
     // IMPORTANT: use .or() to include NULL user_id rows (anonymous receipts).
     // .not("user_id", "in", [...]) silently excludes NULL rows in SQL because
     // NULL NOT IN (...) evaluates to NULL, not TRUE — so all anon receipts vanish.
-    const receiptsPromise = supabase
-      .from("receipts")
-      .select("id, created_at, output_json, url_domain, generation_status, page_source")
-      .gte("created_at", window.start)
-      .lt("created_at", window.end)
-      .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`)
-      .in("generation_status", ["lite", "full"])
-      .limit(5000);
+    const receiptsPromise = fetchAllRows<Record<string, unknown>>((from) =>
+      supabase
+        .from("receipts")
+        .select("id, created_at, output_json, url_domain, generation_status, page_source")
+        .gte("created_at", window.start)
+        .lt("created_at", window.end)
+        .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`)
+        .in("generation_status", ["lite", "full"])
+        .range(from, from + 999)
+    );
 
-    // 2. Receipt events — explicit limit to avoid Supabase 1000-row default cap
-    const receiptEventsPromise = supabase
-      .from("receipt_events")
-      .select(
-        "event_type, receipt_id, session_id, url_domain, verdict, created_at"
-      )
-      .gte("created_at", window.start)
-      .lt("created_at", window.end)
-      .limit(50000);
+    // 2. Receipt events — paginated to bypass Supabase PostgREST max_rows=1000 cap
+    const receiptEventsPromise = fetchAllRows<Record<string, unknown>>((from) =>
+      supabase
+        .from("receipt_events")
+        .select("event_type, receipt_id, session_id, url_domain, verdict, created_at")
+        .gte("created_at", window.start)
+        .lt("created_at", window.end)
+        .range(from, from + 999)
+    );
 
     // 3. Reports (old EV-Risk)
     const reportsPromise = supabase
@@ -225,26 +247,27 @@ export async function GET(request: NextRequest) {
       .lt("created_at", window.end)
       .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
-    // 4. User events (exclude internal team via is_internal column)
-    // IMPORTANT: must set explicit limit — Supabase default cap is 1000 rows, which silently
-    // truncates large windows and breaks all session/engagement/bot-scoring metrics derived here.
-    const userEventsPromise = supabase
-      .from("user_events")
-      .select("event_name, event_data, visitor_id, session_id, ip_address, user_agent, timestamp")
-      .gte("timestamp", window.start)
-      .lt("timestamp", window.end)
-      .eq("is_internal", false)
-      .limit(50000);
+    // 4. User events — paginated to bypass Supabase PostgREST max_rows=1000 cap.
+    const userEventsPromise = fetchAllRows<Record<string, unknown>>((from) =>
+      supabase
+        .from("user_events")
+        .select("event_name, event_data, visitor_id, session_id, ip_address, user_agent, timestamp")
+        .gte("timestamp", window.start)
+        .lt("timestamp", window.end)
+        .eq("is_internal", false)
+        .range(from, from + 999)
+    );
 
-    // 5. Visitors (exclude internal team)
-    // NOTE: explicit limit required — Supabase default cap is 1000 rows.
-    const visitorsPromise = supabase
-      .from("visitors")
-      .select("visitor_id, page_path, visit_count, last_visit")
-      .gte("last_visit", window.start)
-      .lt("last_visit", window.end)
-      .not("visitor_id", "in", `(${INTERNAL_VISITOR_IDS_FILTER.join(",")})`)
-      .limit(50000);
+    // 5. Visitors — paginated to bypass Supabase PostgREST max_rows=1000 cap.
+    const visitorsPromise = fetchAllRows<Record<string, unknown>>((from) =>
+      supabase
+        .from("visitors")
+        .select("visitor_id, page_path, visit_count, last_visit")
+        .gte("last_visit", window.start)
+        .lt("last_visit", window.end)
+        .not("visitor_id", "in", `(${INTERNAL_VISITOR_IDS_FILTER.join(",")})`)
+        .range(from, from + 999)
+    );
 
     // 6. Report feedback
     const feedbackPromise = supabase
@@ -327,11 +350,11 @@ export async function GET(request: NextRequest) {
       .lt("created_at", window.end);
 
     const [
-      { data: receipts },
-      { data: receiptEvents },
+      receipts,
+      receiptEvents,
       { data: reports },
-      { data: userEvents },
-      { data: visitors },
+      userEvents,
+      visitors,
       { data: feedback },
       { data: recentEvents },
       { data: recentReceiptEvents },
