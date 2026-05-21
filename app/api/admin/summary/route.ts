@@ -1293,6 +1293,64 @@ export async function GET(request: NextRequest) {
     }
 
     // -----------------------------------------------------------------------
+    // Email list (checklist_email_captures — all-time + window growth)
+    // -----------------------------------------------------------------------
+
+    let email_list = {
+      total_all_time: 0,
+      new_in_window: 0,
+      by_funnel_stage: {} as Record<string, number>,
+      sequences_enrolled: 0,
+      crm_sends_7d: 0,
+      crm_sends_by_sequence: {} as Record<string, number>,
+      suppressed: 0,
+    };
+
+    try {
+      const [allTimeResult, windowResult, byStageResult, seqResult, crmSendsResult, suppressedResult] = await Promise.all([
+        // All-time total
+        supabase.from("checklist_email_captures").select("id", { count: "exact", head: true }),
+        // New signups in window
+        supabase.from("checklist_email_captures").select("id", { count: "exact", head: true })
+          .gte("created_at", window.start).lte("created_at", window.end),
+        // By funnel stage (all-time)
+        supabase.from("checklist_email_captures").select("funnel_stage"),
+        // Total enrolled in email_sequences
+        supabase.from("email_sequences").select("id", { count: "exact", head: true }),
+        // CRM sends last 7 days by sequence
+        supabase.from("crm_email_sends").select("sequence_type").eq("status", "sent")
+          .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+        // Suppressed (bounced or opted out)
+        supabase.from("crm_email_preferences").select("id", { count: "exact", head: true })
+          .or("all_marketing.eq.false,bounced.eq.true"),
+      ]);
+
+      const stageMap: Record<string, number> = {};
+      for (const row of byStageResult.data ?? []) {
+        const stage = (row.funnel_stage as string) || "unknown";
+        stageMap[stage] = (stageMap[stage] ?? 0) + 1;
+      }
+
+      const sendsBySeq: Record<string, number> = {};
+      for (const row of crmSendsResult.data ?? []) {
+        const seq = row.sequence_type as string;
+        sendsBySeq[seq] = (sendsBySeq[seq] ?? 0) + 1;
+      }
+
+      email_list = {
+        total_all_time: allTimeResult.count ?? 0,
+        new_in_window: windowResult.count ?? 0,
+        by_funnel_stage: stageMap,
+        sequences_enrolled: seqResult.count ?? 0,
+        crm_sends_7d: crmSendsResult.data?.length ?? 0,
+        crm_sends_by_sequence: sendsBySeq,
+        suppressed: suppressedResult.count ?? 0,
+      };
+    } catch {
+      // Non-critical
+    }
+
+    // -----------------------------------------------------------------------
     // Server-side receipt events (from user_events)
     // -----------------------------------------------------------------------
 
@@ -2135,6 +2193,9 @@ export async function GET(request: NextRequest) {
       coverage,
       insights,
       extraction_health,
+      email_list,
+      email_captures,
+      email_deliveries,
       retention,
       repeat_usage,
       chat_metrics,

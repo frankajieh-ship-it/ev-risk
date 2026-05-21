@@ -227,6 +227,15 @@ interface SummaryData {
     by_type: { receipt: number; evroutine: number };
     top_savers: Array<{ user_id: string; count: number; latest_vehicle: string }>;
   };
+  email_list?: {
+    total_all_time: number;
+    new_in_window: number;
+    by_funnel_stage: Record<string, number>;
+    sequences_enrolled: number;
+    crm_sends_7d: number;
+    crm_sends_by_sequence: Record<string, number>;
+    suppressed: number;
+  };
   email_captures?: { submitted: number; sent: number; failed: number; auth_email_entered: number; auth_email_confirmed: number };
   email_deliveries?: {
     total: number;
@@ -1593,6 +1602,44 @@ export default function AdminDashboard() {
                 <FunnelCard label="History Viewed" value={s.post_receipt_engagement.other.history_viewed} color="gray" />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Email List */}
+        {s.email_list && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Email List</h2>
+            <p className="text-sm text-gray-500 mb-4">All-time subscribers + CRM pipeline · last 7 days for sends</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <FunnelCard label="Total Subscribers" value={s.email_list.total_all_time} color="emerald" subtitle="all-time" />
+              <FunnelCard label="New This Period" value={s.email_list.new_in_window} color="blue" />
+              <FunnelCard label="Sequences Enrolled" value={s.email_list.sequences_enrolled} color="indigo" subtitle="email_sequences table" />
+              <FunnelCard label="Suppressed" value={s.email_list.suppressed} color="red" subtitle="bounced or opted out" />
+            </div>
+            {Object.keys(s.email_list.by_funnel_stage).length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">By funnel stage (all-time)</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(s.email_list.by_funnel_stage).sort(([, a], [, b]) => b - a).map(([stage, count]) => (
+                    <span key={stage} className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 rounded-full px-3 py-1 text-xs font-medium">
+                      {stage} <span className="font-bold">{count}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {s.email_list.crm_sends_7d > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">CRM sends last 7 days — {s.email_list.crm_sends_7d} total</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(s.email_list.crm_sends_by_sequence).sort(([, a], [, b]) => b - a).map(([seq, count]) => (
+                    <span key={seq} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 rounded-full px-3 py-1 text-xs font-medium">
+                      {seq.replace(/_/g, " ")} <span className="font-bold">{count}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
