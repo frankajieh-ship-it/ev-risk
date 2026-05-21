@@ -47,6 +47,17 @@ export async function POST(request: NextRequest) {
         receiptsGenerated: candidate.receiptsGenerated,
       });
 
+      // Claim the slot before sending — prevents duplicate if send succeeds but upsert would have failed
+      await supabase.from("crm_win_back_state").upsert(
+        {
+          user_id: candidate.userId,
+          email: candidate.email,
+          winback_30_sent_at: now,
+          last_receipt_at: candidate.lastReceiptAt,
+        },
+        { onConflict: "user_id" }
+      );
+
       const r = await safeSend({
         email: candidate.email,
         userId: candidate.userId,
@@ -59,16 +70,6 @@ export async function POST(request: NextRequest) {
       });
 
       if (r.sent) {
-        // Upsert win-back state
-        await supabase.from("crm_win_back_state").upsert(
-          {
-            user_id: candidate.userId,
-            email: candidate.email,
-            winback_30_sent_at: now,
-            last_receipt_at: candidate.lastReceiptAt,
-          },
-          { onConflict: "user_id" }
-        );
         results.winback_30++;
       } else if (r.skipped) {
         results.skipped++;
@@ -92,6 +93,11 @@ export async function POST(request: NextRequest) {
         receiptsGenerated: candidate.receiptsGenerated,
       });
 
+      // Claim the slot before sending
+      await supabase.from("crm_win_back_state")
+        .update({ winback_60_sent_at: now })
+        .eq("user_id", candidate.userId);
+
       const r = await safeSend({
         email: candidate.email,
         userId: candidate.userId,
@@ -104,9 +110,6 @@ export async function POST(request: NextRequest) {
       });
 
       if (r.sent) {
-        await supabase.from("crm_win_back_state")
-          .update({ winback_60_sent_at: now })
-          .eq("user_id", candidate.userId);
         results.winback_60++;
       } else if (r.skipped) {
         results.skipped++;

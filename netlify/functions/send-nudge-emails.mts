@@ -64,6 +64,6 @@ export default async function handler() {
   }
 }
 
-export const config: Config = {
-  schedule: "0 10 * * *",
-};
+// Disabled — superseded by send-activation-emails.mts which uses safeSend() idempotency.
+// Keep function body intact for manual invocation if needed.
+export const config: Config = {};
