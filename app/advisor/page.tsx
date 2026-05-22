@@ -94,7 +94,7 @@ function AdvisorContent() {
           </div>
           <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Ask OFFO</h1>
           <p className="text-sm text-white/50">
-            Get honest, no-fluff answers about buying a used EV — battery health, charging fit, price, or anything else on your mind.
+            Get honest answers about buying a used EV — battery health, charging fit, price, or anything else on your mind.
           </p>
         </div>
 
