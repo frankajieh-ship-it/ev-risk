@@ -1,12 +1,11 @@
 /**
- * OFFO Chat — 4-Stage Multi-Model Pipeline
+ * OFFO Chat — 5-Stage Multi-Model Pipeline
  *
- * POST /api/chat
- *
- * Stage 1: Grok classifier (intent + key concern)
- * Stage 2: Parallel VIN data fetch (Auto.dev / VINaudit, optional)
- * Stage 3: Parallel Claude (empathy) + GPT-4o (technical)
- * Stage 4: Grok synthesis → OFFO voice
+ * Stage 1: Grok classifier (intent + key concern)          ─┐ parallel
+ * Stage 2: VIN data fetch (Auto.dev / VINaudit, optional)  ─┘
+ * Stage 3: Claude — writes the full OFFO answer (lead writer)
+ * Stage 4: GPT-4o — fact-checks Claude, surfaces any missed numbers/flags
+ * Stage 5: Grok — weaves in GPT addendum if needed, sharpens OFFO voice
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -105,6 +104,16 @@ const synthSchema = {
     reply: { type: "string" },
   },
   required: ["reply"],
+  additionalProperties: false,
+} as const;
+
+// GPT-4o fact-check addendum: only what Claude missed or understated
+const factSchema = {
+  type: "object",
+  properties: {
+    addendum: { type: "string" },
+  },
+  required: ["addendum"],
   additionalProperties: false,
 } as const;
 
@@ -229,9 +238,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Message too long" }, { status: 400 });
   }
 
-  // Chat is free for all users — no payment gate
+  // Chat is free for all users — rate limit only
   const limitKey = sessionId || getClientIP(request);
-  const chatUnlocked = true;
 
   // Rate limiting: 200/day per session
   const rateCheck = paidChatLimiter.check(limitKey);
@@ -306,62 +314,84 @@ export async function POST(request: NextRequest) {
         : "";
 
     // -------------------------------------------------------------------
-    // Stage 3: Parallel Claude (empathy) + GPT-4o (technical)
+    // Stage 3: Claude — lead writer, full OFFO answer
+    // Claude's strength is natural, human-sounding prose. Give it full context
+    // and let it write the complete answer without role constraints.
     // -------------------------------------------------------------------
-    const stageSystemPrompt = `${offoContext}\n\nUser intent: ${classify.intent}\nKey concern: ${classify.key_concern}\nSuggested angle: ${classify.suggested_angle}${vinSummary}`;
-
-    const stageUserPrompt = `User asked: "${message}"\n\nProvide your perspective as instructed. Be concise (2-4 sentences max).`;
+    const claudeSystemPrompt = `${offoContext}\n\nUser intent: ${classify.intent}\nKey concern: ${classify.key_concern}\nSuggested angle: ${classify.suggested_angle}${vinSummary}`;
 
     let claudeReply = "";
-    let openaiReply = "";
 
-    const [claudeResult, openaiResult] = await Promise.allSettled([
-      anthropicAdapter.isConfigured()
-        ? anthropicAdapter.generate({
-            systemPrompt:
-              stageSystemPrompt +
-              "\n\nYour angle: Focus on how this decision FEELS for the buyer. Empathetic and human.",
-            userPrompt: stageUserPrompt,
-            jsonSchema: synthSchema,
-            schemaName: "ChatReply",
-            temperature: 0.7,
-            maxTokens: 300,
-            timeoutMs: 8_000,
-            signal: masterController.signal,
-          })
-        : Promise.reject(new Error("Anthropic not configured")),
-      openaiAdapter.isConfigured()
-        ? openaiAdapter.generate({
-            systemPrompt:
-              stageSystemPrompt +
-              "\n\nYour angle: Focus on specific numbers, flags, and technical facts. Data-driven.",
-            userPrompt: stageUserPrompt,
-            jsonSchema: synthSchema,
-            schemaName: "ChatReply",
-            temperature: 0.3,
-            maxTokens: 300,
-            timeoutMs: 6_000,
-            signal: masterController.signal,
-          })
-        : Promise.reject(new Error("OpenAI not configured")),
-    ]);
-
-    if (claudeResult.status === "fulfilled") {
-      claudeReply = (claudeResult.value.json.reply as string) || "";
-      sources.push("anthropic");
-    }
-    if (openaiResult.status === "fulfilled") {
-      openaiReply = (openaiResult.value.json.reply as string) || "";
-      sources.push("openai");
+    if (anthropicAdapter.isConfigured()) {
+      try {
+        const claudeResult = await anthropicAdapter.generate({
+          systemPrompt: claudeSystemPrompt,
+          userPrompt: `User asked: "${message}"\n\nWrite the complete OFFO answer. Be direct, specific, and buyer-first. 3-5 sentences. No filler phrases like "Great question" or "Absolutely".`,
+          jsonSchema: synthSchema,
+          schemaName: "ChatReply",
+          temperature: 0.6,
+          maxTokens: 500,
+          timeoutMs: 9_000,
+          signal: masterController.signal,
+        });
+        claudeReply = (claudeResult.json.reply as string) || "";
+        if (claudeReply) sources.push("anthropic");
+      } catch {
+        // fall through to GPT-4o as lead
+      }
     }
 
-    if (!claudeReply && !openaiReply) {
-      // Both Stage 3 providers failed — attempt a direct Grok answer as last resort
+    // -------------------------------------------------------------------
+    // Stage 4: GPT-4o — fact-check, surface anything Claude missed
+    // GPT-4o is strong on numbers and skeptical analysis. Its only job is
+    // to find what Claude understated or omitted — not rewrite the answer.
+    // -------------------------------------------------------------------
+    let gptAddendum = "";
+
+    if (openaiAdapter.isConfigured() && claudeReply) {
+      try {
+        const gptResult = await openaiAdapter.generate({
+          systemPrompt: `You are a rigorous fact-checker for EV buying advice. Your only job: read the draft answer and identify any important numbers, red flags, or technical facts that were missed or understated. Return a single addendum sentence (or two at most). If the draft is complete and accurate, return an empty string.`,
+          userPrompt: `Original question: "${message}"\n\nContext:\n${claudeSystemPrompt}\n\nDraft answer:\n${claudeReply}\n\nWhat specific number, flag, or fact is missing or understated? Be concise — one sentence max, or empty string if nothing is missing.`,
+          jsonSchema: factSchema,
+          schemaName: "FactAddendum",
+          temperature: 0.15,
+          maxTokens: 150,
+          timeoutMs: 5_000,
+          signal: masterController.signal,
+        });
+        gptAddendum = ((gptResult.json.addendum as string) || "").trim();
+        if (gptAddendum) sources.push("openai");
+      } catch {
+        // addendum is optional — no action needed
+      }
+    } else if (openaiAdapter.isConfigured() && !claudeReply) {
+      // Claude failed — use GPT-4o as lead writer instead
+      try {
+        const gptResult = await openaiAdapter.generate({
+          systemPrompt: claudeSystemPrompt,
+          userPrompt: `User asked: "${message}"\n\nWrite the complete OFFO answer. Be direct, specific, and buyer-first. 3-5 sentences.`,
+          jsonSchema: synthSchema,
+          schemaName: "ChatReply",
+          temperature: 0.4,
+          maxTokens: 500,
+          timeoutMs: 8_000,
+          signal: masterController.signal,
+        });
+        claudeReply = (gptResult.json.reply as string) || "";
+        if (claudeReply) sources.push("openai");
+      } catch {
+        // fall through to Grok direct
+      }
+    }
+
+    if (!claudeReply) {
+      // Both Claude and GPT-4o failed — attempt direct Grok answer as last resort
       if (grokAdapter.isConfigured()) {
         try {
-          const grokFallbackResult = await grokAdapter.generate({
+          const grokDirectResult = await grokAdapter.generate({
             systemPrompt: `${offoContext}\n\nUser intent: ${classify.intent}\nKey concern: ${classify.key_concern}`,
-            userPrompt: `User asked: "${message}"\n\nProvide a helpful, direct answer as OFFO (3-5 sentences max).`,
+            userPrompt: `User asked: "${message}"\n\nProvide a helpful, direct OFFO answer (3-5 sentences).`,
             jsonSchema: synthSchema,
             schemaName: "ChatReply",
             temperature: 0.4,
@@ -369,7 +399,7 @@ export async function POST(request: NextRequest) {
             timeoutMs: 8_000,
             signal: masterController.signal,
           });
-          claudeReply = (grokFallbackResult.json.reply as string) || "";
+          claudeReply = (grokDirectResult.json.reply as string) || "";
           if (claudeReply) sources.push("grok_direct");
         } catch {
           // still failed
@@ -377,8 +407,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!claudeReply && !openaiReply) {
-      // All providers failed — graceful degradation
+    if (!claudeReply) {
+      // All providers failed
       fallback = true;
       const latencyMs = Date.now() - t0;
       persistAsync(sessionId, scenarioType, scenarioId, message, "I'm having trouble right now. Try refreshing or ask again.", sources, latencyMs, classify.intent, "fallback", userId, advisorSessionId);
@@ -391,33 +421,39 @@ export async function POST(request: NextRequest) {
     }
 
     // -------------------------------------------------------------------
-    // Stage 4: Grok synthesis
+    // Stage 5: Grok — voice editor
+    // Grok's job: if GPT found something Claude missed, weave it in naturally.
+    // Then sharpen to OFFO voice — punchy, no corporate filler, buyer-first.
+    // If there's no addendum, just polish the Claude draft.
     // -------------------------------------------------------------------
     let finalReply = "";
-    const draftInputs = [claudeReply, openaiReply].filter(Boolean).join("\n\n---\n\n");
 
     if (grokAdapter.isConfigured()) {
+      const addendumInstruction = gptAddendum
+        ? `GPT-4o flagged one thing Claude missed: "${gptAddendum}" — weave this in naturally if it adds real value. If it's redundant, drop it.`
+        : "No additional facts were flagged — the draft is complete.";
+
       try {
         const synthResult = await grokAdapter.generate({
-          systemPrompt: `${offoContext}\n\nYou are synthesizing two expert perspectives into a single OFFO voice response. OFFO is direct, honest, and buyer-first. Merge the drafts into one cohesive reply (3-5 sentences max). Don't repeat the same point twice.`,
-          userPrompt: `User asked: "${message}"\n\nDraft perspectives:\n${draftInputs}\n\nSynthesize into a single OFFO response:`,
+          systemPrompt: `${offoContext}\n\nYou are the final voice editor for OFFO chat. You receive a drafted answer and optionally a fact addendum. Your job:\n1. If the addendum adds real value, work it in naturally — don't just append it.\n2. Cut any filler, hedging, or corporate language.\n3. Keep it 3-5 sentences. The final reply should sound like a knowledgeable friend who has seen hundreds of EV deals — direct, warm, no BS.\n4. Do not add new information beyond what's provided.`,
+          userPrompt: `Original question: "${message}"\n\nDraft answer:\n${claudeReply}\n\n${addendumInstruction}\n\nReturn the final polished OFFO reply:`,
           jsonSchema: synthSchema,
           schemaName: "ChatReply",
-          temperature: 0.3,
+          temperature: 0.35,
           maxTokens: 600,
           timeoutMs: 6_000,
           signal: masterController.signal,
         });
         finalReply = (synthResult.json.reply as string) || "";
-        sources.push("grok_synth");
+        if (finalReply) sources.push("grok_synth");
       } catch {
-        // Fall through to best available
+        // Fall through to Claude draft directly
       }
     }
 
-    // If Grok synthesis failed, use best available from Stage 3
+    // If Grok voice edit failed, Claude's draft is still a great answer
     if (!finalReply) {
-      finalReply = openaiReply || claudeReply;
+      finalReply = claudeReply;
       fallback = !finalReply;
     }
 
@@ -429,9 +465,11 @@ export async function POST(request: NextRequest) {
     const latencyMs = Date.now() - t0;
     const primaryModel = sources.includes("grok_synth")
       ? "grok"
+      : sources.includes("anthropic")
+      ? "anthropic"
       : sources.includes("openai")
       ? "openai"
-      : "gemini";
+      : "grok_direct";
 
     // Persist async (non-blocking)
     persistAsync(sessionId, scenarioType, scenarioId, message, finalReply, sources, latencyMs, classify.intent, primaryModel, userId, advisorSessionId);
