@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { isResendConfigured } from "@/lib/resend";
-import { safeSend, isoWeekKey } from "@/lib/crm-email";
+import { safeSend } from "@/lib/crm-email";
 import { getWinBackCandidates } from "@/lib/crm-queries";
 import { buildWinBack30, buildWinBack60 } from "@/lib/crm-templates/win-back";
 
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         receiptsGenerated: candidate.receiptsGenerated,
       });
 
-      // Claim the slot before sending — prevents duplicate if send succeeds but upsert would have failed
+      // Claim the slot before sending — ignoreDuplicates ensures we never overwrite an existing sent_at
       await supabase.from("crm_win_back_state").upsert(
         {
           user_id: candidate.userId,
@@ -55,9 +55,11 @@ export async function POST(request: NextRequest) {
           winback_30_sent_at: now,
           last_receipt_at: candidate.lastReceiptAt,
         },
-        { onConflict: "user_id" }
+        { onConflict: "user_id", ignoreDuplicates: true }
       );
 
+      // Idempotency key is permanent per user+step — no weekly rotation so the same user
+      // can never receive this email again even across week boundaries
       const r = await safeSend({
         email: candidate.email,
         userId: candidate.userId,
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
         sequenceStep: "winback_30",
         subject,
         html,
-        idempotencyKey: `winback:${candidate.userId}:30d:${weekKey}`,
+        idempotencyKey: `winback:${candidate.userId}:30d`,
         metadata: { vehicle: candidate.vehicle, last_receipt_at: candidate.lastReceiptAt },
       });
 
@@ -93,10 +95,11 @@ export async function POST(request: NextRequest) {
         receiptsGenerated: candidate.receiptsGenerated,
       });
 
-      // Claim the slot before sending
+      // Claim the slot before sending — only set if not already set
       await supabase.from("crm_win_back_state")
         .update({ winback_60_sent_at: now })
-        .eq("user_id", candidate.userId);
+        .eq("user_id", candidate.userId)
+        .is("winback_60_sent_at", null);
 
       const r = await safeSend({
         email: candidate.email,
@@ -105,7 +108,7 @@ export async function POST(request: NextRequest) {
         sequenceStep: "winback_60",
         subject,
         html,
-        idempotencyKey: `winback:${candidate.userId}:60d:${weekKey}`,
+        idempotencyKey: `winback:${candidate.userId}:60d`,
         metadata: { vehicle: candidate.vehicle, last_receipt_at: candidate.lastReceiptAt },
       });
 
