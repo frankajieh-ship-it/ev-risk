@@ -427,7 +427,7 @@ export async function GET(request: NextRequest) {
       const sid = (e as any).session_id || "unknown";
       if (!sessionMap.has(sid)) {
         sessionMap.set(sid, {
-          visitor_id: e.visitor_id,
+          visitor_id: typeof e.visitor_id === "string" ? e.visitor_id : null,
           ip_address: (e as any).ip_address || null,
           user_agent: (e as any).user_agent || null,
           event_count: 0,
