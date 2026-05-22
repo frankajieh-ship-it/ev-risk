@@ -216,10 +216,15 @@ export async function GET(request: NextRequest) {
 
   // 0. OFFO image extractor — local CSV (Tier 0) or Supabase cache hit
   // Returns immediately for: cached results OR local CSV matches (no external API needed)
+  // Wrapped in try/catch — VinAudit errors inside extractVehicleImages must not crash the handler
   if (make && rawModel && year) {
-    const extracted = await extractVehicleImages({ make, model: rawModel, year, vin, trim: undefined });
-    if (extracted.urls.length > 0 && (extracted.cache_hit || extracted.source === "offo_local")) {
-      return NextResponse.json({ photo_urls: extracted.urls, source: extracted.source, quality_score: extracted.quality_score, cache_hit: extracted.cache_hit });
+    try {
+      const extracted = await extractVehicleImages({ make, model: rawModel, year, vin, trim: undefined });
+      if (extracted.urls.length > 0 && (extracted.cache_hit || extracted.source === "offo_local")) {
+        return NextResponse.json({ photo_urls: extracted.urls, source: extracted.source, quality_score: extracted.quality_score, cache_hit: extracted.cache_hit });
+      }
+    } catch {
+      // Fall through to static map — VinAudit timeout/error is non-fatal
     }
   }
 
