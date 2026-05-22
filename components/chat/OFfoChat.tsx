@@ -326,7 +326,7 @@ export default function OFfoChat({
       setInput("");
       setIsLoading(true);
 
-      try {
+      const callChat = async () => {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -340,9 +340,13 @@ export default function OFfoChat({
             ...(advisorSessionId ? { advisor_session_id: advisorSessionId } : {}),
           }),
         });
+        return res;
+      };
+
+      try {
+        const res = await callChat();
 
         if (res.status === 402) {
-          // Free tier exhausted
           setLimitReached(true);
           setMessagesUsedToday(FREE_DAILY_LIMIT);
           setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
@@ -361,16 +365,32 @@ export default function OFfoChat({
           return;
         }
 
-        const data = await res.json();
+        let data = await res.json();
+
+        // Auto-retry once on cold-start fallback (both providers failed)
+        if (data.fallback) {
+          await new Promise((r) => setTimeout(r, 1500));
+          try {
+            const retryRes = await callChat();
+            if (retryRes.ok) {
+              const retryData = await retryRes.json();
+              if (!retryData.fallback) data = retryData;
+            }
+          } catch {
+            // keep original fallback response
+          }
+        }
+
         setMessages((prev) => [
           ...prev,
           { id: crypto.randomUUID(), role: "assistant", content: data.reply || "Something went wrong. Please try again.", fallback: data.fallback },
         ]);
 
-        // Track message count for nudge
-        const newCount = messagesUsedToday + 1;
-        setMessagesUsedToday(newCount);
-        trackEvent?.("chat_message_sent", { scenario_type: scenarioType, messages_used: newCount, is_paid: chatUnlocked });
+        if (!data.fallback) {
+          const newCount = messagesUsedToday + 1;
+          setMessagesUsedToday(newCount);
+          trackEvent?.("chat_message_sent", { scenario_type: scenarioType, messages_used: newCount, is_paid: chatUnlocked });
+        }
       } catch {
         setMessages((prev) => [
           ...prev,
