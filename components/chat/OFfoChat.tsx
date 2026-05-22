@@ -203,24 +203,30 @@ export default function OFfoChat({
 
 
   // ---------------------------------------------------------------------------
-  // Persist messages to sessionStorage (survives page refresh within same tab)
+  // Persist messages to sessionStorage — resets daily to control token usage
   // ---------------------------------------------------------------------------
 
   const SESSION_KEY = `offo_chat_${scenarioId}`;
+  const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (initialMessages && initialMessages.length > 0) return; // server-loaded history takes precedence
     try {
-      const stored = sessionStorage.getItem(SESSION_KEY);
-      if (stored) setMessages(JSON.parse(stored));
+      const raw = sessionStorage.getItem(SESSION_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        // Clear if stored on a different day — fresh window every day
+        if (parsed.date === today) setMessages(parsed.messages ?? []);
+        else sessionStorage.removeItem(SESSION_KEY);
+      }
     } catch {}
-  }, [SESSION_KEY]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [SESSION_KEY, today]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (typeof window === "undefined" || messages.length === 0) return;
-    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(messages)); } catch {}
-  }, [messages, SESSION_KEY]);
+    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ date: today, messages })); } catch {}
+  }, [messages, SESSION_KEY, today]);
 
   // ---------------------------------------------------------------------------
   // Check unlock status on mount
@@ -328,6 +334,12 @@ export default function OFfoChat({
       setInput("");
       setIsLoading(true);
 
+      // Send last 10 turns so the AI remembers what was already discussed
+      const historySnapshot = messages
+        .filter((m) => !m.fallback)
+        .slice(-10)
+        .map((m) => ({ role: m.role, content: m.content }));
+
       const callChat = async () => {
         const res = await fetch("/api/chat", {
           method: "POST",
@@ -337,6 +349,7 @@ export default function OFfoChat({
             scenario_type: scenarioType,
             scenario_id: scenarioId,
             message: trimmed,
+            history: historySnapshot,
             context,
             ...(userId ? { user_id: userId } : {}),
             ...(advisorSessionId ? { advisor_session_id: advisorSessionId } : {}),

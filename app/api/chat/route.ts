@@ -220,6 +220,7 @@ export async function POST(request: NextRequest) {
   const ctx = (body.context as ChatContext) || {};
   const userId = (body.user_id as string) || null;
   const advisorSessionId = (body.advisor_session_id as string) || null;
+  const history = (body.history as { role: "user" | "assistant"; content: string }[]) || [];
 
   // Validate required fields
   if (!sessionId || sessionId.length < 5) {
@@ -318,7 +319,11 @@ export async function POST(request: NextRequest) {
     // Claude's strength is natural, human-sounding prose. Give it full context
     // and let it write the complete answer without role constraints.
     // -------------------------------------------------------------------
-    const claudeSystemPrompt = `${offoContext}\n\nUser intent: ${classify.intent}\nKey concern: ${classify.key_concern}\nSuggested angle: ${classify.suggested_angle}${vinSummary}`;
+    const historySummary = history.length > 0
+      ? "\n\nConversation so far:\n" + history.map((m) => `${m.role === "user" ? "User" : "OFFO"}: ${m.content}`).join("\n")
+      : "";
+
+    const claudeSystemPrompt = `${offoContext}\n\nUser intent: ${classify.intent}\nKey concern: ${classify.key_concern}\nSuggested angle: ${classify.suggested_angle}${vinSummary}${historySummary}`;
 
     let claudeReply = "";
 
