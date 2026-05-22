@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Header from "@/components/landing/Header";
 import OFfoChat from "@/components/chat/OFfoChat";
@@ -21,7 +21,7 @@ interface AdvisorSession {
   message_count: number;
 }
 
-export default function AdvisorPage() {
+function AdvisorContent() {
   const searchParams = useSearchParams();
   const { user, session, isAuthenticated } = useAuth();
 
@@ -31,8 +31,6 @@ export default function AdvisorPage() {
   const [advisorSessionId] = useState<string>(() =>
     resumeSessionParam ?? `adv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   );
-  const initialQRef = useRef<string | null>(searchParams.get("q"));
-
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
   const [recentSessions, setRecentSessions] = useState<AdvisorSession[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -148,5 +146,13 @@ export default function AdvisorPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function AdvisorPage() {
+  return (
+    <Suspense>
+      <AdvisorContent />
+    </Suspense>
   );
 }
