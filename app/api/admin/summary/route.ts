@@ -385,12 +385,18 @@ export async function GET(request: NextRequest) {
       auctionAnalysesPromise,
     ]);
 
-    const allReceipts = receipts || [];
-    const allReceiptEvents = receiptEvents || [];
-    const allReports = reports || [];
-    const allUserEvents = userEvents || [];
-    const allVisitors = visitors || [];
-    const allFeedback = feedback || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allReceipts: any[] = receipts || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allReceiptEvents: any[] = receiptEvents || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allReports: any[] = reports || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allUserEvents: any[] = userEvents || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allVisitors: any[] = visitors || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allFeedback: any[] = feedback || [];
 
     // -----------------------------------------------------------------------
     // Session profiles + bot scoring (computed early so filter is available)
@@ -424,12 +430,12 @@ export async function GET(request: NextRequest) {
     }>();
 
     for (const e of allUserEvents) {
-      const sid = (e as any).session_id || "unknown";
+      const sid = e.session_id || "unknown";
       if (!sessionMap.has(sid)) {
         sessionMap.set(sid, {
           visitor_id: typeof e.visitor_id === "string" ? e.visitor_id : null,
-          ip_address: (e as any).ip_address || null,
-          user_agent: (e as any).user_agent || null,
+          ip_address: e.ip_address || null,
+          user_agent: e.user_agent || null,
           event_count: 0,
           event_names: new Set(),
           timestamps: [],
@@ -437,7 +443,7 @@ export async function GET(request: NextRequest) {
       }
       const s = sessionMap.get(sid)!;
       s.event_count++;
-      s.event_names.add(e.event_name);
+      if (typeof e.event_name === "string") s.event_names.add(e.event_name);
       s.timestamps.push(new Date(e.timestamp || "").getTime());
     }
 
