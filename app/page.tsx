@@ -704,27 +704,27 @@ export default function Home() {
             <div className="relative rounded-2xl border border-[#00d97e]/20 bg-[#00d97e]/[0.04] p-8 overflow-hidden">
               <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 bg-[#00d97e]/10 rounded-full border border-[#00d97e]/20">
                 <span className="w-2 h-2 rounded-full bg-[#00d97e] animate-pulse" />
-                <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wider">Coming Soon</span>
+                <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wider">Free</span>
               </div>
-              <h2 className="text-xl md:text-2xl font-bold text-white mb-2">OFFO EV Advisor</h2>
+              <h2 className="text-xl md:text-2xl font-bold text-white mb-2">Ask OFFO</h2>
               <p className="text-sm text-white/40 leading-relaxed mb-6">
                 Get personalized EV guidance from our AI advisor. Ask anything — charging setup, range for your commute, battery health, trade-in value, or which model fits your life.
               </p>
-              <div className="flex flex-col gap-2 mb-6 select-none pointer-events-none" aria-hidden>
+              <div className="flex flex-col gap-2 mb-6">
                 {[
                   "Will a 2022 Model 3 work for my 80-mile daily commute?",
                   "How do I check battery health before buying?",
                   "What's the best EV under $30k for cold climates?",
                 ].map((q) => (
-                  <div key={q} className="flex items-start gap-2 px-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-lg">
-                    <span className="text-[#00d97e]/50 text-xs mt-0.5 flex-shrink-0">›</span>
-                    <p className="text-xs text-white/30 italic">{q}</p>
-                  </div>
+                  <Link key={q} href={`/advisor?q=${encodeURIComponent(q)}`} className="flex items-start gap-2 px-3 py-2 bg-white/[0.03] border border-white/[0.06] rounded-lg hover:bg-white/[0.06] hover:border-white/[0.12] transition-colors group">
+                    <span className="text-[#00d97e]/50 text-xs mt-0.5 flex-shrink-0 group-hover:text-[#00d97e]">›</span>
+                    <p className="text-xs text-white/40 italic group-hover:text-white/60">{q}</p>
+                  </Link>
                 ))}
               </div>
-              <button disabled className="px-5 py-2.5 bg-[#00d97e]/10 text-[#00d97e]/60 border border-[#00d97e]/20 rounded-xl text-sm font-semibold cursor-not-allowed">
-                Ask OFFO Advisor — Coming Soon
-              </button>
+              <Link href="/advisor" className="inline-block px-5 py-2.5 bg-[#00d97e] hover:bg-[#00c970] text-[#0d1117] rounded-xl text-sm font-semibold transition-colors">
+                Ask OFFO →
+              </Link>
             </div>
 
             {/* Contact card */}

@@ -110,6 +110,7 @@ export default function GaragePage() {
   const [justAddedVehicleId, setJustAddedVehicleId] = useState<string | null>(null);
   const [reviews, setReviews] = useState<Record<string, GarageReview | null>>({});
   const [reviewModal, setReviewModal] = useState<{ vehicleId: string; vehicleName: string } | null>(null);
+  const [advisorSessions, setAdvisorSessions] = useState<{ advisor_session_id: string; preview: string; created_at: string; message_count: number }[]>([]);
 
   const headers = useCallback(
     () =>
@@ -160,6 +161,16 @@ export default function GaragePage() {
     }
     fetchReviews();
   }, [vehicles, headers]);
+
+  // Load advisor sessions
+  useEffect(() => {
+    const h = headers();
+    if (!h) return;
+    fetch("/api/advisor/sessions", { headers: h })
+      .then((r) => r.json())
+      .then((d) => { if (d.sessions) setAdvisorSessions(d.sessions.slice(0, 5)); })
+      .catch(() => {});
+  }, [headers]);
 
   // Derived counts
   const ownedCount = vehicles.filter((v) => v.is_owned_ev).length;
@@ -476,6 +487,37 @@ export default function GaragePage() {
         </div>
       )}
       </div>{/* /garage-section */}
+
+      {/* ── Recent Ask OFFO conversations ───────────────────── */}
+      {isAuthenticated && advisorSessions.length > 0 && (
+        <div className="mt-10">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider">Recent Ask OFFO conversations</h2>
+            <Link href="/advisor" className="text-xs text-[#00d97e] hover:text-[#00c970] transition-colors">
+              New conversation →
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {advisorSessions.map((s) => (
+              <a
+                key={s.advisor_session_id}
+                href={`/advisor?session=${s.advisor_session_id}`}
+                className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.10] transition-colors group"
+              >
+                <HelpCircle className="w-4 h-4 text-[#00d97e] flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white/70 truncate group-hover:text-white/90">{s.preview}</p>
+                  <p className="text-xs text-white/30 mt-0.5">
+                    {s.message_count} message{s.message_count !== 1 ? "s" : ""} ·{" "}
+                    {new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </p>
+                </div>
+                <span className="text-white/20 group-hover:text-white/50 text-xs flex-shrink-0 mt-0.5">→</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Mark as Owned prompt */}
       {justAddedVehicleId && isAuthenticated && (

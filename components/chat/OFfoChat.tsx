@@ -49,7 +49,7 @@ interface Message {
 }
 
 interface OFfoChatProps {
-  scenarioType: "receipt" | "compare" | "auction";
+  scenarioType: "receipt" | "compare" | "auction" | "advisor";
   scenarioId: string;
   sessionId: string;
   context: ChatContext;
@@ -57,13 +57,18 @@ interface OFfoChatProps {
   paymentsEnabled?: boolean;
   freeMode?: boolean;
   trackEvent?: (name: string, data?: Record<string, unknown>) => void;
+  initialMessages?: Message[];
+  userId?: string | null;
+  advisorSessionId?: string | null;
+  /** When true, renders the chat panel inline (no FAB, always open). Use on /advisor page. */
+  inline?: boolean;
 }
 
 // ---------------------------------------------------------------------------
 // Quick questions per scenario type
 // ---------------------------------------------------------------------------
 
-const QUICK_QUESTIONS: Record<"receipt" | "compare" | "auction", string[]> = {
+const QUICK_QUESTIONS: Record<"receipt" | "compare" | "auction" | "advisor", string[]> = {
   receipt: [
     "Is this price fair?",
     "What should I watch out for?",
@@ -78,6 +83,14 @@ const QUICK_QUESTIONS: Record<"receipt" | "compare" | "auction", string[]> = {
     "Is this worth bidding on?",
     "What will this cost to repair?",
     "What does a salvage title mean for insurance?",
+  ],
+  advisor: [
+    "What's the best EV under $30k for cold climates?",
+    "How do I check battery health before buying?",
+    "Will a used Model 3 work for an 80-mile daily commute?",
+    "What should I know about buying a salvage title EV?",
+    "How does public charging work on road trips?",
+    "What are the hidden costs of EV ownership?",
   ],
 };
 
@@ -160,10 +173,14 @@ export default function OFfoChat({
   paymentsEnabled = true,
   freeMode = false,
   trackEvent,
+  initialMessages,
+  userId,
+  advisorSessionId,
+  inline = false,
 }: OFfoChatProps) {
-  const [isVisible, setIsVisible] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [isVisible, setIsVisible] = useState(inline);
+  const [isOpen, setIsOpen] = useState(inline);
+  const [messages, setMessages] = useState<Message[]>(initialMessages ?? []);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -191,12 +208,12 @@ export default function OFfoChat({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (initialMessages && initialMessages.length > 0) return; // server-loaded history takes precedence
     try {
       const stored = sessionStorage.getItem(SESSION_KEY);
       if (stored) setMessages(JSON.parse(stored));
     } catch {}
-   
-  }, [SESSION_KEY]);
+  }, [SESSION_KEY]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (typeof window === "undefined" || messages.length === 0) return;
@@ -319,6 +336,8 @@ export default function OFfoChat({
             scenario_id: scenarioId,
             message: trimmed,
             context,
+            ...(userId ? { user_id: userId } : {}),
+            ...(advisorSessionId ? { advisor_session_id: advisorSessionId } : {}),
           }),
         });
 
@@ -392,6 +411,94 @@ export default function OFfoChat({
   ].join(" ");
 
   const panelStyle: React.CSSProperties = { height: "80vh", maxHeight: "80vh" };
+
+  // Inline mode: render the chat panel directly in the page flow (no FAB, no fixed positioning)
+  if (inline) {
+    return (
+      <div className="flex flex-col bg-[#0d1117] rounded-2xl border border-white/[0.10] overflow-hidden w-full h-full">
+        {/* Header */}
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.08] flex-shrink-0">
+          <MessageCircle className="w-5 h-5 text-[#00d97e]" />
+          <span className="font-semibold text-white">Ask OFFO</span>
+          <span className="text-xs bg-[#00d97e]/[0.12] text-[#00d97e] px-1.5 py-0.5 rounded-full font-medium">Free</span>
+        </div>
+
+        {/* Messages */}
+        <div
+          role="log"
+          aria-live="polite"
+          aria-label="Conversation with OFFO AI"
+          className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0"
+        >
+          {showQuickQuestions && (
+            <div className="space-y-3">
+              <p className="text-sm text-white/50 text-center pt-2">Ask me anything about EVs</p>
+              <div className="flex flex-col gap-2">
+                {QUICK_QUESTIONS["advisor" as keyof typeof QUICK_QUESTIONS]?.map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => sendMessage(q)}
+                    className="text-left text-sm bg-white/[0.06] hover:bg-white/[0.09] text-white/70 px-3 py-2 rounded-lg transition-colors border border-white/[0.10]"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {messages.map((msg) => (
+            <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                msg.role === "user"
+                  ? "bg-[#00d97e] text-[#0d1117] rounded-br-sm"
+                  : msg.fallback
+                  ? "bg-white/[0.08] text-white/50 rounded-bl-sm"
+                  : "bg-white/[0.08] text-white rounded-bl-sm"
+              }`}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-white/[0.08] rounded-2xl rounded-bl-sm px-4 py-3">
+                <span className="flex gap-1 items-center">
+                  <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:0ms]" />
+                  <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:150ms]" />
+                  <span className="w-1.5 h-1.5 bg-white/40 rounded-full animate-bounce [animation-delay:300ms]" />
+                </span>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div className="border-t border-white/[0.08] px-3 py-3 flex gap-2 items-end flex-shrink-0">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
+            }}
+            placeholder="Ask anything about EVs…"
+            rows={1}
+            className="flex-1 bg-white/[0.06] border border-white/[0.10] rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#00d97e]/40 resize-none"
+            style={{ minHeight: "38px", maxHeight: "100px" }}
+          />
+          <button
+            onClick={() => sendMessage(input)}
+            disabled={isLoading || !input.trim()}
+            className="bg-[#00d97e] hover:bg-[#00c970] disabled:opacity-40 text-[#0d1117] p-2 rounded-xl transition-colors flex-shrink-0"
+            aria-label="Send"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

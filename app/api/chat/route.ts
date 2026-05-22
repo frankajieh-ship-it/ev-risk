@@ -115,7 +115,7 @@ const synthSchema = {
 
 function buildContextSummary(
   ctx: ChatContext,
-  scenarioType: "receipt" | "compare" | "auction"
+  scenarioType: "receipt" | "compare" | "auction" | "advisor"
 ): string {
   if (scenarioType === "auction") {
     const parts: string[] = [];
@@ -213,12 +213,14 @@ export async function POST(request: NextRequest) {
   const scenarioId = (body.scenario_id as string) || "";
   const message = (body.message as string) || "";
   const ctx = (body.context as ChatContext) || {};
+  const userId = (body.user_id as string) || null;
+  const advisorSessionId = (body.advisor_session_id as string) || null;
 
   // Validate required fields
   if (!sessionId || sessionId.length < 5) {
     return NextResponse.json({ error: "Missing session_id" }, { status: 400 });
   }
-  if (!["receipt", "compare", "auction"].includes(scenarioType)) {
+  if (!["receipt", "compare", "auction", "advisor"].includes(scenarioType)) {
     return NextResponse.json({ error: "Invalid scenario_type" }, { status: 400 });
   }
   if (!scenarioId) {
@@ -253,7 +255,7 @@ export async function POST(request: NextRequest) {
   let fallback = false;
 
   try {
-    const contextSummary = buildContextSummary(ctx, scenarioType as "receipt" | "compare" | "auction");
+    const contextSummary = buildContextSummary(ctx, scenarioType as "receipt" | "compare" | "auction" | "advisor");
     const auctionPersonaLine = scenarioType === "auction"
       ? "\nYou are advising a buyer at a salvage/auction. Focus on: bid risk, repair cost realism, salvage title implications, insurance/resale friction, and whether the numbers work. Be direct about risks."
       : "";
@@ -361,7 +363,7 @@ export async function POST(request: NextRequest) {
       // Both failed — graceful degradation
       fallback = true;
       const latencyMs = Date.now() - t0;
-      persistAsync(sessionId, scenarioType, scenarioId, message, "I'm having trouble right now. Try refreshing or ask again.", sources, latencyMs, classify.intent, "fallback");
+      persistAsync(sessionId, scenarioType, scenarioId, message, "I'm having trouble right now. Try refreshing or ask again.", sources, latencyMs, classify.intent, "fallback", userId, advisorSessionId);
       return NextResponse.json({
         reply: "I'm having trouble right now. Try refreshing or ask again in a moment.",
         sources: [],
@@ -414,7 +416,7 @@ export async function POST(request: NextRequest) {
       : "gemini";
 
     // Persist async (non-blocking)
-    persistAsync(sessionId, scenarioType, scenarioId, message, finalReply, sources, latencyMs, classify.intent, primaryModel);
+    persistAsync(sessionId, scenarioType, scenarioId, message, finalReply, sources, latencyMs, classify.intent, primaryModel, userId, advisorSessionId);
 
     return NextResponse.json({ reply: finalReply, sources, latency_ms: latencyMs, fallback });
   } catch (err) {
@@ -448,14 +450,24 @@ function persistAsync(
   sources: string[],
   latencyMs: number,
   queryType: string,
-  modelUsed: string
+  modelUsed: string,
+  userId: string | null = null,
+  advisorSessionId: string | null = null
 ) {
   if (!isSupabaseConfigured()) return;
 
+  const baseRow = {
+    session_id: sessionId,
+    scenario_type: scenarioType,
+    scenario_id: scenarioId,
+    ...(userId ? { user_id: userId } : {}),
+    ...(advisorSessionId ? { advisor_session_id: advisorSessionId } : {}),
+  };
+
   Promise.all([
     supabase.from("chat_messages").insert([
-      { session_id: sessionId, scenario_type: scenarioType, scenario_id: scenarioId, role: "user", content: userMessage, sources_used: [] },
-      { session_id: sessionId, scenario_type: scenarioType, scenario_id: scenarioId, role: "assistant", content: assistantReply, sources_used: sources, latency_ms: latencyMs },
+      { ...baseRow, role: "user", content: userMessage, sources_used: [] },
+      { ...baseRow, role: "assistant", content: assistantReply, sources_used: sources, latency_ms: latencyMs },
     ]),
     supabase.from("chat_analytics").insert({
       session_id: sessionId,
