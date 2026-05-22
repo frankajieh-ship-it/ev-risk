@@ -14,7 +14,6 @@ import { NextRequest, NextResponse } from "next/server";
 export const maxDuration = 26;
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
-import { guardTurnstile } from "@/lib/turnstile";
 import { grokAdapter } from "@/lib/providers/grok-adapter";
 import { openaiAdapter } from "@/lib/providers/openai-adapter";
 import { anthropicAdapter } from "@/lib/providers/anthropic-adapter";
@@ -203,10 +202,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  // Bot protection
   const clientIP = getClientIP(request);
-  const blocked = await guardTurnstile(body, clientIP, "/api/chat");
-  if (blocked) return blocked;
 
   const sessionId = (body.session_id as string) || "";
   const scenarioType = (body.scenario_type as string) || "";

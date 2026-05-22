@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MessageCircle, X, Send, ChevronDown, Lock, Sparkles, CheckCircle } from "lucide-react";
-import { useTurnstile } from "@/hooks/useTurnstile";
+
 
 // ---------------------------------------------------------------------------
 // Types
@@ -201,9 +201,6 @@ export default function OFfoChat({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Turnstile bot protection (invisible, runs per-message)
-  const turnstileContainerId = `turnstile-chat-${scenarioId}`;
-  const { execute: executeTurnstile } = useTurnstile({ containerId: turnstileContainerId, action: "chat-send" });
 
   // ---------------------------------------------------------------------------
   // Persist messages to sessionStorage (survives page refresh within same tab)
@@ -331,7 +328,7 @@ export default function OFfoChat({
       setInput("");
       setIsLoading(true);
 
-      const callChat = async (turnstileToken?: string | null) => {
+      const callChat = async () => {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -343,15 +340,13 @@ export default function OFfoChat({
             context,
             ...(userId ? { user_id: userId } : {}),
             ...(advisorSessionId ? { advisor_session_id: advisorSessionId } : {}),
-            ...(turnstileToken ? { turnstileToken } : {}),
           }),
         });
         return res;
       };
 
       try {
-        const token = await executeTurnstile();
-        const res = await callChat(token);
+        const res = await callChat();
 
         if (res.status === 402) {
           setLimitReached(true);
@@ -378,8 +373,7 @@ export default function OFfoChat({
         if (data.fallback) {
           await new Promise((r) => setTimeout(r, 1500));
           try {
-            const retryToken = await executeTurnstile();
-            const retryRes = await callChat(retryToken);
+            const retryRes = await callChat();
             if (retryRes.ok) {
               const retryData = await retryRes.json();
               if (!retryData.fallback) data = retryData;
@@ -408,7 +402,7 @@ export default function OFfoChat({
         setIsLoading(false);
       }
     },
-    [isLoading, limitReached, sessionId, scenarioType, scenarioId, context, messagesUsedToday, executeTurnstile]
+    [isLoading, limitReached, sessionId, scenarioType, scenarioId, context, messagesUsedToday]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -443,8 +437,7 @@ export default function OFfoChat({
   // Inline mode: render the chat panel directly in the page flow (no FAB, no fixed positioning)
   if (inline) {
     return (
-      <div className="flex flex-col bg-[#0d1117] rounded-2xl border border-white/[0.10] overflow-hidden w-full h-full relative">
-        <div id={turnstileContainerId} className="hidden absolute" />
+      <div className="flex flex-col bg-[#0d1117] rounded-2xl border border-white/[0.10] overflow-hidden w-full h-full">
         {/* Header */}
         <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.08] flex-shrink-0">
           <MessageCircle className="w-5 h-5 text-[#00d97e]" />
@@ -531,7 +524,6 @@ export default function OFfoChat({
 
   return (
     <>
-      <div id={turnstileContainerId} className="hidden absolute" />
       {/* FAB */}
       {!isOpen && (
         <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
