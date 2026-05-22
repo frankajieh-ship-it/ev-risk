@@ -29,7 +29,6 @@ export async function POST(request: NextRequest) {
   if (!isResendConfigured()) return NextResponse.json({ error: "Email service not configured" }, { status: 503 });
 
   const now = new Date().toISOString();
-  const weekKey = isoWeekKey();
   const results = { winback_30: 0, winback_60: 0, skipped: 0, errors: 0 };
 
   // ── 30-day win-back ───────────────────────────────────────────────────────
