@@ -1053,7 +1053,7 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
         extractedData = await extractFromAutoTrader(html);
     }
     diagnostics.parseDurationMs = Date.now() - parseStart;
-    console.log('[Listing Scraper] Parse result:', { dataSource, year: extractedData.year, make: extractedData.make, model: extractedData.model, mileage: extractedData.mileage, hasNextData: html.includes('__NEXT_DATA__') });
+    console.log('[Listing Scraper] Parse result:', { dataSource, year: extractedData.year, make: extractedData.make, model: extractedData.model, mileage: extractedData.mileage, title_status: extractedData.title_status, accidents_reported: extractedData.accidents_reported, owners: extractedData.owners, hasNextData: html.includes('__NEXT_DATA__'), hasRemixContext: html.includes('__remixContext'), htmlLength: html.length });
 
     // --- Build result ---
     const extractedFields: string[] = [];

@@ -356,7 +356,29 @@ export async function POST(request: NextRequest) {
     }
 
     if (!claudeReply && !openaiReply) {
-      // Both failed — graceful degradation
+      // Both Stage 3 providers failed — attempt a direct Grok answer as last resort
+      if (grokAdapter.isConfigured()) {
+        try {
+          const grokFallbackResult = await grokAdapter.generate({
+            systemPrompt: `${offoContext}\n\nUser intent: ${classify.intent}\nKey concern: ${classify.key_concern}`,
+            userPrompt: `User asked: "${message}"\n\nProvide a helpful, direct answer as OFFO (3-5 sentences max).`,
+            jsonSchema: synthSchema,
+            schemaName: "ChatReply",
+            temperature: 0.4,
+            maxTokens: 500,
+            timeoutMs: 8_000,
+            signal: masterController.signal,
+          });
+          claudeReply = (grokFallbackResult.json.reply as string) || "";
+          if (claudeReply) sources.push("grok_direct");
+        } catch {
+          // still failed
+        }
+      }
+    }
+
+    if (!claudeReply && !openaiReply) {
+      // All providers failed — graceful degradation
       fallback = true;
       const latencyMs = Date.now() - t0;
       persistAsync(sessionId, scenarioType, scenarioId, message, "I'm having trouble right now. Try refreshing or ask again.", sources, latencyMs, classify.intent, "fallback", userId, advisorSessionId);
