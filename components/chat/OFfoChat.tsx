@@ -73,6 +73,8 @@ interface OFfoChatProps {
   inline?: boolean;
   /** Returns the current Supabase access token — required for Deal Watch creation. */
   getAccessToken?: () => Promise<string>;
+  /** Called after the component clears its messages — use to reset advisorSessionId. */
+  onNewChat?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -246,6 +248,7 @@ export default function OFfoChat({
   advisorSessionId,
   inline = false,
   getAccessToken,
+  onNewChat,
 }: OFfoChatProps) {
   const [isVisible, setIsVisible] = useState(inline);
   const [isOpen, setIsOpen] = useState(inline);
@@ -421,6 +424,19 @@ export default function OFfoChat({
   }, [dealWatchSuggestion, userId, getAccessToken]);
 
   // ---------------------------------------------------------------------------
+  // New chat
+  // ---------------------------------------------------------------------------
+
+  const handleNewChat = useCallback(() => {
+    setMessages([]);
+    setDealWatchSuggestion(null);
+    setDealWatchState("idle");
+    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+    onNewChat?.();
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, [SESSION_KEY, onNewChat]);
+
+  // ---------------------------------------------------------------------------
   // Send message
   // ---------------------------------------------------------------------------
 
@@ -561,6 +577,15 @@ export default function OFfoChat({
           <MessageCircle className="w-5 h-5 text-[#00d97e]" />
           <span className="font-semibold text-white">Ask OFFO</span>
           <span className="text-xs bg-[#00d97e]/[0.12] text-[#00d97e] px-1.5 py-0.5 rounded-full font-medium">Free</span>
+          <div className="ml-auto">
+            <button
+              onClick={handleNewChat}
+              disabled={messages.length === 0}
+              className="text-xs text-white/40 hover:text-white/70 disabled:opacity-0 disabled:pointer-events-none transition-colors px-2 py-1 rounded"
+            >
+              New chat
+            </button>
+          </div>
         </div>
 
         {/* Messages */}

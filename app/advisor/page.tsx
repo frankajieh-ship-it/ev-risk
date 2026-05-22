@@ -28,7 +28,7 @@ function AdvisorContent() {
   // Initialize synchronously from URL params and persistent session — avoids setState-in-effect lint errors
   const resumeSessionParam = searchParams.get("session");
   const [sessionId] = useState<string>(() => getOrCreatePersistentSessionId() ?? `advisor_${Date.now()}`);
-  const [advisorSessionId] = useState<string>(() =>
+  const [advisorSessionId, setAdvisorSessionId] = useState<string>(() =>
     resumeSessionParam ?? `adv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   );
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
@@ -117,6 +117,7 @@ function AdvisorContent() {
               userId={user?.id ?? null}
               advisorSessionId={advisorSessionId}
               getAccessToken={session ? async () => session.access_token : undefined}
+              onNewChat={() => setAdvisorSessionId(`adv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`)}
             />
           )}
         </div>
