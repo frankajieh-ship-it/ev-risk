@@ -12,6 +12,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import type { PostgrestFilterBuilder } from "@supabase/postgrest-js";
 
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
 const TIMEZONE = "America/Indiana/Indianapolis";
@@ -192,8 +193,9 @@ export async function GET(request: NextRequest) {
     // Pagination helper — works around Supabase PostgREST max_rows=1000 cap.
     // Fetches in 1000-row pages until an empty page is returned.
     // -----------------------------------------------------------------------
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async function fetchAllRows<T>(
-      buildQuery: (from: number) => ReturnType<ReturnType<typeof supabase.from>["select"]>
+      buildQuery: (from: number) => PostgrestFilterBuilder<any, any, any>
     ): Promise<T[]> {
       const PAGE = 1000;
       const rows: T[] = [];
