@@ -239,7 +239,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Chat is free for all users — rate limit only
-  const limitKey = sessionId || getClientIP(request);
+  const limitKey = sessionId || clientIP;
 
   // Rate limiting: 200/day per session
   const rateCheck = paidChatLimiter.check(limitKey);
@@ -263,7 +263,7 @@ export async function POST(request: NextRequest) {
     const auctionPersonaLine = scenarioType === "auction"
       ? "\nYou are advising a buyer at a salvage/auction. Focus on: bid risk, repair cost realism, salvage title implications, insurance/resale friction, and whether the numbers work. Be direct about risks."
       : "";
-    const offoContext = `You are OFFO — an honest, direct EV buying advisor. Be concise, specific, and helpful. Use bullet points when listing multiple items. Never be vague.${auctionPersonaLine}\n\nCurrent context:\n${contextSummary}`;
+    const offoContext = `You are OFFO — an honest, direct EV buying advisor. Be concise, specific, and helpful. Use bullet points when listing multiple items. Never be vague. Write in plain text only — no markdown, no ** bold **, no em dashes (—), no asterisks.${auctionPersonaLine}\n\nCurrent context:\n${contextSummary}`;
 
     // -------------------------------------------------------------------
     // Stage 1: Grok classifier
@@ -461,6 +461,15 @@ export async function POST(request: NextRequest) {
       finalReply = "I'm having trouble right now. Try refreshing or ask again in a moment.";
       fallback = true;
     }
+
+    // Strip markdown that renders as raw symbols in plain-text chat UI
+    finalReply = finalReply
+      .replace(/\*\*([^*]+)\*\*/g, "$1")   // **bold** → plain
+      .replace(/\*([^*]+)\*/g, "$1")        // *italic* → plain
+      .replace(/—/g, "-")                   // em dash → hyphen
+      .replace(/–/g, "-")                   // en dash → hyphen
+      .replace(/\s{2,}/g, " ")              // collapse double spaces left by stripping
+      .trim();
 
     const latencyMs = Date.now() - t0;
     const primaryModel = sources.includes("grok_synth")
