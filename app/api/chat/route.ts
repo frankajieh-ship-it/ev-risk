@@ -26,6 +26,29 @@ import type { GenerateOpts } from "@/lib/providers/types";
 const paidChatLimiter = new RateLimiter(24 * 60 * 60 * 1000, 200);
 
 // ---------------------------------------------------------------------------
+// Deal Watch suggestion — only once per session per serverless instance
+// ---------------------------------------------------------------------------
+
+const dealWatchSuggestedSessions = new Set<string>();
+
+function extractYear(text: string): number | undefined {
+  const m = text.match(/\b(20\d{2})\b/);
+  return m ? parseInt(m[1]) : undefined;
+}
+
+function extractMake(text: string): string | undefined {
+  const clean = text.replace(/\b20\d{2}\b/, "").trim();
+  const first = clean.split(/\s+/)[0];
+  return first && first.length > 1 ? first : undefined;
+}
+
+function extractModel(text: string): string | undefined {
+  const clean = text.replace(/\b20\d{2}\b/, "").trim();
+  const parts = clean.split(/\s+/);
+  return parts.length > 1 ? parts.slice(1).join(" ") : undefined;
+}
+
+// ---------------------------------------------------------------------------
 // VIN data cache (24h in-memory per serverless instance)
 // ---------------------------------------------------------------------------
 
@@ -488,7 +511,23 @@ export async function POST(request: NextRequest) {
     // Persist async (non-blocking)
     persistAsync(sessionId, scenarioType, scenarioId, message, finalReply, sources, latencyMs, classify.intent, primaryModel, userId, advisorSessionId);
 
-    return NextResponse.json({ reply: finalReply, sources, latency_ms: latencyMs, fallback });
+    // Suggest Deal Watch for logged-in users when intent is price/reliability/negotiation
+    // Only once per session — subsequent messages skip it
+    let suggestDealWatch: { label: string; make?: string; model?: string; year?: number; price_max?: number } | null = null;
+    const dealWatchKey = advisorSessionId || sessionId;
+    if (userId && !dealWatchSuggestedSessions.has(dealWatchKey) && ["price", "reliability", "negotiation"].includes(classify.intent)) {
+      const vehicleStr = ctx.vehicle || message;
+      const year = extractYear(vehicleStr);
+      const make = extractMake(vehicleStr);
+      const model = extractModel(vehicleStr);
+      const label = ctx.vehicle || classify.key_concern || vehicleStr.slice(0, 80);
+      if (make || model || year) {
+        suggestDealWatch = { label, make, model, year, price_max: ctx.price ? Math.round(ctx.price * 1.05) : undefined };
+        dealWatchSuggestedSessions.add(dealWatchKey);
+      }
+    }
+
+    return NextResponse.json({ reply: finalReply, sources, latency_ms: latencyMs, fallback, suggest_deal_watch: suggestDealWatch });
   } catch (err) {
     const latencyMs = Date.now() - t0;
     if (err instanceof Error && err.name === "AbortError") {

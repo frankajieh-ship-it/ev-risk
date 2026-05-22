@@ -49,6 +49,14 @@ interface Message {
   fallback?: boolean;
 }
 
+interface DealWatchSuggestion {
+  label: string;
+  make?: string;
+  model?: string;
+  year?: number;
+  price_max?: number;
+}
+
 interface OFfoChatProps {
   scenarioType: "receipt" | "compare" | "auction" | "advisor";
   scenarioId: string;
@@ -63,6 +71,8 @@ interface OFfoChatProps {
   advisorSessionId?: string | null;
   /** When true, renders the chat panel inline (no FAB, always open). Use on /advisor page. */
   inline?: boolean;
+  /** Returns the current Supabase access token — required for Deal Watch creation. */
+  getAccessToken?: () => Promise<string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -96,6 +106,63 @@ const QUICK_QUESTIONS: Record<"receipt" | "compare" | "auction" | "advisor", str
 };
 
 const FREE_DAILY_LIMIT = 200;
+
+// ---------------------------------------------------------------------------
+// Deal Watch Prompt Card
+// ---------------------------------------------------------------------------
+
+function DealWatchPromptCard({
+  suggestion,
+  state,
+  onConfirm,
+  onDismiss,
+}: {
+  suggestion: DealWatchSuggestion;
+  state: "idle" | "loading" | "done" | "dismissed";
+  onConfirm: () => void;
+  onDismiss: () => void;
+}) {
+  if (state === "dismissed") return null;
+
+  if (state === "done") {
+    return (
+      <div className="mx-1 my-2 rounded-xl border border-[#00d97e]/20 bg-[#00d97e]/[0.06] px-4 py-3 text-sm flex items-center gap-2">
+        <span className="text-[#00d97e] font-medium">Deal Watch set up.</span>
+        <a href="/workspace/deal-watch" className="text-white/50 hover:text-white/80 underline text-xs">
+          View in Deal Watch →
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-1 my-2 rounded-xl border border-white/[0.10] bg-white/[0.04] px-4 py-3 text-sm space-y-2">
+      <p className="text-white/70">
+        Want me to watch for deals on{" "}
+        <span className="text-white font-medium">{suggestion.label}</span>?
+        {suggestion.price_max && (
+          <span className="text-white/50"> under ${suggestion.price_max.toLocaleString()}</span>
+        )}{" "}
+        I&apos;ll alert you if prices drop or a better match shows up.
+      </p>
+      <div className="flex gap-2">
+        <button
+          onClick={onConfirm}
+          disabled={state === "loading"}
+          className="bg-[#00d97e] hover:bg-[#00c970] disabled:opacity-50 text-[#0d1117] text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+        >
+          {state === "loading" ? "Setting up..." : "Set up Deal Watch"}
+        </button>
+        <button
+          onClick={onDismiss}
+          className="text-white/40 hover:text-white/60 text-xs px-2 py-1.5 transition-colors"
+        >
+          Not now
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Paywall Card
@@ -178,6 +245,7 @@ export default function OFfoChat({
   userId,
   advisorSessionId,
   inline = false,
+  getAccessToken,
 }: OFfoChatProps) {
   const [isVisible, setIsVisible] = useState(inline);
   const [isOpen, setIsOpen] = useState(inline);
@@ -197,6 +265,10 @@ export default function OFfoChat({
   // Tooltip
   const [tooltipShown, setTooltipShown] = useState(false);
   const [tooltipDismissed, setTooltipDismissed] = useState(false);
+
+  // Deal Watch suggestion state
+  const [dealWatchSuggestion, setDealWatchSuggestion] = useState<DealWatchSuggestion | null>(null);
+  const [dealWatchState, setDealWatchState] = useState<"idle" | "loading" | "done" | "dismissed">("idle");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -321,6 +393,34 @@ export default function OFfoChat({
   }, [checkoutLoading, sessionId]);
 
   // ---------------------------------------------------------------------------
+  // Deal Watch confirm
+  // ---------------------------------------------------------------------------
+
+  const handleDealWatchConfirm = useCallback(async () => {
+    if (!dealWatchSuggestion || !userId || !getAccessToken) return;
+    setDealWatchState("loading");
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/deal-watch/searches", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          label: dealWatchSuggestion.label,
+          make: dealWatchSuggestion.make,
+          model: dealWatchSuggestion.model,
+          year_min: dealWatchSuggestion.year,
+          year_max: dealWatchSuggestion.year,
+          price_max: dealWatchSuggestion.price_max ? dealWatchSuggestion.price_max * 100 : undefined,
+          email_alerts: true,
+        }),
+      });
+      setDealWatchState(res.ok ? "done" : "dismissed");
+    } catch {
+      setDealWatchState("dismissed");
+    }
+  }, [dealWatchSuggestion, userId, getAccessToken]);
+
+  // ---------------------------------------------------------------------------
   // Send message
   // ---------------------------------------------------------------------------
 
@@ -400,6 +500,11 @@ export default function OFfoChat({
           ...prev,
           { id: crypto.randomUUID(), role: "assistant", content: data.reply || "Something went wrong. Please try again.", fallback: data.fallback },
         ]);
+
+        // Show Deal Watch prompt if API flagged a match opportunity
+        if (data.suggest_deal_watch && dealWatchState === "idle" && getAccessToken) {
+          setDealWatchSuggestion(data.suggest_deal_watch);
+        }
 
         if (!data.fallback) {
           const newCount = messagesUsedToday + 1;
@@ -494,6 +599,14 @@ export default function OFfoChat({
               </div>
             </div>
           ))}
+          {dealWatchSuggestion && (
+            <DealWatchPromptCard
+              suggestion={dealWatchSuggestion}
+              state={dealWatchState}
+              onConfirm={handleDealWatchConfirm}
+              onDismiss={() => setDealWatchState("dismissed")}
+            />
+          )}
           {isLoading && (
             <div className="flex justify-start">
               <div className="bg-white/[0.08] rounded-2xl rounded-bl-sm px-4 py-3">
@@ -648,6 +761,16 @@ export default function OFfoChat({
                   </div>
                 </div>
               ))}
+
+              {/* Deal Watch prompt — shown once when intent detected */}
+              {dealWatchSuggestion && (
+                <DealWatchPromptCard
+                  suggestion={dealWatchSuggestion}
+                  state={dealWatchState}
+                  onConfirm={handleDealWatchConfirm}
+                  onDismiss={() => setDealWatchState("dismissed")}
+                />
+              )}
 
               {/* Typing indicator */}
               {isLoading && (

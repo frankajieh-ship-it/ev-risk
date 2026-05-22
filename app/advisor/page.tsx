@@ -116,6 +116,7 @@ function AdvisorContent() {
               initialMessages={initialMessages}
               userId={user?.id ?? null}
               advisorSessionId={advisorSessionId}
+              getAccessToken={session ? async () => session.access_token : undefined}
             />
           )}
         </div>
