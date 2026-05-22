@@ -48,6 +48,115 @@ function extractModel(text: string): string | undefined {
   return parts.length > 1 ? parts.slice(1).join(" ") : undefined;
 }
 
+// Known EV make/model patterns — liberal matching, handles plurals/variations
+const EV_PATTERNS: { label: string; pattern: RegExp }[] = [
+  { label: "Chevy Equinox EV",        pattern: /equinox/i },
+  { label: "Chevy Bolt EV",           pattern: /\bbolts?\b/i },
+  { label: "Tesla Model 3",           pattern: /model\s+3/i },
+  { label: "Tesla Model Y",           pattern: /model\s+y/i },
+  { label: "Tesla Model S",           pattern: /model\s+s/i },
+  { label: "Tesla Model X",           pattern: /model\s+x/i },
+  { label: "Hyundai Ioniq 5",         pattern: /ioniq\s+5/i },
+  { label: "Hyundai Ioniq 6",         pattern: /ioniq\s+6/i },
+  { label: "Hyundai Kona Electric",   pattern: /kona/i },
+  { label: "Kia EV6",                 pattern: /\bev6\b/i },
+  { label: "Kia Niro EV",             pattern: /niro/i },
+  { label: "Nissan Leaf",             pattern: /\bleafs?\b/i },
+  { label: "Ford Mustang Mach-E",     pattern: /mach.?e/i },
+  { label: "Ford F-150 Lightning",    pattern: /lightning/i },
+  { label: "Volkswagen ID.4",         pattern: /\bid\.?4\b/i },
+  { label: "Volkswagen ID.Buzz",      pattern: /id\.?buzz/i },
+  { label: "Rivian R1T",              pattern: /\br1t\b/i },
+  { label: "Rivian R1S",              pattern: /\br1s\b/i },
+  { label: "Lucid Air",               pattern: /lucid/i },
+  { label: "Subaru Solterra",         pattern: /solterra/i },
+  { label: "Toyota bZ4X",             pattern: /bz4x/i },
+  { label: "Honda Prologue",          pattern: /prologue/i },
+  { label: "Polestar 2",              pattern: /polestar/i },
+  { label: "Chevy Blazer EV",         pattern: /blazer\s+ev/i },
+  { label: "BMW i4",                  pattern: /\bi4\b/i },
+  { label: "BMW iX",                  pattern: /\bix\b/i },
+];
+
+function extractVehicleMentions(text: string): string[] {
+  const found: string[] = [];
+  for (const ev of EV_PATTERNS) {
+    if (ev.pattern.test(text)) found.push(ev.label);
+  }
+  return found;
+}
+
+// ---------------------------------------------------------------------------
+// Deal Watch match lookup — find user's active listings matching reply context
+// ---------------------------------------------------------------------------
+
+interface DealWatchMatch {
+  search_id: string;
+  search_label: string;
+  listing_url: string;
+  vehicle_label: string;
+  last_price: number | null;
+  last_verdict: string | null;
+  auction_source: string | null;
+}
+
+async function fetchDealWatchMatches(userId: string, replyText: string, ctxVehicle?: string): Promise<DealWatchMatch[]> {
+  if (!isSupabaseConfigured()) return [];
+  try {
+    // Fetch user's active deal watch searches
+    const { data: searches, error } = await supabase
+      .from("deal_watch_searches")
+      .select("id, label, make, model")
+      .eq("user_id", userId)
+      .limit(20);
+
+    if (error || !searches || searches.length === 0) return [];
+
+    // Find searches whose make/model appear in the reply or context
+    const combined = `${replyText} ${ctxVehicle ?? ""}`.toLowerCase();
+    const matchingSearchIds: string[] = [];
+
+    for (const s of searches) {
+      const make = (s.make ?? "").toLowerCase();
+      const model = (s.model ?? "").toLowerCase();
+      if (
+        (make && combined.includes(make)) ||
+        (model && combined.includes(model)) ||
+        (s.label && combined.includes(s.label.toLowerCase()))
+      ) {
+        matchingSearchIds.push(s.id);
+      }
+    }
+
+    if (matchingSearchIds.length === 0) return [];
+
+    // Fetch active results for those searches
+    const { data: results, error: rErr } = await supabase
+      .from("deal_watch_results")
+      .select("search_id, listing_url, vehicle_label, last_price, last_verdict, auction_source")
+      .in("search_id", matchingSearchIds)
+      .eq("is_active", true)
+      .order("last_seen_at", { ascending: false })
+      .limit(5);
+
+    if (rErr || !results || results.length === 0) return [];
+
+    // Attach search label to each result
+    const searchMap = new Map(searches.map((s) => [s.id, s.label as string]));
+    return results.map((r) => ({
+      search_id: r.search_id,
+      search_label: searchMap.get(r.search_id) ?? "",
+      listing_url: r.listing_url,
+      vehicle_label: r.vehicle_label,
+      last_price: r.last_price,
+      last_verdict: r.last_verdict,
+      auction_source: r.auction_source,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 // ---------------------------------------------------------------------------
 // VIN data cache (24h in-memory per serverless instance)
 // ---------------------------------------------------------------------------
@@ -287,7 +396,11 @@ export async function POST(request: NextRequest) {
     const auctionPersonaLine = scenarioType === "auction"
       ? "\nYou are advising a buyer at a salvage/auction. Focus on: bid risk, repair cost realism, salvage title implications, insurance/resale friction, and whether the numbers work. Be direct about risks."
       : "";
-    const offoContext = `You are OFFO — an honest, direct EV buying advisor. Be concise, specific, and helpful. Use bullet points when listing multiple items. Never be vague. Write in plain text only — no markdown, no ** bold **, no em dashes (—), no asterisks.${auctionPersonaLine}\n\nCurrent context:\n${contextSummary}`;
+    const isLoggedIn = !!userId;
+    const inventoryLine = isLoggedIn
+      ? "\n\nCRITICAL RULES — follow these without exception:\n1. NEVER mention Autotrader, Cars.com, Carvana, CarGurus, CarMax, or any external site. Not even as a side note.\n2. When the user asks about available vehicles or inventory, tell them their Deal Watch matches appear right below this chat window on the OFFO page. Direct them there.\n3. If they have no Deal Watch set up yet, tell them to go to offolab.com/workspace/deal-watch — OFFO will track matching EVs and alert them on price drops.\n4. All vehicle searches, deal tracking, and buying support happen on OFFO — not external sites."
+      : "\n\nCRITICAL RULES — follow these without exception:\n1. NEVER mention Autotrader, Cars.com, Carvana, CarGurus, CarMax, or any external site. Not even as a side note.\n2. When the user asks about available vehicles or inventory, tell them to create a free OFFO account at offolab.com — Deal Watch is OFFO's live deal tracker that monitors matching EVs and alerts them when prices drop.\n3. All vehicle searches, deal tracking, and buying support happen on OFFO — not external sites.";
+    const offoContext = `You are OFFO — an honest, direct EV buying advisor. Be concise, specific, and helpful. Use bullet points when listing multiple items. Never be vague. Write in plain text only — no markdown, no ** bold **, no em dashes (—), no asterisks.${auctionPersonaLine}${inventoryLine}\n\nCurrent context:\n${contextSummary}`;
 
     // -------------------------------------------------------------------
     // Stage 1: Grok classifier
@@ -527,7 +640,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ reply: finalReply, sources, latency_ms: latencyMs, fallback, suggest_deal_watch: suggestDealWatch });
+    // Surface active Deal Watch matches for this user that relate to vehicles mentioned in the reply
+    const dealWatchMatches = userId
+      ? await fetchDealWatchMatches(userId, finalReply, ctx.vehicle)
+      : [];
+
+    // Extract vehicle model names from the reply so the UI can show a Deal Watch setup CTA
+    // even when the user has no watches yet or isn't logged in
+    const vehicleMentions = extractVehicleMentions(finalReply);
+
+    return NextResponse.json({ reply: finalReply, sources, latency_ms: latencyMs, fallback, suggest_deal_watch: suggestDealWatch, deal_watch_matches: dealWatchMatches.length > 0 ? dealWatchMatches : undefined, vehicles_mentioned: vehicleMentions.length > 0 ? vehicleMentions : undefined });
   } catch (err) {
     const latencyMs = Date.now() - t0;
     if (err instanceof Error && err.name === "AbortError") {

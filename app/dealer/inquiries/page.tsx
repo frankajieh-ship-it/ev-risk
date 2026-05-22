@@ -137,7 +137,7 @@ export default function DealerInquiriesPage() {
   // Detail view
   if (selected) {
     return (
-      <div>
+      <div className="max-w-4xl mx-auto px-4 py-6">
         <button
           onClick={() => setSelected(null)}
           className="flex items-center gap-1 text-sm text-white/40 hover:text-white/70 mb-4 transition-colors"
@@ -219,7 +219,7 @@ export default function DealerInquiriesPage() {
   const filtered = filter === "all" ? inquiries : inquiries.filter((i) => i.status === filter);
 
   return (
-    <div>
+    <div className="max-w-4xl mx-auto px-4 py-6">
       <h1 className="text-xl font-bold text-white mb-6">Inquiries</h1>
 
       {/* Filter tabs */}

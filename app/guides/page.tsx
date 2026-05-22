@@ -3,6 +3,8 @@ import Link from "next/link";
 import { guides } from "@/content/guides";
 import type { SeoPageContent } from "@/content/types";
 import PageTracker from "@/components/PageTracker";
+import Header from "@/components/landing/Header";
+import Footer from "@/components/landing/Footer";
 
 export const metadata: Metadata = {
   title: "EV Guides — Charging, Winter, Budget & More | OFFO",
@@ -25,7 +27,7 @@ const PILLARS: {
   label: string;
   description: string;
   slug: string;
-  color: string;
+  accent: string;
   badge: string;
 }[] = [
   {
@@ -34,7 +36,7 @@ const PILLARS: {
     description:
       "How to own an EV without a garage — apartment strategies, workplace charging, and weekly plans.",
     slug: "no-home-charging",
-    color: "blue",
+    accent: "blue",
     badge: "Charging",
   },
   {
@@ -43,7 +45,7 @@ const PILLARS: {
     description:
       "Cold-weather range, preconditioning, buffer rules, and which models handle winter best.",
     slug: "winter-ev-routine",
-    color: "indigo",
+    accent: "indigo",
     badge: "Winter",
   },
   {
@@ -52,7 +54,7 @@ const PILLARS: {
     description:
       "Which EVs under $25K actually work — by model, range, and real-world use case.",
     slug: "budget-evs",
-    color: "emerald",
+    accent: "green",
     badge: "Budget",
   },
   {
@@ -61,35 +63,35 @@ const PILLARS: {
     description:
       "Battery health, recall status, charging history — 10 checks before you buy a used EV.",
     slug: "used-ev-proof-checklist",
-    color: "amber",
+    accent: "amber",
     badge: "Used EV",
   },
 ];
 
-const colorMap: Record<string, { bg: string; text: string; border: string; badge: string }> = {
+const accentMap: Record<string, { badge: string; heading: string; link: string; dot: string }> = {
   blue: {
-    bg: "bg-blue-50",
-    text: "text-blue-700",
-    border: "border-blue-200",
-    badge: "bg-blue-100 text-blue-800",
+    badge: "bg-blue-500/15 text-blue-400 border border-blue-500/20",
+    heading: "text-blue-300",
+    link: "text-blue-400 hover:text-blue-300",
+    dot: "bg-blue-500/40",
   },
   indigo: {
-    bg: "bg-indigo-50",
-    text: "text-indigo-700",
-    border: "border-indigo-200",
-    badge: "bg-indigo-100 text-indigo-800",
+    badge: "bg-indigo-500/15 text-indigo-400 border border-indigo-500/20",
+    heading: "text-indigo-300",
+    link: "text-indigo-400 hover:text-indigo-300",
+    dot: "bg-indigo-500/40",
   },
-  emerald: {
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-    border: "border-emerald-200",
-    badge: "bg-emerald-100 text-emerald-800",
+  green: {
+    badge: "bg-[#00d97e]/15 text-[#00d97e] border border-[#00d97e]/20",
+    heading: "text-[#00d97e]",
+    link: "text-[#00d97e] hover:text-[#00f090]",
+    dot: "bg-[#00d97e]/40",
   },
   amber: {
-    bg: "bg-amber-50",
-    text: "text-amber-700",
-    border: "border-amber-200",
-    badge: "bg-amber-100 text-amber-800",
+    badge: "bg-amber-500/15 text-amber-400 border border-amber-500/20",
+    heading: "text-amber-300",
+    link: "text-amber-400 hover:text-amber-300",
+    dot: "bg-amber-500/40",
   },
 };
 
@@ -101,149 +103,129 @@ function getSupportingGuides(pillarId: string): SeoPageContent[] {
 
 export default function GuidesPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen bg-[#0d1117] text-white flex flex-col">
       <PageTracker event="guides_page_viewed" />
-      <div className="max-w-3xl mx-auto px-4 py-10">
-        {/* Header */}
-        <div className="flex items-center gap-2 mb-8">
-          <Link
-            href="/"
-            className="text-xs font-medium text-blue-600 uppercase tracking-wider hover:text-blue-800 transition-colors"
-          >
-            OFFO
-          </Link>
-          <span className="text-gray-300">/</span>
-          <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
-            Guides
-          </span>
-        </div>
+      <Header variant="homepage" />
 
+      <main className="flex-1">
         {/* Hero */}
-        <div className="mb-10">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3 leading-tight">
+        <section className="max-w-3xl mx-auto px-4 pt-14 pb-10">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-3 leading-tight">
             EV Guides
           </h1>
-          <p className="text-lg text-gray-600 leading-relaxed">
-            Practical guides built from real EV ownership patterns — not spec
-            sheets. Each pillar covers one major decision area.
+          <p className="text-white/55 text-lg leading-relaxed">
+            Practical guides built from real EV ownership patterns — not spec sheets. Each pillar covers one major decision area.
           </p>
-        </div>
+        </section>
 
-        {/* EVFit CTA */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm mb-10">
-          <h2 className="text-base font-bold text-gray-900 mb-1">
-            Not sure which guide applies to you?
-          </h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Answer 8 questions about your commute and charging situation — get a
-            personalized EV fit score.
-          </p>
-          <Link
-            href="/routine"
-            className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
-          >
-            Run Your EV Fit Check →
-          </Link>
-        </div>
+        <div className="max-w-3xl mx-auto px-4 pb-20">
+          {/* EV Fit CTA */}
+          <div className="bg-[#161b22] border border-white/[0.08] rounded-2xl p-6 mb-10">
+            <h2 className="text-base font-bold text-white mb-1">
+              Not sure which guide applies to you?
+            </h2>
+            <p className="text-sm text-white/50 mb-4">
+              Answer 8 questions about your commute and charging situation — get a personalized EV fit score.
+            </p>
+            <Link
+              href="/routine"
+              className="inline-block bg-[#00d97e] hover:bg-[#00c970] text-[#0d1117] font-semibold py-2.5 px-5 rounded-xl text-sm transition-colors"
+            >
+              Run Your EV Fit Check →
+            </Link>
+          </div>
 
-        {/* Pillar cards */}
-        <div className="space-y-8">
-          {PILLARS.map((pillar) => {
-            const colors = colorMap[pillar.color];
-            const supporting = getSupportingGuides(pillar.id);
-            return (
-              <div
-                key={pillar.id}
-                className={`border ${colors.border} rounded-2xl overflow-hidden`}
-              >
-                {/* Pillar header */}
-                <div className={`${colors.bg} px-6 py-5`}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <span
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-full ${colors.badge} mb-2 inline-block`}
-                      >
-                        {pillar.badge}
-                      </span>
-                      <h2 className={`text-xl font-bold ${colors.text} mb-1`}>
-                        <Link
-                          href={`/guides/${pillar.slug}`}
-                          className="hover:underline"
-                        >
-                          {pillar.label}
-                        </Link>
-                      </h2>
-                      <p className="text-sm text-gray-600">{pillar.description}</p>
-                    </div>
-                    <Link
-                      href={`/guides/${pillar.slug}`}
-                      className={`flex-shrink-0 text-sm font-semibold ${colors.text} hover:underline whitespace-nowrap`}
-                    >
-                      Full guide →
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Supporting posts */}
-                {supporting.length > 0 && (
-                  <div className="bg-white px-6 py-4">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                      Related guides
-                    </p>
-                    <ul className="space-y-2">
-                      {supporting.map((g) => (
-                        <li key={g.slug}>
-                          <Link
-                            href={`/guides/${g.slug}`}
-                            className="flex items-center justify-between gap-2 group"
-                          >
-                            <span className="text-sm text-gray-700 group-hover:text-blue-600 transition-colors">
-                              {g.headline}
-                            </span>
-                            <span className="text-xs text-gray-400 group-hover:text-blue-500 flex-shrink-0">
-                              →
-                            </span>
+          {/* Pillar cards */}
+          <div className="space-y-5">
+            {PILLARS.map((pillar) => {
+              const a = accentMap[pillar.accent];
+              const supporting = getSupportingGuides(pillar.id);
+              return (
+                <div
+                  key={pillar.id}
+                  className="bg-[#161b22] border border-white/[0.08] rounded-2xl overflow-hidden"
+                >
+                  {/* Pillar header */}
+                  <div className="px-6 py-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${a.badge} mb-2.5 inline-block`}>
+                          {pillar.badge}
+                        </span>
+                        <h2 className={`text-xl font-bold ${a.heading} mb-1.5`}>
+                          <Link href={`/guides/${pillar.slug}`} className="hover:opacity-80 transition-opacity">
+                            {pillar.label}
                           </Link>
-                        </li>
-                      ))}
-                    </ul>
+                        </h2>
+                        <p className="text-sm text-white/50 leading-relaxed">{pillar.description}</p>
+                      </div>
+                      <Link
+                        href={`/guides/${pillar.slug}`}
+                        className={`flex-shrink-0 text-sm font-semibold ${a.link} transition-colors whitespace-nowrap`}
+                      >
+                        Full guide →
+                      </Link>
+                    </div>
                   </div>
-                )}
+
+                  {/* Supporting posts */}
+                  {supporting.length > 0 && (
+                    <div className="border-t border-white/[0.06] px-6 py-4">
+                      <p className="text-xs font-semibold text-white/25 uppercase tracking-wider mb-3">
+                        Related guides
+                      </p>
+                      <ul className="space-y-2">
+                        {supporting.map((g) => (
+                          <li key={g.slug}>
+                            <Link
+                              href={`/guides/${g.slug}`}
+                              className="flex items-center justify-between gap-2 group"
+                            >
+                              <span className="text-sm text-white/60 group-hover:text-white transition-colors">
+                                {g.headline}
+                              </span>
+                              <span className="text-xs text-white/25 group-hover:text-white/60 flex-shrink-0 transition-colors">
+                                →
+                              </span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Other guides (no pillar) */}
+          {(() => {
+            const others = Object.values(guides).filter((g) => !g.pillar);
+            if (others.length === 0) return null;
+            return (
+              <div className="mt-10">
+                <h2 className="text-lg font-bold text-white mb-4">More Guides</h2>
+                <div className="space-y-2">
+                  {others.map((g) => (
+                    <Link
+                      key={g.slug}
+                      href={`/guides/${g.slug}`}
+                      className="flex items-center justify-between p-4 bg-[#161b22] border border-white/[0.08] rounded-xl hover:border-white/[0.15] transition-colors group"
+                    >
+                      <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">
+                        {g.headline}
+                      </span>
+                      <span className="text-sm text-white/25 group-hover:text-white/60 transition-colors">→</span>
+                    </Link>
+                  ))}
+                </div>
               </div>
             );
-          })}
+          })()}
         </div>
+      </main>
 
-        {/* Other guides (no pillar or different pillar) */}
-        {(() => {
-          const others = Object.values(guides).filter((g) => !g.pillar);
-          if (others.length === 0) return null;
-          return (
-            <div className="mt-10">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">More Guides</h2>
-              <div className="space-y-3">
-                {others.map((g) => (
-                  <Link
-                    key={g.slug}
-                    href={`/guides/${g.slug}`}
-                    className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:shadow-sm transition-shadow group"
-                  >
-                    <span className="text-sm font-medium text-gray-800 group-hover:text-blue-600 transition-colors">
-                      {g.headline}
-                    </span>
-                    <span className="text-sm text-gray-400 group-hover:text-blue-500">→</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Footer */}
-        <div className="text-center text-xs text-gray-400 pt-10 border-t border-gray-100 mt-10">
-          <p>OFFO provides AI-powered analysis for informational purposes only.</p>
-        </div>
-      </div>
+      <Footer />
     </div>
   );
 }

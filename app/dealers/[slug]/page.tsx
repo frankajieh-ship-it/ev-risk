@@ -11,7 +11,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, Building, MapPin, Globe, Phone, Shield,
+  ArrowLeft, Building, MapPin, Globe, Phone, ShieldCheck,
   Car, Loader2, MessageSquare, ExternalLink,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -199,8 +199,8 @@ export default function DealerProfilePage() {
               <div className="flex items-center gap-2 mb-1">
                 <h1 className="text-xl font-bold text-gray-900">{dealer.name}</h1>
                 {dealer.is_verified && (
-                  <span className="flex items-center gap-0.5 text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded">
-                    <Shield className="w-3 h-3" /> OFFO Verified
+                  <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                    <ShieldCheck className="w-3 h-3" /> OFFO Verified
                   </span>
                 )}
               </div>

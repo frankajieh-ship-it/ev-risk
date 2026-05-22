@@ -14,6 +14,7 @@ import {
   CheckCircle,
   AlertTriangle,
   Shield,
+  ShieldCheck,
   DollarSign,
   AlertCircle,
   HelpCircle,
@@ -63,6 +64,8 @@ interface ReceiptOutputCardProps {
   showCompare?: boolean;
   firstSeenAt?: string | null;
   priceDropCents?: number | null;
+  dealerInfo?: { id: string; name: string; slug: string; logo_url: string | null; is_verified: boolean } | null;
+  onContactDealer?: () => void;
 }
 
 const VERDICT_STYLES = {
@@ -136,6 +139,8 @@ export default function ReceiptOutputCard({
   showCompare = false,
   firstSeenAt,
   priceDropCents,
+  dealerInfo,
+  onContactDealer,
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [scoringTooltipOpen, setScoringTooltipOpen] = useState(false);
@@ -278,6 +283,31 @@ export default function ReceiptOutputCard({
             ✓ Your receipt is complete with {receipt.listing_signals?.length || 0}+ data points analyzed.
             All key risk factors and pricing insights are included.
           </p>
+        </div>
+      )}
+
+      {/* OFFO Verified Dealer bar — shown when listing matches dealer inventory */}
+      {dealerInfo && (
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-[#00d97e]/10 bg-[#00d97e]/[0.04]">
+          {dealerInfo.logo_url && (
+            <img src={dealerInfo.logo_url} alt="" className="h-7 w-auto rounded flex-shrink-0" />
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-white truncate">{dealerInfo.name}</p>
+            {dealerInfo.is_verified && (
+              <span className="flex items-center gap-1 text-xs text-[#00d97e]">
+                <ShieldCheck className="w-3 h-3" /> OFFO Verified Dealer
+              </span>
+            )}
+          </div>
+          {onContactDealer && (
+            <button
+              onClick={onContactDealer}
+              className="flex-shrink-0 text-xs font-semibold bg-[#00d97e] hover:bg-[#00c970] text-[#0d1117] px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Contact Dealer
+            </button>
+          )}
         </div>
       )}
 

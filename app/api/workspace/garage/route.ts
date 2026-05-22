@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("garage_vehicles")
-    .select("*")
+    .select("*, receipts(output_json, first_seen_at, is_active)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -36,7 +36,48 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ success: true, vehicles: data || [] });
+  const vehicles = (data || []).map((row) => {
+    const { receipts: receipt, ...vehicle } = row as typeof row & {
+      receipts?: {
+        output_json: Record<string, unknown> | null;
+        first_seen_at: string | null;
+        is_active: boolean | null;
+      } | null;
+    };
+    if (!receipt?.output_json) return vehicle;
+
+    const out = receipt.output_json as {
+      verdict?: string;
+      listing_summary?: { price?: number; mileage?: number };
+      price_sanity?: { user_market_range?: { low?: number; high?: number } };
+      fit_score?: number;
+    };
+
+    const listedPrice = out.listing_summary?.price ?? null;
+    const marketRange = out.price_sanity?.user_market_range;
+    const marketAvg =
+      marketRange?.low != null && marketRange?.high != null
+        ? Math.round((marketRange.low + marketRange.high) / 2)
+        : null;
+    const vsMarket =
+      listedPrice != null && marketAvg != null
+        ? listedPrice - marketAvg
+        : null;
+
+    return {
+      ...vehicle,
+      verdict: out.verdict ?? vehicle.verdict ?? null,
+      listed_price: listedPrice ?? vehicle.listed_price ?? null,
+      mileage: out.listing_summary?.mileage ?? vehicle.mileage ?? null,
+      market_avg: marketAvg ?? vehicle.market_avg ?? null,
+      vs_market: vsMarket ?? vehicle.vs_market ?? null,
+      impact_score: out.fit_score ?? vehicle.impact_score ?? null,
+      listing_last_seen_at: receipt.first_seen_at ?? vehicle.listing_last_seen_at ?? null,
+      listing_is_active: receipt.is_active ?? vehicle.listing_is_active ?? null,
+    };
+  });
+
+  return NextResponse.json({ success: true, vehicles });
 }
 
 export async function POST(req: NextRequest) {
@@ -52,7 +93,8 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  let { vin, make, model, year, trim, nickname, notes, receipt_id } = body;
+  let { vin, make, model, year, trim } = body;
+  const { nickname, notes, receipt_id } = body;
 
   // If VIN provided, decode it to populate fields
   if (vin) {

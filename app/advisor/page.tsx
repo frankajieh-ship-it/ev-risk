@@ -2,11 +2,12 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Trash2 } from "lucide-react";
 import Header from "@/components/landing/Header";
 import OFfoChat from "@/components/chat/OFfoChat";
 import { useAuth } from "@/hooks/useAuth";
 import { getOrCreatePersistentSessionId } from "@/lib/session-utils";
-import type { ChatContext } from "@/components/chat/OFfoChat";
+import type { ChatContext, DealWatchMatch } from "@/components/chat/OFfoChat";
 
 interface ChatMessage {
   id: string;
@@ -19,6 +20,44 @@ interface AdvisorSession {
   preview: string;
   created_at: string;
   message_count: number;
+}
+
+function DealMatchCard({ match }: { match: DealWatchMatch }) {
+  const analyzeUrl = match.listing_url
+    ? `/receipt?url=${encodeURIComponent(match.listing_url)}&src=deal_watch`
+    : `/receipt?make=${encodeURIComponent(match.search_label)}&src=deal_watch`;
+
+  const verdictColor =
+    match.last_verdict === "buy" ? "text-[#00d97e]" :
+    match.last_verdict === "pass" ? "text-red-400" : "text-yellow-400";
+
+  return (
+    <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.10] transition-colors">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-white truncate">{match.vehicle_label}</p>
+          <p className="text-xs text-white/40 mt-0.5">{match.auction_source ?? match.search_label}</p>
+        </div>
+        <div className="flex-shrink-0 text-right">
+          {match.last_price != null && (
+            <p className="text-sm font-semibold text-white">${match.last_price.toLocaleString()}</p>
+          )}
+          {match.last_verdict && (
+            <p className={`text-xs mt-0.5 font-medium ${verdictColor}`}>{match.last_verdict}</p>
+          )}
+        </div>
+      </div>
+      <div className="mt-3 flex items-center gap-3">
+        <a
+          href={analyzeUrl}
+          className="inline-flex items-center gap-1.5 text-xs font-medium bg-[#00d97e] hover:bg-[#00c970] text-[#0d1117] px-3 py-1.5 rounded-lg transition-colors"
+        >
+          Run full analysis →
+        </a>
+        <p className="text-xs text-white/30">Check battery health, price, and dealer history</p>
+      </div>
+    </div>
+  );
 }
 
 function AdvisorContent() {
@@ -34,6 +73,8 @@ function AdvisorContent() {
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
   const [recentSessions, setRecentSessions] = useState<AdvisorSession[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [dealMatches, setDealMatches] = useState<DealWatchMatch[]>([]);
+  const [vehiclesMentioned, setVehiclesMentioned] = useState<string[]>([]);
 
   // Load session history if resuming
   useEffect(() => {
@@ -94,7 +135,7 @@ function AdvisorContent() {
           </div>
           <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Ask OFFO</h1>
           <p className="text-sm text-white/50">
-            Get honest answers about buying a used EV — battery health, charging fit, price, or anything else on your mind.
+            Get honest answers about buying a used EV - battery health, charging fit, price, or anything else on your mind.
           </p>
         </div>
 
@@ -117,10 +158,48 @@ function AdvisorContent() {
               userId={user?.id ?? null}
               advisorSessionId={advisorSessionId}
               getAccessToken={session ? async () => session.access_token : undefined}
-              onNewChat={() => setAdvisorSessionId(`adv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`)}
+              onNewChat={() => {
+                setAdvisorSessionId(`adv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+                setDealMatches([]);
+                setVehiclesMentioned([]);
+              }}
+              onMatchesFound={(matches, vehicles) => {
+                setDealMatches(matches);
+                setVehiclesMentioned(vehicles ?? []);
+              }}
             />
           )}
         </div>
+
+        {/* Deal matches — surfaces below chat when OFFO mentions vehicles */}
+        {dealMatches.length > 0 && (
+          <div className="mt-6">
+            <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3">
+              Deals matching your conversation
+            </h2>
+            <div className="space-y-3">
+              {dealMatches.map((m) => (
+                <DealMatchCard key={m.listing_url || m.search_id} match={m} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* No matches yet — prompt to set up Deal Watch for mentioned vehicles */}
+        {dealMatches.length === 0 && vehiclesMentioned.length > 0 && (
+          <div className="mt-6 p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+            <p className="text-sm font-medium text-white mb-1">Track these deals in real time</p>
+            <p className="text-xs text-white/50 mb-3">
+              OFFO can monitor {vehiclesMentioned.slice(0, 2).join(" and ")} listings and alert you when prices drop or a match shows up.
+            </p>
+            <a
+              href={`/workspace/deal-watch${vehiclesMentioned[0] ? `?suggest=${encodeURIComponent(vehiclesMentioned[0])}` : ""}`}
+              className="inline-flex items-center gap-1.5 text-xs font-medium bg-[#00d97e] hover:bg-[#00c970] text-[#0d1117] px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Set up Deal Watch →
+            </a>
+          </div>
+        )}
 
         {/* Recent conversations (logged-in users only) */}
         {isAuthenticated && recentSessions.length > 0 && (
@@ -128,20 +207,39 @@ function AdvisorContent() {
             <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider mb-3">Recent conversations</h2>
             <div className="space-y-2">
               {recentSessions.map((s) => (
-                <a
+                <div
                   key={s.advisor_session_id}
-                  href={`/advisor?session=${s.advisor_session_id}`}
-                  className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.10] transition-colors group"
+                  className="flex items-start gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.10] transition-colors group"
                 >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white/70 truncate group-hover:text-white/90">{s.preview}</p>
-                    <p className="text-xs text-white/30 mt-0.5">
-                      {s.message_count} message{s.message_count !== 1 ? "s" : ""} ·{" "}
-                      {new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                    </p>
-                  </div>
-                  <span className="text-white/20 group-hover:text-white/50 text-xs flex-shrink-0 mt-0.5">→</span>
-                </a>
+                  <a
+                    href={`/advisor?session=${s.advisor_session_id}`}
+                    className="flex-1 min-w-0 flex items-start gap-3"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white/70 truncate group-hover:text-white/90">{s.preview}</p>
+                      <p className="text-xs text-white/30 mt-0.5">
+                        {s.message_count} message{s.message_count !== 1 ? "s" : ""} ·{" "}
+                        {new Date(s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </p>
+                    </div>
+                    <span className="text-white/20 group-hover:text-white/50 text-xs flex-shrink-0 mt-0.5">→</span>
+                  </a>
+                  <button
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      if (!session?.access_token) return;
+                      await fetch(`/api/advisor/sessions/${s.advisor_session_id}`, {
+                        method: "DELETE",
+                        headers: { Authorization: `Bearer ${session.access_token}` },
+                      });
+                      setRecentSessions((prev) => prev.filter((x) => x.advisor_session_id !== s.advisor_session_id));
+                    }}
+                    className="flex-shrink-0 p-1.5 text-white/20 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                    title="Delete conversation"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               ))}
             </div>
           </div>

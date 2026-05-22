@@ -13,6 +13,15 @@ import type { Region } from "./region";
 export type PriceVariant = "299" | "399" | "499" | "999" | "1999" | "4900";
 export type PackTier = "decision_pack" | "buyer_pass" | "seller_questions" | "chat_pass" | "copart_report" | "sellers_report_pdf" | "receipt_single";
 
+export const DEALER_MONTHLY_PRICE = "$79/mo";
+
+/**
+ * Get the Stripe Price ID for the dealer monthly subscription.
+ */
+export function getDealerMonthlyPriceId(): string | null {
+  return process.env.STRIPE_PRICE_DEALER_MONTHLY || null;
+}
+
 export const RECEIPT_SINGLE_PRICE = "$3.99";
 export const BUYER_PASS_PRICE = "$9.99";
 export const BUYER_PASS_CREDITS = 10;

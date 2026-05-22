@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -22,16 +22,18 @@ import {
   LayoutDashboard,
   LogOut,
   Plus,
+  MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const NAV_ITEMS = [
-  { href: "/workspace",            label: "Overview",      icon: LayoutDashboard, exact: true },
-  { href: "/workspace/garage",     label: "My Garage",     icon: Car,             exact: false },
-  { href: "/workspace/deal-watch", label: "Deal Watch",    icon: Eye,             exact: false },
-  { href: "/workspace/ev-fit",     label: "EV Fit Score",  icon: Zap,             exact: false },
-  { href: "/compare",              label: "Comparisons",   icon: GitCompare,      exact: false },
-  { href: "/workspace/auction",    label: "Auction Tool",  icon: Gavel,           exact: false },
+  { href: "/workspace",              label: "Overview",      icon: LayoutDashboard, exact: true },
+  { href: "/workspace/garage",       label: "My Garage",     icon: Car,             exact: false },
+  { href: "/workspace/inquiries",    label: "Inquiries",     icon: MessageSquare,   exact: false },
+  { href: "/workspace/deal-watch",   label: "Deal Watch",    icon: Eye,             exact: false },
+  { href: "/workspace/ev-fit",       label: "EV Fit Score",  icon: Zap,             exact: false },
+  { href: "/compare",                label: "Comparisons",   icon: GitCompare,      exact: false },
+  { href: "/workspace/auction",      label: "Auction Tool",  icon: Gavel,           exact: false },
 ];
 
 export default function WorkspaceLayout({
@@ -39,15 +41,26 @@ export default function WorkspaceLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated, isLoading, isReady, user, logout } = useAuth();
+  const { isAuthenticated, isLoading, isReady, user, logout, session } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [unreadInquiries, setUnreadInquiries] = useState(0);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.replace(`/auth/login?redirect=${encodeURIComponent(pathname)}`);
     }
   }, [isLoading, isAuthenticated, router, pathname]);
+
+  useEffect(() => {
+    if (!session?.access_token) return;
+    fetch("/api/workspace/inquiries?status=replied", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((r) => r.json())
+      .then((d) => setUnreadInquiries(d.inquiries?.length ?? 0))
+      .catch(() => {});
+  }, [session?.access_token]);
 
   if (isLoading || !isReady) {
     return (
@@ -81,6 +94,7 @@ export default function WorkspaceLayout({
             const isActive = item.exact
               ? pathname === item.href
               : pathname.startsWith(item.href);
+            const hasUnread = item.href === "/workspace/inquiries" && unreadInquiries > 0;
             return (
               <Link
                 key={item.href}
@@ -92,7 +106,8 @@ export default function WorkspaceLayout({
                 }`}
               >
                 <item.icon className={`w-4 h-4 ${isActive ? "text-[#00d97e]" : "text-white/40"}`} />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {hasUnread && <span className="w-2 h-2 rounded-full bg-[#00d97e] flex-shrink-0" />}
               </Link>
             );
           })}

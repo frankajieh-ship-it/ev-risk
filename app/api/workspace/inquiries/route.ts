@@ -7,7 +7,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, getSupabaseAdmin } from "@/lib/api-auth";
-import { sendChecklistEmail, isResendConfigured } from "@/lib/resend";
+import { isResendConfigured } from "@/lib/resend";
+import { sendLeadNotification } from "@/lib/crm-email";
 
 export async function GET(req: NextRequest) {
   const user = await requireAuth(req);
@@ -121,14 +122,16 @@ export async function POST(req: NextRequest) {
     message,
   });
 
-  // Notify dealer of new inquiry (fire-and-forget)
+  // Notify dealer of new inquiry via CRM pipeline (fire-and-forget)
   void (async () => {
     try {
       if (!isResendConfigured()) return;
 
-      // Get buyer email
+      // Get buyer display name
       const { data: buyerData } = await supabase.auth.admin.getUserById(user.id);
-      const buyerEmail = buyerData?.user?.email ?? "a buyer";
+      const buyerName = buyerData?.user?.user_metadata?.full_name
+        || buyerData?.user?.email
+        || "A buyer";
 
       // Get dealer contact email: prefer dealerships.contact_email, fall back to admin member email
       const { data: dealershipRow } = await supabase
@@ -154,37 +157,26 @@ export async function POST(req: NextRequest) {
 
       if (!dealerEmail) return;
 
-      const dealerName = dealershipRow?.name ?? "Your dealership";
-      const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://www.offolab.com";
-      const ctaUrl = `${siteUrl}/dealer/inquiries`;
+      // Get vehicle label if inquiry is tied to an inventory item
+      let vehicleLabel = subject;
+      if (inquiry.inventory_item_id) {
+        const { data: item } = await supabase
+          .from("dealer_inventory")
+          .select("year, make, model")
+          .eq("id", inquiry.inventory_item_id)
+          .maybeSingle();
+        if (item) vehicleLabel = `${item.year ?? ""} ${item.make} ${item.model}`.trim();
+      }
 
-      const html = `
-        <div style="font-family:sans-serif;max-width:580px;margin:0 auto;color:#111827">
-          <div style="background:#16a34a;padding:20px 24px;border-radius:12px 12px 0 0">
-            <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff">New inquiry on OFFO</p>
-          </div>
-          <div style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:24px">
-            <p style="margin:0 0 16px;font-size:14px;color:#374151">
-              <strong>${buyerEmail}</strong> sent a new inquiry to <strong>${dealerName}</strong>.
-            </p>
-            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:20px">
-              <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">Subject</p>
-              <p style="margin:0 0 14px;font-size:14px;font-weight:600;color:#111827">${subject}</p>
-              <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em">Message</p>
-              <p style="margin:0;font-size:14px;color:#374151;white-space:pre-wrap">${message}</p>
-            </div>
-            <a href="${ctaUrl}" style="display:inline-block;background:#16a34a;color:#ffffff;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none">
-              View &amp; Reply in OFFO →
-            </a>
-            <p style="margin:20px 0 0;font-size:12px;color:#9ca3af">
-              You are receiving this because you have a dealer account on OFFO.
-              <a href="${siteUrl}/dealer/profile" style="color:#6b7280">Manage notifications</a>
-            </p>
-          </div>
-        </div>
-      `;
-
-      await sendChecklistEmail(dealerEmail, `New inquiry: ${subject}`, html);
+      await sendLeadNotification({
+        dealerEmail,
+        dealerName: dealershipRow?.name ?? "Your dealership",
+        buyerName,
+        vehicleLabel,
+        message,
+        inquiryType: inquiry_type,
+        inquiryId: inquiry.id,
+      });
     } catch {
       // Best-effort — never block the response
     }

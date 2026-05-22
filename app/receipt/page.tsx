@@ -29,6 +29,7 @@ import RoutineFitMiniStep from "@/components/receipt/RoutineFitMiniStep";
 // EmailGateModal removed — 100% skip rate, replaced by inline EmailCaptureCard
 import FeedbackWidget from "@/components/FeedbackWidget";
 import ExitFeedbackModal from "@/components/receipt/ExitFeedbackModal";
+import DealerInquiryModal from "@/components/receipt/DealerInquiryModal";
 import dynamic from "next/dynamic";
 
 // Heavy components lazy-loaded — not needed for initial receipt render
@@ -255,6 +256,10 @@ export default function ReceiptPage() {
   // Phase 2: listing age signals from receipt API response
   const [listingFirstSeenAt, setListingFirstSeenAt] = useState<string | null>(null);
   const [listingPriceDropCents, setListingPriceDropCents] = useState<number | null>(null);
+
+  // Phase 3: dealer match — shown when listing URL belongs to an OFFO dealer
+  const [dealerInfo, setDealerInfo] = useState<{ id: string; name: string; slug: string; logo_url: string | null; is_verified: boolean } | null>(null);
+  const [showInquiryModal, setShowInquiryModal] = useState(false);
 
   // Receipt token
   const [receiptToken, setReceiptToken] = useState("");
@@ -627,7 +632,18 @@ export default function ReceiptPage() {
     if (postReceiptTimerRef.current) clearTimeout(postReceiptTimerRef.current);
     setListingFirstSeenAt(null);
     setListingPriceDropCents(null);
+    setDealerInfo(null);
   }, [receipt?.receipt_id]);
+
+  // Check if this listing belongs to an OFFO dealer
+  useEffect(() => {
+    const url = receipt?.listing_url;
+    if (!url) return;
+    fetch(`/api/dealer/match-listing?url=${encodeURIComponent(url)}`)
+      .then((r) => r.json())
+      .then((data) => { if (data.dealership) setDealerInfo(data.dealership); })
+      .catch(() => {});
+  }, [receipt?.listing_url]);
 
   // Post-receipt popup: show 12s after deep dive loads so user can read it first
   useEffect(() => {
@@ -1059,6 +1075,8 @@ export default function ReceiptPage() {
                 showCompare={authConfigured}
                 firstSeenAt={listingFirstSeenAt}
                 priceDropCents={listingPriceDropCents}
+                dealerInfo={dealerInfo}
+                onContactDealer={dealerInfo ? () => setShowInquiryModal(true) : undefined}
               />
               </div>
 
@@ -1400,6 +1418,17 @@ export default function ReceiptPage() {
           <ExampleAnalysisSection />
           <UniqueAdvantageSection />
         </>
+      )}
+
+      {/* Dealer inquiry modal — shown when user clicks Contact Dealer on a verified dealer listing */}
+      {showInquiryModal && dealerInfo && (
+        <DealerInquiryModal
+          dealerInfo={dealerInfo}
+          vehicleLabel={[receipt?.listing_summary?.year, receipt?.listing_summary?.make, receipt?.listing_summary?.model].filter(Boolean).join(" ") || "this vehicle"}
+          isAuthenticated={isAuthenticated}
+          accessToken={session?.access_token ?? null}
+          onClose={() => setShowInquiryModal(false)}
+        />
       )}
 
       <Footer />

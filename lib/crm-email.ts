@@ -17,7 +17,8 @@ export type SequenceType =
   | "conversion"
   | "weekly_digest"
   | "deal_watch"
-  | "recall";
+  | "recall"
+  | "lead_notification";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
 
@@ -137,6 +138,59 @@ export async function safeSend(params: SafeSendParams): Promise<SafeSendResult> 
   }
 
   return { sent: result.success, skipped: false, error: result.error };
+}
+
+// ── Lead notification email (dealer receives when buyer submits inquiry) ─────
+
+const SITE_URL_INTERNAL = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
+
+export interface LeadNotificationParams {
+  dealerEmail: string;
+  dealerName: string;
+  buyerName: string;
+  vehicleLabel: string;
+  message: string;
+  inquiryType: string;
+  inquiryId: string;
+}
+
+export async function sendLeadNotification(params: LeadNotificationParams): Promise<SafeSendResult> {
+  const { dealerEmail, dealerName, buyerName, vehicleLabel, message, inquiryType, inquiryId } = params;
+  const ctaUrl = `${SITE_URL_INTERNAL}/dealer/inquiries`;
+  const typeLabel = inquiryType === "test_drive" ? "Test drive request"
+    : inquiryType === "price_check" ? "Price check"
+    : inquiryType === "trade_in" ? "Trade-in inquiry"
+    : "General inquiry";
+
+  const html = emailWrapper(`
+    <div style="background:#161b22;border-radius:12px;padding:24px;margin-bottom:24px;">
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#00d97e;text-transform:uppercase;letter-spacing:0.08em;">New Lead</p>
+      <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">${vehicleLabel || "Inquiry"}</p>
+    </div>
+    <p style="font-size:14px;color:#c9d1d9;margin:0 0 16px;">
+      <strong style="color:#ffffff;">${buyerName}</strong> sent a new inquiry to <strong style="color:#ffffff;">${dealerName}</strong>.
+    </p>
+    <div style="background:#161b22;border:1px solid #21262d;border-radius:8px;padding:16px;margin-bottom:24px;">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:0.05em;">Type</p>
+      <p style="margin:0 0 14px;font-size:14px;color:#e6edf3;">${typeLabel}</p>
+      <p style="margin:0 0 6px;font-size:11px;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:0.05em;">Message</p>
+      <p style="margin:0;font-size:14px;color:#e6edf3;white-space:pre-wrap;">${message.slice(0, 300)}${message.length > 300 ? "…" : ""}</p>
+    </div>
+    <a href="${ctaUrl}" style="display:inline-block;background:#00d97e;color:#0d1117;font-size:14px;font-weight:700;padding:12px 24px;border-radius:8px;text-decoration:none;">
+      View &amp; Reply in Dashboard →
+    </a>
+    ${emailFooter(dealerEmail, "lead_notification")}
+  `);
+
+  return safeSend({
+    email: dealerEmail,
+    sequenceType: "lead_notification",
+    sequenceStep: "initial",
+    subject: `New buyer inquiry: ${vehicleLabel || "your inventory"}`,
+    html,
+    idempotencyKey: `inquiry-${inquiryId}-lead`,
+    metadata: { inquiry_id: inquiryId, dealer_name: dealerName },
+  });
 }
 
 // ── Week key for idempotency ─────────────────────────────────────────────────

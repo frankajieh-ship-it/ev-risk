@@ -57,6 +57,16 @@ interface DealWatchSuggestion {
   price_max?: number;
 }
 
+export interface DealWatchMatch {
+  search_id: string;
+  search_label: string;
+  listing_url: string;
+  vehicle_label: string;
+  last_price: number | null;
+  last_verdict: string | null;
+  auction_source: string | null;
+}
+
 interface OFfoChatProps {
   scenarioType: "receipt" | "compare" | "auction" | "advisor";
   scenarioId: string;
@@ -75,6 +85,8 @@ interface OFfoChatProps {
   getAccessToken?: () => Promise<string>;
   /** Called after the component clears its messages — use to reset advisorSessionId. */
   onNewChat?: () => void;
+  /** Called whenever Deal Watch matches arrive (or are cleared). Use to render a panel outside the chat. */
+  onMatchesFound?: (matches: DealWatchMatch[], vehiclesMentioned?: string[]) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -108,6 +120,50 @@ const QUICK_QUESTIONS: Record<"receipt" | "compare" | "auction" | "advisor", str
 };
 
 const FREE_DAILY_LIMIT = 200;
+
+// ---------------------------------------------------------------------------
+// Deal Watch Matches Card — real listings from user's active watches
+// ---------------------------------------------------------------------------
+
+function DealWatchMatchesCard({ matches }: { matches: DealWatchMatch[] }) {
+  if (matches.length === 0) return null;
+  return (
+    <div className="mx-1 my-2 rounded-xl border border-[#00d97e]/20 bg-[#00d97e]/[0.04] overflow-hidden">
+      <div className="px-3 py-2 border-b border-[#00d97e]/10 flex items-center justify-between">
+        <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wider">From your Deal Watch</span>
+        <a href="/workspace/deal-watch" className="text-xs text-white/30 hover:text-white/60 transition-colors">View all →</a>
+      </div>
+      <div className="divide-y divide-white/[0.05]">
+        {matches.map((m) => (
+          <a
+            key={m.listing_url}
+            href={m.listing_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/[0.04] transition-colors group"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-white/80 truncate group-hover:text-white">{m.vehicle_label}</p>
+              <p className="text-xs text-white/40 mt-0.5">{m.auction_source ?? m.search_label}</p>
+            </div>
+            <div className="flex-shrink-0 text-right">
+              {m.last_price != null && (
+                <p className="text-sm font-medium text-white">${m.last_price.toLocaleString()}</p>
+              )}
+              {m.last_verdict && (
+                <p className={`text-xs mt-0.5 ${
+                  m.last_verdict === "buy" ? "text-[#00d97e]" :
+                  m.last_verdict === "pass" ? "text-red-400" : "text-yellow-400"
+                }`}>{m.last_verdict}</p>
+              )}
+            </div>
+            <span className="text-white/20 group-hover:text-white/50 text-xs flex-shrink-0">↗</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Deal Watch Prompt Card
@@ -249,6 +305,7 @@ export default function OFfoChat({
   inline = false,
   getAccessToken,
   onNewChat,
+  onMatchesFound,
 }: OFfoChatProps) {
   const [isVisible, setIsVisible] = useState(inline);
   const [isOpen, setIsOpen] = useState(inline);
@@ -272,6 +329,7 @@ export default function OFfoChat({
   // Deal Watch suggestion state
   const [dealWatchSuggestion, setDealWatchSuggestion] = useState<DealWatchSuggestion | null>(null);
   const [dealWatchState, setDealWatchState] = useState<"idle" | "loading" | "done" | "dismissed">("idle");
+  const [dealWatchMatches, setDealWatchMatches] = useState<DealWatchMatch[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -431,10 +489,12 @@ export default function OFfoChat({
     setMessages([]);
     setDealWatchSuggestion(null);
     setDealWatchState("idle");
+    setDealWatchMatches([]);
+    onMatchesFound?.([], []);
     try { sessionStorage.removeItem(SESSION_KEY); } catch {}
     onNewChat?.();
     setTimeout(() => inputRef.current?.focus(), 50);
-  }, [SESSION_KEY, onNewChat]);
+  }, [SESSION_KEY, onNewChat, onMatchesFound]);
 
   // ---------------------------------------------------------------------------
   // Send message
@@ -522,6 +582,14 @@ export default function OFfoChat({
           setDealWatchSuggestion(data.suggest_deal_watch);
         }
 
+        // Surface real Deal Watch listings that match vehicles in the reply,
+        // or pass vehicle names so the parent can show a setup CTA
+        if (data.deal_watch_matches?.length || data.vehicles_mentioned?.length) {
+          const matches = data.deal_watch_matches ?? [];
+          setDealWatchMatches(matches);
+          onMatchesFound?.(matches, data.vehicles_mentioned ?? []);
+        }
+
         if (!data.fallback) {
           const newCount = messagesUsedToday + 1;
           setMessagesUsedToday(newCount);
@@ -536,7 +604,7 @@ export default function OFfoChat({
         setIsLoading(false);
       }
     },
-    [isLoading, limitReached, sessionId, scenarioType, scenarioId, context, messagesUsedToday]
+    [isLoading, limitReached, sessionId, scenarioType, scenarioId, context, messagesUsedToday, onMatchesFound, dealWatchState, getAccessToken]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

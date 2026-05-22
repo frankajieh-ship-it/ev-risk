@@ -62,7 +62,7 @@ export default function Home() {
     }
   }, []);
 
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isDealer } = useAuth();
   const { execute: executeTurnstile } = useTurnstile({
     containerId: "turnstile-score",
     action: "score-submit",
@@ -381,6 +381,13 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-3">
               <div className="hidden md:flex items-center gap-3">
+                {isDealer ? (
+                  <Link href="/dealer" className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.06] border border-white/[0.10] text-white/70 rounded-lg text-[0.8125rem] font-medium hover:bg-white/[0.10] transition-colors">
+                    Dealer Portal
+                  </Link>
+                ) : (
+                  <Link href="/for-dealers" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">For Dealers</Link>
+                )}
                 {isAuthenticated ? (
                   <Link href="/workspace" className="text-[0.8125rem] font-medium text-white/70 hover:text-white transition-colors">Dashboard</Link>
                 ) : (
@@ -424,7 +431,12 @@ export default function Home() {
                     {link.label}
                   </Link>
                 ))}
-                <div className="border-t border-white/[0.06] pt-3 mt-2">
+                <div className="border-t border-white/[0.06] pt-3 mt-2 space-y-1">
+                  {isDealer ? (
+                    <Link href="/dealer" onClick={() => setMobileNavOpen(false)} className="block py-2 text-sm font-medium text-[#00d97e] hover:text-white">Dealer Portal</Link>
+                  ) : (
+                    <Link href="/for-dealers" onClick={() => setMobileNavOpen(false)} className="block py-2 text-sm font-medium text-white/60 hover:text-white">For Dealers</Link>
+                  )}
                   {isAuthenticated ? (
                     <Link href="/workspace" onClick={() => setMobileNavOpen(false)} className="block py-2 text-sm font-medium text-white/70 hover:text-white">Dashboard</Link>
                   ) : (

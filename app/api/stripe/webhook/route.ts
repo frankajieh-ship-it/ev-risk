@@ -260,8 +260,63 @@ export async function POST(request: NextRequest) {
         const invoice = event.data.object as Stripe.Invoice;
         const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
         console.log(`⚠️ Subscription payment failed for customer ${customerId ?? "unknown"}`);
-        // Stripe will retry automatically; no immediate action needed.
-        // customer.subscription.deleted fires if retries are exhausted.
+        break;
+      }
+
+      // Dealer subscription lifecycle
+      case "customer.subscription.created":
+      case "customer.subscription.updated": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
+        const dealerPriceId = process.env.STRIPE_PRICE_DEALER_MONTHLY;
+
+        // Only act if this subscription contains the dealer price
+        const hasDealerPrice = dealerPriceId
+          ? subscription.items.data.some((i) => i.price.id === dealerPriceId)
+          : false;
+
+        if (customerId && hasDealerPrice) {
+          const newStatus = subscription.status === "active" ? "active"
+            : subscription.status === "trialing" ? "trial"
+            : subscription.status === "canceled" ? "canceled"
+            : "inactive";
+
+          try {
+            await supabase
+              .from("dealerships")
+              .update({
+                stripe_customer_id: customerId,
+                stripe_subscription_id: subscription.id,
+                subscription_status: newStatus,
+              })
+              .eq("stripe_customer_id", customerId);
+
+            // Also handle first-time setup where stripe_customer_id isn't set yet
+            // by matching via metadata.dealership_id if present
+            const dealershipId = subscription.metadata?.dealership_id;
+            if (dealershipId) {
+              await supabase
+                .from("dealerships")
+                .update({
+                  stripe_customer_id: customerId,
+                  stripe_subscription_id: subscription.id,
+                  subscription_status: newStatus,
+                })
+                .eq("id", dealershipId);
+            }
+
+            console.log(`✅ Dealer subscription ${event.type}: customer ${customerId} → ${newStatus}`);
+          } catch (err) {
+            console.error("[Webhook] dealer subscription update error:", err);
+          }
+
+          audit({
+            actor_type: "webhook",
+            action: `dealer.subscription.${event.type === "customer.subscription.created" ? "created" : "updated"}`,
+            result: "ok",
+            metadata: { stripe_customer_id: customerId, subscription_id: subscription.id, status: newStatus },
+          });
+        }
         break;
       }
 
