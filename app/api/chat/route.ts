@@ -24,9 +24,7 @@ import type { GenerateOpts } from "@/lib/providers/types";
 // Rate limiters
 // ---------------------------------------------------------------------------
 
-// Free tier: 5 messages per day
-const freeChatLimiter = new RateLimiter(24 * 60 * 60 * 1000, 5);
-// Paid tier: 200 per day (effectively unlimited)
+// All users: 200 messages per day (chat is free for shoppers)
 const paidChatLimiter = new RateLimiter(24 * 60 * 60 * 1000, 200);
 
 // ---------------------------------------------------------------------------

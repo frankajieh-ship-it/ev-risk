@@ -38,7 +38,6 @@ import AuctionSourceBadge from "@/components/auction/AuctionSourceBadge";
 import AuctionVerdictCard from "@/components/auction/AuctionVerdictCard";
 import AuctionDamageCard from "@/components/auction/AuctionDamageCard";
 import SalvageRiskCard from "@/components/copart/SalvageRiskCard";
-import CopartUnlockCard from "@/components/copart/CopartUnlockCard";
 import type { AuctionSource, NormalizedAuctionLot, NhtsaRecallSummary } from "@/lib/auction/types";
 import type { SalvageRiskResult } from "@/lib/salvage-risk-scorer";
 import type { ArbitrageResult } from "@/lib/copart-arbitrage-engine";
@@ -409,8 +408,8 @@ export default function AuctionResultPage() {
             )}
           </div>
 
-          {/* 7. Arbitrage — paid feature */}
-          {data.paid_unlocked && report.arbitrage ? (
+          {/* 7. Arbitrage */}
+          {report.arbitrage ? (
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-gray-500" />
@@ -455,8 +454,6 @@ export default function AuctionResultPage() {
                 </ul>
               )}
             </div>
-          ) : !data.paid_unlocked ? (
-            <CopartUnlockCard resultId={resultId} />
           ) : null}
 
           {/* 8. Routine impact */}

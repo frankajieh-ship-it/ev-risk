@@ -81,7 +81,7 @@ const QUICK_QUESTIONS: Record<"receipt" | "compare" | "auction", string[]> = {
   ],
 };
 
-const FREE_DAILY_LIMIT = 5;
+const FREE_DAILY_LIMIT = 200;
 
 // ---------------------------------------------------------------------------
 // Paywall Card
