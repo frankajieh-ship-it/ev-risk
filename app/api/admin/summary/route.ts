@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
     // -----------------------------------------------------------------------
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async function fetchAllRows<T>(
-      buildQuery: (from: number) => PostgrestFilterBuilder<any, any, any>
+      buildQuery: (from: number) => PostgrestFilterBuilder<unknown, unknown, unknown, unknown, string | null, unknown>
     ): Promise<T[]> {
       const PAGE = 1000;
       const rows: T[] = [];
