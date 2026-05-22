@@ -422,27 +422,44 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
           || listing.vehicle?.vin || listing.listingDetails?.vin;
         data.location = data.location || listing.dealer?.cityState || listing.dealerInfo?.cityState;
 
-        // Title status — CarGurus uses "titleStatus" or "title" with values like "CLEAN", "SALVAGE"
+        // CarGurus nests history data under vehicleHistory / history / carHistory sub-object
+        const hist = listing.vehicleHistory ?? listing.history ?? listing.carHistory ?? listing.vehicleReport ?? {};
+
+        // Title status
         if (!data.title_status) {
-          const rawTitle = (listing.titleStatus ?? listing.title_status ?? listing.titleHistory?.status ?? "").toString().toLowerCase();
+          const rawTitle = (
+            listing.titleStatus ?? listing.title_status ?? listing.titleHistory?.status ??
+            hist.titleStatus ?? hist.title ?? hist.titleHistory?.status ?? ""
+          ).toString().toLowerCase();
           if (rawTitle.includes("clean")) data.title_status = "clean";
           else if (rawTitle.includes("salvage")) data.title_status = "salvage";
           else if (rawTitle.includes("rebuilt") || rawTitle.includes("reconstructed")) data.title_status = "rebuilt";
         }
 
-        // Accident history — CarGurus uses "accidentCount" or "hasAccidents"
+        // Accident history — top-level or inside vehicleHistory
         if (!data.accidents_reported) {
-          const accCount = listing.accidentCount ?? listing.numberOfAccidents ?? listing.accidentsReported;
-          const hasAcc = listing.hasAccidents ?? listing.accidentHistory;
+          const accCount =
+            listing.accidentCount ?? listing.numberOfAccidents ?? listing.accidentsReported ??
+            hist.accidentCount ?? hist.numberOfAccidents ?? hist.accidents;
+          const hasAcc =
+            listing.hasAccidents ?? listing.accidentHistory ??
+            hist.hasAccidents ?? hist.accidentHistory;
           if (typeof accCount === "number") data.accidents_reported = accCount > 0 ? "yes" : "no";
-          else if (hasAcc === false || hasAcc === "NO_ACCIDENTS") data.accidents_reported = "no";
-          else if (hasAcc === true) data.accidents_reported = "yes";
+          else if (typeof accCount === "string" && /^\d+$/.test(accCount)) data.accidents_reported = parseInt(accCount) > 0 ? "yes" : "no";
+          else if (hasAcc === false || hasAcc === "NO_ACCIDENTS" || hasAcc === "NONE") data.accidents_reported = "no";
+          else if (hasAcc === true || hasAcc === "HAS_ACCIDENTS") data.accidents_reported = "yes";
         }
 
-        // Owner count
+        // Owner count — top-level or inside vehicleHistory
         if (!data.owners) {
-          const ownerCount = listing.ownerCount ?? listing.numberOfOwners ?? listing.owners;
+          const ownerCount =
+            listing.ownerCount ?? listing.numberOfOwners ?? listing.owners ??
+            hist.ownerCount ?? hist.numberOfOwners ?? hist.owners;
           if (typeof ownerCount === "number" && ownerCount > 0) data.owners = ownerCount;
+          else if (typeof ownerCount === "string" && /^\d+$/.test(ownerCount)) {
+            const n = parseInt(ownerCount);
+            if (n > 0) data.owners = n;
+          }
         }
 
         // EV specs — CarGurus nests these under various keys
@@ -511,11 +528,52 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
             data.price = data.price || (ls.price as number) || (ls.listPrice as number);
             data.mileage = data.mileage || (ls.mileage as number) || (ls.odometer as number);
             data.location = data.location || (ls.city && ls.state ? `${ls.city}, ${ls.state}` : undefined);
+
+            // Title / accident / owner history — check vehicleHistory sub-object first
+            const lsHist = (ls.vehicleHistory ?? ls.history ?? ls.carHistory ?? {}) as Record<string, unknown>;
+            if (!data.title_status) {
+              const rawTitle = ((ls.titleStatus ?? ls.title_status ?? lsHist.titleStatus ?? lsHist.title ?? "") as string).toLowerCase();
+              if (rawTitle.includes("clean")) data.title_status = "clean";
+              else if (rawTitle.includes("salvage")) data.title_status = "salvage";
+              else if (rawTitle.includes("rebuilt") || rawTitle.includes("reconstructed")) data.title_status = "rebuilt";
+            }
+            if (!data.accidents_reported) {
+              const accCount = ls.accidentCount ?? ls.numberOfAccidents ?? lsHist.accidentCount ?? lsHist.numberOfAccidents ?? lsHist.accidents;
+              const hasAcc = ls.hasAccidents ?? lsHist.hasAccidents ?? lsHist.accidentHistory;
+              if (typeof accCount === "number") data.accidents_reported = accCount > 0 ? "yes" : "no";
+              else if (typeof accCount === "string" && /^\d+$/.test(accCount)) data.accidents_reported = parseInt(accCount) > 0 ? "yes" : "no";
+              else if (hasAcc === false || hasAcc === "NO_ACCIDENTS" || hasAcc === "NONE") data.accidents_reported = "no";
+              else if (hasAcc === true || hasAcc === "HAS_ACCIDENTS") data.accidents_reported = "yes";
+            }
+            if (!data.owners) {
+              const ownerCount = ls.ownerCount ?? ls.numberOfOwners ?? ls.owners ?? lsHist.ownerCount ?? lsHist.numberOfOwners;
+              if (typeof ownerCount === "number" && ownerCount > 0) data.owners = ownerCount;
+              else if (typeof ownerCount === "string" && /^\d+$/.test(ownerCount)) {
+                const n = parseInt(ownerCount); if (n > 0) data.owners = n;
+              }
+            }
+
             if (data.vin) break;
           }
         }
       } catch { /* silent — Remix context parsing is best-effort */ }
     }
+  }
+
+  // Raw HTML regex fallback — catches CarGurus rendered text like "Clean title", "2 accidents reported"
+  if (!data.title_status) {
+    if (/clean\s+title/i.test(html)) data.title_status = "clean";
+    else if (/salvage\s+title/i.test(html)) data.title_status = "salvage";
+    else if (/rebuilt\s+title/i.test(html)) data.title_status = "rebuilt";
+  }
+  if (!data.accidents_reported) {
+    const accMatch = html.match(/(\d+)\s+accident[s]?\s+reported/i);
+    if (accMatch) data.accidents_reported = parseInt(accMatch[1]) > 0 ? "yes" : "no";
+    else if (/no\s+accidents?\s+reported|0\s+accidents?\s+reported/i.test(html)) data.accidents_reported = "no";
+  }
+  if (!data.owners) {
+    const ownMatch = html.match(/(\d+)\s+previous\s+owner/i);
+    if (ownMatch) { const n = parseInt(ownMatch[1]); if (n > 0) data.owners = n; }
   }
 
   // Context-aware VIN scan across all inline script blocks — skips carousel/recommendation VINs
