@@ -500,6 +500,7 @@ interface SummaryData {
     p95_latency_ms: number | null;
     avg_latency_ms: number | null;
   };
+  provider_health?: Array<{ provider: string; success_rate: number | null }>;
 }
 
 type Period = "day" | "week" | "last_30_days" | "month_to_date" | "custom";
