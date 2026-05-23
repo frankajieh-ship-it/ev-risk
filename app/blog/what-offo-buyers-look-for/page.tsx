@@ -62,6 +62,12 @@ const LISTING_TIPS = [
   { icon: "✓", text: "Price within 8% of market unless you can name the premium" },
 ];
 
+const RELATED = [
+  { slug: "how-to-price-used-ev-inventory", title: "How to Price Your Used EV Inventory", badge: "Dealer Guide", badgeColor: "bg-purple-500/20 text-purple-300", excerpt: "Battery SOH, charging port generation, recall history — the 4 factors EV buyers use to judge your price." },
+  { slug: "ev-vin-report-guide", title: "EV VIN Report: What It Shows and What It Misses", badge: "Buyer's Guide", badgeColor: "bg-blue-500/20 text-blue-300", excerpt: "Standard VIN reports miss battery degradation, DCFC speed, and EV-specific recalls." },
+  { slug: "used-ev-buying-checklist", title: "Used EV Buying Checklist: 10 Things to Check Before You Buy", badge: "Checklist", badgeColor: "bg-amber-500/20 text-amber-300", excerpt: "Battery health, charging capability, software updates, recalls — the complete list." },
+];
+
 export default function WhatOFFOBuyersLookForPage() {
   useVisitorTracking();
 
@@ -189,7 +195,7 @@ export default function WhatOFFOBuyersLookForPage() {
           </Link>
         </div>
 
-        <RelatedPosts currentSlug="what-offo-buyers-look-for" />
+        <RelatedPosts posts={RELATED} />
       </div>
     </div>
   );

@@ -62,6 +62,12 @@ const PRICING_TIERS = [
   },
 ];
 
+const RELATED = [
+  { slug: "what-offo-buyers-look-for", title: "What OFFO Buyers Look for in a Used EV", badge: "For Dealers", badgeColor: "bg-indigo-500/20 text-indigo-300", excerpt: "Battery health, title status, range vs. charging fit, price vs. market — the 5 checks every data-driven buyer runs." },
+  { slug: "ev-vin-report-guide", title: "EV VIN Report: What It Shows and What It Misses", badge: "Buyer's Guide", badgeColor: "bg-blue-500/20 text-blue-300", excerpt: "Standard VIN reports miss battery degradation, DCFC speed, and EV-specific recalls." },
+  { slug: "used-ev-buying-checklist", title: "Used EV Buying Checklist: 10 Things to Check Before You Buy", badge: "Checklist", badgeColor: "bg-amber-500/20 text-amber-300", excerpt: "Battery health, charging capability, software updates, recalls — the complete list." },
+];
+
 export default function HowToPriceUsedEvInventoryPage() {
   useVisitorTracking();
 
@@ -197,7 +203,7 @@ export default function HowToPriceUsedEvInventoryPage() {
           </div>
         </div>
 
-        <RelatedPosts currentSlug="how-to-price-used-ev-inventory" />
+        <RelatedPosts posts={RELATED} />
       </div>
     </div>
   );
