@@ -2238,8 +2238,8 @@ export async function GET(request: NextRequest) {
         return {
           error_rate,
           alert: error_rate > 0.1,
-          p95_latency_ms: (chat_metrics as Record<string, number>).p95_latency_ms ?? null,
-          avg_latency_ms: (chat_metrics as Record<string, number>).avg_latency_ms ?? null,
+          p95_latency_ms: (chat_metrics as Record<string, unknown>).p95_latency_ms as number | null ?? null,
+          avg_latency_ms: (chat_metrics as Record<string, unknown>).avg_latency_ms as number | null ?? null,
         };
       })(),
       provider_health: await (async () => {
