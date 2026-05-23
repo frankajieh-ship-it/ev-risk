@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
     city?: string;
     state?: string;
     zip?: string;
+    referral_source?: string;
   };
 
   try {
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { dealership_name, contact_name, phone, city, state, zip } = body;
+  const { dealership_name, contact_name, phone, city, state, zip, referral_source } = body;
 
   if (!dealership_name?.trim()) {
     return NextResponse.json({ error: "dealership_name is required" }, { status: 400 });
@@ -90,6 +91,7 @@ export async function POST(req: NextRequest) {
       description: null,
       is_verified: false,
       status: "pending",
+      referral_source: referral_source?.trim() || null,
     })
     .select("id, slug")
     .single();

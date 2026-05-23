@@ -18,7 +18,9 @@ export type SequenceType =
   | "weekly_digest"
   | "deal_watch"
   | "recall"
-  | "lead_notification";
+  | "lead_notification"
+  | "welcome"
+  | "dealer_acquisition";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
 
@@ -91,7 +93,7 @@ export async function safeSend(params: SafeSendParams): Promise<SafeSendResult> 
   // 1. Check suppression in crm_email_preferences
   const { data: pref } = await supabase
     .from("crm_email_preferences")
-    .select("all_marketing, bounced, activation, win_back, conversion, weekly_digest, deal_watch, recall")
+    .select("all_marketing, bounced, activation, win_back, conversion, weekly_digest, deal_watch, recall, welcome, dealer_acquisition")
     .eq("email", params.email)
     .maybeSingle();
 

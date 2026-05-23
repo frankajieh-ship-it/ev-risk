@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { Check, Loader2, AlertCircle, Building } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useEventTracking } from "@/hooks/useEventTracking";
+import { getAttributionForEvent } from "@/lib/attribution";
 
 type Status = "waiting_auth" | "provisioning" | "done" | "error" | "needs_input";
 
@@ -41,6 +42,8 @@ export default function DealerConfirmPage() {
 
   const provision = async (data: PendingData, token: string) => {
     setStatus("provisioning");
+    const attribution = getAttributionForEvent();
+    const referral_source = attribution?.utm_source || attribution?.page_source || attribution?.referrer || null;
     try {
       const res = await fetch("/api/dealer/provision", {
         method: "POST",
@@ -48,7 +51,7 @@ export default function DealerConfirmPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, referral_source }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -65,10 +68,11 @@ export default function DealerConfirmPage() {
       setTimeout(() => {
         window.location.href = "/dealer";
       }, 1800);
-    } catch (e: any) {
-      setErrorMsg(e.message || "Network error");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Network error";
+      setErrorMsg(msg);
       setStatus("error");
-      trackEvent("dealer_signup_provision_failed", { error: e.message });
+      trackEvent("dealer_signup_provision_failed", { error: msg });
     }
   };
 

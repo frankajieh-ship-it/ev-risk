@@ -1428,6 +1428,7 @@ export default function ReceiptPage() {
           isAuthenticated={isAuthenticated}
           accessToken={session?.access_token ?? null}
           onClose={() => setShowInquiryModal(false)}
+          receiptId={receipt?.id ?? null}
         />
       )}
 

@@ -17,6 +17,7 @@ interface DealerInquiryModalProps {
   isAuthenticated: boolean;
   accessToken: string | null;
   onClose: () => void;
+  receiptId?: string | null;
 }
 
 export default function DealerInquiryModal({
@@ -25,6 +26,7 @@ export default function DealerInquiryModal({
   isAuthenticated,
   accessToken,
   onClose,
+  receiptId,
 }: DealerInquiryModalProps) {
   const [message, setMessage] = useState("");
   const [inquiryType, setInquiryType] = useState<"general" | "test_drive" | "price_check" | "trade_in">("general");
@@ -49,6 +51,7 @@ export default function DealerInquiryModal({
           subject: vehicleLabel,
           message: message.trim(),
           inquiry_type: inquiryType,
+          receipt_id: receiptId || null,
         }),
       });
       if (res.ok) {

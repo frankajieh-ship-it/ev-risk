@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
     message,
     inquiry_type = "general",
     offo_context,
+    receipt_id,
   } = body;
 
   if (!dealership_id || !subject || !message) {
@@ -103,6 +104,7 @@ export async function POST(req: NextRequest) {
       message,
       inquiry_type,
       offo_context: offo_context || null,
+      receipt_id: receipt_id || null,
     })
     .select("*")
     .single();
