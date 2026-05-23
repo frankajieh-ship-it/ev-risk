@@ -494,6 +494,12 @@ interface SummaryData {
     active_last_7d: number;
     active_last_30d: number;
   };
+  api_health?: {
+    error_rate: number;
+    alert: boolean;
+    p95_latency_ms: number | null;
+    avg_latency_ms: number | null;
+  };
 }
 
 type Period = "day" | "week" | "last_30_days" | "month_to_date" | "custom";
