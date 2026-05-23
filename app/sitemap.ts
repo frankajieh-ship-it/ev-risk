@@ -3,10 +3,11 @@ import { getAllChecklistSlugs } from "@/content/checklists";
 import { getAllGuideSlugs } from "@/content/guides";
 import { getAllCitySlugs } from "@/content/cities";
 import { getSortedPosts } from "@/lib/blog";
+import { getSupabaseAdmin } from "@/lib/api-auth";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date().toISOString();
 
   const staticPages: MetadataRoute.Sitemap = [
@@ -144,5 +145,36 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  return [...staticPages, ...guidesIndex, ...checklistPages, ...guidePages, ...blogPages, ...localPages];
+  // VIN landing pages — top 500 receipts with a VIN, newest first
+  const vinPages: MetadataRoute.Sitemap = [];
+  try {
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      const { data: vinRows } = await supabase
+        .from("receipts")
+        .select("vin, created_at")
+        .not("vin", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(500);
+
+      if (vinRows) {
+        const seenVins = new Set<string>();
+        for (const row of vinRows) {
+          const v = row.vin as string | null;
+          if (!v || seenVins.has(v)) continue;
+          seenVins.add(v);
+          vinPages.push({
+            url: `${SITE_URL}/vin/${v}`,
+            lastModified: (row.created_at as string) || now,
+            changeFrequency: "monthly",
+            priority: 0.5,
+          });
+        }
+      }
+    }
+  } catch {
+    // Sitemap must not throw — VIN pages are best-effort
+  }
+
+  return [...staticPages, ...guidesIndex, ...checklistPages, ...guidePages, ...blogPages, ...localPages, ...vinPages];
 }

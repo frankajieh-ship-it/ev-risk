@@ -33,7 +33,7 @@ const ROUTINE_TAG_MAP: Record<string, string[]> = {
   daily_commuter:       ["commute", "efficiency", "charging_cost"],
 };
 
-// Vehicle-category tags
+// Vehicle-category tags (brand + model-specific for stronger relevance matching)
 function vehicleToTags(make: string, model: string): string[] {
   const key = `${make} ${model}`.toLowerCase();
   const tags: string[] = ["ev", "electric_vehicle"];
@@ -42,6 +42,16 @@ function vehicleToTags(make: string, model: string): string[] {
   if (key.includes("ford") || key.includes("f-150") || key.includes("mach-e")) tags.push("ford");
   if (key.includes("chevy") || key.includes("chevrolet") || key.includes("bolt")) tags.push("gm");
   if (key.includes("hyundai") || key.includes("kia")) tags.push("hyundai_kia");
+  // Model-specific tags for higher-precision matching
+  if (key.includes("model y") || key.includes("model 3")) tags.push("tesla_model3y");
+  if (key.includes("model x") || key.includes("model s")) tags.push("tesla_modelsx");
+  if (key.includes("ioniq 5")) tags.push("ioniq5");
+  if (key.includes("ioniq 6")) tags.push("ioniq6");
+  if (key.includes("bolt")) tags.push("bolt_ev");
+  if (key.includes("mach-e") || key.includes("mach e")) tags.push("mach_e");
+  if (key.includes("id.4") || key.includes("id4")) tags.push("id4");
+  if (key.includes("leaf")) tags.push("leaf");
+  if (key.includes("r1s") || key.includes("r1t")) tags.push("rivian");
   return tags;
 }
 
@@ -72,8 +82,27 @@ export async function GET(req: NextRequest) {
     .eq("user_id", user.id)
     .limit(10);
 
+  // If user has no garage vehicles, fall back to top articles by impact_score
+  // (same as public /api/news) rather than returning empty
   if (!garageVehicles?.length) {
-    return NextResponse.json({ articles: [], reason: "no_garage_vehicles" });
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+    const { data: fallbackArticles } = await supabase
+      .from("daily_routine_news")
+      .select("id, title, summary, url, source, published_at, impact_score, ai_summary")
+      .eq("is_routine_impact", true)
+      .gte("impact_score", 60)
+      .gte("scored_at", since)
+      .order("impact_score", { ascending: false })
+      .limit(6);
+    return NextResponse.json({
+      articles: (fallbackArticles || []).map((a) => ({
+        ...a,
+        adjusted_score: a.impact_score,
+        matched_vehicles: [],
+      })),
+      garage_vehicles: [],
+      personalized: false,
+    });
   }
 
   // Fetch user's saved scenario for routine tags
@@ -197,6 +226,18 @@ export async function GET(req: NextRequest) {
         return effectsLower.some((e) => gvTags.some((t) => e.includes(t) || t.includes(e)));
       });
 
+    // Model-specific match (+15) is a stronger signal than brand match (+10)
+    const hasModelBoost = matchedVehicles.length > 0 &&
+      effectsLower.some((e) => {
+        for (const gv of garageVehicles) {
+          const modelTags = vehicleToTags(gv.make, gv.model).filter(
+            (t) => !["ev", "electric_vehicle", "tesla", "rivian", "ford", "gm", "hyundai_kia"].includes(t)
+          );
+          if (modelTags.some((t) => e.includes(t) || t.includes(e))) return true;
+        }
+        return false;
+      });
+
     scored.push({
       id: article.id,
       title: article.title,
@@ -205,7 +246,10 @@ export async function GET(req: NextRequest) {
       source: article.source,
       published_at: article.published_at,
       impact_score: article.impact_score,
-      adjusted_score: article.impact_score + (hasBoost ? 10 : 0) + (hasOwnedEvBoost ? 10 : 0),
+      adjusted_score:
+        article.impact_score +
+        (hasModelBoost ? 15 : hasBoost ? 10 : 0) +
+        (hasOwnedEvBoost ? 10 : 0),
       ai_summary: article.ai_summary ?? null,
       matched_vehicles: matchedVehicles,
     });
@@ -217,5 +261,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     articles: scored.slice(0, limit),
     garage_vehicles: garageVehicles.map((gv) => `${gv.year ? gv.year + " " : ""}${gv.make} ${gv.model}`),
+    personalized: true,
   });
 }

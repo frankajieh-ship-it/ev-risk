@@ -30,6 +30,30 @@ export interface BlogPost {
 
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "how-to-price-used-ev-inventory",
+    badge: "Dealer Guide",
+    badgeColor: "bg-purple-500/20 text-purple-300",
+    title: "How to Price Your Used EV Inventory (The Dealer's Guide)",
+    description:
+      "Battery degradation, charging port generation, recall history — the 4 factors data-driven EV buyers use to judge whether your price is fair.",
+    excerpt:
+      "Used EV pricing isn't like ICE. Here's how to price into what OFFO buyers already know before they contact you.",
+    readTime: "9 min read",
+    datePublished: "2026-05-23",
+  },
+  {
+    slug: "what-offo-buyers-look-for",
+    badge: "For Dealers",
+    badgeColor: "bg-indigo-500/20 text-indigo-300",
+    title: "What OFFO Buyers Look for in a Used EV (Dealer Edition)",
+    description:
+      "OFFO buyers are data-driven and charging-aware. Here are the 5 things they check on every receipt — and how dealers can optimize listings to score well.",
+    excerpt:
+      "Battery health, title status, range vs. charging fit, price vs. market — what every serious EV buyer checks before submitting an inquiry.",
+    readTime: "8 min read",
+    datePublished: "2026-05-23",
+  },
+  {
     slug: "ev-vin-report-guide",
     badge: "Buyer's Guide",
     badgeColor: "bg-blue-500/20 text-blue-300",
