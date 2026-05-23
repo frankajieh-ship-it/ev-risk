@@ -980,6 +980,44 @@ export default function AdminDashboard() {
           <MetricCard title="AI Success Rate" value={`${s.ai_generation?.success_rate ?? 0}%`} subtitle={`${s.ai_generation?.succeeded ?? 0} ok · ${s.ai_generation?.failed ?? 0} failed`} icon="⚡" />
         </div>
 
+        {/* Platform Health */}
+        {s.api_health && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Platform Health</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className={`rounded-xl p-4 border ${s.api_health.alert ? "border-red-300 bg-red-50" : "border-green-200 bg-green-50"}`}>
+                <p className="text-xs font-medium text-gray-500 mb-1">API Error Rate</p>
+                <p className={`text-2xl font-bold ${s.api_health.alert ? "text-red-600" : "text-green-700"}`}>
+                  {s.api_health.error_rate.toFixed(2)}%
+                </p>
+                <p className="text-xs text-gray-400 mt-1">{s.api_health.alert ? "⚠ Above 0.1% threshold" : "Within normal range"}</p>
+              </div>
+              <div className="rounded-xl p-4 border border-gray-200 bg-gray-50">
+                <p className="text-xs font-medium text-gray-500 mb-1">Chat p95 Latency</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {s.api_health.p95_latency_ms != null ? `${s.api_health.p95_latency_ms}ms` : "—"}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">avg {s.api_health.avg_latency_ms != null ? `${s.api_health.avg_latency_ms}ms` : "—"}</p>
+              </div>
+              {s.provider_health && (
+                <div className="rounded-xl p-4 border border-gray-200 bg-gray-50">
+                  <p className="text-xs font-medium text-gray-500 mb-2">Provider Health</p>
+                  <div className="space-y-1">
+                    {(s.provider_health as Array<{provider: string; success_rate: number | null}>).map((ph) => (
+                      <div key={ph.provider} className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600 capitalize">{ph.provider}</span>
+                        <span className={`font-semibold ${ph.success_rate != null && ph.success_rate >= 99 ? "text-green-600" : ph.success_rate != null && ph.success_rate >= 95 ? "text-yellow-600" : "text-red-500"}`}>
+                          {ph.success_rate != null ? `${ph.success_rate}%` : "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Quick Summary / Insights */}
         {s.insights && s.insights.length > 0 && (
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border-l-4 border-blue-400">

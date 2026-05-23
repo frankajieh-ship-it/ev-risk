@@ -2231,6 +2231,17 @@ export async function GET(request: NextRequest) {
       dealers,
       auction_metrics,
       revenue,
+      api_health: (() => {
+        const generated = (receipt_pipeline as Record<string, number>).receipts_generated ?? 0;
+        const scrapeFailures = (receipt_pipeline as Record<string, number>).url_scrape_failures ?? 0;
+        const error_rate = generated > 0 ? Math.round((scrapeFailures / generated) * 10000) / 100 : 0;
+        return {
+          error_rate,
+          alert: error_rate > 0.1,
+          p95_latency_ms: (chat_metrics as Record<string, number>).p95_latency_ms ?? null,
+          avg_latency_ms: (chat_metrics as Record<string, number>).avg_latency_ms ?? null,
+        };
+      })(),
       provider_health: await (async () => {
         const { data } = await supabase.from("provider_health").select("*").order("provider");
         if (!data) return null;

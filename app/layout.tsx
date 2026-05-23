@@ -5,6 +5,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import { HumanSignalCollector } from "@/components/HumanSignalCollector";
 import CookieConsent from "@/components/CookieConsent";
 import { VitalsReporter } from "@/components/VitalsReporter";
+import AnalyticsLoader from "@/components/AnalyticsLoader";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -92,26 +93,13 @@ export default function RootLayout({
           src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
           strategy="afterInteractive"
         />
-        {/* GA loads unconditionally but consent defaults to denied.
-            CookieConsent upgrades to granted on Accept. */}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=AW-17983820539"
-          strategy="afterInteractive"
-        />
-        <Script id="gtag-init" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('consent', 'default', {
-              analytics_storage: 'denied',
-              ad_storage: 'denied',
-              wait_for_update: 2000,
-            });
-            gtag('js', new Date());
-            gtag('config', 'AW-17983820539');
-            ${process.env.NEXT_PUBLIC_GA4_ID ? `gtag('config', '${process.env.NEXT_PUBLIC_GA4_ID}');` : ""}
-          `}
-        </Script>
+        {/* GA only loads after the user explicitly accepts cookies */}
+        <AnalyticsLoader />
+        <Script id="sw-register" strategy="afterInteractive">{`
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js');
+          }
+        `}</Script>
         {children}
       </body>
     </html>

@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import { criticalApiRateLimiter, sessionRateLimiter, getClientIP } from "@/lib/rate-limiter";
 import { guardTurnstile } from "@/lib/turnstile";
 import { checkUserAgent } from "@/lib/bot-guard";
+import { audit } from "@/lib/audit-logger";
 
 export async function GET(request: NextRequest) {
   const uaBlocked = checkUserAgent(request);
@@ -43,6 +44,14 @@ export async function GET(request: NextRequest) {
     if (error || !data) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+
+    audit({
+      actor_type: "anon",
+      action: "receipt.viewed",
+      resource: `report:${reportId}`,
+      result: "ok",
+      metadata: { report_id: reportId },
+    });
 
     return NextResponse.json({
       payload_json: data.payload_json,

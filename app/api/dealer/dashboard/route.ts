@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, getDealershipId, getSupabaseAdmin } from "@/lib/api-auth";
 import { getInventoryMatches } from "@/lib/dealer-match";
+import { audit } from "@/lib/audit-logger";
 
 export const maxDuration = 15;
 
@@ -151,6 +152,14 @@ export async function GET(req: NextRequest) {
     reports: funnelReportsResult.status === "fulfilled" ? (funnelReportsResult.value.count ?? 0) : 0,
     receipts: funnelReceiptsResult.status === "fulfilled" ? (funnelReceiptsResult.value.count ?? 0) : 0,
   };
+
+  audit({
+    actor_id: authResult.id,
+    actor_type: "user",
+    action: "dealer_dashboard.accessed",
+    resource: `dealership:${dealershipId}`,
+    result: "ok",
+  });
 
   return NextResponse.json({
     dealership_id: dealershipId,
