@@ -18,6 +18,15 @@ const photosRateLimiter = new RateLimiter(60 * 1000, 30); // 30 req/min per IP
 
 export const maxDuration = 10;
 
+// Wikimedia blocks hotlinking from non-Wikimedia referrers in production.
+// Route all Wikimedia URLs through the server-side proxy which strips the Referer header.
+function proxyIfWikimedia(url: string): string {
+  if (url.includes("upload.wikimedia.org")) {
+    return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 // Auto.dev exact model name overrides (after stripping make prefix).
 // Key = lowercase, value = exact string Auto.dev expects.
 const MODEL_EXACT_MAP: Record<string, string> = {
@@ -221,7 +230,7 @@ export async function GET(request: NextRequest) {
     try {
       const extracted = await extractVehicleImages({ make, model: rawModel, year, vin, trim: undefined });
       if (extracted.urls.length > 0 && (extracted.cache_hit || extracted.source === "offo_local")) {
-        return NextResponse.json({ photo_urls: extracted.urls, source: extracted.source, quality_score: extracted.quality_score, cache_hit: extracted.cache_hit });
+        return NextResponse.json({ photo_urls: extracted.urls.map(proxyIfWikimedia), source: extracted.source, quality_score: extracted.quality_score, cache_hit: extracted.cache_hit });
       }
     } catch {
       // Fall through to static map — VinAudit timeout/error is non-fatal
@@ -241,14 +250,14 @@ export async function GET(request: NextRequest) {
   if (!skipStatic) {
     const staticUrl = getStaticPhotoUrl(make, rawModel, year ?? undefined);
     if (staticUrl) {
-      return NextResponse.json({ photo_urls: [staticUrl], source: "static" });
+      return NextResponse.json({ photo_urls: [proxyIfWikimedia(staticUrl)], source: "static" });
     }
 
     // 2b. Make-level fallback — closest known model photo for same make
     // Runs when model is unknown/unmapped but make is recognized
     const makeFallbackUrl = make ? MAKE_FALLBACK_MAP[make.toLowerCase()] : undefined;
     if (makeFallbackUrl) {
-      return NextResponse.json({ photo_urls: [makeFallbackUrl], source: "make_fallback" });
+      return NextResponse.json({ photo_urls: [proxyIfWikimedia(makeFallbackUrl)], source: "make_fallback" });
     }
   }
 
