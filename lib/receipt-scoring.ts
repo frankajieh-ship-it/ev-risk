@@ -40,10 +40,27 @@ export interface ReceiptScoringResult {
 
 // --- Main scoring function ---
 
+// Pairs: if the positive signal is absent AND the negative signal is also absent,
+// auto-inject the negative. Ensures missing evidence is always penalized.
+const ABSENCE_PAIRS: Array<{ positive: ListingSignalId; negative: ListingSignalId }> = [
+  { positive: "clean_title_explicit",  negative: "title_status_unclear" },
+  { positive: "battery_report_recent", negative: "battery_proof_missing" },
+  { positive: "service_records_shown", negative: "service_records_missing" },
+];
+
 export function scoreReceipt(signals: string[]): ReceiptScoringResult {
   // Filter to valid signal IDs only (resilient to AI garbage)
   const validSignals = signals.filter((s) => VALID_SIGNAL_IDS.has(s));
   const signalSet = new Set(validSignals);
+
+  // Auto-inject absence penalties when neither the positive nor the negative signal
+  // is present — prevents listings with no evidence from escaping penalties entirely.
+  for (const { positive, negative } of ABSENCE_PAIRS) {
+    if (!signalSet.has(positive) && !signalSet.has(negative)) {
+      validSignals.push(negative);
+      signalSet.add(negative);
+    }
+  }
   const triggered: ScoringReason[] = [];
 
   // 1. Check hard blockers
