@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Check, Sparkles, Zap, FileText, MessageSquare, Car, ArrowLeft } from "lucide-react";
+import { Check, Sparkles, FileText, ArrowLeft } from "lucide-react";
 import Header from "@/components/landing/Header";
 import PageTracker from "@/components/PageTracker";
 
@@ -38,26 +38,6 @@ const TIERS = [
       "Open safety recall check",
       "Negotiation insights & seller questions",
       "Pre-purchase inspection checklist",
-    ],
-  },
-  {
-    id: "auction_audit",
-    icon: Zap,
-    label: "Auction Audit",
-    price: "Free",
-    badge: "For salvage buyers",
-    badgeColor: "orange",
-    cta: "Audit a Copart lot",
-    ctaHref: "/copart",
-    ctaStyle: "orange",
-    description: "Deep salvage risk analysis for Copart and IAAI lots.",
-    features: [
-      "Damage classification (hail / flood / collision / fire)",
-      "Salvage risk score 0–100",
-      "Battery pack exposure assessment",
-      "Repair cost estimate + arbitrage (max safe bid)",
-      "Post-repair ARV vs current lot price",
-      "NHTSA recall check by VIN",
     ],
   },
   {
@@ -209,10 +189,6 @@ export default function PricingPage() {
               {
                 q: "What if the analysis fails or I'm not satisfied?",
                 a: "If generation fails, your payment is automatically voided — you won't be charged. If you're unsatisfied with quality, email support@offolab.com within 48 hours for a full refund.",
-              },
-              {
-                q: "What's the Auction Audit?",
-                a: "A free tool for Copart/IAAI salvage lots. It adds arbitrage scoring, damage classification, battery pack exposure, and repair cost estimates — specific to auction buying.",
               },
               {
                 q: "What listing sites are supported?",

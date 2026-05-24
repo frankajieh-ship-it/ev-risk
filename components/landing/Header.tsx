@@ -24,13 +24,12 @@ const homepageNavLinks = [
   { label: "Guides",       href: "/guides" },
 ];
 
-// Tool-focused nav (receipt, copart, auction pages)
+// Tool-focused nav (receipt, auction pages)
 const toolNavLinks = [
-  { label: "EV Fit Check",     href: "/routine" },
-  { label: "Ask OFFO",         href: "/advisor" },
-  { label: "Receipt Check",    href: "/receipt" },
-  { label: "Deal Watch",       href: "/deals" },
-  { label: "Copart Arbitrage", href: "/copart" },
+  { label: "EV Fit Check",  href: "/routine" },
+  { label: "Ask OFFO",      href: "/advisor" },
+  { label: "Receipt Check", href: "/receipt" },
+  { label: "Deal Watch",    href: "/deals" },
 ];
 
 const navLinkCls = "text-[0.8125rem] font-medium tracking-[-0.01em] text-white/50 hover:text-white/90 transition-colors";

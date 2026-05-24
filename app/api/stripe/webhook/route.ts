@@ -230,7 +230,7 @@ export async function POST(request: NextRequest) {
 
         if (customerId) {
           try {
-            // Downgrade: set expires_at to now so checkIsPro() immediately returns false
+            // Downgrade buyer pro access
             await supabase
               .from("user_roles")
               .update({
@@ -240,6 +240,25 @@ export async function POST(request: NextRequest) {
               })
               .eq("stripe_customer_id", customerId)
               .eq("role", "pro");
+
+            // Cancel dealer subscription if this was a dealer subscription
+            const dealerPriceIds = [
+              process.env.STRIPE_PRICE_STARTER_MONTHLY,
+              process.env.STRIPE_PRICE_GROWTH_MONTHLY,
+              process.env.STRIPE_PRICE_PRO_MONTHLY,
+              process.env.STRIPE_PRICE_DEALER_MONTHLY,
+            ].filter(Boolean) as string[];
+
+            const wasDealerSub = dealerPriceIds.length > 0
+              ? subscription.items.data.some((i) => dealerPriceIds.includes(i.price.id))
+              : false;
+
+            if (wasDealerSub) {
+              await supabase
+                .from("dealerships")
+                .update({ subscription_status: "canceled" })
+                .eq("stripe_customer_id", customerId);
+            }
 
             console.log(`🔒 Subscription cancelled for customer ${customerId}`);
           } catch (err) {
@@ -268,11 +287,17 @@ export async function POST(request: NextRequest) {
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
-        const dealerPriceId = process.env.STRIPE_PRICE_DEALER_MONTHLY;
 
-        // Only act if this subscription contains the dealer price
-        const hasDealerPrice = dealerPriceId
-          ? subscription.items.data.some((i) => i.price.id === dealerPriceId)
+        // Match against all 3 tier price IDs plus the legacy fallback
+        const dealerPriceIds = [
+          process.env.STRIPE_PRICE_STARTER_MONTHLY,
+          process.env.STRIPE_PRICE_GROWTH_MONTHLY,
+          process.env.STRIPE_PRICE_PRO_MONTHLY,
+          process.env.STRIPE_PRICE_DEALER_MONTHLY,
+        ].filter(Boolean) as string[];
+
+        const hasDealerPrice = dealerPriceIds.length > 0
+          ? subscription.items.data.some((i) => dealerPriceIds.includes(i.price.id))
           : false;
 
         if (customerId && hasDealerPrice) {
@@ -281,31 +306,31 @@ export async function POST(request: NextRequest) {
             : subscription.status === "canceled" ? "canceled"
             : "inactive";
 
+          const tier = subscription.metadata?.tier ?? null;
+
+          const updatePayload: Record<string, string | null> = {
+            stripe_customer_id: customerId,
+            stripe_subscription_id: subscription.id,
+            subscription_status: newStatus,
+          };
+          if (tier) updatePayload.subscription_tier = tier;
+
           try {
             await supabase
               .from("dealerships")
-              .update({
-                stripe_customer_id: customerId,
-                stripe_subscription_id: subscription.id,
-                subscription_status: newStatus,
-              })
+              .update(updatePayload)
               .eq("stripe_customer_id", customerId);
 
             // Also handle first-time setup where stripe_customer_id isn't set yet
-            // by matching via metadata.dealership_id if present
             const dealershipId = subscription.metadata?.dealership_id;
             if (dealershipId) {
               await supabase
                 .from("dealerships")
-                .update({
-                  stripe_customer_id: customerId,
-                  stripe_subscription_id: subscription.id,
-                  subscription_status: newStatus,
-                })
+                .update(updatePayload)
                 .eq("id", dealershipId);
             }
 
-            console.log(`✅ Dealer subscription ${event.type}: customer ${customerId} → ${newStatus}`);
+            console.log(`✅ Dealer subscription ${event.type}: customer ${customerId} → ${newStatus} (tier: ${tier ?? "unknown"})`);
           } catch (err) {
             console.error("[Webhook] dealer subscription update error:", err);
           }
@@ -314,7 +339,7 @@ export async function POST(request: NextRequest) {
             actor_type: "webhook",
             action: `dealer.subscription.${event.type === "customer.subscription.created" ? "created" : "updated"}`,
             result: "ok",
-            metadata: { stripe_customer_id: customerId, subscription_id: subscription.id, status: newStatus },
+            metadata: { stripe_customer_id: customerId, subscription_id: subscription.id, status: newStatus, tier },
           });
         }
         break;

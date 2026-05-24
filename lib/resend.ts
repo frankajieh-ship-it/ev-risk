@@ -109,6 +109,55 @@ export function buildDealWatchAlertHtml(
     </html>`;
 }
 
+/**
+ * Shared dealer email shell — logo header + white body + footer.
+ * Usage: buildDealerEmailShell(siteUrl, bodyHtml)
+ */
+export function buildDealerEmailShell(siteUrl: string, bodyHtml: string): string {
+  const logoUrl = `${siteUrl}/offo-lab-logo.webp`;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+</head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f3f4f6;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:560px;">
+
+        <!-- Logo header -->
+        <tr>
+          <td style="background:#0d1117;padding:24px 32px;border-radius:12px 12px 0 0;text-align:left;">
+            <img src="${logoUrl}" alt="OFFO" height="32" style="height:32px;width:auto;display:block;" />
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;padding:36px 32px;border-radius:0 0 12px 12px;">
+            ${bodyHtml}
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:20px 0 0;text-align:center;">
+            <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">
+              OFFO &bull; EV Buyer Intelligence Platform &bull;
+              <a href="${siteUrl}" style="color:#9ca3af;text-decoration:underline;">offolab.com</a>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
 export async function sendChecklistEmail(
   to: string,
   subject: string,

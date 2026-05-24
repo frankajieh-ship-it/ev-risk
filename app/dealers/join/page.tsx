@@ -306,10 +306,10 @@ export default function DealerJoinPage() {
                 <div>
                   <label className={labelCls}>Dealership Website</label>
                   <input
-                    type="url"
+                    type="text"
                     value={form.website}
                     onChange={(e) => update("website", e.target.value)}
-                    placeholder="https://www.greenmotors.com"
+                    placeholder="www.greenmotors.com"
                     className={inputCls}
                   />
                 </div>

@@ -21,7 +21,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Stripe not configured" }, { status: 501 });
   }
 
-  const priceId = process.env.STRIPE_PRICE_DEALER_MONTHLY;
+  // Parse tier from request body (defaults to "starter")
+  let tier: "starter" | "growth" | "pro" = "starter";
+  try {
+    const body = await req.json();
+    if (body.tier === "growth" || body.tier === "pro" || body.tier === "starter") {
+      tier = body.tier;
+    }
+  } catch { /* body is optional */ }
+
+  const priceMap: Record<string, string | undefined> = {
+    starter: process.env.STRIPE_PRICE_STARTER_MONTHLY,
+    growth: process.env.STRIPE_PRICE_GROWTH_MONTHLY,
+    pro: process.env.STRIPE_PRICE_PRO_MONTHLY,
+  };
+  // Fall back to legacy single-price env var if tier-specific one not set
+  const priceId = priceMap[tier] ?? process.env.STRIPE_PRICE_DEALER_MONTHLY;
+
   if (!priceId) {
     return NextResponse.json({ error: "Dealer subscription price not configured" }, { status: 501 });
   }
@@ -49,6 +65,7 @@ export async function POST(req: NextRequest) {
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
     metadata: { dealership_id: dealershipId },
+    subscription_data: { metadata: { dealership_id: dealershipId, tier } },
     success_url: `${baseUrl}/dealer?subscribed=true`,
     cancel_url: `${baseUrl}/dealer`,
   };

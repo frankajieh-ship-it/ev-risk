@@ -26,7 +26,6 @@ import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 import { getReceiptHistory } from "@/lib/receipt-history";
 import { anonGarageCount } from "@/lib/anon-garage";
 import type { MinimumViableRoutine } from "@/types/v2";
-import SampleReportPreview from "@/components/landing/SampleReportPreview";
 
 type WizardStep = "routine" | "recommendations" | "vehicle_manual" | "generating";
 
@@ -375,7 +374,6 @@ export default function Home() {
             <div className="hidden md:flex items-center gap-6">
               <Link href="/receipt" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Receipt Check</Link>
               <Link href="/deals" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Deal Watch</Link>
-              <Link href="/copart" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Copart Arbitrage</Link>
               <Link href="/news" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">EV News</Link>
               <Link href="/blog" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Blog</Link>
             </div>
@@ -418,7 +416,6 @@ export default function Home() {
                 {[
                   { href: "/receipt", label: "Receipt Check" },
                   { href: "/deals", label: "Deal Watch" },
-                  { href: "/copart", label: "Copart Arbitrage" },
                   { href: "/news", label: "EV News" },
                   { href: "/blog", label: "Blog" },
                 ].map((link) => (
@@ -450,12 +447,6 @@ export default function Home() {
 
         {/* Hero */}
         <section className="max-w-4xl mx-auto px-5 pt-20 pb-16 text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full border border-white/10 bg-white/5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e] animate-pulse" />
-            <span className="text-xs font-medium text-white/70 tracking-wide">Free analysis</span>
-          </div>
-
           {/* Headline */}
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-5 tracking-tight" style={{ lineHeight: "1.05" }}>
             Know before you buy.<br />
@@ -508,10 +499,6 @@ export default function Home() {
             </Link>
           </p>
 
-          {/* Sample result preview — visual proof of what the tool produces */}
-          <div className="max-w-2xl mx-auto mt-6">
-            <SampleReportPreview />
-          </div>
         </section>
 
         {/* Return visitor nudge — shown when local receipt history exists but not signed in */}
