@@ -158,9 +158,6 @@ export async function POST(request: NextRequest) {
           const nmStatusCode = nmJson?.status_code ?? 200;
           console.log('[Proxy Fetch] Nimbleway html length:', html.length, 'status_code:', nmStatusCode);
 
-          // CarGurus returns BLACKOUT_TEXAS shell (~2755 bytes) for some routes —
-          // still usable since og:title / og:description are populated on /details/ URLs.
-          // Only treat as blocked if truly empty or has CAPTCHA.
           const lowerHtml = html.toLowerCase();
           const isBlocked =
             lowerHtml.includes('id="captcha"') ||
@@ -168,7 +165,12 @@ export async function POST(request: NextRequest) {
             lowerHtml.includes('challenge-platform') ||
             html.length < 500;
 
-          if (!isBlocked) {
+          // CarGurus sometimes returns a BLACKOUT_TEXAS JS shell (~2755 bytes) that lacks
+          // vehicle history (title/accident). Fall through to direct fetch for small responses
+          // so we can merge — direct fetch often gets rendered history text via Googlebot UA.
+          const isThinShell = parsedUrl.hostname.includes('cargurus.com') && html.length < 10000;
+
+          if (!isBlocked && !isThinShell) {
             return NextResponse.json({
               success: true,
               html,
@@ -178,7 +180,12 @@ export async function POST(request: NextRequest) {
               headers: { 'content-type': 'text/html' },
             });
           }
-          console.warn('[Proxy Fetch] Nimbleway returned blocked/empty page, length:', html.length);
+          if (!isBlocked && isThinShell) {
+            // Store partial Nimbleway result; try direct fetch below and use whichever is richer
+            console.log('[Proxy Fetch] CarGurus thin shell from Nimbleway, trying direct fetch for history data');
+          } else {
+            console.warn('[Proxy Fetch] Nimbleway returned blocked/empty page, length:', html.length);
+          }
         } else {
           const errText = await nmResponse.text().catch(() => '');
           console.warn('[Proxy Fetch] Nimbleway error', nmResponse.status, errText.substring(0, 200), '— falling through to direct fetch');
@@ -195,11 +202,17 @@ export async function POST(request: NextRequest) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+    // CarGurus serves rendered HTML (including vehicle history) to Googlebot
+    const isCarGurus = parsedUrl.hostname.includes('cargurus.com');
+    const fetchUA = isCarGurus
+      ? 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+      : getRandomUserAgent();
+
     try {
       const response = await fetch(url, {
         signal: controller.signal,
         headers: {
-          'User-Agent': getRandomUserAgent(),
+          'User-Agent': fetchUA,
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
           'Accept-Encoding': 'gzip, deflate, br',
