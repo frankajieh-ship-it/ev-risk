@@ -104,10 +104,10 @@ export default function DealerColdPage() {
         {/* What you get */}
         <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-7 mb-8">
           <div className="flex items-end gap-2 mb-1">
-            <span className="text-3xl font-bold text-white">$79</span>
-            <span className="text-white/40 text-sm mb-1">/ month per dealership</span>
+            <span className="text-3xl font-bold text-white">$149</span>
+            <span className="text-white/40 text-sm mb-1">/ month to start</span>
           </div>
-          <p className="text-xs text-white/30 mb-6">Cancel anytime</p>
+          <p className="text-xs text-white/30 mb-6">Starter plan · Growth ($299) and Pro ($499) also available · Cancel anytime</p>
           <ul className="space-y-3">
             {FEATURES.map((f) => (
               <li key={f} className="flex items-start gap-3 text-sm text-white/70">

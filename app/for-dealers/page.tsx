@@ -287,40 +287,120 @@ export default function ForDealersPage() {
       </section>
 
       {/* ── Pricing ──────────────────────────────────────────────────── */}
-      <section className="max-w-md mx-auto px-4 pb-20">
-        <h2 className="text-2xl font-bold text-center mb-8">Simple, transparent pricing</h2>
-        <div className="bg-white/[0.04] border border-[#00d97e]/25 rounded-2xl p-8">
-          <div className="flex items-end gap-2 mb-1">
-            <span className="text-4xl font-bold text-white">$79</span>
-            <span className="text-white/40 text-sm mb-1.5">/ month</span>
+      <section className="max-w-5xl mx-auto px-4 pb-20">
+        <h2 className="text-2xl font-bold text-center mb-3">Simple, transparent pricing</h2>
+        <p className="text-sm text-white/40 text-center mb-10">Free to apply · No credit card required · Cancel anytime</p>
+
+        <div className="grid sm:grid-cols-3 gap-5 items-start">
+
+          {/* Starter */}
+          <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-7">
+            <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">Starter</p>
+            <div className="flex items-end gap-1.5 mb-1">
+              <span className="text-3xl font-bold text-white">$149</span>
+              <span className="text-white/40 text-sm mb-1">/ mo</span>
+            </div>
+            <p className="text-xs text-white/30 mb-6">Up to 25 active listings</p>
+            <ul className="space-y-2.5 mb-8">
+              {[
+                "Buyer intelligence dashboard (30d)",
+                "Market position pricing",
+                "Verified dealer badge",
+                "Public dealer profile",
+                "Buyer inquiry inbox",
+                "CSV import",
+              ].map((f) => (
+                <li key={f} className="flex items-start gap-2.5 text-sm text-white/55">
+                  <Check className="w-3.5 h-3.5 text-white/30 flex-shrink-0 mt-0.5" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/dealers/join"
+              onClick={() => trackEvent("dealer_apply_cta_clicked", { position: "pricing_starter" })}
+              className="flex items-center justify-center w-full py-2.5 border border-white/[0.12] text-white/60 rounded-xl text-sm font-semibold hover:bg-white/[0.05] hover:text-white/80 transition-colors"
+            >
+              Get started
+            </Link>
           </div>
-          <p className="text-sm text-white/40 mb-6">per dealership · cancel anytime</p>
-          <ul className="space-y-3 mb-8">
-            {[
-              "Full buyer intelligence dashboard",
-              "Unlimited inventory listings",
-              "Pricing intelligence on every vehicle",
-              "Verified dealer badge + website embed",
-              "Direct buyer inquiry inbox",
-              "CSV bulk import (up to 500 vehicles)",
-              "Public dealer profile page",
-            ].map((item) => (
-              <li key={item} className="flex items-center gap-3 text-sm text-white/70">
-                <Check className="w-4 h-4 text-[#00d97e] flex-shrink-0" />
-                {item}
-              </li>
-            ))}
-          </ul>
-          <Link
-            href="/dealers/join"
-            onClick={() => trackEvent("dealer_apply_cta_clicked", { position: "pricing" })}
-            className="flex items-center justify-center gap-2 w-full py-3.5 bg-[#00d97e] text-[#0d1117] font-semibold rounded-xl hover:bg-[#00f090] transition-colors text-sm"
-          >
-            Join the dealer network
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <p className="text-xs text-white/25 text-center mt-3">Free to apply · No credit card required</p>
+
+          {/* Growth — highlighted */}
+          <div className="bg-white/[0.05] border border-[#00d97e]/30 rounded-2xl p-7 relative">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+              <span className="bg-[#00d97e] text-[#0d1117] text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">
+                Most popular
+              </span>
+            </div>
+            <p className="text-xs font-semibold text-[#00d97e]/70 uppercase tracking-widest mb-3">Growth</p>
+            <div className="flex items-end gap-1.5 mb-1">
+              <span className="text-3xl font-bold text-white">$299</span>
+              <span className="text-white/40 text-sm mb-1">/ mo</span>
+            </div>
+            <p className="text-xs text-white/30 mb-6">Up to 100 active listings</p>
+            <ul className="space-y-2.5 mb-8">
+              {[
+                "Full buyer intelligence (90d)",
+                "Buyer profiles + geo heatmap",
+                "Pricing AI — range, explanation + sensitivity curve",
+                "Priority placement in buyer reports",
+                "CSV bulk import (500 vehicles)",
+                "Inquiry response analytics",
+              ].map((f) => (
+                <li key={f} className="flex items-start gap-2.5 text-sm text-white/70">
+                  <Check className="w-3.5 h-3.5 text-[#00d97e] flex-shrink-0 mt-0.5" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/dealers/join"
+              onClick={() => trackEvent("dealer_apply_cta_clicked", { position: "pricing_growth" })}
+              className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#00d97e] text-[#0d1117] rounded-xl text-sm font-semibold hover:bg-[#00f090] transition-colors"
+            >
+              Join the dealer network
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          {/* Pro */}
+          <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-7">
+            <p className="text-xs font-semibold text-white/40 uppercase tracking-widest mb-3">Pro</p>
+            <div className="flex items-end gap-1.5 mb-1">
+              <span className="text-3xl font-bold text-white">$499</span>
+              <span className="text-white/40 text-sm mb-1">/ mo</span>
+            </div>
+            <p className="text-xs text-white/30 mb-6">Unlimited listings</p>
+            <ul className="space-y-2.5 mb-8">
+              {[
+                "Everything in Growth",
+                "API access — sync from your DMS",
+                "White-label badge with custom URL",
+                "Dedicated onboarding call",
+                "Early access to new features",
+              ].map((f) => (
+                <li key={f} className="flex items-start gap-2.5 text-sm text-white/55">
+                  <Check className="w-3.5 h-3.5 text-white/30 flex-shrink-0 mt-0.5" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/dealers/join"
+              onClick={() => trackEvent("dealer_apply_cta_clicked", { position: "pricing_pro" })}
+              className="flex items-center justify-center w-full py-2.5 border border-white/[0.12] text-white/60 rounded-xl text-sm font-semibold hover:bg-white/[0.05] hover:text-white/80 transition-colors"
+            >
+              Contact us
+            </Link>
+          </div>
+
         </div>
+
+        {/* Annual upsell */}
+        <p className="text-xs text-white/30 text-center mt-6">
+          Annual plans available — pay for 10 months, get 12.
+          <a href="mailto:hello@offolab.com" className="text-[#00d97e]/60 hover:text-[#00d97e] ml-1 transition-colors">Email us →</a>
+        </p>
       </section>
 
       {/* ── How it works ─────────────────────────────────────────────── */}
