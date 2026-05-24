@@ -30,6 +30,9 @@ interface FormData {
   city: string;
   state: string;
   zip: string;
+  website: string;
+  inventory_size: string;
+  ev_focus: string;
 }
 
 const EMPTY: FormData = {
@@ -40,6 +43,9 @@ const EMPTY: FormData = {
   city: "",
   state: "",
   zip: "",
+  website: "",
+  inventory_size: "",
+  ev_focus: "",
 };
 
 const inputCls = "w-full px-3 py-2.5 bg-[#0d1117] border border-white/[0.10] rounded-xl text-sm text-white placeholder:text-white/25 focus:ring-2 focus:ring-[#00d97e]/40 focus:border-[#00d97e]/40 outline-none transition-colors";
@@ -94,6 +100,9 @@ export default function DealerJoinPage() {
         dealership_name: form.dealership_name.trim(),
         contact_name: form.contact_name.trim(),
         phone: form.phone.trim(),
+        website: form.website.trim(),
+        inventory_size: form.inventory_size,
+        ev_focus: form.ev_focus,
         city: form.city.trim(),
         state: form.state,
         zip: form.zip.trim(),
@@ -292,6 +301,54 @@ export default function DealerJoinPage() {
                     maxLength={10}
                     className={inputCls}
                   />
+                </div>
+
+                <div>
+                  <label className={labelCls}>Dealership Website</label>
+                  <input
+                    type="url"
+                    value={form.website}
+                    onChange={(e) => update("website", e.target.value)}
+                    placeholder="https://www.greenmotors.com"
+                    className={inputCls}
+                  />
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>
+                      EV Inventory Size <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      value={form.inventory_size}
+                      onChange={(e) => update("inventory_size", e.target.value)}
+                      required
+                      className={inputCls}
+                    >
+                      <option value="">Select range</option>
+                      <option value="1-5">1–5 EVs</option>
+                      <option value="6-20">6–20 EVs</option>
+                      <option value="21-50">21–50 EVs</option>
+                      <option value="51+">51+ EVs</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>
+                      EV Focus <span className="text-red-400">*</span>
+                    </label>
+                    <select
+                      value={form.ev_focus}
+                      onChange={(e) => update("ev_focus", e.target.value)}
+                      required
+                      className={inputCls}
+                    >
+                      <option value="">Select type</option>
+                      <option value="ev_only">EV only</option>
+                      <option value="ev_primary">Mostly EVs</option>
+                      <option value="mixed">Mixed (EV + ICE)</option>
+                      <option value="expanding">Expanding into EVs</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Logo upload */}

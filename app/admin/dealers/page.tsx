@@ -9,8 +9,13 @@ interface Dealer {
   slug: string;
   city: string | null;
   state: string | null;
+  phone: string | null;
   contact_name: string | null;
   contact_email: string | null;
+  website: string | null;
+  inventory_size: string | null;
+  ev_focus: string | null;
+  referral_source: string | null;
   status: "pending" | "approved" | "rejected";
   is_verified: boolean;
   rejection_reason: string | null;
@@ -139,10 +144,31 @@ export default function AdminDealersPage() {
                       {[dealer.city, dealer.state].filter(Boolean).join(", ") || "Location not provided"}
                       {dealer.contact_name && ` · ${dealer.contact_name}`}
                       {dealer.contact_email && ` · ${dealer.contact_email}`}
+                      {dealer.phone && ` · ${dealer.phone}`}
                     </p>
+                    {(dealer.website || dealer.inventory_size || dealer.ev_focus) && (
+                      <p className="text-xs text-gray-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                        {dealer.website && (
+                          <a href={dealer.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate max-w-[200px]">
+                            {dealer.website.replace(/^https?:\/\//, "")}
+                          </a>
+                        )}
+                        {dealer.inventory_size && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">
+                            {dealer.inventory_size} EVs
+                          </span>
+                        )}
+                        {dealer.ev_focus && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-green-50 text-green-700 font-medium capitalize">
+                            {dealer.ev_focus.replace(/_/g, " ")}
+                          </span>
+                        )}
+                      </p>
+                    )}
                     <p className="text-xs text-gray-400 mt-0.5">
                       Signed up {new Date(dealer.created_at).toLocaleDateString()}
                       {dealer.reviewed_at && ` · Reviewed ${new Date(dealer.reviewed_at).toLocaleDateString()}`}
+                      {dealer.referral_source && ` · via ${dealer.referral_source}`}
                     </p>
                     {dealer.rejection_reason && (
                       <p className="text-xs text-red-600 mt-1">Reason: {dealer.rejection_reason}</p>

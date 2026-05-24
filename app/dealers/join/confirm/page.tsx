@@ -27,6 +27,9 @@ interface PendingData {
   city: string;
   state: string;
   zip: string;
+  website?: string;
+  inventory_size?: string;
+  ev_focus?: string;
 }
 
 export default function DealerConfirmPage() {

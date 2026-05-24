@@ -46,6 +46,9 @@ export async function POST(req: NextRequest) {
     city?: string;
     state?: string;
     zip?: string;
+    website?: string;
+    inventory_size?: string;
+    ev_focus?: string;
     referral_source?: string;
   };
 
@@ -55,7 +58,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { dealership_name, contact_name, phone, city, state, zip, referral_source } = body;
+  const { dealership_name, contact_name, phone, city, state, zip, website, inventory_size, ev_focus, referral_source } = body;
 
   if (!dealership_name?.trim()) {
     return NextResponse.json({ error: "dealership_name is required" }, { status: 400 });
@@ -85,6 +88,7 @@ export async function POST(req: NextRequest) {
       city: city?.trim() || null,
       state: state?.trim() || null,
       zip: zip?.trim() || null,
+      website: website?.trim() || null,
       country: "US",
       contact_name: contact_name?.trim() || null,
       contact_email: authResult.email || null,
@@ -92,6 +96,8 @@ export async function POST(req: NextRequest) {
       is_verified: false,
       status: "pending",
       referral_source: referral_source?.trim() || null,
+      inventory_size: inventory_size?.trim() || null,
+      ev_focus: ev_focus?.trim() || null,
     })
     .select("id, slug")
     .single();
@@ -136,16 +142,18 @@ export async function POST(req: NextRequest) {
   }
 
   // Notify admin of new dealer signup
-  const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
+  const adminEmail = process.env.ADMIN_NOTIFY_EMAIL || "frankajieh@gmail.com";
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
-  if (adminEmail && isResendConfigured()) {
+  if (isResendConfigured()) {
     sendChecklistEmail(
       adminEmail,
-      `[OFFO] New dealer signup: ${dealership_name.trim()}`,
-      `<p><strong>${dealership_name.trim()}</strong> signed up as a dealer.</p>
-       <p>Contact: ${contact_name || "—"} · ${authResult.email}</p>
-       <p>Location: ${city || "—"}, ${state || "—"}</p>
-       <p><a href="${siteUrl}/admin/dealers">Review in admin panel →</a></p>`
+      `[OFFO] New dealer application: ${dealership_name.trim()}`,
+      `<p><strong>${dealership_name.trim()}</strong> applied for dealer access.</p>
+       <p><strong>Contact:</strong> ${contact_name || "—"} · ${authResult.email} · ${phone || "—"}</p>
+       <p><strong>Location:</strong> ${city || "—"}, ${state || "—"} ${zip || ""}</p>
+       <p><strong>Website:</strong> ${website || "—"}</p>
+       <p><strong>EV Inventory:</strong> ${inventory_size || "—"} &nbsp;|&nbsp; <strong>EV Focus:</strong> ${ev_focus || "—"}</p>
+       <p><a href="${siteUrl}/admin/dealers">Review &amp; approve in admin panel →</a></p>`
     ).catch(() => {});
   }
 

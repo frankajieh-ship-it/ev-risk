@@ -107,6 +107,23 @@ function extractFieldsWithRegex(text: string): Partial<FetchedListingFields> | n
   const vinMatch = t.match(/\b([A-HJ-NPR-Z0-9]{17})\b/);
   if (vinMatch) fields.vin = vinMatch[1].toUpperCase();
 
+  // --- Title status ---
+  if (/clean\s+title/i.test(t)) fields.title_status = "clean";
+  else if (/salvage\s+title/i.test(t)) fields.title_status = "salvage";
+  else if (/rebuilt\s+title|reconstructed\s+title/i.test(t)) fields.title_status = "rebuilt";
+
+  // --- Accident history ---
+  const accMatch = t.match(/(\d+)\s+accident[s]?\s+reported/i);
+  if (accMatch) {
+    fields.accidents_reported = parseInt(accMatch[1]) > 0 ? "yes" : "no";
+  } else if (/no\s+accidents?\s+reported|0\s+accidents?\s+reported/i.test(t)) {
+    fields.accidents_reported = "no";
+  } else if (/no\s+accident[s]?|accident[s]?\s*:\s*none|clean\s+history/i.test(t)) {
+    fields.accidents_reported = "no";
+  } else if (/accident[s]?\s+reported|\d+\s+accident[s]?/i.test(t)) {
+    fields.accidents_reported = "yes";
+  }
+
   // --- EV: Fuel type → category hint (not a FetchedListingFields field, but useful) ---
   // We don't store this directly, but range/battery may appear
   const rangeMatch = t.match(
@@ -128,7 +145,7 @@ function extractFieldsWithRegex(text: string): Partial<FetchedListingFields> | n
   return fields;
 }
 
-const ALL_FIELD_KEYS = ["year", "make", "model", "trim", "mileage", "price", "vin", "location", "range_mi", "battery_kwh", "dc_fast_kw", "efficiency_mi_per_kwh"];
+const ALL_FIELD_KEYS = ["year", "make", "model", "trim", "mileage", "price", "vin", "location", "range_mi", "battery_kwh", "dc_fast_kw", "efficiency_mi_per_kwh", "title_status", "accidents_reported"];
 
 function buildResult(fields: Partial<FetchedListingFields>): TextExtractionResult {
   const extractedFields = ALL_FIELD_KEYS.filter((k) => fields[k as keyof typeof fields] !== undefined);
@@ -157,10 +174,13 @@ export async function extractFieldsFromText(
 Return ONLY a JSON object with these fields (use null for anything not found):
 { "year": number|null, "make": string|null, "model": string|null, "trim": string|null,
   "mileage": number|null, "price": number|null, "vin": string|null, "location": string|null,
-  "range_mi": number|null, "battery_kwh": number|null, "dc_fast_kw": number|null, "efficiency_mi_per_kwh": number|null }
+  "range_mi": number|null, "battery_kwh": number|null, "dc_fast_kw": number|null, "efficiency_mi_per_kwh": number|null,
+  "title_status": "clean"|"salvage"|"rebuilt"|null, "accidents_reported": "yes"|"no"|null }
 Parse numbers correctly: "$32,500" → 32500, "45k miles" → 45000.
 For VIN, only return if you find a valid 17-character alphanumeric string.
-For EV specs: range_mi = EPA or stated range in miles; battery_kwh = usable battery capacity in kWh; dc_fast_kw = peak DC fast charging speed in kW; efficiency_mi_per_kwh = miles per kWh efficiency.`,
+For EV specs: range_mi = EPA or stated range in miles; battery_kwh = usable battery capacity in kWh; dc_fast_kw = peak DC fast charging speed in kW; efficiency_mi_per_kwh = miles per kWh efficiency.
+For title_status: "clean" if clean title stated, "salvage" if salvage/branded title, "rebuilt" if rebuilt/reconstructed.
+For accidents_reported: "no" if explicitly states no accidents or 0 accidents, "yes" if any accidents mentioned.`,
         },
         { role: "user", content: text.substring(0, 8000) },
       ],

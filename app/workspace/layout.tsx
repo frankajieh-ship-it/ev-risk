@@ -18,7 +18,6 @@ import {
   Eye,
   Zap,
   GitCompare,
-  Gavel,
   LayoutDashboard,
   LogOut,
   Plus,
@@ -33,7 +32,7 @@ const NAV_ITEMS = [
   { href: "/workspace/deal-watch",   label: "Deal Watch",    icon: Eye,             exact: false },
   { href: "/workspace/ev-fit",       label: "EV Fit Score",  icon: Zap,             exact: false },
   { href: "/compare",                label: "Comparisons",   icon: GitCompare,      exact: false },
-  { href: "/workspace/auction",      label: "Auction Tool",  icon: Gavel,           exact: false },
+  // { href: "/workspace/auction",      label: "Auction Tool",  icon: Gavel,           exact: false },
 ];
 
 export default function WorkspaceLayout({

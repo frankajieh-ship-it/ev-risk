@@ -331,6 +331,27 @@ async function extractFromAutoTrader(html: string): Promise<Partial<VehicleData>
     }
   }
 
+  // Title status — AutoTrader renders this as visible text
+  if (!data.title_status) {
+    if (/clean\s+title/i.test(html)) data.title_status = "clean";
+    else if (/salvage\s+title/i.test(html)) data.title_status = "salvage";
+    else if (/rebuilt\s+title|reconstructed\s+title/i.test(html)) data.title_status = "rebuilt";
+  }
+
+  // Accident history — AutoTrader shows "0 accidents reported" or "X accident(s) reported"
+  if (!data.accidents_reported) {
+    const accMatch = html.match(/(\d+)\s+accident[s]?\s+reported/i);
+    if (accMatch) data.accidents_reported = parseInt(accMatch[1]) > 0 ? "yes" : "no";
+    else if (/no\s+accidents?\s+reported|0\s+accidents?\s+reported/i.test(html)) data.accidents_reported = "no";
+    else if (/accident[s]?\s+reported/i.test(html)) data.accidents_reported = "yes";
+  }
+
+  // Owner count
+  if (!data.owners) {
+    const ownMatch = html.match(/(\d+)\s+previous\s+owner/i);
+    if (ownMatch) { const n = parseInt(ownMatch[1]); if (n > 0) data.owners = n; }
+  }
+
   // Validate and return
   return validateVehicleData(data);
 }
@@ -728,6 +749,27 @@ async function extractFromCars(html: string): Promise<Partial<VehicleData>> {
     if (vinMatch) {
       data.vin = vinMatch[1];
     }
+  }
+
+  // Title status — Cars.com renders history as visible text
+  if (!data.title_status) {
+    if (/clean\s+title/i.test(html)) data.title_status = "clean";
+    else if (/salvage\s+title/i.test(html)) data.title_status = "salvage";
+    else if (/rebuilt\s+title|reconstructed\s+title/i.test(html)) data.title_status = "rebuilt";
+  }
+
+  // Accident history
+  if (!data.accidents_reported) {
+    const accMatch = html.match(/(\d+)\s+accident[s]?\s+reported/i);
+    if (accMatch) data.accidents_reported = parseInt(accMatch[1]) > 0 ? "yes" : "no";
+    else if (/no\s+accidents?\s+reported|0\s+accidents?\s+reported/i.test(html)) data.accidents_reported = "no";
+    else if (/accident[s]?\s+reported/i.test(html)) data.accidents_reported = "yes";
+  }
+
+  // Owner count
+  if (!data.owners) {
+    const ownMatch = html.match(/(\d+)\s+previous\s+owner/i);
+    if (ownMatch) { const n = parseInt(ownMatch[1]); if (n > 0) data.owners = n; }
   }
 
   // Validate and return
