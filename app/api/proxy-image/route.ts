@@ -80,7 +80,9 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+        // no-store: Netlify Edge was caching one image and serving it for all URLs.
+        // Browser still caches via standard HTTP (no issue), but CDN edge must not.
+        "Cache-Control": "no-store",
         "Content-Length": String(buffer.byteLength),
       },
     });
