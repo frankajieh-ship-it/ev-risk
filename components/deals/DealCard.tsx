@@ -95,7 +95,7 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
     });
     const delay = Math.min((rank ?? 1) * 100, 1500);
     const t = setTimeout(() => {
-      fetch(`/api/photos?${params}`)
+      fetch(`/api/photos?${params}&no_market=1`)
         .then((r) => r.json())
         .then((d: { photo_urls?: string[] }) => {
           const url = d.photo_urls?.[0];
