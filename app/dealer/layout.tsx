@@ -63,7 +63,7 @@ export default function DealerLayout({ children }: { children: React.ReactNode }
         setDealerStatus(status === "approved" ? "approved" : status === "rejected" ? "rejected" : "pending");
         setSubscriptionStatus(data.dealership?.subscription_status ?? null);
       })
-      .catch(() => { setDealerStatus("approved"); setSubscriptionStatus("trial"); });
+      .catch(() => { setDealerStatus("approved"); setSubscriptionStatus("pending_payment"); });
   }, [isDealer, session?.access_token]);
 
   useEffect(() => {
@@ -131,8 +131,9 @@ export default function DealerLayout({ children }: { children: React.ReactNode }
     );
   }
 
-  // Subscription gate — pending_payment, canceled, or inactive blocks access
+  // Subscription gate — null (no record), pending_payment, canceled, or inactive blocks access
   const isSubscriptionBlocked =
+    subscriptionStatus === null ||
     subscriptionStatus === "pending_payment" ||
     subscriptionStatus === "canceled" ||
     subscriptionStatus === "inactive";
