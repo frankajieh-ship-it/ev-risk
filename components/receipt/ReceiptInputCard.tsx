@@ -70,6 +70,8 @@ interface ReceiptInputCardProps {
     fields: StructuredListingFields;
     extraction_id?: string;
     input_mode?: string;
+    dealer_info?: { id: string; name: string; slug: string; logo_url: string | null } | null;
+    inventory_id?: string | null;
   }) => void;
   onExtractionSuccess?: (vehicleSummary: string) => void;
   onExtractionFields?: (fields: { year?: number; make?: string; model?: string; trim?: string; mileage?: number }) => void;
@@ -168,6 +170,8 @@ export default function ReceiptInputCard({
   const [extractedRawText, setExtractedRawText] = useState<string | null>(null);
   const [hasExtracted, setHasExtracted] = useState(false);
   const [listingSource, setListingSource] = useState<string | null>(null);
+  const [dealerInfoExtracted, setDealerInfoExtracted] = useState<{ id: string; name: string; slug: string; logo_url: string | null } | null>(null);
+  const [inventoryIdExtracted, setInventoryIdExtracted] = useState<string | null>(null);
   const [carGurusCleanId, setCarGurusCleanId] = useState<string | null>(null);
   const [showCarGurusBanner, setShowCarGurusBanner] = useState(false);
   const [showFbPasteModal, setShowFbPasteModal] = useState(false);
@@ -437,6 +441,8 @@ export default function ReceiptInputCard({
       setExtractionId(data.extraction_id || null);
       setExtractedRawText(data.raw_text || null);
       setListingSource(data.listing_source || null);
+      setDealerInfoExtracted(data.dealer_info ?? null);
+      setInventoryIdExtracted(data.inventory_id ?? null);
       setExtractError(null);
 
       trackEvent?.("receipt_extract_succeeded", {
@@ -492,6 +498,8 @@ export default function ReceiptInputCard({
       fields: submitFields,
       extraction_id: extractionId || undefined,
       input_mode: hasExtracted ? "extracted" : prefillVin ? "vin" : "manual",
+      dealer_info: dealerInfoExtracted ?? undefined,
+      inventory_id: inventoryIdExtracted ?? undefined,
     });
   };
 

@@ -936,6 +936,11 @@ export default function ReceiptPage() {
         {/* Input Card */}
         <ReceiptInputCard
           onGenerate={(data) => {
+            // If this is an internal dealer listing, set dealerInfo immediately
+            // so the "Message Dealer" button is ready when the receipt renders.
+            if (data.dealer_info) {
+              setDealerInfo({ ...data.dealer_info, is_verified: true });
+            }
             // Fetch photos from Auto.dev if extraction didn't return any
             if (listingPhotos.length === 0 && (data.fields.make || data.fields.year)) {
               fetch("/api/photos?" + new URLSearchParams({

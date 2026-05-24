@@ -21,6 +21,7 @@ import { enrichFromAutodev } from "@/lib/auto-dev-client";
 import { getStaticPhotoUrl } from "@/lib/vehicle-photo";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/api-auth";
+import { liteCheck } from "@/lib/vinaudit-client";
 import type { FetchedListingFields } from "@/types/receipt";
 import type { FieldConfidence } from "@/types/receipt";
 import { logApi, startTimer } from "@/lib/api-logger";
@@ -320,10 +321,20 @@ export async function POST(request: NextRequest) {
 
         const price = inv.price_cents ? Math.round(inv.price_cents / 100) : undefined;
         const photoUrls: string[] = Array.isArray(inv.photo_urls) ? inv.photo_urls : [];
-        // Fall back to Wikimedia static map if dealer provided no photos
         if (photoUrls.length === 0) {
           const staticUrl = getStaticPhotoUrl(inv.make, inv.model, inv.year ?? undefined);
           if (staticUrl) photoUrls.push(staticUrl);
+        }
+
+        // VIN history lookup — run in parallel, non-fatal if it fails
+        let titleStatus: FetchedListingFields["title_status"] = undefined;
+        let accidentsReported: FetchedListingFields["accidents_reported"] = undefined;
+        if (inv.vin) {
+          const vinResult = await liteCheck(inv.vin).catch(() => null);
+          if (vinResult?.success) {
+            titleStatus = vinResult.summary.salvage_reported ? "salvage" : "clean";
+            accidentsReported = vinResult.summary.accident_count > 0 ? "yes" : "no";
+          }
         }
 
         const fields: FetchedListingFields = {
@@ -335,14 +346,29 @@ export async function POST(request: NextRequest) {
           price,
           vin: inv.vin ?? undefined,
           location: location ?? undefined,
+          title_status: titleStatus,
+          accidents_reported: accidentsReported,
         };
 
         const extractedFieldKeys = (Object.keys(fields) as (keyof FetchedListingFields)[])
           .filter((k) => fields[k] !== undefined && fields[k] !== null);
 
         const field_confidence: Record<string, FieldConfidence> = {};
-        for (const k of ["year", "make", "model", "trim", "mileage", "price", "vin", "location"]) {
+        for (const k of ["year", "make", "model", "trim", "mileage", "price", "vin", "location", "title_status", "accidents_reported"]) {
           field_confidence[k] = extractedFieldKeys.includes(k as keyof FetchedListingFields) ? "extracted" : "missing";
+        }
+
+        // Fetch dealer logo + id for the contact button on the receipt page
+        let dealerInfoPayload: { id: string; name: string; slug: string; logo_url: string | null } | null = null;
+        if (inv.dealership_id && dealerName) {
+          const { data: dealerRow } = await adminSupabase
+            .from("dealerships")
+            .select("id, name, slug, logo_url")
+            .eq("id", inv.dealership_id)
+            .maybeSingle();
+          if (dealerRow) {
+            dealerInfoPayload = { id: dealerRow.id, name: dealerRow.name, slug: dealerRow.slug, logo_url: dealerRow.logo_url ?? null };
+          }
         }
 
         return NextResponse.json({
@@ -351,6 +377,8 @@ export async function POST(request: NextRequest) {
           field_confidence,
           extraction_id: uuidv4(),
           listing_source: dealerName ? `offo:${dealerName}` : "offo.dealer",
+          dealer_info: dealerInfoPayload,
+          inventory_id: inv.id,
           photo_urls: photoUrls,
           parse_confidence: "high",
           extractedFields: extractedFieldKeys,
