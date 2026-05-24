@@ -23,7 +23,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { FetchedListingFields } from "@/types/receipt";
 import type { FieldConfidence } from "@/types/receipt";
 import { logApi, startTimer } from "@/lib/api-logger";
-import { hashIP } from "@/lib/session-utils";
+import { hashIP } from "@/lib/server-session-utils";
 import { isInternalTester } from "@/lib/rollout-flags";
 
 /** Extract EV-specific specs from raw listing page text using regex */

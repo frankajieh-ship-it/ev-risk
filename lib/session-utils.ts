@@ -3,11 +3,6 @@
  * Helpers for IP hashing and session management
  */
 
-import { createHash } from "crypto";
-
-// Salt for IP hashing (in production, use env variable)
-const IP_HASH_SALT = process.env.IP_HASH_SALT || "evroutine-session-salt-2024";
-
 // Persistent session keys
 const PERSISTENT_SESSION_KEY = "offo_persistent_session";
 const RECEIPT_TOKEN_KEY = "offo_receipt_token";
@@ -105,26 +100,6 @@ export function isValidPersistentSessionId(id: string | null, maxAgeDays = 365):
   if (ts > now + 60_000) return false;
   if (now - ts > maxAgeDays * 24 * 60 * 60 * 1000) return false;
   return true;
-}
-
-/**
- * Hash an IP address for privacy-preserving storage
- */
-export function hashIP(ip: string | null): string | null {
-  if (!ip) return null;
-  return createHash("sha256")
-    .update(ip + IP_HASH_SALT)
-    .digest("hex")
-    .substring(0, 16); // Truncate for storage efficiency
-}
-
-/**
- * Extract client IP from request headers
- */
-export function getClientIP(headers: Headers): string | null {
-  const forwarded = headers.get("x-forwarded-for");
-  const realIP = headers.get("x-real-ip");
-  return forwarded?.split(",")[0]?.trim() || realIP || null;
 }
 
 /**

@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { hashIP, getClientIP } from "@/lib/session-utils";
+import { hashIP, getClientIP } from "@/lib/server-session-utils";
 
 export async function POST(req: NextRequest) {
   // Check if Supabase is configured
