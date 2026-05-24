@@ -24,6 +24,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { computeDealQualityScore } from "@/lib/deal-quality-score";
 import { scoreReceipt } from "@/lib/receipt-scoring";
+import { lookupLocalImages } from "@/lib/vehicle-image-db";
+import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
 
 /**
  * Derive listing_signals from structured CSV fields (no AI needed).
@@ -92,16 +94,24 @@ function splitCsvLine(line: string): string[] {
   return cells;
 }
 
-async function fetchPhotoUrl(make: string, model: string | null, year: number | null, baseUrl: string): Promise<string | null> {
-  try {
-    const params = new URLSearchParams({ make });
-    if (model) params.set("model", model);
-    if (year) params.set("year", String(year));
-    const res = await fetch(`${baseUrl}/api/photos?${params}`, { signal: AbortSignal.timeout(6000) });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.photo_urls?.[0] ?? null;
-  } catch { return null; }
+function proxyIfWikimedia(url: string): string {
+  return url.includes("upload.wikimedia.org")
+    ? `/api/proxy-image?url=${encodeURIComponent(url)}`
+    : url;
+}
+
+function resolvePhotoSync(make: string, model: string | null, year: number | null): string | null {
+  // Tier 0: local CSV (exact vehicle match, year-aware)
+  if (model) {
+    const local = lookupLocalImages(make, model, year ?? undefined);
+    if (local.matched && local.urls.length > 0) return proxyIfWikimedia(local.urls[0]);
+  }
+  // Tier 1: static Wikimedia map
+  const staticUrl = getStaticPhotoUrl(make, model ?? undefined, year ?? undefined);
+  if (staticUrl) return proxyIfWikimedia(staticUrl);
+  // Tier 2: make-level fallback
+  const fallback = MAKE_FALLBACK_MAP[make.toLowerCase()];
+  return fallback ? proxyIfWikimedia(fallback) : null;
 }
 
 export async function POST(request: NextRequest) {
@@ -179,9 +189,9 @@ export async function POST(request: NextRequest) {
       try { return new URL(listingUrl).hostname.replace("www.", ""); } catch { return null; }
     })();
 
-    // Auto-fetch photo if not provided
+    // Resolve photo: local CSV → static map → make fallback (all sync, no HTTP)
     if (!photoUrl && make) {
-      photoUrl = await fetchPhotoUrl(make, model, year, baseUrl);
+      photoUrl = resolvePhotoSync(make, model, year);
     }
 
     // Compute scores from structured fields — no AI call needed for basic signals.

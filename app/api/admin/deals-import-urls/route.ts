@@ -24,31 +24,29 @@ import { extractVehicleData } from "@/lib/listing-scraper";
 import { scoreReceipt } from "@/lib/receipt-scoring";
 import { computeDealQualityScore } from "@/lib/deal-quality-score";
 import { scoreWithAi, inferSignalsFromListing } from "@/lib/deals-score";
+import { lookupLocalImages } from "@/lib/vehicle-image-db";
+import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
 
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
 // AI scoring takes ~5-10s per listing; keep batches small to stay within 60s Next.js limit
 const MAX_URLS_PER_CALL = 5;
 
 
-async function fetchPhotoUrl(
-  make: string,
-  model: string | null,
-  year: number | null,
-  baseUrl: string,
-): Promise<string | null> {
-  try {
-    const params = new URLSearchParams({ make });
-    if (model) params.set("model", model);
-    if (year) params.set("year", String(year));
-    const res = await fetch(`${baseUrl}/api/photos?${params}`, {
-      signal: AbortSignal.timeout(6000),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return (data.photo_urls?.[0] as string) ?? null;
-  } catch {
-    return null;
+function proxyIfWikimedia(url: string): string {
+  return url.includes("upload.wikimedia.org")
+    ? `/api/proxy-image?url=${encodeURIComponent(url)}`
+    : url;
+}
+
+function resolvePhotoSync(make: string, model: string | null, year: number | null): string | null {
+  if (model) {
+    const local = lookupLocalImages(make, model, year ?? undefined);
+    if (local.matched && local.urls.length > 0) return proxyIfWikimedia(local.urls[0]);
   }
+  const staticUrl = getStaticPhotoUrl(make, model ?? undefined, year ?? undefined);
+  if (staticUrl) return proxyIfWikimedia(staticUrl);
+  const fallback = MAKE_FALLBACK_MAP[make.toLowerCase()];
+  return fallback ? proxyIfWikimedia(fallback) : null;
 }
 
 export interface ImportUrlResult {
@@ -187,10 +185,10 @@ export async function POST(request: NextRequest) {
           .slice(0, 3)
           .map((r: { label: string }) => r.label);
 
-    // Auto-fetch photo
+    // Resolve photo: local CSV → static map → make fallback (all sync, no HTTP)
     let photoUrl: string | null = null;
     if (d.make) {
-      photoUrl = await fetchPhotoUrl(d.make, d.model ?? null, d.year ?? null, baseUrl);
+      photoUrl = resolvePhotoSync(d.make, d.model ?? null, d.year ?? null);
     }
 
     // Upsert into curated_deals
