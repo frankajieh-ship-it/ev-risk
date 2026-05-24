@@ -31,15 +31,17 @@ async function countRows(
   column: string,
   from: string,
   to?: string,
-  extraFilters?: (q: ReturnType<NonNullable<typeof supabase>["from"]>) => ReturnType<NonNullable<typeof supabase>["from"]>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  extraFilters?: (q: any) => any
 ): Promise<number> {
   if (!supabase) return 0;
-  let q = supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any = supabase
     .from(table)
     .select(column, { count: "exact", head: true })
     .gte("created_at", from);
   if (to) q = q.lt("created_at", to);
-  if (extraFilters) q = extraFilters(q) as typeof q;
+  if (extraFilters) q = extraFilters(q);
   const { count } = await q;
   return count ?? 0;
 }
