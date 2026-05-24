@@ -536,7 +536,7 @@ export default function AdminDealsPage() {
             </button>
             <button onClick={handleSyncLocalPhotos} disabled={syncingPhotos}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${syncingPhotos ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}>
-              {syncingPhotos ? "Syncing..." : "Sync Photos"}
+              {syncingPhotos ? "Syncing..." : "Fill Missing (CSV)"}
             </button>
             <button onClick={handleSyncDealerInventory} disabled={syncingDealers}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${syncingDealers ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}>
