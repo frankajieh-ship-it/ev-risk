@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { getVehicleImages } from "@/lib/vinaudit-client";
 import { searchListings } from "@/lib/auto-dev-client";
+import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
 
 export const maxDuration = 60;
 
@@ -114,18 +115,32 @@ function normalizeForAutodev(make: string | undefined, model: string | undefined
   return { make: normalizedMake, model: m };
 }
 
+function proxyIfWikimedia(url: string): string {
+  if (url.includes("upload.wikimedia.org")) {
+    return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 async function fetchPhoto(row: { id: string; make: string | null; model: string | null; year: number | null; trim: string | null }): Promise<string | null> {
   const make = row.make ?? undefined;
-  // Build full model string (model + trim) for normalization
   const rawModel = [row.model, row.trim].filter(Boolean).join(" ") || undefined;
 
-  // Primary: VinAudit
+  // Tier 0: static curated photo map — zero latency, most reliable for common EVs
+  const staticUrl = getStaticPhotoUrl(make, rawModel, row.year ?? undefined);
+  if (staticUrl) return proxyIfWikimedia(staticUrl);
+
+  // Tier 0b: make-level fallback
+  const makeFallback = make ? MAKE_FALLBACK_MAP[make.toLowerCase()] : undefined;
+  if (makeFallback) return proxyIfWikimedia(makeFallback);
+
+  // Tier 1: VinAudit
   const vinauditResult = await getVehicleImages({ year: row.year ?? undefined, make, model: rawModel, limit: 1 });
   if (vinauditResult.success && vinauditResult.photo_urls.length > 0) {
     return vinauditResult.photo_urls[0];
   }
 
-  // Fallback: Auto.dev
+  // Tier 2: Auto.dev
   const { make: normMake, model: normModel } = normalizeForAutodev(make, rawModel);
   let result = await searchListings({ make: normMake, model: normModel, year: row.year ?? undefined, limit: 3 });
   if (!result?.records?.length && row.year) {
