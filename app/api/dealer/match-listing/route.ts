@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ dealership: null });
   }
 
-  const d = data.dealerships as {
+  const d = data.dealerships as unknown as {
     id: string;
     name: string;
     slug: string;

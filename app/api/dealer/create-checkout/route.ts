@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Dealer subscription price not configured" }, { status: 501 });
   }
 
-  const dealershipId = getDealershipId(user);
+  const dealershipId = await getDealershipId(user.id);
   if (!dealershipId) {
     return NextResponse.json({ error: "No dealership found for this account" }, { status: 400 });
   }

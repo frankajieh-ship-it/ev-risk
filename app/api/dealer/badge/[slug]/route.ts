@@ -13,8 +13,9 @@ export const runtime = "edge";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
+  const { slug } = await params;
   const supabase = getSupabaseAdmin();
 
   let dealerName = "";
@@ -24,7 +25,7 @@ export async function GET(
     const { data } = await supabase
       .from("dealerships")
       .select("name, is_verified")
-      .eq("slug", params.slug)
+      .eq("slug", slug)
       .maybeSingle();
 
     if (data) {
@@ -34,7 +35,7 @@ export async function GET(
   }
 
   const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
-  const profileUrl = `${SITE_URL}/dealers/${params.slug}`;
+  const profileUrl = `${SITE_URL}/dealers/${slug}`;
 
   // Truncate name to keep badge compact
   const displayName = dealerName.length > 22 ? dealerName.slice(0, 21) + "…" : dealerName;

@@ -637,13 +637,13 @@ export default function ReceiptPage() {
 
   // Check if this listing belongs to an OFFO dealer
   useEffect(() => {
-    const url = receipt?.listing_url;
+    const url = receipt?.listing_summary?.listing_url;
     if (!url) return;
     fetch(`/api/dealer/match-listing?url=${encodeURIComponent(url)}`)
       .then((r) => r.json())
       .then((data) => { if (data.dealership) setDealerInfo(data.dealership); })
       .catch(() => {});
-  }, [receipt?.listing_url]);
+  }, [receipt?.listing_summary?.listing_url]);
 
   // Post-receipt popup: show 12s after deep dive loads so user can read it first
   useEffect(() => {
