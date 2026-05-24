@@ -25,12 +25,13 @@ export async function POST(request: NextRequest) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
 
-  // Clear rows where photo_url is a proxied Wikimedia URL (generic stock image)
-  // These were wrongly written by the sync-local-photos route overwriting real photos.
+  // Clear ALL photo_url values for non-dealer marketplace rows.
+  // This forces a clean refetch via the correct pipeline (Wikimedia static map → VinAudit → etc).
+  // Dealer rows (dealership_id IS NOT NULL) keep their own uploaded photos.
   const { data, error } = await supabase
     .from("curated_deals")
     .update({ photo_url: null })
-    .like("photo_url", "/api/proxy-image?url=%wikimedia%")
+    .is("dealership_id", null)
     .eq("is_active", true)
     .select("id");
 
