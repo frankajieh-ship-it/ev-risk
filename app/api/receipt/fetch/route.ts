@@ -20,6 +20,7 @@ import { extractFieldsFromText } from "@/lib/text-extractor";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
 import { getStaticPhotoUrl } from "@/lib/vehicle-photo";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/api-auth";
 import type { FetchedListingFields } from "@/types/receipt";
 import type { FieldConfidence } from "@/types/receipt";
 import { logApi, startTimer } from "@/lib/api-logger";
@@ -292,6 +293,75 @@ export async function POST(request: NextRequest) {
   }
 
   const urlDomain = parsedUrl.hostname.replace("www.", "");
+
+  // --- OFFO internal dealer inventory shortcut ---
+  // Pattern: https://offolab.com/dealers/{slug}/inventory/{uuid}
+  // These URLs are not scrapable — pull directly from dealer_inventory table.
+  const dealerInventoryMatch = parsedUrl.pathname.match(/^\/dealers\/([^/]+)\/inventory\/([0-9a-f-]{36})$/i);
+  if (
+    (parsedUrl.hostname === "offolab.com" || parsedUrl.hostname === "www.offolab.com") &&
+    dealerInventoryMatch
+  ) {
+    const inventoryId = dealerInventoryMatch[2];
+    const adminSupabase = getSupabaseAdmin();
+    if (adminSupabase) {
+      const { data: inv } = await adminSupabase
+        .from("dealer_inventory")
+        .select("id, make, model, year, trim, price_cents, mileage, vin, photo_urls, dealership_id, dealerships(name, city, state)")
+        .eq("id", inventoryId)
+        .maybeSingle();
+
+      if (inv && inv.make && inv.model) {
+        const dealer = Array.isArray(inv.dealerships) ? inv.dealerships[0] : inv.dealerships;
+        const dealerName = (dealer as { name?: string } | null)?.name ?? null;
+        const dealerCity = (dealer as { city?: string } | null)?.city ?? null;
+        const dealerState = (dealer as { state?: string } | null)?.state ?? null;
+        const location = [dealerCity, dealerState].filter(Boolean).join(", ") || null;
+
+        const price = inv.price_cents ? Math.round(inv.price_cents / 100) : undefined;
+        const photoUrls: string[] = Array.isArray(inv.photo_urls) ? inv.photo_urls : [];
+        // Fall back to Wikimedia static map if dealer provided no photos
+        if (photoUrls.length === 0) {
+          const staticUrl = getStaticPhotoUrl(inv.make, inv.model, inv.year ?? undefined);
+          if (staticUrl) photoUrls.push(staticUrl);
+        }
+
+        const fields: FetchedListingFields = {
+          year: inv.year ?? undefined,
+          make: inv.make,
+          model: inv.model,
+          trim: inv.trim ?? undefined,
+          mileage: inv.mileage ?? undefined,
+          price,
+          vin: inv.vin ?? undefined,
+          location: location ?? undefined,
+        };
+
+        const extractedFieldKeys = (Object.keys(fields) as (keyof FetchedListingFields)[])
+          .filter((k) => fields[k] !== undefined && fields[k] !== null);
+
+        const field_confidence: Record<string, FieldConfidence> = {};
+        for (const k of ["year", "make", "model", "trim", "mileage", "price", "vin", "location"]) {
+          field_confidence[k] = extractedFieldKeys.includes(k as keyof FetchedListingFields) ? "extracted" : "missing";
+        }
+
+        return NextResponse.json({
+          success: true,
+          fields,
+          field_confidence,
+          extraction_id: uuidv4(),
+          listing_source: dealerName ? `offo:${dealerName}` : "offo.dealer",
+          photo_urls: photoUrls,
+          parse_confidence: "high",
+          extractedFields: extractedFieldKeys,
+          missingFields: [],
+          warnings: [],
+          diagnostics: null,
+        });
+      }
+    }
+    // Inventory row not found — fall through to generic scraper (will fail gracefully)
+  }
 
   try {
     const result = await extractVehicleData(url!);
