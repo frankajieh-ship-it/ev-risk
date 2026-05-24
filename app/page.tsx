@@ -458,7 +458,7 @@ export default function Home() {
           </p>
 
           <p className="text-sm text-white/30 mb-10 max-w-xl mx-auto">
-            The Carfax alternative built for EVs — battery health, charging fit, and real price. Free.
+            Found a CarGurus listing? Paste it to analyze and get a verdict.
           </p>
 
           {/* URL / VIN input row */}
