@@ -506,8 +506,8 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
     }
   }
 
-  // CarGurus migrated to Remix — try window.__remixContext for listing data / VIN
-  if (!data.vin || !data.year || !data.make) {
+  // CarGurus migrated to Remix — try window.__remixContext for listing data / VIN + history fields
+  {
     const remixMatch = html.match(/window\.__remixContext\s*=\s*(\{[\s\S]*?\});\s*(?:window\.|<\/script>)/);
     if (remixMatch) {
       try {
