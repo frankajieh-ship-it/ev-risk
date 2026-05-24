@@ -7,9 +7,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Loader2, Users, Bookmark, Eye, Car, TrendingUp, TrendingDown,
-  Zap, MapPin, AlertCircle,
+  Zap, MapPin, AlertCircle, CheckCircle2, Circle, ArrowRight,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -203,6 +204,100 @@ function KpiCard({ label, value, delta, deltaPositive, icon: Icon, iconCls }: Kp
 }
 
 // ---------------------------------------------------------------------------
+// Onboarding Checklist
+// ---------------------------------------------------------------------------
+
+interface ChecklistProps {
+  hasInventory: boolean;
+  dealershipName: string | null;
+}
+
+function OnboardingChecklist({ hasInventory, dealershipName }: ChecklistProps) {
+  const [badgeVisited] = useState(() => {
+    try { return !!localStorage.getItem("dealer_badge_visited"); } catch { return false; }
+  });
+  const hasProfile = !!dealershipName;
+
+  const steps = [
+    {
+      done: hasInventory,
+      label: "Add your first vehicle",
+      desc: "Upload inventory so buyers can be matched to your lot",
+      href: "/dealer/inventory",
+      cta: "Add inventory",
+    },
+    {
+      done: hasProfile,
+      label: "Complete your dealer profile",
+      desc: "Add phone, website, and description to build buyer trust",
+      href: "/dealer/profile",
+      cta: "Edit profile",
+    },
+    {
+      done: badgeVisited,
+      label: "Copy your verified badge",
+      desc: "Embed the OFFO badge on your website to signal trust",
+      href: "/dealer/badge",
+      cta: "Get embed code",
+    },
+  ];
+
+  const completedCount = steps.filter((s) => s.done).length;
+  if (completedCount === steps.length) return null;
+
+  return (
+    <div className="bg-[#161b22] border border-[#00d97e]/20 rounded-2xl p-5 mb-2">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm font-semibold text-white">Getting started</h2>
+          <p className="text-xs text-white/40 mt-0.5">
+            {completedCount} of {steps.length} steps complete — finish to start seeing buyer matches
+          </p>
+        </div>
+        <span className="text-xs font-semibold text-[#00d97e] bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-full px-2.5 py-1">
+          {completedCount}/{steps.length}
+        </span>
+      </div>
+      <div className="space-y-2">
+        {steps.map((step) => (
+          <div
+            key={step.label}
+            className={`flex items-center gap-3 rounded-xl px-3 py-3 border transition-colors ${
+              step.done
+                ? "border-white/[0.05] bg-white/[0.02] opacity-60"
+                : "border-white/[0.07] bg-white/[0.03]"
+            }`}
+          >
+            {step.done ? (
+              <CheckCircle2 className="w-4 h-4 text-[#00d97e] flex-shrink-0" />
+            ) : (
+              <Circle className="w-4 h-4 text-white/20 flex-shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className={`text-xs font-semibold ${step.done ? "text-white/40 line-through" : "text-white/80"}`}>
+                {step.label}
+              </p>
+              {!step.done && (
+                <p className="text-xs text-white/30 mt-0.5 truncate">{step.desc}</p>
+              )}
+            </div>
+            {!step.done && (
+              <Link
+                href={step.href}
+                className="flex items-center gap-1 text-xs font-semibold text-[#00d97e] hover:text-[#00f090] transition-colors flex-shrink-0"
+              >
+                {step.cta}
+                <ArrowRight className="w-3 h-3" />
+              </Link>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
@@ -279,6 +374,14 @@ export default function DealerDashboard() {
           Pro Plan Active
         </span>
       </div>
+
+      {/* Onboarding checklist — only shown when inventory is empty */}
+      {dashboard.inventory_match_count === 0 && dashboard.weekly_high_intent === 0 && (
+        <OnboardingChecklist
+          hasInventory={false}
+          dealershipName={dashboard.dealership_name}
+        />
+      )}
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

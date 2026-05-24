@@ -27,9 +27,9 @@ interface PreviewRow {
 }
 
 const SAMPLE_CSV = `VIN,Make,Model,Year,Trim,Price,Mileage,Color,Status,ListingURL
-1HGCM82633A004352,Honda,Accord,2022,Sport,28500,12400,Sonic Gray Pearl,active,
-5YJSA1E26MF444444,Tesla,Model S,2021,Long Range,64900,18200,Midnight Silver,active,
-WBY1Z4C51FV503456,BMW,i3,2020,Rex,22000,31000,Capparis White,active,`;
+5YJ3E1EA6NF123456,Tesla,Model 3,2022,Long Range,32900,28400,Deep Blue Metallic,active,
+1G1FZ6S04N4123456,Chevrolet,Bolt EV,2023,LT,24500,11200,Summit White,active,
+KM8KNDAF4NU123456,Hyundai,IONIQ 5,2022,AWD,38750,19800,Cyber Gray,active,`;
 
 export default function DealerInventoryImportPage() {
   const { session } = useAuth();
@@ -127,47 +127,52 @@ export default function DealerInventoryImportPage() {
   };
 
   return (
-    <div>
+    <div className="max-w-3xl mx-auto">
+      {/* Page header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Link
             href="/dealer/inventory"
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+            className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Inventory
           </Link>
-          <span className="text-gray-300">/</span>
-          <h1 className="text-xl font-bold text-gray-900">Import CSV</h1>
+          <span className="text-white/20">/</span>
+          <h1 className="text-lg font-bold text-white">Import CSV</h1>
         </div>
         <button
           onClick={downloadSample}
-          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50"
+          className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 border border-white/[0.10] rounded-lg px-3 py-2 hover:bg-white/[0.05] transition-colors"
         >
           <Download className="w-3.5 h-3.5" />
-          Download sample CSV
+          Download sample
         </button>
       </div>
 
       {/* Column format guide */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-800">
-        <p className="font-medium mb-1.5">Expected columns (case-insensitive):</p>
-        <p className="font-mono text-xs text-blue-700">
-          VIN, <strong>Make*</strong>, <strong>Model*</strong>, Year, Trim, Price, Mileage, Color, Status, ListingURL
+      <div className="bg-blue-500/[0.08] border border-blue-500/20 rounded-xl p-4 mb-6 text-sm text-blue-300">
+        <p className="font-medium mb-1.5 text-blue-200">Expected columns (case-insensitive):</p>
+        <p className="font-mono text-xs text-blue-400">
+          VIN, <strong className="text-blue-200">Make*</strong>, <strong className="text-blue-200">Model*</strong>, Year, Trim, Price, Mileage, Color, Status, ListingURL
         </p>
-        <p className="text-xs text-blue-600 mt-1.5">* Required &nbsp;·&nbsp; Max 500 rows per file &nbsp;·&nbsp; 2MB limit &nbsp;·&nbsp; Status defaults to &ldquo;active&rdquo; if blank</p>
+        <p className="text-xs text-blue-400/70 mt-1.5">* Required &nbsp;·&nbsp; Max 500 rows per file &nbsp;·&nbsp; 2MB limit &nbsp;·&nbsp; Status defaults to &ldquo;active&rdquo; if blank</p>
       </div>
 
       {/* Result banner */}
       {result && (
-        <div className={`rounded-xl border p-4 mb-6 ${result.inserted > 0 ? "bg-green-50 border-green-200" : "bg-yellow-50 border-yellow-200"}`}>
+        <div className={`rounded-xl border p-4 mb-6 ${
+          result.inserted > 0
+            ? "bg-[#00d97e]/[0.08] border-[#00d97e]/20"
+            : "bg-amber-500/[0.08] border-amber-500/20"
+        }`}>
           <div className="flex items-center gap-2 mb-2">
             {result.inserted > 0 ? (
-              <CheckCircle className="w-5 h-5 text-green-600" />
+              <CheckCircle className="w-5 h-5 text-[#00d97e]" />
             ) : (
-              <AlertTriangle className="w-5 h-5 text-yellow-600" />
+              <AlertTriangle className="w-5 h-5 text-amber-400" />
             )}
-            <p className={`font-semibold text-sm ${result.inserted > 0 ? "text-green-800" : "text-yellow-800"}`}>
+            <p className={`font-semibold text-sm ${result.inserted > 0 ? "text-[#00d97e]" : "text-amber-300"}`}>
               {result.inserted > 0
                 ? `${result.inserted} vehicle${result.inserted !== 1 ? "s" : ""} imported successfully`
                 : "No vehicles were imported"}
@@ -177,8 +182,8 @@ export default function DealerInventoryImportPage() {
           {result.failed.length > 0 && (
             <div className="mt-3 max-h-48 overflow-y-auto space-y-1">
               {result.failed.map((f) => (
-                <div key={f.row} className="flex items-start gap-2 text-xs text-yellow-700">
-                  <XCircle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-yellow-500" />
+                <div key={f.row} className="flex items-start gap-2 text-xs text-amber-400/80">
+                  <XCircle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500" />
                   <span>Row {f.row}: {f.reason}</span>
                 </div>
               ))}
@@ -187,7 +192,7 @@ export default function DealerInventoryImportPage() {
           {result.inserted > 0 && (
             <Link
               href="/dealer/inventory"
-              className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium text-green-700 hover:text-green-800"
+              className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium text-[#00d97e] hover:text-[#00f090] transition-colors"
             >
               View inventory →
             </Link>
@@ -196,7 +201,7 @@ export default function DealerInventoryImportPage() {
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start gap-2 text-sm text-red-700">
+        <div className="bg-red-500/[0.08] border border-red-500/20 rounded-xl p-4 mb-6 flex items-start gap-2 text-sm text-red-400">
           <XCircle className="w-4 h-4 mt-0.5 shrink-0" />
           {error}
         </div>
@@ -211,25 +216,25 @@ export default function DealerInventoryImportPage() {
           onClick={() => fileInputRef.current?.click()}
           className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors ${
             dragging
-              ? "border-green-400 bg-green-50"
+              ? "border-[#00d97e]/60 bg-[#00d97e]/[0.05]"
               : file
-                ? "border-green-300 bg-green-50/40"
-                : "border-gray-200 hover:border-green-300 hover:bg-gray-50"
+                ? "border-[#00d97e]/30 bg-[#00d97e]/[0.04]"
+                : "border-white/[0.10] hover:border-[#00d97e]/30 hover:bg-white/[0.03]"
           }`}
         >
           {file ? (
             <div className="flex flex-col items-center gap-2">
-              <FileText className="w-10 h-10 text-green-600" />
-              <p className="font-medium text-gray-800">{file.name}</p>
-              <p className="text-sm text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
-              <p className="text-xs text-gray-400">Click to replace</p>
+              <FileText className="w-10 h-10 text-[#00d97e]" />
+              <p className="font-medium text-white/80">{file.name}</p>
+              <p className="text-sm text-white/40">{(file.size / 1024).toFixed(1)} KB</p>
+              <p className="text-xs text-white/25">Click to replace</p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
-              <Upload className="w-10 h-10 text-gray-300" />
+              <Upload className="w-10 h-10 text-white/15" />
               <div>
-                <p className="font-medium text-gray-700">Drop your CSV here</p>
-                <p className="text-sm text-gray-400 mt-0.5">or click to browse</p>
+                <p className="font-medium text-white/60">Drop your CSV here</p>
+                <p className="text-sm text-white/30 mt-0.5">or click to browse</p>
               </div>
             </div>
           )}
@@ -246,26 +251,26 @@ export default function DealerInventoryImportPage() {
       {/* Preview table */}
       {preview.length > 0 && !result && (
         <div className="mt-6">
-          <p className="text-sm font-medium text-gray-700 mb-3">
+          <p className="text-sm font-medium text-white/60 mb-3">
             Preview (first {preview.length} rows)
           </p>
-          <div className="overflow-x-auto border border-gray-200 rounded-xl">
+          <div className="overflow-x-auto border border-white/[0.08] rounded-xl">
             <table className="w-full text-xs text-left">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-white/[0.04] border-b border-white/[0.08]">
                 <tr>
                   {headers.map((h) => (
-                    <th key={h} className="px-3 py-2 font-medium text-gray-500 whitespace-nowrap">
+                    <th key={h} className="px-3 py-2.5 font-medium text-white/40 whitespace-nowrap">
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-white/[0.05]">
                 {preview.map((row, i) => (
-                  <tr key={i} className="hover:bg-gray-50">
+                  <tr key={i} className="hover:bg-white/[0.02] transition-colors">
                     {headers.map((h) => (
-                      <td key={h} className="px-3 py-2 text-gray-700 whitespace-nowrap max-w-[160px] truncate">
-                        {row[h] || <span className="text-gray-300">—</span>}
+                      <td key={h} className="px-3 py-2.5 text-white/60 whitespace-nowrap max-w-[160px] truncate">
+                        {row[h] || <span className="text-white/20">—</span>}
                       </td>
                     ))}
                   </tr>
@@ -277,14 +282,14 @@ export default function DealerInventoryImportPage() {
           <div className="mt-5 flex gap-3 justify-end">
             <button
               onClick={() => { setFile(null); setPreview([]); setHeaders([]); setError(null); }}
-              className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+              className="px-4 py-2.5 border border-white/[0.10] rounded-lg text-sm text-white/50 hover:bg-white/[0.05] hover:text-white/70 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleImport}
               disabled={importing}
-              className="px-6 py-2.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-2.5 bg-[#00d97e] text-[#0d1117] rounded-lg text-sm font-semibold hover:bg-[#00f090] disabled:opacity-50 flex items-center gap-2 transition-colors"
             >
               {importing && <Loader2 className="w-4 h-4 animate-spin" />}
               {importing ? "Importing..." : "Import vehicles"}
