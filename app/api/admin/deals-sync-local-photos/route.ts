@@ -13,6 +13,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { lookupLocalImages } from "@/lib/vehicle-image-db";
 
+function proxyIfWikimedia(url: string): string {
+  return url.includes("upload.wikimedia.org")
+    ? `/api/proxy-image?url=${encodeURIComponent(url)}`
+    : url;
+}
+
 export const maxDuration = 60;
 
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
@@ -62,7 +68,7 @@ export async function POST(request: NextRequest) {
     const result = lookupLocalImages(row.make, model, row.year ?? undefined);
     if (!result.matched || result.urls.length === 0) { skipped++; continue; }
 
-    const newUrl = result.urls[0];
+    const newUrl = proxyIfWikimedia(result.urls[0]);
 
     // Skip if already set to this exact URL (already synced)
     if (row.photo_url === newUrl) { skipped++; continue; }
