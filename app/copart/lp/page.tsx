@@ -334,7 +334,7 @@ export default function CopartLandingPage() {
             <div className="relative h-52 bg-[#161b22]">
               {photoUrl ? (
                 <Image
-                  src={`/api/proxy-image?url=${encodeURIComponent(photoUrl)}`}
+                  src={`/api/img?url=${encodeURIComponent(photoUrl)}`}
                   alt={`${lot.year ?? ""} ${lot.make ?? ""} ${lot.model ?? ""}`}
                   fill className="object-cover" unoptimized
                 />

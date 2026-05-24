@@ -15,7 +15,7 @@ import { lookupLocalImages } from "@/lib/vehicle-image-db";
 
 function proxyIfWikimedia(url: string): string {
   return url.includes("upload.wikimedia.org")
-    ? `/api/proxy-image?url=${encodeURIComponent(url)}`
+    ? `/api/img?url=${encodeURIComponent(url)}`
     : url;
 }
 

@@ -96,7 +96,7 @@ function splitCsvLine(line: string): string[] {
 
 function proxyIfWikimedia(url: string): string {
   return url.includes("upload.wikimedia.org")
-    ? `/api/proxy-image?url=${encodeURIComponent(url)}`
+    ? `/api/img?url=${encodeURIComponent(url)}`
     : url;
 }
 

@@ -22,7 +22,7 @@ export const maxDuration = 10;
 // Route all Wikimedia URLs through the server-side proxy which strips the Referer header.
 function proxyIfWikimedia(url: string): string {
   if (url.includes("upload.wikimedia.org")) {
-    return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+    return `/api/img?url=${encodeURIComponent(url)}`;
   }
   return url;
 }

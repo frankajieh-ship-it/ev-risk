@@ -34,7 +34,7 @@ const MAX_URLS_PER_CALL = 5;
 
 function proxyIfWikimedia(url: string): string {
   return url.includes("upload.wikimedia.org")
-    ? `/api/proxy-image?url=${encodeURIComponent(url)}`
+    ? `/api/img?url=${encodeURIComponent(url)}`
     : url;
 }
 
@@ -108,12 +108,6 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-
-  const baseUrl = (
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    process.env.URL ||
-    "http://localhost:3000"
-  ).replace(/\/$/, "");
 
   const results: ImportUrlResult[] = [];
   let imported = 0;

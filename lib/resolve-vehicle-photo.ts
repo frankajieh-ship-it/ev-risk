@@ -15,7 +15,7 @@ import { searchListings } from "@/lib/auto-dev-client";
 
 function proxyIfWikimedia(url: string): string {
   if (url.includes("upload.wikimedia.org")) {
-    return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+    return `/api/img?url=${encodeURIComponent(url)}`;
   }
   return url;
 }

@@ -22,7 +22,7 @@ const ADMIN_KEY = process.env.ADMIN_API_KEY;
 
 function proxyIfWikimedia(url: string): string {
   if (url.includes("upload.wikimedia.org")) {
-    return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+    return `/api/img?url=${encodeURIComponent(url)}`;
   }
   return url;
 }

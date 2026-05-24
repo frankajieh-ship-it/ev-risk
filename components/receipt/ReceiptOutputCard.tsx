@@ -169,7 +169,7 @@ export default function ReceiptOutputCard({
   const resolveImgSrc = (url: string | undefined) => {
     if (!url) return url;
     if (url.includes("wikimedia.org")) return url;
-    if (url.startsWith("http")) return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+    if (url.startsWith("http")) return `/api/img?url=${encodeURIComponent(url)}`;
     return url;
   };
 
