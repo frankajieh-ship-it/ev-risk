@@ -80,6 +80,7 @@ export default function AdminDealsPage() {
   const [qaChecking, setQaChecking] = useState(false);
   const [qaDiffs, setQaDiffs] = useState<RescoredDiff[] | null>(null);
   const [syncingPhotos, setSyncingPhotos] = useState(false);
+  const [syncingDealers, setSyncingDealers] = useState(false);
   const extractPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
   const [rescopeDate, setRescopeDate] = useState(todayStr);
@@ -192,6 +193,29 @@ export default function AdminDealsPage() {
       setImportStatus("✗ Sync failed");
     } finally {
       setSyncingPhotos(false);
+    }
+  };
+
+  const handleSyncDealerInventory = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    setSyncingDealers(true);
+    setImportStatus("Syncing dealer inventory to deals page...");
+    try {
+      const res = await fetch("/api/admin/sync-dealer-inventory", {
+        method: "POST",
+        headers: { Authorization: authHeader },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setImportStatus(`✓ Dealer sync: ${data.upserted} listings synced, ${data.skipped} skipped (${data.dealerships} dealers)`);
+        fetchDeals();
+      } else {
+        setImportStatus(`✗ ${data.error}`);
+      }
+    } catch {
+      setImportStatus("✗ Dealer sync failed");
+    } finally {
+      setSyncingDealers(false);
     }
   };
 
@@ -484,6 +508,10 @@ export default function AdminDealsPage() {
             <button onClick={handleSyncLocalPhotos} disabled={syncingPhotos}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${syncingPhotos ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}>
               {syncingPhotos ? "Syncing..." : "Sync Photos"}
+            </button>
+            <button onClick={handleSyncDealerInventory} disabled={syncingDealers}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${syncingDealers ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}>
+              {syncingDealers ? "Syncing..." : "Sync Dealers"}
             </button>
             <button onClick={handleBackfillPhotos}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-[#00d97e] border border-white/[0.08] rounded-lg px-3 py-2 transition-colors">

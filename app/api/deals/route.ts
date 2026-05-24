@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("curated_deals")
-    .select("id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, receipt_id, photo_url, last_analyzed_at, vin")
+    .select("id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, receipt_id, photo_url, last_analyzed_at, vin, dealership_id, dealerships(name, slug)")
     .eq("is_active", true)
     .not("vehicle_label", "is", null)
     .not("make", "is", null)
@@ -189,14 +189,33 @@ export async function GET(request: NextRequest) {
     }
   }
   const deduped = Array.from(seen.values());
+
+  // Dealer listings always appear first, then by the requested sort order.
+  deduped.sort((a, b) => {
+    const aIsDealer = a.dealership_id != null ? 1 : 0;
+    const bIsDealer = b.dealership_id != null ? 1 : 0;
+    return bIsDealer - aIsDealer;
+  });
+
   const total = deduped.length;
   const offset = (page - 1) * perPage;
   const pageDeals = deduped.slice(offset, offset + perPage);
 
+  // Flatten the dealerships join into flat fields for the client
+  const flatDeals = pageDeals.map((d) => {
+    const dealer = Array.isArray(d.dealerships) ? d.dealerships[0] : d.dealerships;
+    return {
+      ...d,
+      dealerships: undefined,
+      dealership_name: (dealer as { name?: string } | null)?.name ?? null,
+      dealership_slug: (dealer as { slug?: string } | null)?.slug ?? null,
+    };
+  });
+
   return NextResponse.json(
     {
       success: true,
-      deals: pageDeals,
+      deals: flatDeals,
       total,
       page,
       per_page: perPage,

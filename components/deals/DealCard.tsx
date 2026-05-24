@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Bookmark, BookmarkCheck, ExternalLink } from "lucide-react";
+import { Bookmark, BookmarkCheck, ExternalLink, ShieldCheck } from "lucide-react";
 import { addToAnonGarage } from "@/lib/anon-garage";
 import { useAuth } from "@/hooks/useAuth";
 import LoginModal from "@/components/auth/LoginModal";
@@ -23,6 +23,9 @@ export interface CuratedDeal {
   photo_url: string | null;
   last_analyzed_at: string | null;
   vin: string | null;
+  dealership_id?: string | null;
+  dealership_name?: string | null;
+  dealership_slug?: string | null;
 }
 
 const SAVED_DEALS_KEY = "offo_saved_deals";
@@ -208,8 +211,15 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
           </div>
         )}
 
-        {/* Rank badge or domain badge */}
-        {rank && totalDeals ? (
+        {/* Verified dealer badge / rank badge / domain badge */}
+        {deal.dealership_name ? (
+          <div className="absolute top-2.5 right-2.5 flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#00d97e]/20 border border-[#00d97e]/30 backdrop-blur-sm">
+            <ShieldCheck className="w-3 h-3 text-[#00d97e] flex-shrink-0" />
+            <span className="text-[10px] font-semibold text-[#00d97e] truncate max-w-[90px]">
+              {deal.dealership_name}
+            </span>
+          </div>
+        ) : rank && totalDeals ? (
           <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-sm">
             <span className="text-xs text-white/50">#{rank} of {totalDeals}</span>
           </div>
@@ -272,7 +282,7 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
             className="flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg transition-colors bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/50"
           >
             <ExternalLink className="w-3 h-3" />
-            View on {deal.url_domain ?? "listing"}
+            {deal.dealership_name ? `View at ${deal.dealership_name}` : `View on ${deal.url_domain ?? "listing"}`}
           </a>
           <button
             onClick={handleReportSold}
