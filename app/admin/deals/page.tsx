@@ -81,6 +81,7 @@ export default function AdminDealsPage() {
   const [qaDiffs, setQaDiffs] = useState<RescoredDiff[] | null>(null);
   const [syncingPhotos, setSyncingPhotos] = useState(false);
   const [syncingDealers, setSyncingDealers] = useState(false);
+  const [clearingGenericPhotos, setClearingGenericPhotos] = useState(false);
   const extractPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
   const [rescopeDate, setRescopeDate] = useState(todayStr);
@@ -170,6 +171,30 @@ export default function AdminDealsPage() {
       }
     } catch {
       setImportStatus("✗ Backfill failed");
+    }
+  };
+
+  const handleClearGenericPhotos = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    if (!confirm("Clear all generic stock photos (proxied Wikimedia URLs) so real listing photos can be restored? This is a one-time cleanup.")) return;
+    setClearingGenericPhotos(true);
+    setImportStatus("Clearing generic stock photos...");
+    try {
+      const res = await fetch("/api/admin/deals-clear-generic-photos", {
+        method: "POST",
+        headers: { Authorization: authHeader },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setImportStatus(`✓ Cleared ${data.cleared} generic photos — run Backfill Photos to restore real images`);
+        fetchDeals();
+      } else {
+        setImportStatus(`✗ ${data.error}`);
+      }
+    } catch {
+      setImportStatus("✗ Clear failed");
+    } finally {
+      setClearingGenericPhotos(false);
     }
   };
 
@@ -504,6 +529,10 @@ export default function AdminDealsPage() {
             <button onClick={handleCheckSold} disabled={extracting}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${extracting ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-red-400 border-white/[0.08]"}`}>
               Check Sold
+            </button>
+            <button onClick={handleClearGenericPhotos} disabled={clearingGenericPhotos}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${clearingGenericPhotos ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-orange-400 border-white/[0.08]"}`}>
+              {clearingGenericPhotos ? "Clearing..." : "Clear Generic Photos"}
             </button>
             <button onClick={handleSyncLocalPhotos} disabled={syncingPhotos}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${syncingPhotos ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}>

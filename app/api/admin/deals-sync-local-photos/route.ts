@@ -1,9 +1,9 @@
 /**
  * POST /api/admin/deals-sync-local-photos
  *
- * Scans all active curated_deals and updates photo_url for any row that
- * has a match in data/vehicle-images.csv — regardless of whether the row
- * already has a photo. Local CSV images always win (quality_score: 100).
+ * Fills photo_url for active curated_deals rows that have NO photo yet,
+ * using data/vehicle-images.csv as the source. Never overwrites existing
+ * photos — listing-specific photos from the import always take priority.
  *
  * Protected by ADMIN_API_KEY bearer token.
  * Safe to run multiple times (idempotent).
@@ -33,11 +33,12 @@ export async function POST(request: NextRequest) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
 
-  // Fetch all active deals (no photo filter — we overwrite stale ones too)
+  // Only touch rows that have no photo — never overwrite listing-specific images
   const { data: rows, error: fetchError } = await supabase
     .from("curated_deals")
     .select("id, make, model, year, vehicle_label, photo_url")
     .eq("is_active", true)
+    .is("photo_url", null)
     .order("year", { ascending: false });
 
   if (fetchError) {
@@ -69,9 +70,6 @@ export async function POST(request: NextRequest) {
     if (!result.matched || result.urls.length === 0) { skipped++; continue; }
 
     const newUrl = proxyIfWikimedia(result.urls[0]);
-
-    // Skip if already set to this exact URL (already synced)
-    if (row.photo_url === newUrl) { skipped++; continue; }
 
     const { error: updateError } = await supabase
       .from("curated_deals")
