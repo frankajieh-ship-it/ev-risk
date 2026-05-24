@@ -82,6 +82,7 @@ export default function AdminDealsPage() {
   const [syncingPhotos, setSyncingPhotos] = useState(false);
   const [syncingDealers, setSyncingDealers] = useState(false);
   const [clearingGenericPhotos, setClearingGenericPhotos] = useState(false);
+  const [clearingImageCache, setClearingImageCache] = useState(false);
   const extractPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
   const [rescopeDate, setRescopeDate] = useState(todayStr);
@@ -195,6 +196,29 @@ export default function AdminDealsPage() {
       setImportStatus("✗ Clear failed");
     } finally {
       setClearingGenericPhotos(false);
+    }
+  };
+
+  const handleClearImageCache = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    if (!confirm("Delete all marketplace CDN entries from the vehicle_images cache? This forces /deals to re-derive photos from Wikimedia/VinAudit instead of stale CarGurus/CarMax URLs.")) return;
+    setClearingImageCache(true);
+    setImportStatus("Clearing stale image cache...");
+    try {
+      const res = await fetch("/api/admin/deals-clear-image-cache", {
+        method: "POST",
+        headers: { Authorization: authHeader },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setImportStatus(`✓ Cleared ${data.cleared} stale image cache entries — reload /deals to see corrected photos`);
+      } else {
+        setImportStatus(`✗ ${data.error}`);
+      }
+    } catch {
+      setImportStatus("✗ Cache clear failed");
+    } finally {
+      setClearingImageCache(false);
     }
   };
 
@@ -533,6 +557,10 @@ export default function AdminDealsPage() {
             <button onClick={handleClearGenericPhotos} disabled={clearingGenericPhotos}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${clearingGenericPhotos ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-orange-400 border-white/[0.08]"}`}>
               {clearingGenericPhotos ? "Clearing..." : "Clear Generic Photos"}
+            </button>
+            <button onClick={handleClearImageCache} disabled={clearingImageCache}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${clearingImageCache ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-red-400 border-white/[0.08]"}`}>
+              {clearingImageCache ? "Clearing..." : "Clear Image Cache"}
             </button>
             <button onClick={handleSyncLocalPhotos} disabled={syncingPhotos}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${syncingPhotos ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}>
