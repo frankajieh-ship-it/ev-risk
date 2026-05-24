@@ -13,6 +13,7 @@ import { getSupabaseAdmin } from "@/lib/api-auth";
 import { getVehicleImages } from "@/lib/vinaudit-client";
 import { searchListings } from "@/lib/auto-dev-client";
 import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
+import { lookupLocalImages } from "@/lib/vehicle-image-db";
 
 export const maxDuration = 60;
 
@@ -126,7 +127,13 @@ async function fetchPhoto(row: { id: string; make: string | null; model: string 
   const make = row.make ?? undefined;
   const rawModel = [row.model, row.trim].filter(Boolean).join(" ") || undefined;
 
-  // Tier 0: static curated photo map — zero latency, most reliable for common EVs
+  // Tier 0a: OFFO local CSV — year-aware, handles trim variants (e.g. "Blazer EV LT RWD" → "Blazer EV")
+  if (make && rawModel) {
+    const local = lookupLocalImages(make, rawModel, row.year ?? undefined);
+    if (local.matched && local.urls.length > 0) return proxyIfWikimedia(local.urls[0]);
+  }
+
+  // Tier 0b: static curated photo map — zero latency, most reliable for common EVs
   const staticUrl = getStaticPhotoUrl(make, rawModel, row.year ?? undefined);
   if (staticUrl) return proxyIfWikimedia(staticUrl);
 
