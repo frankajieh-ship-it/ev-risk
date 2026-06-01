@@ -177,9 +177,11 @@ export default function ReceiptSummaryCard({
     }
   }, [generationStatus, status, generate]);
 
-  const tone: Tone = (summary?.tone && summary.tone in TONE_STYLES)
-    ? summary.tone as Tone
-    : verdictToTone(verdict);
+  // Verdict always wins — never show a more alarming tone than the actual verdict
+  const verdictTone = verdictToTone(verdict);
+  const aiTone = (summary?.tone && summary.tone in TONE_STYLES) ? summary.tone as Tone : verdictTone;
+  const TONE_SEVERITY: Record<Tone, number> = { proceed: 0, caution: 1, stop: 2 };
+  const tone: Tone = TONE_SEVERITY[aiTone] > TONE_SEVERITY[verdictTone] ? verdictTone : aiTone;
   const styles = TONE_STYLES[tone];
   const { Icon } = styles;
 

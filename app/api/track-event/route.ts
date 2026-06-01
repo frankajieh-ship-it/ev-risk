@@ -17,7 +17,7 @@ import { enrichGeo } from "@/lib/geo-enrichment";
 import { isInternalTester } from "@/lib/rollout-flags";
 
 // Internal team identifiers — events from these are flagged is_internal=true
-const INTERNAL_VISITOR_IDS = new Set(["fp-uwi6gg", "fp-24bewu", "fp-airyss", "fp-kuhpy6"]);
+const INTERNAL_VISITOR_IDS = new Set(["fp-uwi6gg", "fp-24bewu", "fp-airyss", "fp-kuhpy6", "fp-cviswk", "fp-vy4i", "fp-cpyu68"]);
 const INTERNAL_USER_IDS = new Set([
   "a9e65037-00b3-443b-afba-5631e42b0505",
   "71ccca48-add0-4a47-b7b4-14985c923a78",

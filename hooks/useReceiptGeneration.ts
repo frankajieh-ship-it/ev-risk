@@ -128,7 +128,8 @@ export function useReceiptGeneration({
     };
   }, []);
 
-  const startUpgradePolling = useCallback((receiptId: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _startUpgradePolling = useCallback((receiptId: string) => {
     if (upgradePollingRef.current) clearInterval(upgradePollingRef.current);
 
     setIsUpgrading(true);
@@ -335,7 +336,6 @@ export function useReceiptGeneration({
             verdict: result.receipt.verdict,
           });
         } else if (result.generation_status === "lite" && result.receipt_id) {
-          startUpgradePolling(result.receipt_id);
           trackEvent("receipt_lite_shown", {
             receipt_id: result.receipt.receipt_id,
             verdict: result.receipt.verdict,
@@ -363,7 +363,7 @@ export function useReceiptGeneration({
         inFlightRef.current = false;
       }
     },
-    [receiptToken, region, trackEvent, addReceipt, executeTurnstile, startUpgradePolling, routineContext, pageSource, onRoutineContextUsed, onIsProChanged, onRecallsLoaded, onListingAgeLoaded]
+    [receiptToken, region, trackEvent, addReceipt, executeTurnstile, routineContext, pageSource, onRoutineContextUsed, onIsProChanged, onRecallsLoaded, onListingAgeLoaded]
   );
 
   const handleRegenerate = useCallback(() => {

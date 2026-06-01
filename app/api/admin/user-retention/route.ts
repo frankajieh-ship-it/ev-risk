@@ -17,7 +17,7 @@ const ADMIN_KEY = process.env.ADMIN_API_KEY;
 const BOT_UA_PATTERNS = /bot|crawler|spider|headless|scraper|wget|curl|python-requests/i;
 
 // Internal team — excluded from all retention metrics
-const INTERNAL_VISITOR_IDS = new Set(["fp-uwi6gg", "fp-24bewu", "fp-airyss"]);
+const INTERNAL_VISITOR_IDS = new Set(["fp-uwi6gg", "fp-24bewu", "fp-airyss", "fp-kuhpy6", "fp-cviswk", "fp-vy4i", "fp-cpyu68"]);
 
 // Human signal events — presence of any means real user interaction
 const HUMAN_SIGNAL_EVENTS = new Set([

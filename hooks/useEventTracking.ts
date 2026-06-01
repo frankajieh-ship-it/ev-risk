@@ -3,12 +3,12 @@
  * Tracks user interactions for analytics
  */
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { getOrCreatePersistentSessionId } from "@/lib/session-utils";
 import { initAttribution, getAttributionForEvent } from "@/lib/attribution";
 
 interface EventData {
-  [key: string]: any;
+  [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[];
 }
 
 function getRegion(): "US" | "UK" | "AU" | "CA" {
@@ -30,17 +30,28 @@ export function useEventTracking() {
   const attributionInitRef = useRef(false);
   const sessionInitFiredRef = useRef(false);
 
-  // Initialize attribution on first render (client-side only)
-  if (typeof window !== "undefined" && !attributionInitRef.current) {
-    initAttribution();
-    attributionInitRef.current = true;
-  }
+  // Initialize attribution once on mount (client-side only)
+  useEffect(() => {
+    if (!attributionInitRef.current) {
+      initAttribution();
+      attributionInitRef.current = true;
+    }
+  }, []);
 
   // Generate visitor ID (same as visitor tracking)
   const getVisitorId = useCallback(() => {
     if (visitorIdRef.current) return visitorIdRef.current;
 
     if (typeof window === "undefined") return null;
+
+    // Check localStorage first so the same ID is reused across tabs and restarts
+    try {
+      const stored = localStorage.getItem("offo_visitor_id");
+      if (stored) {
+        visitorIdRef.current = stored;
+        return stored;
+      }
+    } catch { /* ignore — storage may be unavailable (e.g. third-party cookie restrictions) */ }
 
     const data = [
       navigator.userAgent,
@@ -58,8 +69,10 @@ export function useEventTracking() {
       hash = hash & hash;
     }
 
-    visitorIdRef.current = `fp-${Math.abs(hash).toString(36)}`;
-    return visitorIdRef.current;
+    const id = `fp-${Math.abs(hash).toString(36)}`;
+    try { localStorage.setItem("offo_visitor_id", id); } catch { /* ignore */ }
+    visitorIdRef.current = id;
+    return id;
   }, []);
 
   // Generate session ID (tab-level, lost on tab close)
@@ -191,7 +204,7 @@ export function useEventTracking() {
 
   // Specific event trackers
   const trackFormSubmit = useCallback(
-    (success: boolean, formData?: any, error?: string) => {
+    (success: boolean, formData?: Record<string, unknown>, error?: string) => {
       trackEvent("form_submit", {
         success,
         formData,
@@ -202,7 +215,7 @@ export function useEventTracking() {
   );
 
   const trackUrlAutofillAttempt = useCallback(
-    (url: string, success: boolean, extractedData?: any, error?: string) => {
+    (url: string, success: boolean, extractedData?: Record<string, unknown>, error?: string) => {
       trackEvent("url_autofill_attempt", {
         url,
         success,
@@ -224,7 +237,7 @@ export function useEventTracking() {
   );
 
   const trackReportGenerated = useCallback(
-    (reportData: any) => {
+    (reportData: { vehicle?: string; year?: number; model?: string }) => {
       trackEvent("report_generated", {
         vehicle: reportData.vehicle,
         year: reportData.year,
@@ -376,7 +389,7 @@ export function useEventTracking() {
       response?: string;
       vehicle_model?: string;
     }) => {
-      trackEvent(`micro_feedback_${action}` as any, {
+      trackEvent(`micro_feedback_${action}`, {
         ...data,
       });
     },
@@ -514,7 +527,7 @@ export function useEventTracking() {
   );
 
   const trackIntakeStepCompleted = useCallback(
-    (step: string, stepData?: Record<string, any>) => {
+    (step: string, stepData?: Record<string, unknown>) => {
       trackEvent("intake_step_completed", { step, ...stepData });
     },
     [trackEvent]

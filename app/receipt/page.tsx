@@ -24,9 +24,7 @@ import LoginModal from "@/components/LoginModal";
 import AuthLoginModal from "@/components/auth/LoginModal";
 import ReceiptInputCard from "@/components/receipt/ReceiptInputCard";
 import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
-import EmailCaptureCard from "@/components/receipt/EmailCaptureCard";
 import RoutineFitMiniStep from "@/components/receipt/RoutineFitMiniStep";
-// EmailGateModal removed — 100% skip rate, replaced by inline EmailCaptureCard
 import FeedbackWidget from "@/components/FeedbackWidget";
 import ExitFeedbackModal from "@/components/receipt/ExitFeedbackModal";
 import DealerInquiryModal from "@/components/receipt/DealerInquiryModal";
@@ -49,6 +47,7 @@ const CompareView = dynamic(() => import("@/components/receipt/CompareView"), { 
 const CompareSelectModal = dynamic(() => import("@/components/receipt/CompareSelectModal"), { ssr: false });
 const ShareModal = dynamic(() => import("@/components/receipt/ShareModal"), { ssr: false });
 const OFfoChat = dynamic(() => import("@/components/chat/OFfoChat"), { ssr: false });
+const ReceiptPaywallCard = dynamic(() => import("@/components/receipt/ReceiptPaywallCard"), { ssr: false });
 
 const PdfDownloadButton = dynamic(() => import("@/components/receipt/PdfDownloadButton"), { ssr: false });
 const CompareBadge = dynamic(() => import("@/components/receipt/CompareBadge"), { ssr: false });
@@ -373,11 +372,6 @@ export default function ReceiptPage() {
       setHasSaved(existing.some((r: { receipt_id: string }) => r.receipt_id === receipt.receipt_id));
     } catch { setHasSaved(false); }
   }, [receipt?.receipt_id]);
-  const [hasEmailed, setHasEmailed] = useState(false);
-  const [showScrollEmailBar, setShowScrollEmailBar] = useState(false);
-  const [scrollEmailDismissed, setScrollEmailDismissed] = useState(false);
-  const [scrollBarEmail, setScrollBarEmail] = useState("");
-  const [scrollBarSubmitting, setScrollBarSubmitting] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
   // Post-receipt popup (save + compare) — shown 5s after result
@@ -592,18 +586,6 @@ export default function ReceiptPage() {
     }, 100);
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Scroll-triggered email bar — fires once when output card leaves viewport
-  useEffect(() => {
-    if (!receipt || hasEmailed || scrollEmailDismissed || isAuthenticated) return;
-    const el = document.querySelector('[data-tutorial="receipt-output"]');
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (!entry.isIntersecting) setShowScrollEmailBar(true); },
-      { threshold: 0, rootMargin: "-100px 0px 0px 0px" }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [receipt?.receipt_id, hasEmailed, scrollEmailDismissed, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch matching deals for this vehicle when a receipt loads
   useEffect(() => {
@@ -676,7 +658,6 @@ export default function ReceiptPage() {
     });
   }, [receipt?.receipt_id, sellerPackUnlocked, freeMode, paymentsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Email gate useEffect removed — inline EmailCaptureCard handles email capture now
 
   // Payments disabled — no-op stub so existing call sites don't error
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -838,7 +819,6 @@ export default function ReceiptPage() {
           <div className="hidden md:flex items-center gap-6">
             <Link href="/receipt" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Receipt Check</Link>
             <Link href="/" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Routine Fit</Link>
-            <Link href="/copart" className="text-[0.8125rem] font-medium text-white/60 hover:text-white transition-colors">Copart Arbitrage</Link>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-3">
@@ -879,7 +859,6 @@ export default function ReceiptPage() {
               {[
                 { href: "/receipt", label: "Receipt Check" },
                 { href: "/", label: "Routine Fit" },
-                { href: "/copart", label: "Copart Arbitrage" },
               ].map((link) => (
                 <Link
                   key={link.href}
@@ -1070,8 +1049,8 @@ export default function ReceiptPage() {
                 onSellerPackUpgrade={() => {}}
                 isUpgrading={isUpgrading}
                 upgradeFailed={upgradeFailed}
-                isUnlocked={true}
-                paymentsEnabled={false}
+                isUnlocked={isUnlocked}
+                paymentsEnabled={paymentsEnabled}
                 onPaywallClick={() => handlePremiumAction("output_card")}
                 photos={isSimilarityMatch ? [] : listingPhotos}
                 onSave={handleQuickSave}
@@ -1085,50 +1064,6 @@ export default function ReceiptPage() {
               />
               </div>
 
-              {/* Full report teaser — shown when email not yet captured, scrolls to gate on click */}
-              {!hasEmailed && (
-                <div
-                  className="relative rounded-2xl border border-white/[0.08] bg-[#161b22] overflow-hidden cursor-pointer group"
-                  onClick={() => {
-                    document.getElementById("email-capture-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
-                    trackEvent("full_report_teaser_clicked", { receipt_id: receipt.receipt_id });
-                  }}
-                >
-                  {/* Blurred preview rows */}
-                  <div className="px-5 pt-5 pb-2 space-y-3 select-none pointer-events-none" aria-hidden>
-                    {/* Section label */}
-                    <p className="text-[11px] font-semibold text-white/30 uppercase tracking-wider">Full analysis — 38 signals</p>
-                    {/* Mock market comp row */}
-                    <div className="flex items-center justify-between py-2 border-b border-white/[0.06]">
-                      <span className="text-sm text-white/50">Price vs. local comps</span>
-                      <span className="text-sm font-semibold text-[#00d97e] blur-sm">$1,200 below market</span>
-                    </div>
-                    {/* Mock battery row */}
-                    <div className="flex items-center justify-between py-2 border-b border-white/[0.06]">
-                      <span className="text-sm text-white/50">Battery health estimate</span>
-                      <span className="text-sm font-semibold text-white blur-sm">91% SOH — good</span>
-                    </div>
-                    {/* Mock inspection item */}
-                    <div className="flex items-center justify-between py-2 border-b border-white/[0.06]">
-                      <span className="text-sm text-white/50">Inspection checklist</span>
-                      <span className="text-sm font-semibold text-white blur-sm">14 items flagged</span>
-                    </div>
-                    {/* Mock negotiation script */}
-                    <div className="py-2">
-                      <p className="text-xs text-white/30 mb-1">Negotiation opener</p>
-                      <p className="text-sm text-white/50 italic blur-sm line-clamp-2">&ldquo;I noticed the listing has been up for 3 weeks and the battery report shows some degradation — would you consider $X?&rdquo;</p>
-                    </div>
-                  </div>
-
-                  {/* Gradient fade + CTA overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#161b22] via-[#161b22]/60 to-transparent flex flex-col items-center justify-end pb-5 px-5">
-                    <button className="w-full bg-[#00d97e] group-hover:bg-[#00c970] text-[#0d1117] font-bold text-sm py-3 rounded-xl transition-colors">
-                      See your full report — free
-                    </button>
-                    <p className="text-xs text-white/30 mt-2">Enter your email below to unlock</p>
-                  </div>
-                </div>
-              )}
 
               {/* Retention hook — shown immediately after result so unauthenticated users see it first */}
               {!isAuthenticated && (
@@ -1143,38 +1078,21 @@ export default function ReceiptPage() {
                 trackEvent={trackEvent}
               />
 
-              {/* ── Email gate: unlocks deep sections ── */}
-              {!hasEmailed ? (
-                <div id="email-capture-card">
-                  <EmailCaptureCard
-                    receiptId={receipt.receipt_id}
-                    gateMode={true}
-                    onSubmit={() => {
-                      setHasEmailed(true);
-                      trackEvent("email_checklist_submit", {
-                        receipt_id: receipt.receipt_id,
-                        gate_mode: true,
-                      });
-                    }}
-                    onGarageSave={() => {
-                      addToAnonGarage({
-                        type: "receipt",
-                        label: `${receipt.listing_summary?.year ?? ""} ${receipt.listing_summary?.make ?? ""} ${receipt.listing_summary?.model ?? ""}`.trim() || "Saved Receipt",
-                        data: receipt as unknown as Record<string, unknown>,
-                      });
-                      setHasSaved(true);
-                    }}
-                  />
-                </div>
+              {/* ── Paywall or deep sections ── */}
+              {!isUnlocked && paymentsEnabled ? (
+                <ReceiptPaywallCard
+                  receiptToken={receiptToken}
+                  scenarioId={receipt.receipt_id}
+                />
               ) : (
                 <>
-                  {!isUpgrading && receipt.receipt_id && (
+                  {receipt.receipt_id && (
                     <NegotiationDeepSection
                       receiptId={receipt.receipt_id}
                       initialScripts={(receipt as unknown as Record<string, unknown>).negotiation_deep as import("@/lib/receipt-sections").NegotiationScript[] ?? null}
                       initialStatus={sections?.negotiation_deep?.status}
-                      isUnlocked={true}
-                      paymentsEnabled={false}
+                      isUnlocked={isUnlocked}
+                      paymentsEnabled={paymentsEnabled}
                     />
                   )}
                   {deepDive && (
@@ -1197,7 +1115,7 @@ export default function ReceiptPage() {
                       listingSummary={receipt.listing_summary}
                       region={region}
                     />
-                  ) : !isUpgrading && receipt.receipt_id ? (
+                  ) : receipt.receipt_id ? (
                     <ReceiptDetailsOnDemand
                       receiptId={receipt.receipt_id}
                       operatorNotes={receipt.operator_notes}
@@ -1409,8 +1327,8 @@ export default function ReceiptPage() {
             price: receipt.listing_summary.price ?? undefined,
             mileage: receipt.listing_summary.mileage ?? undefined,
           }}
-          paymentsEnabled={false}
-          freeMode={true}
+          paymentsEnabled={paymentsEnabled}
+          freeMode={freeMode}
           trackEvent={trackEvent}
         />
       )}
@@ -1519,62 +1437,6 @@ export default function ReceiptPage() {
         />
       )}
 
-      {/* Scroll-triggered sticky email bar — appears when output card leaves viewport */}
-      {showScrollEmailBar && !scrollEmailDismissed && !hasEmailed && !isAuthenticated && receipt && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#0d1117]/95 backdrop-blur-md border-t border-white/[0.10] px-4 py-3">
-          <div className="max-w-2xl mx-auto flex items-center gap-3">
-            <p className="text-sm text-white/80 shrink-0 hidden sm:block">Get this checklist in your inbox</p>
-            <form
-              className="flex flex-1 gap-2"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (!scrollBarEmail || scrollBarSubmitting) return;
-                setScrollBarSubmitting(true);
-                try {
-                  await fetch("/api/email/checklist", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      email: scrollBarEmail.trim(),
-                      receipt_id: receipt.receipt_id,
-                      anon_id: receipt.anon_id ?? null,
-                    }),
-                  });
-                  setHasEmailed(true);
-                  setShowScrollEmailBar(false);
-                } catch {
-                  // Silent
-                } finally {
-                  setScrollBarSubmitting(false);
-                }
-              }}
-            >
-              <input
-                type="email"
-                required
-                value={scrollBarEmail}
-                onChange={(e) => setScrollBarEmail(e.target.value)}
-                placeholder="your@email.com"
-                className="flex-1 min-w-0 px-3 py-2 text-sm bg-white/[0.07] border border-white/[0.10] text-white placeholder:text-white/30 rounded-lg outline-none focus:ring-1 focus:ring-[#00d97e] focus:border-[#00d97e]"
-              />
-              <button
-                type="submit"
-                disabled={scrollBarSubmitting}
-                className="px-4 py-2 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-lg hover:bg-[#00f090] disabled:opacity-60 shrink-0 transition-colors"
-              >
-                {scrollBarSubmitting ? "..." : "Send"}
-              </button>
-            </form>
-            <button
-              onClick={() => { setScrollEmailDismissed(true); setShowScrollEmailBar(false); }}
-              className="p-1.5 text-white/40 hover:text-white/70 transition-colors shrink-0"
-              aria-label="Dismiss"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
 
     </div>
   );

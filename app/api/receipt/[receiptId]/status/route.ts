@@ -46,7 +46,10 @@ export async function GET(
     .eq("id", receiptId)
     .maybeSingle();
 
-  if (error || !row) {
+  if (error) {
+    return NextResponse.json({ generation_status: "failed", reason: "db_unavailable" });
+  }
+  if (!row) {
     return NextResponse.json({ error: "Receipt not found" }, { status: 404 });
   }
 

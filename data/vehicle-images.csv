@@ -23,7 +23,10 @@ Chevrolet,Bolt EUV,2022,9999,https://upload.wikimedia.org/wikipedia/commons/thum
 Chevrolet,Equinox EV,2024,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/Chevrolet_Equinox_EV_002.jpg/960px-Chevrolet_Equinox_EV_002.jpg,1,
 Chevrolet,Blazer EV,2024,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Chevrolet_Blazer_EV_%28LT%2C_Riptide_Blue%29_-_badge_closeup.jpg/960px-Chevrolet_Blazer_EV_%28LT%2C_Riptide_Blue%29_-_badge_closeup.jpg,1,
 Chevrolet,Silverado EV,2024,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/2024_Chevrolet_Silverado_EV_Work_Truck%2C_front_8.20.22.jpg/960px-2024_Chevrolet_Silverado_EV_Work_Truck%2C_front_8.20.22.jpg,1,
-Nissan,Leaf,2018,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/2023_Nissan_Leaf_Tekna.jpg/960px-2023_Nissan_Leaf_Tekna.jpg,1,
+Nissan,Leaf,2018,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/2018_Nissan_Leaf_Tekna_Front_%281%29.jpg/960px-2018_Nissan_Leaf_Tekna_Front_%281%29.jpg,1,
+Nissan,Leaf,2011,2017,https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/2017_Nissan_LEAF_%28ZE0_MY17%29_hatchback_%282018-11-02%29_01.jpg/960px-2017_Nissan_LEAF_%28ZE0_MY17%29_hatchback_%282018-11-02%29_01.jpg,1,Gen 1
+Nissan,LEAF,2018,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/2018_Nissan_Leaf_Tekna_Front_%281%29.jpg/960px-2018_Nissan_Leaf_Tekna_Front_%281%29.jpg,1,uppercase alias
+Nissan,LEAF,2011,2017,https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/2017_Nissan_LEAF_%28ZE0_MY17%29_hatchback_%282018-11-02%29_01.jpg/960px-2017_Nissan_LEAF_%28ZE0_MY17%29_hatchback_%282018-11-02%29_01.jpg,1,uppercase alias Gen 1
 Nissan,Ariya,2023,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Nissan_Ariya_IAA_2023_1X7A0455.jpg/960px-Nissan_Ariya_IAA_2023_1X7A0455.jpg,1,
 Rivian,R1T,2022,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Rivian_R1T_-_2nd_Row_07.png/960px-Rivian_R1T_-_2nd_Row_07.png,1,
 Rivian,R1S,2022,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Rivian_R1S_-_3.jpg/960px-Rivian_R1S_-_3.jpg,1,
@@ -61,3 +64,8 @@ Jaguar,I-Pace,2019,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/d/d
 Toyota,bZ4X,2023,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/2023_Toyota_bZ4X_XLE_AWD_in_Supersonic_Red%2C_front_left.jpg/960px-2023_Toyota_bZ4X_XLE_AWD_in_Supersonic_Red%2C_front_left.jpg,1,
 Subaru,Solterra,2023,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/2026_Subaru_Solterra_Premium%2C_front_left%2C_03-15-2026.jpg/960px-2026_Subaru_Solterra_Premium%2C_front_left%2C_03-15-2026.jpg,1,
 GMC,Hummer EV,2022,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/2024_Chevrolet_Silverado_EV_Work_Truck%2C_front_8.20.22.jpg/960px-2024_Chevrolet_Silverado_EV_Work_Truck%2C_front_8.20.22.jpg,1,
+FIAT,500e,2013,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Fiat_500e_in_M%C3%BCnchen.jpg/960px-Fiat_500e_in_M%C3%BCnchen.jpg,1,
+Fiat,500e,2013,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Fiat_500e_in_M%C3%BCnchen.jpg/960px-Fiat_500e_in_M%C3%BCnchen.jpg,1,lowercase alias
+Chevrolet,Bolt,2017,2021,https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Chevrolet_Bolt_EV_Black.jpg/960px-Chevrolet_Bolt_EV_Black.jpg,1,short name alias
+Honda,Clarity Electric,2017,2019,https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/2018_Honda_Clarity_Electric_in_White%2C_front_8.10.18.jpg/960px-2018_Honda_Clarity_Electric_in_White%2C_front_8.10.18.jpg,1,
+Smart,EQ fortwo,2018,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Smart_ForTwo_Coupe_Electric_Drive_C453_-_Frontansicht%2C_25._M%C3%A4rz_2013%2C_D%C3%BCsseldorf.jpg/960px-Smart_ForTwo_Coupe_Electric_Drive_C453_-_Frontansicht%2C_25._M%C3%A4rz_2013%2C_D%C3%BCsseldorf.jpg,1,

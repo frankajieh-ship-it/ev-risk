@@ -83,6 +83,7 @@ export default function AdminDealsPage() {
   const [syncingDealers, setSyncingDealers] = useState(false);
   const [clearingGenericPhotos, setClearingGenericPhotos] = useState(false);
   const [clearingImageCache, setClearingImageCache] = useState(false);
+  const [clearingBadPhotos, setClearingBadPhotos] = useState(false);
   const extractPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
   const [rescopeDate, setRescopeDate] = useState(todayStr);
@@ -219,6 +220,29 @@ export default function AdminDealsPage() {
       setImportStatus("✗ Cache clear failed");
     } finally {
       setClearingImageCache(false);
+    }
+  };
+
+  const handleClearBadPhotos = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    setClearingBadPhotos(true);
+    setImportStatus("Clearing known-bad photo URLs...");
+    try {
+      const res = await fetch("/api/admin/deals-clear-bad-photos", {
+        method: "POST",
+        headers: { Authorization: authHeader },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setImportStatus(`✓ Cleared ${data.cleared} bad photos (${data.details?.join(", ") ?? ""}) — run Fill Missing (CSV) to refill`);
+        fetchDeals();
+      } else {
+        setImportStatus(`✗ ${data.error}`);
+      }
+    } catch {
+      setImportStatus("✗ Clear bad photos failed");
+    } finally {
+      setClearingBadPhotos(false);
     }
   };
 
@@ -561,6 +585,10 @@ export default function AdminDealsPage() {
             <button onClick={handleClearImageCache} disabled={clearingImageCache}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${clearingImageCache ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-red-400 border-white/[0.08]"}`}>
               {clearingImageCache ? "Clearing..." : "Clear Image Cache"}
+            </button>
+            <button onClick={handleClearBadPhotos} disabled={clearingBadPhotos}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${clearingBadPhotos ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-yellow-400 border-white/[0.08]"}`}>
+              {clearingBadPhotos ? "Clearing..." : "Clear Bad Photos"}
             </button>
             <button onClick={handleSyncLocalPhotos} disabled={syncingPhotos}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${syncingPhotos ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}>
