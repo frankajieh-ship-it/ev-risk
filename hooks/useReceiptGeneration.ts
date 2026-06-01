@@ -41,7 +41,7 @@ async function fetchWithRetry(
   throw new Error("fetchWithRetry: exhausted retries");
 }
 
-export type TrackEventFn = (event: string, props?: Record<string, unknown>) => void;
+export type TrackEventFn = (event: string, props?: { [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[] }) => void | Promise<void>;
 export type AddReceiptFn = (receipt: ListingReceipt) => void;
 
 interface UseReceiptGenerationOpts {
