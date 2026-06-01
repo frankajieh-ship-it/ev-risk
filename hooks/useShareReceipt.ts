@@ -7,7 +7,7 @@
 import { useState, useCallback } from "react";
 import type { ListingReceipt } from "@/types/receipt";
 
-export type TrackEventFn = (event: string, props?: Record<string, unknown>) => void;
+export type TrackEventFn = (event: string, props?: { [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[] }) => void | Promise<void>;
 
 export function useShareReceipt({
   receipt,
