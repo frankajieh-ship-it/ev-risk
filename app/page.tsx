@@ -265,7 +265,7 @@ export default function Home() {
         if (result.needsMoreInfo && result.missing) {
           setManualEntryMissingFields(result.missing);
           setManualEntryOpen(true);
-          trackUrlAutofillAttempt(url, false, null, "Parse failure - manual entry required");
+          trackUrlAutofillAttempt(url, false, undefined, "Parse failure - manual entry required");
         } else {
           setExtractError(result.error || "Failed to extract listing data");
           setExtractWarnings(result.warnings || []);
