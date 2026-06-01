@@ -136,7 +136,7 @@ export function ResultPageV2({
       sessionStorage.setItem("evreport_checkout_data", JSON.stringify(reportData));
       trackEvent("checkout_started", { report_id: rId, scenario_type: "evroutine" });
 
-      const variant = assignPriceVariant(anonId, rId);
+      const variant = assignPriceVariant(anonId ?? "", rId ?? "");
       const res = await fetch("/api/payments/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
