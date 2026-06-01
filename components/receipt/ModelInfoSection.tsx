@@ -30,7 +30,7 @@ interface ModelInfoSectionProps {
   model: string;
   year?: number;
   region?: Region;
-  trackEvent?: (eventName: string, eventData?: Record<string, unknown>) => void;
+  trackEvent?: (eventName: string, eventData?: { [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[] }) => void | Promise<void>;
 }
 
 const ICON_MAP: Record<string, typeof BookOpen> = {

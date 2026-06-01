@@ -7,7 +7,7 @@ import type { ConfidencePlan, ConfidenceAction } from "@/types/v2";
 interface ConfidencePlanBlockProps {
   confidencePlan: ConfidencePlan;
   vehicle?: { make: string; model: string; year: number };
-  trackEvent: (name: string, data?: Record<string, unknown>) => void;
+  trackEvent: (name: string, data?: { [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[] }) => void | Promise<void>;
 }
 
 const MODULE_COLORS: Record<string, { bg: string; text: string }> = {

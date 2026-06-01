@@ -20,7 +20,7 @@ interface RoutineFitMiniStepProps {
   receiptMileage?: number;
   receiptPrice?: number;
   receiptSellerType?: string;
-  trackEvent?: (eventName: string, eventData?: Record<string, unknown>) => void;
+  trackEvent?: (eventName: string, eventData?: { [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[] }) => void | Promise<void>;
 }
 
 type ChargingAccess = "home" | "work" | "public";

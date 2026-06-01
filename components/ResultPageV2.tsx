@@ -16,7 +16,7 @@ interface ResultPageV2Props {
   mvr: MinimumViableRoutine;
   dealerQuestions?: { top_3: string[]; full_list: string[]; walk_away_triggers: string[] };
   confidencePlan?: ConfidencePlan;
-  trackEvent?: (name: string, data?: Record<string, any>) => void;
+  trackEvent?: (name: string, data?: { [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[] }) => void | Promise<void>;
   reportData?: Record<string, unknown>;
   onBack?: () => void;
   isUnlocked?: boolean;
@@ -82,7 +82,7 @@ export function ResultPageV2({
   const [pdfState, setPdfState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
-  const effectiveReportId = reportId || (reportData as any)?._persisted_report_id || null;
+  const effectiveReportId = reportId || (reportData as Record<string, unknown>)?._persisted_report_id as string | null || null;
 
   const handleDownloadPdf = async () => {
     if (!reportData) return;

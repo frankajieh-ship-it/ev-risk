@@ -15,7 +15,7 @@ import { assignPriceVariant, getDisplayPrice } from "@/lib/price-assignment";
 
 interface ResultPageV2SplitProps {
   contract: EvRiskReportV2Contract;
-  trackEvent: (name: string, data?: Record<string, unknown>) => void;
+  trackEvent: (name: string, data?: { [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[] }) => void | Promise<void>;
   sessionId: string | null;
   onBack?: () => void;
   isUnlocked?: boolean;

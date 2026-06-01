@@ -84,7 +84,7 @@ interface ReceiptInputCardProps {
   prefillText?: string | null;
   prefillUrl?: string | null;
   prefillVin?: string | null;
-  trackEvent?: (eventName: string, eventData?: Record<string, unknown>) => void;
+  trackEvent?: (eventName: string, eventData?: { [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[] }) => void | Promise<void>;
   receiptToken?: string;
   hasResult?: boolean;
 }

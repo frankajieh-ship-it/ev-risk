@@ -43,7 +43,7 @@ interface VinCheckSectionProps {
   listingMake?: string;
   listingModel?: string;
   existingVin?: string;
-  trackEvent: (name: string, data?: Record<string, any>) => void;
+  trackEvent: (name: string, data?: { [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[] }) => void | Promise<void>;
 }
 
 const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/i;

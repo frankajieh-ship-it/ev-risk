@@ -145,7 +145,7 @@ export function useEventTracking() {
       // Init session on first event (lazy, avoids SSR issues)
       initSession();
 
-      const receiptId = eventData?.receipt_id || "";
+      const receiptId = typeof eventData?.receipt_id === "string" ? eventData.receipt_id : "";
       const viewId = getViewId(receiptId || undefined);
 
       // Dedup guard: same event + receipt_id within 2s
