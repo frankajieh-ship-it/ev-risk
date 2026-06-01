@@ -269,7 +269,7 @@ export default function Home() {
         } else {
           setExtractError(result.error || "Failed to extract listing data");
           setExtractWarnings(result.warnings || []);
-          trackUrlAutofillAttempt(url, false, null, result.error);
+          trackUrlAutofillAttempt(url, false, undefined, result.error);
         }
         return;
       }
@@ -289,7 +289,7 @@ export default function Home() {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "An error occurred";
       setExtractError(errorMsg);
-      trackUrlAutofillAttempt(url, false, null, errorMsg);
+      trackUrlAutofillAttempt(url, false, undefined, errorMsg);
     } finally {
       setExtracting(false);
     }
