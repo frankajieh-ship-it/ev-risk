@@ -75,7 +75,7 @@ interface OFfoChatProps {
   isMobile?: boolean;
   paymentsEnabled?: boolean;
   freeMode?: boolean;
-  trackEvent?: (name: string, data?: Record<string, unknown>) => void;
+  trackEvent?: (name: string, data?: { [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[] }) => void;
   initialMessages?: Message[];
   userId?: string | null;
   advisorSessionId?: string | null;
