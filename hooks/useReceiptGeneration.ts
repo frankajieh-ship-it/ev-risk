@@ -128,8 +128,7 @@ export function useReceiptGeneration({
     };
   }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _startUpgradePolling = useCallback((receiptId: string) => {
+  const startUpgradePolling = useCallback((receiptId: string) => {
     if (upgradePollingRef.current) clearInterval(upgradePollingRef.current);
 
     setIsUpgrading(true);
@@ -341,6 +340,7 @@ export function useReceiptGeneration({
             verdict: result.receipt.verdict,
             fit_score: result.receipt.fit_score,
           });
+          startUpgradePolling(result.receipt_id);
         }
 
         trackEvent("receipt_generate", {
@@ -363,7 +363,7 @@ export function useReceiptGeneration({
         inFlightRef.current = false;
       }
     },
-    [receiptToken, region, trackEvent, addReceipt, executeTurnstile, routineContext, pageSource, onRoutineContextUsed, onIsProChanged, onRecallsLoaded, onListingAgeLoaded]
+    [receiptToken, region, trackEvent, addReceipt, executeTurnstile, routineContext, pageSource, onRoutineContextUsed, onIsProChanged, onRecallsLoaded, onListingAgeLoaded, startUpgradePolling]
   );
 
   const handleRegenerate = useCallback(() => {

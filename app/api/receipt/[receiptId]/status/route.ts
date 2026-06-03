@@ -47,7 +47,7 @@ export async function GET(
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ generation_status: "failed", reason: "db_unavailable" });
+    return NextResponse.json({ error: "Database error" }, { status: 503 });
   }
   if (!row) {
     return NextResponse.json({ error: "Receipt not found" }, { status: 404 });
