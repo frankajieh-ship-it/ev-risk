@@ -142,7 +142,7 @@ export default function RedditDraftSection({
               <p className="font-medium text-gray-900">{draft.title}</p>
             </div>
 
-            {draft.body_facts && draft.body_facts.length > 0 && (
+            {Array.isArray(draft.body_facts) && draft.body_facts.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Facts</p>
                 <ul className="space-y-1">
@@ -153,9 +153,9 @@ export default function RedditDraftSection({
               </div>
             )}
 
-            {draft.body_uncertainty && draft.body_uncertainty.length > 0 && (
+            {Array.isArray(draft.body_uncertainty) && draft.body_uncertainty.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">What I couldn't confirm</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">What I couldn&apos;t confirm</p>
                 <ul className="space-y-1">
                   {draft.body_uncertainty.map((u, i) => (
                     <li key={i} className="text-gray-600 italic">{u}</li>
@@ -164,7 +164,7 @@ export default function RedditDraftSection({
               </div>
             )}
 
-            {draft.body_next_steps && draft.body_next_steps.length > 0 && (
+            {Array.isArray(draft.body_next_steps) && draft.body_next_steps.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Next steps</p>
                 <ul className="space-y-1">
@@ -175,7 +175,7 @@ export default function RedditDraftSection({
               </div>
             )}
 
-            {draft.questions && draft.questions.length > 0 && (
+            {Array.isArray(draft.questions) && draft.questions.length > 0 && (
               <div className="bg-orange-50 rounded-lg px-3 py-2">
                 <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide mb-1">Question</p>
                 {draft.questions.map((q, i) => (

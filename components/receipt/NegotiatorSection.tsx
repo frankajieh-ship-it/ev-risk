@@ -69,6 +69,11 @@ export default function NegotiatorSection({
     [receipt.receipt_id, trackEvent]
   );
 
+  // Normalize AI-returned array fields — AI can return these as strings
+  const riskFlags = Array.isArray(receipt.risk_flags) ? receipt.risk_flags : [];
+  const mustAnswerQuestions = Array.isArray(receipt.must_answer_questions) ? receipt.must_answer_questions : [];
+  const inspectFirst = Array.isArray(receipt.inspect_first) ? receipt.inspect_first : [];
+
   // Build suggested offer range from price_sanity
   const price = receipt.listing_summary?.price;
   const priceSanity = receipt.price_sanity;
@@ -111,16 +116,16 @@ export default function NegotiatorSection({
     lines.push("");
 
     lines.push("TALKING POINTS (from risk flags):");
-    receipt.risk_flags.forEach((f, i) => lines.push(`${i + 1}. ${humanizeFlag(f)}`));
+    riskFlags.forEach((f, i) => lines.push(`${i + 1}. ${humanizeFlag(f)}`));
     lines.push("");
 
     lines.push("MUST-ASK QUESTIONS:");
-    receipt.must_answer_questions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
+    mustAnswerQuestions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
     lines.push("");
 
-    if (receipt.inspect_first && receipt.inspect_first.length > 0) {
+    if (inspectFirst.length > 0) {
       lines.push("INSPECT FIRST:");
-      receipt.inspect_first.forEach((item, i) => lines.push(`${i + 1}. ${item}`));
+      inspectFirst.forEach((item, i) => lines.push(`${i + 1}. ${item}`));
       lines.push("");
     }
 
@@ -181,14 +186,14 @@ export default function NegotiatorSection({
           subtitle="Leverage these in your negotiation"
           onCopy={() =>
             copyText(
-              receipt.risk_flags.map((f, i) => `${i + 1}. ${humanizeFlag(f)}`).join("\n"),
+              riskFlags.map((f, i) => `${i + 1}. ${humanizeFlag(f)}`).join("\n"),
               "talking"
             )
           }
           copied={copied === "talking"}
         >
           <ol className="space-y-1.5">
-            {receipt.risk_flags.map((flag, i) => (
+            {riskFlags.map((flag, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
                 <span className="text-red-400 font-bold flex-shrink-0 w-5 text-right">
                   {i + 1}.
@@ -201,7 +206,7 @@ export default function NegotiatorSection({
 
         {/* Must-Ask Questions */}
         {(() => {
-          const questions = receipt.must_answer_questions;
+          const questions = mustAnswerQuestions;
           const showAll = sellerPackUnlocked !== false || questions.length <= 2;
           const visibleQuestions = showAll ? questions : questions.slice(0, 2);
           const lockedCount = showAll ? 0 : questions.length - 2;
@@ -255,7 +260,7 @@ export default function NegotiatorSection({
         })()}
 
         {/* Inspect First — locked behind seller pack */}
-        {receipt.inspect_first && receipt.inspect_first.length > 0 && (
+        {inspectFirst.length > 0 && (
           sellerPackUnlocked !== false ? (
             <StrategyBlock
               icon={<Search className="w-4 h-4 text-orange-500" />}
@@ -263,14 +268,14 @@ export default function NegotiatorSection({
               subtitle="Check these before discussing price"
               onCopy={() =>
                 copyText(
-                  receipt.inspect_first.map((item, i) => `${i + 1}. ${item}`).join("\n"),
+                  inspectFirst.map((item, i) => `${i + 1}. ${item}`).join("\n"),
                   "inspect"
                 )
               }
               copied={copied === "inspect"}
             >
               <ol className="space-y-1.5">
-                {receipt.inspect_first.map((item, i) => (
+                {inspectFirst.map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
                     <span className="text-orange-400 font-bold flex-shrink-0 w-5 text-right">
                       {i + 1}.

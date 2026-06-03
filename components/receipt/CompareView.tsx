@@ -43,6 +43,8 @@ const VERDICT_STYLE: Record<
 function ReceiptCard({ receipt, label }: { receipt: ListingReceipt; label: string }) {
   const s = receipt.listing_summary;
   const vehicle = [s.year, s.make, s.model, s.trim].filter(Boolean).join(" ");
+  const riskFlags = Array.isArray(receipt.risk_flags) ? receipt.risk_flags : [];
+  const mustAnswerQuestions = Array.isArray(receipt.must_answer_questions) ? receipt.must_answer_questions : [];
   const verdict = VERDICT_STYLE[receipt.verdict];
   const VerdictIcon = verdict.icon;
   const currency = s.currency === "GBP" ? "\u00A3" : "$";
@@ -104,7 +106,7 @@ function ReceiptCard({ receipt, label }: { receipt: ListingReceipt; label: strin
           Risk Flags
         </p>
         <ul className="space-y-1">
-          {receipt.risk_flags.slice(0, 3).map((flag, i) => (
+          {riskFlags.slice(0, 3).map((flag, i) => (
             <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
               <span className="text-red-400 mt-0.5">!</span>
               <span>{humanizeFlag(flag)}</span>
@@ -119,7 +121,7 @@ function ReceiptCard({ receipt, label }: { receipt: ListingReceipt; label: strin
           Must-Ask Questions
         </p>
         <ol className="space-y-1 list-decimal list-inside">
-          {receipt.must_answer_questions.slice(0, 3).map((q, i) => (
+          {mustAnswerQuestions.slice(0, 3).map((q, i) => (
             <li key={i} className="text-xs text-gray-700">
               {q}
             </li>

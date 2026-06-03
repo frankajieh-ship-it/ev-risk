@@ -150,6 +150,9 @@ export default function ReceiptOutputCard({
   const [photoOverride, setPhotoOverride] = useState<{ key: string; urls: string[] } | null>(null);
   const fallbackFiredRef = useRef(false);
 
+  // Normalize AI-returned array field — AI can return why_not_green as non-array
+  const whyNotGreen = Array.isArray(whyNotGreen) ? whyNotGreen : [];
+
   const photosKey = photos.join(",");
   // Override is only valid when it was set for the current photos array
   const photoSrcs = (photoOverride?.key === photosKey ? photoOverride.urls : null) ?? photos;
@@ -231,7 +234,7 @@ export default function ReceiptOutputCard({
     ? formatPrice(ls.price, region)
     : null;
 
-  // eslint-disable-next-line react-hooks/purity
+   
   const nowMs = useRef(Date.now()).current;
   type ListingAgeBadge = { label: string; cls: string } | null;
   const listingAgeBadge = useMemo((): ListingAgeBadge => {
@@ -472,7 +475,7 @@ export default function ReceiptOutputCard({
       <VehicleFactsBar receipt={receipt} isUnlocked={isUnlocked} paymentsEnabled={paymentsEnabled} onPaywallClick={onPaywallClick} />
 
       {/* Why not GREEN? — collapsible */}
-      {receipt.why_not_green && receipt.why_not_green.length > 0 && receipt.verdict !== "GREEN" && (
+      {whyNotGreen && whyNotGreen.length > 0 && receipt.verdict !== "GREEN" && (
         <div className="px-5 py-3 bg-[#161b22] border-b border-white/[0.08]">
           <div className="flex items-center gap-1.5 mb-1.5">
             <button
@@ -506,7 +509,7 @@ export default function ReceiptOutputCard({
           </div>
           {whyNotGreenOpen && (isUnlocked || !paymentsEnabled ? (
             <ul className="space-y-1 mt-1.5">
-              {receipt.why_not_green.map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
+              {whyNotGreen.map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
                 const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
                 return (
                   <li key={i} className="text-sm text-white/70 flex items-start gap-2">
@@ -524,7 +527,7 @@ export default function ReceiptOutputCard({
           ) : (
             <div className="mt-1.5">
               <ul className="space-y-1 mb-2">
-                {receipt.why_not_green.slice(0, 1).map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
+                {whyNotGreen.slice(0, 1).map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
                   const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
                   return (
                     <li key={i} className="text-sm text-white/70 flex items-start gap-2">
@@ -535,7 +538,7 @@ export default function ReceiptOutputCard({
                     </li>
                   );
                 })}
-                {receipt.why_not_green.slice(1).map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
+                {whyNotGreen.slice(1).map((reason: { signal_id: string; category: string; points: number; label: string }, i: number) => {
                   const catStyle = REASON_CATEGORY_STYLES[reason.category] || REASON_CATEGORY_STYLES.listing_risk;
                   const preview = reason.label.length > 45 ? reason.label.slice(0, 45) + "…" : reason.label;
                   return (
@@ -548,13 +551,13 @@ export default function ReceiptOutputCard({
                   );
                 })}
               </ul>
-              {receipt.why_not_green.length > 1 && (
+              {whyNotGreen.length > 1 && (
                 <button
                   onClick={onPaywallClick}
                   className="flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-800 transition-colors"
                 >
                   <Lock className="w-3.5 h-3.5" />
-                  +{receipt.why_not_green.length - 1} more reason{receipt.why_not_green.length - 1 !== 1 ? "s" : ""} — see full analysis
+                  +{whyNotGreen.length - 1} more reason{whyNotGreen.length - 1 !== 1 ? "s" : ""} — see full analysis
                 </button>
               )}
             </div>

@@ -112,7 +112,7 @@ export default function DeepDiveSection({
       </div>
 
       {/* Market Comparison */}
-      {deepDive.market_comparison.length > 0 && (() => {
+      {Array.isArray(deepDive.market_comparison) && deepDive.market_comparison.length > 0 && (() => {
         const comps = deepDive.market_comparison;
         const avgDelta = comps.reduce((sum, c) => sum + c.delta_pct, 0) / comps.length;
         const cheaperCount = comps.filter((c) => c.delta_pct > 0).length; // comps cost MORE = yours is cheaper
@@ -286,7 +286,7 @@ export default function DeepDiveSection({
       </div>
 
       {/* Model Known Issues */}
-      {deepDive.model_known_issues.length > 0 && (
+      {Array.isArray(deepDive.model_known_issues) && deepDive.model_known_issues.length > 0 && (
         <div className="bg-[#161b22] rounded-2xl border border-white/[0.08] p-5">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-yellow-400" />

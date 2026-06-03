@@ -69,7 +69,7 @@ export default function ReceiptDetailsAccordion({
       )}
 
       {/* Common Listing Tricks */}
-      {details.common_listing_tricks?.length > 0 && (
+      {Array.isArray(details.common_listing_tricks) && details.common_listing_tricks.length > 0 && (
         <AccordionItem
           id="tricks"
           isOpen={open === "tricks"}
@@ -89,7 +89,7 @@ export default function ReceiptDetailsAccordion({
       )}
 
       {/* Walk-Away Triggers */}
-      {details.walk_away_triggers?.length > 0 && (
+      {Array.isArray(details.walk_away_triggers) && details.walk_away_triggers.length > 0 && (
         <AccordionItem
           id="walkaway"
           isOpen={open === "walkaway"}
