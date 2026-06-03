@@ -193,7 +193,7 @@ export default function DeepDiveSection({
           <h3 className="text-sm font-semibold text-white">Extended Inspection Checklist</h3>
         </div>
         <ol className="space-y-2">
-          {deepDive.extended_inspection.map((item, i) => (
+          {(deepDive.extended_inspection ?? []).map((item, i) => (
             <li key={i} className="flex items-start gap-2.5 text-sm text-white/70">
               <span className="text-[#00d97e] font-bold flex-shrink-0 w-5 text-right">
                 {i + 1}.
@@ -213,7 +213,7 @@ export default function DeepDiveSection({
           </div>
         </div>
         <div className="divide-y divide-white/[0.06]">
-          {deepDive.negotiation_scripts.map((script, i) => (
+          {(deepDive.negotiation_scripts ?? []).map((script, i) => (
             <div key={i}>
               <button
                 onClick={() => setOpenScript(openScript === i ? null : i)}
