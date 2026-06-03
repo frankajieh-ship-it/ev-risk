@@ -24,7 +24,6 @@ import LoginModal from "@/components/LoginModal";
 import AuthLoginModal from "@/components/auth/LoginModal";
 import ReceiptInputCard from "@/components/receipt/ReceiptInputCard";
 import ReceiptOutputCard from "@/components/receipt/ReceiptOutputCard";
-import RoutineFitMiniStep from "@/components/receipt/RoutineFitMiniStep";
 import FeedbackWidget from "@/components/FeedbackWidget";
 import ExitFeedbackModal from "@/components/receipt/ExitFeedbackModal";
 import DealerInquiryModal from "@/components/receipt/DealerInquiryModal";
@@ -1069,14 +1068,6 @@ export default function ReceiptPage() {
               {!isAuthenticated && (
                 <WorkspaceSaveNudge onSignIn={() => setShowAuthPrompt(true)} />
               )}
-
-              {/* Routine fit inline — surfaces OFFO's key differentiator on every result */}
-              <RoutineFitMiniStep
-                receiptMileage={receipt.listing_summary?.mileage as number | undefined}
-                receiptPrice={receipt.listing_summary?.price as number | undefined}
-                receiptSellerType={receipt.listing_summary?.seller_type as string | undefined}
-                trackEvent={trackEvent}
-              />
 
               {/* ── Paywall or deep sections ── */}
               {!isUnlocked && paymentsEnabled ? (
