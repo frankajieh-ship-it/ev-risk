@@ -18,8 +18,8 @@ import type { ListingReceipt } from "@/types/receipt";
 const VALID_SCENARIO_TYPES = ["receipt", "evroutine"];
 
 // Rate limiters — in-memory, apply before any DB or AI calls
-const deepDiveIPLimiter   = new RateLimiter(60 * 60 * 1000, 3); // 3/hr per IP
-const deepDiveAnonLimiter = new RateLimiter(60 * 60 * 1000, 3); // 3/hr per anon_id
+const deepDiveIPLimiter   = new RateLimiter(60 * 60 * 1000, 20); // 20/hr per IP
+const deepDiveAnonLimiter = new RateLimiter(60 * 60 * 1000, 20); // 20/hr per anon_id
 
 export async function POST(request: NextRequest) {
   if (!isSupabaseConfigured()) {
