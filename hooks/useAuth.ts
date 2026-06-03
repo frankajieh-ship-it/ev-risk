@@ -250,15 +250,19 @@ export function useAuth(): UseAuthReturn {
    * Refresh session manually
    */
   const refreshSession = useCallback(async () => {
-    const [session, user] = await Promise.all([getSession(), getUser()]);
-    setState((prev) => ({
-      ...prev,
-      session,
-      user,
-      isAuthenticated: !!user,
-      role: getUserRole(user),
-      dealerId: getUserDealerId(user),
-    }));
+    try {
+      const [session, user] = await Promise.all([getSession(), getUser()]);
+      setState((prev) => ({
+        ...prev,
+        session,
+        user,
+        isAuthenticated: !!user,
+        role: getUserRole(user),
+        dealerId: getUserDealerId(user),
+      }));
+    } catch (err) {
+      console.error("[useAuth] refreshSession error:", err);
+    }
   }, []);
 
   const isDealer = state.role === "dealer_admin" || state.role === "dealer_user";

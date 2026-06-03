@@ -104,9 +104,12 @@ export async function sendMagicLink(email: string): Promise<{ success: boolean; 
  */
 export async function getSession(): Promise<Session | null> {
   if (!supabaseAuthClient) return null;
-
-  const { data: { session } } = await supabaseAuthClient.auth.getSession();
-  return session;
+  try {
+    const { data: { session } } = await supabaseAuthClient.auth.getSession();
+    return session;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -114,9 +117,12 @@ export async function getSession(): Promise<Session | null> {
  */
 export async function getUser(): Promise<User | null> {
   if (!supabaseAuthClient) return null;
-
-  const { data: { user } } = await supabaseAuthClient.auth.getUser();
-  return user;
+  try {
+    const { data: { user } } = await supabaseAuthClient.auth.getUser();
+    return user;
+  } catch {
+    return null;
+  }
 }
 
 /**
