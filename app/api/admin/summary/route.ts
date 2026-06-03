@@ -2243,19 +2243,23 @@ export async function GET(request: NextRequest) {
         };
       })(),
       provider_health: await (async () => {
-        const { data } = await supabase.from("provider_health").select("*").order("provider");
-        if (!data) return null;
-        return data.map((r: Record<string, unknown>) => ({
-          provider: r.provider,
-          success_count: r.success_count,
-          failure_count: r.failure_count,
-          success_rate: (() => {
-            const total = (r.success_count as number) + (r.failure_count as number);
-            return total > 0 ? Math.round(((r.success_count as number) / total) * 1000) / 10 : null;
-          })(),
-          last_success_at: r.last_success_at,
-          last_failure_at: r.last_failure_at,
-        }));
+        try {
+          const { data } = await supabase.from("provider_health").select("*").order("provider");
+          if (!data) return null;
+          return data.map((r: Record<string, unknown>) => ({
+            provider: r.provider,
+            success_count: r.success_count,
+            failure_count: r.failure_count,
+            success_rate: (() => {
+              const total = (r.success_count as number) + (r.failure_count as number);
+              return total > 0 ? Math.round(((r.success_count as number) / total) * 1000) / 10 : null;
+            })(),
+            last_success_at: r.last_success_at,
+            last_failure_at: r.last_failure_at,
+          }));
+        } catch {
+          return null;
+        }
       })(),
     });
   } catch (err) {
