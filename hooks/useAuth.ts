@@ -41,12 +41,14 @@ interface UseAuthReturn extends AuthState {
 }
 
 export function useAuth(): UseAuthReturn {
+  const configured = isSupabaseAuthConfigured();
+
   const [state, setState] = useState<AuthState>({
     user: null,
     session: null,
-    isLoading: true,
+    isLoading: configured,
     isAuthenticated: false,
-    isConfigured: false,
+    isConfigured: configured,
     isReady: false,
     role: null,
     dealerId: null,
@@ -57,11 +59,7 @@ export function useAuth(): UseAuthReturn {
 
   // Check initial session on mount
   useEffect(() => {
-    const configured = isSupabaseAuthConfigured();
-    setState((prev) => ({ ...prev, isConfigured: configured }));
-
     if (!configured) {
-      setState((prev) => ({ ...prev, isLoading: false }));
       return;
     }
 
@@ -179,6 +177,12 @@ export function useAuth(): UseAuthReturn {
                   isReady: true,
                 }));
               }
+            }).catch((networkErr) => {
+              // Supabase unreachable (NXDOMAIN, timeout, 503) — degrade gracefully
+              // instead of letting the unhandled rejection crash the page
+              isRefreshingRef.current = false;
+              console.error("[useAuth] Session refresh network error:", networkErr);
+              setState((prev) => ({ ...prev, isReady: true }));
             });
           } else {
             // No client available, set ready anyway
