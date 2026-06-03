@@ -151,7 +151,7 @@ export default function ReceiptOutputCard({
   const fallbackFiredRef = useRef(false);
 
   // Normalize AI-returned array field — AI can return why_not_green as non-array
-  const whyNotGreen = Array.isArray(whyNotGreen) ? whyNotGreen : [];
+  const whyNotGreen = Array.isArray(receipt.why_not_green) ? receipt.why_not_green : [];
 
   const photosKey = photos.join(",");
   // Override is only valid when it was set for the current photos array
@@ -235,7 +235,7 @@ export default function ReceiptOutputCard({
     : null;
 
    
-  const nowMs = useRef(Date.now()).current;
+  const [nowMs] = useState(() => Date.now());
   type ListingAgeBadge = { label: string; cls: string } | null;
   const listingAgeBadge = useMemo((): ListingAgeBadge => {
     if (priceDropCents && priceDropCents > 0) {

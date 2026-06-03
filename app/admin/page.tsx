@@ -558,7 +558,14 @@ export default function AdminDashboard() {
           return;
         }
 
-        if (!response.ok) throw new Error("Failed to fetch summary");
+        if (!response.ok) {
+          let msg = `Server error ${response.status}`;
+          try {
+            const body = await response.json();
+            if (body?.error) msg = body.error;
+          } catch { /* ignore parse error */ }
+          throw new Error(msg);
+        }
 
         const data: SummaryData = await response.json();
         setSummary(data);
