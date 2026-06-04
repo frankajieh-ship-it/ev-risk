@@ -300,6 +300,8 @@ export async function POST(request: NextRequest) {
     extraction_id: (body.extraction_id as string) || undefined,
     region: body.region === "UK" ? "UK" : "US",
     mode: "single",
+    market_price_range: body.market_price_range as ReceiptGenerateRequest["market_price_range"] || undefined,
+    auto_dev_specs: body.auto_dev_specs as ReceiptGenerateRequest["auto_dev_specs"] || undefined,
   };
 
   // 6b. Extract signals deterministically from text (< 5ms, no network)

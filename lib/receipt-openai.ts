@@ -7,6 +7,7 @@
 
 import OpenAI from "openai";
 import { v4 as uuidv4 } from "uuid";
+import { hedgedGenerate } from "@/lib/providers/hedged-generate";
 import type { ListingReceipt, ReceiptGenerateRequest, DeepDiveContent } from "../types/receipt";
 import type { LintError } from "./receipt-schema-validator";
 import { validateReceiptSchema, sanitizeTextField } from "./receipt-schema-validator";
@@ -348,6 +349,23 @@ export function buildUserPrompt(input: ReceiptGenerateRequest): string {
     else if (mvr.longest_day_pattern === "rare_road_trip") routineLines.push("- Longest day: rare (road trips only)");
     if (mvr.public_charging_dependency) routineLines.push(`- Public charging dependency: ${mvr.public_charging_dependency.toLowerCase()}`);
     parts.push(routineLines.join("\n"));
+    parts.push("");
+  }
+
+  // Market comps — inject when available so AI can anchor price_sanity to real data
+  if (input.market_price_range) {
+    const mpr = input.market_price_range;
+    const currency = input.region === "UK" ? "£" : "$";
+    const marketLines: string[] = ["MARKET DATA — use this to anchor price_sanity and user_market_range:"];
+    marketLines.push(`- Comparable listings range: ${currency}${mpr.low.toLocaleString()}–${currency}${mpr.high.toLocaleString()} (${mpr.count} active listings)`);
+    if (input.auto_dev_specs?.used_tmv) {
+      marketLines.push(`- Used TMV (Edmunds): ${currency}${input.auto_dev_specs.used_tmv.toLocaleString()}`);
+    }
+    if (input.auto_dev_specs?.msrp) {
+      marketLines.push(`- Original MSRP: ${currency}${input.auto_dev_specs.msrp.toLocaleString()}`);
+    }
+    marketLines.push(`- Set price_sanity.basis to "USER_MARKET_RANGE" and populate user_market_range with low/high from above.`);
+    parts.push(marketLines.join("\n"));
     parts.push("");
   }
 
@@ -944,7 +962,58 @@ Return ONLY the JSON object.`;
 
 import type { PackTier } from "./price-assignment";
 
-const DEEP_DIVE_MODEL = "gpt-4o";
+const DEEP_DIVE_HEDGE_DELAYS: [number, number] = [10_000, 18_000];
+
+const DEEP_DIVE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["market_comparison", "extended_inspection", "negotiation_scripts", "cost_of_ownership", "model_known_issues", "verdict_deep"],
+  properties: {
+    market_comparison: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["title", "price", "mileage", "source", "delta_pct"],
+        properties: {
+          title: { type: "string" },
+          price: { type: "number" },
+          mileage: { type: "number" },
+          source: { type: "string" },
+          delta_pct: { type: "number" },
+        },
+      },
+    },
+    extended_inspection: { type: "array", items: { type: "string" } },
+    negotiation_scripts: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["scenario", "opening", "body"],
+        properties: {
+          scenario: { type: "string" },
+          opening: { type: "string" },
+          body: { type: "string" },
+        },
+      },
+    },
+    cost_of_ownership: {
+      type: "object",
+      additionalProperties: false,
+      required: ["insurance_yr", "maintenance_yr", "fuel_or_charging_yr", "depreciation_yr", "total_3yr"],
+      properties: {
+        insurance_yr: { type: "number" },
+        maintenance_yr: { type: "number" },
+        fuel_or_charging_yr: { type: "number" },
+        depreciation_yr: { type: "number" },
+        total_3yr: { type: "number" },
+      },
+    },
+    model_known_issues: { type: "array", items: { type: "string" } },
+    verdict_deep: { type: "string" },
+  },
+} as const;
 
 const DEEP_DIVE_SYSTEM_PROMPT = `You are OFFO Deep Dive Analyst, a paid upgrade tier of OFFO Lab's used-car analysis engine.
 
@@ -1031,44 +1100,38 @@ export async function generateDeepDive(
 ): Promise<DeepDiveContent> {
   const userPrompt = buildDeepDiveUserPrompt(baseReceipt);
 
-  const response = await getOpenAI().chat.completions.create({
-    model: DEEP_DIVE_MODEL,
-    messages: [
-      { role: "system", content: DEEP_DIVE_SYSTEM_PROMPT },
-      { role: "user", content: userPrompt },
-    ],
+  const result = await hedgedGenerate({
+    systemPrompt: DEEP_DIVE_SYSTEM_PROMPT,
+    userPrompt,
+    jsonSchema: DEEP_DIVE_SCHEMA as Record<string, unknown>,
+    schemaName: "deep_dive",
     temperature: 0.3,
-    max_tokens: 4000,
-    response_format: { type: "json_object" },
+    maxTokens: 4000,
+    hedgeDelays: DEEP_DIVE_HEDGE_DELAYS,
+    validate: (json) => {
+      const d = json as Partial<DeepDiveContent>;
+      if (!Array.isArray(d.extended_inspection) || d.extended_inspection.length === 0)
+        return { valid: false, reason: "missing extended_inspection" };
+      if (!Array.isArray(d.negotiation_scripts) || d.negotiation_scripts.length === 0)
+        return { valid: false, reason: "missing negotiation_scripts" };
+      if (!d.verdict_deep)
+        return { valid: false, reason: "missing verdict_deep" };
+      if (!Array.isArray(d.market_comparison) || d.market_comparison.length === 0)
+        return { valid: false, reason: "missing market_comparison" };
+      if (!d.cost_of_ownership)
+        return { valid: false, reason: "missing cost_of_ownership" };
+      return { valid: true };
+    },
   });
 
-  const content = response.choices[0]?.message?.content || "{}";
-  const parsed = JSON.parse(content) as Partial<DeepDiveContent>;
+  const parsed = result.json as Partial<DeepDiveContent>;
 
-  if (!parsed.extended_inspection || !Array.isArray(parsed.extended_inspection)) {
-    throw new Error("Deep dive missing extended_inspection");
-  }
-  if (!parsed.negotiation_scripts || !Array.isArray(parsed.negotiation_scripts)) {
-    throw new Error("Deep dive missing negotiation_scripts");
-  }
-  if (!parsed.verdict_deep) {
-    throw new Error("Deep dive missing verdict_deep");
-  }
-  if (!parsed.market_comparison || !Array.isArray(parsed.market_comparison)) {
-    throw new Error("Deep dive missing market_comparison");
-  }
-  if (!parsed.cost_of_ownership) {
-    throw new Error("Deep dive missing cost_of_ownership");
-  }
-
-  const result: DeepDiveContent = {
-    market_comparison: parsed.market_comparison,
-    extended_inspection: parsed.extended_inspection,
-    negotiation_scripts: parsed.negotiation_scripts,
-    cost_of_ownership: parsed.cost_of_ownership,
+  return {
+    market_comparison: parsed.market_comparison!,
+    extended_inspection: parsed.extended_inspection!,
+    negotiation_scripts: parsed.negotiation_scripts!,
+    cost_of_ownership: parsed.cost_of_ownership!,
     model_known_issues: parsed.model_known_issues || [],
-    verdict_deep: parsed.verdict_deep,
+    verdict_deep: parsed.verdict_deep!,
   };
-
-  return result;
 }

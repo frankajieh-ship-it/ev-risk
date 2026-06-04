@@ -263,6 +263,8 @@ export function useReceiptGeneration({
         if (f.country) body.country = f.country;
         if (f.zip_or_postcode) body.zip_or_postcode = f.zip_or_postcode;
         if (routineContext) body.routine_context = routineContext;
+        if (f.market_price_range) body.market_price_range = f.market_price_range;
+        if (f.auto_dev_specs) body.auto_dev_specs = f.auto_dev_specs;
 
         const res = await fetchWithRetry("/api/receipt", {
           method: "POST",

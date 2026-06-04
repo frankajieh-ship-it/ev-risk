@@ -102,6 +102,17 @@ export interface ReceiptGenerateRequest {
   listing_b_text?: string;
   // Optional routine context — when present, backend computes routine fit
   routine_context?: import("@/types/v2").MinimumViableRoutine;
+  // Market context from Auto.dev enrichment (passed through from fetch endpoint)
+  market_price_range?: { low: number; high: number; count: number };
+  auto_dev_specs?: {
+    engine?: string;
+    mpg_city?: string;
+    mpg_highway?: string;
+    drive?: string;
+    body_style?: string;
+    msrp?: number;
+    used_tmv?: number;
+  };
 }
 
 export interface ReceiptGenerateResponse {

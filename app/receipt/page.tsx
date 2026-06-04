@@ -12,7 +12,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Receipt, Loader2, QrCode, Menu, X, Zap, Bell, Bookmark, MessageCircle, ShieldCheck } from "lucide-react";
+import { Receipt, Loader2, QrCode, Menu, X, Zap, Bell, Bookmark, MessageCircle, ShieldCheck, RefreshCw } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { addToAnonGarage } from "@/lib/anon-garage";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
@@ -356,7 +356,7 @@ export default function ReceiptPage() {
   } = useShareReceipt({ receipt, receiptToken, trackEvent });
 
   // Deep dive (hook — auto-loads on receipt change)
-  const { deepDive, isLoadingDeepDive } = useDeepDive({
+  const { deepDive, isLoadingDeepDive, deepDiveFailed, retryDeepDive } = useDeepDive({
     receiptId: receipt?.receipt_id,
     receiptToken,
   });
@@ -1097,6 +1097,18 @@ export default function ReceiptPage() {
                     <div className="flex items-center justify-center gap-2 py-8 text-sm text-white/40">
                       <Loader2 className="w-4 h-4 animate-spin text-[#00d97e]" />
                       Generating your deep dive analysis...
+                    </div>
+                  )}
+                  {deepDiveFailed && !deepDive && !isLoadingDeepDive && (
+                    <div className="flex flex-col items-center gap-3 py-6 text-sm text-white/40">
+                      <p>Deep dive analysis could not be generated.</p>
+                      <button
+                        onClick={retryDeepDive}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.10] text-white/60 hover:text-white/80 transition-colors text-xs font-medium"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Retry deep dive
+                      </button>
                     </div>
                   )}
                   {receipt.receipt_details ? (
