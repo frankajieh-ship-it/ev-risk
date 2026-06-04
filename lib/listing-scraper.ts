@@ -276,83 +276,135 @@ function validateVehicleData(data: Partial<VehicleData>): Partial<VehicleData> {
  * - https://www.autotrader.com/cars-for-sale/vehicle/XXXXXXXX
  * - Contains structured data in HTML meta tags
  */
-async function extractFromAutoTrader(html: string): Promise<Partial<VehicleData>> {
-  // Try structured data first
-  const data = extractStructuredData(html);
+async function extractFromAutoTrader(html: string, url?: string): Promise<Partial<VehicleData>> {
+  const data: Partial<VehicleData> = {};
 
-  // If we didn't get enough data, try AutoTrader-specific patterns
+  // --- Primary: __eggsState.inventory[listingId] (AutoTrader's Next.js state) ---
+  const ndMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">([^<]+)<\/script>/);
+  if (ndMatch) {
+    try {
+      const nd = JSON.parse(ndMatch[1]) as Record<string, unknown>;
+      const pageProps = (nd?.props as Record<string, unknown>)?.pageProps as Record<string, unknown> | undefined;
+      const eggsState = pageProps?.__eggsState as Record<string, unknown> | undefined;
+      const inventory = eggsState?.inventory as Record<string, Record<string, unknown>> | undefined;
+
+      // Determine listing ID: prefer URL param, fall back to first key in inventory
+      let listingId: string | undefined;
+      if (url) {
+        const m = url.match(/[?&]listingId=(\d+)/) || url.match(/\/vehicle\/(\d+)/);
+        if (m) listingId = m[1];
+      }
+      if (!listingId && inventory) listingId = Object.keys(inventory)[0];
+
+      const inv = listingId && inventory ? inventory[listingId] : null;
+      if (inv) {
+        // year
+        data.year = typeof inv.year === 'number' ? inv.year : undefined;
+
+        // make / model / trim — objects with { code, name }
+        const makeObj = inv.make as { name?: string } | string | undefined;
+        data.make = typeof makeObj === 'object' ? makeObj?.name : (makeObj as string | undefined);
+        const modelObj = inv.model as { name?: string } | string | undefined;
+        data.model = typeof modelObj === 'object' ? modelObj?.name : (modelObj as string | undefined);
+        const trimObj = (inv.trim || inv.atTrim) as { name?: string } | string | undefined;
+        data.trim = typeof trimObj === 'object' ? trimObj?.name : (trimObj as string | undefined);
+
+        // mileage — { label: "Mileage", value: "12,345" }
+        const mileObj = inv.mileage as { value?: string } | number | undefined;
+        if (typeof mileObj === 'object' && mileObj?.value) {
+          const mv = parseInt(String(mileObj.value).replace(/,/g, ''), 10);
+          if (mv >= 0 && mv <= 500_000) data.mileage = mv;
+        } else if (typeof mileObj === 'number') {
+          data.mileage = mileObj;
+        }
+
+        // price — pricingDetail.salePrice or incentive
+        const pricing = inv.pricingDetail as Record<string, unknown> | undefined;
+        const salePrice = pricing?.salePrice ?? pricing?.incentive;
+        if (typeof salePrice === 'number' && salePrice > 0) data.price = salePrice;
+
+        // VIN
+        if (typeof inv.vin === 'string' && /^[A-HJ-NPR-Z0-9]{17}$/i.test(inv.vin)) {
+          data.vin = inv.vin;
+        }
+
+        // vhrPreview: ["NO_SALVAGE_TITLE","NO_ACCIDENTS_REPORTED","ONE_OWNER"] etc.
+        const vhr = Array.isArray(inv.vhrPreview) ? inv.vhrPreview as string[] : [];
+        if (vhr.includes('NO_SALVAGE_TITLE')) data.title_status = 'clean';
+        else if (vhr.includes('SALVAGE_TITLE')) data.title_status = 'salvage';
+        if (vhr.includes('NO_ACCIDENTS_REPORTED')) data.accidents_reported = 'no';
+        else if (vhr.some((v: string) => v.includes('ACCIDENT'))) data.accidents_reported = 'yes';
+        if (vhr.includes('ONE_OWNER')) data.owners = 1;
+
+        // location from owner city/state
+        const owner = inv.owner as Record<string, unknown> | undefined;
+        const city = owner?.city as string | undefined;
+        const state = owner?.state as string | undefined;
+        if (city || state) data.location = [city, state].filter(Boolean).join(', ');
+      }
+    } catch { /* fall through to regex */ }
+  }
+
+  // --- Fallback: structured data + regex patterns ---
   if (!data.year || !data.make || !data.model) {
-    // Extract from title meta tag
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const structured = extractStructuredData(html);
+    if (!data.year) data.year = structured.year;
+    if (!data.make) data.make = structured.make;
+    if (!data.model) data.model = structured.model;
+    if (!data.trim) data.trim = structured.trim;
+    if (!data.vin) data.vin = structured.vin;
+    if (!data.price) data.price = structured.price;
+    if (!data.mileage) data.mileage = structured.mileage;
+  }
+
+  // Title fallback from window title: "Used 2024 Bentley Continental GT Speed for sale in..."
+  if (!data.year || !data.make || !data.model) {
+    const titleMatch = html.match(/"windowTitle"\s*:\s*"([^"]+)"/i) ||
+                       html.match(/<title[^>]*>([^<]+)<\/title>/i);
     if (titleMatch) {
-      const title = titleMatch[1];
-
-      // New format: "Used 2024 Chevrolet Equinox EV RS for sale in..."
-      let vehicleMatch = title.match(/(?:Used\s+)?(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)\s+(?:for\s+sale|RS|LT|EX|SE|LE|Limited|Premium|Sport)/i);
-
-      // Old format: "2022 Tesla Model 3 Long Range for Sale in..."
-      if (!vehicleMatch) {
-        vehicleMatch = title.match(/(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)\s+for\s+Sale/i);
-      }
-
-      if (vehicleMatch) {
-        data.year = data.year || parseInt(vehicleMatch[1]);
-        data.make = data.make || vehicleMatch[2];
-        data.model = data.model || vehicleMatch[3].trim();
+      const title = titleMatch[1].replace(/\\u[\dA-F]{4}/gi, '').replace(/\\n/g, ' ');
+      const vm = title.match(/(?:Used\s+)?(\d{4})\s+([A-Za-z][A-Za-z\-]+)\s+([A-Za-z0-9][A-Za-z0-9\s\-]+?)\s+for\s+sale/i);
+      if (vm) {
+        if (!data.year) data.year = parseInt(vm[1]);
+        if (!data.make) data.make = vm[2];
+        if (!data.model) data.model = vm[3].trim();
       }
     }
   }
 
-  // Extract price if not found in structured data
+  // Price fallback regex
   if (!data.price) {
-    const priceMatch = html.match(/(?:price|listPrice)["']?\s*:\s*["']?\$?(\d+(?:,\d{3})*)/i);
-    if (priceMatch) {
-      data.price = parseInt(priceMatch[1].replace(/,/g, ''));
-    }
+    const pm = html.match(/"salePrice"\s*:\s*(\d+)|"incentive"\s*:\s*(\d+)/);
+    if (pm) data.price = parseInt(pm[1] || pm[2]);
   }
 
-  // Extract mileage if not found in structured data
+  // Mileage fallback
   if (!data.mileage) {
-    const mileageMatch = html.match(/(?:mileage|odometer)["']?\s*:\s*["']?(\d+(?:,\d{3})*)/i);
-    if (mileageMatch) {
-      const mileageValue = parseInt(mileageMatch[1].replace(/,/g, ''));
-      // Sanity check: mileage should be reasonable (100 - 500,000)
-      if (mileageValue >= 100 && mileageValue <= 500000) {
-        data.mileage = mileageValue;
-      }
-    }
+    const mm = html.match(/"mileage"\s*:\s*\{"[^"]+"\s*,\s*"value"\s*:\s*"([\d,]+)"/);
+    if (mm) data.mileage = parseInt(mm[1].replace(/,/g, ''), 10);
   }
 
-  // Extract VIN if not found in structured data
+  // VIN fallback
   if (!data.vin) {
-    const vinMatch = html.match(/VIN["']?\s*:\s*["']?([A-HJ-NPR-Z0-9]{17})/i);
-    if (vinMatch) {
-      data.vin = vinMatch[1];
-    }
+    const vm = html.match(/VIN["']?\s*:\s*["']?([A-HJ-NPR-Z0-9]{17})/i);
+    if (vm) data.vin = vm[1];
   }
 
-  // Title status — AutoTrader renders this as visible text
+  // Title/accident fallback from visible text
   if (!data.title_status) {
-    if (/clean\s+title/i.test(html)) data.title_status = "clean";
-    else if (/salvage\s+title/i.test(html)) data.title_status = "salvage";
-    else if (/rebuilt\s+title|reconstructed\s+title/i.test(html)) data.title_status = "rebuilt";
+    if (/clean\s+title/i.test(html)) data.title_status = 'clean';
+    else if (/salvage\s+title/i.test(html)) data.title_status = 'salvage';
+    else if (/rebuilt\s+title/i.test(html)) data.title_status = 'rebuilt';
   }
-
-  // Accident history — AutoTrader shows "0 accidents reported" or "X accident(s) reported"
   if (!data.accidents_reported) {
-    const accMatch = html.match(/(\d+)\s+accident[s]?\s+reported/i);
-    if (accMatch) data.accidents_reported = parseInt(accMatch[1]) > 0 ? "yes" : "no";
-    else if (/no\s+accidents?\s+reported|0\s+accidents?\s+reported/i.test(html)) data.accidents_reported = "no";
-    else if (/accident[s]?\s+reported/i.test(html)) data.accidents_reported = "yes";
+    if (/no\s+accidents?\s+reported|0\s+accidents?\s+reported/i.test(html)) data.accidents_reported = 'no';
+    else if (/(\d+)\s+accident[s]?\s+reported/i.test(html)) data.accidents_reported = 'yes';
   }
-
-  // Owner count
   if (!data.owners) {
-    const ownMatch = html.match(/(\d+)\s+previous\s+owner/i);
-    if (ownMatch) { const n = parseInt(ownMatch[1]); if (n > 0) data.owners = n; }
+    const om = html.match(/(\d+)\s+previous\s+owner/i);
+    if (om) { const n = parseInt(om[1]); if (n > 0) data.owners = n; }
   }
 
-  // Validate and return
   return validateVehicleData(data);
 }
 
@@ -841,9 +893,8 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
     // --- Proxy fetch phase ---
     let html: string | null = null;
 
-    // CarGurus/AutoTrader/Cars.com are JS-rendered — Nimbleway needs the full budget.
-    // Other sites are server-rendered and respond quickly via direct fetch.
-    const jsRenderSources: VehicleData['dataSource'][] = ['cargurus', 'autotrader', 'cars.com'];
+    // CarGurus uses Nimbleway JS rendering. AutoTrader and Cars.com use direct fetch.
+    const jsRenderSources: VehicleData['dataSource'][] = ['cargurus'];
     const sourceProxyCap = jsRenderSources.includes(dataSource) ? 25000 : 15000;
 
     if (remainingBudget() > 1000) {
@@ -1082,7 +1133,7 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
 
     switch (dataSource) {
       case 'autotrader':
-        extractedData = await extractFromAutoTrader(html);
+        extractedData = await extractFromAutoTrader(html, url);
         break;
       case 'cargurus':
         extractedData = await extractFromCarGurus(html);

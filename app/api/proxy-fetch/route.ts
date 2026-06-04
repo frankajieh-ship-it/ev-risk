@@ -121,8 +121,10 @@ export async function POST(request: NextRequest) {
 
     console.log('[Proxy Fetch] Fetching URL:', url.substring(0, 100));
 
-    // Sites that need JS rendering (client-side rendered, bot-protected)
-    const needsJsRender = ['cargurus.com', 'autotrader.com', 'cars.com'].some(
+    // Sites that need JS rendering via Nimbleway
+    // autotrader.com removed — Nimbleway returns Akamai block page; direct fetch works fine
+    // cars.com removed — direct fetch returns full HTML without JS rendering
+    const needsJsRender = ['cargurus.com'].some(
       d => parsedUrl.hostname.includes(d)
     );
 
@@ -163,6 +165,8 @@ export async function POST(request: NextRequest) {
             lowerHtml.includes('id="captcha"') ||
             lowerHtml.includes('just a moment') ||
             lowerHtml.includes('challenge-platform') ||
+            lowerHtml.includes('autotrader - page unavailable') ||
+            lowerHtml.includes('akamai-block') ||
             html.length < 500;
 
           // CarGurus sometimes returns a BLACKOUT_TEXAS JS shell (~2755 bytes) that lacks
