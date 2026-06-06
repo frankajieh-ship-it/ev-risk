@@ -11,7 +11,7 @@ const MAKE_MODEL_MAP: Record<string, string[]> = {
   "Tesla": ["Model 3", "Model Y", "Model S", "Model X", "Cybertruck"],
   "Hyundai": ["IONIQ 5", "IONIQ 6", "Kona Electric"],
   "Kia": ["EV6", "EV9", "Niro EV"],
-  "Ford": ["F-150 Lightning", "Mustang Mach-E"],
+  "Ford": ["Focus Electric", "F-150 Lightning", "Mustang Mach-E"],
   "Chevrolet": ["Bolt EV", "Bolt EUV", "Silverado EV", "Equinox EV"],
   "Rivian": ["R1T", "R1S"],
   "BMW": ["iX", "i4", "i5", "i7", "iX3", "X5 xDrive50e", "330e", "745e"],
@@ -107,6 +107,11 @@ function WarrantyCheckerInner() {
   const [result, setResult] = useState<WarrantyResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Listing URL auto-fill state
+  const [listingUrl, setListingUrl] = useState("");
+  const [urlLoading, setUrlLoading] = useState(false);
+  const [urlStatus, setUrlStatus] = useState<{ type: "error" | "success"; msg: string } | null>(null);
+
   // VIN decode state
   const [vin, setVin] = useState("");
   const [vinLoading, setVinLoading] = useState(false);
@@ -131,6 +136,58 @@ function WarrantyCheckerInner() {
     setVin(v.toUpperCase());
     setVinError(null);
   };
+
+  const handleUrlAutofill = useCallback(async () => {
+    const trimmed = listingUrl.trim();
+    if (!trimmed) return;
+    setUrlLoading(true);
+    setUrlStatus(null);
+    try {
+      const res = await fetch("/api/receipt/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: trimmed, mode: "url" }),
+      });
+      const json = await res.json();
+      if (!json.success || !json.fields) {
+        setUrlStatus({ type: "error", msg: "Couldn't read that listing — fill in the fields below." });
+        return;
+      }
+      const v = json.fields ?? {};
+      const extractedMake = v?.make ?? "";
+      const extractedModel = v?.model ?? "";
+      const extractedYear = parseInt(v?.year ?? "");
+      const extractedMileage = parseInt(String(v?.mileage ?? "").replace(/,/g, ""));
+      const extractedVin = v?.vin ?? "";
+
+      const matchedMake = MAKES.find((m) => m.toLowerCase() === extractedMake.toLowerCase()) ?? "";
+      if (!matchedMake) {
+        setUrlStatus({ type: "error", msg: "Couldn't read that listing — fill in the fields below." });
+        return;
+      }
+      const availableModels = MAKE_MODEL_MAP[matchedMake] ?? [];
+      const matchedModel = availableModels.find((m) =>
+        m.toLowerCase().includes(extractedModel.toLowerCase()) ||
+        extractedModel.toLowerCase().includes(m.toLowerCase())
+      ) ?? "";
+
+      setMake(matchedMake);
+      setModel(matchedModel);
+      if (!isNaN(extractedYear)) setYear(extractedYear);
+      if (!isNaN(extractedMileage) && extractedMileage > 0) setMileage(String(extractedMileage));
+      if (extractedVin) setVin(extractedVin.toUpperCase());
+      setResult(null);
+      setError(null);
+
+      const label = [extractedYear, matchedMake, matchedModel || extractedModel].filter(Boolean).join(" ");
+      const milesLabel = !isNaN(extractedMileage) && extractedMileage > 0 ? ` · ${extractedMileage.toLocaleString()} mi` : "";
+      setUrlStatus({ type: "success", msg: `Filled from listing: ${label}${milesLabel}` });
+    } catch {
+      setUrlStatus({ type: "error", msg: "Couldn't read that listing — fill in the fields below." });
+    } finally {
+      setUrlLoading(false);
+    }
+  }, [listingUrl]);
 
   const handleVinDecode = useCallback(async () => {
     const clean = vin.replace(/\s/g, "");
@@ -289,6 +346,39 @@ function WarrantyCheckerInner() {
         {/* Input form */}
         {!result && (
           <div className="rounded-2xl border border-white/[0.08] bg-[#161b22] p-6 space-y-5">
+            {/* Listing URL auto-fill */}
+            <div>
+              <label className="block text-xs font-medium text-white/50 mb-2">Listing URL <span className="text-white/25 font-normal">(optional — auto-fills all fields)</span></label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  placeholder="Paste a CarGurus, AutoTrader, or Cars.com listing…"
+                  value={listingUrl}
+                  onChange={(e) => { setListingUrl(e.target.value); setUrlStatus(null); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleUrlAutofill(); }}
+                  className="flex-1 min-w-0 bg-[#0d1117] border border-white/[0.12] rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#00d97e]/50 placeholder:text-white/20"
+                />
+                <button
+                  onClick={handleUrlAutofill}
+                  disabled={!listingUrl.trim() || urlLoading}
+                  className="px-4 py-2.5 bg-white/[0.06] hover:bg-white/[0.10] text-white/70 text-sm rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {urlLoading ? "Reading…" : "Auto-fill"}
+                </button>
+              </div>
+              {urlStatus && (
+                <p className={`text-xs mt-1.5 ${urlStatus.type === "success" ? "text-[#00d97e]/80" : "text-yellow-400/80"}`}>
+                  {urlStatus.msg}
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-white/[0.06]" />
+              <span className="text-xs text-white/25">or use VIN / manual entry</span>
+              <div className="flex-1 h-px bg-white/[0.06]" />
+            </div>
+
             {/* VIN input */}
             <div>
               <label className="block text-xs font-medium text-white/50 mb-2">VIN <span className="text-white/25 font-normal">(optional — auto-fills fields below)</span></label>

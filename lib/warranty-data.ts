@@ -17,7 +17,8 @@ export interface WarrantyOverride {
 
 // Model+year-specific exceptions to the make-level defaults
 export const WARRANTY_OVERRIDES: Record<string, WarrantyOverride> = {
-  "nissan leaf": { years: 5, miles: 60_000, before_year: 2019 },
+  "nissan leaf":        { years: 5,  miles: 60_000,  before_year: 2019 },
+  "ford focus electric": { years: 8, miles: 100_000, before_year: 2020 },
 };
 
 export const WARRANTY_TABLE: Record<string, WarrantyEntry> = {
