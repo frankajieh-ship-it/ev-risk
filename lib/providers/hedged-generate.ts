@@ -125,16 +125,17 @@ export async function hedgedGenerate(opts: HedgeOpts): Promise<HedgeResult> {
           // Validate the result
           const validation = opts.validate(result.json);
           if (!validation.valid) {
+            const validationMsg = validation.errors?.[0] ?? validation.reason ?? "validation failed";
             onEvent?.({
               type: "validator_rejected",
               provider: provider.name,
-              errorMessage: validation.errors[0],
+              errorMessage: validationMsg,
             });
             console.log(
-              `[hedged] ${provider.name} response failed validation: ${validation.errors[0]}`
+              `[hedged] ${provider.name} response failed validation: ${validationMsg}`
             );
             recordFailure(provider.name);
-            errors.push(new Error(`${provider.name} validation failed: ${validation.errors[0]}`));
+            errors.push(new Error(`${provider.name} validation failed: ${validationMsg}`));
 
             // If this was the last provider, reject
             if (errors.length + (orderedProviders.length - totalAttempts) >= orderedProviders.length) {
