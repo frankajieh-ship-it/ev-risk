@@ -226,8 +226,8 @@ export async function POST(req: NextRequest) {
 
     const validation = validateSignals(result.json);
     if (!validation.valid) {
-      console.error("[chat-signals] Validation failed:", validation.errors);
-      return NextResponse.json({ error: "LLM output failed validation", details: validation.errors }, { status: 502 });
+      console.error("[chat-signals] Validation failed:", validation.errors ?? validation.reason);
+      return NextResponse.json({ error: "LLM output failed validation", details: validation.errors ?? [validation.reason ?? "validation failed"] }, { status: 502 });
     }
 
     extractedJson = result.json;
