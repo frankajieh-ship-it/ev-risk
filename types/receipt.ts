@@ -47,6 +47,17 @@ export interface StructuredListingFields {
   financing_vs_cash?: "financing" | "cash" | "unknown";
   country?: "US" | "UK" | "CA" | "AU" | "OTHER";
   zip_or_postcode?: string;
+  market_price_range?: { low: number; high: number; count: number };
+  auto_dev_specs?: {
+    engine?: string;
+    mpg_city?: string;
+    mpg_highway?: string;
+    drive_type?: string;
+    fuel_type?: string;
+    body_style?: string;
+    doors?: number;
+    msrp?: number;
+  };
 }
 
 // --- VehicleFacts (canonical input object with provenance tracking) ---
