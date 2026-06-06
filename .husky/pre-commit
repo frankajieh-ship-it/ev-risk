@@ -1,1 +1,13 @@
 npx lint-staged
+
+# Block commits containing real API key patterns (long enough to rule out placeholders)
+# Exclude the security tooling files themselves (they contain patterns intentionally)
+if git diff --cached -U0 -- \
+    ':!.husky/pre-commit' ':!scripts/check-secrets.ps1' ':!STRIPE_SETUP_GUIDE.md' \
+  | grep -E 'sk-ant-api03-[A-Za-z0-9]{20,}|sk-proj-[A-Za-z0-9_-]{40,}|npg_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ|xai-[A-Za-z0-9]{40,}|whsec_[A-Za-z0-9]{30,}|sk_live_[A-Za-z0-9]{24,}|sk_test_[A-Za-z0-9]{24,}' > /dev/null 2>&1; then
+  echo ""
+  echo "ERROR: Possible API key or secret detected in staged changes."
+  echo "Remove secrets before committing. Check with: pwsh scripts/check-secrets.ps1"
+  echo ""
+  exit 1
+fi
