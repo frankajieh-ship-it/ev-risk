@@ -1124,7 +1124,7 @@ export async function generateDeepDive(
     },
   });
 
-  const parsed = result.json as Partial<DeepDiveContent>;
+  const parsed = result.result.json as Partial<DeepDiveContent>;
 
   return {
     market_comparison: parsed.market_comparison!,
