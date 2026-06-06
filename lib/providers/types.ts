@@ -32,7 +32,8 @@ export interface GenerateResult {
 
 export interface ValidationResult {
   valid: boolean;
-  errors: string[];
+  errors?: string[];
+  reason?: string;
 }
 
 export interface ProviderAdapter {
