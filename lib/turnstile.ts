@@ -69,8 +69,8 @@ export async function verifyTurnstileToken(
     };
   } catch (err) {
     console.error("[Turnstile] Verification request failed:", err);
-    // Fail closed on network error — do not allow unknown requests through
-    return { passed: false, errorCodes: ["network_error"] };
+    // Fail open on network error — Cloudflare unreachable should not block real users
+    return { passed: true, errorCodes: ["network_error"] };
   }
 }
 
@@ -132,18 +132,18 @@ export async function guardTurnstile(
     );
   }
 
-  // 2. Token presence — fail-closed. Missing token means the Turnstile widget
-  // never ran (bot, headless browser, or scripted request). Legitimate slow/mobile
-  // connections will have the token by the time the user hits submit because the
-  // widget runs invisibly in the background while the form is being filled.
+  // 2. Token presence — fail-open when token is missing.
+  // A missing token means the Turnstile widget didn't fire (ad blocker, script
+  // blocked, service worker interference, or slow mobile connection). Blocking
+  // these users hard causes real conversion loss. Log it for monitoring but
+  // allow the request through — Cloudflare's network-level protection still applies.
   const token = body.turnstileToken;
   if (!token || typeof token !== "string") {
-    console.warn(`[Turnstile] Token missing on ${endpoint} — blocking (fail-closed)`);
-    logBotEvent("turnstile_blocked", endpoint, clientIP, { reason: "turnstile_missing", action: "blocked_failclosed" });
-    return NextResponse.json(
-      { success: false, error: "Please complete the security check", captcha_required: true },
-      { status: 403 }
-    );
+    console.warn(`[Turnstile] Token missing on ${endpoint} — allowing (fail-open)`);
+    logBotEvent("turnstile_blocked", endpoint, clientIP, { reason: "turnstile_missing", action: "allowed_failopen" });
+    delete body.turnstileToken;
+    delete body.leave_this_empty;
+    return null;
   }
 
   // 3. Verify with Cloudflare
