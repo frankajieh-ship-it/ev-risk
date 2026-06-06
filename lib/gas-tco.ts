@@ -22,9 +22,9 @@ export interface GasTCO {
   total_5y: number;
 }
 
-const GAS_MAINTENANCE_PER_YEAR = 1_200; // gas cars ~2× EV maintenance
+const GAS_MAINTENANCE_PER_YEAR = 1_200; // gas cars: oil, filters, brakes, transmission service
 const GAS_DEPRECIATION_RATE_5Y = 0.55;  // ~55% value loss over 5 years
-const DEFAULT_INSURANCE_PER_YEAR = 1_800;
+const DEFAULT_INSURANCE_PER_YEAR = 1_800; // gas car baseline; EVs carry ~15% premium separately
 const DEFAULT_MPG = 28;
 
 export function computeGasTCO(inputs: GasTCOInputs): GasTCO {
