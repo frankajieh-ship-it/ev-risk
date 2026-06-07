@@ -8,8 +8,15 @@ import { computeGasTCO, computeBreakevenYear } from "@/lib/gas-tco";
 import { ChevronRight, TrendingDown, DollarSign, ChevronDown, ChevronUp } from "lucide-react";
 
 const EV_MAINTENANCE_PER_YEAR  = 700;   // $600 routine + ~$100/yr repair reserve
-const EV_INSURANCE_PER_YEAR    = 2_050; // ~15% premium over gas (IIHS/CR data)
 const EV_DEPRECIATION_RATE_5Y  = 0.52; // non-Tesla avg; used EV prices fell sharply 2023–24
+
+// Insurance scales with vehicle price (~15% EV premium over gas at each tier, per IIHS/CR data)
+function evInsurancePerYear(purchasePrice: number): number {
+  if (purchasePrice < 25_000) return 1_600;
+  if (purchasePrice < 40_000) return 2_000;
+  if (purchasePrice < 60_000) return 2_400;
+  return 2_800;
+}
 
 function fmt(n: number) {
   return Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -32,7 +39,7 @@ function computeEV5Y(
   const annualKwh = annualMiles / efficiency;
   const charging5y = Math.round(annualKwh * electricityRate * 5);
   const maintenance5y = EV_MAINTENANCE_PER_YEAR * 5;
-  const insurance5y = EV_INSURANCE_PER_YEAR * 5;
+  const insurance5y = evInsurancePerYear(purchasePrice) * 5;
   const depreciation5y = Math.round(effectivePrice * EV_DEPRECIATION_RATE_5Y);
   const total5y = charging5y + maintenance5y + insurance5y + depreciation5y;
   return { effectivePrice, charging5y, maintenance5y, insurance5y, depreciation5y, total5y };
@@ -346,7 +353,7 @@ export default function TCOPage() {
               </div>
 
               <p className="text-xs text-white/20 mt-4">
-                Assumptions: EV maintenance $700/yr (incl. repair reserve) · Gas maintenance $1,200/yr · EV insurance $2,050/yr · Gas insurance $1,800/yr ·
+                Assumptions: EV maintenance $700/yr (incl. repair reserve) · Gas maintenance $1,200/yr · EV insurance scaled by vehicle price ($1,600–$2,800/yr, ~15% EV premium per IIHS/CR) · Gas insurance $1,800/yr ·
                 EV depreciation 52% · Gas depreciation 55% over 5 years
               </p>
             </div>
