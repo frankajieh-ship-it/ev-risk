@@ -396,10 +396,11 @@ export default function ReceiptInputCard({
         const _activeUrl = urlOverride ?? listingUrl.trim();
         const _domain = (() => { try { return new URL(_activeUrl).hostname.replace(/^www\./, ""); } catch { return "unknown"; } })();
         const _trackFail = (reason: string) => trackEvent?.("receipt_extract_failed", { reason, input_mode: pasteMode, anon_id: receiptToken, domain: _domain });
-        if (data.diagnostics?.botProtectionDetected) {
-          const msg = _domain.includes("cargurus.com")
-            ? "CarGurus blocked auto-fetch. Copy the year, make, model, price, and mileage from the listing and fill them in below — takes 30 seconds."
-            : "This site blocked auto-extraction. Fill in the year, make, model, price, and mileage below to get your analysis.";
+        if (data.unsupported_domain) {
+          setExtractError({ message: "Only CarGurus links are supported. For AutoTrader or other sites, switch to the \"Paste Text\" tab and copy the listing details." });
+          setPasteMode("text");
+        } else if (data.diagnostics?.botProtectionDetected) {
+          const msg = "CarGurus blocked auto-fetch. Copy the year, make, model, price, and mileage from the listing and paste them in the text tab below — takes 30 seconds.";
           setExtractError({ message: msg });
           _trackFail("bot_protection");
         } else if (data.diagnostics?.failureReason === "timeout") {
@@ -558,7 +559,7 @@ export default function ReceiptInputCard({
                   value={listingUrl}
                   onChange={(e) => { setListingUrl(e.target.value); setExtractError(null); }}
                   onPaste={handleUrlPaste}
-                  placeholder="Paste a CarGurus or AutoTrader listing URL…"
+                  placeholder="Paste a CarGurus listing URL…"
                   className="form-input flex-1 text-sm"
                   disabled={isGenerating || isExtracting}
                   autoFocus
@@ -575,7 +576,7 @@ export default function ReceiptInputCard({
               {/* Supported sites hint */}
               {!listingUrl && !isExtracting && (
                 <p className="text-[11px] text-white/30 px-0.5">
-                  Best results with <span className="text-white/50">CarGurus</span> and <span className="text-white/50">AutoTrader</span> listing pages. Other sites may require pasting text instead.
+                  Supports <span className="text-white/50">CarGurus</span> listing pages. For AutoTrader or other sites, use the &ldquo;Paste Text&rdquo; tab below.
                 </p>
               )}
 

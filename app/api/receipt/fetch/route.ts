@@ -295,6 +295,26 @@ export async function POST(request: NextRequest) {
 
   const urlDomain = parsedUrl.hostname.replace("www.", "");
 
+  // --- Supported domain check ---
+  // AutoTrader is blocked by Akamai regardless of proxy method; only CarGurus works reliably.
+  const SUPPORTED_SCRAPE_DOMAINS = ["cargurus.com"];
+  const isOffoInventory =
+    parsedUrl.hostname === "offolab.com" || parsedUrl.hostname === "www.offolab.com";
+  const isSupportedDomain = isOffoInventory ||
+    SUPPORTED_SCRAPE_DOMAINS.some(d => urlDomain === d || urlDomain.endsWith(`.${d}`));
+
+  if (!isSupportedDomain) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Only CarGurus links are supported for auto-extraction. For other sites, paste the listing text below.",
+        unsupported_domain: true,
+        supported_domains: SUPPORTED_SCRAPE_DOMAINS,
+      },
+      { status: 422 }
+    );
+  }
+
   // --- OFFO internal dealer inventory shortcut ---
   // Pattern: https://offolab.com/dealers/{slug}/inventory/{uuid}
   // These URLs are not scrapable — pull directly from dealer_inventory table.
