@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
+  }
 
   const { data: job, error } = await supabase
     .from("receipt_photo_jobs")

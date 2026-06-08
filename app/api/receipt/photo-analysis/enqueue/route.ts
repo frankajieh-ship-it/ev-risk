@@ -25,6 +25,9 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
+  }
 
   // Check if an active job already exists
   const { data: existing } = await supabase
