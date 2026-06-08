@@ -673,7 +673,7 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
   }
 
   // HTML photo fallback for CarGurus — if neither __NEXT_DATA__ nor Remix context yielded photos
-  if (dataSource === 'cargurus' && !data.photo_urls?.length && html) {
+  if (data.dataSource === 'cargurus' && !data.photo_urls?.length && html) {
     // Inline CDN-filtered extraction to avoid circular import with image-extractor.ts
     const CARGURUS_CDN = /^https:\/\/(?:static|media)\.cargurus\.com\//i;
     const imgPattern = /<img[^>]+>/gi;
