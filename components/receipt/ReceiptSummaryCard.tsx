@@ -213,15 +213,8 @@ export default function ReceiptSummaryCard({
   // ── Failed (after exhausting retries) ─────────────────────────────────────
   if (status === "failed") {
     return (
-      <div className="rounded-xl border border-white/[0.08] bg-[#161b22] px-5 py-4 space-y-2">
-        <p className="text-xs text-white/40 text-center">Summary unavailable — full analysis below.</p>
-        <button
-          onClick={() => generate(false)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-medium text-white/50 bg-white/[0.04] hover:bg-white/[0.08] rounded-lg border border-white/[0.08] transition-colors"
-        >
-          <RefreshCw className="w-3 h-3" />
-          Retry
-        </button>
+      <div className="rounded-xl border border-white/[0.08] bg-[#161b22] px-5 py-4">
+        <p className="text-xs text-white/30 text-center italic">Coming soon</p>
       </div>
     );
   }
