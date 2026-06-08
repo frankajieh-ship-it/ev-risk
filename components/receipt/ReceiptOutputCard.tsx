@@ -179,14 +179,11 @@ export default function ReceiptOutputCard({
     return url;
   };
 
-  // Eagerly fetch a static Wikimedia photo whenever:
-  // - photos array is empty (no photo from extraction), OR
-  // - first photo is a non-Wikimedia URL (stale CDN / Auto.dev URL)
-  // Runs on mount and whenever the photos set changes.
+  // Fetch a static Wikimedia photo only when no photos were extracted from the listing.
+  // If photos exist (CarGurus CDN or Auto.dev), use them as-is — don't overwrite with stock images.
   useEffect(() => {
-    const firstUrl = photos[0];
-    // Already have a good static URL — nothing to do
-    if (firstUrl?.includes("wikimedia.org")) return;
+    // Already have listing photos — nothing to do
+    if (photos.length > 0) return;
     const ls = receipt.listing_summary;
     if (!ls?.make) return;
     const params = new URLSearchParams();
