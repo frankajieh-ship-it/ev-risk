@@ -214,7 +214,7 @@ export default function ReceiptSummaryCard({
   if (status === "failed") {
     return (
       <div className="rounded-xl border border-white/[0.08] bg-[#161b22] px-5 py-4">
-        <p className="text-xs text-white/30 text-center italic">Coming soon</p>
+        <p className="text-xs text-white/30 text-center italic">Summary coming soon</p>
       </div>
     );
   }

@@ -1096,12 +1096,12 @@ export default function ReceiptPage() {
                   )}
                   {isLoadingDeepDive && !deepDive && (
                     <div className="flex items-center justify-center py-6">
-                      <span className="text-xs text-white/30 italic">Coming soon</span>
+                      <span className="text-xs text-white/30 italic">Deep dive analysis coming soon</span>
                     </div>
                   )}
                   {deepDiveFailed && !deepDive && !isLoadingDeepDive && (
                     <div className="flex items-center justify-center py-6">
-                      <span className="text-xs text-white/30 italic">Coming soon</span>
+                      <span className="text-xs text-white/30 italic">Deep dive analysis coming soon</span>
                     </div>
                   )}
                   {receipt.receipt_details ? (
