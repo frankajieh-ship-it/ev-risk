@@ -110,7 +110,8 @@ export async function classifyAngle(photoUrl: string): Promise<AngleId> {
     const parsed = JSON.parse(raw) as { angle_id?: string };
     const id = parsed.angle_id ?? "other";
     return (ANGLE_IDS as readonly string[]).includes(id) ? (id as AngleId) : "other";
-  } catch {
+  } catch (err) {
+    console.error("[classifyAngle] failed for", photoUrl.slice(0, 80), err);
     return "other";
   }
 }
@@ -148,7 +149,8 @@ export async function detectDamage(photoUrl: string): Promise<DamageFinding[]> {
     const raw = response.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw) as { findings?: DamageFinding[] };
     return Array.isArray(parsed.findings) ? parsed.findings : [];
-  } catch {
+  } catch (err) {
+    console.error("[detectDamage] failed for", photoUrl.slice(0, 80), err);
     return [];
   }
 }

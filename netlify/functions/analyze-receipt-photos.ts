@@ -33,6 +33,28 @@ function getSupabase() {
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
+// Fetch image and return as base64 data URL so OpenAI can access it
+// even if the CDN blocks Netlify/OpenAI server IPs directly.
+async function fetchAsBase64(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; OFFO/1.0)" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      console.error("[fetchAsBase64] HTTP", res.status, "for", url.slice(0, 80));
+      return null;
+    }
+    const ct = res.headers.get("content-type") || "image/jpeg";
+    const buf = await res.arrayBuffer();
+    const b64 = Buffer.from(buf).toString("base64");
+    return `data:${ct};base64,${b64}`;
+  } catch (err) {
+    console.error("[fetchAsBase64] failed for", url.slice(0, 80), err);
+    return null;
+  }
+}
+
 // Run items in parallel batches of N
 async function batchedParallel<T, R>(
   items: T[],
@@ -109,14 +131,24 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     .eq("id", job_id);
 
   try {
+    // Resolve each photo URL to a base64 data URL so OpenAI can access it
+    // even if CarGurus CDN blocks Netlify/OpenAI server IPs directly.
+    const resolvedUrls = await batchedParallel(
+      photo_urls.slice(0, 20),
+      6,
+      async (url) => ({ url, dataUrl: await fetchAsBase64(url) })
+    );
+    const fetchable = resolvedUrls.filter((r) => r.dataUrl !== null);
+    console.log(`[analyze-receipt-photos] ${fetchable.length}/${resolvedUrls.length} photos fetched successfully`);
+
     // Analyse each photo — classify angle + detect damage — in batches of 4
     const photos = await batchedParallel(
-      photo_urls.slice(0, 20),
+      fetchable,
       4,
-      async (url) => {
+      async ({ url, dataUrl }) => {
         const [angle_id, findings] = await Promise.all([
-          classifyAngle(url),
-          detectDamage(url),
+          classifyAngle(dataUrl!),
+          detectDamage(dataUrl!),
         ]);
         return { url, angle_id, findings };
       }

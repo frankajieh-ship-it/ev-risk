@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   const { data: job, error } = await supabase
     .from("receipt_photo_jobs")
-    .select("id, receipt_id, status, error")
+    .select("id, receipt_id, status, error, created_at")
     .eq("id", job_id)
     .single();
 
@@ -32,8 +32,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
 
-  if (job.status !== "done") {
+  // Detect stale jobs — mark failed if stuck > 20 minutes
+  if (job.status === "pending" || job.status === "processing") {
+    const ageMs = Date.now() - new Date(job.created_at as string).getTime();
+    if (ageMs > 20 * 60 * 1000) {
+      await supabase
+        .from("receipt_photo_jobs")
+        .update({ status: "failed", error: "timeout", finished_at: new Date().toISOString() })
+        .eq("id", job_id);
+      return NextResponse.json({ status: "failed", error: "timeout" });
+    }
     return NextResponse.json({ status: job.status, error: job.error ?? null });
+  }
+
+  if (job.status === "failed") {
+    return NextResponse.json({ status: "failed", error: job.error ?? null });
   }
 
   // Fetch analysis result from receipts

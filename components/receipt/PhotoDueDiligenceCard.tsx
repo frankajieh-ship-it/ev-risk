@@ -28,6 +28,8 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
   const [open, setOpen] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const enqueuedRef = useRef(false);
+  const pollCountRef = useRef(0);
+  const MAX_POLLS = 60; // 3 minutes at 3s intervals
 
   // Enqueue on mount (idempotent)
   useEffect(() => {
@@ -59,6 +61,12 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
     if (!jobId || status === "done" || status === "failed") return;
 
     pollRef.current = setInterval(() => {
+      pollCountRef.current += 1;
+      if (pollCountRef.current >= MAX_POLLS) {
+        clearInterval(pollRef.current!);
+        setStatus("failed");
+        return;
+      }
       fetch(`/api/receipt/photo-analysis/status?job_id=${jobId}`)
         .then((r) => r.json())
         .then((data: { status?: string; photo_analysis?: PhotoAnalysisResult }) => {
