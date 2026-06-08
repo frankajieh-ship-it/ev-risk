@@ -559,26 +559,35 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
 
         // Extract full photo gallery from listing
         if (!data.photo_urls?.length) {
-          const CARGURUS_CDN = /^https:\/\/(?:static|media)\.cargurus\.com\//i;
+          // Accept any https URL that looks like a photo from any cargurus CDN subdomain
+          // (cimg.cargurus.com, static.cargurus.com, media.cargurus.com, etc.)
+          const isCarGurusPhoto = (u: unknown): u is string =>
+            typeof u === "string" && u.startsWith("https://") &&
+            (u.includes("cargurus.com") || u.includes("dealer.com") || u.includes("homenet")) &&
+            !u.includes("logo") && !u.includes("icon") && !u.includes("badge");
+
+          const extractUrl = (item: unknown): string | null => {
+            if (typeof item === "string") return item;
+            const o = item as Record<string, unknown>;
+            return (o?.largeUrl ?? o?.url ?? o?.src ?? o?.href ?? o?.mediumUrl ?? o?.thumbnailUrl ?? null) as string | null;
+          };
+
           const photoArr = listing.photos ?? listing.images ?? listing.vehiclePhotos ?? listing.photoUrls ?? [];
           const gallery: string[] = [];
           if (Array.isArray(photoArr)) {
             for (const item of photoArr) {
-              const raw = typeof item === "string" ? item
-                : (item?.largeUrl ?? item?.url ?? item?.src ?? item?.href ?? item?.mediumUrl ?? null);
-              if (typeof raw === "string" && raw.startsWith("http") && CARGURUS_CDN.test(raw)) {
+              const raw = extractUrl(item);
+              if (isCarGurusPhoto(raw)) {
                 gallery.push(raw);
                 if (gallery.length >= 20) break;
               }
             }
           }
-          // Single-photo fallbacks if gallery array was empty
+          // Single-photo fallbacks
           if (!gallery.length) {
-            const single = listing.primaryPhoto ?? listing.mainPhoto ?? listing.primaryPhotoUrl
-              ?? listing.heroPhoto ?? listing.coverPhoto ?? null;
-            if (typeof single === "string" && single.startsWith("http") && CARGURUS_CDN.test(single)) {
-              gallery.push(single);
-            }
+            const single = extractUrl(listing.primaryPhoto ?? listing.mainPhoto
+              ?? listing.primaryPhotoUrl ?? listing.heroPhoto ?? listing.coverPhoto);
+            if (isCarGurusPhoto(single)) gallery.push(single);
           }
           if (gallery.length) {
             data.photo_urls = gallery;
@@ -646,14 +655,18 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
 
             // Extract photo gallery from Remix context
             if (!data.photo_urls?.length) {
-              const CARGURUS_CDN = /^https:\/\/(?:static|media)\.cargurus\.com\//i;
+              const isCarGurusPhoto = (u: unknown): u is string =>
+                typeof u === "string" && u.startsWith("https://") &&
+                (u.includes("cargurus.com") || u.includes("dealer.com") || u.includes("homenet")) &&
+                !u.includes("logo") && !u.includes("icon") && !u.includes("badge");
               const photoArr = (ls.photos ?? ls.images ?? ls.vehiclePhotos ?? ls.photoUrls ?? []) as unknown[];
               const gallery: string[] = [];
               if (Array.isArray(photoArr)) {
                 for (const item of photoArr) {
+                  const o = item as Record<string, unknown>;
                   const raw = typeof item === "string" ? item
-                    : ((item as Record<string, unknown>)?.largeUrl ?? (item as Record<string, unknown>)?.url ?? (item as Record<string, unknown>)?.src ?? null);
-                  if (typeof raw === "string" && raw.startsWith("http") && CARGURUS_CDN.test(raw)) {
+                    : (o?.largeUrl ?? o?.url ?? o?.src ?? o?.href ?? o?.mediumUrl ?? null);
+                  if (isCarGurusPhoto(raw)) {
                     gallery.push(raw);
                     if (gallery.length >= 20) break;
                   }
@@ -675,7 +688,7 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
   // HTML photo fallback for CarGurus — if neither __NEXT_DATA__ nor Remix context yielded photos
   if (data.dataSource === 'cargurus' && !data.photo_urls?.length && html) {
     // Inline CDN-filtered extraction to avoid circular import with image-extractor.ts
-    const CARGURUS_CDN = /^https:\/\/(?:static|media)\.cargurus\.com\//i;
+    const CARGURUS_CDN = /^https:\/\/[^"']*(?:cargurus\.com|dealer\.com|homenet)[^"']*/i;
     const imgPattern = /<img[^>]+>/gi;
     const srcPattern = /(?:data-lazy-src|data-src|src)=["']([^"']+)["']/i;
     const gallery: string[] = [];
