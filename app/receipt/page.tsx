@@ -1052,6 +1052,7 @@ export default function ReceiptPage() {
                 paymentsEnabled={paymentsEnabled}
                 onPaywallClick={() => handlePremiumAction("output_card")}
                 photos={isSimilarityMatch ? [] : listingPhotos}
+                receiptId={receipt?.receipt_id}
                 onSave={handleQuickSave}
                 saveState={hasSaved ? "saved" : "idle"}
                 onCompare={() => setShowCompareModal(true)}

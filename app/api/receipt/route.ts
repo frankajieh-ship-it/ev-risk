@@ -409,6 +409,7 @@ export async function POST(request: NextRequest) {
       last_price_cents: listingPriceCents,
       price_drop_cents: priceDropCents,
       is_active: true,
+      photo_urls: (body.photo_urls as string[] | undefined) ?? [],
     });
     if (insertErr) {
       console.error("[Receipt API] Lite DB insert failed:", insertErr.message, insertErr.code);

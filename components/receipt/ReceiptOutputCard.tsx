@@ -34,6 +34,7 @@ import type { ListingReceipt, LintError } from "@/types/receipt";
 import type { Region } from "@/lib/region";
 import { formatPrice } from "@/lib/region";
 import VehicleFactsBar from "@/components/receipt/VehicleFactsBar";
+import PhotoDueDiligenceCard from "@/components/receipt/PhotoDueDiligenceCard";
 import { Badge } from "@/components/ui";
 
 interface ReceiptOutputCardProps {
@@ -58,6 +59,7 @@ interface ReceiptOutputCardProps {
   paymentsEnabled?: boolean;
   onPaywallClick?: () => void;
   photos?: string[];
+  receiptId?: string;
   onSave?: () => void;
   saveState?: "idle" | "saved";
   onCompare?: () => void;
@@ -133,6 +135,7 @@ export default function ReceiptOutputCard({
   paymentsEnabled = false,
   onPaywallClick,
   photos = [],
+  receiptId,
   onSave,
   saveState = "idle",
   onCompare,
@@ -470,6 +473,15 @@ export default function ReceiptOutputCard({
           <p className="text-xs text-white/40 mt-1.5">UK Mode (beta) — prices in pounds, UK wording</p>
         )}
       </div>
+
+      {/* Photo due diligence — coverage checklist + AI damage scan */}
+      {receiptId && photoSrcs.length > 0 && !isSimilarityMatch && (
+        <PhotoDueDiligenceCard
+          receiptId={receiptId}
+          photoUrls={photoSrcs}
+          onHighlightPhoto={(index) => { setPhotoIndex(index); }}
+        />
+      )}
 
       {/* Vehicle Facts Bar — title status, accidents, live NHTSA recalls, battery estimate */}
       <VehicleFactsBar receipt={receipt} isUnlocked={isUnlocked} paymentsEnabled={paymentsEnabled} onPaywallClick={onPaywallClick} />
