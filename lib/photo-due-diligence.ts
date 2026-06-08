@@ -8,7 +8,7 @@
 
 import OpenAI from "openai";
 import { REQUIRED_ANGLES } from "./photo-due-diligence-types.js";
-import type { DamageFinding, PhotoAnalysisResult } from "./photo-due-diligence-types.js";
+import type { DamageFinding } from "./photo-due-diligence-types.js";
 
 let _client: OpenAI | null = null;
 
@@ -25,18 +25,6 @@ function getClient(): OpenAI {
 
 const ANGLE_IDS = [...REQUIRED_ANGLES.map((a) => a.id), "other"] as const;
 type AngleId = (typeof ANGLE_IDS)[number];
-
-// ---------------------------------------------------------------------------
-// Damage findings
-// ---------------------------------------------------------------------------
-
-export interface DamageFinding {
-  type: "dent" | "scratch" | "rust" | "crack" | "paint_fade" | "missing_part" | "other";
-  severity: "minor" | "moderate" | "severe";
-  location: string;
-  affects_value: boolean;
-  description: string;
-}
 
 // ---------------------------------------------------------------------------
 // JSON schemas for structured output
