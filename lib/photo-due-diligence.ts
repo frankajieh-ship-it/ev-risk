@@ -7,10 +7,8 @@
  */
 
 import OpenAI from "openai";
-// Re-export shared types so server-side code can import from one place
-export type { AngleDefinition, DamageFinding, PhotoAnalysisResult } from "./photo-due-diligence-types.js";
-export { REQUIRED_ANGLES } from "./photo-due-diligence-types.js";
 import { REQUIRED_ANGLES } from "./photo-due-diligence-types.js";
+import type { DamageFinding, PhotoAnalysisResult } from "./photo-due-diligence-types.js";
 
 let _client: OpenAI | null = null;
 

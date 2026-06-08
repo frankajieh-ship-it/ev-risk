@@ -17,13 +17,8 @@
 
 import type { Handler, HandlerEvent, HandlerResponse } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
-import {
-  classifyAngle,
-  detectDamage,
-  buildCoverage,
-  type PhotoAnalysisResult,
-  type DamageFinding,
-} from "../../lib/photo-due-diligence.js";
+import { classifyAngle, detectDamage, buildCoverage } from "../../lib/photo-due-diligence.js";
+import type { PhotoAnalysisResult, DamageFinding } from "../../lib/photo-due-diligence-types.js";
 
 interface PhotoAnalysisPayload {
   receipt_id: string;
