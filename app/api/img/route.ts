@@ -14,10 +14,7 @@ const ALLOWED_HOSTS = new Set([
   "img.autodev.com",
   "images.autodev.com",
   "photos.autodev.com",
-  "static.cargurus.com",
-  "media.cargurus.com",
-  "img.cargurus.com",
-  "cdn.cargurus.com",
+  "cargurus.com",  // covers cimg, static, media, img, cdn and any future subdomains
   "pictures.dealer.com",
   "photos.dealer.com",
   "img.dealer.com",
