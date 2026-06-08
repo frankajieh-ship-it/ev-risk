@@ -113,7 +113,10 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
             </span>
           )}
           {(status === "pending" || status === "processing") && (
-            <span className="text-xs text-white/30 italic">Coming soon</span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e] animate-pulse" />
+              <span className="text-xs font-medium text-[#00d97e]">Coming soon</span>
+            </span>
           )}
         </div>
         <ChevronDown className={`w-3.5 h-3.5 text-white/30 transition-transform ${open ? "rotate-180" : ""}`} />
@@ -205,7 +208,10 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
           )}
 
           {status === "failed" && (
-            <p className="text-xs text-white/30 italic">Coming soon</p>
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e] animate-pulse" />
+              <p className="text-xs font-medium text-[#00d97e]">Coming soon</p>
+            </div>
           )}
         </div>
       )}

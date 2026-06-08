@@ -81,6 +81,12 @@ export default function ReceiptSummaryCard({
   verdict,
   vin,
 }: ReceiptSummaryCardProps) {
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-[#161b22] px-5 py-4 flex items-center justify-center gap-2">
+      <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e] animate-pulse" />
+      <p className="text-sm font-medium text-white/60">Summary <span className="text-[#00d97e]">coming soon</span></p>
+    </div>
+  );
   const { trackEvent } = useEventTracking();
   const retryCountRef = useRef(0);
 
@@ -172,7 +178,7 @@ export default function ReceiptSummaryCard({
   // Auto-trigger once the full AI upgrade completes
   useEffect(() => {
     if (generationStatus === "full" && !isUpgradingRef.current && status === "not_requested") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       generate();
     }
   }, [generationStatus, status, generate]);
