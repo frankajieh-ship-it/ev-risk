@@ -8,7 +8,6 @@
 
 [functions]
   directory = "netlify/functions"
-  external_node_modules = ["openai", "@anthropic-ai/sdk"]
 
 # Extend function timeout for AI-heavy API routes (Netlify default max: 60s)
 [functions."*"]
@@ -21,10 +20,12 @@
 # Background function: AI receipt upgrade (no sync timeout — runs up to 15 minutes)
 [functions.upgrade-receipt-background]
   timeout = 900
+  external_node_modules = ["openai"]
 
 # Background function: per-receipt photo analysis via GPT-4o Vision
 [functions.analyze-receipt-photos]
   timeout = 900
+  external_node_modules = ["openai", "@anthropic-ai/sdk"]
 
 # Background function: bulk rescore all curated_deals with AI (runs up to 15 minutes)
 [functions.rescore-all-deals]
