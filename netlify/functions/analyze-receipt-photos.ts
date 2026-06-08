@@ -122,6 +122,15 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     return { statusCode: 400, body: JSON.stringify({ error: "Missing required fields" }) };
   }
 
+  // Check AI provider availability before touching the DB
+  const hasOpenAI = Boolean(process.env.OPENAI_API_KEY);
+  const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY);
+  console.log(`[analyze-receipt-photos] providers — openai:${hasOpenAI} anthropic:${hasAnthropic}`);
+  if (!hasOpenAI && !hasAnthropic) {
+    console.error("[analyze-receipt-photos] No AI provider configured — OPENAI_API_KEY and ANTHROPIC_API_KEY both missing");
+    return { statusCode: 500, body: JSON.stringify({ error: "No AI provider configured" }) };
+  }
+
   const supabase = getSupabase();
 
   // Mark job processing

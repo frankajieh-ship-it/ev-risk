@@ -8,7 +8,7 @@
 
 [functions]
   directory = "netlify/functions"
-  external_node_modules = ["openai"]
+  external_node_modules = ["openai", "@anthropic-ai/sdk"]
 
 # Extend function timeout for AI-heavy API routes (Netlify default max: 60s)
 [functions."*"]
