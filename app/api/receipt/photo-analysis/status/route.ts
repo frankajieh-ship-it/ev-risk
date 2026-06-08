@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
-import type { PhotoAnalysisResult } from "@/lib/photo-due-diligence";
+import type { PhotoAnalysisResult } from "@/lib/photo-due-diligence-types";
 
 export const maxDuration = 10;
 

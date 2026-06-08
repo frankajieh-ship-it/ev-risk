@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { CheckCircle, XCircle, AlertCircle, Camera, ChevronDown } from "lucide-react";
-import { REQUIRED_ANGLES } from "@/lib/photo-due-diligence";
-import type { PhotoAnalysisResult, DamageFinding } from "@/lib/photo-due-diligence";
+import { REQUIRED_ANGLES } from "@/lib/photo-due-diligence-types";
+import type { PhotoAnalysisResult, DamageFinding } from "@/lib/photo-due-diligence-types";
 
 interface Props {
   receiptId: string;

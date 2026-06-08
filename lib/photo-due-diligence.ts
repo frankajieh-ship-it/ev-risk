@@ -7,6 +7,10 @@
  */
 
 import OpenAI from "openai";
+// Re-export shared types so server-side code can import from one place
+export type { AngleDefinition, DamageFinding, PhotoAnalysisResult } from "./photo-due-diligence-types.js";
+export { REQUIRED_ANGLES } from "./photo-due-diligence-types.js";
+import { REQUIRED_ANGLES } from "./photo-due-diligence-types.js";
 
 let _client: OpenAI | null = null;
 
@@ -20,28 +24,6 @@ function getClient(): OpenAI {
   }
   return _client;
 }
-
-// ---------------------------------------------------------------------------
-// Angle definitions
-// ---------------------------------------------------------------------------
-
-export interface AngleDefinition {
-  id: string;
-  label: string;
-  required: boolean;
-}
-
-export const REQUIRED_ANGLES: AngleDefinition[] = [
-  { id: "front",        label: "Front exterior",   required: true  },
-  { id: "rear",         label: "Rear exterior",    required: true  },
-  { id: "driver_side",  label: "Driver side",      required: true  },
-  { id: "pass_side",    label: "Passenger side",   required: true  },
-  { id: "interior",     label: "Interior / dash",  required: true  },
-  { id: "odometer",     label: "Odometer reading", required: true  },
-  { id: "engine",       label: "Engine bay",       required: false },
-  { id: "tires",        label: "Tires / wheels",   required: false },
-  { id: "undercarriage",label: "Undercarriage",    required: false },
-];
 
 const ANGLE_IDS = [...REQUIRED_ANGLES.map((a) => a.id), "other"] as const;
 type AngleId = (typeof ANGLE_IDS)[number];
@@ -211,23 +193,3 @@ export function buildCoverage(presentAngles: string[]): {
   return { present, missing, coverage_score };
 }
 
-// ---------------------------------------------------------------------------
-// Result types (used by background function + UI)
-// ---------------------------------------------------------------------------
-
-export interface PhotoAnalysisResult {
-  analyzed_at: string;
-  coverage: {
-    present: string[];
-    missing: string[];
-    coverage_score: number;
-  };
-  photos: Array<{
-    url: string;
-    angle_id: string;
-    findings: DamageFinding[];
-  }>;
-  total_findings: number;
-  severe_findings: number;
-  summary: string;
-}
