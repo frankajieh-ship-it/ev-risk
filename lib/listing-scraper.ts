@@ -62,6 +62,8 @@ export interface VehicleData {
 
   // Primary photo URL extracted from listing page
   photo_url?: string;
+  // Full photo gallery from listing (up to 20 images)
+  photo_urls?: string[];
 
   // Title and accident status extracted from listing text
   title_status?: "clean" | "salvage" | "rebuilt" | "unknown";
@@ -555,16 +557,32 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
           if (eff >= 1 && eff <= 10) data.efficiency_mi_per_kwh = eff;
         }
 
-        // Extract primary listing photo — actual car photo, not a stock image
-        if (!data.photo_url) {
+        // Extract full photo gallery from listing
+        if (!data.photo_urls?.length) {
+          const CARGURUS_CDN = /^https:\/\/(?:static|media)\.cargurus\.com\//i;
           const photoArr = listing.photos ?? listing.images ?? listing.vehiclePhotos ?? listing.photoUrls ?? [];
-          const rawPhoto = listing.primaryPhoto ?? listing.mainPhoto ?? listing.primaryPhotoUrl
-            ?? listing.heroPhoto ?? listing.coverPhoto
-            ?? (Array.isArray(photoArr) && photoArr.length > 0
-              ? (typeof photoArr[0] === "string" ? photoArr[0] : photoArr[0]?.url ?? photoArr[0]?.src ?? photoArr[0]?.href ?? photoArr[0]?.largeUrl ?? photoArr[0]?.mediumUrl)
-              : null);
-          if (rawPhoto && typeof rawPhoto === "string" && rawPhoto.startsWith("http")) {
-            data.photo_url = rawPhoto;
+          const gallery: string[] = [];
+          if (Array.isArray(photoArr)) {
+            for (const item of photoArr) {
+              const raw = typeof item === "string" ? item
+                : (item?.largeUrl ?? item?.url ?? item?.src ?? item?.href ?? item?.mediumUrl ?? null);
+              if (typeof raw === "string" && raw.startsWith("http") && CARGURUS_CDN.test(raw)) {
+                gallery.push(raw);
+                if (gallery.length >= 20) break;
+              }
+            }
+          }
+          // Single-photo fallbacks if gallery array was empty
+          if (!gallery.length) {
+            const single = listing.primaryPhoto ?? listing.mainPhoto ?? listing.primaryPhotoUrl
+              ?? listing.heroPhoto ?? listing.coverPhoto ?? null;
+            if (typeof single === "string" && single.startsWith("http") && CARGURUS_CDN.test(single)) {
+              gallery.push(single);
+            }
+          }
+          if (gallery.length) {
+            data.photo_urls = gallery;
+            data.photo_url = gallery[0];
           }
         }
       }
@@ -626,10 +644,54 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
               }
             }
 
+            // Extract photo gallery from Remix context
+            if (!data.photo_urls?.length) {
+              const CARGURUS_CDN = /^https:\/\/(?:static|media)\.cargurus\.com\//i;
+              const photoArr = (ls.photos ?? ls.images ?? ls.vehiclePhotos ?? ls.photoUrls ?? []) as unknown[];
+              const gallery: string[] = [];
+              if (Array.isArray(photoArr)) {
+                for (const item of photoArr) {
+                  const raw = typeof item === "string" ? item
+                    : ((item as Record<string, unknown>)?.largeUrl ?? (item as Record<string, unknown>)?.url ?? (item as Record<string, unknown>)?.src ?? null);
+                  if (typeof raw === "string" && raw.startsWith("http") && CARGURUS_CDN.test(raw)) {
+                    gallery.push(raw);
+                    if (gallery.length >= 20) break;
+                  }
+                }
+              }
+              if (gallery.length) {
+                data.photo_urls = gallery;
+                data.photo_url = data.photo_url ?? gallery[0];
+              }
+            }
+
             if (data.vin) break;
           }
         }
       } catch { /* silent — Remix context parsing is best-effort */ }
+    }
+  }
+
+  // HTML photo fallback for CarGurus — if neither __NEXT_DATA__ nor Remix context yielded photos
+  if (dataSource === 'cargurus' && !data.photo_urls?.length && html) {
+    // Inline CDN-filtered extraction to avoid circular import with image-extractor.ts
+    const CARGURUS_CDN = /^https:\/\/(?:static|media)\.cargurus\.com\//i;
+    const imgPattern = /<img[^>]+>/gi;
+    const srcPattern = /(?:data-lazy-src|data-src|src)=["']([^"']+)["']/i;
+    const gallery: string[] = [];
+    const seen = new Set<string>();
+    let imgMatch: RegExpExecArray | null;
+    while ((imgMatch = imgPattern.exec(html)) !== null && gallery.length < 20) {
+      const srcM = srcPattern.exec(imgMatch[0]);
+      if (!srcM) continue;
+      const u = srcM[1];
+      if (!CARGURUS_CDN.test(u)) continue;
+      const norm = u.split("?")[0];
+      if (!seen.has(norm)) { seen.add(norm); gallery.push(u); }
+    }
+    if (gallery.length) {
+      data.photo_urls = gallery;
+      data.photo_url = data.photo_url ?? gallery[0];
     }
   }
 

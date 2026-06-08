@@ -532,9 +532,11 @@ export async function POST(request: NextRequest) {
       ? await autoDevPromise
       : (autoDevPromise.catch(() => {}), { photo_urls: [], market_price_range: undefined, vin_data: undefined, source: "none" as const });
 
-    // Merge Auto.dev enrichment into fields; fall back to static Wikimedia photo
-    // if Auto.dev returns nothing (avoids broken/wrong-car market listing images)
-    if (autoDevData.photo_urls.length > 0) {
+    // Photo priority: scraped listing photos > Auto.dev comps > Wikimedia static
+    // Listing photos are the actual vehicle; Auto.dev returns market comp images
+    if (result.data.photo_urls?.length) {
+      fields.photo_urls = result.data.photo_urls;
+    } else if (autoDevData.photo_urls.length > 0) {
       fields.photo_urls = autoDevData.photo_urls;
     } else {
       const staticUrl = getStaticPhotoUrl(fields.make, fields.model, fields.year ?? undefined);
