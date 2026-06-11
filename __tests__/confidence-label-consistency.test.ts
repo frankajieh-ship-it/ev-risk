@@ -5,7 +5,7 @@
  * Prevents mismatches between confidence() and confidenceFrame.label
  */
 
-import { labelFromConfidence } from "@/core/templates";
+import { labelFromConfidence, confidencePresets } from "@/core/templates";
 import { buildSignals } from "@/core/signals";
 import type { VehicleData, UserInputs } from "@/types";
 import type { Block, RenderCtx } from "@/core/content";
@@ -21,14 +21,14 @@ describe("Confidence Label Consistency", () => {
         guidanceLevel: 1,
 
         // Dynamic confidence that changes based on inputs
-        confidence: (ctx) => {
+        confidence: (ctx: RenderCtx) => {
           const base = 0.55;
           const bonus = ctx.signals.annual_mileage ? 0.20 : 0;
           return base + bonus;
         },
 
         // Confidence frame MUST use labelFromConfidence(confidence(ctx))
-        confidenceFrame: (ctx) => {
+        confidenceFrame: (ctx: RenderCtx) => {
           const conf = mockBlock.confidence(ctx);
           const label = labelFromConfidence(conf);
 
@@ -41,7 +41,7 @@ describe("Confidence Label Consistency", () => {
             notAffects: [],
           };
         },
-      } as Block;
+      } as unknown as Block;
 
       // Test WITHOUT personalization
       const vehicle1: VehicleData = {};
@@ -83,7 +83,7 @@ describe("Confidence Label Consistency", () => {
         priority: 100,
         guidanceLevel: 1,
 
-        confidence: (ctx) => {
+        confidence: (ctx: RenderCtx) => {
           return ctx.signals.annual_mileage ? 0.75 : 0.55;
         },
 
@@ -96,7 +96,7 @@ describe("Confidence Label Consistency", () => {
           affects: [],
           notAffects: [],
         }),
-      } as Block;
+      } as unknown as Block;
 
       const vehicle: VehicleData = {};
       const inputs: UserInputs = { annualMileage: 12000 };
@@ -139,7 +139,7 @@ describe("Confidence Label Consistency", () => {
 
           confidence: () => confidence,
 
-          confidenceFrame: (ctx) => {
+          confidenceFrame: (ctx: RenderCtx) => {
             const conf = mockBlock.confidence(ctx);
             return {
               label: labelFromConfidence(conf),
@@ -150,7 +150,7 @@ describe("Confidence Label Consistency", () => {
               notAffects: [],
             };
           },
-        } as Block;
+        } as unknown as Block;
 
         const ctx: RenderCtx = {
           vehicle: {},
@@ -166,7 +166,6 @@ describe("Confidence Label Consistency", () => {
 
   describe("Confidence preset usage", () => {
     it("uses confidencePresets correctly", () => {
-      const { confidencePresets } = require("@/core/templates");
 
       // Test battery health preset
       const batteryFrameWithoutMileage = confidencePresets.batteryHealth(false);
@@ -191,7 +190,6 @@ describe("Confidence Label Consistency", () => {
     });
 
     it("preset labels match confidence calculations", () => {
-      const { confidencePresets } = require("@/core/templates");
 
       // Battery health: 0.55 without mileage, 0.75 with mileage
       const batteryWithout = confidencePresets.batteryHealth(false);
@@ -217,18 +215,17 @@ describe("Confidence Label Consistency", () => {
         priority: 100,
         guidanceLevel: 1,
 
-        confidence: (ctx) => {
+        confidence: (ctx: RenderCtx) => {
           const base = 0.55;
           const hasAnnualMileage = Boolean(ctx.signals.annual_mileage);
           return base + (hasAnnualMileage ? 0.20 : 0);
         },
 
-        confidenceFrame: (ctx) => {
-          const { confidencePresets } = require("@/core/templates");
-          const hasAnnualMileage = Boolean(ctx.signals.annual_mileage);
+        confidenceFrame: (ctx: RenderCtx) => {
+              const hasAnnualMileage = Boolean(ctx.signals.annual_mileage);
           return confidencePresets.batteryHealth(hasAnnualMileage);
         },
-      } as Block;
+      } as unknown as Block;
 
       // Without annual mileage
       const ctx1: RenderCtx = {
@@ -268,12 +265,11 @@ describe("Confidence Label Consistency", () => {
 
         confidence: () => 0.90, // Always high
 
-        confidenceFrame: (ctx) => {
-          const { confidencePresets } = require("@/core/templates");
-          const hasVerification = Boolean(ctx.signals.dealer_verification);
+        confidenceFrame: (ctx: RenderCtx) => {
+              const hasVerification = Boolean(ctx.signals.dealer_verification);
           return confidencePresets.recalls(hasVerification);
         },
-      } as Block;
+      } as unknown as Block;
 
       const ctx: RenderCtx = {
         vehicle: { recalls: [{ id: "R1", title: "Test", description: "", priority: "high" }] },
@@ -306,7 +302,7 @@ describe("Confidence Label Consistency", () => {
           priority: 100,
           guidanceLevel: 1,
           confidence: () => conf,
-          confidenceFrame: (ctx) => ({
+          confidenceFrame: (ctx: RenderCtx) => ({
             label: labelFromConfidence(mockBlock.confidence(ctx)),
             practical: "",
             basedOn: [],
@@ -314,7 +310,7 @@ describe("Confidence Label Consistency", () => {
             affects: [],
             notAffects: [],
           }),
-        } as Block;
+        } as unknown as Block;
 
         const ctx: RenderCtx = {
           vehicle: {},
@@ -335,7 +331,7 @@ describe("Confidence Label Consistency", () => {
         priority: 100,
         guidanceLevel: 1,
         confidence: () => 0.69999999999,
-        confidenceFrame: (ctx) => ({
+        confidenceFrame: (ctx: RenderCtx) => ({
           label: labelFromConfidence(mockBlock.confidence(ctx)),
           practical: "",
           basedOn: [],
@@ -343,7 +339,7 @@ describe("Confidence Label Consistency", () => {
           affects: [],
           notAffects: [],
         }),
-      } as Block;
+      } as unknown as Block;
 
       const ctx: RenderCtx = {
         vehicle: {},

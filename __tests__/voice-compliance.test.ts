@@ -110,20 +110,20 @@ describe("Block Voice Compliance - Charging Fit", () => {
 
   it("should use 'mental overhead' for DC fast primary + unpredictable", () => {
     const block = createChargingFitBlock();
-    const output = block.render(mockCtx);
+    const output = block.render!(mockCtx);
     expect(output).toContain("mental overhead");
   });
 
   it("should use 'routine friction' language", () => {
     const block = createChargingFitBlock();
-    const output = block.render(mockCtx);
+    const output = block.render!(mockCtx);
     const lintResult = lintVoice(output);
     expect(lintResult.ok).toBe(true); // No banned phrases
   });
 
   it("should not use banned EV debate language", () => {
     const block = createChargingFitBlock();
-    const output = block.render(mockCtx);
+    const output = block.render!(mockCtx);
     expect(output).not.toMatch(/range anxiety/i);
     expect(output).not.toMatch(/ev vs ice/i);
     expect(output).not.toMatch(/charger count/i);
@@ -131,20 +131,20 @@ describe("Block Voice Compliance - Charging Fit", () => {
 
   it("should explicitly name DC fast charging pattern", () => {
     const block = createChargingFitBlock();
-    const output = block.render(mockCtx);
+    const output = block.render!(mockCtx);
     expect(output).toContain("DC fast charging");
     expect(output).toContain("unpredictable");
   });
 
   it("should include backup plan proximity framing", () => {
     const block = createChargingFitBlock();
-    const output = block.render(mockCtx);
+    const output = block.render!(mockCtx);
     expect(output).toMatch(/10[-–]15 minutes/);
   });
 
   it("should use calm, factual language (no alarmism)", () => {
     const block = createChargingFitBlock();
-    const output = block.render(mockCtx);
+    const output = block.render!(mockCtx);
     expect(output).not.toMatch(/urgent/i);
     expect(output).not.toMatch(/critical/i);
     expect(output).not.toMatch(/dangerous/i);
@@ -170,7 +170,7 @@ describe("Block Voice Compliance - Battery Health", () => {
 
   it("should de-emphasize mileage in favor of battery condition", () => {
     const block = createBatteryHealthBlock();
-    const output = block.render(mockCtxWithoutBattery);
+    const output = block.render!(mockCtxWithoutBattery);
     expect(output).toContain("battery condition");
     // Should not focus on mileage as primary factor
     expect(output).not.toMatch(/based on mileage/i);
@@ -187,14 +187,14 @@ describe("Block Voice Compliance - Battery Health", () => {
     };
 
     const block = createBatteryHealthBlock();
-    const output = block.render(mockCtxWithReport);
+    const output = block.render!(mockCtxWithReport);
     expect(output).toContain("battery condition");
     expect(output).toMatch(/testing|assessment/i);
   });
 
   it("should not use banned voice patterns", () => {
     const block = createBatteryHealthBlock();
-    const output = block.render(mockCtxWithoutBattery);
+    const output = block.render!(mockCtxWithoutBattery);
     const lintResult = lintVoice(output);
     expect(lintResult.ok).toBe(true);
   });
@@ -208,17 +208,17 @@ describe("Block Voice Compliance - Outcome Paths", () => {
       { year: 2019, make: "Chevrolet", model: "Bolt" },
       {}
     ),
-  });
+  };
 
   it("should always include 'stay' options (anti-marketplace)", () => {
     const block = createOutcomePathsBlock();
-    const output = block.render(mockCtx);
+    const output = block.render!(mockCtx);
     expect(output).toContain("Stay and adjust");
   });
 
   it("should not use trade-in or marketplace language", () => {
     const block = createOutcomePathsBlock();
-    const output = block.render(mockCtx);
+    const output = block.render!(mockCtx);
     expect(output).not.toMatch(/trade[-\s]?in/i);
     expect(output).not.toMatch(/sell/i);
     expect(output).not.toMatch(/upgrade to/i);
@@ -226,7 +226,7 @@ describe("Block Voice Compliance - Outcome Paths", () => {
 
   it("should not use banned voice patterns", () => {
     const block = createOutcomePathsBlock();
-    const output = block.render(mockCtx);
+    const output = block.render!(mockCtx);
     const lintResult = lintVoice(output);
     expect(lintResult.ok).toBe(true);
   });
@@ -271,7 +271,7 @@ describe("Integration - All Blocks Voice Compliance", () => {
 
   testCases.forEach(({ name, block }) => {
     it(`${name} should pass voice linter`, () => {
-      const output = block.render(mockCtx);
+      const output = block.render!(mockCtx);
       const lintResult = lintVoice(output);
 
       if (!lintResult.ok) {
