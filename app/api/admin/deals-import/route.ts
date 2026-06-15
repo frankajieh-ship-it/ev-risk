@@ -182,6 +182,42 @@ export async function POST(request: NextRequest) {
     const serviceRecordsRaw = row["service_records"]?.trim().toLowerCase() || null;
     const service_records = (["yes", "no"].includes(serviceRecordsRaw ?? "") ? serviceRecordsRaw : null) as "yes" | "no" | null;
 
+    // ── v4 fields (charging + range + seller + options + climate + warranty) ──
+    const dcfc_kw_max = row["dcfc_kw_max"] ? parseInt(row["dcfc_kw_max"]) : null;
+    const ac_charger_kw = row["ac_charger_kw"] ? parseFloat(row["ac_charger_kw"]) : null;
+    const charge_port_type = row["charge_port_type"]?.trim() || null;
+    const epa_range_mi = row["epa_range_mi"] ? parseInt(row["epa_range_mi"]) : null;
+    const estimated_real_range_mi = row["estimated_real_range_mi"] ? parseInt(row["estimated_real_range_mi"]) : null;
+    const sellerTypeRaw = row["seller_type"]?.trim().toLowerCase() || null;
+    const seller_type = (["private", "dealer", "cpo", "auction"].includes(sellerTypeRaw ?? "") ? sellerTypeRaw : null) as "private" | "dealer" | "cpo" | "auction" | null;
+    const days_on_market = row["days_on_market"] ? parseInt(row["days_on_market"]) : null;
+    // Accept both "exterior_color" and "exterrior color" (typo in CSV header)
+    const exterior_color = (row["exterior_color"] || row["exterrior color"] || row["exterior color"])?.trim() || null;
+    const heatedSeatsRaw = (row["heated_seats"] || "").trim().toLowerCase();
+    const heated_seats = heatedSeatsRaw === "true" || heatedSeatsRaw === "yes" ? true : heatedSeatsRaw === "false" || heatedSeatsRaw === "no" ? false : null;
+    const heatPumpRaw = (row["heat_pump"] || "").trim().toLowerCase();
+    const heat_pump = heatPumpRaw === "true" || heatPumpRaw === "yes" ? true : heatPumpRaw === "false" || heatPumpRaw === "no" ? false : null;
+    const towHitchRaw = (row["tow_hitch"] || "").trim().toLowerCase();
+    const tow_hitch = towHitchRaw === "true" || towHitchRaw === "yes" ? true : towHitchRaw === "false" || towHitchRaw === "no" ? false : null;
+    const climateZoneRaw = row["climate_zone"]?.trim().toLowerCase() || null;
+    const climate_zone = (["hot", "cold", "temperate", "humid"].includes(climateZoneRaw ?? "") ? climateZoneRaw : null) as "hot" | "cold" | "temperate" | "humid" | null;
+    const warranty_remaining_months = row["warranty_remaining_months"] ? parseInt(row["warranty_remaining_months"]) : null;
+    const superchargerRaw = (row["supercharger_access"] || "").trim().toLowerCase();
+    const supercharger_access = superchargerRaw === "true" || superchargerRaw === "yes" ? true : superchargerRaw === "false" || superchargerRaw === "no" ? false : null;
+    const otaRaw = (row["ota_capable"] || "").trim().toLowerCase();
+    const ota_capable = otaRaw === "true" || otaRaw === "yes" ? true : otaRaw === "false" || otaRaw === "no" ? false : null;
+
+    // ── v4b fields (physical specs from CSV download) ──
+    const drivetrain = row["drivetrain"]?.trim().toUpperCase() || null;
+    // Accept both "interior_color" and "interior color"
+    const interior_color = (row["interior_color"] || row["interior color"])?.trim() || null;
+    const doors = row["doors"] ? parseInt(row["doors"]) : null;
+    const front_legroom_in = row["front legroom"] ? parseFloat(row["front legroom"].replace(/[^0-9.]/g, "")) : null;
+    const rear_legroom_in = row["back legroom"] ? parseFloat(row["back legroom"].replace(/[^0-9.]/g, "")) : null;
+    const cargo_volume_cuft = row["cargo volume"] ? parseFloat(row["cargo volume"].replace(/[^0-9.]/g, "")) : null;
+    const charge_time_notes = (row["battery charge time"] || row["charge_time_notes"])?.trim() || null;
+    const additional_notes = (row["additional"] || row["additional_notes"])?.trim() || null;
+
     const riskFlagsRaw = row["risk_flags"]?.trim();
     const vehicleLabel = row["vehicle_label"]?.trim() || [year, make, model, trim].filter(Boolean).join(" ") || null;
     let photoUrl = row["photo_url"]?.trim() || null;
@@ -254,6 +290,31 @@ export async function POST(request: NextRequest) {
         last_analyzed_at: new Date().toISOString(),
         last_seen_at: new Date().toISOString(),
         is_active: true,
+        // v4 fields
+        ...(dcfc_kw_max !== null && { dcfc_kw_max }),
+        ...(ac_charger_kw !== null && { ac_charger_kw }),
+        ...(charge_port_type && { charge_port_type }),
+        ...(epa_range_mi !== null && { epa_range_mi }),
+        ...(estimated_real_range_mi !== null && { estimated_real_range_mi }),
+        ...(seller_type && { seller_type }),
+        ...(days_on_market !== null && { days_on_market }),
+        ...(exterior_color && { exterior_color }),
+        ...(heated_seats !== null && { heated_seats }),
+        ...(heat_pump !== null && { heat_pump }),
+        ...(tow_hitch !== null && { tow_hitch }),
+        ...(climate_zone && { climate_zone }),
+        ...(warranty_remaining_months !== null && { warranty_remaining_months }),
+        ...(supercharger_access !== null && { supercharger_access }),
+        ...(ota_capable !== null && { ota_capable }),
+        // v4b fields
+        ...(drivetrain && { drivetrain }),
+        ...(interior_color && { interior_color }),
+        ...(doors !== null && { doors }),
+        ...(front_legroom_in !== null && { front_legroom_in }),
+        ...(rear_legroom_in !== null && { rear_legroom_in }),
+        ...(cargo_volume_cuft !== null && { cargo_volume_cuft }),
+        ...(charge_time_notes && { charge_time_notes }),
+        ...(additional_notes && { additional_notes }),
       }, { onConflict: "listing_url", ignoreDuplicates: false });
 
     if (upsertErr) {

@@ -51,6 +51,15 @@ const HEADERS = [
   "warranty_remaining_months",
   "supercharger_access",
   "ota_capable",
+  // v4b — physical specs (from CarGurus/CarMax CSV download)
+  "drivetrain",
+  "interior_color",
+  "doors",
+  "front_legroom_in",
+  "rear_legroom_in",
+  "cargo_volume_cuft",
+  "charge_time_notes",
+  "additional_notes",
 ];
 
 function escapeCell(val: unknown): string {
@@ -95,6 +104,15 @@ export async function GET(request: NextRequest) {
       "yes",
       "",
       "cargurus.com",
+      // v4b physical specs
+      "RWD",           // drivetrain
+      "Black",         // interior_color
+      "4",             // doors
+      "42.7",          // front_legroom_in
+      "35.2",          // rear_legroom_in
+      "23.0",          // cargo_volume_cuft
+      "8h on L2 / 30min DC",  // charge_time_notes
+      "",              // additional_notes
       // v4 charging
       "170",        // dcfc_kw_max
       "11.5",       // ac_charger_kw
@@ -132,7 +150,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from("curated_deals")
-    .select("listing_url, vehicle_label, year, make, model, trim, price, mileage, location, vin, title_status, battery_report, service_records, photo_url, url_domain, dcfc_kw_max, ac_charger_kw, charge_port_type, epa_range_mi, estimated_real_range_mi, seller_type, days_on_market, exterior_color, heated_seats, heat_pump, tow_hitch, climate_zone, warranty_remaining_months, supercharger_access, ota_capable")
+    .select("listing_url, vehicle_label, year, make, model, trim, price, mileage, location, vin, title_status, battery_report, service_records, photo_url, url_domain, dcfc_kw_max, ac_charger_kw, charge_port_type, epa_range_mi, estimated_real_range_mi, seller_type, days_on_market, exterior_color, heated_seats, heat_pump, tow_hitch, climate_zone, warranty_remaining_months, supercharger_access, ota_capable, drivetrain, interior_color, doors, front_legroom_in, rear_legroom_in, cargo_volume_cuft, charge_time_notes, additional_notes")
     .eq("is_active", true)
     .order("price", { ascending: true })
     .limit(500);

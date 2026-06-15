@@ -49,6 +49,15 @@ interface DealRow {
   warranty_remaining_months: number | null;
   supercharger_access: boolean | null;
   ota_capable: boolean | null;
+  // v4b fields
+  drivetrain: string | null;
+  interior_color: string | null;
+  doors: number | null;
+  front_legroom_in: number | null;
+  rear_legroom_in: number | null;
+  cargo_volume_cuft: number | null;
+  charge_time_notes: string | null;
+  additional_notes: string | null;
 }
 
 interface RescoredDiff {
@@ -740,6 +749,9 @@ export default function AdminDealsPage() {
                 <th className="text-center px-3 py-3">Options</th>
                 <th className="text-center px-3 py-3"><SortBtn k="climate_zone" label="Climate" /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="warranty_remaining_months" label="Warr." /></th>
+                <th className="text-center px-3 py-3"><SortBtn k="drivetrain" label="Drive" /></th>
+                <th className="text-center px-3 py-3">Colors</th>
+                <th className="text-center px-3 py-3"><SortBtn k="cargo_volume_cuft" label="Cargo" /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="verdict" label="Verdict" /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="is_active" label="Active" /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="sold_report_count" label="Reports" /></th>
@@ -750,7 +762,7 @@ export default function AdminDealsPage() {
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="border-b border-white/[0.04]">
-                    {Array.from({ length: 20 }).map((__, j) => (
+                    {Array.from({ length: 23 }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-3 bg-white/[0.04] rounded animate-pulse" />
                       </td>
@@ -759,7 +771,7 @@ export default function AdminDealsPage() {
                 ))
               ) : sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={20} className="text-center py-12 text-white/30">No deals found</td>
+                  <td colSpan={23} className="text-center py-12 text-white/30">No deals found</td>
                 </tr>
               ) : (
                 sorted.map((d) => (
@@ -875,6 +887,29 @@ export default function AdminDealsPage() {
                         <span className={d.warranty_remaining_months === 0 ? "text-red-400" : d.warranty_remaining_months < 12 ? "text-orange-400" : "text-emerald-400"}>
                           {d.warranty_remaining_months === 0 ? "exp" : `${d.warranty_remaining_months}mo`}
                         </span>
+                      ) : <span className="text-white/20">—</span>}
+                    </td>
+                    {/* v4b — drivetrain */}
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      {d.drivetrain ? (
+                        <span className={`font-medium ${d.drivetrain === "AWD" || d.drivetrain === "EAWD" ? "text-[#00d97e]" : "text-white/50"}`}>
+                          {d.drivetrain}
+                        </span>
+                      ) : <span className="text-white/20">—</span>}
+                    </td>
+                    {/* v4b — colors */}
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      {(d.exterior_color || d.interior_color) ? (
+                        <span className="text-white/40" title={[d.exterior_color, d.interior_color].filter(Boolean).join(" / ")}>
+                          {d.exterior_color?.split(" ").pop() ?? "—"}
+                          {d.interior_color ? <span className="text-white/25">/{d.interior_color.split(" ").pop()}</span> : null}
+                        </span>
+                      ) : <span className="text-white/20">—</span>}
+                    </td>
+                    {/* v4b — cargo */}
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      {d.cargo_volume_cuft != null ? (
+                        <span className="text-white/50">{d.cargo_volume_cuft}<span className="text-white/25">ft³</span></span>
                       ) : <span className="text-white/20">—</span>}
                     </td>
                     <td className="px-3 py-3 text-center">

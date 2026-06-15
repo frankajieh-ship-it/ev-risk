@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase
     .from("curated_deals")
     .select(
-      "id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, vin, title_status, battery_report, service_records, vin_audit_summary, extracted_signals, receipt_id, last_analyzed_at, is_active, sold_report_count, created_at, verdict, photo_url, dealership_id, dcfc_kw_max, ac_charger_kw, charge_port_type, epa_range_mi, estimated_real_range_mi, seller_type, days_on_market, exterior_color, heated_seats, heat_pump, tow_hitch, climate_zone, warranty_remaining_months, supercharger_access, ota_capable"
+      "id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, vin, title_status, battery_report, service_records, vin_audit_summary, extracted_signals, receipt_id, last_analyzed_at, is_active, sold_report_count, created_at, verdict, photo_url, dealership_id, dcfc_kw_max, ac_charger_kw, charge_port_type, epa_range_mi, estimated_real_range_mi, seller_type, days_on_market, exterior_color, heated_seats, heat_pump, tow_hitch, climate_zone, warranty_remaining_months, supercharger_access, ota_capable, drivetrain, interior_color, doors, front_legroom_in, rear_legroom_in, cargo_volume_cuft, charge_time_notes, additional_notes"
     )
     .order("created_at", { ascending: false, nullsFirst: false })
     .limit(200);
