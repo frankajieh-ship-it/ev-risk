@@ -569,10 +569,10 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
           const extractUrl = (item: unknown): string | null => {
             if (typeof item === "string") return item;
             const o = item as Record<string, unknown>;
-            return (o?.largeUrl ?? o?.url ?? o?.src ?? o?.href ?? o?.mediumUrl ?? o?.thumbnailUrl ?? null) as string | null;
+            return (o?.largeUrl ?? o?.fullSizeUrl ?? o?.large ?? o?.url ?? o?.src ?? o?.href ?? o?.mediumUrl ?? o?.medium ?? o?.thumbnailUrl ?? o?.small ?? null) as string | null;
           };
 
-          const photoArr = listing.photos ?? listing.images ?? listing.vehiclePhotos ?? listing.photoUrls ?? [];
+          const photoArr = listing.pictures ?? listing.pictureList ?? listing.allPhotos ?? listing.mediaList ?? listing.vehicleImages ?? listing.photos ?? listing.images ?? listing.vehiclePhotos ?? listing.photoUrls ?? [];
           const gallery: string[] = [];
           if (Array.isArray(photoArr)) {
             for (const item of photoArr) {
@@ -659,7 +659,7 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
                 typeof u === "string" && u.startsWith("https://") &&
                 (u.includes("cargurus.com") || u.includes("dealer.com") || u.includes("homenet")) &&
                 !u.includes("logo") && !u.includes("icon") && !u.includes("badge");
-              const photoArr = (ls.photos ?? ls.images ?? ls.vehiclePhotos ?? ls.photoUrls ?? []) as unknown[];
+              const photoArr = (ls.pictures ?? ls.pictureList ?? ls.allPhotos ?? ls.mediaList ?? ls.vehicleImages ?? ls.photos ?? ls.images ?? ls.vehiclePhotos ?? ls.photoUrls ?? []) as unknown[];
               const gallery: string[] = [];
               if (Array.isArray(photoArr)) {
                 for (const item of photoArr) {
@@ -687,12 +687,12 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
 
   // HTML photo fallback for CarGurus — if neither __NEXT_DATA__ nor Remix context yielded photos
   if (data.dataSource === 'cargurus' && !data.photo_urls?.length && html) {
-    // Inline CDN-filtered extraction to avoid circular import with image-extractor.ts
+    const seen = new Set<string>();
+    const gallery: string[] = [];
+    // 1. <img> tags with CDN URLs
     const CARGURUS_CDN = /^https:\/\/[^"']*(?:cargurus\.com|dealer\.com|homenet)[^"']*/i;
     const imgPattern = /<img[^>]+>/gi;
     const srcPattern = /(?:data-lazy-src|data-src|src)=["']([^"']+)["']/i;
-    const gallery: string[] = [];
-    const seen = new Set<string>();
     let imgMatch: RegExpExecArray | null;
     while ((imgMatch = imgPattern.exec(html)) !== null && gallery.length < 20) {
       const srcM = srcPattern.exec(imgMatch[0]);
@@ -701,6 +701,18 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
       if (!CARGURUS_CDN.test(u)) continue;
       const norm = u.split("?")[0];
       if (!seen.has(norm)) { seen.add(norm); gallery.push(u); }
+    }
+    // 2. JSON string values inside <script> blocks — catches cimg.cargurus.com photo CDN URLs
+    if (gallery.length < 3) {
+      const cimgPattern = /https:\/\/[^"' \]]*cimg\.cargurus\.com[^"' \]]*/g;
+      let m: RegExpExecArray | null;
+      while ((m = cimgPattern.exec(html)) !== null && gallery.length < 20) {
+        const u = m[0].replace(/\\u002F/g, '/').split('?')[0];
+        if (!seen.has(u) && !u.includes('logo') && !u.includes('icon')) {
+          seen.add(u);
+          gallery.push(m[0]);
+        }
+      }
     }
     if (gallery.length) {
       data.photo_urls = gallery;
