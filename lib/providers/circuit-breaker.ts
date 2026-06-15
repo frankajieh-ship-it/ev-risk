@@ -50,7 +50,7 @@ const windows: Record<ProviderName, Entry[]> = {
   anthropic: [],
 };
 
-const DEFAULT_ORDER: ProviderName[] = ["openai", "anthropic", "grok"];
+const DEFAULT_ORDER: ProviderName[] = ["grok", "anthropic"];
 
 function prune(entries: Entry[]): Entry[] {
   const cutoff = Date.now() - WINDOW_MS;

@@ -115,10 +115,10 @@ export async function GET(request: NextRequest) {
     const conversionRate = totalReports > 0 ? Math.round((paidReports / totalReports) * 10000) / 100 : 0;
 
     // 3. Revenue
-    const totalRevenue = paidReports * 15;
+    const totalRevenue = paidReports * 10;
 
     // 4. Top vehicles (group by model + year)
-    const vehicleMap = new Map<string, { model: string; year: any; total: number; paid: number; free: number }>();
+    const vehicleMap = new Map<string, { model: string; year: number | null; total: number; paid: number; free: number }>();
     for (const r of allReports) {
       if (!r.vehicle_model) continue;
       const key = `${r.vehicle_model}|${r.vehicle_year}`;
@@ -165,7 +165,7 @@ export async function GET(request: NextRequest) {
 
     // Lookup report info for feedback
     const feedbackReportIds = feedbackWithText.filter(f => f.report_id).map(f => f.report_id);
-    let reportLookup = new Map<string, any>();
+    const reportLookup = new Map<string, { id: string; vehicle_year: number | null; vehicle_model: string | null }>();
     if (feedbackReportIds.length > 0) {
       const { data: feedbackReports } = await supabase
         .from("reports")
@@ -321,7 +321,7 @@ export async function GET(request: NextRequest) {
       revenue: {
         paid_count: paidReports,
         total_revenue: totalRevenue,
-        price_per_report: 15,
+        price_per_report: 10,
       },
 
       feedback: {

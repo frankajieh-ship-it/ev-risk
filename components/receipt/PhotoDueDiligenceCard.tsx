@@ -113,9 +113,9 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
             </span>
           )}
           {(status === "pending" || status === "processing") && (
-            <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e] animate-pulse" />
-              <span className="text-xs font-medium text-[#00d97e]">Coming soon</span>
+            <span className="flex items-center gap-1 text-xs text-white/40">
+              <span className="inline-block w-3 h-3 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+              Analysing…
             </span>
           )}
         </div>
@@ -208,10 +208,7 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
           )}
 
           {status === "failed" && (
-            <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e] animate-pulse" />
-              <p className="text-xs font-medium text-[#00d97e]">Coming soon</p>
-            </div>
+            <p className="text-sm text-white/40 italic">Photo analysis unavailable — try again later.</p>
           )}
         </div>
       )}

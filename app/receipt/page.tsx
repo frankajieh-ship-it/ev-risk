@@ -49,6 +49,7 @@ const OFfoChat = dynamic(() => import("@/components/chat/OFfoChat"), { ssr: fals
 const ReceiptPaywallCard = dynamic(() => import("@/components/receipt/ReceiptPaywallCard"), { ssr: false });
 
 const PdfDownloadButton = dynamic(() => import("@/components/receipt/PdfDownloadButton"), { ssr: false });
+const VinCheckSection = dynamic(() => import("@/components/receipt/VinCheckSection"), { ssr: false });
 const CompareBadge = dynamic(() => import("@/components/receipt/CompareBadge"), { ssr: false });
 const DealCard = dynamic(() => import("@/components/deals/DealCard").then(m => ({ default: m.default })), { ssr: false });
 const FeaturedDeals = dynamic(() => import("@/components/landing/FeaturedDeals"), { ssr: false });
@@ -1095,15 +1096,21 @@ export default function ReceiptPage() {
                     />
                   )}
                   {isLoadingDeepDive && !deepDive && (
-                    <div className="flex items-center justify-center gap-2 py-6">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e] animate-pulse" />
-                      <span className="text-sm font-medium text-white/60">Deep dive analysis <span className="text-[#00d97e]">coming soon</span></span>
+                    <div className="flex items-center justify-center gap-2 py-8 text-sm text-white/40">
+                      <Loader2 className="w-4 h-4 animate-spin text-[#00d97e]" />
+                      Generating your deep dive analysis...
                     </div>
                   )}
                   {deepDiveFailed && !deepDive && !isLoadingDeepDive && (
-                    <div className="flex items-center justify-center gap-2 py-6">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#00d97e] animate-pulse" />
-                      <span className="text-sm font-medium text-white/60">Deep dive analysis <span className="text-[#00d97e]">coming soon</span></span>
+                    <div className="flex flex-col items-center gap-3 py-6 text-sm text-white/40">
+                      <p>Deep dive analysis could not be generated.</p>
+                      <button
+                        onClick={retryDeepDive}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.10] text-white/60 hover:text-white/80 transition-colors text-xs font-medium"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Retry deep dive
+                      </button>
                     </div>
                   )}
                   {receipt.receipt_details ? (
@@ -1238,6 +1245,20 @@ export default function ReceiptPage() {
 
               {/* Active recall banner */}
               <RecallBanner recalls={activeRecalls} />
+
+              {/* VIN Check + Ownership History */}
+              <VinCheckSection
+                receiptId={receipt.receipt_id}
+                receiptToken={receiptToken}
+                listingYear={receipt.listing_summary?.year}
+                listingMake={receipt.listing_summary?.make}
+                listingModel={receipt.listing_summary?.model}
+                existingVin={receipt.vin ?? undefined}
+                isUnlocked={isUnlocked}
+                paymentsEnabled={paymentsEnabled}
+                onPaywallClick={() => handlePremiumAction("vin_history")}
+                trackEvent={trackEvent}
+              />
 
               {/* Share / PDF row */}
               <div id="save-receipt-cta" className="flex gap-2">
