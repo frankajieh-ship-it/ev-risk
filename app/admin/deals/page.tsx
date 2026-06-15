@@ -33,6 +33,22 @@ interface DealRow {
   sold_report_count: number | null;
   created_at: string | null;
   verdict: "GREEN" | "YELLOW" | "RED" | null;
+  // v4 fields
+  dcfc_kw_max: number | null;
+  ac_charger_kw: number | null;
+  charge_port_type: string | null;
+  epa_range_mi: number | null;
+  estimated_real_range_mi: number | null;
+  seller_type: "private" | "dealer" | "cpo" | "auction" | null;
+  days_on_market: number | null;
+  exterior_color: string | null;
+  heated_seats: boolean | null;
+  heat_pump: boolean | null;
+  tow_hitch: boolean | null;
+  climate_zone: "hot" | "cold" | "temperate" | "humid" | null;
+  warranty_remaining_months: number | null;
+  supercharger_access: boolean | null;
+  ota_capable: boolean | null;
 }
 
 interface RescoredDiff {
@@ -95,6 +111,12 @@ export default function AdminDealsPage() {
   }, []);
 
   const fetchDeals = useCallback(async () => {
+    // On production, require admin key before fetching
+    const isProduction = typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";
+    if (isProduction && !adminKey) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -449,7 +471,7 @@ export default function AdminDealsPage() {
     }
   };
 
-  useEffect(() => { fetchDeals(); }, [fetchDeals]);
+  useEffect(() => { fetchDeals(); }, [fetchDeals, adminKey]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -643,6 +665,11 @@ export default function AdminDealsPage() {
           </div>
         )}
 
+        {!adminKey && isLocal === false && (
+          <div className="mb-4 px-4 py-3 bg-[#161b22] border border-white/[0.08] rounded-lg text-white/50 text-sm">
+            Enter your admin API key above to load deals.
+          </div>
+        )}
         {error && (
           <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
             {error}
@@ -705,6 +732,14 @@ export default function AdminDealsPage() {
                 <th className="text-center px-3 py-3"><SortBtn k="title_status" label="Title" /></th>
                 <th className="text-center px-3 py-3">Bat. Report</th>
                 <th className="text-center px-3 py-3">Svc Records</th>
+                <th className="text-center px-3 py-3"><SortBtn k="epa_range_mi" label="Range" /></th>
+                <th className="text-center px-3 py-3"><SortBtn k="dcfc_kw_max" label="DCFC" /></th>
+                <th className="text-center px-3 py-3">Port</th>
+                <th className="text-center px-3 py-3"><SortBtn k="seller_type" label="Seller" /></th>
+                <th className="text-center px-3 py-3"><SortBtn k="days_on_market" label="DOM" /></th>
+                <th className="text-center px-3 py-3">Options</th>
+                <th className="text-center px-3 py-3"><SortBtn k="climate_zone" label="Climate" /></th>
+                <th className="text-center px-3 py-3"><SortBtn k="warranty_remaining_months" label="Warr." /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="verdict" label="Verdict" /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="is_active" label="Active" /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="sold_report_count" label="Reports" /></th>
@@ -715,7 +750,7 @@ export default function AdminDealsPage() {
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} className="border-b border-white/[0.04]">
-                    {Array.from({ length: 12 }).map((__, j) => (
+                    {Array.from({ length: 20 }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-3 bg-white/[0.04] rounded animate-pulse" />
                       </td>
@@ -724,7 +759,7 @@ export default function AdminDealsPage() {
                 ))
               ) : sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="text-center py-12 text-white/30">No deals found</td>
+                  <td colSpan={20} className="text-center py-12 text-white/30">No deals found</td>
                 </tr>
               ) : (
                 sorted.map((d) => (
@@ -781,6 +816,66 @@ export default function AdminDealsPage() {
                         : d.service_records === "no"
                         ? <span className="text-red-400">no</span>
                         : <span className="text-white/20">—</span>}
+                    </td>
+                    {/* v4 — range */}
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      {d.epa_range_mi ? (
+                        <span className="text-white/60">{d.epa_range_mi}<span className="text-white/25">mi</span></span>
+                      ) : <span className="text-white/20">—</span>}
+                    </td>
+                    {/* v4 — charging */}
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      {d.dcfc_kw_max ? (
+                        <span className="text-[#00d97e]">{d.dcfc_kw_max}<span className="text-white/25">kW</span></span>
+                      ) : <span className="text-white/20">—</span>}
+                    </td>
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      {d.charge_port_type ? (
+                        <span className={`font-medium ${d.charge_port_type === "NACS" ? "text-[#00d97e]" : d.charge_port_type === "CHAdeMO" ? "text-orange-400" : "text-white/50"}`}>
+                          {d.charge_port_type}
+                        </span>
+                      ) : <span className="text-white/20">—</span>}
+                    </td>
+                    {/* v4 — seller */}
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      {d.seller_type ? (
+                        <span className={`${d.seller_type === "cpo" ? "text-[#00d97e]" : d.seller_type === "private" ? "text-blue-400" : "text-white/40"}`}>
+                          {d.seller_type}
+                        </span>
+                      ) : <span className="text-white/20">—</span>}
+                    </td>
+                    {/* v4 — days on market */}
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      {d.days_on_market != null ? (
+                        <span className={d.days_on_market > 30 ? "text-orange-400" : d.days_on_market > 14 ? "text-yellow-400" : "text-white/50"}>
+                          {d.days_on_market}d
+                        </span>
+                      ) : <span className="text-white/20">—</span>}
+                    </td>
+                    {/* v4 — options summary */}
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      <span className="flex items-center justify-center gap-1">
+                        {d.heated_seats && <span title="Heated seats">🪑</span>}
+                        {d.heat_pump && <span title="Heat pump">♨</span>}
+                        {d.tow_hitch && <span title="Tow hitch">🔗</span>}
+                        {!d.heated_seats && !d.heat_pump && !d.tow_hitch && <span className="text-white/20">—</span>}
+                      </span>
+                    </td>
+                    {/* v4 — climate zone */}
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      {d.climate_zone ? (
+                        <span className={`${d.climate_zone === "cold" ? "text-blue-400" : d.climate_zone === "hot" ? "text-orange-400" : "text-white/40"}`}>
+                          {d.climate_zone}
+                        </span>
+                      ) : <span className="text-white/20">—</span>}
+                    </td>
+                    {/* v4 — warranty */}
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      {d.warranty_remaining_months != null ? (
+                        <span className={d.warranty_remaining_months === 0 ? "text-red-400" : d.warranty_remaining_months < 12 ? "text-orange-400" : "text-emerald-400"}>
+                          {d.warranty_remaining_months === 0 ? "exp" : `${d.warranty_remaining_months}mo`}
+                        </span>
+                      ) : <span className="text-white/20">—</span>}
                     </td>
                     <td className="px-3 py-3 text-center">
                       <VerdictPill verdict={d.verdict} />

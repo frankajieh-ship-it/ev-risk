@@ -31,6 +31,26 @@ const HEADERS = [
   "service_records",
   "photo_url",
   "url_domain",
+  // v4 — charging
+  "dcfc_kw_max",
+  "ac_charger_kw",
+  "charge_port_type",
+  // v4 — range
+  "epa_range_mi",
+  "estimated_real_range_mi",
+  // v4 — seller & market
+  "seller_type",
+  "days_on_market",
+  // v4 — vehicle options
+  "exterior_color",
+  "heated_seats",
+  "heat_pump",
+  "tow_hitch",
+  // v4 — climate & future-domain
+  "climate_zone",
+  "warranty_remaining_months",
+  "supercharger_access",
+  "ota_capable",
 ];
 
 function escapeCell(val: unknown): string {
@@ -75,6 +95,26 @@ export async function GET(request: NextRequest) {
       "yes",
       "",
       "cargurus.com",
+      // v4 charging
+      "170",        // dcfc_kw_max
+      "11.5",       // ac_charger_kw
+      "CCS",        // charge_port_type (CCS | CHAdeMO | NACS | J1772 | CCS+CHAdeMO)
+      // v4 range
+      "358",        // epa_range_mi
+      "310",        // estimated_real_range_mi
+      // v4 seller & market
+      "dealer",     // seller_type (private | dealer | cpo | auction)
+      "14",         // days_on_market
+      // v4 vehicle options
+      "Pearl White", // exterior_color
+      "true",        // heated_seats
+      "true",        // heat_pump
+      "false",       // tow_hitch
+      // v4 climate & future-domain
+      "temperate",   // climate_zone (hot | cold | temperate | humid)
+      "36",          // warranty_remaining_months
+      "true",        // supercharger_access
+      "true",        // ota_capable
     ].join(",");
 
     const csv = [HEADERS.join(","), exampleRow].join("\n");
@@ -92,7 +132,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from("curated_deals")
-    .select("listing_url, vehicle_label, year, make, model, trim, price, mileage, location, vin, title_status, battery_report, service_records, photo_url, url_domain")
+    .select("listing_url, vehicle_label, year, make, model, trim, price, mileage, location, vin, title_status, battery_report, service_records, photo_url, url_domain, dcfc_kw_max, ac_charger_kw, charge_port_type, epa_range_mi, estimated_real_range_mi, seller_type, days_on_market, exterior_color, heated_seats, heat_pump, tow_hitch, climate_zone, warranty_remaining_months, supercharger_access, ota_capable")
     .eq("is_active", true)
     .order("price", { ascending: true })
     .limit(500);
