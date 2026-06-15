@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Info,
 } from "lucide-react";
+import OwnershipHistoryCard from "@/components/receipt/OwnershipHistoryCard";
 
 interface DecodedVin {
   year: number;
@@ -43,6 +44,9 @@ interface VinCheckSectionProps {
   listingMake?: string;
   listingModel?: string;
   existingVin?: string;
+  isUnlocked?: boolean;
+  paymentsEnabled?: boolean;
+  onPaywallClick?: () => void;
   trackEvent: (name: string, data?: { [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[] }) => void | Promise<void>;
 }
 
@@ -61,6 +65,9 @@ export default function VinCheckSection({
   listingMake,
   listingModel,
   existingVin,
+  isUnlocked = false,
+  paymentsEnabled = false,
+  onPaywallClick,
   trackEvent,
 }: VinCheckSectionProps) {
   const [vin, setVin] = useState(existingVin?.toUpperCase() || "");
@@ -330,6 +337,20 @@ export default function VinCheckSection({
           </span>
         </div>
       </div>
+
+      {/* Ownership & accident history — shown after successful decode */}
+      {decoded && (
+        <div className="border-t border-gray-100 p-5">
+          <OwnershipHistoryCard
+            vin={vin}
+            receiptToken={receiptToken}
+            isUnlocked={isUnlocked}
+            paymentsEnabled={paymentsEnabled}
+            onPaywallClick={onPaywallClick}
+            trackEvent={(name, data) => trackEvent(name, data as { [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[] })}
+          />
+        </div>
+      )}
     </div>
   );
 }
