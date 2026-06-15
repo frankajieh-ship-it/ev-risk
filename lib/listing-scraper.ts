@@ -559,12 +559,12 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
 
         // Extract full photo gallery from listing
         if (!data.photo_urls?.length) {
-          // Accept any https URL that looks like a photo from any cargurus CDN subdomain
-          // (cimg.cargurus.com, static.cargurus.com, media.cargurus.com, etc.)
+          // Accept vehicle photos from CarGurus CDN (static.cargurus.com/images/forsale/)
           const isCarGurusPhoto = (u: unknown): u is string =>
             typeof u === "string" && u.startsWith("https://") &&
-            (u.includes("cargurus.com") || u.includes("dealer.com") || u.includes("homenet")) &&
-            !u.includes("logo") && !u.includes("icon") && !u.includes("badge");
+            (u.includes("static.cargurus.com/images/forsale") || u.includes("cimg.cargurus.com") ||
+             u.includes("dealer.com") || u.includes("homenet")) &&
+            !u.includes("logo") && !u.includes("icon") && !u.includes("badge") && !u.includes("/site/");
 
           const extractUrl = (item: unknown): string | null => {
             if (typeof item === "string") return item;
@@ -657,7 +657,8 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
             if (!data.photo_urls?.length) {
               const isCarGurusPhoto = (u: unknown): u is string =>
                 typeof u === "string" && u.startsWith("https://") &&
-                (u.includes("cargurus.com") || u.includes("dealer.com") || u.includes("homenet")) &&
+                (u.includes("static.cargurus.com/images/forsale") || u.includes("cimg.cargurus.com") ||
+                 u.includes("dealer.com") || u.includes("homenet")) &&
                 !u.includes("logo") && !u.includes("icon") && !u.includes("badge");
               const photoArr = (ls.pictures ?? ls.pictureList ?? ls.allPhotos ?? ls.mediaList ?? ls.vehicleImages ?? ls.photos ?? ls.images ?? ls.vehiclePhotos ?? ls.photoUrls ?? []) as unknown[];
               const gallery: string[] = [];
@@ -689,8 +690,7 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
   if (data.dataSource === 'cargurus' && !data.photo_urls?.length && html) {
     const seen = new Set<string>();
     const gallery: string[] = [];
-    // 1. <img> tags with CDN URLs
-    const CARGURUS_CDN = /^https:\/\/[^"']*(?:cargurus\.com|dealer\.com|homenet)[^"']*/i;
+    // 1. <img> tags
     const imgPattern = /<img[^>]+>/gi;
     const srcPattern = /(?:data-lazy-src|data-src|src)=["']([^"']+)["']/i;
     let imgMatch: RegExpExecArray | null;
@@ -698,19 +698,21 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
       const srcM = srcPattern.exec(imgMatch[0]);
       if (!srcM) continue;
       const u = srcM[1];
-      if (!CARGURUS_CDN.test(u)) continue;
+      if (!u.includes("static.cargurus.com/images/forsale") && !u.includes("cimg.cargurus.com")) continue;
+      if (u.includes("/site/") || u.includes("logo") || u.includes("icon")) continue;
       const norm = u.split("?")[0];
       if (!seen.has(norm)) { seen.add(norm); gallery.push(u); }
     }
-    // 2. JSON string values inside <script> blocks — catches cimg.cargurus.com photo CDN URLs
+    // 2. Scan raw HTML for static.cargurus.com/images/forsale URLs in JSON/script blobs
     if (gallery.length < 3) {
-      const cimgPattern = /https:\/\/[^"' \]]*cimg\.cargurus\.com[^"' \]]*/g;
+      const staticPattern = /https:\/\/static\.cargurus\.com\/images\/forsale\/[^"' \]\\>]*/g;
       let m: RegExpExecArray | null;
-      while ((m = cimgPattern.exec(html)) !== null && gallery.length < 20) {
-        const u = m[0].replace(/\\u002F/g, '/').split('?')[0];
-        if (!seen.has(u) && !u.includes('logo') && !u.includes('icon')) {
-          seen.add(u);
-          gallery.push(m[0]);
+      while ((m = staticPattern.exec(html)) !== null && gallery.length < 20) {
+        const raw = m[0].replace(/\\u002F/g, '/').replace(/&amp;.*$/, '');
+        const norm = raw.split("?")[0];
+        if (!seen.has(norm) && !norm.includes("logo") && !norm.includes("icon")) {
+          seen.add(norm);
+          gallery.push(norm);
         }
       }
     }
