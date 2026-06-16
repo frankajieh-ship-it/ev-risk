@@ -171,8 +171,11 @@ export default function ReceiptOutputCard({
   // Wikimedia URLs are public — serve directly; proxy everything else
   const resolveImgSrc = (url: string | undefined) => {
     if (!url) return url;
-    if (url.includes("wikimedia.org")) return url;
-    if (url.startsWith("http")) return `/api/img?url=${encodeURIComponent(url)}`;
+    // Only proxy URLs that need hotlink protection stripped (Wikimedia, CarGurus CDN).
+    // Marketcheck dealer CDN URLs (dealerinspire, dealer.com, etc.) are public — serve directly.
+    if (url.includes("wikimedia.org") || url.includes("cargurus.com") || url.includes("cimg.cargurus.com")) {
+      return `/api/img?url=${encodeURIComponent(url)}`;
+    }
     return url;
   };
 
