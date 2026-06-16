@@ -136,6 +136,50 @@ export async function POST(request: NextRequest) {
       ? (parsedUrl.pathname.match(/\/details\/(\d{7,12})/)?.[1] ?? null)
       : null;
 
+    // --- CarGurus: try Googlebot direct fetch FIRST ---
+    // CarGurus serves a fully server-rendered page (including __remixContext with VIN + photos)
+    // to Googlebot without requiring JS execution. This is faster and avoids Nimbleway's
+    // persistent stale cache problem entirely.
+    if (parsedUrl.hostname.includes('cargurus.com')) {
+      try {
+        const cgController = new AbortController();
+        const cgTimeoutId = setTimeout(() => cgController.abort(), 15000);
+        const cgRes = await fetch(url, {
+          signal: cgController.signal,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': 'https://www.google.com/',
+          },
+          redirect: 'follow',
+        });
+        clearTimeout(cgTimeoutId);
+        if (cgRes.ok) {
+          const cgHtml = await cgRes.text();
+          const hasRemixContext = cgHtml.includes('__remixContext') || cgHtml.includes('__NEXT_DATA__');
+          const hasListingId = cgListingId ? cgHtml.includes(cgListingId) : true;
+          const isBlocked = cgHtml.length < 5000 || cgHtml.toLowerCase().includes('just a moment');
+          console.log(`[Proxy Fetch] CarGurus Googlebot fetch: length=${cgHtml.length} hasRemix=${hasRemixContext} hasListingId=${hasListingId}`);
+          if (!isBlocked && hasListingId && hasRemixContext) {
+            return NextResponse.json({
+              success: true,
+              html: cgHtml,
+              contentLength: cgHtml.length,
+              status: 200,
+              fetchMethod: 'googlebot_direct',
+              headers: { 'content-type': 'text/html' },
+            });
+          }
+          console.warn(`[Proxy Fetch] CarGurus Googlebot fetch insufficient (blocked=${isBlocked} hasListingId=${hasListingId} hasRemix=${hasRemixContext}) — falling through to Nimbleway`);
+        } else {
+          console.warn(`[Proxy Fetch] CarGurus Googlebot fetch returned ${cgRes.status} — falling through to Nimbleway`);
+        }
+      } catch (cgErr) {
+        console.warn('[Proxy Fetch] CarGurus Googlebot fetch failed:', cgErr instanceof Error ? cgErr.message : String(cgErr));
+      }
+    }
+
     // --- Nimbleway path for JS-rendered sites ---
     if (needsJsRender && NIMBLEWAY_KEY) {
       const nmController = new AbortController();
@@ -185,8 +229,38 @@ export async function POST(request: NextRequest) {
           const isStaleCache = cgListingId !== null && !html.includes(cgListingId);
 
           if (isStaleCache) {
-            console.warn(`[Proxy Fetch] Nimbleway stale cache — listing ID ${cgListingId} not in HTML (length: ${html.length}), retrying with ScrapingBee`);
-            // Fall through to ScrapingBee (better than direct fetch for JS-rendered pages)
+            console.warn(`[Proxy Fetch] Nimbleway stale cache — listing ID ${cgListingId} not in HTML (length: ${html.length}), trying CarGurus JSON API`);
+            // Try CarGurus JSON API directly — bypasses JS rendering entirely.
+            // /api/graphql or the listing data endpoint returns structured JSON without needing a browser.
+            try {
+              const cgApiUrl = `https://www.cargurus.com/api/listing/v1/detail/${cgListingId}`;
+              const cgApiRes = await fetch(cgApiUrl, {
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+                  'Accept': 'application/json',
+                  'Referer': 'https://www.cargurus.com/',
+                },
+                signal: AbortSignal.timeout(10000),
+              });
+              if (cgApiRes.ok) {
+                const cgJson = await cgApiRes.json() as Record<string, unknown>;
+                // Wrap JSON as minimal HTML so the scraper's __NEXT_DATA__ / JSON paths can parse it
+                const wrappedHtml = `<html><head></head><body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify({ props: { pageProps: { listing: cgJson } } })}</script><p>${cgListingId}</p></body></html>`;
+                console.log(`[Proxy Fetch] CarGurus JSON API success for listing ${cgListingId}`);
+                return NextResponse.json({
+                  success: true,
+                  html: wrappedHtml,
+                  contentLength: wrappedHtml.length,
+                  status: 200,
+                  fetchMethod: 'cargurus_api',
+                  headers: { 'content-type': 'text/html' },
+                });
+              }
+              console.warn(`[Proxy Fetch] CarGurus JSON API returned ${cgApiRes.status} — falling through to ScrapingBee`);
+            } catch (cgApiErr) {
+              console.warn('[Proxy Fetch] CarGurus JSON API failed:', cgApiErr instanceof Error ? cgApiErr.message : String(cgApiErr));
+            }
+            // Fall through to ScrapingBee
           } else if (!isBlocked && !isThinShell) {
             return NextResponse.json({
               success: true,
