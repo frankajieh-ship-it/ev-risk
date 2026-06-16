@@ -613,25 +613,37 @@ export async function POST(request: NextRequest) {
     if (mcRaw.length !== mcVinPhotos.length) {
       console.log(`[Fetch] Marketcheck dedup: ${mcRaw.length} → ${mcVinPhotos.length} photos`);
     }
+    // Marketcheck indexes dealer upload feeds which can have watermarks or be cross-contaminated
+    // (e.g. a dealer who previously had a Tesla uploads photos under the wrong VIN).
+    // For CarGurus URLs, only use Marketcheck if the photo filenames plausibly match the
+    // extracted make — e.g. "tesla" in URL when listing says Tesla, not EQE.
+    const mcMakeSlug = (fields.make ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const mcPhotosMatchMake = mcVinPhotos.length === 0 || mcMakeSlug.length === 0 ||
+      mcVinPhotos.some(u => u.toLowerCase().includes(mcMakeSlug)) ||
+      // Allow for common slug variations (mercedes-benz → mercedesbenz / mercedes)
+      (mcMakeSlug === "mercedesbenz" && mcVinPhotos.some(u => /mercedes/.test(u.toLowerCase())));
+    const mcPhotosFiltered = mcPhotosMatchMake ? mcVinPhotos : [];
+    if (!mcPhotosMatchMake) {
+      console.log(`[Fetch] Marketcheck photos rejected — make slug "${mcMakeSlug}" not found in URLs (cross-contamination guard)`);
+    }
+
     if (cgApiPhotos.length >= 3) {
       fields.photo_urls = cgApiPhotos;
       console.log(`[Fetch] Using ${cgApiPhotos.length} CarGurus API photos`);
-    } else if (isCarGurusUrl && scrapedPhotos.length >= 3) {
-      // CarGurus scraped = clean unbranded photos; prefer over Marketcheck watermarked feed
+    } else if (isCarGurusUrl && scrapedPhotos.length > 0) {
+      // CarGurus scraped = clean unbranded photos from the actual listing; always prefer
+      // over Marketcheck which can have watermarks or wrong-car cross-contamination
       fields.photo_urls = scrapedPhotos;
       console.log(`[Fetch] Using ${scrapedPhotos.length} scraped CarGurus photos`);
-    } else if (mcVinPhotos.length >= 3) {
-      fields.photo_urls = mcVinPhotos;
-      console.log(`[Fetch] Using ${mcVinPhotos.length} Marketcheck photos`);
-    } else if (scrapedPhotos.length >= 3) {
-      fields.photo_urls = scrapedPhotos;
-      console.log(`[Fetch] Using ${scrapedPhotos.length} scraped listing photos`);
-    } else if (mcVinPhotos.length > 0) {
-      fields.photo_urls = mcVinPhotos;
-      console.log(`[Fetch] Using ${mcVinPhotos.length} Marketcheck photos (< 3)`);
+    } else if (mcPhotosFiltered.length >= 3) {
+      fields.photo_urls = mcPhotosFiltered;
+      console.log(`[Fetch] Using ${mcPhotosFiltered.length} Marketcheck photos`);
     } else if (scrapedPhotos.length > 0) {
       fields.photo_urls = scrapedPhotos;
-      console.log(`[Fetch] Using ${scrapedPhotos.length} scraped photos (fallback)`);
+      console.log(`[Fetch] Using ${scrapedPhotos.length} scraped listing photos`);
+    } else if (mcPhotosFiltered.length > 0) {
+      fields.photo_urls = mcPhotosFiltered;
+      console.log(`[Fetch] Using ${mcPhotosFiltered.length} Marketcheck photos (< 3)`);
     } else if (autoDevData && Array.isArray((autoDevData as { photo_urls: string[] }).photo_urls) && (autoDevData as { photo_urls: string[] }).photo_urls.length > 0) {
       fields.photo_urls = (autoDevData as { photo_urls: string[] }).photo_urls;
     } else {
