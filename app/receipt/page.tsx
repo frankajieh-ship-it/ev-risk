@@ -49,7 +49,6 @@ const OFfoChat = dynamic(() => import("@/components/chat/OFfoChat"), { ssr: fals
 const ReceiptPaywallCard = dynamic(() => import("@/components/receipt/ReceiptPaywallCard"), { ssr: false });
 
 const PdfDownloadButton = dynamic(() => import("@/components/receipt/PdfDownloadButton"), { ssr: false });
-const VinCheckSection = dynamic(() => import("@/components/receipt/VinCheckSection"), { ssr: false });
 const ReceiptToolsSection = dynamic(() => import("@/components/receipt/ReceiptToolsSection"), { ssr: false });
 const CompareBadge = dynamic(() => import("@/components/receipt/CompareBadge"), { ssr: false });
 const DealCard = dynamic(() => import("@/components/deals/DealCard").then(m => ({ default: m.default })), { ssr: false });
@@ -1248,20 +1247,6 @@ export default function ReceiptPage() {
 
               {/* Active recall banner */}
               <RecallBanner recalls={activeRecalls} />
-
-              {/* VIN Check + Ownership History */}
-              <VinCheckSection
-                receiptId={receipt.receipt_id}
-                receiptToken={receiptToken}
-                listingYear={receipt.listing_summary?.year}
-                listingMake={receipt.listing_summary?.make}
-                listingModel={receipt.listing_summary?.model}
-                existingVin={receipt.vin ?? undefined}
-                isUnlocked={isUnlocked}
-                paymentsEnabled={paymentsEnabled}
-                onPaywallClick={() => handlePremiumAction("vin_history")}
-                trackEvent={trackEvent}
-              />
 
               {/* Tools — pre-populated from receipt data */}
               <div id="receipt-tools-section">
