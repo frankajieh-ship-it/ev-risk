@@ -18,7 +18,7 @@ import { receiptBurstLimiter } from "@/lib/receipt-rate-limiter";
 import { extractVehicleData } from "@/lib/listing-scraper";
 import { extractFieldsFromText } from "@/lib/text-extractor";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
-import { searchByVin as marketCheckByVin } from "@/lib/marketcheck-client";
+import { searchByVin as marketCheckByVin, searchByMakeModel as marketCheckByYMM } from "@/lib/marketcheck-client";
 import { getStaticPhotoUrl } from "@/lib/vehicle-photo";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/api-auth";
@@ -540,14 +540,20 @@ export async function POST(request: NextRequest) {
     ]);
 
     // Photo priority (highest → lowest reliability):
-    // 1. Marketcheck — actual dealer photos fetched by VIN, most reliable
+    // 1. Marketcheck VIN — actual dealer photos, exact vehicle match
+    // 1b. Marketcheck YMM — same-make/model photos if VIN lookup misses (car sold/unlisted)
     // 2. Scraped listing photos — from Nimbleway/ScrapingBee, can be stale
     // 3. Auto.dev comps — stock/market images, not the actual vehicle
     // 4. Wikimedia static — last resort generic image
-    const mcPhotos = mcData?.success ? mcData.photo_links : [];
+    let mcPhotos = mcData?.success ? mcData.photo_links : [];
+    if (mcPhotos.length === 0 && fields.make && fields.model) {
+      // VIN not listed or no VIN — try YMM search for representative photos
+      const ymmResult = await marketCheckByYMM({ make: fields.make, model: fields.model, year: fields.year ?? undefined });
+      if (ymmResult.success) mcPhotos = ymmResult.photo_links;
+    }
     if (mcPhotos.length > 0) {
       fields.photo_urls = mcPhotos;
-      console.log(`[Fetch] Using ${mcPhotos.length} Marketcheck photos for VIN ${result.data.vin}`);
+      console.log(`[Fetch] Using ${mcPhotos.length} Marketcheck photos`);
     } else if (result.data.photo_urls?.length) {
       fields.photo_urls = result.data.photo_urls;
       console.log(`[Fetch] Using ${result.data.photo_urls.length} scraped photos`);

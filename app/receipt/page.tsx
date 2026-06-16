@@ -1061,6 +1061,7 @@ export default function ReceiptPage() {
                 onPaywallClick={() => handlePremiumAction("output_card")}
                 photos={listingPhotos}
                 receiptId={receipt?.receipt_id}
+                vin={receipt?.vin ?? undefined}
                 onSave={handleQuickSave}
                 saveState={hasSaved ? "saved" : "idle"}
                 onCompare={() => setShowCompareModal(true)}

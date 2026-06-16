@@ -225,15 +225,18 @@ export async function GET(request: NextRequest) {
   }
 
   // 0a. Marketcheck — actual dealer photos, highest reliability.
-  // Try VIN first (exact match), fall back to make/model/year search.
+  // Try VIN first (exact match); if VIN fails (sold/unlisted) or no VIN, try YMM search.
+  // searchByMakeModel normalizes the model name internally.
   {
-    const mc = vin
-      ? await marketCheckByVin(vin)
-      : make && rawModel
-        ? await marketCheckByYMM({ make, model: rawModel, year })
-        : null;
-    if (mc?.success && mc.photo_links.length > 0) {
-      return NextResponse.json({ photo_urls: mc.photo_links, source: "marketcheck" });
+    let mcResult = null;
+    if (vin) {
+      mcResult = await marketCheckByVin(vin);
+    }
+    if ((!mcResult || !mcResult.success) && make && rawModel) {
+      mcResult = await marketCheckByYMM({ make, model: rawModel, year });
+    }
+    if (mcResult?.success && mcResult.photo_links.length > 0) {
+      return NextResponse.json({ photo_urls: mcResult.photo_links, source: "marketcheck" });
     }
   }
 

@@ -128,6 +128,50 @@ export async function searchByVin(
   }
 }
 
+// Suffixes to strip from model strings before querying Marketcheck.
+// Marketcheck model param is an exact match against build.model, which is just the base name.
+const MC_TRIM_SUFFIXES = [
+  // Powertrain / range
+  " long range", " standard range plus", " standard range", " extended range",
+  " dual motor", " tri motor", " single motor",
+  // Performance
+  " performance", " plaid+", " plaid",
+  // Drivetrain
+  " all-wheel drive", " rear-wheel drive", " front-wheel drive",
+  " awd", " rwd", " fwd", " 4wd",
+  // Tesla-specific
+  " p100d", " p90d", " p85d", " p85+", " p85",
+  " 100d", " 90d", " 85d", " 75d", " 70d", " 60d",
+  // Generic trim words
+  " premium", " select", " limited", " gt", " plus", " pro", " base",
+  // Body styles
+  " suv", " sedan", " hatchback", " coupe", " wagon",
+  // Electric
+  " electric", " ev",
+];
+
+function normalizeModelForMarketcheck(make: string, model: string): string {
+  let m = model.trim();
+  // Strip make prefix (e.g. "Tesla Model X Long Range" → "Model X Long Range")
+  if (m.toLowerCase().startsWith(make.toLowerCase() + " ")) {
+    m = m.slice(make.length + 1).trim();
+  }
+  // Strip trim suffixes until no more match
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const mLower = m.toLowerCase();
+    for (const suffix of MC_TRIM_SUFFIXES) {
+      if (mLower.endsWith(suffix)) {
+        m = m.slice(0, m.length - suffix.length).trim();
+        changed = true;
+        break;
+      }
+    }
+  }
+  return m;
+}
+
 /**
  * Search active listings by make/model/year — fallback when no VIN is available.
  * Returns photo_links from the listing with the most photos.
@@ -141,10 +185,12 @@ export async function searchByMakeModel(params: {
     return { success: false, error: "Marketcheck not configured" };
   }
 
+  const normalizedModel = normalizeModelForMarketcheck(params.make, params.model);
+
   const url = new URL(`${MC_BASE}/search/car/active`);
   url.searchParams.set("api_key", process.env.MARKETCHECK_API_KEY!);
   url.searchParams.set("make", params.make);
-  url.searchParams.set("model", params.model);
+  url.searchParams.set("model", normalizedModel);
   if (params.year) url.searchParams.set("year", String(params.year));
   url.searchParams.set("inventory_type", "used");
   url.searchParams.set("rows", "10");
@@ -168,7 +214,7 @@ export async function searchByMakeModel(params: {
     const best = sorted[0];
     const photo_links = best.media?.photo_links ?? [];
 
-    console.log(`[Marketcheck] YMM ${params.year} ${params.make} ${params.model}: ${listings.length} listing(s), ${photo_links.length} photos`);
+    console.log(`[Marketcheck] YMM ${params.year} ${params.make} ${normalizedModel} (raw: ${params.model}): ${listings.length} listing(s), ${photo_links.length} photos`);
     return { success: true, listings, photo_links, best_listing: best };
   } catch (err) {
     clearTimeout(timeout);

@@ -60,6 +60,7 @@ interface ReceiptOutputCardProps {
   onPaywallClick?: () => void;
   photos?: string[];
   receiptId?: string;
+  vin?: string;
   onSave?: () => void;
   saveState?: "idle" | "saved";
   onCompare?: () => void;
@@ -136,6 +137,7 @@ export default function ReceiptOutputCard({
   onPaywallClick,
   photos = [],
   receiptId,
+  vin,
   onSave,
   saveState = "idle",
   onCompare,
@@ -185,11 +187,12 @@ export default function ReceiptOutputCard({
     // Already have listing photos — nothing to do
     if (photos.length > 0) return;
     const ls = receipt.listing_summary;
-    if (!ls?.make) return;
+    if (!ls?.make && !vin) return;
     const params = new URLSearchParams();
-    params.set("make", ls.make);
-    if (ls.model) params.set("model", ls.model);
-    if (ls.year) params.set("year", String(ls.year));
+    if (vin) params.set("vin", vin);
+    if (ls?.make) params.set("make", ls.make);
+    if (ls?.model) params.set("model", ls.model);
+    if (ls?.year) params.set("year", String(ls.year));
     params.set("no_market", "1"); // never use Auto.dev market listings on receipt page
     const key = photosKey;
     fetch(`/api/photos?${params.toString()}`)
