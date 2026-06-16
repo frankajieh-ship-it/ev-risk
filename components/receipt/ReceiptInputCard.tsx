@@ -402,6 +402,7 @@ export default function ReceiptInputCard({
         } else if (data.diagnostics?.botProtectionDetected) {
           const msg = "CarGurus blocked auto-fetch. Copy the year, make, model, price, and mileage from the listing and paste them in the text tab below — takes 30 seconds.";
           setExtractError({ message: msg });
+          setPasteMode("text");
           _trackFail("bot_protection");
         } else if (data.diagnostics?.failureReason === "timeout") {
           if (!autoRetryDoneRef.current && (urlOverride || pasteMode === "url")) {

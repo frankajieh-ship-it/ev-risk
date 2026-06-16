@@ -228,7 +228,16 @@ export async function POST(request: NextRequest) {
             'Authorization': `Bearer ${NIMBLEWAY_KEY}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ url, render: true, country: 'US', locale: 'en-US', cache: false }),
+          body: JSON.stringify({
+            url,
+            render: true,
+            country: 'US',
+            locale: 'en-US',
+            cache: false,
+            // Wait for CarGurus listing content to fully render before returning HTML
+            wait_for_selector: '[data-cg-ft="vdp-listing-price"], .listing-price, h1',
+            render_timeout: 15,
+          }),
           signal: nmController.signal,
         });
         clearTimeout(nmTimeoutId);
