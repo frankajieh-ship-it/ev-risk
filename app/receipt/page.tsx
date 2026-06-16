@@ -1201,6 +1201,20 @@ export default function ReceiptPage() {
                 </button>
               </div>
 
+              {/* Tools — pre-populated from receipt data */}
+              <div id="receipt-tools-section">
+                <ReceiptToolsSection
+                  make={receipt.listing_summary?.make}
+                  model={receipt.listing_summary?.model}
+                  year={receipt.listing_summary?.year}
+                  mileage={receipt.listing_summary?.mileage}
+                  price={receipt.listing_summary?.price}
+                  batteryKwh={(receipt.listing_summary as Record<string, unknown>)?.battery_kwh as number | undefined}
+                  rangeMi={(receipt.listing_summary as Record<string, unknown>)?.range_mi as number | undefined}
+                  dcFastKw={(receipt.listing_summary as Record<string, unknown>)?.dc_fast_kw as number | undefined}
+                />
+              </div>
+
               {/* ── Matching Deals Strip ─────────────────────────────── */}
               {matchingDeals.length > 0 && (
                 <div className="rounded-xl border border-white/[0.08] bg-[#161b22] p-4">
@@ -1247,20 +1261,6 @@ export default function ReceiptPage() {
 
               {/* Active recall banner */}
               <RecallBanner recalls={activeRecalls} />
-
-              {/* Tools — pre-populated from receipt data */}
-              <div id="receipt-tools-section">
-                <ReceiptToolsSection
-                  make={receipt.listing_summary?.make}
-                  model={receipt.listing_summary?.model}
-                  year={receipt.listing_summary?.year}
-                  mileage={receipt.listing_summary?.mileage}
-                  price={receipt.listing_summary?.price}
-                  batteryKwh={(receipt.listing_summary as Record<string, unknown>)?.battery_kwh as number | undefined}
-                  rangeMi={(receipt.listing_summary as Record<string, unknown>)?.range_mi as number | undefined}
-                  dcFastKw={(receipt.listing_summary as Record<string, unknown>)?.dc_fast_kw as number | undefined}
-                />
-              </div>
 
               {/* Share / PDF row */}
               <div id="save-receipt-cta" className="flex gap-2">
