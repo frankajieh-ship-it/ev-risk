@@ -184,8 +184,11 @@ export async function searchByMakeModel(params: {
   }
 
   const normalizedMake = normalizeMakeForMarketcheck(params.make);
-  // Cap at 4 candidates to limit parallel API requests
-  const candidates = modelCandidates(params.make, params.model).slice(0, 4);
+  // Take up to 4 candidates but always ensure the 1-word and 2-word versions are included,
+  // since Marketcheck base models are almost always 1-2 words (e.g. "R1T", "IONIQ 5", "Model X").
+  const allCandidates = modelCandidates(params.make, params.model);
+  const shortCandidates = allCandidates.filter((c) => c.split(" ").length <= 2);
+  const candidates = [...new Set([...allCandidates.slice(0, 3), ...shortCandidates])];
 
   // Fire all model candidates in parallel — take the most-specific one with results.
   // Marketcheck model param must be an exact base model name ("bZ4X", not "bZ4X XLE FWD").
