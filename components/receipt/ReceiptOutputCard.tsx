@@ -160,20 +160,41 @@ export default function ReceiptOutputCard({
   const photoFailedRef = useRef(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
-  const handleUploadPhotos = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
-    const readers = files.map(file => new Promise<string>((resolve) => {
+  const [dragOver, setDragOver] = useState(false);
+
+  const processFiles = useCallback((files: File[]) => {
+    const imageFiles = files.filter(f => f.type.startsWith("image/"));
+    if (!imageFiles.length) return;
+    const readers = imageFiles.map(file => new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
       reader.readAsDataURL(file);
     }));
-    Promise.all(readers).then(dataUrls => {
-      onAddPhotos?.(dataUrls);
-    });
-    // Reset so same file can be re-selected
-    e.target.value = "";
+    Promise.all(readers).then(dataUrls => { onAddPhotos?.(dataUrls); });
   }, [onAddPhotos]);
+
+  const handleUploadPhotos = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    processFiles(Array.from(e.target.files ?? []));
+    e.target.value = "";
+  }, [processFiles]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    processFiles(Array.from(e.dataTransfer.files));
+  }, [processFiles]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+  }, []);
 
   // Normalize AI-returned array field — AI can return why_not_green as non-array
   const whyNotGreen = Array.isArray(receipt.why_not_green) ? receipt.why_not_green : [];
@@ -392,10 +413,13 @@ export default function ReceiptOutputCard({
         {/* Photo strip — hero + thumbnail row, only when photos available */}
         {photoSrcs.length > 0 && (
           <div className="mt-3 -mx-5 relative">
-            {/* Hero image */}
+            {/* Hero image — also a drop target for drag-and-drop photo uploads */}
             <div
-              className="relative w-full aspect-[16/7] overflow-hidden cursor-pointer group"
+              className={`relative w-full aspect-[16/7] overflow-hidden cursor-pointer group transition-all ${dragOver ? "ring-2 ring-[#00d97e] ring-inset brightness-75" : ""}`}
               onClick={() => setLightboxOpen(true)}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
             >
               <img
                 src={resolveImgSrc(photoSrcs[photoIndex])}
@@ -412,6 +436,18 @@ export default function ReceiptOutputCard({
               />
               {/* Gradient overlay so text below stays readable */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
+              {/* Drag-over hint */}
+              {dragOver && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="bg-black/70 rounded-xl px-4 py-2 text-white text-sm font-medium flex items-center gap-2">
+                    <svg className="w-4 h-4 text-[#00d97e]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Drop to add photo
+                  </div>
+                </div>
+              )}
               {/* Top-right: add photos button + expand icon */}
               <div className="absolute top-2 right-2 flex items-center gap-1.5">
                 <button

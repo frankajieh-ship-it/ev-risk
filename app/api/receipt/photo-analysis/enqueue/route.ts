@@ -40,24 +40,35 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (existing) {
-    // For a "done" job, verify the receipt actually has photo_analysis data.
-    // If it's missing (prior run failed silently), fall through and re-enqueue.
+    if (existing.status === "pending" || existing.status === "processing") {
+      // Still running — don't double-enqueue
+      return NextResponse.json({ job_id: existing.id, status: existing.status });
+    }
+    // existing.status === "done" — check if analysis covers the current photo set.
+    // If the stored analysis has fewer photos than what we're now submitting (e.g. new
+    // photos were extracted after a fresh fetch), invalidate it and re-run.
     if (existing.status === "done") {
       const { data: receiptRow } = await supabase
         .from("receipts")
         .select("photo_analysis")
         .eq("id", receipt_id)
         .single();
-      if (receiptRow?.photo_analysis) {
-        return NextResponse.json({ job_id: existing.id, status: "done", photo_analysis: receiptRow.photo_analysis });
+      const analysis = receiptRow?.photo_analysis as { photos?: unknown[] } | null;
+      const analysedCount = Array.isArray(analysis?.photos) ? analysis.photos.length : 0;
+      const incomingCount = photo_urls.filter(u => !u.startsWith("data:")).length;
+      // Re-run if: no analysis, or incoming non-data: photos grew by 2+ (new fetch brought more)
+      if (analysis && analysedCount >= Math.max(1, incomingCount - 1)) {
+        return NextResponse.json({ job_id: existing.id, status: "done", photo_analysis: analysis });
       }
-      // No analysis data — mark old job failed and fall through to re-enqueue
+      // Stale or missing — invalidate and re-enqueue
       await supabase
         .from("receipt_photo_jobs")
-        .update({ status: "failed", error: "no_result", finished_at: new Date().toISOString() })
+        .update({ status: "failed", error: "stale_photo_set", finished_at: new Date().toISOString() })
         .eq("id", existing.id);
-    } else {
-      return NextResponse.json({ job_id: existing.id, status: existing.status });
+      await supabase
+        .from("receipts")
+        .update({ photo_analysis: null })
+        .eq("id", receipt_id);
     }
   }
 
