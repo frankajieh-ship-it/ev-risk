@@ -60,9 +60,12 @@ export interface VehicleData {
   // Raw text from the page (first 5000 chars, stripped of HTML tags)
   raw_text?: string;
 
+  // Exterior color
+  color?: string;
+
   // Primary photo URL extracted from listing page
   photo_url?: string;
-  // Full photo gallery from listing (up to 20 images)
+  // Full photo gallery from listing (up to 50 images)
   photo_urls?: string[];
 
   // Title and accident status extracted from listing text
