@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { CheckCircle, XCircle, AlertCircle, Camera, ChevronDown } from "lucide-react";
 import { REQUIRED_ANGLES } from "@/lib/photo-due-diligence-types";
 import type { PhotoAnalysisResult, DamageFinding } from "@/lib/photo-due-diligence-types";
@@ -26,20 +26,23 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
   const [jobId, setJobId] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<PhotoAnalysisResult | null>(null);
   const [open, setOpen] = useState(true);
+  const enqueuedDataCountRef = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const enqueuedRef = useRef(false);
   const pollCountRef = useRef(0);
   const MAX_POLLS = 60; // 3 minutes at 3s intervals
 
-  // Enqueue on mount (idempotent)
-  useEffect(() => {
-    if (photoUrls.length === 0 || enqueuedRef.current) return;
-    enqueuedRef.current = true;
-
+  const enqueueAnalysis = useCallback((urls: string[]) => {
+    // Defer state resets out of effect body to avoid lint setState-in-effect error
+    setTimeout(() => {
+      setStatus("pending");
+      setAnalysis(null);
+      setJobId(null);
+    }, 0);
     fetch("/api/receipt/photo-analysis/enqueue", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ receipt_id: receiptId, photo_urls: photoUrls }),
+      body: JSON.stringify({ receipt_id: receiptId, photo_urls: urls }),
     })
       .then((r) => r.json())
       .then((data: { job_id?: string; status?: string; photo_analysis?: PhotoAnalysisResult }) => {
@@ -54,7 +57,24 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
         }
       })
       .catch(() => setStatus("failed"));
-  }, [receiptId, photoUrls]);
+  }, [receiptId]);
+
+  // Enqueue on mount (idempotent)
+  useEffect(() => {
+    if (photoUrls.length === 0 || enqueuedRef.current) return;
+    enqueuedRef.current = true;
+    enqueueAnalysis(photoUrls);
+  }, [receiptId, photoUrls, enqueueAnalysis]);
+
+  // Re-enqueue when user adds their own photos (data: URLs)
+  useEffect(() => {
+    const dataCount = photoUrls.filter(u => u.startsWith("data:")).length;
+    if (dataCount > enqueuedDataCountRef.current && enqueuedRef.current) {
+      enqueuedDataCountRef.current = dataCount;
+      pollCountRef.current = 0;
+      enqueueAnalysis(photoUrls);
+    }
+  }, [photoUrls, enqueueAnalysis]);
 
   // Poll for completion
   useEffect(() => {

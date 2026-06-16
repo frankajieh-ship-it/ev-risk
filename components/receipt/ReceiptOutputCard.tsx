@@ -178,7 +178,11 @@ export default function ReceiptOutputCard({
   // Normalize AI-returned array field — AI can return why_not_green as non-array
   const whyNotGreen = Array.isArray(receipt.why_not_green) ? receipt.why_not_green : [];
 
-  const photoSrcs = photos;
+  const userUploaded = useMemo(() => photos.filter(u => u.startsWith("data:")), [photos]);
+  const photoSrcs = useMemo(() => {
+    const scraped = photos.filter(u => !u.startsWith("data:")).slice(0, 10);
+    return [...scraped, ...userUploaded];
+  }, [photos, userUploaded]);
 
   // Reset failed flag when a new photo set arrives
   useEffect(() => {
@@ -408,9 +412,22 @@ export default function ReceiptOutputCard({
               />
               {/* Gradient overlay so text below stays readable */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none" />
-              {/* Expand hint */}
-              <div className="absolute top-2 right-2 bg-black/40 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Expand className="w-3.5 h-3.5 text-white" />
+              {/* Top-right: add photos button + expand icon */}
+              <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                <button
+                  onClick={(e) => { e.stopPropagation(); uploadInputRef.current?.click(); }}
+                  className="flex items-center gap-1 px-2 py-1 rounded-full bg-black/50 backdrop-blur-sm text-white/80 hover:text-white hover:bg-black/70 transition-colors text-[11px] font-medium"
+                  title="Add your own photos for better analysis"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  {userUploaded.length > 0 ? `+${userUploaded.length} added` : "Add photos"}
+                </button>
+                <div className="bg-black/40 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Expand className="w-3.5 h-3.5 text-white" />
+                </div>
               </div>
               {/* Prev/next on hero */}
               {photoSrcs.length > 1 && (
@@ -454,31 +471,15 @@ export default function ReceiptOutputCard({
               </div>
             )}
 
-            {/* Add photos — lets users supplement scraped photos with their own */}
-            <div className="px-5 pt-2 pb-1 flex items-center gap-2">
-              <input
-                ref={uploadInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={handleUploadPhotos}
-              />
-              <button
-                onClick={() => uploadInputRef.current?.click()}
-                className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors py-1"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                Add your own photos for better analysis
-              </button>
-              {photoSrcs.some(u => u.startsWith("data:")) && (
-                <span className="text-[11px] text-[#00d97e]/70">
-                  +{photoSrcs.filter(u => u.startsWith("data:")).length} added
-                </span>
-              )}
-            </div>
+            {/* Hidden file input — triggered by the Add photos button in the hero overlay */}
+            <input
+              ref={uploadInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleUploadPhotos}
+            />
           </div>
         )}
 
