@@ -617,16 +617,28 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
         );
         for (const loader of loaderValues) {
           const l = loader as Record<string, unknown>;
-          const listing = l?.listing ?? l?.listingData ?? l?.vehicleListing ?? l?.vehicle;
+          // CarGurus Remix: listing is nested under .data.listing (not at root)
+          const listing = (l?.data as Record<string, unknown>)?.listing ?? l?.listing ?? l?.listingData ?? l?.vehicleListing ?? l?.vehicle;
           if (listing && typeof listing === 'object') {
             const ls = listing as Record<string, unknown>;
-            data.vin = data.vin || (ls.vin as string) || (ls.vehicleIdentificationNumber as string);
-            data.year = data.year || (ls.year as number) || (ls.modelYear as number);
-            data.make = data.make || (ls.make as string);
-            data.model = data.model || (ls.model as string);
-            data.trim = data.trim || (ls.trim as string);
-            data.price = data.price || (ls.price as number) || (ls.listPrice as number);
-            data.mileage = data.mileage || (ls.mileage as number) || (ls.odometer as number);
+            // CarGurus Remix: most fields are objects, not primitives
+            const rawVin = ls.vin as (string | Record<string, unknown>) | undefined;
+            const vinStr = typeof rawVin === "string" ? rawVin : (rawVin as Record<string, unknown>)?.value as string | undefined;
+            data.vin = data.vin || vinStr || (ls.vehicleIdentificationNumber as string);
+            // year/make/model/trim live under ontology in newer CarGurus Remix pages
+            const onto = (ls.ontology ?? {}) as Record<string, unknown>;
+            data.year = data.year || (onto.carYear as number) || (ls.year as number) || (ls.modelYear as number);
+            data.make = data.make || (onto.makeName as string) || (ls.make as string);
+            data.model = data.model || (onto.modelName as string) || (ls.model as string);
+            data.trim = data.trim || (onto.trimName as string) || (ls.trim as string);
+            // price and mileage are objects: { current, value }
+            const rawPrice = ls.price as (number | Record<string, unknown>) | undefined;
+            data.price = data.price || (typeof rawPrice === "number" ? rawPrice : (rawPrice as Record<string, unknown>)?.current as number) || (ls.listPrice as number);
+            const rawMileage = ls.mileage as (number | Record<string, unknown>) | undefined;
+            data.mileage = data.mileage || (typeof rawMileage === "number" ? rawMileage : (rawMileage as Record<string, unknown>)?.value as number) || (ls.odometer as number);
+            // color is { exterior, interior }
+            const rawColor = ls.color as (string | Record<string, unknown>) | undefined;
+            if (!data.color) data.color = typeof rawColor === "string" ? rawColor : (rawColor as Record<string, unknown>)?.exterior as string | undefined;
             data.location = data.location || (ls.city && ls.state ? `${ls.city}, ${ls.state}` : undefined);
 
             // Title / accident / owner history — check vehicleHistory sub-object first
@@ -669,7 +681,7 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
                     : (o?.largeUrl ?? o?.url ?? o?.src ?? o?.href ?? o?.mediumUrl ?? null);
                   if (isCarGurusPhoto(raw)) {
                     gallery.push(raw);
-                    if (gallery.length >= 20) break;
+                    if (gallery.length >= 50) break;
                   }
                 }
               }
