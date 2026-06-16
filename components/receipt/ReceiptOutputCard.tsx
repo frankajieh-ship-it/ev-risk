@@ -182,8 +182,19 @@ export default function ReceiptOutputCard({
     e.preventDefault();
     e.stopPropagation();
     setDragOver(false);
-    processFiles(Array.from(e.dataTransfer.files));
-  }, [processFiles]);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      processFiles(files);
+      return;
+    }
+    // No File objects — user dragged an image element from another tab.
+    // Browsers deliver dragged images as URI lists, not Files.
+    const uriList = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
+    if (uriList) {
+      const urls = uriList.split(/\r?\n/).map(u => u.trim()).filter(u => u.startsWith("http"));
+      if (urls.length > 0) onAddPhotos?.(urls);
+    }
+  }, [processFiles, onAddPhotos]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -453,7 +464,7 @@ export default function ReceiptOutputCard({
                 <button
                   onClick={(e) => { e.stopPropagation(); uploadInputRef.current?.click(); }}
                   className="flex items-center gap-1 px-2 py-1 rounded-full bg-black/50 backdrop-blur-sm text-white/80 hover:text-white hover:bg-black/70 transition-colors text-[11px] font-medium"
-                  title="Add your own photos for better analysis"
+                  title="Click or drag photos from the listing"
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -506,6 +517,22 @@ export default function ReceiptOutputCard({
                 ))}
               </div>
             )}
+
+            {/* Drag-and-drop invite — always visible below thumbnail strip */}
+            <div
+              className={`mx-5 mt-1.5 mb-0.5 border border-dashed rounded-lg px-3 py-1.5 flex items-center gap-2 text-[11px] cursor-default select-none transition-colors ${
+                dragOver ? "border-[#00d97e]/60 text-[#00d97e]/70" : "border-white/15 text-white/30"
+              }`}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+            >
+              <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Drag a photo from the listing to add it for analysis
+            </div>
 
             {/* Hidden file input — triggered by the Add photos button in the hero overlay */}
             <input

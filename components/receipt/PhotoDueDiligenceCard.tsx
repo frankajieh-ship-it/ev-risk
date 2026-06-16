@@ -27,6 +27,7 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
   const [analysis, setAnalysis] = useState<PhotoAnalysisResult | null>(null);
   const [open, setOpen] = useState(true);
   const enqueuedDataCountRef = useRef(0);
+  const enqueuedScrapedCountRef = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const enqueuedRef = useRef(false);
   const pollCountRef = useRef(0);
@@ -66,11 +67,15 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
     enqueueAnalysis(photoUrls);
   }, [receiptId, photoUrls, enqueueAnalysis]);
 
-  // Re-enqueue when user adds their own photos (data: URLs)
+  // Re-enqueue when photos change — either user-uploaded (data: URLs) or new scraped photos
   useEffect(() => {
     const dataCount = photoUrls.filter(u => u.startsWith("data:")).length;
-    if (dataCount > enqueuedDataCountRef.current && enqueuedRef.current) {
+    const scrapedCount = photoUrls.filter(u => !u.startsWith("data:")).length;
+    const dataGrew = dataCount > enqueuedDataCountRef.current;
+    const scrapedGrew = scrapedCount > enqueuedScrapedCountRef.current;
+    if ((dataGrew || scrapedGrew) && enqueuedRef.current) {
       enqueuedDataCountRef.current = dataCount;
+      enqueuedScrapedCountRef.current = scrapedCount;
       pollCountRef.current = 0;
       enqueueAnalysis(photoUrls);
     }

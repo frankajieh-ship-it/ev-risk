@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       const analysedCount = Array.isArray(analysis?.photos) ? analysis.photos.length : 0;
       const incomingCount = photo_urls.filter(u => !u.startsWith("data:")).length;
       // Re-run if: no analysis, or incoming non-data: photos grew by 2+ (new fetch brought more)
-      if (analysis && analysedCount >= Math.max(1, incomingCount - 1)) {
+      if (analysis && incomingCount > 0 && analysedCount >= incomingCount) {
         return NextResponse.json({ job_id: existing.id, status: "done", photo_analysis: analysis });
       }
       // Stale or missing — invalidate and re-enqueue
