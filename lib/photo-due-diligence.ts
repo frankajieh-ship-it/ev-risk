@@ -92,18 +92,24 @@ const DAMAGE_SCHEMA = {
 // ---------------------------------------------------------------------------
 
 const ANGLE_SYSTEM =
-  "You are an automotive photo classifier. Classify the car photo into exactly one angle category. " +
-  "Categories: front (front of vehicle), rear (back of vehicle), driver_side (left/driver side), " +
-  "pass_side (right/passenger side), interior (inside cabin, seats, dashboard), " +
-  "odometer (close-up of odometer/instrument cluster showing mileage), " +
-  "engine (engine bay/hood open), tires (tires, wheels, or wheel wells), " +
-  "undercarriage (underneath the vehicle), other (anything else). " +
-  'Respond with JSON only: {"angle_id": "<category>"}';
+  "You are an automotive photo classifier. Classify the car photo into exactly one of these categories:\n" +
+  "- front: headlights, grille, hood, front bumper visible — vehicle faces camera\n" +
+  "- rear: taillights, trunk/hatch, rear bumper visible — back of vehicle faces camera\n" +
+  "- driver_side: left side of vehicle (US driver side), full or partial profile view\n" +
+  "- pass_side: right side of vehicle (US passenger side), full or partial profile view\n" +
+  "- interior: cabin interior — seats, steering wheel, dashboard, center console, doors from inside\n" +
+  "- odometer: close-up of instrument cluster, digital display, or screen showing mileage/trip reading\n" +
+  "- engine: hood open showing engine bay, motor, or drivetrain components\n" +
+  "- tires: any close-up or detail shot of a tire, wheel, rim, alloy wheel, lug nuts, or wheel well — even a single wheel\n" +
+  "- undercarriage: shot taken from underneath the vehicle showing frame, suspension, exhaust\n" +
+  "- other: interior feature close-ups (infotainment, sunroof, storage), badge/logo close-ups, or anything not matching above\n" +
+  'Respond with JSON only: {"angle_id": "<category>"}. When in doubt between driver_side and pass_side, pick driver_side.';
 
 const DAMAGE_SYSTEM =
-  "You are an automotive damage inspector. Examine the car photo for visible damage: " +
-  "dents, scratches, rust, cracks, paint fade, or missing parts. " +
-  "Return an empty findings array if the photo is clean or shows interior/odometer/engine. " +
+  "You are an automotive damage inspector. Examine the car photo for any visible issues: " +
+  "exterior dents, scratches, rust, cracks, paint fade, missing parts, " +
+  "interior damage (torn seats, cracked screens, stains), or tire/wheel damage (cracks, curb rash, flat). " +
+  "Return an empty findings array if everything looks clean and normal. " +
   'Respond with JSON only: {"findings": [{"type": "dent|scratch|rust|crack|paint_fade|missing_part|other", ' +
   '"severity": "minor|moderate|severe", "location": "string", "affects_value": true|false, "description": "string"}]}';
 
