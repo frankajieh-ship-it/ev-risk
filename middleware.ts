@@ -116,10 +116,12 @@ export const config = {
     /*
      * Match all request paths except for the ones starting with:
      * - api/stripe/webhook (needs raw body)
+     * - api/img (image proxy — must return clean image response, no CSP/cookie headers)
+     * - api/proxy-image (legacy image proxy — same reason)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/img|api/proxy-image).*)",
   ],
 };
