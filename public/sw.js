@@ -1,4 +1,4 @@
-const CACHE = "offo-v1";
+const CACHE = "offo-v2";
 const PRECACHE = ["/", "/manifest.json"];
 
 self.addEventListener("install", (e) => {
@@ -31,15 +31,20 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(
     caches.match(e.request).then((cached) => {
       const networkFetch = fetch(e.request).then((res) => {
-        // Cache successful same-origin responses for static assets
-        if (res.ok && url.origin === self.location.origin) {
+        // Only cache same-origin static assets (/_next/static/) — never cache pages/HTML
+        // so users always get the latest app on the next visit.
+        if (res.ok && url.origin === self.location.origin && url.pathname.startsWith("/_next/static/")) {
           const clone = res.clone();
           caches.open(CACHE).then((c) => c.put(e.request, clone));
         }
         return res;
       });
-      // Return cached version immediately if available, update in background
-      return cached || networkFetch;
+      // For static assets: serve cache immediately, update in background
+      // For everything else (pages, API): always go to network
+      if (cached && url.pathname.startsWith("/_next/static/")) {
+        return cached;
+      }
+      return networkFetch;
     })
   );
 });
