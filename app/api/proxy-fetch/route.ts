@@ -136,7 +136,43 @@ export async function POST(request: NextRequest) {
       ? (parsedUrl.pathname.match(/\/details\/(\d{7,12})/)?.[1] ?? null)
       : null;
 
-    // --- CarGurus: try Googlebot direct fetch FIRST ---
+    // --- CarGurus: try JSON API first (fastest, no scraping needed) ---
+    // Returns structured listing data (year/make/model/VIN/price/mileage/photos) without
+    // requiring HTML rendering. Works from Netlify IPs when the listing is active.
+    if (parsedUrl.hostname.includes('cargurus.com') && cgListingId) {
+      try {
+        const cgApiUrl = `https://www.cargurus.com/api/listing/v1/detail/${cgListingId}`;
+        const cgApiRes = await fetch(cgApiUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Referer': `https://www.cargurus.com/Cars/new/nl-New-Cars-d0`,
+            'Origin': 'https://www.cargurus.com',
+            'x-requested-with': 'XMLHttpRequest',
+          },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (cgApiRes.ok) {
+          const cgJson = await cgApiRes.json() as Record<string, unknown>;
+          // Wrap JSON as minimal HTML so the scraper can parse it via __NEXT_DATA__ path
+          const wrappedHtml = `<html><head></head><body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify({ props: { pageProps: { listing: cgJson } } })}</script><p>${cgListingId}</p></body></html>`;
+          console.log(`[Proxy Fetch] CarGurus JSON API success for ${cgListingId}`);
+          return NextResponse.json({
+            success: true,
+            html: wrappedHtml,
+            contentLength: wrappedHtml.length,
+            status: 200,
+            fetchMethod: 'cargurus_api',
+            headers: { 'content-type': 'text/html' },
+          });
+        }
+        console.warn(`[Proxy Fetch] CarGurus JSON API returned ${cgApiRes.status} — falling through to Googlebot`);
+      } catch (cgApiErr) {
+        console.warn('[Proxy Fetch] CarGurus JSON API failed:', cgApiErr instanceof Error ? cgApiErr.message : String(cgApiErr));
+      }
+    }
+
+    // --- CarGurus: try Googlebot direct fetch ---
     // CarGurus serves a fully server-rendered page (including __remixContext with VIN + photos)
     // to Googlebot without requiring JS execution. This is faster and avoids Nimbleway's
     // persistent stale cache problem entirely.
