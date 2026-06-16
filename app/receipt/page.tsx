@@ -378,66 +378,16 @@ export default function ReceiptPage() {
   const [showPostReceiptPopup, setShowPostReceiptPopup] = useState(false);
   const postReceiptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Listing photos — set by live extraction fetch (has VIN) or by receipt-load effect below.
+  // Listing photos — populated only by user drag-and-drop or file upload.
+  // Auto-extraction is disabled: CarGurus scraped photos were showing duplicates.
   const [listingPhotos, setListingPhotos] = useState<string[]>([]);
-  // Tracks whether photos were set during a live extraction run.
-  // Prevents the receipt-load effect from overwriting fresh dealer photos mid-analysis.
-  const photosSetByExtractionRef = useRef(false);
 
-  // Reset extraction photo flag when receipt is cleared (new submission starting)
+  // Reset photos when receipt is cleared (new submission starting)
   useEffect(() => {
-    if (!receipt) {
-      photosSetByExtractionRef.current = false;
-      setListingPhotos([]);
-    }
+    if (!receipt) setListingPhotos([]);
   }, [receipt]);
 
-  // Load photos when a saved receipt loads (e.g. ?id= or history select).
-  // Skipped when photos were already set by the live extraction flow this session.
-  // Priority: stored DB photos (scraped from listing at extraction time) → Marketcheck fallback.
-  const fetchLivePhotos = useCallback((rcpt: typeof receipt) => {
-    if (!rcpt) return;
-    const make = rcpt.listing_summary?.make;
-    const model = rcpt.listing_summary?.model;
-    const year = rcpt.listing_summary?.year;
-    const vin = rcpt.vin;
-    if (!make && !vin) return;
-    const photoParams = new URLSearchParams();
-    if (make) photoParams.set("make", make);
-    if (model) photoParams.set("model", model);
-    if (year) photoParams.set("year", String(year));
-    if (vin) photoParams.set("vin", vin);
-    photoParams.set("no_market", "1");
-    fetch(`/api/photos?${photoParams}`)
-      .then((r) => r.json())
-      .then((d: { photo_urls?: string[] }) => {
-        if (d.photo_urls?.length) setListingPhotos(d.photo_urls);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!receipt) return;
-    if (photosSetByExtractionRef.current) return;
-
-    // Use photos stored at extraction time first — these are the actual listing photos
-    // (scraped from CarGurus CDN) and are always the right vehicle.
-    const stored = (receipt as unknown as Record<string, unknown>).photo_urls as string[] | undefined;
-    if (stored?.length) {
-      setListingPhotos(stored);
-      return;
-    }
-
-    // No stored photos — fall back to Marketcheck live lookup
-    fetchLivePhotos(receipt);
-  }, [receipt?.receipt_id, fetchLivePhotos]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Called by ReceiptOutputCard when stored photo URLs fail to load (e.g. expired CDN links).
-  // Clear broken photos and fetch fresh ones from Marketcheck.
-  const handlePhotosFailed = useCallback(() => {
-    setListingPhotos([]);
-    fetchLivePhotos(receipt);
-  }, [receipt, fetchLivePhotos]);
+  const handlePhotosFailed = useCallback(() => {}, []);
 
   // Matching deals for this vehicle
   const [matchingDeals, setMatchingDeals] = useState<import("@/components/deals/DealCard").CuratedDeal[]>([]);
@@ -956,12 +906,7 @@ export default function ReceiptPage() {
           }}
           onExtractionSuccess={() => {}}
           onExtractionFields={handleExtractionFields}
-          onPhotosExtracted={() => {
-            // Scraped photos are skipped — Nimbleway can return stale cached pages
-            // with photos from a different listing (wrong car). Photos come from
-            // Marketcheck VIN lookup saved to DB by /api/receipt/fetch.
-            photosSetByExtractionRef.current = false;
-          }}
+          onPhotosExtracted={() => {}}
           isGenerating={isGenerating}
           generatingStep={generatingStep}
           remainingFree={null}

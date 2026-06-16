@@ -112,7 +112,17 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [jobId, status]);
 
-  if (photoUrls.length === 0) return null;
+  if (photoUrls.length === 0) {
+    return (
+      <div className="border-b border-white/[0.08] bg-[#0d1117] px-5 py-3">
+        <div className="flex items-center gap-2">
+          <Camera className="w-3.5 h-3.5 text-white/25" />
+          <span className="text-xs font-semibold text-white/25 uppercase tracking-widest">Photo Analysis</span>
+          <span className="text-xs text-white/20 ml-1">— add photos above to begin</span>
+        </div>
+      </div>
+    );
+  }
 
   // Find photo index for a given url (for highlight callback)
   const indexForUrl = (url: string) => {

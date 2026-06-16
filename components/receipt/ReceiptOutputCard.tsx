@@ -428,8 +428,41 @@ export default function ReceiptOutputCard({
           </div>
         </div>
 
-        {/* Photo strip — hero + thumbnail row, only when photos available */}
-        {photoSrcs.length > 0 && (
+        {/* Photo strip — empty state CTA when no photos, otherwise hero + thumbnails */}
+        {photoSrcs.length === 0 ? (
+          <div
+            className={`mt-3 border border-dashed rounded-xl px-5 py-7 flex flex-col items-center gap-3 text-center transition-colors ${
+              dragOver ? "border-[#00d97e]/50 bg-[#00d97e]/[0.04]" : "border-white/15"
+            }`}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+          >
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+              dragOver ? "bg-[#00d97e]/20" : "bg-white/[0.06]"
+            }`}>
+              <svg className={`w-5 h-5 ${dragOver ? "text-[#00d97e]" : "text-white/40"}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-white/70">Add photos for AI analysis</p>
+              <p className="text-xs text-white/35 mt-0.5">
+                Drag photos from the listing, or{" "}
+                <button
+                  onClick={() => uploadInputRef.current?.click()}
+                  className="text-[#00d97e]/80 hover:text-[#00d97e] underline underline-offset-2 transition-colors"
+                >
+                  click to upload
+                </button>
+              </p>
+            </div>
+            <p className="text-[11px] text-white/25 max-w-[260px] leading-relaxed">
+              OFFO AI checks each photo for angle coverage and visible damage
+            </p>
+          </div>
+        ) : (
           <div className="mt-3 -mx-5 relative">
             {/* Hero image — also a drop target for drag-and-drop photo uploads */}
             <div
@@ -445,7 +478,6 @@ export default function ReceiptOutputCard({
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).style.display = "none";
-                  // Signal parent to try a fresh photo lookup if stored URLs are broken
                   if (!photoFailedRef.current) {
                     photoFailedRef.current = true;
                     onPhotosFailed?.();
@@ -540,18 +572,18 @@ export default function ReceiptOutputCard({
               </svg>
               Drag a photo from the listing to add it for analysis
             </div>
-
-            {/* Hidden file input — triggered by the Add photos button in the hero overlay */}
-            <input
-              ref={uploadInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleUploadPhotos}
-            />
           </div>
         )}
+
+        {/* Hidden file input — always in DOM so clicks work from both empty state and photo strip */}
+        <input
+          ref={uploadInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleUploadPhotos}
+        />
 
         {!isSimilarityMatch && (
           <p className={`text-sm mt-3 ${isUpgrading ? "text-white/40 italic" : "text-white/70"}`}>
@@ -563,8 +595,8 @@ export default function ReceiptOutputCard({
         )}
       </div>
 
-      {/* Photo due diligence — coverage checklist + AI damage scan */}
-      {receiptId && photoSrcs.length > 0 && (
+      {/* Photo due diligence — coverage checklist + AI damage scan (always shown when receipt is present) */}
+      {receiptId && (
         <PhotoDueDiligenceCard
           receiptId={receiptId}
           photoUrls={photoSrcs}
