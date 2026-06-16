@@ -493,6 +493,43 @@ export async function POST(request: NextRequest) {
       ? marketCheckByVin(result.data.vin)
       : Promise.resolve(null);
 
+    // CarGurus direct photos API — runs in parallel when URL is a CarGurus listing.
+    // CarGurus only embeds 4-6 preview photos in __remixContext (server-rendered), but their
+    // internal API returns the full pictures array for a listing by numeric ID.
+    const cgListingIdForPhotos = url && url.includes('cargurus.com')
+      ? (url.match(/\/details\/(\d{7,12})/)?.[1] ?? null)
+      : null;
+    const cgPhotosPromise: Promise<string[]> = cgListingIdForPhotos
+      ? fetch(`https://www.cargurus.com/api/listing/v1/detail/${cgListingIdForPhotos}`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+            'Accept': 'application/json',
+            'Referer': 'https://www.cargurus.com/',
+          },
+          signal: AbortSignal.timeout(8000),
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then((json: Record<string, unknown> | null) => {
+            if (!json) return [];
+            const pics = (json.pictures ?? json.vehiclePhotos ?? json.photos ?? []) as Array<Record<string, unknown>>;
+            if (!Array.isArray(pics)) return [];
+            const seen = new Set<string>();
+            const out: string[] = [];
+            for (const p of pics) {
+              // Prefer largest scaledPictures size, fall back to url
+              const scaled = p.scaledPictures as Record<string, { url?: string }> | undefined;
+              const large = scaled?.['SIZE_1024x768']?.url ?? scaled?.['SIZE_800x600']?.url ?? p.url as string | undefined;
+              if (typeof large !== 'string' || !large.startsWith('https://')) continue;
+              const norm = large.split('?')[0];
+              if (!seen.has(norm)) { seen.add(norm); out.push(large); }
+              if (out.length >= 50) break;
+            }
+            console.log(`[Fetch] CarGurus API photos for listing ${cgListingIdForPhotos}: ${out.length}`);
+            return out;
+          })
+          .catch(() => [])
+      : Promise.resolve([]);
+
     // Map to FetchedListingFields (including VIN)
     const fields: FetchedListingFields = {
       year: result.data.year,
@@ -529,22 +566,22 @@ export async function POST(request: NextRequest) {
       if (derived >= 1 && derived <= 10) fields.efficiency_mi_per_kwh = derived;
     }
 
-    // Await Auto.dev + Marketcheck enrichment in parallel.
+    // Await Auto.dev + Marketcheck + CarGurus API enrichment in parallel.
     // Skip both waits when no VIN was extracted.
-    const [autoDevData, mcData] = await Promise.all([
+    const [autoDevData, mcData, cgApiPhotos] = await Promise.all([
       result.data.vin
         ? autoDevPromise
         : (autoDevPromise.catch(() => {}), Promise.resolve({ photo_urls: [], market_price_range: undefined, vin_data: undefined, source: "none" as const })),
       marketCheckPromise,
+      cgPhotosPromise,
     ]);
 
     // Photo priority:
-    // 1. Scraped listing photos — Googlebot direct fetch now returns correct listing photos.
-    //    These are the actual photos from this specific listing (correct car, correct dealer).
-    // 2. Marketcheck VIN — reliable CDN, exact VIN match, but may duplicate/repeat angles.
-    //    Deduplicate by normalized URL to avoid showing 39 copies of the same shot.
-    // 3. AutoDev — representative stock images, not the actual vehicle
-    // 4. Wikimedia static — last resort generic image
+    // 1. CarGurus direct API — full pictures array for the exact listing, no JS render needed
+    // 2. Scraped listing photos — Googlebot direct fetch (correct listing, but only 4-6 preview pics)
+    // 3. Marketcheck VIN — exact VIN match but may have repeated/duplicate angles
+    // 4. AutoDev — representative stock images, not the actual vehicle
+    // 5. Wikimedia static — last resort generic image
     const dedupPhotos = (urls: string[]): string[] => {
       const seen = new Set<string>();
       return urls.filter(u => {
@@ -556,7 +593,10 @@ export async function POST(request: NextRequest) {
     };
     const scrapedPhotos = result.data.photo_urls?.length ? dedupPhotos(result.data.photo_urls) : [];
     const mcVinPhotos = mcData?.success ? dedupPhotos(mcData.photo_links) : [];
-    if (scrapedPhotos.length >= 3) {
+    if (cgApiPhotos.length >= 3) {
+      fields.photo_urls = cgApiPhotos;
+      console.log(`[Fetch] Using ${cgApiPhotos.length} CarGurus API photos`);
+    } else if (scrapedPhotos.length >= 3) {
       fields.photo_urls = scrapedPhotos;
       console.log(`[Fetch] Using ${scrapedPhotos.length} scraped listing photos`);
     } else if (mcVinPhotos.length > 0) {
