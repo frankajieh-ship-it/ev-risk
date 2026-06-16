@@ -759,16 +759,28 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
     // Scan the raw HTML for large-size variants, constrained to listing photos only.
     // "Listing photos" = pic IDs inside a "pictures":[...] JSON key, OR pic IDs we already know.
     // Build a set of pic IDs that appear inside a pictures array context.
+    // Use a balanced-bracket parser to find the full array — non-greedy regex stops at first ].
     const listingPicIds = new Set<string>(knownPicIds);
-    const picturesContextPattern = /"pictures"\s*:\s*\[[\s\S]*?\]/g;
-    let pc: RegExpExecArray | null;
-    while ((pc = picturesContextPattern.exec(html)) !== null) {
-      const chunk = pc[0];
-      let pm: RegExpExecArray | null;
+    let searchFrom = 0;
+    while (searchFrom < html.length) {
+      const keyIdx = html.indexOf('"pictures"', searchFrom);
+      if (keyIdx === -1) break;
+      const bracketStart = html.indexOf('[', keyIdx + 10);
+      if (bracketStart === -1 || bracketStart - keyIdx > 20) { searchFrom = keyIdx + 10; continue; }
+      // Walk forward with balanced bracket depth
+      let depth = 0; let end = bracketStart;
+      for (let i = bracketStart; i < html.length; i++) {
+        const ch = html[i];
+        if (ch === '[' || ch === '{') depth++;
+        else if (ch === ']' || ch === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+      }
+      const chunk = html.slice(bracketStart, end);
       const pidPattern = /pic-(\d+)/g;
+      let pm: RegExpExecArray | null;
       while ((pm = pidPattern.exec(chunk)) !== null) {
         listingPicIds.add(pm[1]);
       }
+      searchFrom = end;
     }
 
     const seen = new Set<string>();
