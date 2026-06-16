@@ -740,15 +740,52 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
     }
   }
 
-  // HTML raw-scan for CarGurus — finds the 1024x768 variant of every pic in __remixContext.
-  // CarGurus only embeds a preview set (4-6 pics) in __remixContext server-side, but all size
-  // variants for ALL listing photos are present in the page HTML (in scaledPictures objects).
-  // We collect ALL pic IDs already known from remixContext, then scan for more in the raw HTML —
-  // but ONLY accept pic IDs that appear near the listing section, not recommendation widgets.
-  // Strategy: collect pic IDs from current photo_urls (already extracted via remixContext), then
-  // scan the HTML for large-size variants of those same IDs to get the 1024x768 URLs.
-  // For pic IDs not yet seen, only accept them if they appear inside a "pictures" JSON key context.
-  if (data.dataSource === 'cargurus' && html) {
+  // Direct "pictures" array extraction — fastest path for ScrapingBee HTML which includes
+  // the full client-rendered gallery. Scans for every "pictures":[...] key in the raw HTML,
+  // walks balanced brackets, then regex-extracts 1024x768 URLs by pic ID (deduped).
+  // This bypasses the full JSON.parse of the 1MB+ __remixContext blob.
+  {
+    const seen1024 = new Set<string>();
+    const gallery1024: string[] = [];
+    let sf = 0;
+    while (sf < html.length) {
+      const ki = html.indexOf('"pictures"', sf);
+      if (ki === -1) break;
+      const bi = html.indexOf('[', ki + 10);
+      if (bi === -1 || bi - ki > 20) { sf = ki + 10; continue; }
+      let d = 0; let ei = bi;
+      for (let i = bi; i < html.length; i++) {
+        const c = html[i];
+        if (c === '[' || c === '{') d++;
+        else if (c === ']' || c === '}') { d--; if (d === 0) { ei = i + 1; break; } }
+      }
+      const chunk = html.slice(bi, ei);
+      // Extract only 1024x768 URLs from url fields (not thumbnailUrl/scaledPictures nested keys)
+      const urlPat = /"url":"(https:\/\/static\.cargurus\.com\/images\/forsale\/[^"]*-1024x768\.[a-z]+)"/g;
+      let um: RegExpExecArray | null;
+      while ((um = urlPat.exec(chunk)) !== null) {
+        const picUrl = um[1];
+        const pmatch = picUrl.match(/pic-(\d+)/);
+        if (!pmatch) continue;
+        const picKey = pmatch[1];
+        if (!seen1024.has(picKey)) {
+          seen1024.add(picKey);
+          gallery1024.push(picUrl);
+          if (gallery1024.length >= 50) break;
+        }
+      }
+      sf = ei;
+    }
+    console.log(`[CarGurus pictures direct] Found ${gallery1024.length} 1024x768 photos`);
+    if (gallery1024.length > (data.photo_urls?.length ?? 0)) {
+      data.photo_urls = gallery1024;
+      data.photo_url = gallery1024[0];
+    }
+  }
+
+  // HTML raw-scan for CarGurus — fallback for older page structures without full pictures[] array.
+  // Collects all static.cargurus.com URLs from the HTML, constrained to pic IDs seen in pictures[].
+  if (html) {
     // Collect pic IDs we already have from remixContext
     const knownPicIds = new Set<string>();
     for (const u of (data.photo_urls ?? [])) {
