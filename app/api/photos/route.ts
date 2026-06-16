@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchListings } from "@/lib/auto-dev-client";
 import { getVehicleImages } from "@/lib/vinaudit-client";
+import { searchByVin as marketCheckByVin } from "@/lib/marketcheck-client";
 import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
 import { extractVehicleImages } from "@/lib/image-extractor";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
@@ -223,7 +224,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ photo_urls: [] });
   }
 
-  // 0. OFFO image extractor — local CSV (Tier 0) or Supabase cache hit
+  // 0a. Marketcheck by VIN — actual dealer photos, highest reliability
+  if (vin) {
+    const mc = await marketCheckByVin(vin);
+    if (mc.success && mc.photo_links.length > 0) {
+      return NextResponse.json({ photo_urls: mc.photo_links, source: "marketcheck" });
+    }
+  }
+
+  // 0b. OFFO image extractor — local CSV (Tier 0) or Supabase cache hit
   // Returns immediately for: cached results OR local CSV matches (no external API needed)
   // Wrapped in try/catch — VinAudit errors inside extractVehicleImages must not crash the handler
   if (make && rawModel && year) {

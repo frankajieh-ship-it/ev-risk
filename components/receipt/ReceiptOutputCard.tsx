@@ -472,7 +472,7 @@ export default function ReceiptOutputCard({
       </div>
 
       {/* Photo due diligence — coverage checklist + AI damage scan */}
-      {receiptId && photoSrcs.length > 0 && !isSimilarityMatch && (
+      {receiptId && photoSrcs.length > 0 && (
         <PhotoDueDiligenceCard
           receiptId={receiptId}
           photoUrls={photoSrcs}

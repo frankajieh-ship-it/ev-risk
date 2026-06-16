@@ -1052,7 +1052,7 @@ export default function ReceiptPage() {
                 isUnlocked={isUnlocked}
                 paymentsEnabled={paymentsEnabled}
                 onPaywallClick={() => handlePremiumAction("output_card")}
-                photos={isSimilarityMatch ? [] : listingPhotos}
+                photos={listingPhotos}
                 receiptId={receipt?.receipt_id}
                 onSave={handleQuickSave}
                 saveState={hasSaved ? "saved" : "idle"}
