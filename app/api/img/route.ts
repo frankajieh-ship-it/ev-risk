@@ -15,7 +15,10 @@ const ALLOWED_HOSTS = new Set([
   "images.autodev.com",
   "photos.autodev.com",
   "cargurus.com",  // covers cimg, static, media, img, cdn and any future subdomains
+  // dealer.com CDN (Akamai-backed, blocks hotlinks by Referer — must proxy)
+  "dealer.com",
   "pictures.dealer.com",
+  "images.dealer.com",
   "photos.dealer.com",
   "img.dealer.com",
   "media.dealerire.com",
@@ -24,11 +27,15 @@ const ALLOWED_HOSTS = new Set([
   "dealereprocess.com",
   "autotrader.com",
   "cars.com",
-  "dealer.com",
   "dealersocket.com",
   "homenetiol.com",
   "invisioncarsites.com",
   "media.dealerwebsites.com",
+  "inventoryrsc.com",          // cdn.inventoryrsc.com, hgcdn.inventoryrsc.com
+  "carscommerce.inc",          // vehicle-images.carscommerce.inc
+  "secureoffersites.com",      // service.secureoffersites.com
+  "dealercenter.net",          // imagescf.dealercenter.net
+  "blob.core.windows.net",     // automanager.blob.core.windows.net (Azure Blob)
   "photos.zyte.com",
   "i.ebayimg.com",
   "s3.amazonaws.com",
@@ -68,6 +75,9 @@ export async function GET(request: NextRequest) {
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; OFFO/1.0)",
         "Accept": "image/webp,image/avif,image/*,*/*",
+        // No Referer — Akamai and other CDNs block hotlinks based on Referer header.
+        // Server-side fetch has no Referer by default, but set explicitly to be safe.
+        "Referer": "",
       },
     });
 

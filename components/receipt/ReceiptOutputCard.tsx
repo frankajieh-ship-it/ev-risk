@@ -171,12 +171,11 @@ export default function ReceiptOutputCard({
   // Wikimedia URLs are public — serve directly; proxy everything else
   const resolveImgSrc = (url: string | undefined) => {
     if (!url) return url;
-    // Only proxy URLs that need hotlink protection stripped (Wikimedia, CarGurus CDN).
-    // Marketcheck dealer CDN URLs (dealerinspire, dealer.com, etc.) are public — serve directly.
-    if (url.includes("wikimedia.org") || url.includes("cargurus.com") || url.includes("cimg.cargurus.com")) {
-      return `/api/img?url=${encodeURIComponent(url)}`;
-    }
-    return url;
+    // Proxy all external images through /api/img to strip Referer header.
+    // Akamai/dealer CDNs (pictures.dealer.com, images.dealer.com, dealerinspire, etc.)
+    // block hotlink requests that include a Referer from offolab.com.
+    // The proxy fetches server-side with no Referer, so CDNs return 200.
+    return `/api/img?url=${encodeURIComponent(url)}`;
   };
 
 
