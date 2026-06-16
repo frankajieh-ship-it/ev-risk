@@ -128,6 +128,23 @@ export async function searchByVin(
   }
 }
 
+// Make aliases — Marketcheck requires exact OEM brand names.
+const MC_MAKE_ALIASES: Record<string, string> = {
+  "mercedes":        "Mercedes-Benz",
+  "mercedes benz":   "Mercedes-Benz",
+  "vw":              "Volkswagen",
+  "chevy":           "Chevrolet",
+  "bmw":             "BMW",
+  "gm":              "GMC",
+  "land rover":      "Land Rover",
+  "alfa romeo":      "Alfa Romeo",
+  "aston martin":    "Aston Martin",
+};
+
+function normalizeMakeForMarketcheck(make: string): string {
+  return MC_MAKE_ALIASES[make.toLowerCase()] ?? make;
+}
+
 // Suffixes to strip from model strings before querying Marketcheck.
 // Marketcheck model param is an exact match against build.model, which is just the base name.
 const MC_TRIM_SUFFIXES = [
@@ -142,6 +159,13 @@ const MC_TRIM_SUFFIXES = [
   // Tesla-specific
   " p100d", " p90d", " p85d", " p85+", " p85",
   " 100d", " 90d", " 85d", " 75d", " 70d", " 60d",
+  // Mercedes trim words
+  " amg 4matic+", " amg 4matic", " amg line", " amg",
+  " 4matic+", " 4matic",
+  " e-cell plus", " e-cell",
+  // BMW / others
+  " xdrive50", " xdrive40", " xdrive", " edrive40", " edrive",
+  " m50", " m60",
   // Generic trim words
   " premium", " select", " limited", " gt", " plus", " pro", " base",
   // Body styles
@@ -185,11 +209,12 @@ export async function searchByMakeModel(params: {
     return { success: false, error: "Marketcheck not configured" };
   }
 
+  const normalizedMake = normalizeMakeForMarketcheck(params.make);
   const normalizedModel = normalizeModelForMarketcheck(params.make, params.model);
 
   const url = new URL(`${MC_BASE}/search/car/active`);
   url.searchParams.set("api_key", process.env.MARKETCHECK_API_KEY!);
-  url.searchParams.set("make", params.make);
+  url.searchParams.set("make", normalizedMake);
   url.searchParams.set("model", normalizedModel);
   if (params.year) url.searchParams.set("year", String(params.year));
   url.searchParams.set("inventory_type", "used");
@@ -214,7 +239,7 @@ export async function searchByMakeModel(params: {
     const best = sorted[0];
     const photo_links = best.media?.photo_links ?? [];
 
-    console.log(`[Marketcheck] YMM ${params.year} ${params.make} ${normalizedModel} (raw: ${params.model}): ${listings.length} listing(s), ${photo_links.length} photos`);
+    console.log(`[Marketcheck] YMM ${params.year} ${normalizedMake} ${normalizedModel} (raw: ${params.make} ${params.model}): ${listings.length} listing(s), ${photo_links.length} photos`);
     return { success: true, listings, photo_links, best_listing: best };
   } catch (err) {
     clearTimeout(timeout);
