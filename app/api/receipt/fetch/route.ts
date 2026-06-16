@@ -539,17 +539,32 @@ export async function POST(request: NextRequest) {
     ]);
 
     // Photo priority:
-    // 1. Marketcheck VIN — queries by exact VIN, no stale cache risk, reliable CDN
-    // 2. Scraped listing photos — Nimbleway can return stale cached pages (wrong car)
+    // 1. Scraped listing photos — Googlebot direct fetch now returns correct listing photos.
+    //    These are the actual photos from this specific listing (correct car, correct dealer).
+    // 2. Marketcheck VIN — reliable CDN, exact VIN match, but may duplicate/repeat angles.
+    //    Deduplicate by normalized URL to avoid showing 39 copies of the same shot.
     // 3. AutoDev — representative stock images, not the actual vehicle
     // 4. Wikimedia static — last resort generic image
-    const mcVinPhotos = mcData?.success ? mcData.photo_links : [];
-    if (mcVinPhotos.length > 0) {
+    const dedupPhotos = (urls: string[]): string[] => {
+      const seen = new Set<string>();
+      return urls.filter(u => {
+        const norm = u.split("?")[0];
+        if (seen.has(norm)) return false;
+        seen.add(norm);
+        return true;
+      });
+    };
+    const scrapedPhotos = result.data.photo_urls?.length ? dedupPhotos(result.data.photo_urls) : [];
+    const mcVinPhotos = mcData?.success ? dedupPhotos(mcData.photo_links) : [];
+    if (scrapedPhotos.length >= 3) {
+      fields.photo_urls = scrapedPhotos;
+      console.log(`[Fetch] Using ${scrapedPhotos.length} scraped listing photos`);
+    } else if (mcVinPhotos.length > 0) {
       fields.photo_urls = mcVinPhotos;
-      console.log(`[Fetch] Using ${mcVinPhotos.length} Marketcheck VIN photos`);
-    } else if (result.data.photo_urls?.length) {
-      fields.photo_urls = result.data.photo_urls;
-      console.log(`[Fetch] Using ${result.data.photo_urls.length} scraped photos (Marketcheck fallback)`);
+      console.log(`[Fetch] Using ${mcVinPhotos.length} Marketcheck VIN photos (scraped had ${scrapedPhotos.length})`);
+    } else if (scrapedPhotos.length > 0) {
+      fields.photo_urls = scrapedPhotos;
+      console.log(`[Fetch] Using ${scrapedPhotos.length} scraped photos (Marketcheck unavailable)`);
     } else if (autoDevData && Array.isArray((autoDevData as { photo_urls: string[] }).photo_urls) && (autoDevData as { photo_urls: string[] }).photo_urls.length > 0) {
       fields.photo_urls = (autoDevData as { photo_urls: string[] }).photo_urls;
     } else {
