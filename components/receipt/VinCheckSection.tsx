@@ -17,7 +17,6 @@ import {
   ExternalLink,
   Info,
 } from "lucide-react";
-import OwnershipHistoryCard from "@/components/receipt/OwnershipHistoryCard";
 
 interface DecodedVin {
   year: number;
@@ -338,19 +337,6 @@ export default function VinCheckSection({
         </div>
       </div>
 
-      {/* Ownership & accident history — shown after successful decode */}
-      {decoded && (
-        <div className="border-t border-gray-100 p-5">
-          <OwnershipHistoryCard
-            vin={vin}
-            receiptToken={receiptToken}
-            isUnlocked={isUnlocked}
-            paymentsEnabled={paymentsEnabled}
-            onPaywallClick={onPaywallClick}
-            trackEvent={(name, data) => trackEvent(name, data as { [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[] })}
-          />
-        </div>
-      )}
     </div>
   );
 }

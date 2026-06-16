@@ -159,10 +159,12 @@ export async function liteCheck(
 
   // VinAudit returns { success: true/false, ... } at the top level
   if (data.success === false || data.error) {
+    const apiError: string = data.error || data.message || "";
+    const isAuthError = apiError.includes("unauthorized") || apiError.includes("invalid") || apiError.includes("Invalid");
     return {
       success: false,
-      error: data.error || data.message || "VinAudit returned no data",
-      code: "not_found",
+      error: isAuthError ? "History service temporarily unavailable" : (data.error_message || apiError || "VinAudit returned no data"),
+      code: isAuthError ? "not_configured" : "not_found",
     };
   }
 
