@@ -411,15 +411,10 @@ export default function ReceiptPage() {
     fetch(`/api/photos?${photoParams}`)
       .then((r) => r.json())
       .then((d: { photo_urls?: string[] }) => {
-        if (d.photo_urls?.length) {
-          setListingPhotos(d.photo_urls);
-        } else if (receipt.photo_urls?.length) {
-          setListingPhotos(receipt.photo_urls);
-        }
+        if (d.photo_urls?.length) setListingPhotos(d.photo_urls);
+        // No fallback to DB/static — blank is better than a wrong car
       })
-      .catch(() => {
-        if (receipt.photo_urls?.length) setListingPhotos(receipt.photo_urls);
-      });
+      .catch(() => {});
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Matching deals for this vehicle
@@ -959,11 +954,10 @@ export default function ReceiptPage() {
           }}
           onExtractionSuccess={() => {}}
           onExtractionFields={handleExtractionFields}
-          onPhotosExtracted={(photos) => {
-            // Stale scraped photos — mark as extraction-set so the receipt-load
-            // effect doesn't overwrite, but Marketcheck fetch above will override.
+          onPhotosExtracted={() => {
+            // Ignore scraped photos — Marketcheck fetch (above) will set real dealer photos.
+            // Only mark the ref so the receipt-load effect doesn't fire mid-analysis.
             photosSetByExtractionRef.current = true;
-            setListingPhotos(photos);
           }}
           isGenerating={isGenerating}
           generatingStep={generatingStep}

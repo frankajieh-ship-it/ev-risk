@@ -240,9 +240,13 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // When called from the receipt page (no_market=1), only Marketcheck is trusted.
+  // Return empty rather than showing a Wikimedia stock image for the wrong car.
+  if (noMarket) {
+    return NextResponse.json({ photo_urls: [], source: "none" });
+  }
+
   // 0b. OFFO image extractor — local CSV (Tier 0) or Supabase cache hit
-  // Returns immediately for: cached results OR local CSV matches (no external API needed)
-  // Wrapped in try/catch — VinAudit errors inside extractVehicleImages must not crash the handler
   if (make && rawModel && year) {
     try {
       const extracted = await extractVehicleImages({ make, model: rawModel, year, vin, trim: undefined });
@@ -250,11 +254,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ photo_urls: extracted.urls.map(proxyIfWikimedia), source: extracted.source, quality_score: extracted.quality_score, cache_hit: extracted.cache_hit });
       }
     } catch {
-      // Fall through to static map — VinAudit timeout/error is non-fatal
+      // Fall through
     }
   }
 
-  // 1. VinAudit VIN lookup — highest quality, exact vehicle match
+  // 1. VinAudit VIN lookup
   if (vin) {
     const result = await getVehicleImages({ vin, year, make, model: rawModel, limit: 6 });
     if (result.success && result.photo_urls.length > 0) {
@@ -262,23 +266,19 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 2. Static curated map — zero-latency, always the correct car, covers all common EVs
-  // Skip when caller already tried the static URL and it 404'd
+  // 2. Static curated map
   if (!skipStatic) {
     const staticUrl = getStaticPhotoUrl(make, rawModel, year ?? undefined);
     if (staticUrl) {
       return NextResponse.json({ photo_urls: [proxyIfWikimedia(staticUrl)], source: "static" });
     }
-
-    // 2b. Make-level fallback — closest known model photo for same make
-    // Runs when model is unknown/unmapped but make is recognized
     const makeFallbackUrl = make ? MAKE_FALLBACK_MAP[make.toLowerCase()] : undefined;
     if (makeFallbackUrl) {
       return NextResponse.json({ photo_urls: [proxyIfWikimedia(makeFallbackUrl)], source: "make_fallback" });
     }
   }
 
-  // 3. VinAudit YMM lookup — reliable stock images keyed by make/model/year
+  // 3. VinAudit YMM lookup
   if (make) {
     const result = await getVehicleImages({ year, make, model: rawModel, limit: 6 });
     if (result.success && result.photo_urls.length > 0) {
@@ -286,11 +286,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 4. Auto.dev listing photos — last resort; apply strict make+model+year filtering.
-  //    Skipped when no_market=1 (e.g. receipt page fallbacks) to prevent wrong-car images.
-  if (noMarket) {
-    return NextResponse.json({ photo_urls: [], source: "none" });
-  }
+  // 4. Auto.dev listing photos — last resort
 
   const { make: normalizedMake, model } = normalizeForAutodev(make, rawModel);
   const result = await searchListings({ vin, make: normalizedMake, model, year, limit: 10 });
