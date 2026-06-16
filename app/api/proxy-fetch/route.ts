@@ -152,7 +152,8 @@ export async function POST(request: NextRequest) {
           render_js: 'true',
           premium_proxy: 'true',
           country_code: 'us',
-          wait: '5000',
+          wait: '8000',
+          wait_for: '"pictures":[{',
         });
         const sbRes = await fetch(`https://app.scrapingbee.com/api/v1/?${sbParams}`, {
           signal: sbController.signal,
@@ -163,9 +164,10 @@ export async function POST(request: NextRequest) {
           const sbHtml = await sbRes.text();
           const hasRemix = sbHtml.includes('__remixContext') || sbHtml.includes('__NEXT_DATA__');
           const hasListingId = cgListingId ? sbHtml.includes(cgListingId) : true;
+          const hasPictures = sbHtml.includes('"pictures":[{');
           const isBlocked = sbHtml.length < 5000 || sbHtml.toLowerCase().includes('just a moment');
-          console.log(`[Proxy Fetch] ScrapingBee html: length=${sbHtml.length} hasRemix=${hasRemix} hasListingId=${hasListingId}`);
-          if (!isBlocked && hasListingId && hasRemix) {
+          console.log(`[Proxy Fetch] ScrapingBee html: length=${sbHtml.length} hasRemix=${hasRemix} hasListingId=${hasListingId} hasPictures=${hasPictures}`);
+          if (!isBlocked && hasListingId && hasRemix && hasPictures) {
             return NextResponse.json({
               success: true,
               html: sbHtml,

@@ -191,7 +191,14 @@ export default function ReceiptOutputCard({
     // Browsers deliver dragged images as URI lists, not Files.
     const uriList = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
     if (uriList) {
-      const urls = uriList.split(/\r?\n/).map(u => u.trim()).filter(u => u.startsWith("http"));
+      const urls = uriList.split(/\r?\n/).map(u => u.trim()).filter(u => {
+        if (!u.startsWith("http")) return false;
+        const lower = u.toLowerCase();
+        // Reject dealer logos, banners, and other non-car images
+        return !lower.includes("logo") && !lower.includes("banner") && !lower.includes("dealer") &&
+               !lower.includes("badge") && !lower.includes("icon") && !lower.includes("/site/") &&
+               !lower.includes("watermark") && !lower.includes("overlay");
+      });
       if (urls.length > 0) onAddPhotos?.(urls);
     }
   }, [processFiles, onAddPhotos]);
