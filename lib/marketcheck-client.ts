@@ -65,6 +65,41 @@ function isConfigured(): boolean {
 }
 
 /**
+ * Deduplicate and filter Marketcheck photo_links.
+ * Marketcheck sometimes indexes the same URL dozens of times, and dealer watermark/logo
+ * images (e.g. "Santa Monica Audi" overlay) appear repeatedly as non-car photos.
+ * Strategy:
+ *   1. Deduplicate by base URL (strip query params)
+ *   2. Drop obvious non-vehicle images (logo, watermark, dealer branding keywords in URL)
+ *   3. Cap at 30 to avoid sending hundreds of photos downstream
+ */
+function cleanPhotoLinks(links: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const url of links) {
+    if (typeof url !== "string" || !url.startsWith("http")) continue;
+    const base = url.split("?")[0].toLowerCase();
+    // Skip obvious non-vehicle images
+    if (
+      base.includes("logo") ||
+      base.includes("watermark") ||
+      base.includes("banner") ||
+      base.includes("badge") ||
+      base.includes("icon") ||
+      base.includes("/site/") ||
+      base.includes("dealer-logo") ||
+      base.includes("dealerlogo") ||
+      base.includes("overlay")
+    ) continue;
+    if (seen.has(base)) continue;
+    seen.add(base);
+    out.push(url);
+    if (out.length >= 30) break;
+  }
+  return out;
+}
+
+/**
  * Search active listings by VIN. Returns photo_links from the best match.
  * Falls back gracefully — never throws.
  */
@@ -109,7 +144,7 @@ export async function searchByVin(
     });
 
     const best = sorted[0];
-    const photo_links = best.media?.photo_links ?? [];
+    const photo_links = cleanPhotoLinks(best.media?.photo_links ?? []);
 
     console.log(`[Marketcheck] VIN ${vin}: found ${listings.length} listing(s), ${photo_links.length} photos`);
 
@@ -226,7 +261,7 @@ export async function searchByMakeModel(params: {
       (b.media?.photo_links?.length ?? 0) - (a.media?.photo_links?.length ?? 0)
     );
     const best = sorted[0];
-    const photo_links = best.media?.photo_links ?? [];
+    const photo_links = cleanPhotoLinks(best.media?.photo_links ?? []);
 
     console.log(`[Marketcheck] YMM ${params.year} ${normalizedMake} "${winner.candidate}" (raw: "${params.model}"): ${winner.listings.length} listings, ${photo_links.length} photos`);
     return { success: true, listings: winner.listings, photo_links, best_listing: best };

@@ -607,7 +607,11 @@ export async function POST(request: NextRequest) {
       });
     };
     const scrapedPhotos = result.data.photo_urls?.length ? dedupPhotos(result.data.photo_urls) : [];
-    const mcVinPhotos = mcData?.success ? dedupPhotos(mcData.photo_links) : [];
+    const mcRaw = mcData?.success ? mcData.photo_links : [];
+    const mcVinPhotos = dedupPhotos(mcRaw);
+    if (mcRaw.length !== mcVinPhotos.length) {
+      console.log(`[Fetch] Marketcheck dedup: ${mcRaw.length} → ${mcVinPhotos.length} photos`);
+    }
     if (cgApiPhotos.length >= 3) {
       // CarGurus direct API — only works from residential IPs, usually empty from Netlify
       fields.photo_urls = cgApiPhotos;
