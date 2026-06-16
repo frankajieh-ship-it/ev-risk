@@ -378,14 +378,25 @@ export default function ReceiptPage() {
   const [showPostReceiptPopup, setShowPostReceiptPopup] = useState(false);
   const postReceiptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Listing photos from Auto.dev enrichment
+  // Listing photos — set by live extraction fetch (has VIN) or by receipt-load effect below.
   const [listingPhotos, setListingPhotos] = useState<string[]>([]);
+  // Tracks whether photos were set during a live extraction run.
+  // Prevents the receipt-load effect from overwriting fresh dealer photos mid-analysis.
+  const photosSetByExtractionRef = useRef(false);
 
-  // Fetch fresh photos from Marketcheck whenever the receipt changes.
-  // Never short-circuit on stale DB photos — always try Marketcheck first.
-  // Falls back to DB-stored photos only if Marketcheck returns nothing.
+  // Reset extraction photo flag when receipt is cleared (new submission starting)
+  useEffect(() => {
+    if (!receipt) {
+      photosSetByExtractionRef.current = false;
+      setListingPhotos([]);
+    }
+  }, [receipt]);
+
+  // Fetch Marketcheck photos when a saved receipt loads (e.g. ?id= or history select).
+  // Skipped when photos were already set by the live extraction flow this session.
   useEffect(() => {
     if (!receipt) return;
+    if (photosSetByExtractionRef.current) return;
     const make = receipt.listing_summary?.make;
     const model = receipt.listing_summary?.model;
     const year = receipt.listing_summary?.year;
@@ -936,7 +947,12 @@ export default function ReceiptPage() {
                 no_market: "1",
               }))
                 .then((r) => r.json())
-                .then((d) => { if (d.photo_urls?.length) setListingPhotos(d.photo_urls); })
+                .then((d) => {
+                  if (d.photo_urls?.length) {
+                    photosSetByExtractionRef.current = true;
+                    setListingPhotos(d.photo_urls);
+                  }
+                })
                 .catch(() => {});
             }
             handleGenerate(data);
@@ -944,6 +960,9 @@ export default function ReceiptPage() {
           onExtractionSuccess={() => {}}
           onExtractionFields={handleExtractionFields}
           onPhotosExtracted={(photos) => {
+            // Stale scraped photos — mark as extraction-set so the receipt-load
+            // effect doesn't overwrite, but Marketcheck fetch above will override.
+            photosSetByExtractionRef.current = true;
             setListingPhotos(photos);
           }}
           isGenerating={isGenerating}
