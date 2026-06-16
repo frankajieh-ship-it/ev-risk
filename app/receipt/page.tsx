@@ -1087,6 +1087,7 @@ export default function ReceiptPage() {
                 dealerInfo={dealerInfo}
                 onContactDealer={dealerInfo ? () => setShowInquiryModal(true) : undefined}
                 onPhotosFailed={handlePhotosFailed}
+                onAddPhotos={(dataUrls) => setListingPhotos(prev => [...prev, ...dataUrls])}
               />
               </div>
 

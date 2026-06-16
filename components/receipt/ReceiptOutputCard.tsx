@@ -70,6 +70,7 @@ interface ReceiptOutputCardProps {
   dealerInfo?: { id: string; name: string; slug: string; logo_url: string | null; is_verified: boolean } | null;
   onContactDealer?: () => void;
   onPhotosFailed?: () => void;
+  onAddPhotos?: (dataUrls: string[]) => void;
 }
 
 const VERDICT_STYLES = {
@@ -148,6 +149,7 @@ export default function ReceiptOutputCard({
   dealerInfo,
   onContactDealer,
   onPhotosFailed,
+  onAddPhotos,
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [scoringTooltipOpen, setScoringTooltipOpen] = useState(false);
@@ -156,6 +158,22 @@ export default function ReceiptOutputCard({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const fallbackFiredRef = useRef(false);
   const photoFailedRef = useRef(false);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadPhotos = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    const readers = files.map(file => new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    }));
+    Promise.all(readers).then(dataUrls => {
+      onAddPhotos?.(dataUrls);
+    });
+    // Reset so same file can be re-selected
+    e.target.value = "";
+  }, [onAddPhotos]);
 
   // Normalize AI-returned array field — AI can return why_not_green as non-array
   const whyNotGreen = Array.isArray(receipt.why_not_green) ? receipt.why_not_green : [];
@@ -435,6 +453,32 @@ export default function ReceiptOutputCard({
                 ))}
               </div>
             )}
+
+            {/* Add photos — lets users supplement scraped photos with their own */}
+            <div className="px-5 pt-2 pb-1 flex items-center gap-2">
+              <input
+                ref={uploadInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleUploadPhotos}
+              />
+              <button
+                onClick={() => uploadInputRef.current?.click()}
+                className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors py-1"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Add your own photos for better analysis
+              </button>
+              {photoSrcs.some(u => u.startsWith("data:")) && (
+                <span className="text-[11px] text-[#00d97e]/70">
+                  +{photoSrcs.filter(u => u.startsWith("data:")).length} added
+                </span>
+              )}
+            </div>
           </div>
         )}
 
