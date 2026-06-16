@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         receipt_id,
         job_id: job.id,
-        photo_urls: photo_urls.slice(0, 20),
+        photo_urls: photo_urls.slice(0, 10),
       }),
     })
       .then(async (r) => {

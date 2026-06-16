@@ -140,20 +140,18 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     .eq("id", job_id);
 
   try {
-    // Resolve each photo URL to a base64 data URL so OpenAI can access it
-    // even if CarGurus CDN blocks Netlify/OpenAI server IPs directly.
-    const resolvedUrls = await batchedParallel(
-      photo_urls.slice(0, 20),
-      6,
-      async (url) => ({ url, dataUrl: await fetchAsBase64(url) })
+    // Fetch up to 10 photos in full parallel — independent requests, no need to batch.
+    // 10 photos gives full due-diligence coverage (front/rear/sides/interior/odometer/engine).
+    const resolvedUrls = await Promise.all(
+      photo_urls.slice(0, 10).map(async (url) => ({ url, dataUrl: await fetchAsBase64(url) }))
     );
     const fetchable = resolvedUrls.filter((r) => r.dataUrl !== null);
     console.log(`[analyze-receipt-photos] ${fetchable.length}/${resolvedUrls.length} photos fetched successfully`);
 
-    // Analyse each photo — classify angle + detect damage — in batches of 4
+    // Analyse each photo — classify angle + detect damage — in batches of 6
     const photos = await batchedParallel(
       fetchable,
-      4,
+      6,
       async ({ url, dataUrl }) => {
         const [angle_id, findings] = await Promise.all([
           classifyAngle(dataUrl!),
