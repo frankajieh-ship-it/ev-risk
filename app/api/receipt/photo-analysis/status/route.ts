@@ -56,8 +56,13 @@ export async function GET(request: NextRequest) {
     .eq("id", job.receipt_id)
     .single();
 
+  const photoAnalysis = (receipt?.photo_analysis as PhotoAnalysisResult | null) ?? null;
+  if (!photoAnalysis) {
+    return NextResponse.json({ status: "failed", error: "no_result" });
+  }
+
   return NextResponse.json({
     status: "done",
-    photo_analysis: (receipt?.photo_analysis as PhotoAnalysisResult | null) ?? null,
+    photo_analysis: photoAnalysis,
   });
 }
