@@ -381,14 +381,12 @@ export default function ReceiptPage() {
   // Listing photos from Auto.dev enrichment
   const [listingPhotos, setListingPhotos] = useState<string[]>([]);
 
-  // When receipt is loaded by ?id= (not via extraction), populate photos from stored data
+  // When receipt is loaded by ?id= (not via extraction), populate photos.
+  // Always try Marketcheck by VIN first (fetches real dealer photos) — never
+  // short-circuit on stale DB photos, which are often a single stock image.
   useEffect(() => {
     if (!receipt) return;
     if (listingPhotos.length > 0) return;
-    if (receipt.photo_urls?.length) {
-      setListingPhotos(receipt.photo_urls);
-      return;
-    }
     const make = receipt.listing_summary?.make;
     const model = receipt.listing_summary?.model;
     const year = receipt.listing_summary?.year;
@@ -399,12 +397,21 @@ export default function ReceiptPage() {
     if (model) photoParams.set("model", model);
     if (year) photoParams.set("year", String(year));
     if (vin) photoParams.set("vin", vin);
+    // no_market=1 prevents Auto.dev wrong-car images; Marketcheck (tier 0) still runs
+    photoParams.set("no_market", "1");
     fetch(`/api/photos?${photoParams}`)
       .then((r) => r.json())
       .then((d: { photo_urls?: string[] }) => {
-        if (d.photo_urls?.length) setListingPhotos(d.photo_urls);
+        if (d.photo_urls?.length) {
+          setListingPhotos(d.photo_urls);
+        } else if (receipt.photo_urls?.length) {
+          // Fall back to DB-stored photos only if Marketcheck/static returned nothing
+          setListingPhotos(receipt.photo_urls);
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (receipt.photo_urls?.length) setListingPhotos(receipt.photo_urls);
+      });
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Matching deals for this vehicle
