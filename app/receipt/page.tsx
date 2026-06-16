@@ -50,6 +50,7 @@ const ReceiptPaywallCard = dynamic(() => import("@/components/receipt/ReceiptPay
 
 const PdfDownloadButton = dynamic(() => import("@/components/receipt/PdfDownloadButton"), { ssr: false });
 const VinCheckSection = dynamic(() => import("@/components/receipt/VinCheckSection"), { ssr: false });
+const ReceiptToolsSection = dynamic(() => import("@/components/receipt/ReceiptToolsSection"), { ssr: false });
 const CompareBadge = dynamic(() => import("@/components/receipt/CompareBadge"), { ssr: false });
 const DealCard = dynamic(() => import("@/components/deals/DealCard").then(m => ({ default: m.default })), { ssr: false });
 const FeaturedDeals = dynamic(() => import("@/components/landing/FeaturedDeals"), { ssr: false });
@@ -1166,14 +1167,16 @@ export default function ReceiptPage() {
                       <span className="text-xs leading-tight">Post to X</span>
                     </a>
                   )}
-                  <Link
-                    href={`/tools/warranty?make=${encodeURIComponent(receipt.listing_summary?.make ?? "")}&model=${encodeURIComponent(receipt.listing_summary?.model ?? "")}&year=${receipt.listing_summary?.year ?? ""}`}
-                    onClick={() => trackEvent("cta_warranty_clicked", { receipt_id: receipt.receipt_id })}
+                  <button
+                    onClick={() => {
+                      trackEvent("cta_tools_clicked", { receipt_id: receipt.receipt_id });
+                      document.getElementById("receipt-tools-section")?.scrollIntoView({ behavior: "smooth" });
+                    }}
                     className="flex flex-col items-center gap-1.5 py-3 rounded-lg border border-white/[0.08] text-white/60 hover:text-white hover:border-white/20 hover:bg-white/[0.04] transition-colors text-center"
                   >
                     <ShieldCheck className="w-4 h-4" />
-                    <span className="text-xs leading-tight">Warranty<br />check</span>
-                  </Link>
+                    <span className="text-xs leading-tight">Run the<br />numbers</span>
+                  </button>
                 </div>
                 {/* "I bought this" — only shown to authenticated users whose garage has this car */}
                 {isAuthenticated && session?.access_token && receipt && (
@@ -1259,6 +1262,20 @@ export default function ReceiptPage() {
                 onPaywallClick={() => handlePremiumAction("vin_history")}
                 trackEvent={trackEvent}
               />
+
+              {/* Tools — pre-populated from receipt data */}
+              <div id="receipt-tools-section">
+                <ReceiptToolsSection
+                  make={receipt.listing_summary?.make}
+                  model={receipt.listing_summary?.model}
+                  year={receipt.listing_summary?.year}
+                  mileage={receipt.listing_summary?.mileage}
+                  price={receipt.listing_summary?.price}
+                  batteryKwh={(receipt.listing_summary as Record<string, unknown>)?.battery_kwh as number | undefined}
+                  rangeMi={(receipt.listing_summary as Record<string, unknown>)?.range_mi as number | undefined}
+                  dcFastKw={(receipt.listing_summary as Record<string, unknown>)?.dc_fast_kw as number | undefined}
+                />
+              </div>
 
               {/* Share / PDF row */}
               <div id="save-receipt-cta" className="flex gap-2">
