@@ -411,8 +411,15 @@ export default function ReceiptPage() {
     fetch(`/api/photos?${photoParams}`)
       .then((r) => r.json())
       .then((d: { photo_urls?: string[] }) => {
-        if (d.photo_urls?.length) setListingPhotos(d.photo_urls);
-        // No fallback to DB/static — blank is better than a wrong car
+        if (d.photo_urls?.length) {
+          setListingPhotos(d.photo_urls);
+        } else {
+          // Marketcheck returned empty (listing sold/delisted) — fall back to
+          // photo URLs stored in the receipt at extraction time. These are the
+          // same real dealer photos, just cached in the DB rather than re-fetched.
+          const stored = (receipt as unknown as Record<string, unknown>).photo_urls as string[] | undefined;
+          if (stored?.length) setListingPhotos(stored);
+        }
       })
       .catch(() => {});
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps

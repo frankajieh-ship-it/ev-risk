@@ -67,5 +67,14 @@
 [functions.health-check-ai]
   timeout = 60
 
+# Canonical domain: redirect www → non-www at Netlify edge before app sees the request.
+# Without this, Next.js issues a 301 for every /api/img?url=... request from www,
+# causing browser <img> tags to follow a redirect chain that can fail silently.
+[[redirects]]
+  from = "https://www.offolab.com/*"
+  to = "https://offolab.com/:splat"
+  status = 301
+  force = true
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"

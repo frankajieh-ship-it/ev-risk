@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     try {
       const { data, error } = await supabase
         .from("receipts")
-        .select("id, created_at, output_json, vin")
+        .select("id, created_at, output_json, vin, photo_urls")
         .eq("id", receiptId)
         .single();
 
@@ -44,7 +44,8 @@ export async function GET(req: NextRequest) {
       }
 
       const dataVin = (data as Record<string, unknown>).vin as string | null | undefined;
-      const receipt = dataVin ? { ...data.output_json, vin: dataVin } : data.output_json;
+      const dataPhotos = (data as Record<string, unknown>).photo_urls as string[] | null | undefined;
+      const receipt = { ...data.output_json, ...(dataVin ? { vin: dataVin } : {}), ...(dataPhotos?.length ? { photo_urls: dataPhotos } : {}) };
       return NextResponse.json({
         entries: [{
           receipt_id: data.id,
@@ -102,7 +103,7 @@ export async function GET(req: NextRequest) {
     // Query by session_id (existing behavior)
     const { data: sessionData, error: sessionError } = await supabase
       .from("receipts")
-      .select("id, created_at, output_json, vin")
+      .select("id, created_at, output_json, vin, photo_urls")
       .eq("session_id", anonId)
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -113,7 +114,7 @@ export async function GET(req: NextRequest) {
     if (authUserId) {
       const { data: userData } = await supabase
         .from("receipts")
-        .select("id, created_at, output_json, vin")
+        .select("id, created_at, output_json, vin, photo_urls")
         .eq("user_id", authUserId)
         .order("created_at", { ascending: false })
         .limit(limit);
@@ -143,7 +144,8 @@ export async function GET(req: NextRequest) {
       .filter((row) => row.output_json)
       .map((row) => {
         const rowVin = (row as Record<string, unknown>).vin as string | null | undefined;
-        const receipt = rowVin ? { ...row.output_json, vin: rowVin } : row.output_json;
+        const rowPhotos = (row as Record<string, unknown>).photo_urls as string[] | null | undefined;
+        const receipt = { ...row.output_json, ...(rowVin ? { vin: rowVin } : {}), ...(rowPhotos?.length ? { photo_urls: rowPhotos } : {}) };
         return {
           receipt_id: row.id,
           created_at: row.created_at,
