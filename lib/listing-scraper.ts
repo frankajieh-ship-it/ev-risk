@@ -577,12 +577,17 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
 
           const photoArr = listing.pictures ?? listing.pictureList ?? listing.allPhotos ?? listing.mediaList ?? listing.vehicleImages ?? listing.photos ?? listing.images ?? listing.vehiclePhotos ?? listing.photoUrls ?? [];
           const gallery: string[] = [];
+          const seenPhotos = new Set<string>();
           if (Array.isArray(photoArr)) {
             for (const item of photoArr) {
               const raw = extractUrl(item);
               if (isCarGurusPhoto(raw)) {
-                gallery.push(raw);
-                if (gallery.length >= 20) break;
+                const norm = raw.split("?")[0];
+                if (!seenPhotos.has(norm)) {
+                  seenPhotos.add(norm);
+                  gallery.push(raw);
+                  if (gallery.length >= 20) break;
+                }
               }
             }
           }
@@ -677,14 +682,21 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
                 !u.includes("logo") && !u.includes("icon") && !u.includes("badge");
               const photoArr = (ls.pictures ?? ls.pictureList ?? ls.allPhotos ?? ls.mediaList ?? ls.vehicleImages ?? ls.photos ?? ls.images ?? ls.vehiclePhotos ?? ls.photoUrls ?? []) as unknown[];
               const gallery: string[] = [];
+              const seen = new Set<string>();
               if (Array.isArray(photoArr)) {
                 for (const item of photoArr) {
                   const o = item as Record<string, unknown>;
+                  // Prefer largest available size; fall through to smaller sizes
                   const raw = typeof item === "string" ? item
-                    : (o?.largeUrl ?? o?.url ?? o?.src ?? o?.href ?? o?.mediumUrl ?? null);
+                    : (o?.largeUrl ?? o?.fullSizeUrl ?? o?.large ?? o?.url ?? o?.src ?? o?.href ?? o?.mediumUrl ?? null);
                   if (isCarGurusPhoto(raw)) {
-                    gallery.push(raw);
-                    if (gallery.length >= 50) break;
+                    // Deduplicate by base URL (strip query params)
+                    const norm = (raw as string).split("?")[0];
+                    if (!seen.has(norm)) {
+                      seen.add(norm);
+                      gallery.push(raw as string);
+                      if (gallery.length >= 50) break;
+                    }
                   }
                 }
               }

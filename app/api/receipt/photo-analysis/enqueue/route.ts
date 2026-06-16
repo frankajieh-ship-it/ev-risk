@@ -40,7 +40,25 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (existing) {
-    return NextResponse.json({ job_id: existing.id, status: existing.status });
+    // For a "done" job, verify the receipt actually has photo_analysis data.
+    // If it's missing (prior run failed silently), fall through and re-enqueue.
+    if (existing.status === "done") {
+      const { data: receiptRow } = await supabase
+        .from("receipts")
+        .select("photo_analysis")
+        .eq("id", receipt_id)
+        .single();
+      if (receiptRow?.photo_analysis) {
+        return NextResponse.json({ job_id: existing.id, status: "done", photo_analysis: receiptRow.photo_analysis });
+      }
+      // No analysis data — mark old job failed and fall through to re-enqueue
+      await supabase
+        .from("receipt_photo_jobs")
+        .update({ status: "failed", error: "no_result", finished_at: new Date().toISOString() })
+        .eq("id", existing.id);
+    } else {
+      return NextResponse.json({ job_id: existing.id, status: existing.status });
+    }
   }
 
   // Insert new job

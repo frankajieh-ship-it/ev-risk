@@ -18,7 +18,7 @@ import { receiptBurstLimiter } from "@/lib/receipt-rate-limiter";
 import { extractVehicleData } from "@/lib/listing-scraper";
 import { extractFieldsFromText } from "@/lib/text-extractor";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
-import { searchByVin as marketCheckByVin, searchByMakeModel as marketCheckByYMM } from "@/lib/marketcheck-client";
+import { searchByVin as marketCheckByVin } from "@/lib/marketcheck-client";
 import { getStaticPhotoUrl } from "@/lib/vehicle-photo";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/api-auth";
@@ -297,8 +297,7 @@ export async function POST(request: NextRequest) {
   const urlDomain = parsedUrl.hostname.replace("www.", "");
 
   // --- Supported domain check ---
-  // AutoTrader is blocked by Akamai regardless of proxy method; only CarGurus works reliably.
-  const SUPPORTED_SCRAPE_DOMAINS = ["cargurus.com"];
+  const SUPPORTED_SCRAPE_DOMAINS = ["cargurus.com", "autotrader.com"];
   const isOffoInventory =
     parsedUrl.hostname === "offolab.com" || parsedUrl.hostname === "www.offolab.com";
   const isSupportedDomain = isOffoInventory ||
@@ -308,7 +307,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: "Only CarGurus links are supported for auto-extraction. For other sites, paste the listing text below.",
+        error: "Only CarGurus and AutoTrader links are supported for auto-extraction. For other sites, paste the listing text below.",
         unsupported_domain: true,
         supported_domains: SUPPORTED_SCRAPE_DOMAINS,
       },
@@ -539,24 +538,18 @@ export async function POST(request: NextRequest) {
       marketCheckPromise,
     ]);
 
-    // Photo priority (highest → lowest reliability):
-    // 1. Marketcheck VIN — actual dealer photos, exact vehicle match
-    // 1b. Marketcheck YMM — same-make/model photos if VIN lookup misses (car sold/unlisted)
-    // 2. Scraped listing photos — from Nimbleway/ScrapingBee, can be stale
-    // 3. Auto.dev comps — stock/market images, not the actual vehicle
+    // Photo priority:
+    // 1. Marketcheck VIN — queries by exact VIN, no stale cache risk, reliable CDN
+    // 2. Scraped listing photos — Nimbleway can return stale cached pages (wrong car)
+    // 3. AutoDev — representative stock images, not the actual vehicle
     // 4. Wikimedia static — last resort generic image
-    let mcPhotos = mcData?.success ? mcData.photo_links : [];
-    if (mcPhotos.length === 0 && fields.make && fields.model) {
-      // VIN not listed or no VIN — try YMM search for representative photos
-      const ymmResult = await marketCheckByYMM({ make: fields.make, model: fields.model, year: fields.year ?? undefined });
-      if (ymmResult.success) mcPhotos = ymmResult.photo_links;
-    }
-    if (mcPhotos.length > 0) {
-      fields.photo_urls = mcPhotos;
-      console.log(`[Fetch] Using ${mcPhotos.length} Marketcheck photos`);
+    const mcVinPhotos = mcData?.success ? mcData.photo_links : [];
+    if (mcVinPhotos.length > 0) {
+      fields.photo_urls = mcVinPhotos;
+      console.log(`[Fetch] Using ${mcVinPhotos.length} Marketcheck VIN photos`);
     } else if (result.data.photo_urls?.length) {
       fields.photo_urls = result.data.photo_urls;
-      console.log(`[Fetch] Using ${result.data.photo_urls.length} scraped photos`);
+      console.log(`[Fetch] Using ${result.data.photo_urls.length} scraped photos (Marketcheck fallback)`);
     } else if (autoDevData && Array.isArray((autoDevData as { photo_urls: string[] }).photo_urls) && (autoDevData as { photo_urls: string[] }).photo_urls.length > 0) {
       fields.photo_urls = (autoDevData as { photo_urls: string[] }).photo_urls;
     } else {

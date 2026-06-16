@@ -944,18 +944,11 @@ export default function ReceiptPage() {
           }}
           onExtractionSuccess={() => {}}
           onExtractionFields={handleExtractionFields}
-          onPhotosExtracted={(photos) => {
-            // Use scraped photos immediately — they are the actual listing photos
-            // from the CarGurus CDN and are always the correct vehicle.
-            // Marketcheck is only used as a fallback (in the receipt-load effect)
-            // when no stored photos exist.
-            if (photos?.length) {
-              photosSetByExtractionRef.current = true;
-              setListingPhotos(photos);
-            } else {
-              // No scraped photos — mark ref so receipt-load effect can try Marketcheck
-              photosSetByExtractionRef.current = false;
-            }
+          onPhotosExtracted={() => {
+            // Scraped photos are skipped — Nimbleway can return stale cached pages
+            // with photos from a different listing (wrong car). Photos come from
+            // Marketcheck VIN lookup saved to DB by /api/receipt/fetch.
+            photosSetByExtractionRef.current = false;
           }}
           isGenerating={isGenerating}
           generatingStep={generatingStep}

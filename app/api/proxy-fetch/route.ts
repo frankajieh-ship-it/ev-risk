@@ -174,7 +174,18 @@ export async function POST(request: NextRequest) {
           // so we can merge — direct fetch often gets rendered history text via Googlebot UA.
           const isThinShell = parsedUrl.hostname.includes('cargurus.com') && html.length < 10000;
 
-          if (!isBlocked && !isThinShell) {
+          // CarGurus stale-cache check: verify the listing ID in the URL appears in the HTML.
+          // Nimbleway sometimes returns a cached page from a different listing even with cache:false.
+          // The listing ID is always a 7-12 digit number in the /details/<id> path segment.
+          const cgListingId = parsedUrl.hostname.includes('cargurus.com')
+            ? (parsedUrl.pathname.match(/\/details\/(\d{7,12})/)?.[1] ?? null)
+            : null;
+          const isStaleCache = cgListingId !== null && !html.includes(cgListingId);
+
+          if (isStaleCache) {
+            console.warn(`[Proxy Fetch] Nimbleway stale cache — listing ID ${cgListingId} not in HTML (length: ${html.length}), falling through to direct fetch`);
+            // Don't return — fall through to direct fetch below
+          } else if (!isBlocked && !isThinShell) {
             return NextResponse.json({
               success: true,
               html,
@@ -184,10 +195,10 @@ export async function POST(request: NextRequest) {
               headers: { 'content-type': 'text/html' },
             });
           }
-          if (!isBlocked && isThinShell) {
+          if (!isBlocked && isThinShell && !isStaleCache) {
             // Store partial Nimbleway result; try direct fetch below and use whichever is richer
             console.log('[Proxy Fetch] CarGurus thin shell from Nimbleway, trying direct fetch for history data');
-          } else {
+          } else if (!isStaleCache) {
             console.warn('[Proxy Fetch] Nimbleway returned blocked/empty page, length:', html.length);
           }
         } else {

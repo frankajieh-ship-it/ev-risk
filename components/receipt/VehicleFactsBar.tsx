@@ -12,8 +12,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Shield, ShieldAlert, AlertTriangle, CheckCircle, Zap, ExternalLink, Loader2, Lock } from "lucide-react";
 import type { ListingReceipt } from "@/types/receipt";
-import type { VinAuditLiteResult } from "@/lib/vinaudit-client";
-import { getOrCreateReceiptToken } from "@/lib/session-utils";
 
 interface VehicleFactsBarProps {
   receipt: ListingReceipt;
@@ -67,7 +65,6 @@ interface NhtsaRecall {
 }
 
 type RecallStatus = "idle" | "loading" | "done" | "error";
-type HistoryStatus = "idle" | "loading" | "done" | "error" | "unavailable";
 
 export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsEnabled = false, onPaywallClick }: VehicleFactsBarProps) {
   const ls = receipt.listing_summary;
@@ -81,39 +78,6 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
   const [recalls, setRecalls] = useState<NhtsaRecall[]>([]);
   const [recallStatus, setRecallStatus] = useState<RecallStatus>("idle");
   const [recallExpanded, setRecallExpanded] = useState(false);
-
-  const [history, setHistory] = useState<VinAuditLiteResult | null>(null);
-  const [historyStatus, setHistoryStatus] = useState<HistoryStatus>("idle");
-
-  // VinAudit history fetch — VIN lives on the Supabase row, not in the Receipt schema type.
-  // listing_summary uses .passthrough() so extra fields exist at runtime; cast to access them.
-  const receiptAny = receipt as Record<string, unknown>;
-  const lsAny = receipt.listing_summary as Record<string, unknown> | undefined;
-  const vin = (receiptAny.vin ?? lsAny?.vin) as string | undefined;
-
-  useEffect(() => {
-    if (!vin) return;
-    const receiptToken = getOrCreateReceiptToken();
-    if (!receiptToken) return;
-    setHistoryStatus("loading"); // eslint-disable-line react-hooks/set-state-in-effect
-    fetch("/api/vin/history", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vin, receipt_token: receiptToken }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.success) {
-          setHistory(data as VinAuditLiteResult);
-          setHistoryStatus("done");
-        } else if (data.code === "not_configured") {
-          setHistoryStatus("unavailable");
-        } else {
-          setHistoryStatus("error");
-        }
-      })
-      .catch(() => setHistoryStatus("error"));
-  }, [vin]);
 
   // Live NHTSA recall fetch
   useEffect(() => {
@@ -203,51 +167,17 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
               {tc.label}
             </span>
 
-            {/* Accidents — show listing-scraped pill only when VinAudit hasn't confirmed yet */}
-            {historyStatus !== "done" && (
-              <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${ac.cls}`}>
-                <AccidentIcon className="w-3 h-3" />
-                {ac.label}
-              </span>
-            )}
+            {/* Accidents — listing-scraped signal */}
+            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${ac.cls}`}>
+              <AccidentIcon className="w-3 h-3" />
+              {ac.label}
+            </span>
 
-            {/* VinAudit history pills */}
-            {historyStatus === "loading" && (
-              <span className="inline-flex items-center gap-1 text-xs text-white/30 px-2 py-0.5 rounded-full border border-white/[0.08]">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                Checking history…
-              </span>
-            )}
-            {historyStatus === "done" && history && (
-              <>
-                <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${
-                  history.summary.accident_count > 0
-                    ? "text-amber-400 bg-amber-500/10 border-amber-500/20"
-                    : "text-green-400 bg-green-500/10 border-green-500/20"
-                }`}>
-                  {history.summary.accident_count > 0
-                    ? <><AlertTriangle className="w-3 h-3" />{history.summary.accident_count} accident record{history.summary.accident_count !== 1 ? "s" : ""} (NMVTIS)</>
-                    : <><CheckCircle className="w-3 h-3" />No accidents (NMVTIS)</>
-                  }
-                </span>
-                <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${
-                  history.summary.theft_reported
-                    ? "text-red-400 bg-red-500/10 border-red-500/20"
-                    : "text-green-400 bg-green-500/10 border-green-500/20"
-                }`}>
-                  {history.summary.theft_reported
-                    ? <><Lock className="w-3 h-3" />Theft reported</>
-                    : <><CheckCircle className="w-3 h-3" />No theft record</>
-                  }
-                </span>
-                {history.summary.salvage_reported && (
-                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-red-400 bg-red-500/10 border-red-500/20">
-                    <ShieldAlert className="w-3 h-3" />
-                    Salvage on record
-                  </span>
-                )}
-              </>
-            )}
+            {/* VIN history — coming soon (VINaudit + ClearVin integration pending) */}
+            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-[#00d97e]/20 text-[#00d97e]/60 bg-[#00d97e]/[0.04]">
+              <Shield className="w-3 h-3" />
+              Full VIN history — coming soon
+            </span>
 
             {/* Recalls */}
             {recallStatus === "loading" && (

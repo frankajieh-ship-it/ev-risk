@@ -454,7 +454,7 @@ export default function Home() {
           </h1>
 
           <p className="text-base md:text-lg text-white/50 mb-5 max-w-xl mx-auto" style={{ lineHeight: "1.6" }}>
-            Instantly see open recalls, accident &amp; title history, battery health estimate, market price vs. comparables, and 3 copy-paste negotiation scripts — for that exact listing.
+            Instantly see open recalls, battery health estimate, market price vs. comparables, and 3 copy-paste negotiation scripts — for that exact listing. Full VIN &amp; title history coming soon.
           </p>
 
           <p className="text-sm text-white/30 mb-10 max-w-xl mx-auto">

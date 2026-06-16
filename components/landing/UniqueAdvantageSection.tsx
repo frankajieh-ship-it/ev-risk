@@ -73,7 +73,7 @@ export default function UniqueAdvantageSection() {
             35 seconds. No sign-up. Things Carfax doesn&apos;t check.
           </p>
           <p className="text-sm text-white/40 max-w-xl mx-auto">
-            OFFO runs 38 EV-specific signals on every listing — checking battery health, title history, price vs. market, and whether the car fits your charging life.
+            OFFO runs 38 EV-specific signals on every listing — checking battery health, price vs. market, and whether the car fits your charging life. Full VIN &amp; title history coming soon.
           </p>
         </motion.div>
 

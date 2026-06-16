@@ -33,13 +33,17 @@ function getSupabase() {
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
-// Fetch image and return as base64 data URL so OpenAI can access it
-// even if the CDN blocks Netlify/OpenAI server IPs directly.
-async function fetchAsBase64(url: string): Promise<string | null> {
+// Fetch image and return as base64 data URL so OpenAI can access it.
+// Routes through /api/img proxy so dealer CDNs with hotlink/Referer protection
+// don't block the request — the proxy adds the correct User-Agent and strips Referer.
+async function fetchAsBase64(url: string, siteUrl: string): Promise<string | null> {
+  // Use proxy for external URLs; fetch directly for data: URIs (shouldn't occur, but safe)
+  const fetchUrl = url.startsWith("data:")
+    ? url
+    : `${siteUrl}/api/img?url=${encodeURIComponent(url)}`;
   try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; OFFO/1.0)" },
-      signal: AbortSignal.timeout(10_000),
+    const res = await fetch(fetchUrl, {
+      signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) {
       console.error("[fetchAsBase64] HTTP", res.status, "for", url.slice(0, 80));
@@ -131,6 +135,9 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     return { statusCode: 500, body: JSON.stringify({ error: "No AI provider configured" }) };
   }
 
+  // Site URL used to route image fetches through our proxy (handles hotlink protection)
+  const siteUrl = (process.env.URL || process.env.NEXT_PUBLIC_BASE_URL || "https://offolab.com").replace(/\/$/, "");
+
   const supabase = getSupabase();
 
   // Mark job processing
@@ -143,7 +150,7 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     // Fetch up to 10 photos in full parallel — independent requests, no need to batch.
     // 10 photos gives full due-diligence coverage (front/rear/sides/interior/odometer/engine).
     const resolvedUrls = await Promise.all(
-      photo_urls.slice(0, 10).map(async (url) => ({ url, dataUrl: await fetchAsBase64(url) }))
+      photo_urls.slice(0, 10).map(async (url) => ({ url, dataUrl: await fetchAsBase64(url, siteUrl) }))
     );
     const fetchable = resolvedUrls.filter((r) => r.dataUrl !== null);
     console.log(`[analyze-receipt-photos] ${fetchable.length}/${resolvedUrls.length} photos fetched successfully`);
