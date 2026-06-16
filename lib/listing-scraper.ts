@@ -616,10 +616,33 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
 
   // CarGurus migrated to Remix — try window.__remixContext for listing data / VIN + history fields
   {
-    const remixMatch = html.match(/window\.__remixContext\s*=\s*(\{[\s\S]*?\});\s*(?:window\.|<\/script>)/);
-    if (remixMatch) {
+    // Extract the full __remixContext JSON using a balanced-brace parser.
+    // A non-greedy regex like /(\{[\s\S]*?\})/ stops at the first closing brace,
+    // producing a truncated invalid JSON fragment that always throws on parse.
+    let remixJson: string | null = null;
+    const remixMarker = html.indexOf('window.__remixContext');
+    if (remixMarker !== -1) {
+      const braceStart = html.indexOf('{', remixMarker);
+      if (braceStart !== -1) {
+        let depth = 0;
+        let inString = false;
+        let escape = false;
+        let end = braceStart;
+        for (let i = braceStart; i < html.length; i++) {
+          const ch = html[i];
+          if (escape) { escape = false; continue; }
+          if (ch === '\\' && inString) { escape = true; continue; }
+          if (ch === '"') { inString = !inString; continue; }
+          if (inString) continue;
+          if (ch === '{') depth++;
+          else if (ch === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+        }
+        if (depth === 0) remixJson = html.slice(braceStart, end);
+      }
+    }
+    if (remixJson) {
       try {
-        const ctx = JSON.parse(remixMatch[1]);
+        const ctx = JSON.parse(remixJson);
         const loaderValues = Object.values(
           (ctx?.state?.loaderData ?? {}) as Record<string, unknown>
         );
