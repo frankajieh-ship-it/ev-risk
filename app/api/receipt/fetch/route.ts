@@ -592,11 +592,11 @@ export async function POST(request: NextRequest) {
     ]);
 
     // Photo priority:
-    // 1. CarGurus direct API — full pictures array for the exact listing, no JS render needed
-    // 2. Scraped listing photos — Googlebot direct fetch (correct listing, but only 4-6 preview pics)
-    // 3. Marketcheck VIN — exact VIN match but may have repeated/duplicate angles
-    // 4. AutoDev — representative stock images, not the actual vehicle
-    // 5. Wikimedia static — last resort generic image
+    // Marketcheck wins when it has photos — it indexes the full dealer photo set by VIN,
+    // which is more complete than CarGurus server-rendered HTML (4-6 preview) or their
+    // internal API (blocked outside residential IPs).
+    // CarGurus API is attempted but usually returns [] from Netlify IPs (406).
+    // Scraped photos are a last resort — typically only 4-6 preview shots.
     const dedupPhotos = (urls: string[]): string[] => {
       const seen = new Set<string>();
       return urls.filter(u => {
@@ -609,17 +609,22 @@ export async function POST(request: NextRequest) {
     const scrapedPhotos = result.data.photo_urls?.length ? dedupPhotos(result.data.photo_urls) : [];
     const mcVinPhotos = mcData?.success ? dedupPhotos(mcData.photo_links) : [];
     if (cgApiPhotos.length >= 3) {
+      // CarGurus direct API — only works from residential IPs, usually empty from Netlify
       fields.photo_urls = cgApiPhotos;
       console.log(`[Fetch] Using ${cgApiPhotos.length} CarGurus API photos`);
+    } else if (mcVinPhotos.length >= 3) {
+      // Marketcheck VIN lookup — full dealer photo set indexed by VIN
+      fields.photo_urls = mcVinPhotos;
+      console.log(`[Fetch] Using ${mcVinPhotos.length} Marketcheck photos`);
     } else if (scrapedPhotos.length >= 3) {
       fields.photo_urls = scrapedPhotos;
       console.log(`[Fetch] Using ${scrapedPhotos.length} scraped listing photos`);
     } else if (mcVinPhotos.length > 0) {
       fields.photo_urls = mcVinPhotos;
-      console.log(`[Fetch] Using ${mcVinPhotos.length} Marketcheck VIN photos (scraped had ${scrapedPhotos.length})`);
+      console.log(`[Fetch] Using ${mcVinPhotos.length} Marketcheck photos (< 3)`);
     } else if (scrapedPhotos.length > 0) {
       fields.photo_urls = scrapedPhotos;
-      console.log(`[Fetch] Using ${scrapedPhotos.length} scraped photos (Marketcheck unavailable)`);
+      console.log(`[Fetch] Using ${scrapedPhotos.length} scraped photos (fallback)`);
     } else if (autoDevData && Array.isArray((autoDevData as { photo_urls: string[] }).photo_urls) && (autoDevData as { photo_urls: string[] }).photo_urls.length > 0) {
       fields.photo_urls = (autoDevData as { photo_urls: string[] }).photo_urls;
     } else {
