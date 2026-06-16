@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
             'Authorization': `Bearer ${NIMBLEWAY_KEY}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ url, render: true, country: 'US', locale: 'en-US' }),
+          body: JSON.stringify({ url, render: true, country: 'US', locale: 'en-US', cache: false }),
           signal: nmController.signal,
         });
         clearTimeout(nmTimeoutId);

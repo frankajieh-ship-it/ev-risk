@@ -1238,9 +1238,23 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
       case 'autotrader':
         extractedData = await extractFromAutoTrader(html, url);
         break;
-      case 'cargurus':
+      case 'cargurus': {
         extractedData = await extractFromCarGurus(html);
+        // Nimbleway sometimes returns a cached page for a different listing.
+        // Cross-check: if URL contains a numeric listing ID, verify the HTML
+        // actually contains that same ID. If not, photos belong to a different
+        // car — discard them to avoid showing wrong-car images.
+        const cgListingIdMatch = url.match(/\/details\/(\d{7,12})/);
+        if (cgListingIdMatch && extractedData.photo_urls?.length) {
+          const expectedId = cgListingIdMatch[1];
+          if (!html.includes(expectedId)) {
+            console.warn(`[CarGurus] Listing ID ${expectedId} not found in HTML — discarding photos (stale Nimbleway cache)`);
+            extractedData.photo_urls = undefined;
+            extractedData.photo_url = undefined;
+          }
+        }
         break;
+      }
       case 'cars.com':
         extractedData = await extractFromCars(html);
         break;
