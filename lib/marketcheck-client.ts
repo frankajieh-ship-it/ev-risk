@@ -129,6 +129,55 @@ export async function searchByVin(
 }
 
 /**
+ * Search active listings by make/model/year — fallback when no VIN is available.
+ * Returns photo_links from the listing with the most photos.
+ */
+export async function searchByMakeModel(params: {
+  make: string;
+  model: string;
+  year?: number;
+}): Promise<MarketCheckResult | MarketCheckError> {
+  if (!isConfigured()) {
+    return { success: false, error: "Marketcheck not configured" };
+  }
+
+  const url = new URL(`${MC_BASE}/search/car/active`);
+  url.searchParams.set("api_key", process.env.MARKETCHECK_API_KEY!);
+  url.searchParams.set("make", params.make);
+  url.searchParams.set("model", params.model);
+  if (params.year) url.searchParams.set("year", String(params.year));
+  url.searchParams.set("inventory_type", "used");
+  url.searchParams.set("rows", "10");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const res = await fetch(url.toString(), { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (!res.ok) return { success: false, error: `Marketcheck API error: ${res.status}` };
+
+    const data = await res.json() as { num_found?: number; listings?: MarketCheckListing[] };
+    const listings = data.listings ?? [];
+    if (!listings.length) return { success: false, error: "No listings found" };
+
+    const sorted = [...listings].sort((a, b) =>
+      (b.media?.photo_links?.length ?? 0) - (a.media?.photo_links?.length ?? 0)
+    );
+    const best = sorted[0];
+    const photo_links = best.media?.photo_links ?? [];
+
+    console.log(`[Marketcheck] YMM ${params.year} ${params.make} ${params.model}: ${listings.length} listing(s), ${photo_links.length} photos`);
+    return { success: true, listings, photo_links, best_listing: best };
+  } catch (err) {
+    clearTimeout(timeout);
+    const isAbort = err instanceof DOMException && err.name === "AbortError";
+    return { success: false, error: isAbort ? "Marketcheck timed out" : (err instanceof Error ? err.message : "Unknown error") };
+  }
+}
+
+/**
  * Decode VIN specs — year/make/model/trim/fuel_type/powertrain_type.
  * Useful as a lightweight alternative to NHTSA when Marketcheck is already being called.
  */

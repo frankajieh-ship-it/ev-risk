@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchListings } from "@/lib/auto-dev-client";
 import { getVehicleImages } from "@/lib/vinaudit-client";
-import { searchByVin as marketCheckByVin } from "@/lib/marketcheck-client";
+import { searchByVin as marketCheckByVin, searchByMakeModel as marketCheckByYMM } from "@/lib/marketcheck-client";
 import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
 import { extractVehicleImages } from "@/lib/image-extractor";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
@@ -224,10 +224,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ photo_urls: [] });
   }
 
-  // 0a. Marketcheck by VIN — actual dealer photos, highest reliability
-  if (vin) {
-    const mc = await marketCheckByVin(vin);
-    if (mc.success && mc.photo_links.length > 0) {
+  // 0a. Marketcheck — actual dealer photos, highest reliability.
+  // Try VIN first (exact match), fall back to make/model/year search.
+  {
+    const mc = vin
+      ? await marketCheckByVin(vin)
+      : make && rawModel
+        ? await marketCheckByYMM({ make, model: rawModel, year })
+        : null;
+    if (mc?.success && mc.photo_links.length > 0) {
       return NextResponse.json({ photo_urls: mc.photo_links, source: "marketcheck" });
     }
   }
