@@ -927,13 +927,16 @@ export default function ReceiptPage() {
             if (data.dealer_info) {
               setDealerInfo({ ...data.dealer_info, is_verified: true });
             }
-            // Fetch photos from Auto.dev if extraction didn't return any
-            if (listingPhotos.length === 0 && (data.fields.make || data.fields.year)) {
+            // Always fetch Marketcheck photos when VIN is available — overrides any stale
+            // scraped/stock image that onPhotosExtracted may have already set.
+            // Without VIN, only fetch if no photos yet (avoid wrong-car images from YMM search).
+            if (data.fields.vin || (listingPhotos.length === 0 && (data.fields.make || data.fields.year))) {
               fetch("/api/photos?" + new URLSearchParams({
                 ...(data.fields.make ? { make: data.fields.make } : {}),
                 ...(data.fields.model ? { model: data.fields.model } : {}),
                 ...(data.fields.year ? { year: String(data.fields.year) } : {}),
                 ...(data.fields.vin ? { vin: data.fields.vin } : {}),
+                no_market: "1",
               }))
                 .then((r) => r.json())
                 .then((d) => { if (d.photo_urls?.length) setListingPhotos(d.photo_urls); })
