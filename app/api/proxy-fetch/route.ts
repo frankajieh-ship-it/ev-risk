@@ -183,8 +183,8 @@ export async function POST(request: NextRequest) {
           const isStaleCache = cgListingId !== null && !html.includes(cgListingId);
 
           if (isStaleCache) {
-            console.warn(`[Proxy Fetch] Nimbleway stale cache — listing ID ${cgListingId} not in HTML (length: ${html.length}), falling through to direct fetch`);
-            // Don't return — fall through to direct fetch below
+            console.warn(`[Proxy Fetch] Nimbleway stale cache — listing ID ${cgListingId} not in HTML (length: ${html.length}), retrying with ScrapingBee`);
+            // Fall through to ScrapingBee (better than direct fetch for JS-rendered pages)
           } else if (!isBlocked && !isThinShell) {
             return NextResponse.json({
               success: true,
@@ -240,8 +240,9 @@ export async function POST(request: NextRequest) {
               lowerSb.includes('just a moment') ||
               lowerSb.includes('challenge-platform') ||
               sbHtml.length < 500;
+            const sbStaleCache = cgListingId !== null && !sbHtml.includes(cgListingId);
 
-            if (!sbBlocked && sbHtml.length >= 10000) {
+            if (!sbBlocked && !sbStaleCache && sbHtml.length >= 10000) {
               console.log('[Proxy Fetch] ScrapingBee success, length:', sbHtml.length);
               return NextResponse.json({
                 success: true,
@@ -252,7 +253,11 @@ export async function POST(request: NextRequest) {
                 headers: { 'content-type': 'text/html' },
               });
             }
-            console.warn('[Proxy Fetch] ScrapingBee returned blocked/thin page, length:', sbHtml.length);
+            if (sbStaleCache) {
+              console.warn(`[Proxy Fetch] ScrapingBee also stale cache — listing ID ${cgListingId} not in HTML`);
+            } else {
+              console.warn('[Proxy Fetch] ScrapingBee returned blocked/thin page, length:', sbHtml.length);
+            }
           } else {
             console.warn('[Proxy Fetch] ScrapingBee error:', sbResponse.status);
           }
