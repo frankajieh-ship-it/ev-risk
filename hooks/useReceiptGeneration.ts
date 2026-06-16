@@ -199,6 +199,7 @@ export function useReceiptGeneration({
       extraction_id?: string;
       input_mode?: string;
       force_regenerate?: boolean;
+      photo_urls?: string[];
     }) => {
       if (!receiptToken) return;
       if (inFlightRef.current) return;
@@ -265,6 +266,7 @@ export function useReceiptGeneration({
         if (routineContext) body.routine_context = routineContext;
         if (f.market_price_range) body.market_price_range = f.market_price_range;
         if (f.auto_dev_specs) body.auto_dev_specs = f.auto_dev_specs;
+        if (data.photo_urls?.length) body.photo_urls = data.photo_urls;
 
         const res = await fetchWithRetry("/api/receipt", {
           method: "POST",
