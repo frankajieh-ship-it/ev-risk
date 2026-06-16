@@ -392,11 +392,22 @@ export default function ReceiptPage() {
     }
   }, [receipt]);
 
-  // Fetch Marketcheck photos when a saved receipt loads (e.g. ?id= or history select).
+  // Load photos when a saved receipt loads (e.g. ?id= or history select).
   // Skipped when photos were already set by the live extraction flow this session.
+  // Priority: stored DB photos (scraped from listing at extraction time) → Marketcheck fallback.
   useEffect(() => {
     if (!receipt) return;
     if (photosSetByExtractionRef.current) return;
+
+    // Use photos stored at extraction time first — these are the actual listing photos
+    // (scraped from CarGurus CDN) and are always the right vehicle.
+    const stored = (receipt as unknown as Record<string, unknown>).photo_urls as string[] | undefined;
+    if (stored?.length) {
+      setListingPhotos(stored);
+      return;
+    }
+
+    // No stored photos — fall back to Marketcheck live lookup
     const make = receipt.listing_summary?.make;
     const model = receipt.listing_summary?.model;
     const year = receipt.listing_summary?.year;
@@ -411,15 +422,7 @@ export default function ReceiptPage() {
     fetch(`/api/photos?${photoParams}`)
       .then((r) => r.json())
       .then((d: { photo_urls?: string[] }) => {
-        if (d.photo_urls?.length) {
-          setListingPhotos(d.photo_urls);
-        } else {
-          // Marketcheck returned empty (listing sold/delisted) — fall back to
-          // photo URLs stored in the receipt at extraction time. These are the
-          // same real dealer photos, just cached in the DB rather than re-fetched.
-          const stored = (receipt as unknown as Record<string, unknown>).photo_urls as string[] | undefined;
-          if (stored?.length) setListingPhotos(stored);
-        }
+        if (d.photo_urls?.length) setListingPhotos(d.photo_urls);
       })
       .catch(() => {});
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -937,34 +940,22 @@ export default function ReceiptPage() {
             if (data.dealer_info) {
               setDealerInfo({ ...data.dealer_info, is_verified: true });
             }
-            // Always fetch Marketcheck photos when VIN is available — overrides any stale
-            // scraped/stock image that onPhotosExtracted may have already set.
-            // Without VIN, only fetch if no photos yet (avoid wrong-car images from YMM search).
-            if (data.fields.vin || (listingPhotos.length === 0 && (data.fields.make || data.fields.year))) {
-              fetch("/api/photos?" + new URLSearchParams({
-                ...(data.fields.make ? { make: data.fields.make } : {}),
-                ...(data.fields.model ? { model: data.fields.model } : {}),
-                ...(data.fields.year ? { year: String(data.fields.year) } : {}),
-                ...(data.fields.vin ? { vin: data.fields.vin } : {}),
-                no_market: "1",
-              }))
-                .then((r) => r.json())
-                .then((d) => {
-                  if (d.photo_urls?.length) {
-                    photosSetByExtractionRef.current = true;
-                    setListingPhotos(d.photo_urls);
-                  }
-                })
-                .catch(() => {});
-            }
             handleGenerate(data);
           }}
           onExtractionSuccess={() => {}}
           onExtractionFields={handleExtractionFields}
-          onPhotosExtracted={() => {
-            // Ignore scraped photos — Marketcheck fetch (above) will set real dealer photos.
-            // Only mark the ref so the receipt-load effect doesn't fire mid-analysis.
-            photosSetByExtractionRef.current = true;
+          onPhotosExtracted={(photos) => {
+            // Use scraped photos immediately — they are the actual listing photos
+            // from the CarGurus CDN and are always the correct vehicle.
+            // Marketcheck is only used as a fallback (in the receipt-load effect)
+            // when no stored photos exist.
+            if (photos?.length) {
+              photosSetByExtractionRef.current = true;
+              setListingPhotos(photos);
+            } else {
+              // No scraped photos — mark ref so receipt-load effect can try Marketcheck
+              photosSetByExtractionRef.current = false;
+            }
           }}
           isGenerating={isGenerating}
           generatingStep={generatingStep}
