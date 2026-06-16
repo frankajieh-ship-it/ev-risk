@@ -136,46 +136,56 @@ export async function POST(request: NextRequest) {
       ? (parsedUrl.pathname.match(/\/details\/(\d{7,12})/)?.[1] ?? null)
       : null;
 
-    // --- CarGurus: try JSON API first (fastest, no scraping needed) ---
-    // Returns structured listing data (year/make/model/VIN/price/mileage/photos) without
-    // requiring HTML rendering. Works from Netlify IPs when the listing is active.
-    if (parsedUrl.hostname.includes('cargurus.com') && cgListingId) {
+    // --- CarGurus: ScrapingBee primary (residential proxy + JS render) ---
+    // CarGurus blocks datacenter IPs and Googlebot UA. ScrapingBee with premium_proxy
+    // uses residential IPs and a real browser session — reliably returns full HTML with
+    // __remixContext (VIN, photos, history). Googlebot direct is a fast cheap fallback.
+    const SCRAPINGBEE_KEY = process.env.SCRAPINGBEE_API_KEY;
+    if (parsedUrl.hostname.includes('cargurus.com') && SCRAPINGBEE_KEY) {
+      const sbController = new AbortController();
+      const sbTimeoutId = setTimeout(() => sbController.abort(), 30000);
       try {
-        const cgApiUrl = `https://www.cargurus.com/api/listing/v1/detail/${cgListingId}`;
-        const cgApiRes = await fetch(cgApiUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-            'Accept': 'application/json, text/plain, */*',
-            'Referer': `https://www.cargurus.com/Cars/new/nl-New-Cars-d0`,
-            'Origin': 'https://www.cargurus.com',
-            'x-requested-with': 'XMLHttpRequest',
-          },
-          signal: AbortSignal.timeout(8000),
+        console.log('[Proxy Fetch] CarGurus: trying ScrapingBee primary');
+        const sbParams = new URLSearchParams({
+          api_key: SCRAPINGBEE_KEY,
+          url,
+          render_js: 'true',
+          premium_proxy: 'true',
+          country_code: 'us',
+          wait: '5000',
         });
-        if (cgApiRes.ok) {
-          const cgJson = await cgApiRes.json() as Record<string, unknown>;
-          // Wrap JSON as minimal HTML so the scraper can parse it via __NEXT_DATA__ path
-          const wrappedHtml = `<html><head></head><body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify({ props: { pageProps: { listing: cgJson } } })}</script><p>${cgListingId}</p></body></html>`;
-          console.log(`[Proxy Fetch] CarGurus JSON API success for ${cgListingId}`);
-          return NextResponse.json({
-            success: true,
-            html: wrappedHtml,
-            contentLength: wrappedHtml.length,
-            status: 200,
-            fetchMethod: 'cargurus_api',
-            headers: { 'content-type': 'text/html' },
-          });
+        const sbRes = await fetch(`https://app.scrapingbee.com/api/v1/?${sbParams}`, {
+          signal: sbController.signal,
+        });
+        clearTimeout(sbTimeoutId);
+        console.log('[Proxy Fetch] ScrapingBee status:', sbRes.status);
+        if (sbRes.ok) {
+          const sbHtml = await sbRes.text();
+          const hasRemix = sbHtml.includes('__remixContext') || sbHtml.includes('__NEXT_DATA__');
+          const hasListingId = cgListingId ? sbHtml.includes(cgListingId) : true;
+          const isBlocked = sbHtml.length < 5000 || sbHtml.toLowerCase().includes('just a moment');
+          console.log(`[Proxy Fetch] ScrapingBee html: length=${sbHtml.length} hasRemix=${hasRemix} hasListingId=${hasListingId}`);
+          if (!isBlocked && hasListingId && hasRemix) {
+            return NextResponse.json({
+              success: true,
+              html: sbHtml,
+              contentLength: sbHtml.length,
+              status: 200,
+              fetchMethod: 'scrapingbee',
+              headers: { 'content-type': 'text/html' },
+            });
+          }
+          console.warn(`[Proxy Fetch] ScrapingBee result insufficient — falling through to Googlebot`);
+        } else {
+          console.warn(`[Proxy Fetch] ScrapingBee returned ${sbRes.status} — falling through to Googlebot`);
         }
-        console.warn(`[Proxy Fetch] CarGurus JSON API returned ${cgApiRes.status} — falling through to Googlebot`);
-      } catch (cgApiErr) {
-        console.warn('[Proxy Fetch] CarGurus JSON API failed:', cgApiErr instanceof Error ? cgApiErr.message : String(cgApiErr));
+      } catch (sbErr) {
+        clearTimeout(sbTimeoutId);
+        console.warn('[Proxy Fetch] ScrapingBee failed:', sbErr instanceof Error ? sbErr.message : String(sbErr));
       }
     }
 
-    // --- CarGurus: try Googlebot direct fetch ---
-    // CarGurus serves a fully server-rendered page (including __remixContext with VIN + photos)
-    // to Googlebot without requiring JS execution. This is faster and avoids Nimbleway's
-    // persistent stale cache problem entirely.
+    // --- CarGurus: Googlebot direct fallback (free, fast, sometimes works) ---
     if (parsedUrl.hostname.includes('cargurus.com')) {
       try {
         const cgController = new AbortController();
@@ -196,7 +206,7 @@ export async function POST(request: NextRequest) {
           const hasRemixContext = cgHtml.includes('__remixContext') || cgHtml.includes('__NEXT_DATA__');
           const hasListingId = cgListingId ? cgHtml.includes(cgListingId) : true;
           const isBlocked = cgHtml.length < 5000 || cgHtml.toLowerCase().includes('just a moment');
-          console.log(`[Proxy Fetch] CarGurus Googlebot fetch: length=${cgHtml.length} hasRemix=${hasRemixContext} hasListingId=${hasListingId}`);
+          console.log(`[Proxy Fetch] Googlebot fallback: length=${cgHtml.length} hasRemix=${hasRemixContext} hasListingId=${hasListingId}`);
           if (!isBlocked && hasListingId && hasRemixContext) {
             return NextResponse.json({
               success: true,
@@ -207,12 +217,10 @@ export async function POST(request: NextRequest) {
               headers: { 'content-type': 'text/html' },
             });
           }
-          console.warn(`[Proxy Fetch] CarGurus Googlebot fetch insufficient (blocked=${isBlocked} hasListingId=${hasListingId} hasRemix=${hasRemixContext}) — falling through to Nimbleway`);
-        } else {
-          console.warn(`[Proxy Fetch] CarGurus Googlebot fetch returned ${cgRes.status} — falling through to Nimbleway`);
         }
+        console.warn('[Proxy Fetch] Googlebot fallback blocked — falling through to Nimbleway');
       } catch (cgErr) {
-        console.warn('[Proxy Fetch] CarGurus Googlebot fetch failed:', cgErr instanceof Error ? cgErr.message : String(cgErr));
+        console.warn('[Proxy Fetch] Googlebot fallback failed:', cgErr instanceof Error ? cgErr.message : String(cgErr));
       }
     }
 
@@ -332,61 +340,6 @@ export async function POST(request: NextRequest) {
         console.warn('[Proxy Fetch] Nimbleway threw:', msg, '— falling through to ScrapingBee');
       }
 
-      // --- ScrapingBee fallback for JS-rendered sites when Nimbleway fails ---
-      const SCRAPINGBEE_KEY = process.env.SCRAPINGBEE_API_KEY;
-      if (SCRAPINGBEE_KEY) {
-        const sbController = new AbortController();
-        const sbTimeoutId = setTimeout(() => sbController.abort(), 25000);
-        try {
-          console.log('[Proxy Fetch] Trying ScrapingBee fallback:', url.substring(0, 80));
-          const sbParams = new URLSearchParams({
-            api_key: SCRAPINGBEE_KEY,
-            url,
-            render_js: 'true',
-            premium_proxy: 'true',
-            country_code: 'us',
-            wait: '3000',
-          });
-          const sbResponse = await fetch(`https://app.scrapingbee.com/api/v1/?${sbParams}`, {
-            signal: sbController.signal,
-          });
-          clearTimeout(sbTimeoutId);
-          console.log('[Proxy Fetch] ScrapingBee status:', sbResponse.status);
-
-          if (sbResponse.ok) {
-            const sbHtml = await sbResponse.text();
-            const lowerSb = sbHtml.toLowerCase();
-            const sbBlocked =
-              lowerSb.includes('id="captcha"') ||
-              lowerSb.includes('just a moment') ||
-              lowerSb.includes('challenge-platform') ||
-              sbHtml.length < 500;
-            const sbStaleCache = cgListingId !== null && !sbHtml.includes(cgListingId);
-
-            if (!sbBlocked && !sbStaleCache && sbHtml.length >= 10000) {
-              console.log('[Proxy Fetch] ScrapingBee success, length:', sbHtml.length);
-              return NextResponse.json({
-                success: true,
-                html: sbHtml,
-                contentLength: sbHtml.length,
-                status: 200,
-                fetchMethod: 'scrapingbee',
-                headers: { 'content-type': 'text/html' },
-              });
-            }
-            if (sbStaleCache) {
-              console.warn(`[Proxy Fetch] ScrapingBee also stale cache — listing ID ${cgListingId} not in HTML`);
-            } else {
-              console.warn('[Proxy Fetch] ScrapingBee returned blocked/thin page, length:', sbHtml.length);
-            }
-          } else {
-            console.warn('[Proxy Fetch] ScrapingBee error:', sbResponse.status);
-          }
-        } catch (sbErr) {
-          clearTimeout(sbTimeoutId);
-          console.warn('[Proxy Fetch] ScrapingBee threw:', sbErr instanceof Error ? sbErr.message : String(sbErr));
-        }
-      }
     }
 
     const controller = new AbortController();
