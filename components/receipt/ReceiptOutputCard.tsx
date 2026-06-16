@@ -152,17 +152,12 @@ export default function ReceiptOutputCard({
   const [whyNotGreenOpen, setWhyNotGreenOpen] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [photoOverride, setPhotoOverride] = useState<{ key: string; urls: string[] } | null>(null);
   const fallbackFiredRef = useRef(false);
 
   // Normalize AI-returned array field — AI can return why_not_green as non-array
   const whyNotGreen = Array.isArray(receipt.why_not_green) ? receipt.why_not_green : [];
 
-  const photosKey = photos.join(",");
-  // Override is only valid when it was set for the current photos array
-  const photoSrcs = (photoOverride?.key === photosKey ? photoOverride.urls : null) ?? photos;
-  // Whether the photo fallback has already been attempted for this photos set
-  const photoFallbackFired = photoOverride?.key === photosKey;
+  const photoSrcs = photos;
 
   const prevPhoto = useCallback(() =>
     setPhotoIndex((i) => (i - 1 + photoSrcs.length) % photoSrcs.length),
@@ -181,30 +176,6 @@ export default function ReceiptOutputCard({
     return url;
   };
 
-  // Fetch a static Wikimedia photo only when no photos were extracted from the listing.
-  // If photos exist (CarGurus CDN or Auto.dev), use them as-is — don't overwrite with stock images.
-  useEffect(() => {
-    // Already have listing photos — nothing to do
-    if (photos.length > 0) return;
-    const ls = receipt.listing_summary;
-    if (!ls?.make && !vin) return;
-    const params = new URLSearchParams();
-    if (vin) params.set("vin", vin);
-    if (ls?.make) params.set("make", ls.make);
-    if (ls?.model) params.set("model", ls.model);
-    if (ls?.year) params.set("year", String(ls.year));
-    params.set("no_market", "1"); // never use Auto.dev market listings on receipt page
-    const key = photosKey;
-    fetch(`/api/photos?${params.toString()}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.photo_urls?.length > 0) {
-          setPhotoOverride({ key, urls: data.photo_urls });
-          setPhotoIndex(0);
-        }
-      })
-      .catch(() => {});
-  }, [photosKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!lintPassed && receipt && !fallbackFiredRef.current) {
@@ -396,24 +367,8 @@ export default function ReceiptOutputCard({
                 alt={vehicleDesc ? `${vehicleDesc} — listing photo ${photoIndex + 1} of ${photoSrcs.length}` : `Listing photo ${photoIndex + 1} of ${photoSrcs.length}`}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                 onError={(e) => {
-                  // Prevent infinite retry loops
-                  (e.currentTarget as HTMLImageElement).onerror = null;
-                  const ls = receipt.listing_summary;
-                  if (!ls?.make) { setPhotoOverride({ key: photosKey, urls: [] }); return; }
-                  const key = photosKey;
-                  // On image load failure: fall back to make-only static photo (MAKE_FALLBACK_MAP).
-                  // Never use skip_static + Auto.dev here — market listing photos from Auto.dev
-                  // can be wrong-car images (e.g. Tesla appearing on a Hyundai Kona receipt)
-                  // because model filtering is imperfect on unstructured listing data.
-                  const fallbackParams = new URLSearchParams();
-                  fallbackParams.set("make", ls.make);
-                  fetch(`/api/photos?${fallbackParams.toString()}`)
-                    .then((r) => r.json())
-                    .then((d) => {
-                      setPhotoOverride({ key, urls: d.photo_urls ?? [] });
-                      setPhotoIndex(0);
-                    })
-                    .catch(() => setPhotoOverride({ key, urls: [] }));
+                  // Hide broken image — no fallback to wrong-car stock images
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
                 }}
               />
               {/* Gradient overlay so text below stays readable */}
