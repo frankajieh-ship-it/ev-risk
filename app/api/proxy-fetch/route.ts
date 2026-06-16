@@ -192,14 +192,63 @@ export async function POST(request: NextRequest) {
           }
         } else {
           const errText = await nmResponse.text().catch(() => '');
-          console.warn('[Proxy Fetch] Nimbleway error', nmResponse.status, errText.substring(0, 200), '— falling through to direct fetch');
-          // Fall through to direct fetch — partial data is better than hard failure
+          console.warn('[Proxy Fetch] Nimbleway error', nmResponse.status, errText.substring(0, 200), '— falling through to ScrapingBee');
         }
       } catch (nmErr) {
         clearTimeout(nmTimeoutId);
         const msg = nmErr instanceof Error ? nmErr.message : String(nmErr);
-        console.warn('[Proxy Fetch] Nimbleway threw:', msg);
-        // Fall through to direct fetch if Nimbleway itself is unreachable
+        console.warn('[Proxy Fetch] Nimbleway threw:', msg, '— falling through to ScrapingBee');
+      }
+
+      // --- ScrapingBee fallback for JS-rendered sites when Nimbleway fails ---
+      const SCRAPINGBEE_KEY = process.env.SCRAPINGBEE_API_KEY;
+      if (SCRAPINGBEE_KEY) {
+        const sbController = new AbortController();
+        const sbTimeoutId = setTimeout(() => sbController.abort(), 25000);
+        try {
+          console.log('[Proxy Fetch] Trying ScrapingBee fallback:', url.substring(0, 80));
+          const sbParams = new URLSearchParams({
+            api_key: SCRAPINGBEE_KEY,
+            url,
+            render_js: 'true',
+            premium_proxy: 'true',
+            country_code: 'us',
+            wait: '3000',
+          });
+          const sbResponse = await fetch(`https://app.scrapingbee.com/api/v1/?${sbParams}`, {
+            signal: sbController.signal,
+          });
+          clearTimeout(sbTimeoutId);
+          console.log('[Proxy Fetch] ScrapingBee status:', sbResponse.status);
+
+          if (sbResponse.ok) {
+            const sbHtml = await sbResponse.text();
+            const lowerSb = sbHtml.toLowerCase();
+            const sbBlocked =
+              lowerSb.includes('id="captcha"') ||
+              lowerSb.includes('just a moment') ||
+              lowerSb.includes('challenge-platform') ||
+              sbHtml.length < 500;
+
+            if (!sbBlocked && sbHtml.length >= 10000) {
+              console.log('[Proxy Fetch] ScrapingBee success, length:', sbHtml.length);
+              return NextResponse.json({
+                success: true,
+                html: sbHtml,
+                contentLength: sbHtml.length,
+                status: 200,
+                fetchMethod: 'scrapingbee',
+                headers: { 'content-type': 'text/html' },
+              });
+            }
+            console.warn('[Proxy Fetch] ScrapingBee returned blocked/thin page, length:', sbHtml.length);
+          } else {
+            console.warn('[Proxy Fetch] ScrapingBee error:', sbResponse.status);
+          }
+        } catch (sbErr) {
+          clearTimeout(sbTimeoutId);
+          console.warn('[Proxy Fetch] ScrapingBee threw:', sbErr instanceof Error ? sbErr.message : String(sbErr));
+        }
       }
     }
 
