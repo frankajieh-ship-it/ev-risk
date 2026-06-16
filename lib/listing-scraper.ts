@@ -586,7 +586,7 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
                 if (!seenPhotos.has(norm)) {
                   seenPhotos.add(norm);
                   gallery.push(raw);
-                  if (gallery.length >= 20) break;
+                  if (gallery.length >= 50) break;
                 }
               }
             }
@@ -696,15 +696,16 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
               }
             }
 
-            // Extract photo gallery from Remix context
-            if (!data.photo_urls?.length) {
+            // Extract photo gallery from Remix context.
+            // Always run and replace if this loader has more photos than what we've seen so far —
+            // some loaders (e.g. root) return a 4-photo preview; the listing-specific loader has all of them.
+            {
               const isCarGurusPhoto = (u: unknown): u is string =>
                 typeof u === "string" && u.startsWith("https://") &&
                 (u.includes("static.cargurus.com") || u.includes("cimg.cargurus.com") ||
                  u.includes("dealer.com") || u.includes("homenet") || u.includes("flximg.dealer.com") ||
                  u.includes("media.dealerire.com") || u.includes("img.vast.com") || u.includes("photos.ziftsolutions.com")) &&
                 !u.includes("logo") && !u.includes("icon") && !u.includes("badge") && !u.includes("/site/");
-              // Log available photo keys for debugging
               const photoKeys = Object.keys(ls).filter(k => Array.isArray(ls[k]) && (ls[k] as unknown[]).length > 0);
               console.log('[CarGurus Remix] Available array keys:', photoKeys.join(', '));
               const photoArr = (ls.pictures ?? ls.pictureList ?? ls.allPhotos ?? ls.mediaList ?? ls.vehicleImages ?? ls.photos ?? ls.images ?? ls.vehiclePhotos ?? ls.photoUrls ?? ls.imageList ?? ls.galleryPhotos ?? ls.carPhotos ?? []) as unknown[];
@@ -714,14 +715,9 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
               if (Array.isArray(photoArr)) {
                 for (const item of photoArr) {
                   const o = item as Record<string, unknown>;
-                  // Prefer largest available size; fall through to smaller sizes
                   const raw = typeof item === "string" ? item
                     : (o?.largeUrl ?? o?.fullSizeUrl ?? o?.large ?? o?.url ?? o?.src ?? o?.href ?? o?.mediumUrl ?? null);
-                  if (typeof raw === "string" && raw.startsWith("https://")) {
-                    console.log('[CarGurus Remix] Photo candidate:', raw.substring(0, 100), '→ pass:', isCarGurusPhoto(raw));
-                  }
                   if (isCarGurusPhoto(raw)) {
-                    // Deduplicate by base URL (strip query params)
                     const norm = (raw as string).split("?")[0];
                     if (!seen.has(norm)) {
                       seen.add(norm);
@@ -732,13 +728,12 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
                 }
               }
               console.log('[CarGurus Remix] Gallery extracted:', gallery.length, 'photos');
-              if (gallery.length) {
+              // Replace stored photos only if this loader has more
+              if (gallery.length > (data.photo_urls?.length ?? 0)) {
                 data.photo_urls = gallery;
-                data.photo_url = data.photo_url ?? gallery[0];
+                data.photo_url = gallery[0];
               }
             }
-
-            if (data.vin) break;
           }
         }
       } catch { /* silent — Remix context parsing is best-effort */ }
