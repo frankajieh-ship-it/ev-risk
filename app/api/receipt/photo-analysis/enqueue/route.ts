@@ -56,11 +56,15 @@ export async function POST(request: NextRequest) {
   }
 
   // Fire-and-forget: trigger background function
-  const baseUrl = process.env.URL || process.env.NEXT_PUBLIC_SITE_URL || "";
+  // Netlify sets URL automatically; NEXT_PUBLIC_SITE_URL is a fallback for local dev
+  const baseUrl = process.env.URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
   const secret = process.env.PHOTO_ANALYSIS_SECRET;
+  const functionUrl = `${baseUrl}/.netlify/functions/analyze-receipt-photos`;
 
-  if (baseUrl && secret) {
-    fetch(`${baseUrl}/.netlify/functions/analyze-receipt-photos`, {
+  console.log("[photo-analysis/enqueue] baseUrl:", baseUrl, "secret set:", Boolean(secret), "functionUrl:", functionUrl);
+
+  if (baseUrl && secret && !baseUrl.includes("localhost")) {
+    fetch(functionUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -71,11 +75,16 @@ export async function POST(request: NextRequest) {
         job_id: job.id,
         photo_urls: photo_urls.slice(0, 20),
       }),
-    }).catch((err) => {
-      console.error("[photo-analysis/enqueue] background trigger failed:", err);
-    });
+    })
+      .then(async (r) => {
+        const text = await r.text().catch(() => "");
+        console.log("[photo-analysis/enqueue] background trigger response:", r.status, text.slice(0, 200));
+      })
+      .catch((err) => {
+        console.error("[photo-analysis/enqueue] background trigger failed:", err);
+      });
   } else {
-    console.warn("[photo-analysis/enqueue] URL or PHOTO_ANALYSIS_SECRET not set — background function not triggered");
+    console.warn("[photo-analysis/enqueue] skipping background trigger — baseUrl:", baseUrl, "secret:", Boolean(secret));
   }
 
   return NextResponse.json({ job_id: job.id, status: "pending" });
