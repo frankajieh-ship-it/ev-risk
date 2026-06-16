@@ -17,7 +17,7 @@
 
 import type { Handler, HandlerEvent, HandlerResponse } from "@netlify/functions";
 import { createClient } from "@supabase/supabase-js";
-import { classifyAngle, detectDamage, buildCoverage } from "../../lib/photo-due-diligence.js";
+import { analysePhoto, buildCoverage } from "../../lib/photo-due-diligence.js";
 import type { PhotoAnalysisResult, DamageFinding } from "../../lib/photo-due-diligence-types.js";
 
 interface PhotoAnalysisPayload {
@@ -155,15 +155,12 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     const fetchable = resolvedUrls.filter((r) => r.dataUrl !== null);
     console.log(`[analyze-receipt-photos] ${fetchable.length}/${resolvedUrls.length} photos fetched successfully`);
 
-    // Analyse each photo — classify angle + detect damage — in batches of 6
+    // Analyse each photo — classify angle + detect damage in a single API call per photo
     const photos = await batchedParallel(
       fetchable,
       6,
       async ({ url, dataUrl }) => {
-        const [angle_id, findings] = await Promise.all([
-          classifyAngle(dataUrl!),
-          detectDamage(dataUrl!),
-        ]);
+        const { angle_id, findings } = await analysePhoto(dataUrl!);
         return { url, angle_id, findings };
       }
     );

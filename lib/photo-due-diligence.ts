@@ -91,109 +91,78 @@ const DAMAGE_SCHEMA = {
 // API calls
 // ---------------------------------------------------------------------------
 
-const ANGLE_SYSTEM =
-  "You are an automotive photo classifier. Classify the car photo into exactly one of these categories:\n" +
-  "- front: headlights, grille, hood, front bumper visible — vehicle faces camera\n" +
-  "- rear: taillights, trunk/hatch, rear bumper visible — back of vehicle faces camera\n" +
-  "- driver_side: left side of vehicle (US driver side), full or partial profile view\n" +
-  "- pass_side: right side of vehicle (US passenger side), full or partial profile view\n" +
-  "- interior: cabin interior — seats, steering wheel, dashboard, center console, doors from inside\n" +
-  "- odometer: close-up of instrument cluster, digital display, or screen showing mileage/trip reading\n" +
-  "- engine: hood open showing engine bay, motor, or drivetrain components\n" +
-  "- tires: any close-up or detail shot of a tire, wheel, rim, alloy wheel, lug nuts, or wheel well — even a single wheel\n" +
-  "- undercarriage: shot taken from underneath the vehicle showing frame, suspension, exhaust\n" +
-  "- other: interior feature close-ups (infotainment, sunroof, storage), badge/logo close-ups, or anything not matching above\n" +
-  'Respond with JSON only: {"angle_id": "<category>"}. When in doubt between driver_side and pass_side, pick driver_side.';
+const COMBINED_SYSTEM =
+  "You are an automotive photo analyst. For each car photo, do two things:\n" +
+  "1. CLASSIFY the angle into exactly one category:\n" +
+  "   - front: headlights, grille, hood, front bumper visible — vehicle faces camera\n" +
+  "   - rear: taillights, trunk/hatch, rear bumper visible — back of vehicle faces camera\n" +
+  "   - driver_side: left side profile (US driver side)\n" +
+  "   - pass_side: right side profile (US passenger side)\n" +
+  "   - interior: cabin — seats, steering wheel, dashboard, console, doors from inside\n" +
+  "   - odometer: instrument cluster or screen showing mileage\n" +
+  "   - engine: hood open showing engine bay or motor\n" +
+  "   - tires: close-up of tire, wheel, rim, or wheel well\n" +
+  "   - undercarriage: shot from underneath showing frame, suspension, exhaust\n" +
+  "   - other: badge close-ups, feature details, or anything not matching above\n" +
+  "   When in doubt between driver_side and pass_side, pick driver_side.\n" +
+  "2. INSPECT for visible damage: dents, scratches, rust, cracks, paint fade, missing parts, interior damage, tire/wheel damage.\n" +
+  "   Return empty findings array if everything looks clean.\n" +
+  'Respond with JSON only: {"angle_id": "<category>", "findings": [{"type": "dent|scratch|rust|crack|paint_fade|missing_part|other", "severity": "minor|moderate|severe", "location": "string", "affects_value": true|false, "description": "string"}]}';
 
-const DAMAGE_SYSTEM =
-  "You are an automotive damage inspector. Examine the car photo for any visible issues: " +
-  "exterior dents, scratches, rust, cracks, paint fade, missing parts, " +
-  "interior damage (torn seats, cracked screens, stains), or tire/wheel damage (cracks, curb rash, flat). " +
-  "Return an empty findings array if everything looks clean and normal. " +
-  'Respond with JSON only: {"findings": [{"type": "dent|scratch|rust|crack|paint_fade|missing_part|other", ' +
-  '"severity": "minor|moderate|severe", "location": "string", "affects_value": true|false, "description": "string"}]}';
+const COMBINED_SCHEMA = {
+  type: "object",
+  properties: {
+    angle_id: { type: "string", enum: [...ANGLE_IDS] },
+    findings: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          type:          { type: "string", enum: ["dent", "scratch", "rust", "crack", "paint_fade", "missing_part", "other"] },
+          severity:      { type: "string", enum: ["minor", "moderate", "severe"] },
+          location:      { type: "string" },
+          affects_value: { type: "boolean" },
+          description:   { type: "string" },
+        },
+        required: ["type", "severity", "location", "affects_value", "description"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["angle_id", "findings"],
+  additionalProperties: false,
+} as const;
 
-export async function classifyAngle(photoUrl: string): Promise<AngleId> {
-  // Try OpenAI first
+/** Analyse a single photo: classify angle + detect damage in one API call. */
+export async function analysePhoto(photoUrl: string): Promise<{ angle_id: AngleId; findings: DamageFinding[] }> {
+  const fallback = { angle_id: "other" as AngleId, findings: [] };
+
+  // OpenAI primary — use "auto" detail so GPT-4o tiles large images properly
   const openai = getOpenAI();
   if (openai) {
     try {
       const response = await openai.chat.completions.create({
         model: process.env.OPENAI_VISION_MODEL || "gpt-4o",
         messages: [
-          { role: "system", content: ANGLE_SYSTEM },
+          { role: "system", content: COMBINED_SYSTEM },
           { role: "user", content: [
-            { type: "text", text: "Classify this car photo." },
-            { type: "image_url", image_url: { url: photoUrl, detail: "low" } },
+            { type: "text", text: "Analyse this car photo." },
+            { type: "image_url", image_url: { url: photoUrl, detail: "auto" } },
           ]},
         ],
         temperature: 0,
-        max_tokens: 30,
-        response_format: { type: "json_schema", json_schema: { name: "angle_classification", strict: true, schema: ANGLE_SCHEMA } },
+        max_tokens: 500,
+        response_format: { type: "json_schema", json_schema: { name: "photo_analysis", strict: true, schema: COMBINED_SCHEMA } },
       });
       const raw = response.choices[0]?.message?.content ?? "{}";
-      const parsed = JSON.parse(raw) as { angle_id?: string };
+      const parsed = JSON.parse(raw) as { angle_id?: string; findings?: DamageFinding[] };
       const id = parsed.angle_id ?? "other";
-      return (ANGLE_IDS as readonly string[]).includes(id) ? (id as AngleId) : "other";
+      return {
+        angle_id: (ANGLE_IDS as readonly string[]).includes(id) ? (id as AngleId) : "other",
+        findings: Array.isArray(parsed.findings) ? parsed.findings : [],
+      };
     } catch (err) {
-      console.error("[classifyAngle] OpenAI failed, trying Anthropic:", err);
-    }
-  }
-
-  // Anthropic fallback (Claude supports base64 vision)
-  const anthropic = getAnthropic();
-  if (anthropic) {
-    try {
-      const parsed = parseDataUrl(photoUrl);
-      if (!parsed) return "other";
-      const response = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 64,
-        system: ANGLE_SYSTEM,
-        messages: [{
-          role: "user",
-          content: [
-            { type: "image", source: { type: "base64", media_type: parsed.mediaType, data: parsed.data } },
-            { type: "text", text: "Classify this car photo." },
-          ],
-        }],
-      });
-      const text = response.content[0]?.type === "text" ? response.content[0].text : "{}";
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      const result = jsonMatch ? JSON.parse(jsonMatch[0]) as { angle_id?: string } : {};
-      const id = result.angle_id ?? "other";
-      return (ANGLE_IDS as readonly string[]).includes(id) ? (id as AngleId) : "other";
-    } catch (err) {
-      console.error("[classifyAngle] Anthropic also failed:", err);
-    }
-  }
-
-  return "other";
-}
-
-export async function detectDamage(photoUrl: string): Promise<DamageFinding[]> {
-  // Try OpenAI first
-  const openai = getOpenAI();
-  if (openai) {
-    try {
-      const response = await openai.chat.completions.create({
-        model: process.env.OPENAI_VISION_MODEL || "gpt-4o",
-        messages: [
-          { role: "system", content: DAMAGE_SYSTEM },
-          { role: "user", content: [
-            { type: "text", text: "Inspect this car photo for damage." },
-            { type: "image_url", image_url: { url: photoUrl, detail: "low" } },
-          ]},
-        ],
-        temperature: 0,
-        max_tokens: 400,
-        response_format: { type: "json_schema", json_schema: { name: "damage_detection", strict: true, schema: DAMAGE_SCHEMA } },
-      });
-      const raw = response.choices[0]?.message?.content ?? "{}";
-      const parsed = JSON.parse(raw) as { findings?: DamageFinding[] };
-      return Array.isArray(parsed.findings) ? parsed.findings : [];
-    } catch (err) {
-      console.error("[detectDamage] OpenAI failed, trying Anthropic:", err);
+      console.error("[analysePhoto] OpenAI failed, trying Anthropic:", err);
     }
   }
 
@@ -202,29 +171,45 @@ export async function detectDamage(photoUrl: string): Promise<DamageFinding[]> {
   if (anthropic) {
     try {
       const parsed = parseDataUrl(photoUrl);
-      if (!parsed) return [];
+      if (!parsed) return fallback;
       const response = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 512,
-        system: DAMAGE_SYSTEM,
+        max_tokens: 600,
+        system: COMBINED_SYSTEM,
         messages: [{
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: parsed.mediaType, data: parsed.data } },
-            { type: "text", text: "Inspect this car photo for damage." },
+            { type: "text", text: "Analyse this car photo." },
           ],
         }],
       });
       const text = response.content[0]?.type === "text" ? response.content[0].text : "{}";
       const jsonMatch = text.match(/\{[\s\S]*\}/);
-      const result = jsonMatch ? JSON.parse(jsonMatch[0]) as { findings?: DamageFinding[] } : {};
-      return Array.isArray(result.findings) ? result.findings : [];
+      const result = jsonMatch ? JSON.parse(jsonMatch[0]) as { angle_id?: string; findings?: DamageFinding[] } : {};
+      const id = result.angle_id ?? "other";
+      return {
+        angle_id: (ANGLE_IDS as readonly string[]).includes(id) ? (id as AngleId) : "other",
+        findings: Array.isArray(result.findings) ? result.findings : [],
+      };
     } catch (err) {
-      console.error("[detectDamage] Anthropic also failed:", err);
+      console.error("[analysePhoto] Anthropic also failed:", err);
     }
   }
 
-  return [];
+  return fallback;
+}
+
+/** @deprecated Use analysePhoto() instead — kept for any direct callers */
+export async function classifyAngle(photoUrl: string): Promise<AngleId> {
+  const result = await analysePhoto(photoUrl);
+  return result.angle_id;
+}
+
+/** @deprecated Use analysePhoto() instead — kept for any direct callers */
+export async function detectDamage(photoUrl: string): Promise<DamageFinding[]> {
+  const result = await analysePhoto(photoUrl);
+  return result.findings;
 }
 
 // ---------------------------------------------------------------------------
