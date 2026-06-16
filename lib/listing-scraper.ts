@@ -785,23 +785,24 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
 
     const seen = new Set<string>();
     const gallery: string[] = [];
+    // CarGurus URLs: static.cargurus.com/images/forsale/.../pic-XXXXXXXXX_NN.jpg?w=NNN&auto=format
+    // Size is in the query param (?w=), not the filename — so we collect the base URL and
+    // append ?w=1024&auto=format to always request the large variant.
     const staticPattern = /https:\/\/static\.cargurus\.com\/images\/forsale\/[^"' \]\\>\s]*/g;
     let m: RegExpExecArray | null;
     while ((m = staticPattern.exec(html)) !== null) {
       const raw = m[0].replace(/\\u002F/gi, '/').replace(/\\u0026.*$/, '').replace(/&amp;.*$/, '');
-      const norm = raw.split("?")[0];
-      if (norm.includes("logo") || norm.includes("icon") || norm.includes("/site/")) continue;
-      const picIdMatch = norm.match(/pic-(\d+)/);
+      const base = raw.split("?")[0];
+      if (base.includes("logo") || base.includes("icon") || base.includes("/site/")) continue;
+      const picIdMatch = base.match(/pic-(\d+)/);
       if (!picIdMatch) continue;
       const picId = picIdMatch[1];
       // Only accept pic IDs that belong to this listing
       if (!listingPicIds.has(picId)) continue;
       if (seen.has(picId)) continue;
-      // Skip thumbnails — only keep large sizes (width >= 600px)
-      const sizeMatch = norm.match(/-(\d+)x(\d+)\.jpe?g$/i);
-      if (!sizeMatch || parseInt(sizeMatch[1]) < 600) continue;
       seen.add(picId);
-      gallery.push(norm);
+      // Request 1024px wide variant — CarGurus ignores unknown ?w values gracefully
+      gallery.push(`${base}?w=1024&auto=format`);
       if (gallery.length >= 50) break;
     }
     console.log(`[CarGurus HTML scan] Found ${gallery.length} listing photos (${listingPicIds.size} known pic IDs)`);
