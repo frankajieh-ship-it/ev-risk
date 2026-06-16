@@ -145,55 +145,29 @@ function normalizeMakeForMarketcheck(make: string): string {
   return MC_MAKE_ALIASES[make.toLowerCase()] ?? make;
 }
 
-// Suffixes to strip from model strings before querying Marketcheck.
-// Marketcheck model param is an exact match against build.model, which is just the base name.
-const MC_TRIM_SUFFIXES = [
-  // Powertrain / range
-  " long range", " standard range plus", " standard range", " extended range",
-  " dual motor", " tri motor", " single motor",
-  // Performance
-  " performance", " plaid+", " plaid",
-  // Drivetrain
-  " all-wheel drive", " rear-wheel drive", " front-wheel drive",
-  " awd", " rwd", " fwd", " 4wd",
-  // Tesla-specific
-  " p100d", " p90d", " p85d", " p85+", " p85",
-  " 100d", " 90d", " 85d", " 75d", " 70d", " 60d",
-  // Mercedes trim words
-  " amg 4matic+", " amg 4matic", " amg line", " amg",
-  " 4matic+", " 4matic",
-  " e-cell plus", " e-cell",
-  // BMW / others
-  " xdrive50", " xdrive40", " xdrive", " edrive40", " edrive",
-  " m50", " m60",
-  // Generic trim words
-  " premium", " select", " limited", " gt", " plus", " pro", " base",
-  // Body styles
-  " suv", " sedan", " hatchback", " coupe", " wagon",
-  // Electric
-  " electric", " ev",
-];
-
-function normalizeModelForMarketcheck(make: string, model: string): string {
+/**
+ * Generate candidate model strings to try against Marketcheck, from most-specific to least.
+ * Marketcheck build.model is just the base name (e.g. "bZ4X", "Model X", "EQE") — trim
+ * levels, drivetrain suffixes, and performance badges are not part of it.
+ *
+ * Strategy: strip the make prefix, then yield progressively shorter versions by
+ * dropping the last word one at a time. Stop at 1 word minimum.
+ * E.g. "bZ4X XLE FWD" → ["bZ4X XLE FWD", "bZ4X XLE", "bZ4X"]
+ */
+function modelCandidates(make: string, model: string): string[] {
   let m = model.trim();
-  // Strip make prefix (e.g. "Tesla Model X Long Range" → "Model X Long Range")
+  // Strip make prefix (e.g. "Toyota bZ4X XLE FWD" → "bZ4X XLE FWD")
   if (m.toLowerCase().startsWith(make.toLowerCase() + " ")) {
     m = m.slice(make.length + 1).trim();
   }
-  // Strip trim suffixes until no more match
-  let changed = true;
-  while (changed) {
-    changed = false;
-    const mLower = m.toLowerCase();
-    for (const suffix of MC_TRIM_SUFFIXES) {
-      if (mLower.endsWith(suffix)) {
-        m = m.slice(0, m.length - suffix.length).trim();
-        changed = true;
-        break;
-      }
-    }
+  const candidates: string[] = [];
+  const words = m.split(" ").filter(Boolean);
+  // Yield from full string down to 1 word
+  for (let len = words.length; len >= 1; len--) {
+    candidates.push(words.slice(0, len).join(" "));
   }
-  return m;
+  // Deduplicate while preserving order
+  return [...new Set(candidates)];
 }
 
 /**
@@ -210,37 +184,49 @@ export async function searchByMakeModel(params: {
   }
 
   const normalizedMake = normalizeMakeForMarketcheck(params.make);
-  const normalizedModel = normalizeModelForMarketcheck(params.make, params.model);
+  // Cap at 4 candidates to limit parallel API requests
+  const candidates = modelCandidates(params.make, params.model).slice(0, 4);
 
-  const url = new URL(`${MC_BASE}/search/car/active`);
-  url.searchParams.set("api_key", process.env.MARKETCHECK_API_KEY!);
-  url.searchParams.set("make", normalizedMake);
-  url.searchParams.set("model", normalizedModel);
-  if (params.year) url.searchParams.set("year", String(params.year));
-  url.searchParams.set("inventory_type", "used");
-  url.searchParams.set("rows", "10");
-
+  // Fire all model candidates in parallel — take the most-specific one with results.
+  // Marketcheck model param must be an exact base model name ("bZ4X", not "bZ4X XLE FWD").
+  // Parallel avoids the latency of sequential retries.
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const res = await fetch(url.toString(), { signal: controller.signal });
+    const results = await Promise.all(
+      candidates.map(async (candidate) => {
+        const url = new URL(`${MC_BASE}/search/car/active`);
+        url.searchParams.set("api_key", process.env.MARKETCHECK_API_KEY!);
+        url.searchParams.set("make", normalizedMake);
+        url.searchParams.set("model", candidate);
+        if (params.year) url.searchParams.set("year", String(params.year));
+        url.searchParams.set("inventory_type", "used");
+        url.searchParams.set("rows", "10");
+        try {
+          const res = await fetch(url.toString(), { signal: controller.signal });
+          if (!res.ok) return { candidate, listings: [] as MarketCheckListing[] };
+          const data = await res.json() as { listings?: MarketCheckListing[] };
+          return { candidate, listings: data.listings ?? [] };
+        } catch {
+          return { candidate, listings: [] as MarketCheckListing[] };
+        }
+      })
+    );
     clearTimeout(timeout);
 
-    if (!res.ok) return { success: false, error: `Marketcheck API error: ${res.status}` };
+    // Pick the most-specific candidate (earliest in array) that has results
+    const winner = results.find((r) => r.listings.length > 0);
+    if (!winner) return { success: false, error: "No listings found for any model candidate" };
 
-    const data = await res.json() as { num_found?: number; listings?: MarketCheckListing[] };
-    const listings = data.listings ?? [];
-    if (!listings.length) return { success: false, error: "No listings found" };
-
-    const sorted = [...listings].sort((a, b) =>
+    const sorted = [...winner.listings].sort((a, b) =>
       (b.media?.photo_links?.length ?? 0) - (a.media?.photo_links?.length ?? 0)
     );
     const best = sorted[0];
     const photo_links = best.media?.photo_links ?? [];
 
-    console.log(`[Marketcheck] YMM ${params.year} ${normalizedMake} ${normalizedModel} (raw: ${params.make} ${params.model}): ${listings.length} listing(s), ${photo_links.length} photos`);
-    return { success: true, listings, photo_links, best_listing: best };
+    console.log(`[Marketcheck] YMM ${params.year} ${normalizedMake} "${winner.candidate}" (raw: "${params.model}"): ${winner.listings.length} listings, ${photo_links.length} photos`);
+    return { success: true, listings: winner.listings, photo_links, best_listing: best };
   } catch (err) {
     clearTimeout(timeout);
     const isAbort = err instanceof DOMException && err.name === "AbortError";
