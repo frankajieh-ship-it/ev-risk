@@ -69,6 +69,7 @@ interface ReceiptOutputCardProps {
   priceDropCents?: number | null;
   dealerInfo?: { id: string; name: string; slug: string; logo_url: string | null; is_verified: boolean } | null;
   onContactDealer?: () => void;
+  onPhotosFailed?: () => void;
 }
 
 const VERDICT_STYLES = {
@@ -146,6 +147,7 @@ export default function ReceiptOutputCard({
   priceDropCents,
   dealerInfo,
   onContactDealer,
+  onPhotosFailed,
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [scoringTooltipOpen, setScoringTooltipOpen] = useState(false);
@@ -153,11 +155,17 @@ export default function ReceiptOutputCard({
   const [photoIndex, setPhotoIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const fallbackFiredRef = useRef(false);
+  const photoFailedRef = useRef(false);
 
   // Normalize AI-returned array field — AI can return why_not_green as non-array
   const whyNotGreen = Array.isArray(receipt.why_not_green) ? receipt.why_not_green : [];
 
   const photoSrcs = photos;
+
+  // Reset failed flag when a new photo set arrives
+  useEffect(() => {
+    photoFailedRef.current = false;
+  }, [photos]);
 
   const prevPhoto = useCallback(() =>
     setPhotoIndex((i) => (i - 1 + photoSrcs.length) % photoSrcs.length),
@@ -372,8 +380,12 @@ export default function ReceiptOutputCard({
                 alt={vehicleDesc ? `${vehicleDesc} — listing photo ${photoIndex + 1} of ${photoSrcs.length}` : `Listing photo ${photoIndex + 1} of ${photoSrcs.length}`}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                 onError={(e) => {
-                  // Hide broken image — no fallback to wrong-car stock images
                   (e.currentTarget as HTMLImageElement).style.display = "none";
+                  // Signal parent to try a fresh photo lookup if stored URLs are broken
+                  if (!photoFailedRef.current) {
+                    photoFailedRef.current = true;
+                    onPhotosFailed?.();
+                  }
                 }}
               />
               {/* Gradient overlay so text below stays readable */}

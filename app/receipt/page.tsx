@@ -395,23 +395,12 @@ export default function ReceiptPage() {
   // Load photos when a saved receipt loads (e.g. ?id= or history select).
   // Skipped when photos were already set by the live extraction flow this session.
   // Priority: stored DB photos (scraped from listing at extraction time) → Marketcheck fallback.
-  useEffect(() => {
-    if (!receipt) return;
-    if (photosSetByExtractionRef.current) return;
-
-    // Use photos stored at extraction time first — these are the actual listing photos
-    // (scraped from CarGurus CDN) and are always the right vehicle.
-    const stored = (receipt as unknown as Record<string, unknown>).photo_urls as string[] | undefined;
-    if (stored?.length) {
-      setListingPhotos(stored);
-      return;
-    }
-
-    // No stored photos — fall back to Marketcheck live lookup
-    const make = receipt.listing_summary?.make;
-    const model = receipt.listing_summary?.model;
-    const year = receipt.listing_summary?.year;
-    const vin = receipt.vin;
+  const fetchLivePhotos = useCallback((rcpt: typeof receipt) => {
+    if (!rcpt) return;
+    const make = rcpt.listing_summary?.make;
+    const model = rcpt.listing_summary?.model;
+    const year = rcpt.listing_summary?.year;
+    const vin = rcpt.vin;
     if (!make && !vin) return;
     const photoParams = new URLSearchParams();
     if (make) photoParams.set("make", make);
@@ -425,7 +414,30 @@ export default function ReceiptPage() {
         if (d.photo_urls?.length) setListingPhotos(d.photo_urls);
       })
       .catch(() => {});
-  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!receipt) return;
+    if (photosSetByExtractionRef.current) return;
+
+    // Use photos stored at extraction time first — these are the actual listing photos
+    // (scraped from CarGurus CDN) and are always the right vehicle.
+    const stored = (receipt as unknown as Record<string, unknown>).photo_urls as string[] | undefined;
+    if (stored?.length) {
+      setListingPhotos(stored);
+      return;
+    }
+
+    // No stored photos — fall back to Marketcheck live lookup
+    fetchLivePhotos(receipt);
+  }, [receipt?.receipt_id, fetchLivePhotos]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Called by ReceiptOutputCard when stored photo URLs fail to load (e.g. expired CDN links).
+  // Clear broken photos and fetch fresh ones from Marketcheck.
+  const handlePhotosFailed = useCallback(() => {
+    setListingPhotos([]);
+    fetchLivePhotos(receipt);
+  }, [receipt, fetchLivePhotos]);
 
   // Matching deals for this vehicle
   const [matchingDeals, setMatchingDeals] = useState<import("@/components/deals/DealCard").CuratedDeal[]>([]);
@@ -1074,6 +1086,7 @@ export default function ReceiptPage() {
                 priceDropCents={listingPriceDropCents}
                 dealerInfo={dealerInfo}
                 onContactDealer={dealerInfo ? () => setShowInquiryModal(true) : undefined}
+                onPhotosFailed={handlePhotosFailed}
               />
               </div>
 

@@ -46,18 +46,20 @@ export async function GET(request: NextRequest) {
     const res = await fetch(decoded, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "image/webp,image/avif,image/*,*/*",
-        // Explicitly clear Referer — Akamai and dealer CDNs block hotlinks by Referer.
-        "Referer": "",
+        "Accept": "image/webp,image/avif,image/*,*/*;q=0.8",
       },
+      redirect: "follow",
     });
 
     if (!res.ok) {
+      console.warn(`[img-proxy] Upstream ${res.status} for ${decoded.substring(0, 100)}`);
       return new NextResponse("Upstream error", { status: res.status });
     }
 
     const contentType = res.headers.get("content-type") || "image/jpeg";
-    if (!contentType.startsWith("image/")) {
+    // Accept any image/* or octet-stream (some CDNs serve images as application/octet-stream)
+    if (!contentType.startsWith("image/") && !contentType.includes("octet-stream")) {
+      console.warn(`[img-proxy] Non-image content-type "${contentType}" for ${decoded.substring(0, 100)}`);
       return new NextResponse("Not an image", { status: 400 });
     }
 
