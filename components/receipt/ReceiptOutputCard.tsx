@@ -424,9 +424,11 @@ export default function ReceiptOutputCard({
           </div>
         )}
 
-        <p className={`text-sm mt-3 ${isUpgrading ? "text-white/40 italic" : "text-white/70"}`}>
-          {isUpgrading ? "Verdict and full reasoning will appear when analysis completes." : receipt.verdict_reason}
-        </p>
+        {!isSimilarityMatch && (
+          <p className={`text-sm mt-3 ${isUpgrading ? "text-white/40 italic" : "text-white/70"}`}>
+            {isUpgrading ? "Verdict and full reasoning will appear when analysis completes." : receipt.verdict_reason}
+          </p>
+        )}
         {region === "UK" && (
           <p className="text-xs text-white/40 mt-1.5">UK Mode (beta) — prices in pounds, UK wording</p>
         )}
