@@ -153,7 +153,6 @@ export async function POST(request: NextRequest) {
           premium_proxy: 'true',
           country_code: 'us',
           wait: '8000',
-          wait_for: '"pictures":[{',
         });
         const sbRes = await fetch(`https://app.scrapingbee.com/api/v1/?${sbParams}`, {
           signal: sbController.signal,
