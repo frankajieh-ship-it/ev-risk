@@ -513,15 +513,30 @@ export async function POST(request: NextRequest) {
             if (!json) return [];
             const pics = (json.pictures ?? json.vehiclePhotos ?? json.photos ?? []) as Array<Record<string, unknown>>;
             if (!Array.isArray(pics)) return [];
+            // Log first pic structure to understand available keys
+            if (pics.length > 0) {
+              const first = pics[0];
+              const scaled = first.scaledPictures as Record<string, unknown> | undefined;
+              console.log(`[Fetch] CG API first pic keys: ${Object.keys(first).join(', ')}`);
+              if (scaled) console.log(`[Fetch] CG API scaledPictures keys: ${Object.keys(scaled).join(', ')}`);
+            }
             const seen = new Set<string>();
             const out: string[] = [];
             for (const p of pics) {
               // Prefer largest scaledPictures size, fall back to url
               const scaled = p.scaledPictures as Record<string, { url?: string }> | undefined;
-              const large = scaled?.['SIZE_1024x768']?.url ?? scaled?.['SIZE_800x600']?.url ?? p.url as string | undefined;
+              // Try common CarGurus size keys from largest to smallest
+              const large = scaled?.['SIZE_1024x768']?.url
+                ?? scaled?.['SIZE_800x600']?.url
+                ?? scaled?.['SIZE_640x480']?.url
+                ?? scaled?.['SIZE_480x360']?.url
+                ?? (p.url as string | undefined);
               if (typeof large !== 'string' || !large.startsWith('https://')) continue;
-              const norm = large.split('?')[0];
-              if (!seen.has(norm)) { seen.add(norm); out.push(large); }
+              // Dedup by pic ID (e.g. pic-123456789) to avoid counting different size
+              // variants of the same shot as separate photos
+              const picIdMatch = large.match(/pic-(\d+)/);
+              const dedupKey = picIdMatch ? picIdMatch[1] : large.split('?')[0];
+              if (!seen.has(dedupKey)) { seen.add(dedupKey); out.push(large); }
               if (out.length >= 50) break;
             }
             console.log(`[Fetch] CarGurus API photos for listing ${cgListingIdForPhotos}: ${out.length}`);
