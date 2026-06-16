@@ -740,39 +740,38 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
     }
   }
 
-  // HTML photo fallback for CarGurus — if neither __NEXT_DATA__ nor Remix context yielded photos
-  if (data.dataSource === 'cargurus' && !data.photo_urls?.length && html) {
-    const seen = new Set<string>();
+  // HTML raw-scan fallback for CarGurus — scrapes all static.cargurus.com photo URLs from the HTML.
+  // CarGurus only embeds a preview set (4-6 photos) in __remixContext; the full gallery URLs are still
+  // present in the page as scaledPictures size variants. We pick the largest size (1024x768 or biggest
+  // numeric dimension found in the filename) to deduplicate size variants of the same shot.
+  if (data.dataSource === 'cargurus' && html) {
+    const seen = new Set<string>();  // deduplicate by pic ID (the numeric segment in the filename)
     const gallery: string[] = [];
-    // 1. <img> tags
-    const imgPattern = /<img[^>]+>/gi;
-    const srcPattern = /(?:data-lazy-src|data-src|src)=["']([^"']+)["']/i;
-    let imgMatch: RegExpExecArray | null;
-    while ((imgMatch = imgPattern.exec(html)) !== null && gallery.length < 20) {
-      const srcM = srcPattern.exec(imgMatch[0]);
-      if (!srcM) continue;
-      const u = srcM[1];
-      if (!u.includes("static.cargurus.com/images/forsale") && !u.includes("cimg.cargurus.com")) continue;
-      if (u.includes("/site/") || u.includes("logo") || u.includes("icon")) continue;
-      const norm = u.split("?")[0];
-      if (!seen.has(norm)) { seen.add(norm); gallery.push(u); }
+    const staticPattern = /https:\/\/static\.cargurus\.com\/images\/forsale\/[^"' \]\\>\s]*/g;
+    let m: RegExpExecArray | null;
+    while ((m = staticPattern.exec(html)) !== null) {
+      const raw = m[0].replace(/\\u002F/gi, '/').replace(/\\u0026.*$/, '').replace(/&amp;.*$/, '');
+      const norm = raw.split("?")[0];
+      if (norm.includes("logo") || norm.includes("icon") || norm.includes("/site/")) continue;
+      // Extract the unique pic ID from the filename (e.g. "pic-9208181754567802575")
+      const picIdMatch = norm.match(/pic-(\d+)/);
+      if (!picIdMatch) continue;
+      const picId = picIdMatch[1];
+      if (seen.has(picId)) continue;
+      // Only accept the largest size variant — prefer 1024x768, skip smaller sizes
+      const sizeMatch = norm.match(/-(\d+)x(\d+)\.jpe?g$/i);
+      if (!sizeMatch) continue;
+      const w = parseInt(sizeMatch[1]);
+      if (w < 600) continue;  // skip thumbnails (296x222, 67x50)
+      seen.add(picId);
+      gallery.push(norm);
+      if (gallery.length >= 50) break;
     }
-    // 2. Scan raw HTML for static.cargurus.com/images/forsale URLs in JSON/script blobs
-    if (gallery.length < 3) {
-      const staticPattern = /https:\/\/static\.cargurus\.com\/images\/forsale\/[^"' \]\\>]*/g;
-      let m: RegExpExecArray | null;
-      while ((m = staticPattern.exec(html)) !== null && gallery.length < 20) {
-        const raw = m[0].replace(/\\u002F/g, '/').replace(/&amp;.*$/, '');
-        const norm = raw.split("?")[0];
-        if (!seen.has(norm) && !norm.includes("logo") && !norm.includes("icon")) {
-          seen.add(norm);
-          gallery.push(norm);
-        }
-      }
-    }
-    if (gallery.length) {
+    console.log(`[CarGurus HTML scan] Found ${gallery.length} unique large photos`);
+    // Use HTML scan result if it has more photos than what Remix context found
+    if (gallery.length > (data.photo_urls?.length ?? 0)) {
       data.photo_urls = gallery;
-      data.photo_url = data.photo_url ?? gallery[0];
+      data.photo_url = gallery[0];
     }
   }
 
