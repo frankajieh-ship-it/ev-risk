@@ -130,6 +130,12 @@ export async function POST(request: NextRequest) {
 
     const NIMBLEWAY_KEY = process.env.NIMBLEWAY_API_KEY;
 
+    // Listing ID for CarGurus stale-cache detection — hoisted so both Nimbleway
+    // and ScrapingBee blocks can validate the returned HTML against the requested listing.
+    const cgListingId = parsedUrl.hostname.includes('cargurus.com')
+      ? (parsedUrl.pathname.match(/\/details\/(\d{7,12})/)?.[1] ?? null)
+      : null;
+
     // --- Nimbleway path for JS-rendered sites ---
     if (needsJsRender && NIMBLEWAY_KEY) {
       const nmController = new AbortController();
@@ -174,12 +180,8 @@ export async function POST(request: NextRequest) {
           // so we can merge — direct fetch often gets rendered history text via Googlebot UA.
           const isThinShell = parsedUrl.hostname.includes('cargurus.com') && html.length < 10000;
 
-          // CarGurus stale-cache check: verify the listing ID in the URL appears in the HTML.
+          // CarGurus stale-cache check: verify the listing ID appears in the returned HTML.
           // Nimbleway sometimes returns a cached page from a different listing even with cache:false.
-          // The listing ID is always a 7-12 digit number in the /details/<id> path segment.
-          const cgListingId = parsedUrl.hostname.includes('cargurus.com')
-            ? (parsedUrl.pathname.match(/\/details\/(\d{7,12})/)?.[1] ?? null)
-            : null;
           const isStaleCache = cgListingId !== null && !html.includes(cgListingId);
 
           if (isStaleCache) {
