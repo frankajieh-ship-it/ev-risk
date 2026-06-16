@@ -171,11 +171,14 @@ export default function ReceiptOutputCard({
   // Wikimedia URLs are public — serve directly; proxy everything else
   const resolveImgSrc = (url: string | undefined) => {
     if (!url) return url;
-    // Proxy all external images through /api/img to strip Referer header.
-    // Akamai/dealer CDNs (pictures.dealer.com, images.dealer.com, dealerinspire, etc.)
-    // block hotlink requests that include a Referer from offolab.com.
-    // The proxy fetches server-side with no Referer, so CDNs return 200.
-    return `/api/img?url=${encodeURIComponent(url)}`;
+    // Use canonical non-www domain to avoid the www→offolab.com 301 redirect.
+    // Browser <img> tags don't always render images after following a cross-origin
+    // redirect, even when fetch() succeeds. Pointing directly at offolab.com
+    // eliminates the redirect entirely.
+    const base = typeof window !== "undefined" && window.location.hostname === "www.offolab.com"
+      ? "https://offolab.com"
+      : "";
+    return `${base}/api/img?url=${encodeURIComponent(url)}`;
   };
 
 
