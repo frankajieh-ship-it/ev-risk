@@ -18,6 +18,7 @@ import { receiptBurstLimiter } from "@/lib/receipt-rate-limiter";
 import { extractVehicleData } from "@/lib/listing-scraper";
 import { extractFieldsFromText } from "@/lib/text-extractor";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
+import { searchByVin as marketCheckByVin } from "@/lib/marketcheck-client";
 import { getStaticPhotoUrl } from "@/lib/vehicle-photo";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/api-auth";
@@ -481,13 +482,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Enrich with Auto.dev in parallel with DB logging (max 6s budget)
+    // Enrich with Auto.dev + Marketcheck in parallel (max 8s budget)
     const autoDevPromise = enrichFromAutodev({
       vin: result.data.vin,
       make: result.data.make,
       model: result.data.model,
       year: result.data.year,
     });
+    // Marketcheck: reliable photo source via VIN lookup — runs only when VIN available
+    const marketCheckPromise = result.data.vin
+      ? marketCheckByVin(result.data.vin)
+      : Promise.resolve(null);
 
     // Map to FetchedListingFields (including VIN)
     const fields: FetchedListingFields = {
@@ -525,27 +530,37 @@ export async function POST(request: NextRequest) {
       if (derived >= 1 && derived <= 10) fields.efficiency_mi_per_kwh = derived;
     }
 
-    // Await Auto.dev enrichment (already running in parallel above).
-    // Skip the wait entirely when no VIN was extracted — Auto.dev can't enrich
-    // without a VIN and would only burn the 6s timeout budget for nothing.
-    const autoDevData = result.data.vin
-      ? await autoDevPromise
-      : (autoDevPromise.catch(() => {}), { photo_urls: [], market_price_range: undefined, vin_data: undefined, source: "none" as const });
+    // Await Auto.dev + Marketcheck enrichment in parallel.
+    // Skip both waits when no VIN was extracted.
+    const [autoDevData, mcData] = await Promise.all([
+      result.data.vin
+        ? autoDevPromise
+        : (autoDevPromise.catch(() => {}), Promise.resolve({ photo_urls: [], market_price_range: undefined, vin_data: undefined, source: "none" as const })),
+      marketCheckPromise,
+    ]);
 
-    // Photo priority: scraped listing photos > Auto.dev comps > Wikimedia static
-    // Listing photos are the actual vehicle; Auto.dev returns market comp images
-    if (result.data.photo_urls?.length) {
+    // Photo priority (highest → lowest reliability):
+    // 1. Marketcheck — actual dealer photos fetched by VIN, most reliable
+    // 2. Scraped listing photos — from Nimbleway/ScrapingBee, can be stale
+    // 3. Auto.dev comps — stock/market images, not the actual vehicle
+    // 4. Wikimedia static — last resort generic image
+    const mcPhotos = mcData?.success ? mcData.photo_links : [];
+    if (mcPhotos.length > 0) {
+      fields.photo_urls = mcPhotos;
+      console.log(`[Fetch] Using ${mcPhotos.length} Marketcheck photos for VIN ${result.data.vin}`);
+    } else if (result.data.photo_urls?.length) {
       fields.photo_urls = result.data.photo_urls;
-    } else if (autoDevData.photo_urls.length > 0) {
-      fields.photo_urls = autoDevData.photo_urls;
+      console.log(`[Fetch] Using ${result.data.photo_urls.length} scraped photos`);
+    } else if (autoDevData && Array.isArray((autoDevData as { photo_urls: string[] }).photo_urls) && (autoDevData as { photo_urls: string[] }).photo_urls.length > 0) {
+      fields.photo_urls = (autoDevData as { photo_urls: string[] }).photo_urls;
     } else {
       const staticUrl = getStaticPhotoUrl(fields.make, fields.model, fields.year ?? undefined);
       if (staticUrl) fields.photo_urls = [staticUrl];
     }
-    if (autoDevData.market_price_range) {
+    if (autoDevData?.market_price_range) {
       fields.market_price_range = autoDevData.market_price_range;
     }
-    if (autoDevData.vin_data) {
+    if (autoDevData?.vin_data) {
       const vd = autoDevData.vin_data;
       const engineParts = [
         vd.engine?.cylinder ? `${vd.engine.cylinder}-cyl` : null,
