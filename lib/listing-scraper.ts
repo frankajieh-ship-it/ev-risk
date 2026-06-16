@@ -740,12 +740,38 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
     }
   }
 
-  // HTML raw-scan fallback for CarGurus — scrapes all static.cargurus.com photo URLs from the HTML.
-  // CarGurus only embeds a preview set (4-6 photos) in __remixContext; the full gallery URLs are still
-  // present in the page as scaledPictures size variants. We pick the largest size (1024x768 or biggest
-  // numeric dimension found in the filename) to deduplicate size variants of the same shot.
+  // HTML raw-scan for CarGurus — finds the 1024x768 variant of every pic in __remixContext.
+  // CarGurus only embeds a preview set (4-6 pics) in __remixContext server-side, but all size
+  // variants for ALL listing photos are present in the page HTML (in scaledPictures objects).
+  // We collect ALL pic IDs already known from remixContext, then scan for more in the raw HTML —
+  // but ONLY accept pic IDs that appear near the listing section, not recommendation widgets.
+  // Strategy: collect pic IDs from current photo_urls (already extracted via remixContext), then
+  // scan the HTML for large-size variants of those same IDs to get the 1024x768 URLs.
+  // For pic IDs not yet seen, only accept them if they appear inside a "pictures" JSON key context.
   if (data.dataSource === 'cargurus' && html) {
-    const seen = new Set<string>();  // deduplicate by pic ID (the numeric segment in the filename)
+    // Collect pic IDs we already have from remixContext
+    const knownPicIds = new Set<string>();
+    for (const u of (data.photo_urls ?? [])) {
+      const m = u.match(/pic-(\d+)/);
+      if (m) knownPicIds.add(m[1]);
+    }
+
+    // Scan the raw HTML for large-size variants, constrained to listing photos only.
+    // "Listing photos" = pic IDs inside a "pictures":[...] JSON key, OR pic IDs we already know.
+    // Build a set of pic IDs that appear inside a pictures array context.
+    const listingPicIds = new Set<string>(knownPicIds);
+    const picturesContextPattern = /"pictures"\s*:\s*\[[\s\S]*?\]/g;
+    let pc: RegExpExecArray | null;
+    while ((pc = picturesContextPattern.exec(html)) !== null) {
+      const chunk = pc[0];
+      let pm: RegExpExecArray | null;
+      const pidPattern = /pic-(\d+)/g;
+      while ((pm = pidPattern.exec(chunk)) !== null) {
+        listingPicIds.add(pm[1]);
+      }
+    }
+
+    const seen = new Set<string>();
     const gallery: string[] = [];
     const staticPattern = /https:\/\/static\.cargurus\.com\/images\/forsale\/[^"' \]\\>\s]*/g;
     let m: RegExpExecArray | null;
@@ -753,22 +779,20 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
       const raw = m[0].replace(/\\u002F/gi, '/').replace(/\\u0026.*$/, '').replace(/&amp;.*$/, '');
       const norm = raw.split("?")[0];
       if (norm.includes("logo") || norm.includes("icon") || norm.includes("/site/")) continue;
-      // Extract the unique pic ID from the filename (e.g. "pic-9208181754567802575")
       const picIdMatch = norm.match(/pic-(\d+)/);
       if (!picIdMatch) continue;
       const picId = picIdMatch[1];
+      // Only accept pic IDs that belong to this listing
+      if (!listingPicIds.has(picId)) continue;
       if (seen.has(picId)) continue;
-      // Only accept the largest size variant — prefer 1024x768, skip smaller sizes
+      // Skip thumbnails — only keep large sizes (width >= 600px)
       const sizeMatch = norm.match(/-(\d+)x(\d+)\.jpe?g$/i);
-      if (!sizeMatch) continue;
-      const w = parseInt(sizeMatch[1]);
-      if (w < 600) continue;  // skip thumbnails (296x222, 67x50)
+      if (!sizeMatch || parseInt(sizeMatch[1]) < 600) continue;
       seen.add(picId);
       gallery.push(norm);
       if (gallery.length >= 50) break;
     }
-    console.log(`[CarGurus HTML scan] Found ${gallery.length} unique large photos`);
-    // Use HTML scan result if it has more photos than what Remix context found
+    console.log(`[CarGurus HTML scan] Found ${gallery.length} listing photos (${listingPicIds.size} known pic IDs)`);
     if (gallery.length > (data.photo_urls?.length ?? 0)) {
       data.photo_urls = gallery;
       data.photo_url = gallery[0];
