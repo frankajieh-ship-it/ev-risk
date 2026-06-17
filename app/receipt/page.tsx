@@ -1120,14 +1120,7 @@ export default function ReceiptPage() {
                     <Zap className="w-4 h-4" />
                     <span className="text-xs font-semibold leading-tight">Compare another<br />listing</span>
                   </Link>
-                  <Link
-                    href="/workspace/deal-watch"
-                    onClick={() => trackEvent("cta_deal_watch_clicked", { receipt_id: receipt.receipt_id })}
-                    className="flex flex-col items-center gap-1.5 py-3 rounded-lg border border-white/[0.08] text-white/60 hover:text-white hover:border-white/20 hover:bg-white/[0.04] transition-colors text-center"
-                  >
-                    <Bell className="w-4 h-4" />
-                    <span className="text-xs leading-tight">Set up<br />deal watch</span>
-                  </Link>
+                  {/* Deal Watch CTA suspended — feature being rebuilt */}
                   {shareSlug && (
                     <a
                       href={buildTweetUrl(receipt, shareSlug)}

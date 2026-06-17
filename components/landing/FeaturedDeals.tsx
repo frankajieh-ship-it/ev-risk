@@ -123,13 +123,7 @@ export default function FeaturedDeals() {
             </p>
           </div>
         </div>
-        <Link
-          href="/deals"
-          onClick={() => trackEvent("deal_watch_cta_clicked", { source: "featured_deals" })}
-          className="shrink-0 px-4 py-2 rounded-lg bg-[#00d97e] text-[#0d1117] text-sm font-semibold hover:bg-[#00f090] transition-colors whitespace-nowrap"
-        >
-          Set up deal watch →
-        </Link>
+        {/* Deal Watch CTA suspended */}
       </div>
     </section>
   );
