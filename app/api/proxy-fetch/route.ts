@@ -138,75 +138,24 @@ export async function POST(request: NextRequest) {
     const isAutoTrader = parsedUrl.hostname.includes('autotrader.com');
     const isCarscom = parsedUrl.hostname.includes('cars.com');
 
-    // --- AutoTrader: JSON API direct (no proxy needed, returns __NEXT_DATA__ JSON) ---
-    // AutoTrader's /rest/lsc/listing/{id} endpoint returns structured JSON without bot protection.
-    // Extract listing ID from URL path (/vehicle/XXXXXXXX) or query param (listingId=XXXXXXXX).
-    if (isAutoTrader) {
-      const atListingId = parsedUrl.pathname.match(/\/vehicle\/(\d+)/)?.[1]
-        ?? new URLSearchParams(parsedUrl.search).get('listingId');
-      if (atListingId) {
-        try {
-          console.log(`[Proxy Fetch] AutoTrader: trying JSON API for listing ${atListingId}`);
-          const atApiRes = await fetch(
-            `https://www.autotrader.com/rest/lsc/listing/${atListingId}`,
-            {
-              headers: {
-                'Accept': 'application/json, text/plain, */*',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-                'Referer': 'https://www.autotrader.com/',
-                'Origin': 'https://www.autotrader.com',
-              },
-              signal: AbortSignal.timeout(10000),
-            }
-          );
-          console.log(`[Proxy Fetch] AutoTrader JSON API status: ${atApiRes.status}`);
-          if (atApiRes.ok) {
-            const atJson = await atApiRes.json() as Record<string, unknown>;
-            // Wrap in __NEXT_DATA__ shell so extractFromAutoTrader's __eggsState path can parse it.
-            // AutoTrader API returns { listing: {...} } — map into the eggsState inventory shape.
-            const listing = (atJson.listing ?? atJson) as Record<string, unknown>;
-            const listingId = String(atListingId);
-            const wrapped = {
-              props: {
-                pageProps: {
-                  __eggsState: {
-                    inventory: { [listingId]: listing },
-                  },
-                },
-              },
-            };
-            const wrappedHtml = `<html><body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify(wrapped)}</script></body></html>`;
-            console.log(`[Proxy Fetch] AutoTrader JSON API success — listing ${atListingId}`);
-            return NextResponse.json({
-              success: true,
-              html: wrappedHtml,
-              contentLength: wrappedHtml.length,
-              status: 200,
-              fetchMethod: 'autotrader_api',
-              headers: { 'content-type': 'text/html' },
-            });
-          }
-          console.warn(`[Proxy Fetch] AutoTrader JSON API returned ${atApiRes.status} — falling through to ScrapingBee`);
-        } catch (atApiErr) {
-          console.warn('[Proxy Fetch] AutoTrader JSON API failed:', atApiErr instanceof Error ? atApiErr.message : String(atApiErr));
-        }
-      }
-    }
-
-    // --- AutoTrader + Cars.com: ScrapingBee fallback (residential proxy + JS render) ---
+    // --- AutoTrader + Cars.com: ScrapingBee (residential proxy + JS render) ---
+    // AutoTrader uses Akamai which blocks all datacenter IPs including Netlify functions.
+    // ScrapingBee premium_proxy routes through residential IPs — only reliable bypass.
     if ((isAutoTrader || isCarscom) && SCRAPINGBEE_KEY) {
       const sbController = new AbortController();
       const sbTimeoutId = setTimeout(() => sbController.abort(), 30000);
       try {
         const siteName = isAutoTrader ? 'AutoTrader' : 'Cars.com';
         console.log(`[Proxy Fetch] ${siteName}: trying ScrapingBee`);
+        // AutoTrader uses Akamai which blocks premium_proxy IPs — stealth_proxy (higher tier)
+        // uses a real browser fingerprint and bypasses Akamai reliably.
         const sbParams = new URLSearchParams({
           api_key: SCRAPINGBEE_KEY,
           url,
           render_js: 'true',
-          premium_proxy: 'true',
+          stealth_proxy: 'true',
           country_code: 'us',
-          wait: '5000',
+          wait: '8000',
         });
         const sbRes = await fetch(`https://app.scrapingbee.com/api/v1/?${sbParams}`, {
           signal: sbController.signal,

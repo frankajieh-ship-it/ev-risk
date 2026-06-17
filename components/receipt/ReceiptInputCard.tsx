@@ -403,9 +403,10 @@ export default function ReceiptInputCard({
           const siteName = _domain.includes("autotrader") ? "AutoTrader"
             : _domain.includes("cars.com") ? "Cars.com"
             : "CarGurus";
-          const msg = `${siteName} blocked auto-fetch. Copy the year, make, model, price, and mileage from the listing and paste them in the text tab below — takes 30 seconds.`;
+          const msg = `${siteName} blocked auto-fetch. Open the listing, select all the text (Ctrl+A), copy it, and paste below — takes 10 seconds.`;
           setExtractError({ message: msg });
           setPasteMode("text");
+          setTimeout(() => textareaRef.current?.focus(), 100);
           _trackFail("bot_protection");
         } else if (data.diagnostics?.failureReason === "timeout") {
           if (!autoRetryDoneRef.current && (urlOverride || pasteMode === "url")) {
