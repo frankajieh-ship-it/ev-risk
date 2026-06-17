@@ -655,12 +655,15 @@ export default function ReceiptOutputCard({
         )}
       </div>
 
-      {/* Photo due diligence — coverage checklist + AI damage scan (always shown when receipt is present) */}
+      {/* Photo due diligence — coverage checklist + AI damage scan */}
       {receiptId && (
         <PhotoDueDiligenceCard
           receiptId={receiptId}
           photoUrls={photoSrcs}
           onHighlightPhoto={(index) => { setPhotoIndex(index); }}
+          isUnlocked={isUnlocked}
+          paymentsEnabled={paymentsEnabled}
+          onPaywallClick={onPaywallClick}
         />
       )}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { CheckCircle, XCircle, AlertCircle, Camera, ChevronDown } from "lucide-react";
+import { CheckCircle, XCircle, AlertCircle, Camera, ChevronDown, Lock, Zap } from "lucide-react";
 import { REQUIRED_ANGLES } from "@/lib/photo-due-diligence-types";
 import type { PhotoAnalysisResult, DamageFinding } from "@/lib/photo-due-diligence-types";
 
@@ -10,6 +10,9 @@ interface Props {
   photoUrls: string[];
   /** Called when user clicks a damage finding — highlights that photo index in the carousel */
   onHighlightPhoto?: (index: number) => void;
+  isUnlocked?: boolean;
+  paymentsEnabled?: boolean;
+  onPaywallClick?: () => void;
 }
 
 type JobStatus = "pending" | "processing" | "done" | "failed";
@@ -20,7 +23,7 @@ const SEVERITY_STYLES: Record<DamageFinding["severity"], { dot: string; label: s
   severe:   { dot: "bg-red-400",     label: "Severe"   },
 };
 
-export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighlightPhoto }: Props) {
+export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighlightPhoto, isUnlocked, paymentsEnabled, onPaywallClick }: Props) {
   // Start as pending — component only renders when photos are present
   const [status, setStatus] = useState<JobStatus>("pending");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -144,6 +147,40 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
           <Camera className="w-3.5 h-3.5 text-white/20" />
           <span className="text-xs font-semibold text-white/20 uppercase tracking-widest">Photo Analysis</span>
           <span className="text-xs text-white/15 ml-1">— drag listing photos above to begin</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Paywall gate — photos present but user hasn't paid
+  const isLocked = paymentsEnabled && !isUnlocked;
+  if (isLocked) {
+    return (
+      <div className="border-b border-white/[0.08] bg-[#0d1117]">
+        <div className="px-5 py-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Lock className="w-3.5 h-3.5 text-white/30" />
+            <span className="text-xs font-semibold text-white/30 uppercase tracking-widest">Photo Analysis</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-white/[0.06] text-white/30">
+              {photoUrls.length} photo{photoUrls.length !== 1 ? "s" : ""} ready
+            </span>
+          </div>
+          {/* Blurred preview rows */}
+          <div className="space-y-1.5 mb-4 select-none pointer-events-none">
+            {REQUIRED_ANGLES.slice(0, 4).map((angle) => (
+              <div key={angle.id} className="flex items-center gap-2 blur-sm opacity-40">
+                <span className="w-3.5 h-3.5 rounded-full bg-white/10 flex-shrink-0" />
+                <span className="text-sm text-white/50">{angle.label}</span>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={onPaywallClick}
+            className="flex items-center gap-2 text-xs font-semibold text-[#00d97e] hover:text-[#00c970] transition-colors"
+          >
+            <Zap className="w-3.5 h-3.5" />
+            Unlock photo analysis — $3.99
+          </button>
         </div>
       </div>
     );
