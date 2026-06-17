@@ -978,12 +978,52 @@ async function extractFromCars(html: string): Promise<Partial<VehicleData>> {
   // Try structured data first (uses the common extractStructuredData function)
   const data = extractStructuredData(html);
 
-  // Extract from title tag if needed
+  // --- Primary: Cars.com inline JSON blob ---
+  // Cars.com embeds listing data as a JSON object in a script tag or inline variable.
+  // Shape: {"make":"Tesla","model":"Model 3","year":2024,"price":"35755","mileage":18700,...}
+  if (!data.make || !data.model || !data.year) {
+    // Find JSON object containing "make" and "model" keys
+    const jsonMatch = html.match(/\{"[^}]*"make"\s*:\s*"([^"]+)"[^}]*"model"\s*:\s*"([^"]+)"[^}]*\}/);
+    if (!jsonMatch) {
+      // Try broader search — extract context around "make":"..." and parse outward
+      const makePos = html.indexOf('"make":"');
+      if (makePos !== -1) {
+        // Find enclosing JSON object by walking back to nearest {
+        const start = html.lastIndexOf('{', makePos);
+        const end = html.indexOf('}', makePos);
+        if (start !== -1 && end !== -1) {
+          try {
+            const candidate = html.slice(start, end + 1);
+            const obj = JSON.parse(candidate) as Record<string, unknown>;
+            if (typeof obj.make === 'string') data.make = data.make || obj.make;
+            if (typeof obj.model === 'string') {
+              // Cars.com stores model as "model_3" (slug) or "Model 3" (display) — prefer display
+              const modelStr = obj.model as string;
+              data.model = data.model || modelStr.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            }
+            if (typeof obj.year === 'number') data.year = data.year || obj.year;
+            if (typeof obj.trim === 'string') data.trim = data.trim || obj.trim as string;
+          } catch { /* ignore parse errors */ }
+        }
+      }
+    }
+  }
+
+  // --- Fallback: BreadcrumbList ld+json often has "2024 Tesla Model 3" ---
   if (!data.year || !data.make || !data.model) {
-    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+    const breadcrumbMatch = html.match(/"name"\s*:\s*"(?:Shop other used\s+)?(\d{4})\s+([A-Za-z\-]+)\s+([A-Za-z0-9\s]+?)(?:s|\")"/i);
+    if (breadcrumbMatch) {
+      data.year = data.year || parseInt(breadcrumbMatch[1]);
+      data.make = data.make || breadcrumbMatch[2];
+      data.model = data.model || breadcrumbMatch[3].trim();
+    }
+  }
+
+  // --- Fallback: page <title> (older Cars.com format) ---
+  if (!data.year || !data.make || !data.model) {
+    const titleMatch = html.match(/<title>([^<]{20,})<\/title>/i);
     if (titleMatch) {
       const title = titleMatch[1];
-      // Example: "Used 2020 Nissan Leaf SV Plus for Sale - $18,999 | Cars.com"
       const vehicleMatch = title.match(/(\d{4})\s+([A-Za-z]+)\s+([A-Za-z0-9\s]+?)(?:\s+for\s+Sale|-|\|)/i);
       if (vehicleMatch) {
         data.year = data.year || parseInt(vehicleMatch[1]);
