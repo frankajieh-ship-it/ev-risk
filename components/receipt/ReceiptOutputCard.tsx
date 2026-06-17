@@ -251,10 +251,22 @@ export default function ReceiptOutputCard({
   // Wikimedia URLs are public — serve directly; proxy everything else
   const resolveImgSrc = (url: string | undefined) => {
     if (!url) return url;
+    // data: URLs are already in-memory — no proxy needed
+    if (url.startsWith("data:")) return url;
+    // URLs dragged directly from a listing tab can be loaded by the browser natively
+    // (same session, no Referer block). Running them through our server proxy causes
+    // failures because CDN signed tokens are validated per-requester.
+    // Known listing CDNs that work fine without proxy:
+    const skipProxy = [
+      "static.cargurus.com",
+      "images.autotrader.com",
+      "media.carzato.com",
+      "cdn.carbrain.com",
+      "photos.carsforsale.com",
+      "i.ebayimg.com",
+    ].some(host => url.includes(host));
+    if (skipProxy) return url;
     // Use canonical non-www domain to avoid the www→offolab.com 301 redirect.
-    // Browser <img> tags don't always render images after following a cross-origin
-    // redirect, even when fetch() succeeds. Pointing directly at offolab.com
-    // eliminates the redirect entirely.
     const base = typeof window !== "undefined" && window.location.hostname === "www.offolab.com"
       ? "https://offolab.com"
       : "";
