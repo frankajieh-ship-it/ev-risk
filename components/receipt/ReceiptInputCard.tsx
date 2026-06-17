@@ -397,10 +397,13 @@ export default function ReceiptInputCard({
         const _domain = (() => { try { return new URL(_activeUrl).hostname.replace(/^www\./, ""); } catch { return "unknown"; } })();
         const _trackFail = (reason: string) => trackEvent?.("receipt_extract_failed", { reason, input_mode: pasteMode, anon_id: receiptToken, domain: _domain });
         if (data.unsupported_domain) {
-          setExtractError({ message: "Only CarGurus and AutoTrader links are supported. For other sites, switch to the \"Paste Text\" tab and copy the listing details." });
+          setExtractError({ message: "Only CarGurus, AutoTrader, and Cars.com links are supported. For other sites, switch to the \"Paste Text\" tab and copy the listing details." });
           setPasteMode("text");
         } else if (data.diagnostics?.botProtectionDetected) {
-          const msg = "CarGurus blocked auto-fetch. Copy the year, make, model, price, and mileage from the listing and paste them in the text tab below — takes 30 seconds.";
+          const siteName = _domain.includes("autotrader") ? "AutoTrader"
+            : _domain.includes("cars.com") ? "Cars.com"
+            : "CarGurus";
+          const msg = `${siteName} blocked auto-fetch. Copy the year, make, model, price, and mileage from the listing and paste them in the text tab below — takes 30 seconds.`;
           setExtractError({ message: msg });
           setPasteMode("text");
           _trackFail("bot_protection");

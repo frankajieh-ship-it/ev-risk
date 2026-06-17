@@ -297,7 +297,7 @@ export async function POST(request: NextRequest) {
   const urlDomain = parsedUrl.hostname.replace("www.", "");
 
   // --- Supported domain check ---
-  const SUPPORTED_SCRAPE_DOMAINS = ["cargurus.com", "autotrader.com"];
+  const SUPPORTED_SCRAPE_DOMAINS = ["cargurus.com", "autotrader.com", "cars.com"];
   const isOffoInventory =
     parsedUrl.hostname === "offolab.com" || parsedUrl.hostname === "www.offolab.com";
   const isSupportedDomain = isOffoInventory ||
@@ -307,7 +307,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: "Only CarGurus and AutoTrader links are supported for auto-extraction. For other sites, paste the listing text below.",
+        error: "Only CarGurus, AutoTrader, and Cars.com links are supported for auto-extraction. For other sites, paste the listing text below.",
         unsupported_domain: true,
         supported_domains: SUPPORTED_SCRAPE_DOMAINS,
       },
