@@ -378,8 +378,8 @@ export default function ReceiptPage() {
   const [showPostReceiptPopup, setShowPostReceiptPopup] = useState(false);
   const postReceiptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Listing photos — first extracted photo seeded automatically as a starting point;
-  // user adds the rest via drag-and-drop or file upload for full AI coverage.
+  // Listing photos — populated only by user drag-and-drop or file upload.
+  // Extracted CDN URLs are not seeded: they expire quickly and show broken images.
   const [listingPhotos, setListingPhotos] = useState<string[]>([]);
 
   // Reset photos when receipt is cleared (new submission starting)
@@ -906,11 +906,7 @@ export default function ReceiptPage() {
           }}
           onExtractionSuccess={() => {}}
           onExtractionFields={handleExtractionFields}
-          onPhotosExtracted={(photos) => {
-            // Seed only the first extracted photo — user adds the rest.
-            // This gives context without flooding with duplicates.
-            if (photos[0]) setListingPhotos([photos[0]]);
-          }}
+          onPhotosExtracted={() => {}}
           isGenerating={isGenerating}
           generatingStep={generatingStep}
           remainingFree={null}
