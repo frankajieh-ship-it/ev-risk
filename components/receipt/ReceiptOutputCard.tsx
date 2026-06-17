@@ -166,7 +166,15 @@ export default function ReceiptOutputCard({
   const processFiles = useCallback((files: File[]) => {
     const imageFiles = files.filter(f => f.type.startsWith("image/"));
     if (!imageFiles.length) return;
-    const readers = imageFiles.map(file => new Promise<string>((resolve) => {
+    // Dedup by name+size before reading — catches the same file dropped multiple times
+    const seen = new Set<string>();
+    const unique = imageFiles.filter(f => {
+      const key = `${f.name}:${f.size}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const readers = unique.map(file => new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
       reader.readAsDataURL(file);
@@ -192,17 +200,19 @@ export default function ReceiptOutputCard({
     // Browsers deliver dragged images as URI lists, not Files.
     const uriList = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
     if (uriList) {
+      const existing = new Set(photos); // dedup against current photo list
       const urls = uriList.split(/\r?\n/).map(u => u.trim()).filter(u => {
         if (!u.startsWith("http")) return false;
+        if (existing.has(u)) return false; // already in strip
         const lower = u.toLowerCase();
-        // Reject dealer logos, banners, and other non-car images
+        // Reject dealer logos, banners, watermarks, and other non-car images
         return !lower.includes("logo") && !lower.includes("banner") && !lower.includes("dealer") &&
                !lower.includes("badge") && !lower.includes("icon") && !lower.includes("/site/") &&
                !lower.includes("watermark") && !lower.includes("overlay");
       });
       if (urls.length > 0) onAddPhotos?.(urls);
     }
-  }, [processFiles, onAddPhotos]);
+  }, [processFiles, onAddPhotos, photos]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -580,20 +590,35 @@ export default function ReceiptOutputCard({
               </div>
             )}
 
-            {/* Drag-and-drop invite — always visible below thumbnail strip */}
+            {/* Drag-and-drop invite — prominent CTA below thumbnail strip */}
             <div
-              className={`mx-5 mt-1.5 mb-0.5 border border-dashed rounded-lg px-3 py-1.5 flex items-center gap-2 text-[11px] cursor-default select-none transition-colors ${
-                dragOver ? "border-[#00d97e]/60 text-[#00d97e]/70" : "border-white/15 text-white/30"
+              className={`mx-5 mt-2 mb-0.5 rounded-xl border px-4 py-3 cursor-default select-none transition-all ${
+                dragOver
+                  ? "border-[#00d97e]/60 bg-[#00d97e]/[0.06] text-[#00d97e]"
+                  : "border-[#00d97e]/25 bg-[#00d97e]/[0.03] text-white/60"
               }`}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
             >
-              <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              Drag a photo from the listing to add it for analysis
+              <div className="flex items-center gap-2.5 mb-1">
+                <svg className={`w-3.5 h-3.5 flex-shrink-0 ${dragOver ? "text-[#00d97e]" : "text-[#00d97e]/60"}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="text-xs font-semibold">
+                  Drag listing photos here to improve your verdict
+                </span>
+              </div>
+              <p className="text-[11px] text-white/40 leading-relaxed pl-6">
+                OFFO AI scans for damage and missing angles — photos you add can flag issues that change the final verdict.{" "}
+                <button
+                  onClick={() => uploadInputRef.current?.click()}
+                  className="text-[#00d97e]/70 hover:text-[#00d97e] underline underline-offset-2 transition-colors"
+                >
+                  Or click to upload
+                </button>
+              </p>
             </div>
           </div>
         )}

@@ -1032,7 +1032,12 @@ export default function ReceiptPage() {
                 dealerInfo={dealerInfo}
                 onContactDealer={dealerInfo ? () => setShowInquiryModal(true) : undefined}
                 onPhotosFailed={handlePhotosFailed}
-                onAddPhotos={(dataUrls) => setListingPhotos(prev => [...prev, ...dataUrls])}
+                onAddPhotos={(incoming) => setListingPhotos(prev => {
+                  // Deduplicate: reject URLs already present (catches repeated drags of same image)
+                  const existingSet = new Set(prev);
+                  const fresh = incoming.filter(u => !existingSet.has(u));
+                  return fresh.length ? [...prev, ...fresh] : prev;
+                })}
               />
               </div>
 
