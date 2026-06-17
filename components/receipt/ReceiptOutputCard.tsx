@@ -36,6 +36,7 @@ import { formatPrice } from "@/lib/region";
 import VehicleFactsBar from "@/components/receipt/VehicleFactsBar";
 import PhotoDueDiligenceCard from "@/components/receipt/PhotoDueDiligenceCard";
 import { Badge } from "@/components/ui";
+import { REQUIRED_ANGLES } from "@/lib/photo-due-diligence-types";
 
 interface ReceiptOutputCardProps {
   receipt: ListingReceipt;
@@ -431,36 +432,58 @@ export default function ReceiptOutputCard({
         {/* Photo strip — empty state CTA when no photos, otherwise hero + thumbnails */}
         {photoSrcs.length === 0 ? (
           <div
-            className={`mt-3 border border-dashed rounded-xl px-5 py-7 flex flex-col items-center gap-3 text-center transition-colors ${
+            className={`mt-3 border border-dashed rounded-xl overflow-hidden transition-colors ${
               dragOver ? "border-[#00d97e]/50 bg-[#00d97e]/[0.04]" : "border-white/15"
             }`}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
           >
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-              dragOver ? "bg-[#00d97e]/20" : "bg-white/[0.06]"
-            }`}>
-              <svg className={`w-5 h-5 ${dragOver ? "text-[#00d97e]" : "text-white/40"}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
+            {/* Selling point header */}
+            <div className="px-5 pt-5 pb-4 border-b border-white/[0.07]">
+              <div className="flex items-start gap-3">
+                <div className={`mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
+                  dragOver ? "bg-[#00d97e]/20" : "bg-[#00d97e]/[0.10]"
+                }`}>
+                  <svg className="w-4 h-4 text-[#00d97e]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white">OFFO AI Photo Analysis</p>
+                  <p className="text-xs text-white/50 mt-0.5 leading-relaxed">
+                    Checks angle coverage and scans for visible damage — dents, rust, scratches — that affects resale value.
+                  </p>
+                  <p className="text-xs text-white/35 mt-2">
+                    Drag listing photos here, or{" "}
+                    <button
+                      onClick={() => uploadInputRef.current?.click()}
+                      className="text-[#00d97e]/80 hover:text-[#00d97e] underline underline-offset-2 transition-colors"
+                    >
+                      click to upload
+                    </button>
+                  </p>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium text-white/70">Add photos for AI analysis</p>
-              <p className="text-xs text-white/35 mt-0.5">
-                Drag photos from the listing, or{" "}
-                <button
-                  onClick={() => uploadInputRef.current?.click()}
-                  className="text-[#00d97e]/80 hover:text-[#00d97e] underline underline-offset-2 transition-colors"
-                >
-                  click to upload
-                </button>
-              </p>
+
+            {/* Angle checklist — tells user exactly what to grab */}
+            <div className="px-5 py-3">
+              <p className="text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">Photos to add from the listing</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                {REQUIRED_ANGLES.map((angle) => (
+                  <div key={angle.id} className="flex items-center gap-2">
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${angle.required ? "bg-white/20" : "bg-white/10"}`} />
+                    <span className={`text-xs ${angle.required ? "text-white/40" : "text-white/25"}`}>
+                      {angle.label}
+                      {angle.required && <span className="text-white/20 ml-1">*</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-white/20 mt-2.5">* Required for full coverage score</p>
             </div>
-            <p className="text-[11px] text-white/25 max-w-[260px] leading-relaxed">
-              OFFO AI checks each photo for angle coverage and visible damage
-            </p>
           </div>
         ) : (
           <div className="mt-3 -mx-5 relative">
