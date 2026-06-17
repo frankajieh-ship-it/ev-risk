@@ -682,12 +682,12 @@ export default function Home() {
 
             {/* Step 2 */}
             <div className="relative rounded-2xl border border-[#00d97e]/20 bg-[#161b22] p-6 ring-1 ring-[#00d97e]/10">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[#00d97e] text-[#0d1117] text-[10px] font-bold uppercase tracking-wider">OFFO AI</div>
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[#00d97e] text-[#0d1117] text-[10px] font-bold uppercase tracking-wider">OFFO</div>
               <div className="w-8 h-8 rounded-lg bg-[#00d97e]/15 flex items-center justify-center mb-4">
                 <svg className="w-4 h-4 text-[#00d97e]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
               </div>
               <p className="text-xs font-semibold text-white/30 uppercase tracking-widest mb-2">Step 2</p>
-              <h3 className="text-base font-semibold text-white mb-2">AI scans the listing &amp; photos</h3>
+              <h3 className="text-base font-semibold text-white mb-2">We scan the listing &amp; photos</h3>
               <p className="text-sm text-white/45 leading-relaxed">OFFO checks price against market data, reads the listing for red flags, and analyses each photo for damage and missing angles.</p>
               {/* Mock checklist */}
               <div className="mt-4 space-y-1.5">
