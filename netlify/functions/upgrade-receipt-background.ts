@@ -224,8 +224,8 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
       schemaName: "receipt",
       temperature: 0.3,
       maxTokens: 1400,
-      hedgeDelays: [4000, 8000],
-      timeoutMs: 12000,
+      hedgeDelays: [5000, 10000],
+      timeoutMs: 25000,
       validate: (json) => {
         // Only reject on Zod schema failures — lint errors are cosmetic and
         // handled post-win by the formatter. Rejecting on lint causes all three

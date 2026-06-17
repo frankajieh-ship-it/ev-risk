@@ -39,24 +39,20 @@ export const anthropicAdapter: ProviderAdapter = {
       input_schema: opts.jsonSchema as Anthropic.Tool["input_schema"],
     };
 
-    // Handle abort via timeout (Anthropic SDK doesn't accept AbortSignal directly)
+    // Combine external abort + local timeout into one AbortController
+    const localController = new AbortController();
     const timeoutMs = opts.timeoutMs ?? 45_000;
-    let timedOut = false;
-    const localTimeout = setTimeout(() => {
-      timedOut = true;
-    }, timeoutMs);
+    const localTimeout = setTimeout(() => localController.abort(), timeoutMs);
 
-    // Wire external abort signal
     if (opts.signal) {
-      opts.signal.addEventListener("abort", () => { timedOut = true; }, { once: true });
+      if (opts.signal.aborted) {
+        clearTimeout(localTimeout);
+        throw Object.assign(new Error("Aborted"), { name: "AbortError" });
+      }
+      opts.signal.addEventListener("abort", () => localController.abort(), { once: true });
     }
 
     try {
-      // Check abort before starting
-      if (opts.signal?.aborted || timedOut) {
-        throw Object.assign(new Error("Aborted"), { name: "AbortError" });
-      }
-
       const hasImages = (opts.imageUrls?.length ?? 0) > 0;
       type ContentBlock =
         | Anthropic.TextBlockParam
@@ -72,26 +68,25 @@ export const anthropicAdapter: ProviderAdapter = {
         }
       }
 
-      const response = await getClient().messages.create({
-        model,
-        max_tokens: opts.maxTokens ?? 1800,
-        system: opts.systemPrompt,
-        messages: [
-          {
-            role: "user",
-            content: hasImages ? userContent : opts.userPrompt,
-          },
-        ],
-        tools: [tool],
-        tool_choice: { type: "tool", name: opts.schemaName },
-        temperature: opts.temperature ?? 0.3,
-      });
+      const response = await getClient().messages.create(
+        {
+          model,
+          max_tokens: opts.maxTokens ?? 1800,
+          system: opts.systemPrompt,
+          messages: [
+            {
+              role: "user",
+              content: hasImages ? userContent : opts.userPrompt,
+            },
+          ],
+          tools: [tool],
+          tool_choice: { type: "tool", name: opts.schemaName },
+          temperature: opts.temperature ?? 0.3,
+        },
+        { signal: localController.signal }
+      );
 
       clearTimeout(localTimeout);
-
-      if (timedOut || opts.signal?.aborted) {
-        throw Object.assign(new Error("Aborted"), { name: "AbortError" });
-      }
 
       // Extract tool_use block
       const toolBlock = response.content.find(

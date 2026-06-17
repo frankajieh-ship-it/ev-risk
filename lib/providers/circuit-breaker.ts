@@ -48,7 +48,7 @@ const windows: Record<ProviderName, Entry[]> = {
   gemini: [],
   grok: [],
   anthropic: [],
-};
+}; // gemini + openai retained for type compat but not in DEFAULT_ORDER
 
 const DEFAULT_ORDER: ProviderName[] = ["grok", "anthropic"];
 
