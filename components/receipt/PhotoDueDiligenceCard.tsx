@@ -33,7 +33,32 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
   const pollCountRef = useRef(0);
   const MAX_POLLS = 60; // 3 minutes at 3s intervals
 
-  const enqueueAnalysis = useCallback((urls: string[]) => {
+  // Convert an https:// URL to a data: base64 string via our /api/img proxy.
+  // The browser can call our own proxy without CORS issues; the background Netlify
+  // function then receives base64 it can process without hitting CDN auth blocks.
+  const toDataUrl = useCallback(async (url: string): Promise<string> => {
+    if (url.startsWith("data:")) return url;
+    try {
+      const proxyUrl = `/api/img?url=${encodeURIComponent(url)}`;
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(12_000) });
+      if (!res.ok) return url;
+      const blob = await res.blob();
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(url);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return url; // fall back to raw URL — function will try its own proxy
+    }
+  }, []);
+
+  const enqueueAnalysis = useCallback(async (urls: string[]) => {
+    // Convert https:// URLs to data: base64 so the background function can process them.
+    // CDN URLs (CarGurus, AutoTrader etc) block server-side fetches but load fine in browser.
+    const resolved = await Promise.all(urls.slice(0, 10).map(toDataUrl));
+
     // Defer state resets out of effect body to avoid lint setState-in-effect error
     setTimeout(() => {
       setStatus("pending");
@@ -43,7 +68,7 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
     fetch("/api/receipt/photo-analysis/enqueue", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ receipt_id: receiptId, photo_urls: urls }),
+      body: JSON.stringify({ receipt_id: receiptId, photo_urls: resolved }),
     })
       .then((r) => r.json())
       .then((data: { job_id?: string; status?: string; photo_analysis?: PhotoAnalysisResult }) => {
@@ -58,7 +83,7 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
         }
       })
       .catch(() => setStatus("failed"));
-  }, [receiptId]);
+  }, [receiptId, toDataUrl]);
 
   // Enqueue on mount (idempotent)
   useEffect(() => {
