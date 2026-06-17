@@ -1052,9 +1052,9 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
   const warnings: string[] = [];
   const startTime = Date.now();
 
-  // Hard budget: 38s total — allows for cold-start serverless latency + Nimbleway JS render (~28s).
-  // The /api/receipt/fetch route has maxDuration=45 so this fits comfortably.
-  const EXTRACTION_BUDGET_MS = 38000;
+  // Hard budget: 58s total — AutoTrader stealth_proxy via ScrapingBee takes ~32s.
+  // The /api/receipt/fetch route has maxDuration=65 so this fits comfortably.
+  const EXTRACTION_BUDGET_MS = 58000;
   const remainingBudget = () => Math.max(0, EXTRACTION_BUDGET_MS - (Date.now() - startTime));
 
   // Initialize diagnostics
@@ -1108,9 +1108,9 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
     // --- Proxy fetch phase ---
     let html: string | null = null;
 
-    // CarGurus uses Nimbleway JS rendering. AutoTrader and Cars.com use direct fetch.
+    // CarGurus uses Nimbleway. AutoTrader/Cars.com use ScrapingBee stealth_proxy (~32s).
     const jsRenderSources: VehicleData['dataSource'][] = ['cargurus'];
-    const sourceProxyCap = jsRenderSources.includes(dataSource) ? 32000 : 15000;
+    const sourceProxyCap = jsRenderSources.includes(dataSource) ? 32000 : 50000;
 
     if (remainingBudget() > 1000) {
       const proxyStart = Date.now();

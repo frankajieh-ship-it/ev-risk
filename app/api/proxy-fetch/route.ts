@@ -23,7 +23,7 @@ function getRandomUserAgent(): string {
 
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
 
-export const maxDuration = 40;
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     // ScrapingBee premium_proxy routes through residential IPs — only reliable bypass.
     if ((isAutoTrader || isCarscom) && SCRAPINGBEE_KEY) {
       const sbController = new AbortController();
-      const sbTimeoutId = setTimeout(() => sbController.abort(), 30000);
+      const sbTimeoutId = setTimeout(() => sbController.abort(), 55000);
       try {
         const siteName = isAutoTrader ? 'AutoTrader' : 'Cars.com';
         console.log(`[Proxy Fetch] ${siteName}: trying ScrapingBee`);
