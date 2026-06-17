@@ -1383,17 +1383,33 @@ export async function GET(request: NextRequest) {
     // Server-side receipt events (from user_events)
     // -----------------------------------------------------------------------
 
+    // ai_generation: tracks receipt AI upgrade jobs (background function)
+    const aiUpgradeSucceeded = countEvents(filteredUserEvents, "ai_job_succeeded");
+    const aiUpgradeFailed = countEvents(filteredUserEvents, "ai_job_failed");
+    const aiUpgradeFallback = countEvents(filteredUserEvents, "receipt_upgrade_fallback_used");
+    const aiUpgradeTotal = aiUpgradeSucceeded + aiUpgradeFailed;
+
+    // url_extraction: tracks URL scrape attempts (separate from AI generation)
     const receiptExtractSuccess = countEvents(filteredUserEvents, "receipt_extract_succeeded");
     const receiptExtractFailed = countEvents(filteredUserEvents, "receipt_extract_failed");
     const receiptExtractFallback = countEvents(filteredUserEvents, "receipt_extract_fallback_used");
     const receiptExtractTotal = receiptExtractSuccess + receiptExtractFailed;
 
     const ai_generation = {
-      succeeded: receiptExtractSuccess,
-      failed: receiptExtractFailed,
-      fallback_used: receiptExtractFallback,
-      total: receiptExtractTotal,
+      succeeded: aiUpgradeSucceeded,
+      failed: aiUpgradeFailed,
+      fallback_used: aiUpgradeFallback,
+      total: aiUpgradeTotal,
       success_rate:
+        aiUpgradeTotal > 0
+          ? Math.round((aiUpgradeSucceeded / aiUpgradeTotal) * 1000) / 10
+          : 0,
+      // URL extraction health (separate metric, was previously mislabelled as AI generation)
+      url_extraction_succeeded: receiptExtractSuccess,
+      url_extraction_failed: receiptExtractFailed,
+      url_extraction_fallback: receiptExtractFallback,
+      url_extraction_total: receiptExtractTotal,
+      url_extraction_rate:
         receiptExtractTotal > 0
           ? Math.round((receiptExtractSuccess / receiptExtractTotal) * 1000) / 10
           : 0,
@@ -1463,10 +1479,6 @@ export async function GET(request: NextRequest) {
     const listingSaved = countEvents(filteredUserEvents, "listing_saved");
     const garageCreated = countEvents(filteredUserEvents, "garage_created");
     const anonAttached = countEvents(filteredUserEvents, "anon_attached_to_user");
-    const aiJobQueued = countEvents(filteredUserEvents, "ai_job_queued");
-    const aiJobSucceeded = countEvents(filteredUserEvents, "ai_job_succeeded");
-    const aiJobFailed = countEvents(filteredUserEvents, "ai_job_failed");
-
     const evfit_funnel = {
       evfit_started: evfitStarted,
       evfit_completed: evfitCompleted,
@@ -1482,10 +1494,12 @@ export async function GET(request: NextRequest) {
       listing_saved: listingSaved,
       garage_created: garageCreated,
       anon_attached: anonAttached,
-      ai_job_queued: aiJobQueued,
-      ai_job_succeeded: aiJobSucceeded,
-      ai_job_failed: aiJobFailed,
-      ai_success_rate_pct: aiJobQueued > 0 ? Math.round((aiJobSucceeded / aiJobQueued) * 100) : 0,
+      // ai_job_* moved to ai_generation — these were platform-wide receipt upgrade
+      // jobs, not EVFit-specific. Kept here as zero to avoid breaking the admin UI.
+      ai_job_queued: 0,
+      ai_job_succeeded: 0,
+      ai_job_failed: 0,
+      ai_success_rate_pct: 0,
     };
 
     // -----------------------------------------------------------------------
