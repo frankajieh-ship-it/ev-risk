@@ -1184,28 +1184,7 @@ export default function ReceiptPage() {
                 />
               </div>
 
-              {/* ── Matching Deals Strip ─────────────────────────────── */}
-              {matchingDeals.length > 0 && (
-                <div className="rounded-xl border border-white/[0.08] bg-[#161b22] p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-widest text-[#00d97e]">Deal Watch</p>
-                      <h3 className="text-sm font-semibold text-white mt-0.5">
-                        Other {receipt?.listing_summary?.make} {receipt?.listing_summary?.model} listings we&apos;ve analyzed
-                      </h3>
-                    </div>
-                    <Link href="/deals" className="text-xs text-white/40 hover:text-white/70 transition-colors">See all →</Link>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {matchingDeals.map((deal, i) => (
-                      <DealCard key={deal.id} deal={deal} compact rank={i + 1} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ── Deal Watch (full curated section) ───────────────── */}
-              <FeaturedDeals />
+              {/* Deal Watch suspended — matching deals and FeaturedDeals removed */}
 
               {/* Compare — shown when auth is configured */}
               {authConfigured && (
