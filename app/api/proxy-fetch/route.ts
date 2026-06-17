@@ -122,8 +122,6 @@ export async function POST(request: NextRequest) {
     console.log('[Proxy Fetch] Fetching URL:', url.substring(0, 100));
 
     // Sites that need JS rendering via Nimbleway
-    // autotrader.com removed — Nimbleway returns Akamai block page; direct fetch works fine
-    // cars.com removed — direct fetch returns full HTML without JS rendering
     const needsJsRender = ['cargurus.com'].some(
       d => parsedUrl.hostname.includes(d)
     );
@@ -136,11 +134,63 @@ export async function POST(request: NextRequest) {
       ? (parsedUrl.pathname.match(/\/details\/(\d{7,12})/)?.[1] ?? null)
       : null;
 
+    const SCRAPINGBEE_KEY = process.env.SCRAPINGBEE_API_KEY;
+    const isAutoTrader = parsedUrl.hostname.includes('autotrader.com');
+    const isCarscom = parsedUrl.hostname.includes('cars.com');
+
+    // --- AutoTrader + Cars.com: ScrapingBee (residential proxy + JS render) ---
+    // Direct fetch and Nimbleway both get Akamai-blocked on these sites.
+    // ScrapingBee with premium_proxy + render_js reliably bypasses bot protection.
+    if ((isAutoTrader || isCarscom) && SCRAPINGBEE_KEY) {
+      const sbController = new AbortController();
+      const sbTimeoutId = setTimeout(() => sbController.abort(), 30000);
+      try {
+        const siteName = isAutoTrader ? 'AutoTrader' : 'Cars.com';
+        console.log(`[Proxy Fetch] ${siteName}: trying ScrapingBee`);
+        const sbParams = new URLSearchParams({
+          api_key: SCRAPINGBEE_KEY,
+          url,
+          render_js: 'true',
+          premium_proxy: 'true',
+          country_code: 'us',
+          wait: '5000',
+        });
+        const sbRes = await fetch(`https://app.scrapingbee.com/api/v1/?${sbParams}`, {
+          signal: sbController.signal,
+        });
+        clearTimeout(sbTimeoutId);
+        console.log(`[Proxy Fetch] ScrapingBee ${siteName} status:`, sbRes.status);
+        if (sbRes.ok) {
+          const sbHtml = await sbRes.text();
+          const isBlocked = sbHtml.length < 5000
+            || sbHtml.toLowerCase().includes('just a moment')
+            || sbHtml.toLowerCase().includes('access denied')
+            || sbHtml.includes('Autotrader - page unavailable');
+          console.log(`[Proxy Fetch] ScrapingBee ${siteName} html length=${sbHtml.length} blocked=${isBlocked}`);
+          if (!isBlocked) {
+            return NextResponse.json({
+              success: true,
+              html: sbHtml,
+              contentLength: sbHtml.length,
+              status: 200,
+              fetchMethod: 'scrapingbee',
+              headers: { 'content-type': 'text/html' },
+            });
+          }
+          console.warn(`[Proxy Fetch] ScrapingBee ${siteName} result blocked — falling through to direct fetch`);
+        } else {
+          console.warn(`[Proxy Fetch] ScrapingBee ${siteName} returned ${sbRes.status} — falling through to direct fetch`);
+        }
+      } catch (sbErr) {
+        clearTimeout(sbTimeoutId);
+        console.warn(`[Proxy Fetch] ScrapingBee ${isAutoTrader ? 'AutoTrader' : 'Cars.com'} failed:`, sbErr instanceof Error ? sbErr.message : String(sbErr));
+      }
+    }
+
     // --- CarGurus: ScrapingBee primary (residential proxy + JS render) ---
     // CarGurus blocks datacenter IPs and Googlebot UA. ScrapingBee with premium_proxy
     // uses residential IPs and a real browser session — reliably returns full HTML with
     // __remixContext (VIN, photos, history). Googlebot direct is a fast cheap fallback.
-    const SCRAPINGBEE_KEY = process.env.SCRAPINGBEE_API_KEY;
     if (parsedUrl.hostname.includes('cargurus.com') && SCRAPINGBEE_KEY) {
       const sbController = new AbortController();
       const sbTimeoutId = setTimeout(() => sbController.abort(), 30000);
