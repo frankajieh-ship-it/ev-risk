@@ -16,6 +16,7 @@ import { getTemplatePack } from "./vehicle-category-templates";
 import { scoreFallbackReceipt } from "./receipt-scoring";
 import type { ReceiptScoringResult } from "./receipt-scoring";
 import { RULES_BY_ID, type ListingSignalId } from "./receipt-rules";
+import { getModelKnowledge } from "./vehicle-model-knowledge";
 
 let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI {
@@ -397,6 +398,22 @@ export function buildUserPrompt(input: ReceiptGenerateRequest): string {
     parts.push("- Use UK terminology: V5C (not title), MOT (not inspection), dealer extras (not doc fees), HPI check (not Carfax).");
     parts.push("- If estimating fees, use UK ranges (admin fees £99-£299, VAT 20%).");
     parts.push("- Do not reference US-specific paperwork or pricing patterns.");
+    parts.push("");
+  }
+
+  // Model-specific knowledge injection — grounds AI in real known issues, warranty, and market context
+  const modelKnowledge = getModelKnowledge(input.year ?? null, input.make ?? "", input.model ?? "");
+  if (modelKnowledge) {
+    const knowledgeLines = ["MODEL KNOWLEDGE — use this to inform signals, inspection items, and advice:"];
+    knowledgeLines.push(modelKnowledge.known_issues_block);
+    if (modelKnowledge.battery_warranty) {
+      knowledgeLines.push(`Battery warranty: ${modelKnowledge.battery_warranty}`);
+    }
+    if (modelKnowledge.lease_return_note) {
+      knowledgeLines.push(`Market context: ${modelKnowledge.lease_return_note}`);
+    }
+    knowledgeLines.push(`Reliability score: ${modelKnowledge.reliability_score}/10`);
+    parts.push(knowledgeLines.join("\n"));
     parts.push("");
   }
 
@@ -1084,8 +1101,24 @@ function buildDeepDiveUserPrompt(baseReceipt: ListingReceipt): string {
     `Price sanity: ${baseReceipt.price_sanity?.label} (confidence: ${baseReceipt.price_sanity?.confidence})`,
     `Price rationale: ${baseReceipt.price_sanity?.rationale_short || "N/A"}`,
     "",
-    "Generate the deep dive JSON now. Return ONLY the JSON object.",
   ];
+
+  const modelKnowledge = getModelKnowledge(ls.year ?? null, ls.make ?? "", ls.model ?? "");
+  if (modelKnowledge) {
+    const knowledgeLines = ["MODEL KNOWLEDGE — use this to ground model_known_issues[], inspection items, and advice:"];
+    knowledgeLines.push(modelKnowledge.known_issues_block);
+    if (modelKnowledge.battery_warranty) {
+      knowledgeLines.push(`Battery warranty: ${modelKnowledge.battery_warranty}`);
+    }
+    if (modelKnowledge.lease_return_note) {
+      knowledgeLines.push(`Market context: ${modelKnowledge.lease_return_note}`);
+    }
+    knowledgeLines.push(`Reliability score: ${modelKnowledge.reliability_score}/10`);
+    parts.push(knowledgeLines.join("\n"));
+    parts.push("");
+  }
+
+  parts.push("Generate the deep dive JSON now. Return ONLY the JSON object.");
 
   return parts.join("\n");
 }
