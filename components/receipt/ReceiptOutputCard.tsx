@@ -230,7 +230,7 @@ export default function ReceiptOutputCard({
 
   const userUploaded = useMemo(() => photos.filter(u => u.startsWith("data:")), [photos]);
   const photoSrcs = useMemo(() => {
-    const scraped = photos.filter(u => !u.startsWith("data:")).slice(0, 10);
+    const scraped = photos.filter(u => !u.startsWith("data:")).slice(0, 20);
     return [...scraped, ...userUploaded];
   }, [photos, userUploaded]);
 
