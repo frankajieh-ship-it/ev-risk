@@ -91,7 +91,8 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
   const enqueueAnalysis = useCallback(async (urls: string[]) => {
     // Convert https:// URLs to data: base64 so the background function can process them.
     // CDN URLs (CarGurus, AutoTrader etc) block server-side fetches but load fine in browser.
-    const resolved = await Promise.all(urls.slice(0, 20).map(toDataUrl));
+    // Filter out empty strings — resizeBlob returns "" on canvas/load failure.
+    const resolved = (await Promise.all(urls.slice(0, 20).map(toDataUrl))).filter(u => u.length > 0);
 
     // Defer state resets out of effect body to avoid lint setState-in-effect error
     setTimeout(() => {

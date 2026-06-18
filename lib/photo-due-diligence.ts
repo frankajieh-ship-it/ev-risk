@@ -92,22 +92,34 @@ const DAMAGE_SCHEMA = {
 // ---------------------------------------------------------------------------
 
 const COMBINED_SYSTEM =
-  "You are an automotive photo analyst. For each car photo, do two things:\n" +
-  "1. CLASSIFY the angle into exactly one category:\n" +
-  "   - front: headlights, grille, hood, front bumper visible — vehicle faces camera\n" +
-  "   - rear: taillights, trunk/hatch, rear bumper visible — back of vehicle faces camera\n" +
-  "   - driver_side: left side profile (US driver side)\n" +
-  "   - pass_side: right side profile (US passenger side)\n" +
-  "   - interior: cabin — seats, steering wheel, dashboard, console, doors from inside\n" +
-  "   - odometer: instrument cluster or screen showing mileage\n" +
-  "   - engine: hood open showing engine bay or motor\n" +
-  "   - tires: close-up of tire, wheel, rim, or wheel well\n" +
-  "   - undercarriage: shot from underneath showing frame, suspension, exhaust\n" +
-  "   - other: badge close-ups, feature details, or anything not matching above\n" +
-  "   When in doubt between driver_side and pass_side, pick driver_side.\n" +
-  "2. INSPECT for visible damage: dents, scratches, rust, cracks, paint fade, missing parts, interior damage, tire/wheel damage.\n" +
-  "   Return empty findings array if everything looks clean.\n" +
-  'Respond with JSON only: {"angle_id": "<category>", "findings": [{"type": "dent|scratch|rust|crack|paint_fade|missing_part|other", "severity": "minor|moderate|severe", "location": "string", "affects_value": true|false, "description": "string"}]}';
+  "You are an expert automotive photo analyst reviewing used car listing photos.\n\n" +
+  "For the photo provided, do TWO things:\n\n" +
+  "STEP 1 — CLASSIFY the camera angle. Pick exactly one from this list:\n" +
+  "  front        — Front of vehicle: headlights, grille, hood, front bumper facing camera. Most common listing photo.\n" +
+  "  rear         — Back of vehicle: taillights, trunk/hatch, rear bumper, rear windshield.\n" +
+  "  driver_side  — Left side profile of vehicle (driver side in US). Full side view, wheels visible.\n" +
+  "  pass_side    — Right side profile of vehicle (passenger side in US). Full side view, wheels visible.\n" +
+  "  interior     — Inside cabin: seats, steering wheel, dashboard, center console, door panels. Any shot from inside.\n" +
+  "  odometer     — Instrument cluster or infotainment screen clearly showing mileage/odometer reading.\n" +
+  "  engine       — Hood open showing engine bay, motor, battery pack, or underhood components.\n" +
+  "  tires        — Close-up of tire tread, wheel rim, brake rotor, or wheel well.\n" +
+  "  undercarriage — Shot from below showing frame rails, suspension arms, exhaust, or underbody.\n" +
+  "  other        — ONLY use this if the photo is a badge/logo close-up, VIN sticker, document scan, or truly unclassifiable. Do NOT use other for exterior or interior shots.\n\n" +
+  "CLASSIFICATION RULES:\n" +
+  "  - If you can see the front bumper/headlights → front\n" +
+  "  - If you can see the rear bumper/taillights → rear\n" +
+  "  - If you see a full side profile of the car → driver_side or pass_side\n" +
+  "  - If you are inside the car looking at seats/dash → interior\n" +
+  "  - If the steering wheel, dashboard, or center console is prominent → interior\n" +
+  "  - Aerial/angled 3/4 front shots → front\n" +
+  "  - Aerial/angled 3/4 rear shots → rear\n" +
+  "  - When unsure between driver_side and pass_side → pick driver_side\n" +
+  "  - Only use 'other' as a last resort\n\n" +
+  "STEP 2 — INSPECT for visible damage: dents, scratches, rust, cracks, paint fade/chips, missing trim, interior stains/tears, wheel/tire damage.\n" +
+  "  - Be specific about location (e.g. 'rear bumper lower left', 'driver door panel')\n" +
+  "  - Return empty findings array if the photo shows no visible damage\n" +
+  "  - Only report damage that is clearly visible — do not speculate\n\n" +
+  'Output JSON only: {"angle_id": "<one of the categories above>", "findings": [{"type": "dent|scratch|rust|crack|paint_fade|missing_part|other", "severity": "minor|moderate|severe", "location": "string", "affects_value": true|false, "description": "string"}]}';
 
 const COMBINED_SCHEMA = {
   type: "object",
@@ -147,11 +159,11 @@ export async function analysePhoto(photoUrl: string): Promise<{ angle_id: AngleI
           { role: "system", content: COMBINED_SYSTEM },
           { role: "user", content: [
             { type: "text", text: "Analyse this car photo." },
-            { type: "image_url", image_url: { url: photoUrl, detail: "auto" } },
+            { type: "image_url", image_url: { url: photoUrl, detail: "high" } },
           ]},
         ],
         temperature: 0,
-        max_tokens: 500,
+        max_tokens: 800,
         response_format: { type: "json_schema", json_schema: { name: "photo_analysis", strict: true, schema: COMBINED_SCHEMA } },
       });
       const raw = response.choices[0]?.message?.content ?? "{}";
