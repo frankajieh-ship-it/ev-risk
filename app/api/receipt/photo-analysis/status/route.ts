@@ -42,7 +42,16 @@ export async function GET(request: NextRequest) {
         .eq("id", job_id);
       return NextResponse.json({ status: "failed", error: "timeout" });
     }
-    return NextResponse.json({ status: job.status, error: job.error ?? null });
+    // Return any partial results already written by the background function
+    const { data: receipt } = await supabase
+      .from("receipts")
+      .select("photo_analysis")
+      .eq("id", job.receipt_id)
+      .single();
+    return NextResponse.json({
+      status: job.status,
+      photo_analysis: (receipt?.photo_analysis as PhotoAnalysisResult | null) ?? null,
+    });
   }
 
   if (job.status === "failed") {

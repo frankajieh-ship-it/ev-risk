@@ -70,7 +70,7 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const enqueuedRef = useRef(false);
   const pollCountRef = useRef(0);
-  const MAX_POLLS = 60; // 3 minutes at 3s intervals
+  const MAX_POLLS = 200; // 10 minutes at 3s intervals
 
   // Convert a URL to a resized base64 data: string for the analysis backend.
   // CDN URLs are fetched via our /api/img proxy to bypass hotlink protection.
@@ -158,9 +158,10 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
       fetch(`/api/receipt/photo-analysis/status?job_id=${jobId}`)
         .then((r) => r.json())
         .then((data: { status?: string; photo_analysis?: PhotoAnalysisResult }) => {
+          // Apply partial results in real-time — every poll tick that has data updates the UI
+          if (data.photo_analysis) setAnalysis(data.photo_analysis);
           if (data.status === "done") {
             clearInterval(pollRef.current!);
-            setAnalysis(data.photo_analysis ?? null);
             setStatus("done");
           } else if (data.status === "failed") {
             clearInterval(pollRef.current!);
@@ -247,7 +248,9 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
           {(status === "pending" || status === "processing") && (
             <span className="flex items-center gap-1 text-xs text-white/40">
               <span className="inline-block w-3 h-3 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-              Analysing…
+              {analysis?.photos.length
+                ? `Analysed ${analysis.photos.length} of ${photoUrls.length}…`
+                : "Analysing…"}
             </span>
           )}
         </div>

@@ -59,20 +59,6 @@ async function fetchAsBase64(url: string, siteUrl: string): Promise<string | nul
   }
 }
 
-// Run items in parallel batches of N
-async function batchedParallel<T, R>(
-  items: T[],
-  batchSize: number,
-  fn: (item: T) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = [];
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    const batchResults = await Promise.all(batch.map(fn));
-    results.push(...batchResults);
-  }
-  return results;
-}
 
 function buildSummary(photos: PhotoAnalysisResult["photos"]): string {
   const allFindings: (DamageFinding & { angle: string })[] = [];
@@ -155,35 +141,30 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     const fetchable = resolvedUrls.filter((r) => r.dataUrl !== null);
     console.log(`[analyze-receipt-photos] ${fetchable.length}/${resolvedUrls.length} photos fetched successfully`);
 
-    // Analyse each photo — classify angle + detect damage in a single API call per photo
-    const photos = await batchedParallel(
-      fetchable,
-      6,
-      async ({ url, dataUrl }) => {
-        const { angle_id, findings } = await analysePhoto(dataUrl!);
-        return { url, angle_id, findings };
-      }
-    );
+    // Analyse each photo sequentially — write partial results to DB after each one
+    // so the status endpoint can return incremental data and the UI can update in real-time.
+    const completedPhotos: PhotoAnalysisResult["photos"] = [];
 
-    const coverage = buildCoverage(photos.map((p) => p.angle_id));
-    const allFindings = photos.flatMap((p) => p.findings);
+    for (const { url, dataUrl } of fetchable) {
+      const { angle_id, findings } = await analysePhoto(dataUrl!);
+      completedPhotos.push({ url, angle_id, findings });
 
-    const result: PhotoAnalysisResult = {
-      analyzed_at: new Date().toISOString(),
-      coverage,
-      photos,
-      total_findings: allFindings.length,
-      severe_findings: allFindings.filter((f) => f.severity === "severe").length,
-      summary: buildSummary(photos),
-    };
+      const allFindings = completedPhotos.flatMap((p) => p.findings);
+      const partial: PhotoAnalysisResult = {
+        analyzed_at: new Date().toISOString(),
+        coverage: buildCoverage(completedPhotos.map((p) => p.angle_id)),
+        photos: completedPhotos,
+        total_findings: allFindings.length,
+        severe_findings: allFindings.filter((f) => f.severity === "severe").length,
+        summary: buildSummary(completedPhotos),
+      };
+      await supabase
+        .from("receipts")
+        .update({ photo_analysis: partial })
+        .eq("id", receipt_id);
+    }
 
-    // Persist to receipts
-    await supabase
-      .from("receipts")
-      .update({ photo_analysis: result })
-      .eq("id", receipt_id);
-
-    // Mark job done
+    // Mark job done — photo_analysis already has the final state from the last iteration
     await supabase
       .from("receipt_photo_jobs")
       .update({ status: "done", finished_at: new Date().toISOString() })
