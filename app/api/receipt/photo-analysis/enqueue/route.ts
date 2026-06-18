@@ -55,9 +55,9 @@ export async function POST(request: NextRequest) {
         .single();
       const analysis = receiptRow?.photo_analysis as { photos?: unknown[] } | null;
       const analysedCount = Array.isArray(analysis?.photos) ? analysis.photos.length : 0;
-      const incomingCount = photo_urls.filter(u => !u.startsWith("data:")).length;
-      // Re-run if: no analysis, or incoming non-data: photos grew by 2+ (new fetch brought more)
-      if (analysis && incomingCount > 0 && analysedCount >= incomingCount) {
+      // Count all incoming photos — data: (user uploads) and scraped URLs both count.
+      const incomingCount = photo_urls.length;
+      if (analysis && analysedCount >= incomingCount) {
         return NextResponse.json({ job_id: existing.id, status: "done", photo_analysis: analysis });
       }
       // Stale or missing — invalidate and re-enqueue
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         receipt_id,
         job_id: job.id,
-        photo_urls: photo_urls.slice(0, 10),
+        photo_urls: photo_urls.slice(0, 20),
       }),
     })
       .then(async (r) => {

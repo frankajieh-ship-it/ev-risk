@@ -147,10 +147,10 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     .eq("id", job_id);
 
   try {
-    // Fetch up to 10 photos in full parallel — independent requests, no need to batch.
-    // 10 photos gives full due-diligence coverage (front/rear/sides/interior/odometer/engine).
+    // Fetch up to 20 photos in full parallel — independent requests, no need to batch.
+    // 20 photos gives high coverage across all 9 required angles plus extras.
     const resolvedUrls = await Promise.all(
-      photo_urls.slice(0, 10).map(async (url) => ({ url, dataUrl: await fetchAsBase64(url, siteUrl) }))
+      photo_urls.slice(0, 20).map(async (url) => ({ url, dataUrl: await fetchAsBase64(url, siteUrl) }))
     );
     const fetchable = resolvedUrls.filter((r) => r.dataUrl !== null);
     console.log(`[analyze-receipt-photos] ${fetchable.length}/${resolvedUrls.length} photos fetched successfully`);

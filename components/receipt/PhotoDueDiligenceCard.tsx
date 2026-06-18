@@ -91,7 +91,7 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
   const enqueueAnalysis = useCallback(async (urls: string[]) => {
     // Convert https:// URLs to data: base64 so the background function can process them.
     // CDN URLs (CarGurus, AutoTrader etc) block server-side fetches but load fine in browser.
-    const resolved = await Promise.all(urls.slice(0, 10).map(toDataUrl));
+    const resolved = await Promise.all(urls.slice(0, 20).map(toDataUrl));
 
     // Defer state resets out of effect body to avoid lint setState-in-effect error
     setTimeout(() => {
@@ -119,10 +119,13 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
       .catch(() => setStatus("failed"));
   }, [receiptId, toDataUrl]);
 
-  // Enqueue on mount (idempotent)
+  // Enqueue on mount (idempotent). Initialize ref counts so re-enqueue effect
+  // can correctly detect when new photos are added after initial analysis.
   useEffect(() => {
     if (photoUrls.length === 0 || enqueuedRef.current) return;
     enqueuedRef.current = true;
+    enqueuedDataCountRef.current = photoUrls.filter(u => u.startsWith("data:")).length;
+    enqueuedScrapedCountRef.current = photoUrls.filter(u => !u.startsWith("data:")).length;
     enqueueAnalysis(photoUrls);
   }, [receiptId, photoUrls, enqueueAnalysis]);
 
