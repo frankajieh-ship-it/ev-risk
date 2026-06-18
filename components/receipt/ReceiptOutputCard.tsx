@@ -473,39 +473,23 @@ export default function ReceiptOutputCard({
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white">OFFO AI Photo Analysis</p>
+                  <p className="text-sm font-semibold text-white">Add listing photos for AI analysis</p>
                   <p className="text-xs text-white/50 mt-0.5 leading-relaxed">
-                    Checks angle coverage and scans for visible damage — dents, rust, scratches — that affects resale value.
+                    Open the listing in another tab, right-click each photo → Copy Image, then drag or paste them here. OFFO will scan for damage and missing angles.
                   </p>
                   <p className="text-xs text-white/35 mt-2">
-                    Drag listing photos here, or{" "}
+                    Or{" "}
                     <button
                       onClick={() => uploadInputRef.current?.click()}
                       className="text-[#00d97e]/80 hover:text-[#00d97e] underline underline-offset-2 transition-colors"
                     >
-                      click to upload
+                      click to upload photos from your device
                     </button>
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Angle checklist — tells user exactly what to grab */}
-            <div className="px-5 py-3">
-              <p className="text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-2">Photos to add from the listing</p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                {REQUIRED_ANGLES.map((angle) => (
-                  <div key={angle.id} className="flex items-center gap-2">
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${angle.required ? "bg-white/20" : "bg-white/10"}`} />
-                    <span className={`text-xs ${angle.required ? "text-white/40" : "text-white/25"}`}>
-                      {angle.label}
-                      {angle.required && <span className="text-white/20 ml-1">*</span>}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[10px] text-white/20 mt-2.5">* Required for full coverage score</p>
-            </div>
           </div>
         ) : (
           <div className="mt-3 -mx-5 relative">
@@ -619,11 +603,11 @@ export default function ReceiptOutputCard({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 <span className="text-xs font-semibold">
-                  Drag listing photos here to improve your verdict
+                  Add more listing photos for better coverage
                 </span>
               </div>
               <p className="text-[11px] text-white/40 leading-relaxed pl-6">
-                OFFO AI scans for damage and missing angles — photos you add can flag issues that change the final verdict.{" "}
+                Open the listing in another tab, right-click each photo → Copy Image, then drag them here. OFFO scans for damage and missing angles.{" "}
                 <button
                   onClick={() => uploadInputRef.current?.click()}
                   className="text-[#00d97e]/70 hover:text-[#00d97e] underline underline-offset-2 transition-colors"
