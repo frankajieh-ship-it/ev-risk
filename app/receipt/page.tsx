@@ -378,8 +378,9 @@ export default function ReceiptPage() {
   const [showPostReceiptPopup, setShowPostReceiptPopup] = useState(false);
   const postReceiptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Listing photos — populated only by user drag-and-drop or file upload.
-  // Extracted CDN URLs are not seeded: they expire quickly and show broken images.
+  // Listing photos — seeded from scraped CDN URLs on extraction, then supplemented
+  // by user drag-and-drop. PhotoDueDiligenceCard converts all URLs to resized base64
+  // immediately on mount, so CDN expiry is not a concern.
   const [listingPhotos, setListingPhotos] = useState<string[]>([]);
 
   // Reset photos when receipt is cleared (new submission starting)
@@ -906,7 +907,9 @@ export default function ReceiptPage() {
           }}
           onExtractionSuccess={() => {}}
           onExtractionFields={handleExtractionFields}
-          onPhotosExtracted={() => {}}
+          onPhotosExtracted={(photos) => {
+            if (photos?.length) setListingPhotos(photos.slice(0, 10));
+          }}
           isGenerating={isGenerating}
           generatingStep={generatingStep}
           remainingFree={null}

@@ -23,6 +23,42 @@ const SEVERITY_STYLES: Record<DamageFinding["severity"], { dot: string; label: s
   severe:   { dot: "bg-red-400",     label: "Severe"   },
 };
 
+// Resize images to max 1024px on the long edge at JPEG 0.85 before base64 encoding.
+// Full-res CDN images (800–2000px) bloat the JSON payload sent to OpenAI Vision;
+// 1024px retains all detail the model needs at ~15× smaller file size.
+const MAX_PX = 1024;
+const JPEG_QUALITY = 0.85;
+
+function drawResized(img: HTMLImageElement): string {
+  const scale = Math.min(1, MAX_PX / Math.max(img.width, img.height));
+  const w = Math.round(img.width * scale);
+  const h = Math.round(img.height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+  return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+}
+
+function resizeBlob(blob: Blob): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(blob);
+    img.onload = () => { URL.revokeObjectURL(objectUrl); resolve(drawResized(img)); };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(""); };
+    img.src = objectUrl;
+  });
+}
+
+function resizeDataUrl(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(drawResized(img));
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighlightPhoto, isUnlocked, paymentsEnabled, onPaywallClick }: Props) {
   // Start as pending — component only renders when photos are present
   const [status, setStatus] = useState<JobStatus>("pending");
@@ -36,22 +72,17 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
   const pollCountRef = useRef(0);
   const MAX_POLLS = 60; // 3 minutes at 3s intervals
 
-  // Convert an https:// URL to a data: base64 string via our /api/img proxy.
-  // The browser can call our own proxy without CORS issues; the background Netlify
-  // function then receives base64 it can process without hitting CDN auth blocks.
+  // Convert a URL to a resized base64 data: string for the analysis backend.
+  // CDN URLs are fetched via our /api/img proxy to bypass hotlink protection.
+  // All images are resized to ≤1024px before encoding — reduces payload 15× vs raw.
   const toDataUrl = useCallback(async (url: string): Promise<string> => {
-    if (url.startsWith("data:")) return url;
+    if (url.startsWith("data:")) return resizeDataUrl(url);
     try {
       const proxyUrl = `/api/img?url=${encodeURIComponent(url)}`;
       const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(12_000) });
       if (!res.ok) return url;
       const blob = await res.blob();
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => resolve(url);
-        reader.readAsDataURL(blob);
-      });
+      return resizeBlob(blob);
     } catch {
       return url; // fall back to raw URL — function will try its own proxy
     }
