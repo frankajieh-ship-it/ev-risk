@@ -123,7 +123,7 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
 
   // Title status pill config
   const titleConfig = {
-    clean: { label: "Clean title", icon: CheckCircle, cls: "text-green-400 bg-green-500/10 border-green-500/20" },
+    clean: { label: "Clean title (listing)", icon: CheckCircle, cls: "text-green-400 bg-green-500/10 border-green-500/20" },
     rebuilt: { label: "Rebuilt title", icon: ShieldAlert, cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
     salvage: { label: "Salvage title", icon: ShieldAlert, cls: "text-red-400 bg-red-500/10 border-red-500/20" },
     unknown: { label: "Title unknown", icon: Shield, cls: "text-white/40 bg-white/[0.06] border-white/10" },
@@ -133,8 +133,8 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
 
   // Accident pill config
   const accidentConfig = {
-    yes: { label: "Accidents reported", cls: "text-red-400 bg-red-500/10 border-red-500/20", icon: AlertTriangle },
-    no: { label: "No accidents reported", cls: "text-green-400 bg-green-500/10 border-green-500/20", icon: CheckCircle },
+    yes: { label: "Accidents reported (listing)", cls: "text-red-400 bg-red-500/10 border-red-500/20", icon: AlertTriangle },
+    no: { label: "No accidents reported (listing)", cls: "text-green-400 bg-green-500/10 border-green-500/20", icon: CheckCircle },
     unknown: { label: "Accident history unknown", cls: "text-white/40 bg-white/[0.06] border-white/10", icon: AlertTriangle },
   };
   const ac = accidentConfig[accidents as keyof typeof accidentConfig] || accidentConfig.unknown;
@@ -159,83 +159,61 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
           </span>
         )}
 
-        {showFull ? (
-          <>
-            {/* Title status */}
-            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${tc.cls}`}>
-              <TitleIcon className="w-3 h-3" />
-              {tc.label}
-            </span>
+        {/* Title status — always free (scraped from listing) */}
+        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${tc.cls}`}>
+          <TitleIcon className="w-3 h-3" />
+          {tc.label}
+        </span>
 
-            {/* Accidents — listing-scraped signal */}
-            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${ac.cls}`}>
-              <AccidentIcon className="w-3 h-3" />
-              {ac.label}
-            </span>
+        {/* Accidents — always free (scraped from listing) */}
+        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${ac.cls}`}>
+          <AccidentIcon className="w-3 h-3" />
+          {ac.label}
+        </span>
 
-            {/* VIN history — coming soon (VINaudit + ClearVin integration pending) */}
-            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-[#00d97e]/20 text-[#00d97e]/60 bg-[#00d97e]/[0.04]">
-              <Shield className="w-3 h-3" />
-              Full VIN history — coming soon
-            </span>
+        {/* VIN history — coming soon (VINaudit + ClearVin integration pending) */}
+        {showFull && (
+          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-[#00d97e]/20 text-[#00d97e]/60 bg-[#00d97e]/[0.04]">
+            <Shield className="w-3 h-3" />
+            Full VIN history — coming soon
+          </span>
+        )}
 
-            {/* Recalls */}
-            {recallStatus === "loading" && (
-              <span className="inline-flex items-center gap-1 text-xs text-white/30 px-2 py-0.5 rounded-full border border-white/[0.08]">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                Checking recalls…
-              </span>
-            )}
-            {recallStatus === "done" && recalls.length === 0 && (
-              <a href={nhtsaUrl} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-green-400 bg-green-500/10 border-green-500/20 hover:underline"
-              >
-                <CheckCircle className="w-3 h-3" />No open recalls
-                <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
-              </a>
-            )}
-            {recallStatus === "done" && recalls.length > 0 && (
-              <button onClick={() => setRecallExpanded((o) => !o)}
-                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-red-400 bg-red-500/10 border-red-500/20"
-              >
-                <AlertTriangle className="w-3 h-3" />
-                {recalls.length} open recall{recalls.length !== 1 ? "s" : ""}
-                <span className="ml-0.5 text-red-400/70">{recallExpanded ? "▲" : "▼"}</span>
-              </button>
-            )}
-            {recallStatus === "error" && (
-              <a href={nhtsaUrl} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-white/40 px-2 py-0.5 rounded-full border border-white/10 hover:underline"
-              >
-                Check NHTSA recalls <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
-              </a>
-            )}
-          </>
-        ) : (
-          /* Locked state — blurred pills hinting at what's hidden */
-          <>
-            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-white/10 text-white/30 blur-[3px] select-none">
-              <Shield className="w-3 h-3" />Title status
-            </span>
-            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-white/10 text-white/30 blur-[3px] select-none">
-              <AlertTriangle className="w-3 h-3" />Accident history
-            </span>
-            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-white/10 text-white/30 blur-[3px] select-none">
-              <AlertTriangle className="w-3 h-3" />Recall status
-            </span>
-            <button
-              onClick={onPaywallClick}
-              className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-[#00d97e]/30 text-[#00d97e]/80 bg-[#00d97e]/[0.06] hover:bg-[#00d97e]/10 transition-colors"
-            >
-              <Lock className="w-3 h-3" />
-              View full report
-            </button>
-          </>
+        {/* Recalls — always free, sourced from NHTSA public data */}
+        {recallStatus === "loading" && (
+          <span className="inline-flex items-center gap-1 text-xs text-white/30 px-2 py-0.5 rounded-full border border-white/[0.08]">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Checking recalls…
+          </span>
+        )}
+        {recallStatus === "done" && recalls.length === 0 && (
+          <a href={nhtsaUrl} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-green-400 bg-green-500/10 border-green-500/20 hover:underline"
+          >
+            <CheckCircle className="w-3 h-3" />No open recalls
+            <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
+          </a>
+        )}
+        {recallStatus === "done" && recalls.length > 0 && (
+          <button onClick={() => setRecallExpanded((o) => !o)}
+            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-red-400 bg-red-500/10 border-red-500/20"
+          >
+            <AlertTriangle className="w-3 h-3" />
+            {recalls.length} open recall{recalls.length !== 1 ? "s" : ""}
+            <span className="ml-0.5 text-red-400/70">{recallExpanded ? "▲" : "▼"}</span>
+          </button>
+        )}
+        {recallStatus === "error" && (
+          <a href={nhtsaUrl} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-white/40 px-2 py-0.5 rounded-full border border-white/10 hover:underline"
+          >
+            Check NHTSA recalls <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
+          </a>
         )}
       </div>
 
-      {/* Recall expansion — only when unlocked */}
-      {showFull && recallExpanded && recalls.length > 0 && (
+      {/* Recall expansion — always free (NHTSA public data) */}
+      {recallExpanded && recalls.length > 0 && (
         <div className="space-y-1.5 pl-1">
           {recalls.slice(0, 4).map((r) => (
             <div key={r.NHTSACampaignNumber} className="text-xs text-white/60 flex items-start gap-1.5">

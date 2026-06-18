@@ -275,9 +275,9 @@ export function extractSignalsFromText(
     signals.add("vin_decoded");
   }
 
-  if (fields.accidents_reported === "no") {
-    signals.add("clean_title_explicit");
-  }
+  // Note: accidents_reported="no" does NOT imply a clean title — they are independent fields.
+  // A car can have a clean title and still have had accidents (settled without insurance claim),
+  // or have accidents reported with a clean title if damage was under threshold.
 
   // --- Phase 2: Text pattern matching ---
 

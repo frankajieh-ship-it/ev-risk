@@ -739,15 +739,14 @@ export function buildEnhancedFallbackReceipt(
   // listing_signals is string[] of signal IDs
   const listingSignals = signals.filter((id) => RULES_BY_ID.has(id));
 
-  // Infer accidents_reported from signals when user didn't provide it
+  // Infer accidents_reported from signals when user didn't provide it.
+  // clean_title_explicit is a TITLE signal — it does not imply accident history.
   const inferredAccidents: "yes" | "no" | "unknown" =
     input.accidents_reported && input.accidents_reported !== "unknown"
       ? input.accidents_reported
       : signalSet.has("prior_damage_minor" as ListingSignalId)
         ? "yes"
-        : signalSet.has("clean_title_explicit" as ListingSignalId)
-          ? "no"
-          : "unknown";
+        : "unknown";
 
   // Infer title_status from signals when user didn't provide it
   // title_salvage covers salvage/rebuilt/flood/lemon (single hard-blocker signal)
