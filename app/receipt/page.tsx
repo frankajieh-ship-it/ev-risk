@@ -58,6 +58,7 @@ import ReturnToRoutinePrompt from "@/components/receipt/ReturnToRoutinePrompt";
 import RecallBanner from "@/components/receipt/RecallBanner";
 import WorkspaceSaveNudge from "@/components/receipt/WorkspaceSaveNudge";
 import PostReceiptPopup from "@/components/receipt/PostReceiptPopup";
+import EmailGateModal from "@/components/receipt/EmailGateModal";
 import { PurchaseConfirmButton } from "@/components/receipt/PurchaseConfirmButton";
 import { buildTweetUrl } from "@/lib/tweet-share";
 import { useReceiptGeneration } from "@/hooks/useReceiptGeneration";
@@ -378,6 +379,12 @@ export default function ReceiptPage() {
   const [showPostReceiptPopup, setShowPostReceiptPopup] = useState(false);
   const postReceiptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Email gate modal — shown 1.5s after receipt appears, suppressed if already captured
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailCaptured, setEmailCaptured] = useState(() =>
+    typeof window !== "undefined" && localStorage.getItem("offo_email_captured") === "1"
+  );
+
   // Listing photos — seeded from scraped CDN URLs on extraction, then supplemented
   // by user drag-and-drop. PhotoDueDiligenceCard converts all URLs to resized base64
   // immediately on mount, so CDN expiry is not a concern.
@@ -609,6 +616,13 @@ export default function ReceiptPage() {
       .then((data) => { if (data.dealership) setDealerInfo(data.dealership); })
       .catch(() => {});
   }, [receipt?.listing_summary?.listing_url]);
+
+  // Email gate: show 1.5s after receipt appears if not already captured
+  useEffect(() => {
+    if (!receipt || isGenerating || emailCaptured) return;
+    const t = setTimeout(() => setEmailModalOpen(true), 1500);
+    return () => clearTimeout(t);
+  }, [receipt, isGenerating, emailCaptured]);
 
   // Post-receipt popup: show 12s after deep dive loads so user can read it first
   useEffect(() => {
@@ -1285,6 +1299,22 @@ export default function ReceiptPage() {
 
       {/* Exit-intent feedback modal — triggers when user leaves with a receipt but no feedback */}
       <ExitFeedbackModal hasReceipt={!!receipt} receiptId={receipt?.receipt_id} />
+
+      {/* Email gate — soft prompt 1.5s after receipt loads, suppressed for returning subscribers */}
+      <EmailGateModal
+        isOpen={emailModalOpen}
+        vehicleSummary={
+          receipt
+            ? [receipt.listing_summary?.year, receipt.listing_summary?.make, receipt.listing_summary?.model]
+                .filter(Boolean).join(" ")
+            : undefined
+        }
+        onSubmit={() => {
+          setEmailModalOpen(false);
+          setEmailCaptured(true);
+        }}
+        onSkip={() => setEmailModalOpen(false)}
+      />
 
 
       {/* OFFO Chat — collapsible AI assistant, appears 8s after result */}
