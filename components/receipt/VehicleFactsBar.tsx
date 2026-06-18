@@ -190,7 +190,7 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
           <a href={nhtsaUrl} target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-green-400 bg-green-500/10 border-green-500/20 hover:underline"
           >
-            <CheckCircle className="w-3 h-3" />No open recalls
+            <CheckCircle className="w-3 h-3" />No recall campaigns (NHTSA)
             <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
           </a>
         )}
@@ -199,7 +199,7 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
             className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-red-400 bg-red-500/10 border-red-500/20"
           >
             <AlertTriangle className="w-3 h-3" />
-            {recalls.length} open recall{recalls.length !== 1 ? "s" : ""}
+            {recalls.length} recall campaign{recalls.length !== 1 ? "s" : ""} (NHTSA)
             <span className="ml-0.5 text-red-400/70">{recallExpanded ? "▲" : "▼"}</span>
           </button>
         )}
@@ -229,6 +229,17 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
               +{recalls.length - 4} more on NHTSA <ExternalLink className="w-2.5 h-2.5" />
             </a>
           )}
+          <p className="text-xs text-white/30 pt-0.5">
+            These are model-level campaigns — ask the seller if this specific vehicle has already had the remedy completed, or{" "}
+            <a
+              href={`https://www.nhtsa.gov/vehicle-safety/recalls#vin-search`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-white/50 transition-colors"
+            >
+              check by VIN on NHTSA
+            </a>.
+          </p>
         </div>
       )}
 
