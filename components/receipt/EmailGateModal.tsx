@@ -103,12 +103,12 @@ export default function EmailGateModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           transition={{ duration: 0.2 }}
-          className="relative w-full max-w-sm bg-white rounded-2xl shadow-xl p-6"
+          className="relative w-full max-w-sm bg-[#161b22] border border-white/[0.08] rounded-2xl shadow-xl p-6"
         >
           {/* Close button */}
           <button
             onClick={handleSkip}
-            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute top-3 right-3 text-white/30 hover:text-white/60 transition-colors"
             aria-label="Close"
           >
             <X className="w-4 h-4" />
@@ -116,23 +116,23 @@ export default function EmailGateModal({
 
           {state === "success" ? (
             <div className="text-center py-4">
-              <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
-              <p className="text-sm font-medium text-gray-700">You&apos;re all set!</p>
+              <CheckCircle className="w-8 h-8 text-[#00d97e] mx-auto mb-2" />
+              <p className="text-sm font-medium text-white">You&apos;re all set!</p>
             </div>
           ) : (
             <>
               {/* Icon + heading */}
               <div className="flex items-center gap-2 mb-3">
-                <Mail className="w-5 h-5 text-blue-600" />
-                <h3 className="text-base font-bold text-gray-900">
-                  Get your checklist by email
+                <Mail className="w-5 h-5 text-[#00d97e]" />
+                <h3 className="text-base font-bold text-white">
+                  Save to your garage
                 </h3>
               </div>
 
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-white/60 mb-4">
                 {vehicleSummary
-                  ? `We'll send the inspection checklist for your ${vehicleSummary} straight to your inbox.`
-                  : "We'll send the inspection checklist straight to your inbox."}
+                  ? `Enter your email to save the ${vehicleSummary} receipt and get the inspection checklist.`
+                  : "Enter your email to save this receipt and get the inspection checklist."}
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-3">
@@ -145,38 +145,38 @@ export default function EmailGateModal({
                   }}
                   placeholder="your@email.com"
                   autoFocus
-                  className="w-full px-4 py-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-3 text-sm bg-white/[0.06] border border-white/[0.10] rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#00d97e]/50 focus:border-[#00d97e]/50"
                   disabled={state === "submitting"}
                 />
 
                 {errorMsg && (
-                  <p className="text-xs text-red-500">{errorMsg}</p>
+                  <p className="text-xs text-red-400">{errorMsg}</p>
                 )}
 
                 <button
                   type="submit"
                   disabled={state === "submitting" || !email.trim()}
-                  className="w-full py-3 rounded-xl font-medium text-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-xl font-medium text-sm text-[#0d1117] bg-[#00d97e] hover:bg-[#00c970] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {state === "submitting" ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Sending...
+                      Saving...
                     </>
                   ) : (
-                    "Send me my checklist"
+                    "Save receipt"
                   )}
                 </button>
               </form>
 
               <button
                 onClick={handleSkip}
-                className="w-full mt-2 text-xs text-gray-400 hover:text-gray-600 transition-colors py-1"
+                className="w-full mt-2 text-xs text-white/30 hover:text-white/50 transition-colors py-1"
               >
                 Skip for now
               </button>
 
-              <p className="text-xs text-gray-300 text-center mt-2">
+              <p className="text-xs text-white/20 text-center mt-2">
                 No spam. Unsubscribe anytime.
               </p>
             </>

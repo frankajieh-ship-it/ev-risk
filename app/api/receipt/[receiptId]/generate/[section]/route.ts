@@ -142,7 +142,7 @@ export async function POST(
       const routineCtx = (ext.routine_context as Parameters<typeof generateReceiptSummary>[1]) ?? null;
       const vin = (receipt as unknown as Record<string, unknown>).vin as string | undefined;
 
-      // Look up whether this receipt has active recalls in vehicle_recalls table
+      // Look up whether this receipt has active recalls — DB first, NHTSA fallback
       let hasActiveRecalls: boolean | null = null;
       try {
         if (vin) {
@@ -162,6 +162,28 @@ export async function POST(
           }
         }
       } catch { /* non-critical */ }
+
+      // If VIN wasn't in our DB, fall back to NHTSA by make/model/year — free public API
+      if (hasActiveRecalls === null) {
+        try {
+          const ls = receipt.listing_summary as Record<string, unknown> | undefined;
+          const make = String(ls?.make ?? "");
+          const model = String(ls?.model ?? "");
+          const year = String(ls?.year ?? "");
+          if (make && model && year) {
+            const nhtsaUrl = new URL("https://api.nhtsa.gov/recalls/recallsByVehicle");
+            nhtsaUrl.searchParams.set("make", make);
+            nhtsaUrl.searchParams.set("model", model.replace(/\s+(awd|rwd|fwd|4wd|premium|sel|plus|gt|pro|standard|extended|long range|performance)\b.*/i, "").trim());
+            nhtsaUrl.searchParams.set("modelYear", year);
+            const nhtsaRes = await fetch(nhtsaUrl.toString(), { signal: AbortSignal.timeout(8000), headers: { Accept: "application/json" } });
+            if (nhtsaRes.ok) {
+              const nhtsaData = await nhtsaRes.json().catch(() => null);
+              const count = Array.isArray(nhtsaData?.results) ? nhtsaData.results.length : 0;
+              hasActiveRecalls = count > 0;
+            }
+          }
+        } catch { /* non-critical */ }
+      }
 
       // Fetch VinAudit NMVTIS data server-side so summary generation has real accident/theft data
       let vinAuditSummary: { accident_count: number; theft_reported: boolean; salvage_reported: boolean } | null = null;

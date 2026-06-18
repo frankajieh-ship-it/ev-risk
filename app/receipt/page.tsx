@@ -379,11 +379,12 @@ export default function ReceiptPage() {
   const [showPostReceiptPopup, setShowPostReceiptPopup] = useState(false);
   const postReceiptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Email gate modal — shown 1.5s after receipt appears, suppressed if already captured
+  // Email gate modal — triggered by Save button, suppressed if already captured or skipped this session
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [emailCaptured, setEmailCaptured] = useState(() =>
     typeof window !== "undefined" && localStorage.getItem("offo_email_captured") === "1"
   );
+  const [emailSkippedThisSession, setEmailSkippedThisSession] = useState(false);
 
   // Listing photos — seeded from scraped CDN URLs on extraction, then supplemented
   // by user drag-and-drop. PhotoDueDiligenceCard converts all URLs to resized base64
@@ -617,12 +618,7 @@ export default function ReceiptPage() {
       .catch(() => {});
   }, [receipt?.listing_summary?.listing_url]);
 
-  // Email gate: show 1.5s after receipt appears if not already captured
-  useEffect(() => {
-    if (!receipt || isGenerating || emailCaptured) return;
-    const t = setTimeout(() => setEmailModalOpen(true), 1500);
-    return () => clearTimeout(t);
-  }, [receipt, isGenerating, emailCaptured]);
+  // Email gate — triggered by Save button click, not on a timer
 
   // Post-receipt popup: show 12s after deep dive loads so user can read it first
   useEffect(() => {
@@ -729,7 +725,7 @@ export default function ReceiptPage() {
   }, [postReceiptEvent]);
 
   // Quick save from top-of-card icon (mirrors SaveReceiptCTA logic)
-  const handleQuickSave = useCallback(() => {
+  const doSave = useCallback(() => {
     if (!receipt || hasSaved) return;
     try {
       const LOCAL_KEY = "offo_saved_receipts";
@@ -756,6 +752,16 @@ export default function ReceiptPage() {
     setHasSaved(true);
     trackEvent("scenario_save_clicked", { receipt_id: receipt.receipt_id, source: "card_icon" });
   }, [receipt, hasSaved, trackEvent]);
+
+  const handleQuickSave = useCallback(() => {
+    if (!receipt) return;
+    // If email not yet captured and not skipped this session, show modal first — save completes after
+    if (!emailCaptured && !emailSkippedThisSession) {
+      setEmailModalOpen(true);
+      return;
+    }
+    doSave();
+  }, [receipt, emailCaptured, emailSkippedThisSession, doSave]);
 
   // Granular copy tracking (user_events table)
   const handleTrackCopy = useCallback(
@@ -1300,7 +1306,7 @@ export default function ReceiptPage() {
       {/* Exit-intent feedback modal — triggers when user leaves with a receipt but no feedback */}
       <ExitFeedbackModal hasReceipt={!!receipt} receiptId={receipt?.receipt_id} />
 
-      {/* Email gate — soft prompt 1.5s after receipt loads, suppressed for returning subscribers */}
+      {/* Email gate — shown when user clicks Save, proceeds to save after email or skip */}
       <EmailGateModal
         isOpen={emailModalOpen}
         vehicleSummary={
@@ -1312,8 +1318,13 @@ export default function ReceiptPage() {
         onSubmit={() => {
           setEmailModalOpen(false);
           setEmailCaptured(true);
+          doSave();
         }}
-        onSkip={() => setEmailModalOpen(false)}
+        onSkip={() => {
+          setEmailModalOpen(false);
+          setEmailSkippedThisSession(true);
+          doSave();
+        }}
       />
 
 
