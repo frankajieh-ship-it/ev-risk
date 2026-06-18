@@ -962,7 +962,7 @@ Return ONLY the JSON object.`;
 
 import type { PackTier } from "./price-assignment";
 
-const DEEP_DIVE_HEDGE_DELAYS: [number, number] = [10_000, 18_000];
+const DEEP_DIVE_HEDGE_DELAYS: [number, number] = [12_000, 22_000];
 
 const DEEP_DIVE_SCHEMA = {
   type: "object",
@@ -1107,6 +1107,7 @@ export async function generateDeepDive(
     schemaName: "deep_dive",
     temperature: 0.3,
     maxTokens: 4000,
+    timeoutMs: 45_000,
     hedgeDelays: DEEP_DIVE_HEDGE_DELAYS,
     validate: (json) => {
       const d = json as Partial<DeepDiveContent>;
