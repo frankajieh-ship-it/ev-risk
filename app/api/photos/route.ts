@@ -216,8 +216,8 @@ export async function GET(request: NextRequest) {
   const rawModel = p.get("model") || undefined;
   const year = p.get("year") ? Number(p.get("year")) : undefined;
   const skipStatic = p.get("skip_static") === "1";
-  // no_market=1: stop after static/VinAudit tiers — never call Auto.dev market listings.
-  // Use this on receipt pages where wrong-car images are worse than no image.
+  // no_market=1: skip Auto.dev listing photos at the end (but still serve static/VinAudit stock).
+  // Use this on generic vehicle cards where wrong-car listing photos are undesirable.
   const noMarket = p.get("no_market") === "1";
 
   if (!vin && !make) {
@@ -240,11 +240,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // When called from the receipt page (no_market=1), only Marketcheck is trusted.
-  // Return empty rather than showing a Wikimedia stock image for the wrong car.
-  if (noMarket) {
-    return NextResponse.json({ photo_urls: [], source: "none" });
-  }
 
   // 0b. OFFO image extractor — local CSV (Tier 0) or Supabase cache hit
   if (make && rawModel && year) {
@@ -286,7 +281,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 4. Auto.dev listing photos — last resort
+  // 4. Auto.dev listing photos — last resort (skipped when no_market=1 to avoid wrong-car photos)
+  if (noMarket) {
+    return NextResponse.json({ photo_urls: [], source: "none" });
+  }
 
   const { make: normalizedMake, model } = normalizeForAutodev(make, rawModel);
   const result = await searchListings({ vin, make: normalizedMake, model, year, limit: 10 });

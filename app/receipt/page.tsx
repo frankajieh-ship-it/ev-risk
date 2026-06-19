@@ -692,6 +692,7 @@ export default function ReceiptPage() {
         if (result.success && result.source === "deal_cache") {
           // Cache hit — render the stored receipt directly
           setReceipt(result.receipt);
+          if (result.photo_url) setListingPhotos([result.photo_url]);
         } else {
           // Cache miss — fall back to extraction flow
           setPrefillUrl(dealWatchDirectUrl);

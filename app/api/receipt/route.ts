@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
   if (body.listing_url && typeof body.listing_url === "string" && isSupabaseConfigured()) {
     const { data: deal } = await supabase
       .from("curated_deals")
-      .select("receipt_id")
+      .select("receipt_id, photo_url")
       .eq("listing_url", body.listing_url)
       .eq("is_active", true)
       .single();
@@ -152,6 +152,7 @@ export async function POST(request: NextRequest) {
           receipt_id: deal.receipt_id,
           generation_status: "full",
           source: "deal_cache",
+          photo_url: deal.photo_url ?? null,
         });
       }
     }

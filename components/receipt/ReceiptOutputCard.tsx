@@ -253,6 +253,8 @@ export default function ReceiptOutputCard({
     if (!url) return url;
     // data: URLs are already in-memory — no proxy needed
     if (url.startsWith("data:")) return url;
+    // Already routed through our proxy — don't double-wrap
+    if (url.startsWith("/api/img")) return url;
     // URLs dragged directly from a listing tab can be loaded by the browser natively
     // (same session, no Referer block). Running them through our server proxy causes
     // failures because CDN signed tokens are validated per-requester.
