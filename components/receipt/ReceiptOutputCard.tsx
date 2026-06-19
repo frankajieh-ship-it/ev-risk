@@ -255,19 +255,6 @@ export default function ReceiptOutputCard({
     if (url.startsWith("data:")) return url;
     // Already routed through our proxy — don't double-wrap
     if (url.startsWith("/api/img")) return url;
-    // URLs dragged directly from a listing tab can be loaded by the browser natively
-    // (same session, no Referer block). Running them through our server proxy causes
-    // failures because CDN signed tokens are validated per-requester.
-    // Known listing CDNs that work fine without proxy:
-    const skipProxy = [
-      "static.cargurus.com",
-      "images.autotrader.com",
-      "media.carzato.com",
-      "cdn.carbrain.com",
-      "photos.carsforsale.com",
-      "i.ebayimg.com",
-    ].some(host => url.includes(host));
-    if (skipProxy) return url;
     // Use canonical non-www domain to avoid the www→offolab.com 301 redirect.
     const base = typeof window !== "undefined" && window.location.hostname === "www.offolab.com"
       ? "https://offolab.com"
