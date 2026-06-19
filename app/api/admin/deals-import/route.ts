@@ -186,7 +186,8 @@ export async function POST(request: NextRequest) {
     const dcfc_kw_max = row["dcfc_kw_max"] ? parseInt(row["dcfc_kw_max"]) : null;
     const ac_charger_kw = row["ac_charger_kw"] ? parseFloat(row["ac_charger_kw"]) : null;
     const charge_port_type = row["charge_port_type"]?.trim() || null;
-    const epa_range_mi = row["epa_range_mi"] ? parseInt(row["epa_range_mi"]) : null;
+    // Accept both "epa_range_mi" and "battery range" (CSV export header)
+    const epa_range_mi = (row["epa_range_mi"] || row["battery range"]) ? parseInt((row["epa_range_mi"] || row["battery range"]).replace(/[^0-9]/g, "")) : null;
     const estimated_real_range_mi = row["estimated_real_range_mi"] ? parseInt(row["estimated_real_range_mi"]) : null;
     const sellerTypeRaw = row["seller_type"]?.trim().toLowerCase() || null;
     const seller_type = (["private", "dealer", "cpo", "auction"].includes(sellerTypeRaw ?? "") ? sellerTypeRaw : null) as "private" | "dealer" | "cpo" | "auction" | null;
@@ -217,6 +218,9 @@ export async function POST(request: NextRequest) {
     const cargo_volume_cuft = row["cargo volume"] ? parseFloat(row["cargo volume"].replace(/[^0-9.]/g, "")) : null;
     const charge_time_notes = (row["battery charge time"] || row["charge_time_notes"])?.trim() || null;
     const additional_notes = (row["additional"] || row["additional_notes"])?.trim() || null;
+    // v4c fields
+    const body_type = (row["body type"] || row["body_type"])?.trim() || null;
+    const towing_capacity_lbs = (row["towing capacity"] || row["towing_capacity_lbs"]) ? parseInt((row["towing capacity"] || row["towing_capacity_lbs"]).replace(/[^0-9]/g, "")) : null;
 
     const riskFlagsRaw = row["risk_flags"]?.trim();
     const vehicleLabel = row["vehicle_label"]?.trim() || [year, make, model, trim].filter(Boolean).join(" ") || null;
@@ -315,6 +319,9 @@ export async function POST(request: NextRequest) {
         ...(cargo_volume_cuft !== null && { cargo_volume_cuft }),
         ...(charge_time_notes && { charge_time_notes }),
         ...(additional_notes && { additional_notes }),
+        // v4c fields
+        ...(body_type && { body_type }),
+        ...(towing_capacity_lbs !== null && { towing_capacity_lbs }),
       }, { onConflict: "listing_url", ignoreDuplicates: false });
 
     if (upsertErr) {

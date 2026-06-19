@@ -50,6 +50,47 @@ export interface MinimumViableRoutine {
   ownership_timeline?: "lease_1_3" | "medium_3_5" | "long_5_plus";
   charging_stop_tolerance?: "ok" | "prefer_limit" | "rather_not";
   priority_weights?: Array<"range" | "charging" | "cost" | "reliability" | "interior" | "tech">;
+
+  // Phase 1 preference hard filters
+  min_seating?: number;
+  preferred_body_type?: "suv" | "sedan" | "hatchback" | "crossover" | "truck" | "van" | "any";
+  require_heat_pump?: boolean;
+  require_awd?: boolean;
+  max_mileage?: number;
+
+  // Phase 2a preference hard filters
+  budget_max_usd?: number;
+  preferred_drivetrain?: "awd" | "rwd" | "fwd" | "any";
+
+  // Phase 2 vehicle spec filters (DB-backed)
+  preferred_drivetrain_explicit?: "awd" | "rwd" | "fwd" | "any";
+  max_cargo_size?: "compact" | "mid" | "large";
+  max_charge_time_l2?: number;
+  require_carplay?: boolean;
+  require_android_auto?: boolean;
+  require_keyless_entry?: boolean;
+  require_satellite_radio?: boolean;
+
+  // Phase 2b safety/comfort require-flags
+  require_ac?: boolean;
+  require_power_windows?: boolean;
+  require_power_locks?: boolean;
+  require_power_steering?: boolean;
+  require_tilt_wheel?: boolean;
+  require_am_fm_radio?: boolean;
+  require_immobilizer?: boolean;
+  require_alarm?: boolean;
+  require_dual_airbags?: boolean;
+  require_side_airbags?: boolean;
+  require_abs?: boolean;
+  require_active_seatbelts?: boolean;
+  require_passenger_airbag?: boolean;
+  // Physical spec filters
+  preferred_exterior_color?: string;
+  preferred_interior_color?: string;
+  preferred_doors?: 2 | 4;
+  min_front_legroom_in?: number;
+  min_rear_legroom_in?: number;
 }
 
 // ============================================

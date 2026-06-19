@@ -267,7 +267,9 @@ function RoutineResultsContent() {
   // EV match recommendations + filter state
   const [recommendations, setRecommendations] = useState<Array<{
     make: string; model_short: string; year: number; fit_score: number; fit_label: string;
-    real_world_range_mi: number; matched_deals?: Array<{ id: string; listing_url: string; price: number | null; photo_url: string | null }>;
+    real_world_range_mi: number; fit_reason?: string;
+    matched_deals?: Array<{ id: string; listing_url: string; price: number | null; photo_url: string | null }>;
+    live_listings?: Array<{ id: string; vin: string; price?: number; miles?: number; vdp_url?: string; source?: string }>;
   }>>([]);
   const [recLoading, setRecLoading] = useState(false);
   const [filteredRoutine, setFilteredRoutine] = useState<MinimumViableRoutine | null>(null);
@@ -769,13 +771,16 @@ function RoutineResultsContent() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white truncate">{rec.year} {rec.make} {rec.model_short}</p>
                   <p className="text-xs text-white/40">{rec.real_world_range_mi} mi real-world range</p>
+                  {rec.fit_reason && (
+                    <p className="text-xs text-[#00d97e]/80 mt-0.5 leading-snug">{rec.fit_reason}</p>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <div className="text-right">
                     <p className="text-lg font-bold text-[#00d97e]">{rec.fit_score}</p>
                     <p className="text-xs text-white/30">{rec.fit_label}</p>
                   </div>
-                  {rec.matched_deals && rec.matched_deals[0] && (
+                  {rec.matched_deals && rec.matched_deals[0] ? (
                     <a
                       href={rec.matched_deals[0].listing_url}
                       target="_blank"
@@ -784,7 +789,16 @@ function RoutineResultsContent() {
                     >
                       {rec.matched_deals[0].price ? `$${rec.matched_deals[0].price.toLocaleString()}` : "View deal"}
                     </a>
-                  )}
+                  ) : rec.live_listings && rec.live_listings[0]?.vdp_url ? (
+                    <a
+                      href={rec.live_listings[0].vdp_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 text-xs font-medium border border-white/[0.15] text-white/70 rounded-lg hover:text-white hover:border-white/30 transition-colors"
+                    >
+                      {rec.live_listings[0].price ? `$${rec.live_listings[0].price.toLocaleString()}` : "View listing"}
+                    </a>
+                  ) : null}
                 </div>
               </div>
             ))}

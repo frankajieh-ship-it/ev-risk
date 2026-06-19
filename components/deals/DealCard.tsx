@@ -196,7 +196,7 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
           <img
             src={`/api/img?url=${encodeURIComponent(photoUrl)}`}
             alt={deal.vehicle_label}
-            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="absolute inset-0 w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
             loading={rank === 1 ? "eager" : "lazy"}
             onError={() => setPhotoUrl(null)}
           />

@@ -137,23 +137,26 @@ export async function POST(request: NextRequest) {
     const SCRAPINGBEE_KEY = process.env.SCRAPINGBEE_API_KEY;
     const isAutoTrader = parsedUrl.hostname.includes('autotrader.com');
     const isCarscom = parsedUrl.hostname.includes('cars.com');
+    const isCarMax = parsedUrl.hostname.includes('carmax.com');
 
-    // --- AutoTrader + Cars.com: ScrapingBee (residential proxy + JS render) ---
+    // --- AutoTrader + Cars.com + CarMax: ScrapingBee (residential proxy + JS render) ---
     // AutoTrader uses Akamai which blocks all datacenter IPs including Netlify functions.
+    // CarMax is a JS SPA — direct fetch returns an empty React shell with no vehicle data.
     // ScrapingBee premium_proxy routes through residential IPs — only reliable bypass.
-    if ((isAutoTrader || isCarscom) && SCRAPINGBEE_KEY) {
+    if ((isAutoTrader || isCarscom || isCarMax) && SCRAPINGBEE_KEY) {
       const sbController = new AbortController();
       const sbTimeoutId = setTimeout(() => sbController.abort(), 55000);
       try {
-        const siteName = isAutoTrader ? 'AutoTrader' : 'Cars.com';
+        const siteName = isAutoTrader ? 'AutoTrader' : isCarscom ? 'Cars.com' : 'CarMax';
         console.log(`[Proxy Fetch] ${siteName}: trying ScrapingBee`);
         // AutoTrader uses Akamai which blocks premium_proxy IPs — stealth_proxy (higher tier)
         // uses a real browser fingerprint and bypasses Akamai reliably.
+        // CarMax is a React SPA; premium_proxy is sufficient (no Akamai).
         const sbParams = new URLSearchParams({
           api_key: SCRAPINGBEE_KEY,
           url,
           render_js: 'true',
-          stealth_proxy: 'true',
+          ...(isCarMax ? { premium_proxy: 'true' } : { stealth_proxy: 'true' }),
           country_code: 'us',
           wait: '8000',
         });
@@ -167,7 +170,8 @@ export async function POST(request: NextRequest) {
           const isBlocked = sbHtml.length < 5000
             || sbHtml.toLowerCase().includes('just a moment')
             || sbHtml.toLowerCase().includes('access denied')
-            || sbHtml.includes('Autotrader - page unavailable');
+            || sbHtml.includes('Autotrader - page unavailable')
+            || (isCarMax && !sbHtml.includes('car-detail'));
           console.log(`[Proxy Fetch] ScrapingBee ${siteName} html length=${sbHtml.length} blocked=${isBlocked}`);
           if (!isBlocked) {
             return NextResponse.json({

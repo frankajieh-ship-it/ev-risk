@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { validateMVR, type MinimumViableRoutine } from "@/types/v2";
+import { searchByMakeModel } from "@/lib/marketcheck-client";
 import { loadRangeDeltaData } from "@/lib/data";
 import { batchScoreVehicles } from "@/lib/batch-score-vehicles";
 import { buildDealerQuestionsV2 } from "@/lib/dealer-questions";
@@ -185,6 +186,16 @@ export async function POST(request: NextRequest) {
       );
       // Wire matched deals back to each scored recommendation
       attachDealsToRecommendations(scored, dealsByKey);
+      // Phase 2a: Prune matched_deals by max mileage before the deal-count filter below
+      if (routine.max_mileage && routine.max_mileage > 0) {
+        for (const v of scored) {
+          if (v.matched_deals) {
+            v.matched_deals = v.matched_deals.filter(
+              (d) => !d.mileage || d.mileage <= routine.max_mileage!
+            );
+          }
+        }
+      }
       // Keep only vehicles that have at least one matched deal
       scored = scored.filter((v) => v.matched_deals && v.matched_deals.length > 0);
     } else {
@@ -199,14 +210,168 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Query dealer inventory (optional — gracefully degrades)
-    const dealerMap = await fetchDealerInventoryMatches(scored);
+    // 3b. Apply Phase 1 preference hard filters (post-scoring exclusions)
+    let filteredScored = scored;
+    if (routine.min_seating && routine.min_seating > 2) {
+      filteredScored = filteredScored.filter((v) => (v.seating_capacity ?? 5) >= routine.min_seating!);
+    }
+    if (routine.preferred_body_type && routine.preferred_body_type !== "any") {
+      filteredScored = filteredScored.filter((v) => v.body_type === routine.preferred_body_type);
+    }
+    if (routine.require_heat_pump) {
+      filteredScored = filteredScored.filter((v) => v.has_heat_pump === true);
+    }
+    if (routine.require_awd) {
+      // sub_category gives us body style; use tow_capacity_lbs / model name as AWD proxy
+      // Fall back to unfiltered if no AWD-capable vehicles survive (prevent empty results)
+      const awdFiltered = filteredScored.filter((v) => {
+        const model = v.model.toLowerCase();
+        return model.includes("awd") || model.includes("4wd") || model.includes("all-wheel") ||
+          (v.sub_category === "truck") || model.includes("quattro") || model.includes("xdrive") ||
+          model.includes("e-tron") || model.includes("r1t") || model.includes("r1s") ||
+          model.includes("rivian") || model.includes("cybertruck");
+      });
+      if (awdFiltered.length > 0) filteredScored = awdFiltered;
+    }
+    // Replace scored with filtered for downstream steps
+    scored = filteredScored;
 
-    // 5. Merge dealer listings + ownership cost into recommendations
+    // 3c. Apply Phase 2a preference hard filters
+    // Budget max — vehicles with no MSRP data (msrp_usd=0/undefined) pass through
+    if (routine.budget_max_usd && routine.budget_max_usd > 0) {
+      const budgetFiltered = scored.filter(
+        (v) => !v.msrp_usd || v.msrp_usd <= routine.budget_max_usd!
+      );
+      if (budgetFiltered.length > 0) scored = budgetFiltered;
+    }
+    // Explicit drivetrain filter (runs after require_awd for backward compat)
+    // TODO(2b): replace pattern match with build.drivetrain from VIN decode
+    if (routine.preferred_drivetrain && routine.preferred_drivetrain !== "any") {
+      const dtFiltered = scored.filter((v) => {
+        const m = v.model.toLowerCase();
+        if (routine.preferred_drivetrain === "awd") {
+          return m.includes("awd") || m.includes("4wd") || m.includes("all-wheel") ||
+            m.includes("quattro") || m.includes("xdrive") || m.includes("e-tron") ||
+            m.includes("rivian") || m.includes("cybertruck") || v.sub_category === "truck";
+        }
+        if (routine.preferred_drivetrain === "rwd") {
+          return m.includes("rwd") ||
+            (m.includes("model 3") && !m.includes("awd")) ||
+            (m.includes("model s") && !m.includes("awd")) ||
+            (m.includes("polestar") && !m.includes("awd"));
+        }
+        if (routine.preferred_drivetrain === "fwd") {
+          return m.includes("fwd") || m.includes("front-wheel");
+        }
+        return true;
+      });
+      if (dtFiltered.length > 0) scored = dtFiltered;
+    }
+
+    // Phase 2 DB-backed spec filters
+    if (routine.preferred_drivetrain_explicit && routine.preferred_drivetrain_explicit !== "any") {
+      const dtExact = scored.filter((v) => v.drivetrain === routine.preferred_drivetrain_explicit);
+      if (dtExact.length > 0) scored = dtExact;
+    }
+    if (routine.max_cargo_size) {
+      const cargoFiltered = scored.filter((v) => {
+        const c = v.cargo_volume_cuft ?? 20;
+        if (routine.max_cargo_size === "compact") return c < 15;
+        if (routine.max_cargo_size === "mid")     return c >= 15 && c <= 25;
+        if (routine.max_cargo_size === "large")   return c > 25;
+        return true;
+      });
+      if (cargoFiltered.length > 0) scored = cargoFiltered;
+    }
+    if (routine.max_charge_time_l2 && routine.max_charge_time_l2 > 0) {
+      const chargeFiltered = scored.filter(
+        (v) => !v.charge_time_l2_hours || v.charge_time_l2_hours <= routine.max_charge_time_l2!
+      );
+      if (chargeFiltered.length > 0) scored = chargeFiltered;
+    }
+    if (routine.require_carplay) {
+      const cpFiltered = scored.filter((v) => v.has_carplay === true);
+      if (cpFiltered.length > 0) scored = cpFiltered;
+    }
+    if (routine.require_android_auto) {
+      const aaFiltered = scored.filter((v) => v.has_android_auto === true);
+      if (aaFiltered.length > 0) scored = aaFiltered;
+    }
+    if (routine.require_keyless_entry) {
+      const keFiltered = scored.filter((v) => v.has_keyless_entry !== false);
+      if (keFiltered.length > 0) scored = keFiltered;
+    }
+    if (routine.require_satellite_radio) {
+      const srFiltered = scored.filter((v) => v.has_satellite_radio === true);
+      if (srFiltered.length > 0) scored = srFiltered;
+    }
+
+    // Phase 2b: safety/comfort boolean require-flags (loop to avoid repetition)
+    const boolRequireFilters: Array<[keyof typeof routine, keyof (typeof scored)[0]]> = [
+      ["require_ac",               "has_ac"],
+      ["require_power_windows",    "has_power_windows"],
+      ["require_power_locks",      "has_power_locks"],
+      ["require_power_steering",   "has_power_steering"],
+      ["require_tilt_wheel",       "has_tilt_wheel"],
+      ["require_am_fm_radio",      "has_am_fm_radio"],
+      ["require_immobilizer",      "has_immobilizer"],
+      ["require_alarm",            "has_alarm"],
+      ["require_dual_airbags",     "has_dual_airbags"],
+      ["require_side_airbags",     "has_side_airbags"],
+      ["require_abs",              "has_abs"],
+      ["require_active_seatbelts", "has_active_seatbelts"],
+      ["require_passenger_airbag", "has_passenger_airbag"],
+    ];
+    for (const [rk, vk] of boolRequireFilters) {
+      if (routine[rk]) {
+        const f = scored.filter((v) => (v as Record<string, unknown>)[vk] !== false);
+        if (f.length > 0) scored = f;
+      }
+    }
+
+    // Color filters (partial match against exterior_colors[]/interior_colors[] arrays)
+    if (routine.preferred_exterior_color) {
+      const c = routine.preferred_exterior_color.toLowerCase();
+      const f = scored.filter((v) => v.exterior_colors?.some((ec) => ec.toLowerCase().includes(c)));
+      if (f.length > 0) scored = f;
+    }
+    if (routine.preferred_interior_color) {
+      const c = routine.preferred_interior_color.toLowerCase();
+      const f = scored.filter((v) => v.interior_colors?.some((ic) => ic.toLowerCase().includes(c)));
+      if (f.length > 0) scored = f;
+    }
+
+    // Doors filter
+    if (routine.preferred_doors) {
+      const f = scored.filter((v) => !v.doors || v.doors === routine.preferred_doors);
+      if (f.length > 0) scored = f;
+    }
+
+    // Legroom filters
+    if (routine.min_front_legroom_in) {
+      const f = scored.filter((v) => !v.front_legroom_in || v.front_legroom_in >= routine.min_front_legroom_in!);
+      if (f.length > 0) scored = f;
+    }
+    if (routine.min_rear_legroom_in) {
+      const f = scored.filter((v) => !v.rear_legroom_in || v.rear_legroom_in >= routine.min_rear_legroom_in!);
+      if (f.length > 0) scored = f;
+    }
+
+    // 4. Query dealer inventory + live listings in parallel (both gracefully degrade)
+    const [dealerMap, liveListingsMap] = await Promise.all([
+      fetchDealerInventoryMatches(scored),
+      fetchLiveListings(scored, 5),
+    ]);
+
+    // 5. Merge dealer listings + ownership cost + fit_reason + live listings into recommendations
+    const weeklyMilesForReason = routine.weekly_miles
+      ?? (routine.commute_miles_roundtrip ? routine.commute_miles_roundtrip * 5 : 100);
     const withDealers: VehicleRecommendation[] = scored.map((v) => ({
       ...v,
       dealer_listings: dealerMap.get(normalizeModelKey(v.make, v.model_short)) ?? [],
       ownership_cost_5y: computeOwnershipCost(v, routine),
+      fit_reason: buildFitReason(v, routine, weeklyMilesForReason),
+      live_listings: liveListingsMap.get(normalizeModelKey(v.make, v.model_short)),
     }));
 
     // 6. Randomize within score tiers to avoid brand bias
@@ -354,7 +519,7 @@ function buildRangeRowsFromDeals(
 
   const rangeRows: import("@/lib/data").RangeDeltaRow[] = [];
 
-  for (const [key, groupDeals] of dealsByKey) {
+  for (const [, groupDeals] of dealsByKey) {
     const representative = groupDeals[0];
     const make = representative.make!;
     const model = representative.model!;
@@ -552,6 +717,96 @@ async function fetchDealerInventoryMatches(
     // Gracefully degrade — return empty matches
   }
 
+  return result;
+}
+
+// ============================================
+// Fit Reason Builder
+// ============================================
+
+function buildFitReason(
+  v: Omit<VehicleRecommendation, "dealer_listings">,
+  routine: MinimumViableRoutine,
+  weeklyMiles: number
+): string {
+  const dims = v.dimensions;
+  if (!dims) return `Scores well across range, charging, and climate for your routine`;
+
+  // Find the strongest dimension to lead with
+  if (dims.range >= 80) {
+    return `${v.real_world_range_mi}mi real-world range comfortably covers your ${weeklyMiles}mi weekly drive`;
+  }
+  if (dims.charging >= 80) {
+    if (routine.charging_access === "home") return `Charges fully overnight on home L2 — zero charging stops needed`;
+    return `Low charging burden for your ${routine.charging_access} setup`;
+  }
+  if (dims.climate >= 80 && v.has_heat_pump) {
+    return `Heat pump handles cold winters without significant range loss`;
+  }
+  if (dims.budget !== undefined && dims.budget >= 80) {
+    return `Fits within your budget with strong per-mile efficiency`;
+  }
+  if (routine.towing_needs === "heavy" && v.tow_capacity_lbs && v.tow_capacity_lbs >= 5000) {
+    return `${(v.tow_capacity_lbs / 1000).toFixed(0)}k lb tow rating fits your towing needs`;
+  }
+  if (v.seating_capacity && v.seating_capacity >= 7) {
+    return `${v.seating_capacity}-seat capacity fits your passengers with strong range`;
+  }
+  // Default: mention the two strongest dimensions
+  const sorted = Object.entries(dims).sort(([, a], [, b]) => (b ?? 0) - (a ?? 0));
+  const top = sorted[0]?.[0];
+  const labelMap: Record<string, string> = {
+    range: "range buffer", charging: "charging setup", recovery: "recovery plan",
+    climate: "climate resilience", budget: "budget fit", utility: "utility match",
+  };
+  return `Strong ${labelMap[top] ?? top} for your routine — a reliable everyday match`;
+}
+
+// Phase 2c — Live listing deep links via MarketCheck
+
+type LiveListing = NonNullable<VehicleRecommendation["live_listings"]>[0];
+
+/**
+ * Fetch live MarketCheck listings for top N vehicles in parallel.
+ * Gracefully degrades: missing API key or any failure returns empty.
+ * Each vehicle gets a 6-second wall-clock timeout.
+ */
+async function fetchLiveListings(
+  vehicles: Omit<VehicleRecommendation, "dealer_listings">[],
+  limit = 5
+): Promise<Map<string, LiveListing[]>> {
+  const result = new Map<string, LiveListing[]>();
+  if (!process.env.MARKETCHECK_API_KEY) return result;
+
+  await Promise.allSettled(
+    vehicles.slice(0, limit).map((v) =>
+      Promise.race([
+        searchByMakeModel({ make: v.make, model: v.model_short, year: v.year }).then((mc) => {
+          if (!mc.success) return;
+          const usable = mc.listings
+            .filter((l) => l.vdp_url)
+            .sort((a, b) => (a.price ?? 999999) - (b.price ?? 999999))
+            .slice(0, 5);
+          if (usable.length > 0) {
+            result.set(normalizeModelKey(v.make, v.model_short), usable.map((l) => ({
+              id: l.id,
+              vin: l.vin,
+              price: l.price,
+              miles: l.miles,
+              vdp_url: l.vdp_url,
+              source: l.source,
+              exterior_color: l.exterior_color,
+              carfax_clean_title: l.carfax_clean_title,
+              dealer: l.dealer
+                ? { name: l.dealer.name, city: l.dealer.city, state: l.dealer.state }
+                : undefined,
+            })));
+          }
+        }),
+        new Promise<void>((res) => setTimeout(res, 6000)),
+      ])
+    )
+  );
   return result;
 }
 

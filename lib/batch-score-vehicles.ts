@@ -162,6 +162,21 @@ function computeTieChips(dimensions: FitDimensions, subCategory: string): TieChi
 }
 
 // ---------------------------------------------------------------------------
+// Helper: map sub_category → body_type for preference filters
+// ---------------------------------------------------------------------------
+
+function subCategoryToBodyType(subCategory: string): VehicleRecommendation["body_type"] {
+  const s = subCategory.toLowerCase();
+  if (s === "truck") return "truck";
+  if (s === "van" || s === "minivan") return "van";
+  if (s === "suv" || s === "crossover") return "suv";
+  if (s === "hatchback") return "hatchback";
+  if (s === "sedan" || s === "fastback") return "sedan";
+  if (s === "coupe") return "coupe";
+  return "suv"; // safe default
+}
+
+// ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
 
@@ -304,6 +319,34 @@ export function batchScoreVehicles(
       zero_to_60_sec: traits.zero_to_60_sec,
       tow_capacity_lbs: traits.tow_capacity_lbs,
       battery_warranty_years: traits.battery_warranty_years,
+      has_heat_pump: traits.has_heat_pump,
+      body_type: subCategoryToBodyType(classification.subCategory),
+      // Phase 2 rich specs
+      drivetrain: (traits.awd ? "awd" : traits.rwd ? "rwd" : traits.fwd ? "fwd" : undefined) as "awd" | "rwd" | "fwd" | undefined,
+      charge_time_l2_hours: traits.charge_time_l2_hours,
+      has_carplay: traits.has_carplay,
+      has_android_auto: traits.has_android_auto,
+      has_keyless_entry: traits.has_keyless_entry,
+      has_alarm: traits.has_alarm,
+      has_satellite_radio: traits.has_satellite_radio,
+      // Phase 2b rich specs
+      has_ac: traits.has_ac,
+      has_power_windows: traits.has_power_windows,
+      has_power_locks: traits.has_power_locks,
+      has_power_steering: traits.has_power_steering,
+      has_tilt_wheel: traits.has_tilt_wheel,
+      has_am_fm_radio: traits.has_am_fm_radio,
+      has_immobilizer: traits.has_immobilizer,
+      has_active_seatbelts: traits.has_active_seatbelts,
+      has_passenger_airbag: traits.has_passenger_airbag,
+      has_dual_airbags: traits.has_dual_airbags,
+      has_side_airbags: traits.has_side_airbags,
+      has_abs: traits.has_abs,
+      doors: traits.doors,
+      front_legroom_in: traits.front_legroom_in,
+      rear_legroom_in: traits.rear_legroom_in,
+      exterior_colors: traits.exterior_colors,
+      interior_colors: traits.interior_colors,
     };
   });
 

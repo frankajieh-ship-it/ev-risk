@@ -99,6 +99,12 @@ export interface VehicleRecommendation {
   tow_capacity_lbs?: number;
   /** Battery warranty in years */
   battery_warranty_years?: number;
+  /** Whether this vehicle has a factory heat pump */
+  has_heat_pump?: boolean;
+  /** One-liner explaining why this vehicle fits the user's routine */
+  fit_reason?: string;
+  /** Body style classification */
+  body_type?: "suv" | "sedan" | "hatchback" | "crossover" | "truck" | "van" | "coupe";
   /** Unified OFFO score for this vehicle in retail context */
   offo_score?: OffoScore;
 
@@ -116,6 +122,47 @@ export interface VehicleRecommendation {
     photo_url: string | null;
     url_domain: string | null;
   }>;
+
+  /** Live MarketCheck listings fetched at request time (top 5 recs only) */
+  live_listings?: Array<{
+    id: string;
+    vin: string;
+    price?: number;
+    miles?: number;
+    vdp_url?: string;
+    source?: string;
+    exterior_color?: string;
+    carfax_clean_title?: boolean;
+    dealer?: { name?: string; city?: string; state?: string };
+  }>;
+
+  // Phase 2 rich specs (carried from vehicle_profiles)
+  drivetrain?: "awd" | "rwd" | "fwd";
+  charge_time_l2_hours?: number;
+  has_carplay?: boolean;
+  has_android_auto?: boolean;
+  has_keyless_entry?: boolean;
+  has_alarm?: boolean;
+  has_satellite_radio?: boolean;
+
+  // Phase 2b rich specs
+  has_ac?: boolean;
+  has_power_windows?: boolean;
+  has_power_locks?: boolean;
+  has_power_steering?: boolean;
+  has_tilt_wheel?: boolean;
+  has_am_fm_radio?: boolean;
+  has_immobilizer?: boolean;
+  has_active_seatbelts?: boolean;
+  has_passenger_airbag?: boolean;
+  has_dual_airbags?: boolean;
+  has_side_airbags?: boolean;
+  has_abs?: boolean;
+  doors?: number;
+  front_legroom_in?: number;
+  rear_legroom_in?: number;
+  exterior_colors?: string[];
+  interior_colors?: string[];
 }
 
 export interface DataSources {

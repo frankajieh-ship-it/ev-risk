@@ -35,6 +35,41 @@ export interface VehicleProfile {
   epa_range_mi?: number;
   real_world_range_mi?: number;
 
+  // Phase 1 preference filter fields
+  body_type?: "suv" | "sedan" | "hatchback" | "crossover" | "truck" | "van" | "coupe";
+  seating_capacity?: number;
+  has_heat_pump?: boolean;
+  towing_capacity_lbs?: number;
+
+  // Phase 2 rich specs
+  drivetrain?: "awd" | "rwd" | "fwd";
+  cargo_volume_cuft?: number;
+  charge_time_l2_hours?: number;
+  front_legroom_in?: number;
+  rear_legroom_in?: number;
+  has_ac?: boolean;
+  has_power_windows?: boolean;
+  has_power_locks?: boolean;
+  has_power_steering?: boolean;
+  has_keyless_entry?: boolean;
+  has_alarm?: boolean;
+  has_satellite_radio?: boolean;
+  has_dual_airbags?: boolean;
+  has_side_airbags?: boolean;
+  has_abs?: boolean;
+  has_carplay?: boolean;
+  has_android_auto?: boolean;
+  exterior_colors?: string[];
+  interior_colors?: string[];
+
+  // Phase 2b additional specs
+  has_tilt_wheel?: boolean;
+  has_am_fm_radio?: boolean;
+  has_immobilizer?: boolean;
+  has_active_seatbelts?: boolean;
+  has_passenger_airbag?: boolean;
+  doors?: number;
+
   // Meta
   is_active: boolean;
   data_source: string;

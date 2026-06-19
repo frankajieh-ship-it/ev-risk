@@ -10,7 +10,7 @@ interface EVMatchFilterPanelProps {
   onChange: (updated: MinimumViableRoutine) => void;
 }
 
-type Section = "ownership" | "driving" | "utility" | "priorities";
+type Section = "ownership" | "driving" | "utility" | "priorities" | "preferences";
 
 type PriorityKey = "range" | "charging" | "cost" | "reliability" | "interior" | "tech";
 
@@ -63,7 +63,7 @@ export default function EVMatchFilterPanel({ routine, onChange }: EVMatchFilterP
   const toggleSection = useCallback((s: Section) =>
     setOpenSections((prev) => {
       const next = new Set(prev);
-      next.has(s) ? next.delete(s) : next.add(s);
+      if (next.has(s)) { next.delete(s); } else { next.add(s); }
       return next;
     }), []);
 
@@ -298,6 +298,161 @@ export default function EVMatchFilterPanel({ routine, onChange }: EVMatchFilterP
                       desc={n === 7 ? "3-row SUV" : n === 2 ? "Just me" : `${n} people`}
                     />
                   ))}
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* Vehicle Preferences */}
+          <div className="border-t border-white/[0.06] pt-1">
+            <SectionHeader id="preferences" title="Vehicle preferences" openSections={openSections} onToggle={toggleSection} />
+          </div>
+          {openSections.has("preferences") && (
+            <div className="space-y-4 pb-4">
+
+              {/* Budget max */}
+              <div>
+                <p className="text-xs text-white/50 mb-2">Max purchase price</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { v: undefined, label: "Any" },
+                    { v: 30000,     label: "$30k" },
+                    { v: 40000,     label: "$40k" },
+                    { v: 50000,     label: "$50k" },
+                    { v: 60000,     label: "$60k" },
+                    { v: 75000,     label: "$75k" },
+                  ] as Array<{ v: number | undefined; label: string }>).map((opt) => (
+                    <Card
+                      key={String(opt.v)}
+                      selected={(routine.budget_max_usd ?? undefined) === opt.v}
+                      onClick={() => update({ budget_max_usd: opt.v })}
+                      label={opt.label}
+                      desc=""
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Max mileage */}
+              <div>
+                <p className="text-xs text-white/50 mb-2">Max listing mileage</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { v: undefined, label: "Any" },
+                    { v: 30000,     label: "30k mi" },
+                    { v: 60000,     label: "60k mi" },
+                    { v: 80000,     label: "80k mi" },
+                    { v: 100000,    label: "100k mi" },
+                  ] as Array<{ v: number | undefined; label: string }>).map((opt) => (
+                    <Card
+                      key={String(opt.v)}
+                      selected={(routine.max_mileage ?? undefined) === opt.v}
+                      onClick={() => update({ max_mileage: opt.v })}
+                      label={opt.label}
+                      desc=""
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Drivetrain */}
+              <div>
+                <p className="text-xs text-white/50 mb-2">Drivetrain</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {([
+                    { v: "any" as const, label: "Any" },
+                    { v: "awd" as const, label: "AWD" },
+                    { v: "rwd" as const, label: "RWD" },
+                    { v: "fwd" as const, label: "FWD" },
+                  ]).map((opt) => (
+                    <Card
+                      key={opt.v}
+                      selected={(routine.preferred_drivetrain ?? "any") === opt.v}
+                      onClick={() => update({
+                        preferred_drivetrain: opt.v === "any" ? undefined : opt.v,
+                        require_awd: opt.v === "awd" ? true : undefined,
+                      })}
+                      label={opt.label}
+                      desc=""
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Body style */}
+              <div>
+                <p className="text-xs text-white/50 mb-2">Body style</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { v: "any" as const,       label: "Any",       desc: "" },
+                    { v: "suv" as const,        label: "SUV",       desc: "Crossover or SUV" },
+                    { v: "sedan" as const,      label: "Sedan",     desc: "Car-like profile" },
+                    { v: "hatchback" as const,  label: "Hatchback", desc: "Compact, practical" },
+                    { v: "truck" as const,      label: "Truck",     desc: "Pickup bed" },
+                    { v: "van" as const,        label: "Van",       desc: "Minivan or cargo" },
+                  ]).map((opt) => (
+                    <Card
+                      key={opt.v}
+                      selected={(routine.preferred_body_type ?? "any") === opt.v}
+                      onClick={() => update({ preferred_body_type: opt.v === "any" ? undefined : opt.v })}
+                      label={opt.label}
+                      desc={opt.desc}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Minimum seating */}
+              <div>
+                <p className="text-xs text-white/50 mb-2">Minimum seats needed</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { v: undefined, label: "Any",  desc: "" },
+                    { v: 5,         label: "5",    desc: "Standard" },
+                    { v: 7,         label: "7",    desc: "3-row or config" },
+                  ] as Array<{ v: number | undefined; label: string; desc: string }>).map((opt) => (
+                    <Card
+                      key={String(opt.v)}
+                      selected={(routine.min_seating ?? undefined) === opt.v}
+                      onClick={() => update({ min_seating: opt.v })}
+                      label={opt.label}
+                      desc={opt.desc}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Must-have features */}
+              <div>
+                <p className="text-xs text-white/50 mb-2">Must-have features</p>
+                <div className="flex flex-col gap-2">
+                  {([
+                    { key: "require_heat_pump" as const, label: "Heat pump", desc: "Better cold-weather efficiency" },
+                    { key: "require_awd" as const,       label: "AWD / 4WD",   desc: "All-weather traction" },
+                  ]).map((feat) => {
+                    const active = !!routine[feat.key];
+                    return (
+                      <button
+                        key={feat.key}
+                        onClick={() => update({ [feat.key]: active ? undefined : true })}
+                        aria-pressed={active}
+                        className={`flex items-center gap-3 p-3 rounded-lg border text-left text-sm transition-all ${
+                          active
+                            ? "border-[#00d97e] bg-[#00d97e]/10 text-white"
+                            : "border-white/[0.08] bg-[#161b22] text-white/60 hover:border-white/20"
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${active ? "bg-[#00d97e] border-[#00d97e]" : "border-white/30"}`}>
+                          {active && <span className="text-[#0d1117] text-xs font-bold">✓</span>}
+                        </div>
+                        <div>
+                          <div className="font-medium">{feat.label}</div>
+                          <div className="text-xs opacity-70">{feat.desc}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

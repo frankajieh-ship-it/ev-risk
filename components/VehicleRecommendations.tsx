@@ -266,6 +266,7 @@ export default function VehicleRecommendations({
   const [adjustedLabel, setAdjustedLabel] = useState(false);
   const [showAdjustBar, setShowAdjustBar] = useState(false);
   const [adjustExpanded, setAdjustExpanded] = useState(false);
+  const [showFilterNudge, setShowFilterNudge] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   // Matched deals from curated_deals for the top 3 picks
@@ -342,6 +343,8 @@ export default function VehicleRecommendations({
           setUserZipCode(data.user_zip_code ?? null);
           setDataSources(data.data_sources ?? null);
           setShowAdjustBar(true);
+          setShowFilterNudge(true);
+          setTimeout(() => setShowFilterNudge(false), 7000);
 
           // Auto-save this EVFit result to anon-garage (syncs to server on login)
           addToAnonGarage({
@@ -863,7 +866,7 @@ export default function VehicleRecommendations({
                     </span>
                   </div>
                   <button
-                    onClick={() => setAdjustExpanded(true)}
+                    onClick={() => { setAdjustExpanded(true); setShowFilterNudge(false); }}
                     className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-[#00d97e] text-[#0d1117] text-xs font-bold rounded-xl hover:bg-[#00f090] transition-colors"
                   >
                     Adjust <ChevronDown className="w-3.5 h-3.5" />
@@ -1110,6 +1113,290 @@ export default function VehicleRecommendations({
                       </div>
                     )}
 
+                    {/* Drivetrain */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Drivetrain</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: "Any",  value: undefined },
+                          { label: "AWD",  value: "awd" },
+                          { label: "RWD",  value: "rwd" },
+                          { label: "FWD",  value: "fwd" },
+                        ].map(({ label, value }) => (
+                          <button
+                            key={label}
+                            onClick={() => setLocalRoutine(r => ({ ...r, preferred_drivetrain_explicit: value as "awd" | "rwd" | "fwd" | undefined }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              (localRoutine.preferred_drivetrain_explicit ?? undefined) === value
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Cargo space */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Cargo space</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: "Any",            value: undefined },
+                          { label: "Compact (<15 cuft)", value: "compact" },
+                          { label: "Mid (15–25 cuft)",   value: "mid" },
+                          { label: "Large (25+ cuft)",   value: "large" },
+                        ].map(({ label, value }) => (
+                          <button
+                            key={label}
+                            onClick={() => setLocalRoutine(r => ({ ...r, max_cargo_size: value as "compact" | "mid" | "large" | undefined }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              (localRoutine.max_cargo_size ?? undefined) === value
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Max L2 charge time */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Max L2 charge time (0–80%)</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: "Any",      value: undefined },
+                          { label: "≤ 6 hrs",  value: 6 },
+                          { label: "≤ 8 hrs",  value: 8 },
+                          { label: "≤ 10 hrs", value: 10 },
+                        ].map(({ label, value }) => (
+                          <button
+                            key={label}
+                            onClick={() => setLocalRoutine(r => ({ ...r, max_charge_time_l2: value as number | undefined }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              (localRoutine.max_charge_time_l2 ?? undefined) === value
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Must-have features */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Must-have features</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([
+                          { label: "CarPlay",         key: "require_carplay" },
+                          { label: "Android Auto",    key: "require_android_auto" },
+                          { label: "Keyless Entry",   key: "require_keyless_entry" },
+                          { label: "Satellite Radio", key: "require_satellite_radio" },
+                        ] as const).map(({ label, key }) => (
+                          <button
+                            key={key}
+                            onClick={() => setLocalRoutine(r => ({ ...r, [key]: !r[key] }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              localRoutine[key]
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Safety features */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Safety features</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([
+                          { label: "Dual Airbags",      key: "require_dual_airbags" },
+                          { label: "Side Airbags",      key: "require_side_airbags" },
+                          { label: "ABS",               key: "require_abs" },
+                          { label: "Active Seatbelts",  key: "require_active_seatbelts" },
+                          { label: "Passenger Airbag",  key: "require_passenger_airbag" },
+                        ] as const).map(({ label, key }) => (
+                          <button
+                            key={key}
+                            onClick={() => setLocalRoutine(r => ({ ...r, [key]: !r[key] }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              localRoutine[key]
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Comfort features */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Comfort features</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([
+                          { label: "AC",             key: "require_ac" },
+                          { label: "Power Windows",  key: "require_power_windows" },
+                          { label: "Power Locks",    key: "require_power_locks" },
+                          { label: "Power Steering", key: "require_power_steering" },
+                          { label: "Tilt Wheel",     key: "require_tilt_wheel" },
+                          { label: "AM/FM Radio",    key: "require_am_fm_radio" },
+                          { label: "Sentry Key",     key: "require_immobilizer" },
+                          { label: "Alarm",          key: "require_alarm" },
+                        ] as const).map(({ label, key }) => (
+                          <button
+                            key={key}
+                            onClick={() => setLocalRoutine(r => ({ ...r, [key]: !r[key] }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              localRoutine[key]
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Doors */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Doors</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([
+                          { label: "Any",    value: undefined },
+                          { label: "2-door", value: 2 },
+                          { label: "4-door", value: 4 },
+                        ] as const).map(({ label, value }) => (
+                          <button
+                            key={label}
+                            onClick={() => setLocalRoutine(r => ({ ...r, preferred_doors: value as 2 | 4 | undefined }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              (localRoutine.preferred_doors ?? undefined) === value
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Min front legroom */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Min front legroom</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([
+                          { label: "Any",     value: undefined },
+                          { label: "≥ 41 in", value: 41 },
+                          { label: "≥ 43 in", value: 43 },
+                        ] as const).map(({ label, value }) => (
+                          <button
+                            key={label}
+                            onClick={() => setLocalRoutine(r => ({ ...r, min_front_legroom_in: value as number | undefined }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              (localRoutine.min_front_legroom_in ?? undefined) === value
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Min rear legroom */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Min rear legroom</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([
+                          { label: "Any",     value: undefined },
+                          { label: "≥ 36 in", value: 36 },
+                          { label: "≥ 38 in", value: 38 },
+                          { label: "≥ 40 in", value: 40 },
+                        ] as const).map(({ label, value }) => (
+                          <button
+                            key={label}
+                            onClick={() => setLocalRoutine(r => ({ ...r, min_rear_legroom_in: value as number | undefined }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              (localRoutine.min_rear_legroom_in ?? undefined) === value
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Exterior color */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Exterior color</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([
+                          { label: "Any",    value: undefined },
+                          { label: "White",  value: "White" },
+                          { label: "Black",  value: "Black" },
+                          { label: "Silver", value: "Silver" },
+                          { label: "Gray",   value: "Gray" },
+                          { label: "Blue",   value: "Blue" },
+                          { label: "Red",    value: "Red" },
+                          { label: "Green",  value: "Green" },
+                        ] as const).map(({ label, value }) => (
+                          <button
+                            key={label}
+                            onClick={() => setLocalRoutine(r => ({ ...r, preferred_exterior_color: value as string | undefined }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              (localRoutine.preferred_exterior_color ?? undefined) === value
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Interior color */}
+                    <div>
+                      <p className="text-xs font-semibold text-white/60 mb-1.5">Interior color</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([
+                          { label: "Any",       value: undefined },
+                          { label: "Black",     value: "Black" },
+                          { label: "White",     value: "White" },
+                          { label: "Gray",      value: "Gray" },
+                          { label: "Brown/Tan", value: "Tan" },
+                          { label: "Blue",      value: "Blue" },
+                        ] as const).map(({ label, value }) => (
+                          <button
+                            key={label}
+                            onClick={() => setLocalRoutine(r => ({ ...r, preferred_interior_color: value as string | undefined }))}
+                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              (localRoutine.preferred_interior_color ?? undefined) === value
+                                ? "bg-[#00d97e] text-[#0d1117] border-[#00d97e]"
+                                : "bg-white/[0.06] text-white/60 border-white/[0.12] hover:border-white/30"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* Actions */}
                     <div className="flex items-center gap-2 pt-1 border-t border-white/[0.08]">
                       <button
@@ -1179,6 +1466,36 @@ export default function VehicleRecommendations({
               )}
             </div>
           )}
+
+          {/* Filter nudge — shown for 7s after initial results load */}
+          <AnimatePresence>
+            {showFilterNudge && !adjustExpanded && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.25 }}
+                className="mb-4 flex items-center justify-between gap-3 px-4 py-3 bg-[#00d97e]/10 border border-[#00d97e]/30 rounded-2xl"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="text-[#00d97e] text-base shrink-0">✦</span>
+                  <p className="text-xs text-white/80 leading-snug">
+                    <span className="font-semibold text-white">Refine your match.</span>{" "}
+                    Filter by drivetrain, cargo, safety features, colors, and more to find your best fit.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowFilterNudge(false);
+                    setAdjustExpanded(true);
+                  }}
+                  className="shrink-0 px-3 py-1.5 bg-[#00d97e] text-[#0d1117] text-xs font-bold rounded-xl hover:bg-[#00f090] transition-colors"
+                >
+                  Adjust →
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* RefineStep panel */}
           {refinePhase === "refine" && (

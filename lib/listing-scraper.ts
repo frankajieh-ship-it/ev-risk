@@ -1085,6 +1085,132 @@ async function extractFromCars(html: string): Promise<Partial<VehicleData>> {
 }
 
 /**
+ * Extracts vehicle data from CarMax URL.
+ * CarMax embeds data in __NEXT_DATA__ under props.pageProps.vehicle (or similar).
+ */
+async function extractFromCarMax(html: string): Promise<Partial<VehicleData>> {
+  const data: Partial<VehicleData> = {};
+
+  // Primary: __NEXT_DATA__ JSON blob
+  const ndMatch = html.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+  if (ndMatch) {
+    try {
+      const nd = JSON.parse(ndMatch[1]) as Record<string, unknown>;
+      const pageProps = (nd?.props as Record<string, unknown>)?.pageProps as Record<string, unknown> | undefined;
+
+      // CarMax nests under pageProps.vehicle or pageProps.initialVehicleData or similar
+      const vehicle = (
+        pageProps?.vehicle ??
+        pageProps?.initialVehicleData ??
+        pageProps?.vehicleData ??
+        pageProps?.car
+      ) as Record<string, unknown> | undefined;
+
+      if (vehicle) {
+        data.year  = data.year  || (vehicle.year  as number);
+        data.make  = data.make  || (vehicle.make  as string);
+        data.model = data.model || (vehicle.model as string);
+        data.trim  = data.trim  || (vehicle.trim  as string);
+        data.mileage = data.mileage || (vehicle.mileage as number) || (vehicle.miles as number);
+        data.price   = data.price   || (vehicle.price   as number) || (vehicle.listPrice as number);
+        data.vin     = data.vin     || (vehicle.vin     as string);
+
+        const colorObj = vehicle.color as Record<string, unknown> | string | undefined;
+        if (typeof colorObj === 'string') data.color = colorObj;
+        else if (colorObj) data.color = (colorObj.name ?? colorObj.description ?? colorObj.exterior) as string | undefined;
+
+        // Photos: CarMax returns images[] or photos[] array of { url, alt }
+        const imgArr = (vehicle.images ?? vehicle.photos ?? vehicle.mediaItems ?? []) as Array<Record<string, unknown>>;
+        if (Array.isArray(imgArr) && imgArr.length > 0) {
+          const urls = imgArr
+            .map(i => (i.url ?? i.src ?? i.href) as string | undefined)
+            .filter((u): u is string => typeof u === 'string' && u.startsWith('http') && !u.includes('logo'))
+            .slice(0, 50);
+          if (urls.length) { data.photo_urls = urls; data.photo_url = urls[0]; }
+        }
+      }
+    } catch { /* fall through */ }
+  }
+
+  // Fallback: JSON-LD
+  if (!data.year || !data.make || !data.model) {
+    const structured = extractStructuredData(html);
+    if (!data.year)  data.year  = structured.year;
+    if (!data.make)  data.make  = structured.make;
+    if (!data.model) data.model = structured.model;
+    if (!data.trim)  data.trim  = structured.trim;
+    if (!data.vin)   data.vin   = structured.vin;
+    if (!data.price) data.price = structured.price;
+    if (!data.mileage) data.mileage = structured.mileage;
+  }
+
+  // Fallback: og:title = "2023 Tesla Model 3 | CarMax"
+  if (!data.year || !data.make || !data.model) {
+    const ogTitle = html.match(/<meta[^>]+property="og:title"[^>]+content="([^"]+)"/i)?.[1] ||
+                    html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:title"/i)?.[1];
+    if (ogTitle) {
+      const m = ogTitle.match(/^(\d{4})\s+([A-Za-z\-]+)\s+(.+?)(?:\s*\||\s*-\s*CarMax)/i);
+      if (m) {
+        data.year  = data.year  || parseInt(m[1]);
+        data.make  = data.make  || m[2];
+        data.model = data.model || m[3].trim();
+      }
+    }
+  }
+
+  // Fallback: page <title>
+  if (!data.year || !data.make || !data.model) {
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (titleMatch) {
+      const m = titleMatch[1].match(/(\d{4})\s+([A-Za-z\-]+)\s+(.+?)(?:\s*\||\s*-)/i);
+      if (m) {
+        data.year  = data.year  || parseInt(m[1]);
+        data.make  = data.make  || m[2];
+        data.model = data.model || m[3].trim();
+      }
+    }
+  }
+
+  // Fallback: scan inline JSON for year/make/model/vin/price/mileage
+  if (!data.vin) {
+    const vinMatch = html.match(/"vin"\s*:\s*"([A-HJ-NPR-Z0-9]{17})"/i);
+    if (vinMatch) data.vin = vinMatch[1].toUpperCase();
+  }
+  if (!data.price) {
+    const pm = html.match(/"(?:price|listPrice|salePrice)"\s*:\s*(\d{4,6})/i);
+    if (pm) data.price = parseInt(pm[1]);
+  }
+  if (!data.mileage) {
+    const mm = html.match(/"(?:mileage|miles|odometer)"\s*:\s*(\d{4,6})/i);
+    if (mm) data.mileage = parseInt(mm[1]);
+  }
+
+  // Photo fallback: scan for carmax CDN image URLs
+  if (!data.photo_urls?.length) {
+    const imgUrls: string[] = [];
+    const seen = new Set<string>();
+    const pat = /https:\/\/[a-z0-9-]+\.carmax\.com\/[^"' \]\\>]+\.(?:jpg|jpeg|png|webp)/gi;
+    let m: RegExpExecArray | null;
+    while ((m = pat.exec(html)) !== null) {
+      const u = m[0].split('?')[0];
+      if (!seen.has(u) && !u.includes('logo') && !u.includes('icon')) {
+        seen.add(u); imgUrls.push(u); if (imgUrls.length >= 50) break;
+      }
+    }
+    if (imgUrls.length) { data.photo_urls = imgUrls; data.photo_url = imgUrls[0]; }
+  }
+
+  // Clean title from listing text
+  if (!data.title_status) {
+    if (/clean\s+title/i.test(html)) data.title_status = 'clean';
+    else if (/salvage\s+title/i.test(html)) data.title_status = 'salvage';
+    else if (/rebuilt\s+title/i.test(html)) data.title_status = 'rebuilt';
+  }
+
+  return validateVehicleData(data);
+}
+
+/**
  * Main extraction function
  * Fetches URL and extracts vehicle data with a hard 10s total budget.
  */
@@ -1148,7 +1274,7 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
     // --- Proxy fetch phase ---
     let html: string | null = null;
 
-    // CarGurus uses Nimbleway. AutoTrader/Cars.com use ScrapingBee stealth_proxy (~32s).
+    // CarGurus uses Nimbleway. AutoTrader/Cars.com/CarMax use ScrapingBee stealth_proxy (~32s).
     const jsRenderSources: VehicleData['dataSource'][] = ['cargurus'];
     const sourceProxyCap = jsRenderSources.includes(dataSource) ? 32000 : 50000;
 
@@ -1289,10 +1415,10 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
       if (!diagnostics.failureReason) {
         diagnostics.failureReason = remainingBudget() <= 1000 ? "timeout" : "network_error";
       }
-      // JS-rendered sites (CarGurus, AutoTrader, Cars.com) require ScrapingBee.
+      // JS-rendered sites (CarGurus, AutoTrader, Cars.com, CarMax) require ScrapingBee.
       // If fetch fails for any reason on these domains, treat as bot protection so
       // the frontend auto-switches to text mode with the right error message.
-      const jsRenderDomains = ["cargurus", "autotrader", "cars.com"];
+      const jsRenderDomains = ["cargurus", "autotrader", "cars.com", "carmax"];
       if (jsRenderDomains.includes(dataSource) &&
           (diagnostics.failureReason === "timeout" || diagnostics.failureReason === "network_error" || !diagnostics.failureReason)) {
         diagnostics.failureReason = "blocked_by_bot_protection";
@@ -1320,7 +1446,6 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
     // CarGurus-specific phrases to avoid false positives on active listings.
     const lowerHtmlSold = html.toLowerCase();
     const htmlNoScripts = html.replace(/<script[\s\S]*?<\/script>/gi, '');
-    const lowerNoScripts = htmlNoScripts.toLowerCase();
     const isSold =
       // Generic visible-text phrases — safe to check full HTML
       lowerHtmlSold.includes('this listing is no longer available') ||
@@ -1409,6 +1534,9 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
       }
       case 'cars.com':
         extractedData = await extractFromCars(html);
+        break;
+      case 'carmax':
+        extractedData = await extractFromCarMax(html);
         break;
       default:
         warnings.push('Using generic extraction - data may be incomplete');

@@ -58,6 +58,9 @@ interface DealRow {
   cargo_volume_cuft: number | null;
   charge_time_notes: string | null;
   additional_notes: string | null;
+  // v4c fields
+  body_type: string | null;
+  towing_capacity_lbs: number | null;
 }
 
 interface RescoredDiff {
@@ -750,8 +753,10 @@ export default function AdminDealsPage() {
                 <th className="text-center px-3 py-3"><SortBtn k="climate_zone" label="Climate" /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="warranty_remaining_months" label="Warr." /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="drivetrain" label="Drive" /></th>
+                <th className="text-center px-3 py-3">Body</th>
                 <th className="text-center px-3 py-3">Colors</th>
                 <th className="text-center px-3 py-3"><SortBtn k="cargo_volume_cuft" label="Cargo" /></th>
+                <th className="text-center px-3 py-3"><SortBtn k="towing_capacity_lbs" label="Tow" /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="verdict" label="Verdict" /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="is_active" label="Active" /></th>
                 <th className="text-center px-3 py-3"><SortBtn k="sold_report_count" label="Reports" /></th>
@@ -897,6 +902,10 @@ export default function AdminDealsPage() {
                         </span>
                       ) : <span className="text-white/20">—</span>}
                     </td>
+                    {/* v4c — body type */}
+                    <td className="px-3 py-3 text-center text-[10px] text-white/40 whitespace-nowrap">
+                      {d.body_type ?? <span className="text-white/20">—</span>}
+                    </td>
                     {/* v4b — colors */}
                     <td className="px-3 py-3 text-center text-[10px]">
                       {(d.exterior_color || d.interior_color) ? (
@@ -910,6 +919,12 @@ export default function AdminDealsPage() {
                     <td className="px-3 py-3 text-center text-[10px]">
                       {d.cargo_volume_cuft != null ? (
                         <span className="text-white/50">{d.cargo_volume_cuft}<span className="text-white/25">ft³</span></span>
+                      ) : <span className="text-white/20">—</span>}
+                    </td>
+                    {/* v4c — towing */}
+                    <td className="px-3 py-3 text-center text-[10px]">
+                      {d.towing_capacity_lbs != null ? (
+                        <span className="text-white/50">{d.towing_capacity_lbs.toLocaleString()}<span className="text-white/25">lb</span></span>
                       ) : <span className="text-white/20">—</span>}
                     </td>
                     <td className="px-3 py-3 text-center">

@@ -96,6 +96,36 @@ interface VehicleTraits {
   onboard_ac_kw?: number;
   /** Battery warranty in years */
   battery_warranty_years?: number;
+  /** L2 charge time 0–80% in hours */
+  charge_time_l2_hours?: number;
+  /** Apple CarPlay support */
+  has_carplay?: boolean;
+  /** Android Auto support */
+  has_android_auto?: boolean;
+  /** Remote keyless entry */
+  has_keyless_entry?: boolean;
+  /** Factory alarm system */
+  has_alarm?: boolean;
+  /** Satellite radio capable */
+  has_satellite_radio?: boolean;
+  // Phase 2b
+  has_ac?: boolean;
+  has_power_windows?: boolean;
+  has_power_locks?: boolean;
+  has_power_steering?: boolean;
+  has_tilt_wheel?: boolean;
+  has_am_fm_radio?: boolean;
+  has_immobilizer?: boolean;
+  has_active_seatbelts?: boolean;
+  has_passenger_airbag?: boolean;
+  has_dual_airbags?: boolean;
+  has_side_airbags?: boolean;
+  has_abs?: boolean;
+  doors?: number;
+  front_legroom_in?: number;
+  rear_legroom_in?: number;
+  exterior_colors?: string[];
+  interior_colors?: string[];
 }
 
 const VEHICLE_TRAITS: Record<string, Partial<VehicleTraits>> = {

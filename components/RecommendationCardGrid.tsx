@@ -32,13 +32,13 @@ export default function RecommendationCardGrid({ recommendation: rec, onSelect }
       onClick={onSelect}
     >
       {/* Photo */}
-      <div className="relative h-28 w-full">
+      <div className="relative h-36 w-full">
         <VehicleImage
           make={rec.make}
           model={rec.model_short}
           year={rec.year}
           className="w-full h-full"
-          imgClassName="w-full h-full object-cover"
+          imgClassName="w-full h-full object-contain"
         />
         <div className={`absolute top-2 left-2 ${badgeBg} text-white w-9 h-9 rounded-lg flex items-center justify-center shadow`}>
           <span className="text-sm font-bold">{rec.fit_score}</span>

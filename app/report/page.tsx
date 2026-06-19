@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState, useRef } from "react";
+import Header from "@/components/landing/Header";
 import DataQualitySection from "@/components/DataQualitySection";
 import PersonalizationOpportunityCard from "@/components/PersonalizationOpportunityCard";
 import DataQualityDecisionConfidence from "@/components/DataQualityDecisionConfidence";
@@ -487,6 +488,7 @@ function ReportContent() {
 
     // Write back fit_signal to evroutine_sessions if available
     if (fitSignal) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       completeSession({}, { fit_signal: fitSignal as any }).catch(() => {});
     }
 
@@ -518,7 +520,9 @@ function ReportContent() {
     let routineFit = reportV2Data.primary.routine_fit;
 
     // Backwards compat: convert old WhatBreaksFirst to breakpoints_ranked
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((routineFit as any).what_breaks_first && !routineFit.breakpoints_ranked) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const old = (routineFit as any).what_breaks_first;
       routineFit = {
         ...routineFit,
@@ -545,7 +549,9 @@ function ReportContent() {
       };
     }
     // Backwards compat: old "Conditional Fit" label
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((routineFit as any).label === "Conditional Fit") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (routineFit as any).label = "Mixed Fit";
     }
 
@@ -596,10 +602,13 @@ function ReportContent() {
   // Phase 0.5: Calculate confidence and determine activation
   const confidenceInputs: ConfidenceInputs = {
     listing: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       hasMileage: !!(input as any).currentMileage,
       hasAge: !!input.year,
       hasModel: !!input.model,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       hasTrim: !!(input as any).trim,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       hasVIN: !!(input as any).vin,
     },
     personalization: {
@@ -636,6 +645,7 @@ function ReportContent() {
   const vehicleContext = {
     model: input.model,
     age: new Date().getFullYear() - input.year,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mileage: (input as any).currentMileage || undefined,
     range: undefined, // Will enhance when range data available
     hasBatteryReport: false,
@@ -685,6 +695,7 @@ function ReportContent() {
 
     return (
       <div className={`min-h-screen bg-gradient-to-br ${bgColorClass}`}>
+        <Header variant="receipt" />
         {/* Minimal Back Button */}
         <div className="max-w-2xl mx-auto px-4 pt-6">
           <div className="flex justify-between items-center">
@@ -727,6 +738,7 @@ function ReportContent() {
   // FULL VIEW: Legacy detailed view (when user clicks "View Full Report")
   return (
     <div className={`min-h-screen bg-gradient-to-br ${bgColorClass}`}>
+      <Header variant="receipt" />
       <div className="max-w-4xl mx-auto px-4 py-16">
         {/* Back Button and Actions */}
         <div className="flex justify-between items-center mb-8">
@@ -1057,7 +1069,7 @@ function ReportContent() {
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                   <p className="text-sm text-gray-700">
-                    <strong>Good news:</strong> Battery replacement is rare within the manufacturer's warranty period (typically 8 years / 100,000 miles)
+                    <strong>Good news:</strong> Battery replacement is rare within the manufacturer&apos;s warranty period (typically 8 years / 100,000 miles)
                   </p>
                 </div>
                 <div className="flex items-start">
@@ -1122,8 +1134,8 @@ function ReportContent() {
                   <div className="flex items-start p-4 bg-gray-50 rounded border border-gray-200">
                     <span className="text-2xl mr-3">🚗</span>
                     <div className="flex-1">
-                      <p className="font-semibold text-gray-900">What's your typical daily driving?</p>
-                      <p className="text-sm text-gray-600">Helps us verify if this vehicle's range fits your needs</p>
+                      <p className="font-semibold text-gray-900">What&apos;s your typical daily driving?</p>
+                      <p className="text-sm text-gray-600">Helps us verify if this vehicle&apos;s range fits your needs</p>
                     </div>
                   </div>
                 )}
@@ -1142,7 +1154,7 @@ function ReportContent() {
                   <div className="flex items-start p-4 bg-gray-50 rounded border border-gray-200">
                     <span className="text-2xl mr-3">🌡️</span>
                     <div className="flex-1">
-                      <p className="font-semibold text-gray-900">What's your ZIP code?</p>
+                      <p className="font-semibold text-gray-900">What&apos;s your ZIP code?</p>
                       <p className="text-sm text-gray-600">Local climate affects battery degradation and charging infrastructure</p>
                     </div>
                   </div>
@@ -1175,7 +1187,7 @@ function ReportContent() {
 
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             <div className="bg-white/10 backdrop-blur rounded-lg p-6">
-              <h3 className="font-bold text-lg mb-3">What's Included:</h3>
+              <h3 className="font-bold text-lg mb-3">What&apos;s Included:</h3>
               <ul className="space-y-2">
                 {["Model-specific failure rate analysis", "Price negotiation talking points", "Pre-purchase inspection checklist", "Dealer questions script", "Battery health verification steps", "5-year total cost of ownership estimate"].map((item, i) => (
                   <li key={i} className="flex items-start"><span className="mr-2">✓</span><span>{item}</span></li>
@@ -1210,6 +1222,7 @@ function ReportContent() {
                   onClick={async () => {
                     try {
                       // Ensure report is persisted before checkout
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       let rId = reportId || (reportData as any)?._persisted_report_id;
                       if (!rId) {
                         const createResponse = await fetch('/api/report/free', {
@@ -1269,6 +1282,7 @@ function ReportContent() {
                 <button
                   onClick={async () => {
                     try {
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       let rId = reportId || (reportData as any)?._persisted_report_id;
                       if (!rId) {
                         const createResponse = await fetch('/api/report/free', {
@@ -1543,6 +1557,7 @@ function ReportContent() {
         const debugData = generateDebugData({
           model: input.model,
           year: input.year,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           currentMileage: (input as any).currentMileage || 0,
           zipCode: input.zipCode,
           dailyMiles: input.dailyMiles,

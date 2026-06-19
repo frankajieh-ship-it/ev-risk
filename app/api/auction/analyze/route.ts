@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClientIP, RateLimiter } from "@/lib/rate-limiter";
 import { auctionEvaluationService } from "@/lib/auction/auction-evaluation-service";
 import { getSupabaseAdmin } from "@/lib/api-auth";
+import { enrichVehicleProfileFromVin } from "@/lib/enrich-vehicle-profile";
 import {
   AuctionSourceNotSupportedError,
   AuctionLotNotFoundError,
@@ -141,6 +142,12 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString(),
       });
     } catch { /* non-critical */ }
+
+    // Fire-and-forget: enrich vehicle_profiles from this VIN (non-blocking)
+    const lot = report.lot;
+    if (lot?.vin && lot.make && lot.model && lot.year) {
+      enrichVehicleProfileFromVin(lot.vin, lot.make, lot.model, lot.year);
+    }
 
     return NextResponse.json({ success: true, report });
   } catch (err) {
