@@ -251,6 +251,19 @@ export async function GET(request: NextRequest) {
   }
 
 
+  // For generic vehicle cards (no_market=1), go straight to the static Wikimedia map.
+  // Skips extractVehicleImages to avoid fetch-cache cross-contamination across concurrent card requests.
+  if (noMarket && make && rawModel) {
+    const staticUrl = getStaticPhotoUrl(make, rawModel, year ?? undefined);
+    if (staticUrl) {
+      return NextResponse.json({ photo_urls: [proxyIfWikimedia(staticUrl)], source: "static" });
+    }
+    const makeFallbackUrl = MAKE_FALLBACK_MAP[make.toLowerCase()];
+    if (makeFallbackUrl) {
+      return NextResponse.json({ photo_urls: [proxyIfWikimedia(makeFallbackUrl)], source: "make_fallback" });
+    }
+  }
+
   // 0b. OFFO image extractor — local CSV (Tier 0) or Supabase cache hit
   // Only serve cache hits whose URLs come from known-safe sources (Wikimedia, VinAudit, /api/img proxy).
   // Listing CDN URLs cached from marketplace sources can be wrong-car photos — silently bypass them.
