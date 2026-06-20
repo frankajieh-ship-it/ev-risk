@@ -165,10 +165,9 @@ export function lookupLocalImages(
     return { urls: [], matched: false };
   }
 
-  // Sort: priority first, then prefer rows where year is an exact closer match
+  // Sort: higher priority number wins (10 = local > 1 = Wikimedia), then narrower year range
   candidates.sort((a, b) => {
-    if (a.priority !== b.priority) return a.priority - b.priority;
-    // Among same priority, prefer narrower year ranges (more specific)
+    if (a.priority !== b.priority) return b.priority - a.priority;
     const aRange = a.year_to - a.year_from;
     const bRange = b.year_to - b.year_from;
     return aRange - bRange;
