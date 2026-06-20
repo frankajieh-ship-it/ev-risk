@@ -233,7 +233,17 @@ export async function GET(request: NextRequest) {
       mcResult = await marketCheckByVin(vin);
     }
     if ((!mcResult || !mcResult.success) && make && rawModel) {
-      mcResult = await marketCheckByYMM({ make, model: rawModel, year });
+      const ymmResult = await marketCheckByYMM({ make, model: rawModel, year });
+      // Validate that the returned listing is actually for the requested make.
+      // MarketCheck YMM sorts by photo count and can return a high-photo Tesla listing
+      // when querying a Hyundai — the make param is not strictly enforced on their end.
+      if (ymmResult.success && ymmResult.best_listing?.build?.make) {
+        const returnedMake = ymmResult.best_listing.build.make.toLowerCase().replace(/[^a-z]/g, "");
+        const requestedMake = make.toLowerCase().replace(/[^a-z]/g, "");
+        if (returnedMake === requestedMake) {
+          mcResult = ymmResult;
+        }
+      }
     }
     if (mcResult?.success && mcResult.photo_links.length > 0) {
       return NextResponse.json({ photo_urls: mcResult.photo_links, source: "marketcheck" });
