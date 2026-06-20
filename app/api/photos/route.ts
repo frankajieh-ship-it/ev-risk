@@ -226,17 +226,22 @@ export async function GET(request: NextRequest) {
 
 
 
-  // For generic vehicle cards (no_market=1), go straight to the static Wikimedia map.
-  // Skips extractVehicleImages to avoid fetch-cache cross-contamination across concurrent card requests.
-  if (noMarket && make && rawModel) {
-    const staticUrl = getStaticPhotoUrl(make, rawModel, year ?? undefined);
-    if (staticUrl) {
-      return NextResponse.json({ photo_urls: [proxyIfWikimedia(staticUrl)], source: "static" });
+  // For generic vehicle cards (no_market=1), go straight to the static Wikimedia map and stop.
+  // Never fall through to extractVehicleImages or VinAudit — stale cache entries can contain
+  // wrong-car photos that bleed across concurrent card requests.
+  if (noMarket) {
+    if (make && rawModel) {
+      const staticUrl = getStaticPhotoUrl(make, rawModel, year ?? undefined);
+      if (staticUrl) {
+        return NextResponse.json({ photo_urls: [proxyIfWikimedia(staticUrl)], source: "static" });
+      }
+      const makeFallbackUrl = MAKE_FALLBACK_MAP[make.toLowerCase()];
+      if (makeFallbackUrl) {
+        return NextResponse.json({ photo_urls: [proxyIfWikimedia(makeFallbackUrl)], source: "make_fallback" });
+      }
     }
-    const makeFallbackUrl = MAKE_FALLBACK_MAP[make.toLowerCase()];
-    if (makeFallbackUrl) {
-      return NextResponse.json({ photo_urls: [proxyIfWikimedia(makeFallbackUrl)], source: "make_fallback" });
-    }
+    // No static photo available for this vehicle — return empty rather than risk wrong-car photo.
+    return NextResponse.json({ photo_urls: [], source: "none" });
   }
 
   // 0b. OFFO image extractor — local CSV (Tier 0) or Supabase cache hit
