@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
+import { lookupLocalImages } from "@/lib/vehicle-image-db";
 
 const rateLimiter = new RateLimiter(60 * 1000, 30); // 30 req/min per IP
 
@@ -201,11 +202,22 @@ export async function GET(request: NextRequest) {
   const offset = (page - 1) * perPage;
   const pageDeals = deduped.slice(offset, offset + perPage);
 
-  // Flatten the dealerships join into flat fields for the client
+  // Flatten the dealerships join into flat fields for the client.
+  // Always resolve photo_url to a local /vehicles/ path from our CSV when available —
+  // this ensures new deals added in future automatically get the correct image.
   const flatDeals = pageDeals.map((d) => {
     const dealer = Array.isArray(d.dealerships) ? d.dealerships[0] : d.dealerships;
+    // Prefer local CSV image over whatever is stored in DB (external URLs can be wrong car)
+    let photoUrl: string | null = d.photo_url ?? null;
+    if (d.make && d.model) {
+      const local = lookupLocalImages(d.make, d.model, d.year ?? undefined);
+      if (local.matched && local.urls.length > 0) {
+        photoUrl = local.urls[0];
+      }
+    }
     return {
       ...d,
+      photo_url: photoUrl,
       dealerships: undefined,
       dealership_name: (dealer as { name?: string } | null)?.name ?? null,
       dealership_slug: (dealer as { slug?: string } | null)?.slug ?? null,
