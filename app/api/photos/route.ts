@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchListings } from "@/lib/auto-dev-client";
 import { getVehicleImages } from "@/lib/vinaudit-client";
-import { searchByVin as marketCheckByVin, searchByMakeModel as marketCheckByYMM } from "@/lib/marketcheck-client";
+
 import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
 import { extractVehicleImages } from "@/lib/image-extractor";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
@@ -224,31 +224,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ photo_urls: [] });
   }
 
-  // 0a. Marketcheck — actual dealer photos, highest reliability.
-  // Try VIN first (exact match); if VIN fails (sold/unlisted) or no VIN, try YMM search.
-  // searchByMakeModel normalizes the model name internally.
-  {
-    let mcResult = null;
-    if (vin) {
-      mcResult = await marketCheckByVin(vin);
-    }
-    if ((!mcResult || !mcResult.success) && make && rawModel) {
-      const ymmResult = await marketCheckByYMM({ make, model: rawModel, year });
-      // Validate that the returned listing is actually for the requested make.
-      // MarketCheck YMM sorts by photo count and can return a high-photo Tesla listing
-      // when querying a Hyundai — the make param is not strictly enforced on their end.
-      if (ymmResult.success && ymmResult.best_listing?.build?.make) {
-        const returnedMake = ymmResult.best_listing.build.make.toLowerCase().replace(/[^a-z]/g, "");
-        const requestedMake = make.toLowerCase().replace(/[^a-z]/g, "");
-        if (returnedMake === requestedMake) {
-          mcResult = ymmResult;
-        }
-      }
-    }
-    if (mcResult?.success && mcResult.photo_links.length > 0) {
-      return NextResponse.json({ photo_urls: mcResult.photo_links, source: "marketcheck" });
-    }
-  }
 
 
   // For generic vehicle cards (no_market=1), go straight to the static Wikimedia map.

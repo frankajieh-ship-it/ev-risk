@@ -123,18 +123,6 @@ export interface VehicleRecommendation {
     url_domain: string | null;
   }>;
 
-  /** Live MarketCheck listings fetched at request time (top 5 recs only) */
-  live_listings?: Array<{
-    id: string;
-    vin: string;
-    price?: number;
-    miles?: number;
-    vdp_url?: string;
-    source?: string;
-    exterior_color?: string;
-    carfax_clean_title?: boolean;
-    dealer?: { name?: string; city?: string; state?: string };
-  }>;
 
   // Phase 2 rich specs (carried from vehicle_profiles)
   drivetrain?: "awd" | "rwd" | "fwd";

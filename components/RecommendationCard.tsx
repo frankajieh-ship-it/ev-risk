@@ -37,61 +37,6 @@ const SOURCE_LABELS: Record<string, string> = {
   carmax: "CarMax",
 };
 
-function LiveListingStrip({ listings }: { listings: NonNullable<VehicleRecommendation["live_listings"]> }) {
-  if (!listings?.length) return null;
-  return (
-    <div className="border-t border-white/[0.08] px-5 py-3 bg-white/[0.02]">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30 mb-2">
-        Live Listings
-      </p>
-      <div className="space-y-0">
-        {listings.slice(0, 3).map((l) => (
-          <div
-            key={l.id}
-            className="flex items-center justify-between gap-3 py-2 border-b border-white/[0.06] last:border-0"
-          >
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                {l.price && (
-                  <span className="text-sm font-bold text-white">${l.price.toLocaleString()}</span>
-                )}
-                {l.miles && (
-                  <span className="text-xs text-white/40">{l.miles.toLocaleString()} mi</span>
-                )}
-                {l.exterior_color && (
-                  <span className="text-xs text-white/30">· {l.exterior_color}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                {l.source && (
-                  <span className="text-[10px] text-white/30">{SOURCE_LABELS[l.source] ?? l.source}</span>
-                )}
-                {l.dealer?.city && (
-                  <span className="text-[10px] text-white/20">
-                    · {l.dealer.city}{l.dealer.state ? `, ${l.dealer.state}` : ""}
-                  </span>
-                )}
-                {l.carfax_clean_title && (
-                  <span className="text-[10px] text-[#00d97e]">· Clean title</span>
-                )}
-              </div>
-            </div>
-            {l.vdp_url && (
-              <a
-                href={l.vdp_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 px-3 py-1.5 text-xs font-medium border border-white/[0.10] text-white/60 hover:text-white hover:border-white/20 rounded-lg transition-colors"
-              >
-                View →
-              </a>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function MatchedDealStrip({ deal }: { deal: NonNullable<VehicleRecommendation["matched_deals"]>[0] }) {
   const [saved, setSaved] = useState(() => {
@@ -595,10 +540,6 @@ export default function RecommendationCard({
         );
       })()}
 
-      {/* Live MarketCheck listing deep links (top 5 recs only) */}
-      {rec.live_listings && rec.live_listings.length > 0 && (
-        <LiveListingStrip listings={rec.live_listings} />
-      )}
 
       {/* Expanded dealer listings */}
       <AnimatePresence>
