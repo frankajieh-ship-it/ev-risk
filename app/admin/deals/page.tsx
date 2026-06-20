@@ -111,6 +111,7 @@ export default function AdminDealsPage() {
   const [syncingDealers, setSyncingDealers] = useState(false);
   const [clearingGenericPhotos, setClearingGenericPhotos] = useState(false);
   const [clearingImageCache, setClearingImageCache] = useState(false);
+  const [nukingImageCache, setNukingImageCache] = useState(false);
   const [clearingBadPhotos, setClearingBadPhotos] = useState(false);
   const [resettingPhotos, setResettingPhotos] = useState(false);
   const extractPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -255,6 +256,29 @@ export default function AdminDealsPage() {
       setImportStatus("✗ Cache clear failed");
     } finally {
       setClearingImageCache(false);
+    }
+  };
+
+  const handleNukeImageCache = async () => {
+    if (!adminKey) { alert("Enter your admin API key first"); return; }
+    if (!confirm("NUKE the entire vehicle_images cache? This deletes ALL cached photo entries. Photos will re-derive from the static Wikimedia map on next request. Use when stale wrong-car photos are cached.")) return;
+    setNukingImageCache(true);
+    setImportStatus("Nuking entire image cache...");
+    try {
+      const res = await fetch("/api/admin/deals-clear-image-cache?nuke=1", {
+        method: "POST",
+        headers: { Authorization: authHeader },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setImportStatus(`✓ Image cache nuked (${data.cleared} rows deleted) — reload the page to see corrected photos`);
+      } else {
+        setImportStatus(`✗ ${data.error}`);
+      }
+    } catch {
+      setImportStatus("✗ Nuke failed");
+    } finally {
+      setNukingImageCache(false);
     }
   };
 
@@ -644,6 +668,10 @@ export default function AdminDealsPage() {
             <button onClick={handleClearImageCache} disabled={clearingImageCache}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${clearingImageCache ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-red-400 border-white/[0.08]"}`}>
               {clearingImageCache ? "Clearing..." : "Clear Image Cache"}
+            </button>
+            <button onClick={handleNukeImageCache} disabled={nukingImageCache}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${nukingImageCache ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-red-400/70 hover:text-red-400 border-red-400/20 hover:border-red-400/40"}`}>
+              {nukingImageCache ? "Nuking..." : "Nuke Image Cache"}
             </button>
             <button onClick={handleClearBadPhotos} disabled={clearingBadPhotos}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${clearingBadPhotos ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-yellow-400 border-white/[0.08]"}`}>

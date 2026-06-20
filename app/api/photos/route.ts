@@ -224,11 +224,20 @@ export async function GET(request: NextRequest) {
   }
 
   // 0b. OFFO image extractor — local CSV (Tier 0) or Supabase cache hit
+  // Cache hits are only trusted when URLs come from safe stock-photo sources.
+  // Listing CDN / marketplace URLs (from when MarketCheck was active) are bypassed
+  // so the static Wikimedia map can serve the correct vehicle photo instead.
   if (make && rawModel && year) {
     try {
       const extracted = await extractVehicleImages({ make, model: rawModel, year, vin, trim: undefined });
       if (extracted.urls.length > 0 && (extracted.cache_hit || extracted.source === "offo_local")) {
-        return NextResponse.json({ photo_urls: extracted.urls.map(proxyIfWikimedia), source: extracted.source, quality_score: extracted.quality_score, cache_hit: extracted.cache_hit });
+        const SAFE_PATTERNS = ["wikimedia", "vinaudit", "/api/img"];
+        const isSafe = extracted.source === "offo_local" ||
+          extracted.urls.every(u => SAFE_PATTERNS.some(p => u.includes(p)));
+        if (isSafe) {
+          return NextResponse.json({ photo_urls: extracted.urls.map(proxyIfWikimedia), source: extracted.source, quality_score: extracted.quality_score, cache_hit: extracted.cache_hit });
+        }
+        // Unsafe cache hit — fall through to static map so wrong-car photos aren't served
       }
     } catch {
       // Fall through
