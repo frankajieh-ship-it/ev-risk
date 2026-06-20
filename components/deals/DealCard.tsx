@@ -77,9 +77,11 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
   const priceStr = deal.price ? `$${deal.price.toLocaleString()}` : "Price unlisted";
   const mileageStr = deal.mileage ? `${deal.mileage.toLocaleString()} mi` : null;
 
-  // Use real listing photo from DB when available; fall back to Wikimedia stock photo via VehicleImage
-  const [listingPhoto, setListingPhoto] = useState<string | null>(deal.photo_url);
-  useEffect(() => { setListingPhoto(deal.photo_url); }, [deal.photo_url]);
+  // Only use photo_url when it's a local /vehicles/ path (curated, guaranteed correct).
+  // External listing photos from CarMax/CarGurus can show the wrong car — skip them.
+  const localPhoto = deal.photo_url?.startsWith("/") ? deal.photo_url : null;
+  const [listingPhoto, setListingPhoto] = useState<string | null>(localPhoto);
+  useEffect(() => { setListingPhoto(deal.photo_url?.startsWith("/") ? deal.photo_url : null); }, [deal.photo_url]);
 
   const [saved, setSaved] = useState(() => isSavedLocally(deal.id));
   const [loginModalOpen, setLoginModalOpen] = useState(false);
