@@ -119,21 +119,22 @@ await test("Deal photo_urls are distinct across makes", async () => {
 // ── Recommendations API ───────────────────────────────────────────────────────
 console.log("\n[ /api/recommendations ]");
 
+// Minimal valid routine: charging_access + climate + longest_day_pattern + weekly_miles
+const VALID_ROUTINE = {
+  charging_access: "home",
+  climate: "mild",
+  weekly_miles: 150,
+  longest_day_pattern: "once_a_week",
+};
+
 await test("Recommendations return results for basic routine", async () => {
   const res = await fetchWithTimeout(`${BASE}/api/recommendations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      routine: {
-        charging_access: "home",
-        climate: "mild",
-        weekly_miles: 150,
-        longest_day_pattern: "occasional_100_150",
-      },
-    }),
+    body: JSON.stringify({ routine: VALID_ROUTINE }),
   });
   const data = await res.json();
-  if (!data.success) throw new Error(`API returned success:false — ${data.error}`);
+  if (!data.success) throw new Error(`API returned success:false — ${data.error} ${JSON.stringify(data.details ?? "")}`);
   if (!data.recommendations?.length) throw new Error("No recommendations returned");
   ok(`Recommendations (${data.recommendations.length} vehicles)`);
 });
@@ -142,9 +143,7 @@ await test("Recommendations have fit_score between 0-100", async () => {
   const res = await fetchWithTimeout(`${BASE}/api/recommendations`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      routine: { charging_access: "home", climate: "mild", weekly_miles: 100, longest_day_pattern: "rarely_over_100" },
-    }),
+    body: JSON.stringify({ routine: VALID_ROUTINE }),
   });
   const data = await res.json();
   if (!data.recommendations?.length) throw new Error("No recommendations");
