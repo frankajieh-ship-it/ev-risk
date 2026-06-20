@@ -13,6 +13,7 @@ import { getVehicleImages } from "@/lib/vinaudit-client";
 
 import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
 import { extractVehicleImages } from "@/lib/image-extractor";
+import { lookupLocalImages } from "@/lib/vehicle-image-db";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 
 const photosRateLimiter = new RateLimiter(60 * 1000, 30); // 30 req/min per IP
@@ -229,17 +230,14 @@ export async function GET(request: NextRequest) {
 
   const noStoreHeaders = { "Cache-Control": "no-store, no-cache, must-revalidate" };
 
-  // For generic vehicle cards (no_market=1): local CSV → static Wikimedia map → make fallback.
-  // Never fall through to extractVehicleImages or VinAudit — stale cache entries can contain
-  // wrong-car photos that bleed across concurrent card requests.
+  // For generic vehicle cards (no_market=1): read directly from local CSV only.
+  // Never touch Supabase cache or external sources — stale/wrong-car URLs poison all cards.
   if (noMarket) {
     if (make && rawModel) {
-      // 1. Local CSV (highest priority — our own curated photos)
-      if (year) {
-        const local = await extractVehicleImages({ make, model: rawModel, year, vin: undefined, trim: undefined });
-        if (local.urls.length > 0 && local.source === "offo_local") {
-          return NextResponse.json({ photo_urls: local.urls, source: "offo_local" }, { headers: noStoreHeaders });
-        }
+      // 1. Local CSV — direct lookup, no cache
+      const local = lookupLocalImages(make, rawModel, year);
+      if (local.matched && local.urls.length > 0) {
+        return NextResponse.json({ photo_urls: local.urls, source: "offo_local" }, { headers: noStoreHeaders });
       }
       // 2. Static Wikimedia map
       const staticUrl = getStaticPhotoUrl(make, rawModel, year ?? undefined);
@@ -252,7 +250,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ photo_urls: [proxyIfWikimedia(makeFallbackUrl)], source: "make_fallback" }, { headers: noStoreHeaders });
       }
     }
-    // No photo available — return empty rather than risk wrong-car photo.
     return NextResponse.json({ photo_urls: [], source: "none" }, { headers: noStoreHeaders });
   }
 
