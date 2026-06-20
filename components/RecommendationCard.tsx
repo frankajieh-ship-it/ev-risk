@@ -61,9 +61,14 @@ function MatchedDealStrip({ deal }: { deal: NonNullable<VehicleRecommendation["m
     <div className="border-t border-white/[0.08] px-5 py-3 bg-white/[0.02]">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30 mb-2">Deal Watch Match</p>
       <div className="rounded-xl border border-white/[0.08] bg-[#161b22] overflow-hidden">
-        {deal.photo_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={deal.photo_url} alt={deal.vehicle_label} className="w-full h-24 object-cover" />
+        {deal.make && (
+          <VehicleImage
+            make={deal.make}
+            model={deal.model ?? undefined}
+            year={deal.year ?? undefined}
+            className="w-full h-24"
+            imgClassName="w-full h-full object-cover"
+          />
         )}
         <div className="p-3">
           <p className="text-xs font-semibold text-white/90 leading-tight mb-1">{deal.vehicle_label}</p>
