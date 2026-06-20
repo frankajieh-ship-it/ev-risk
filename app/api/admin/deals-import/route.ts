@@ -20,6 +20,8 @@
  * verdict: GREEN | YELLOW | RED
  */
 
+import { existsSync } from "fs";
+import { join } from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { computeDealQualityScore } from "@/lib/deal-quality-score";
@@ -225,6 +227,36 @@ export async function POST(request: NextRequest) {
     const riskFlagsRaw = row["risk_flags"]?.trim();
     const vehicleLabel = row["vehicle_label"]?.trim() || [year, make, model, trim].filter(Boolean).join(" ") || null;
     let photoUrl = row["photo_url"]?.trim() || null;
+
+    // Normalize Windows absolute paths → web-relative paths
+    // e.g. "C:\Dev\ev-risk\public\vehicles\foo.webp" → "/vehicles/foo.webp"
+    if (photoUrl && (photoUrl.includes("\\") || /^[A-Za-z]:\//.test(photoUrl))) {
+      const normalized = photoUrl.replace(/\\/g, "/");
+      const publicIdx = normalized.indexOf("/public/");
+      if (publicIdx !== -1) {
+        photoUrl = normalized.slice(publicIdx + "/public".length);
+      }
+    }
+
+    // For /vehicles/ paths: verify file exists; if not, try alternate extensions
+    // Handles missing extensions (e.g. "/vehicles/foo" → "/vehicles/foo.webp")
+    // and wrong extensions (e.g. "/vehicles/foo.jpg" when file is actually foo.webp)
+    if (photoUrl?.startsWith("/vehicles/")) {
+      const publicDir = join(process.cwd(), "public");
+      const fullPath = join(publicDir, photoUrl);
+      if (!existsSync(fullPath)) {
+        // Strip extension (if any) and try alternates
+        const base = photoUrl.replace(/\.\w{2,5}$/, "");
+        for (const ext of [".webp", ".jpg", ".jpeg", ".png"]) {
+          const candidate = join(publicDir, base + ext);
+          if (existsSync(candidate)) {
+            photoUrl = base + ext;
+            break;
+          }
+        }
+      }
+    }
+
     const urlDomain = row["url_domain"]?.trim() || (() => {
       try { return new URL(listingUrl).hostname.replace("www.", ""); } catch { return null; }
     })();

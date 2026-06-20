@@ -162,7 +162,7 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
         {listingPhoto ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={`/api/img?url=${encodeURIComponent(listingPhoto)}`}
+            src={listingPhoto.startsWith("/") ? listingPhoto : `/api/img?url=${encodeURIComponent(listingPhoto)}`}
             alt={deal.vehicle_label}
             className="absolute inset-0 w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
             loading={rank === 1 ? "eager" : "lazy"}
