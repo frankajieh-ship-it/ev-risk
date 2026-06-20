@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Bookmark, BookmarkCheck, ExternalLink, ShieldCheck } from "lucide-react";
 import { addToAnonGarage } from "@/lib/anon-garage";
 import { useAuth } from "@/hooks/useAuth";
 import LoginModal from "@/components/auth/LoginModal";
+import VehicleImage from "@/components/VehicleImage";
 
 export interface CuratedDeal {
   id: string;
@@ -76,42 +77,6 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
   const priceStr = deal.price ? `$${deal.price.toLocaleString()}` : "Price unlisted";
   const mileageStr = deal.mileage ? `${deal.mileage.toLocaleString()} mi` : null;
 
-  // Photo — client-side fetch when DB has no photo_url
-  const [photoUrl, setPhotoUrl] = useState<string | null>(deal.photo_url);
-  useEffect(() => {
-    if (photoUrl || !deal.make) return;
-    let model = deal.model ?? "";
-    if (deal.vehicle_label && deal.make) {
-      const prefix = [deal.year, deal.make].filter(Boolean).join(" ") + " ";
-      const fromLabel = deal.vehicle_label.startsWith(prefix)
-        ? deal.vehicle_label.slice(prefix.length).trim()
-        : null;
-      if (fromLabel && fromLabel.length > model.length) model = fromLabel;
-    }
-    const params = new URLSearchParams({
-      make: deal.make,
-      ...(model ? { model } : {}),
-      ...(deal.year ? { year: String(deal.year) } : {}),
-    });
-    const delay = Math.min((rank ?? 1) * 100, 1500);
-    const t = setTimeout(() => {
-      fetch(`/api/photos?${params}&no_market=1`)
-        .then((r) => r.json())
-        .then((d: { photo_urls?: string[] }) => {
-          const url = d.photo_urls?.[0];
-          if (url) {
-            setPhotoUrl(url);
-            fetch("/api/deals/backfill-photo", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ id: deal.id, photo_url: url }),
-            }).catch(() => {});
-          }
-        })
-        .catch(() => {});
-    }, delay);
-    return () => clearTimeout(t);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [saved, setSaved] = useState(() => isSavedLocally(deal.id));
   const [loginModalOpen, setLoginModalOpen] = useState(false);
@@ -191,25 +156,14 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
     <div className={`relative flex flex-col bg-[#161b22] border border-white/[0.08] rounded-xl overflow-hidden hover:border-white/[0.16] transition-all group ${compact ? "h-full" : ""}`}>
       {/* Photo */}
       <div className="relative w-full aspect-[16/9] bg-[#0d1117] overflow-hidden flex-shrink-0">
-        {photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={`/api/img?url=${encodeURIComponent(photoUrl)}`}
-            alt={deal.vehicle_label}
-            className="absolute inset-0 w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
-            loading={rank === 1 ? "eager" : "lazy"}
-            onError={() => setPhotoUrl(null)}
-          />
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-[#0d1117]">
-            <span className="text-3xl font-bold text-white/10 tracking-tight">
-              {deal.make?.slice(0, 2).toUpperCase() ?? "EV"}
-            </span>
-            <span className="text-[10px] text-white/20 uppercase tracking-widest">
-              {deal.make ?? "Electric Vehicle"}
-            </span>
-          </div>
-        )}
+        <VehicleImage
+          make={deal.make ?? undefined}
+          model={deal.model ?? undefined}
+          year={deal.year ?? undefined}
+          className="absolute inset-0 w-full h-full group-hover:scale-105 transition-transform duration-500"
+          imgClassName="w-full h-full object-contain"
+          alt={deal.vehicle_label}
+        />
 
         {/* Verified dealer badge / rank badge / domain badge */}
         {deal.dealership_name ? (
