@@ -18,6 +18,7 @@ import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 const photosRateLimiter = new RateLimiter(60 * 1000, 30); // 30 req/min per IP
 
 export const maxDuration = 10;
+export const dynamic = "force-dynamic";
 
 // Wikimedia blocks hotlinking from non-Wikimedia referrers in production.
 // Route all Wikimedia URLs through the server-side proxy which strips the Referer header.
@@ -226,6 +227,8 @@ export async function GET(request: NextRequest) {
 
 
 
+  const noStoreHeaders = { "Cache-Control": "no-store, no-cache, must-revalidate" };
+
   // For generic vehicle cards (no_market=1), go straight to the static Wikimedia map and stop.
   // Never fall through to extractVehicleImages or VinAudit — stale cache entries can contain
   // wrong-car photos that bleed across concurrent card requests.
@@ -233,15 +236,15 @@ export async function GET(request: NextRequest) {
     if (make && rawModel) {
       const staticUrl = getStaticPhotoUrl(make, rawModel, year ?? undefined);
       if (staticUrl) {
-        return NextResponse.json({ photo_urls: [proxyIfWikimedia(staticUrl)], source: "static" });
+        return NextResponse.json({ photo_urls: [proxyIfWikimedia(staticUrl)], source: "static" }, { headers: noStoreHeaders });
       }
       const makeFallbackUrl = MAKE_FALLBACK_MAP[make.toLowerCase()];
       if (makeFallbackUrl) {
-        return NextResponse.json({ photo_urls: [proxyIfWikimedia(makeFallbackUrl)], source: "make_fallback" });
+        return NextResponse.json({ photo_urls: [proxyIfWikimedia(makeFallbackUrl)], source: "make_fallback" }, { headers: noStoreHeaders });
       }
     }
     // No static photo available for this vehicle — return empty rather than risk wrong-car photo.
-    return NextResponse.json({ photo_urls: [], source: "none" });
+    return NextResponse.json({ photo_urls: [], source: "none" }, { headers: noStoreHeaders });
   }
 
   // 0b. OFFO image extractor — local CSV (Tier 0) or Supabase cache hit
