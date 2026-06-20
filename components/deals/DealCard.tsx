@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Bookmark, BookmarkCheck, ExternalLink, ShieldCheck } from "lucide-react";
 import { addToAnonGarage } from "@/lib/anon-garage";
@@ -77,6 +77,9 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
   const priceStr = deal.price ? `$${deal.price.toLocaleString()}` : "Price unlisted";
   const mileageStr = deal.mileage ? `${deal.mileage.toLocaleString()} mi` : null;
 
+  // Use real listing photo from DB when available; fall back to Wikimedia stock photo via VehicleImage
+  const [listingPhoto, setListingPhoto] = useState<string | null>(deal.photo_url);
+  useEffect(() => { setListingPhoto(deal.photo_url); }, [deal.photo_url]);
 
   const [saved, setSaved] = useState(() => isSavedLocally(deal.id));
   const [loginModalOpen, setLoginModalOpen] = useState(false);
@@ -154,16 +157,27 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
       subtext="Your garage is saved locally. Create a free account to sync across devices."
     />
     <div className={`relative flex flex-col bg-[#161b22] border border-white/[0.08] rounded-xl overflow-hidden hover:border-white/[0.16] transition-all group ${compact ? "h-full" : ""}`}>
-      {/* Photo */}
+      {/* Photo — real listing photo when available, Wikimedia stock photo as fallback */}
       <div className="relative w-full aspect-[16/9] bg-[#0d1117] overflow-hidden flex-shrink-0">
-        <VehicleImage
-          make={deal.make ?? undefined}
-          model={deal.model ?? undefined}
-          year={deal.year ?? undefined}
-          className="absolute inset-0 w-full h-full group-hover:scale-105 transition-transform duration-500"
-          imgClassName="w-full h-full object-contain"
-          alt={deal.vehicle_label}
-        />
+        {listingPhoto ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`/api/img?url=${encodeURIComponent(listingPhoto)}`}
+            alt={deal.vehicle_label}
+            className="absolute inset-0 w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+            loading={rank === 1 ? "eager" : "lazy"}
+            onError={() => setListingPhoto(null)}
+          />
+        ) : (
+          <VehicleImage
+            make={deal.make ?? undefined}
+            model={deal.model ?? undefined}
+            year={deal.year ?? undefined}
+            className="absolute inset-0 w-full h-full group-hover:scale-105 transition-transform duration-500"
+            imgClassName="w-full h-full object-contain"
+            alt={deal.vehicle_label}
+          />
+        )}
 
         {/* Verified dealer badge / rank badge / domain badge */}
         {deal.dealership_name ? (
