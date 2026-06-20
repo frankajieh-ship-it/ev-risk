@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchListings } from "@/lib/auto-dev-client";
 import { getVehicleImages } from "@/lib/vinaudit-client";
+import { searchByVin as marketCheckByVin, searchByMakeModel as marketCheckByYMM } from "@/lib/marketcheck-client";
 import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
 import { extractVehicleImages } from "@/lib/image-extractor";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
@@ -223,21 +224,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ photo_urls: [] });
   }
 
+  // 0a. Marketcheck — actual dealer photos, highest reliability.
+  // Try VIN first (exact match); if VIN fails (sold/unlisted) or no VIN, try YMM search.
+  // searchByMakeModel normalizes the model name internally.
+  {
+    let mcResult = null;
+    if (vin) {
+      mcResult = await marketCheckByVin(vin);
+    }
+    if ((!mcResult || !mcResult.success) && make && rawModel) {
+      mcResult = await marketCheckByYMM({ make, model: rawModel, year });
+    }
+    if (mcResult?.success && mcResult.photo_links.length > 0) {
+      return NextResponse.json({ photo_urls: mcResult.photo_links, source: "marketcheck" });
+    }
+  }
+
+
   // 0b. OFFO image extractor — local CSV (Tier 0) or Supabase cache hit
-  // Cache hits are only trusted when URLs come from safe stock-photo sources.
-  // Listing CDN / marketplace URLs (from when MarketCheck was active) are bypassed
-  // so the static Wikimedia map can serve the correct vehicle photo instead.
   if (make && rawModel && year) {
     try {
       const extracted = await extractVehicleImages({ make, model: rawModel, year, vin, trim: undefined });
       if (extracted.urls.length > 0 && (extracted.cache_hit || extracted.source === "offo_local")) {
-        const SAFE_PATTERNS = ["wikimedia", "vinaudit", "/api/img"];
-        const isSafe = extracted.source === "offo_local" ||
-          extracted.urls.every(u => SAFE_PATTERNS.some(p => u.includes(p)));
-        if (isSafe) {
-          return NextResponse.json({ photo_urls: extracted.urls.map(proxyIfWikimedia), source: extracted.source, quality_score: extracted.quality_score, cache_hit: extracted.cache_hit });
-        }
-        // Unsafe cache hit — fall through to static map so wrong-car photos aren't served
+        return NextResponse.json({ photo_urls: extracted.urls.map(proxyIfWikimedia), source: extracted.source, quality_score: extracted.quality_score, cache_hit: extracted.cache_hit });
       }
     } catch {
       // Fall through

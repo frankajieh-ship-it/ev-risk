@@ -123,7 +123,18 @@ export interface VehicleRecommendation {
     url_domain: string | null;
   }>;
 
-  live_listings?: undefined;
+  /** Live MarketCheck listings fetched at request time (top 5 recs only) */
+  live_listings?: Array<{
+    id: string;
+    vin: string;
+    price?: number;
+    miles?: number;
+    vdp_url?: string;
+    source?: string;
+    exterior_color?: string;
+    carfax_clean_title?: boolean;
+    dealer?: { name?: string; city?: string; state?: string };
+  }>;
 
   // Phase 2 rich specs (carried from vehicle_profiles)
   drivetrain?: "awd" | "rwd" | "fwd";
@@ -152,37 +163,6 @@ export interface VehicleRecommendation {
   rear_legroom_in?: number;
   exterior_colors?: string[];
   interior_colors?: string[];
-}
-
-export interface CuratedDealMatch {
-  id: string;
-  listing_url: string;
-  vehicle_label: string;
-  year: number;
-  make: string;
-  model: string;
-  trim: string | null;
-  price: number | null;
-  mileage: number | null;
-  location: string | null;
-  photo_url: string | null;
-  receipt_id: string | null;
-  url_domain: string | null;
-  body_type: string | null;
-  drivetrain: string | null;
-  epa_range_mi: number | null;
-  exterior_color: string | null;
-  interior_color: string | null;
-  match_score: number;
-  fit_label: string;
-  match_reasons: string[];
-}
-
-export interface DealsMatchResponse {
-  success: boolean;
-  matches: CuratedDealMatch[];
-  total_matched: number;
-  filters_applied: string[];
 }
 
 export interface DataSources {

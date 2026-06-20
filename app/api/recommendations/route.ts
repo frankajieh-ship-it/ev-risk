@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { validateMVR, type MinimumViableRoutine } from "@/types/v2";
+import { searchByMakeModel } from "@/lib/marketcheck-client";
 import { loadRangeDeltaData } from "@/lib/data";
 import { batchScoreVehicles } from "@/lib/batch-score-vehicles";
 import { buildDealerQuestionsV2 } from "@/lib/dealer-questions";
@@ -356,10 +357,13 @@ export async function POST(request: NextRequest) {
       if (f.length > 0) scored = f;
     }
 
-    // 4. Query dealer inventory (gracefully degrades)
-    const dealerMap = await fetchDealerInventoryMatches(scored);
+    // 4. Query dealer inventory + live listings in parallel (both gracefully degrade)
+    const [dealerMap, liveListingsMap] = await Promise.all([
+      fetchDealerInventoryMatches(scored),
+      fetchLiveListings(scored, 5),
+    ]);
 
-    // 5. Merge dealer listings + ownership cost + fit_reason into recommendations
+    // 5. Merge dealer listings + ownership cost + fit_reason + live listings into recommendations
     const weeklyMilesForReason = routine.weekly_miles
       ?? (routine.commute_miles_roundtrip ? routine.commute_miles_roundtrip * 5 : 100);
     const withDealers: VehicleRecommendation[] = scored.map((v) => ({
@@ -367,7 +371,7 @@ export async function POST(request: NextRequest) {
       dealer_listings: dealerMap.get(normalizeModelKey(v.make, v.model_short)) ?? [],
       ownership_cost_5y: computeOwnershipCost(v, routine),
       fit_reason: buildFitReason(v, routine, weeklyMilesForReason),
-      live_listings: undefined,
+      live_listings: liveListingsMap.get(normalizeModelKey(v.make, v.model_short)),
     }));
 
     // 6. Randomize within score tiers to avoid brand bias
@@ -756,6 +760,54 @@ function buildFitReason(
     climate: "climate resilience", budget: "budget fit", utility: "utility match",
   };
   return `Strong ${labelMap[top] ?? top} for your routine — a reliable everyday match`;
+}
+
+// Phase 2c — Live listing deep links via MarketCheck
+
+type LiveListing = NonNullable<VehicleRecommendation["live_listings"]>[0];
+
+/**
+ * Fetch live MarketCheck listings for top N vehicles in parallel.
+ * Gracefully degrades: missing API key or any failure returns empty.
+ * Each vehicle gets a 6-second wall-clock timeout.
+ */
+async function fetchLiveListings(
+  vehicles: Omit<VehicleRecommendation, "dealer_listings">[],
+  limit = 5
+): Promise<Map<string, LiveListing[]>> {
+  const result = new Map<string, LiveListing[]>();
+  if (!process.env.MARKETCHECK_API_KEY) return result;
+
+  await Promise.allSettled(
+    vehicles.slice(0, limit).map((v) =>
+      Promise.race([
+        searchByMakeModel({ make: v.make, model: v.model_short, year: v.year }).then((mc) => {
+          if (!mc.success) return;
+          const usable = mc.listings
+            .filter((l) => l.vdp_url)
+            .sort((a, b) => (a.price ?? 999999) - (b.price ?? 999999))
+            .slice(0, 5);
+          if (usable.length > 0) {
+            result.set(normalizeModelKey(v.make, v.model_short), usable.map((l) => ({
+              id: l.id,
+              vin: l.vin,
+              price: l.price,
+              miles: l.miles,
+              vdp_url: l.vdp_url,
+              source: l.source,
+              exterior_color: l.exterior_color,
+              carfax_clean_title: l.carfax_clean_title,
+              dealer: l.dealer
+                ? { name: l.dealer.name, city: l.dealer.city, state: l.dealer.state }
+                : undefined,
+            })));
+          }
+        }),
+        new Promise<void>((res) => setTimeout(res, 6000)),
+      ])
+    )
+  );
+  return result;
 }
 
 /**

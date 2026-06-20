@@ -111,9 +111,7 @@ export default function AdminDealsPage() {
   const [syncingDealers, setSyncingDealers] = useState(false);
   const [clearingGenericPhotos, setClearingGenericPhotos] = useState(false);
   const [clearingImageCache, setClearingImageCache] = useState(false);
-  const [nukingImageCache, setNukingImageCache] = useState(false);
   const [clearingBadPhotos, setClearingBadPhotos] = useState(false);
-  const [resettingPhotos, setResettingPhotos] = useState(false);
   const extractPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const todayStr = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
   const [rescopeDate, setRescopeDate] = useState(todayStr);
@@ -259,29 +257,6 @@ export default function AdminDealsPage() {
     }
   };
 
-  const handleNukeImageCache = async () => {
-    if (!adminKey) { alert("Enter your admin API key first"); return; }
-    if (!confirm("NUKE the entire vehicle_images cache? This deletes ALL cached photo entries. Photos will re-derive from the static Wikimedia map on next request. Use when stale wrong-car photos are cached.")) return;
-    setNukingImageCache(true);
-    setImportStatus("Nuking entire image cache...");
-    try {
-      const res = await fetch("/api/admin/deals-clear-image-cache?nuke=1", {
-        method: "POST",
-        headers: { Authorization: authHeader },
-      });
-      const data = await res.json();
-      if (data.success) {
-        setImportStatus(`✓ Image cache nuked (${data.cleared} rows deleted) — reload the page to see corrected photos`);
-      } else {
-        setImportStatus(`✗ ${data.error}`);
-      }
-    } catch {
-      setImportStatus("✗ Nuke failed");
-    } finally {
-      setNukingImageCache(false);
-    }
-  };
-
   const handleClearBadPhotos = async () => {
     if (!adminKey) { alert("Enter your admin API key first"); return; }
     setClearingBadPhotos(true);
@@ -302,30 +277,6 @@ export default function AdminDealsPage() {
       setImportStatus("✗ Clear bad photos failed");
     } finally {
       setClearingBadPhotos(false);
-    }
-  };
-
-  const handleResetPhotos = async () => {
-    if (!adminKey) { alert("Enter your admin API key first"); return; }
-    if (!confirm("Re-resolve ALL deal photos from the static Wikimedia map? This overwrites any wrong-car photos stored in the DB. Use this when the DB has stale/incorrect photo_url values.")) return;
-    setResettingPhotos(true);
-    setImportStatus("Resetting deal photos from static map...");
-    try {
-      const res = await fetch("/api/admin/deals-reset-photos", {
-        method: "POST",
-        headers: { Authorization: authHeader },
-      });
-      const data = await res.json();
-      if (data.success) {
-        setImportStatus(`✓ Reset ${data.updated} deal photos from static map (${data.unchanged} already correct, ${data.nulled} without make)`);
-        fetchDeals();
-      } else {
-        setImportStatus(`✗ ${data.error}`);
-      }
-    } catch {
-      setImportStatus("✗ Reset failed");
-    } finally {
-      setResettingPhotos(false);
     }
   };
 
@@ -669,17 +620,9 @@ export default function AdminDealsPage() {
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${clearingImageCache ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-red-400 border-white/[0.08]"}`}>
               {clearingImageCache ? "Clearing..." : "Clear Image Cache"}
             </button>
-            <button onClick={handleNukeImageCache} disabled={nukingImageCache}
-              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${nukingImageCache ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-red-400/70 hover:text-red-400 border-red-400/20 hover:border-red-400/40"}`}>
-              {nukingImageCache ? "Nuking..." : "Nuke Image Cache"}
-            </button>
             <button onClick={handleClearBadPhotos} disabled={clearingBadPhotos}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${clearingBadPhotos ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-yellow-400 border-white/[0.08]"}`}>
               {clearingBadPhotos ? "Clearing..." : "Clear Bad Photos"}
-            </button>
-            <button onClick={handleResetPhotos} disabled={resettingPhotos}
-              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${resettingPhotos ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}>
-              {resettingPhotos ? "Resetting..." : "Reset All Photos"}
             </button>
             <button onClick={handleSyncLocalPhotos} disabled={syncingPhotos}
               className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-2 transition-colors ${syncingPhotos ? "text-white/20 border-white/[0.04] cursor-not-allowed" : "text-white/40 hover:text-[#00d97e] border-white/[0.08]"}`}>

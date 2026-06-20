@@ -76,7 +76,7 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
   const priceStr = deal.price ? `$${deal.price.toLocaleString()}` : "Price unlisted";
   const mileageStr = deal.mileage ? `${deal.mileage.toLocaleString()} mi` : null;
 
-  // Photo — use stored photo_url from DB; fetch only if none stored
+  // Photo — client-side fetch when DB has no photo_url
   const [photoUrl, setPhotoUrl] = useState<string | null>(deal.photo_url);
   useEffect(() => {
     if (photoUrl || !deal.make) return;
