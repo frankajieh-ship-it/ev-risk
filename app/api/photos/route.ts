@@ -225,21 +225,28 @@ export async function GET(request: NextRequest) {
   }
 
   // 0a. Marketcheck — actual dealer photos, highest reliability.
-  // Try VIN first (exact match); if VIN fails (sold/unlisted) or no VIN, try YMM search.
-  // searchByMakeModel normalizes the model name internally.
+  // VIN path: exact match, always safe.
+  // YMM path: validate returned listing make matches requested make to avoid wrong-car photos.
   {
     let mcResult = null;
     if (vin) {
       mcResult = await marketCheckByVin(vin);
     }
     if ((!mcResult || !mcResult.success) && make && rawModel) {
-      mcResult = await marketCheckByYMM({ make, model: rawModel, year });
+      const ymm = await marketCheckByYMM({ make, model: rawModel, year });
+      if (ymm.success && ymm.photo_links.length > 0 && ymm.best_listing) {
+        // Validate make matches — prevents Tesla photos appearing for Hyundai/Volvo/etc.
+        const returnedMake = ymm.best_listing.build?.make?.toLowerCase().replace(/[^a-z0-9]/g, "") ?? "";
+        const expectedMake = make.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (returnedMake === expectedMake) {
+          mcResult = ymm;
+        }
+      }
     }
     if (mcResult?.success && mcResult.photo_links.length > 0) {
       return NextResponse.json({ photo_urls: mcResult.photo_links, source: "marketcheck" });
     }
   }
-
 
   // 0b. OFFO image extractor — local CSV (Tier 0) or Supabase cache hit
   if (make && rawModel && year) {

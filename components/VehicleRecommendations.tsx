@@ -15,6 +15,7 @@ import { addToAnonGarage } from "@/lib/anon-garage";
 import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import { DataSourcesBadge } from "@/components/blocks/DataSourcesBadge";
 import DealCard, { type CuratedDeal } from "@/components/deals/DealCard";
+import CuratedDealsMatch from "@/components/deals/CuratedDealsMatch";
 import type { MinimumViableRoutine } from "@/types/v2";
 import type { VehicleRecommendation, RecommendationsResponse, DataSources } from "@/types/recommendations";
 import { computeConfidencePct } from "@/lib/routine-confidence";
@@ -1895,6 +1896,11 @@ export default function VehicleRecommendations({
                 </div>
               )}
             </div>
+          )}
+
+          {/* Curated deals matched to user's EVFit routine */}
+          {refinePhase === "browse" && (
+            <CuratedDealsMatch routine={localRoutine} />
           )}
 
           {/* Dealer questions section */}

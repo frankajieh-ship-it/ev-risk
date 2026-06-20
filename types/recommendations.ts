@@ -165,6 +165,52 @@ export interface VehicleRecommendation {
   interior_colors?: string[];
 }
 
+export interface CuratedDealMatch {
+  id: string;
+  listing_url: string;
+  vehicle_label: string;
+  year: number;
+  make: string;
+  model: string;
+  trim: string | null;
+  price: number | null;
+  mileage: number | null;
+  location: string | null;
+  photo_url: string | null;
+  receipt_id: string | null;
+  url_domain: string | null;
+  body_type: string | null;
+  drivetrain: string | null;
+  epa_range_mi: number | null;
+  exterior_color: string | null;
+  interior_color: string | null;
+  match_score: number;
+  fit_label: string;
+  match_reasons: string[];
+}
+
+export interface MarketCheckFallback {
+  id: string;
+  vin: string;
+  heading: string;
+  price: number | null;
+  miles: number | null;
+  vdp_url: string | null;
+  exterior_color: string | null;
+  photo_url: string | null;
+  dealer_name: string | null;
+  dealer_city: string | null;
+  dealer_state: string | null;
+}
+
+export interface DealsMatchResponse {
+  success: boolean;
+  matches: CuratedDealMatch[];
+  total_matched: number;
+  filters_applied: string[];
+  fallback_listings?: MarketCheckFallback[];
+}
+
 export interface DataSources {
   weather_live: boolean;
   chargers_live: boolean;
