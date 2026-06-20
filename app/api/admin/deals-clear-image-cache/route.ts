@@ -48,7 +48,26 @@ export async function POST(request: NextRequest) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
 
-  // Fetch all vehicle_images rows and filter client-side (PostgREST can't do OR-contains on text)
+  const url = new URL(request.url);
+  const nuke = url.searchParams.get("nuke") === "1";
+
+  // nuke=1: wipe the entire vehicle_images table (use after wrong-car cache poisoning)
+  if (nuke) {
+    const { count, error: countError } = await supabase
+      .from("vehicle_images")
+      .select("*", { count: "exact", head: true });
+    if (countError) return NextResponse.json({ error: countError.message }, { status: 500 });
+
+    const { error: deleteError } = await supabase
+      .from("vehicle_images")
+      .delete()
+      .gt("id", "00000000-0000-0000-0000-000000000000");
+
+    if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    return NextResponse.json({ success: true, cleared: count ?? 0, message: "All vehicle_images cache entries deleted" });
+  }
+
+  // Default: only remove entries whose primary_url is from a marketplace listing CDN
   const { data: rows, error: fetchError } = await supabase
     .from("vehicle_images")
     .select("id, primary_url");

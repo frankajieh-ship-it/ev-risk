@@ -242,11 +242,18 @@ export async function GET(request: NextRequest) {
 
 
   // 0b. OFFO image extractor — local CSV (Tier 0) or Supabase cache hit
+  // Only serve cache hits whose URLs come from known-safe sources (Wikimedia, VinAudit, /api/img proxy).
+  // Listing CDN URLs cached from marketplace sources can be wrong-car photos — silently bypass them.
   if (make && rawModel && year) {
     try {
       const extracted = await extractVehicleImages({ make, model: rawModel, year, vin, trim: undefined });
       if (extracted.urls.length > 0 && (extracted.cache_hit || extracted.source === "offo_local")) {
-        return NextResponse.json({ photo_urls: extracted.urls.map(proxyIfWikimedia), source: extracted.source, quality_score: extracted.quality_score, cache_hit: extracted.cache_hit });
+        const SAFE_PATTERNS = ["upload.wikimedia.org", "vinaudit", "/api/img"];
+        const isSafe = extracted.source === "offo_local" ||
+          extracted.urls.every(u => SAFE_PATTERNS.some(p => u.includes(p)));
+        if (isSafe) {
+          return NextResponse.json({ photo_urls: extracted.urls.map(proxyIfWikimedia), source: extracted.source, quality_score: extracted.quality_score, cache_hit: extracted.cache_hit });
+        }
       }
     } catch {
       // Fall through
