@@ -229,21 +229,30 @@ export async function GET(request: NextRequest) {
 
   const noStoreHeaders = { "Cache-Control": "no-store, no-cache, must-revalidate" };
 
-  // For generic vehicle cards (no_market=1), go straight to the static Wikimedia map and stop.
+  // For generic vehicle cards (no_market=1): local CSV → static Wikimedia map → make fallback.
   // Never fall through to extractVehicleImages or VinAudit — stale cache entries can contain
   // wrong-car photos that bleed across concurrent card requests.
   if (noMarket) {
     if (make && rawModel) {
+      // 1. Local CSV (highest priority — our own curated photos)
+      if (year) {
+        const local = await extractVehicleImages({ make, model: rawModel, year, vin: undefined, trim: undefined });
+        if (local.urls.length > 0 && local.source === "offo_local") {
+          return NextResponse.json({ photo_urls: local.urls, source: "offo_local" }, { headers: noStoreHeaders });
+        }
+      }
+      // 2. Static Wikimedia map
       const staticUrl = getStaticPhotoUrl(make, rawModel, year ?? undefined);
       if (staticUrl) {
         return NextResponse.json({ photo_urls: [proxyIfWikimedia(staticUrl)], source: "static" }, { headers: noStoreHeaders });
       }
+      // 3. Make-level fallback
       const makeFallbackUrl = MAKE_FALLBACK_MAP[make.toLowerCase()];
       if (makeFallbackUrl) {
         return NextResponse.json({ photo_urls: [proxyIfWikimedia(makeFallbackUrl)], source: "make_fallback" }, { headers: noStoreHeaders });
       }
     }
-    // No static photo available for this vehicle — return empty rather than risk wrong-car photo.
+    // No photo available — return empty rather than risk wrong-car photo.
     return NextResponse.json({ photo_urls: [], source: "none" }, { headers: noStoreHeaders });
   }
 
