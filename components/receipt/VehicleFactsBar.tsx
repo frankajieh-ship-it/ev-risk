@@ -121,9 +121,9 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
   const originalRange = ev ? getOriginalRange(make, model) : 0;
   const estimatedRange = ev && originalRange > 0 ? Math.round(originalRange * (1 - degradation / 100)) : 0;
 
-  // Title status pill config
+  // Title status pill config — "clean" is amber (unverified, self-reported by seller)
   const titleConfig = {
-    clean: { label: "Clean title (listing)", icon: CheckCircle, cls: "text-green-400 bg-green-500/10 border-green-500/20" },
+    clean: { label: "Clean title (unverified)", icon: ShieldAlert, cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
     rebuilt: { label: "Rebuilt title", icon: ShieldAlert, cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
     salvage: { label: "Salvage title", icon: ShieldAlert, cls: "text-red-400 bg-red-500/10 border-red-500/20" },
     unknown: { label: "Title unknown", icon: Shield, cls: "text-white/40 bg-white/[0.06] border-white/10" },
@@ -131,10 +131,10 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
   const tc = titleConfig[titleStatus as keyof typeof titleConfig] || titleConfig.unknown;
   const TitleIcon = tc.icon;
 
-  // Accident pill config
+  // Accident pill config — "no accidents" is amber (unverified, self-reported by seller)
   const accidentConfig = {
     yes: { label: "Accidents reported (listing)", cls: "text-red-400 bg-red-500/10 border-red-500/20", icon: AlertTriangle },
-    no: { label: "No accidents reported (listing)", cls: "text-green-400 bg-green-500/10 border-green-500/20", icon: CheckCircle },
+    no: { label: "No accidents reported (unverified)", cls: "text-amber-400 bg-amber-500/10 border-amber-500/20", icon: ShieldAlert },
     unknown: { label: "Accident history unknown", cls: "text-white/40 bg-white/[0.06] border-white/10", icon: AlertTriangle },
   };
   const ac = accidentConfig[accidents as keyof typeof accidentConfig] || accidentConfig.unknown;
