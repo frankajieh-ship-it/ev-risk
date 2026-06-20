@@ -11,6 +11,8 @@
     "lint": "eslint",
     "test": "jest",
     "test:watch": "jest --watch",
+    "smoke": "node scripts/smoke-test.mjs",
+    "smoke:local": "node scripts/smoke-test.mjs http://localhost:3000",
     "prepare": "husky"
   },
   "dependencies": {

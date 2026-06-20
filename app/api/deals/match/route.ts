@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { MinimumViableRoutine } from "@/types/v2";
-import type { CuratedDealMatch, DealsMatchResponse, MarketCheckFallback } from "@/types/recommendations";
+import type { CuratedDealMatch, DealsMatchResponse } from "@/types/recommendations";
 import { parseChargeTimeHours } from "@/lib/parse-charge-time";
 import { computeRoutineFit } from "@/lib/compute-routine-fit";
-import { searchByMakeModel } from "@/lib/marketcheck-client";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,48 +12,6 @@ const supabase = createClient(
 
 const CARGO_MIN: Record<string, number> = { mid: 15, large: 25 };
 const TOWING_MIN: Record<string, number> = { light: 2000, heavy: 5000 };
-
-// Body type + drivetrain → EV candidates for MarketCheck fallback
-function fallbackCandidates(routine: MinimumViableRoutine): Array<{ make: string; model: string }> {
-  const body = routine.preferred_body_type;
-  const dt = routine.preferred_drivetrain_explicit;
-  const isAwd = dt === "awd";
-
-  if (body === "truck") {
-    return [
-      { make: "Ford", model: "F-150 Lightning" },
-      { make: "Chevrolet", model: "Silverado EV" },
-      { make: "Rivian", model: "R1T" },
-    ];
-  }
-  if (body === "hatchback") {
-    return [
-      { make: "Chevrolet", model: "Bolt EV" },
-      { make: "Nissan", model: "LEAF" },
-      { make: "Mini", model: "Cooper SE" },
-    ];
-  }
-  if (body === "sedan") {
-    return [
-      { make: "Tesla", model: "Model 3" },
-      { make: "Hyundai", model: "IONIQ 6" },
-      { make: "BMW", model: "i4" },
-    ];
-  }
-  // SUV / crossover / default
-  if (isAwd) {
-    return [
-      { make: "Tesla", model: "Model Y" },
-      { make: "Hyundai", model: "IONIQ 5" },
-      { make: "Kia", model: "EV6" },
-    ];
-  }
-  return [
-    { make: "Tesla", model: "Model Y" },
-    { make: "Hyundai", model: "IONIQ 5" },
-    { make: "Chevrolet", model: "Equinox EV" },
-  ];
-}
 
 interface DealRow {
   id: string;
@@ -244,46 +201,10 @@ export async function POST(req: NextRequest): Promise<NextResponse<DealsMatchRes
     return (dealQuality.get(b.id) ?? 50) - (dealQuality.get(a.id) ?? 50);
   });
 
-  // MarketCheck fallback — only when no curated deals matched
-  let fallbackListings: MarketCheckFallback[] | undefined;
-  if (filtered.length === 0) {
-    const candidates = fallbackCandidates(routine);
-    const results = await Promise.allSettled(
-      candidates.map((c) => searchByMakeModel({ make: c.make, model: c.model }))
-    );
-
-    const raw: MarketCheckFallback[] = [];
-    for (const result of results) {
-      if (result.status !== "fulfilled" || !result.value.success) continue;
-      for (const listing of result.value.listings) {
-        if (listing.inventory_type && listing.inventory_type !== "used") continue;
-        if (budget && listing.price && listing.price > budget) continue;
-        if (listing.miles && listing.miles > 100000) continue;
-        raw.push({
-          id: listing.id,
-          vin: listing.vin,
-          heading: listing.heading ?? `${listing.build?.year ?? ""} ${listing.build?.make ?? ""} ${listing.build?.model ?? ""}`.trim(),
-          price: listing.price ?? null,
-          miles: listing.miles ?? null,
-          vdp_url: listing.vdp_url ?? null,
-          exterior_color: listing.exterior_color ?? null,
-          photo_url: listing.media?.photo_links?.[0] ?? null,
-          dealer_name: listing.dealer?.name ?? null,
-          dealer_city: listing.dealer?.city ?? null,
-          dealer_state: listing.dealer?.state ?? null,
-        });
-        if (raw.length >= 6) break;
-      }
-      if (raw.length >= 6) break;
-    }
-    if (raw.length > 0) fallbackListings = raw;
-  }
-
   return NextResponse.json({
     success: true,
     matches: scored.slice(0, 6),
     total_matched: filtered.length,
     filters_applied: filtersApplied,
-    ...(fallbackListings ? { fallback_listings: fallbackListings } : {}),
   });
 }

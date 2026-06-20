@@ -269,7 +269,6 @@ function RoutineResultsContent() {
     make: string; model_short: string; year: number; fit_score: number; fit_label: string;
     real_world_range_mi: number; fit_reason?: string;
     matched_deals?: Array<{ id: string; listing_url: string; price: number | null; photo_url: string | null }>;
-    live_listings?: Array<{ id: string; vin: string; price?: number; miles?: number; vdp_url?: string; source?: string }>;
   }>>([]);
   const [recLoading, setRecLoading] = useState(false);
   const [filteredRoutine, setFilteredRoutine] = useState<MinimumViableRoutine | null>(null);
@@ -788,15 +787,6 @@ function RoutineResultsContent() {
                       className="px-3 py-1.5 text-xs font-medium bg-[#00d97e] text-[#0d1117] rounded-lg hover:bg-[#00c970] transition-colors"
                     >
                       {rec.matched_deals[0].price ? `$${rec.matched_deals[0].price.toLocaleString()}` : "View deal"}
-                    </a>
-                  ) : rec.live_listings && rec.live_listings[0]?.vdp_url ? (
-                    <a
-                      href={rec.live_listings[0].vdp_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 text-xs font-medium border border-white/[0.15] text-white/70 rounded-lg hover:text-white hover:border-white/30 transition-colors"
-                    >
-                      {rec.live_listings[0].price ? `$${rec.live_listings[0].price.toLocaleString()}` : "View listing"}
                     </a>
                   ) : null}
                 </div>

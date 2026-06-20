@@ -123,18 +123,7 @@ export interface VehicleRecommendation {
     url_domain: string | null;
   }>;
 
-  /** Live MarketCheck listings fetched at request time (top 5 recs only) */
-  live_listings?: Array<{
-    id: string;
-    vin: string;
-    price?: number;
-    miles?: number;
-    vdp_url?: string;
-    source?: string;
-    exterior_color?: string;
-    carfax_clean_title?: boolean;
-    dealer?: { name?: string; city?: string; state?: string };
-  }>;
+  live_listings?: undefined;
 
   // Phase 2 rich specs (carried from vehicle_profiles)
   drivetrain?: "awd" | "rwd" | "fwd";
@@ -189,26 +178,11 @@ export interface CuratedDealMatch {
   match_reasons: string[];
 }
 
-export interface MarketCheckFallback {
-  id: string;
-  vin: string;
-  heading: string;
-  price: number | null;
-  miles: number | null;
-  vdp_url: string | null;
-  exterior_color: string | null;
-  photo_url: string | null;
-  dealer_name: string | null;
-  dealer_city: string | null;
-  dealer_state: string | null;
-}
-
 export interface DealsMatchResponse {
   success: boolean;
   matches: CuratedDealMatch[];
   total_matched: number;
   filters_applied: string[];
-  fallback_listings?: MarketCheckFallback[];
 }
 
 export interface DataSources {

@@ -18,7 +18,6 @@ import { receiptBurstLimiter } from "@/lib/receipt-rate-limiter";
 import { extractVehicleData } from "@/lib/listing-scraper";
 import { extractFieldsFromText } from "@/lib/text-extractor";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
-import { searchByVin as marketCheckByVin } from "@/lib/marketcheck-client";
 import { getStaticPhotoUrl } from "@/lib/vehicle-photo";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/api-auth";
@@ -488,11 +487,6 @@ export async function POST(request: NextRequest) {
       model: result.data.model,
       year: result.data.year,
     });
-    // Marketcheck: reliable photo source via VIN lookup — runs only when VIN available
-    const marketCheckPromise = result.data.vin
-      ? marketCheckByVin(result.data.vin)
-      : Promise.resolve(null);
-
     // CarGurus direct photos API — runs in parallel when URL is a CarGurus listing.
     // CarGurus only embeds 4-6 preview photos in __remixContext (server-rendered), but their
     // internal API returns the full pictures array for a listing by numeric ID.
@@ -581,22 +575,15 @@ export async function POST(request: NextRequest) {
       if (derived >= 1 && derived <= 10) fields.efficiency_mi_per_kwh = derived;
     }
 
-    // Await Auto.dev + Marketcheck + CarGurus API enrichment in parallel.
-    // Skip both waits when no VIN was extracted.
-    const [autoDevData, mcData, cgApiPhotos] = await Promise.all([
+    // Await Auto.dev + CarGurus API enrichment in parallel.
+    const [autoDevData, cgApiPhotos] = await Promise.all([
       result.data.vin
         ? autoDevPromise
         : (autoDevPromise.catch(() => {}), Promise.resolve({ photo_urls: [], market_price_range: undefined, vin_data: undefined, source: "none" as const })),
-      marketCheckPromise,
       cgPhotosPromise,
     ]);
 
-    // Photo priority:
-    // For CarGurus URLs: scraped photos win over Marketcheck — CarGurus serves clean
-    // unbranded photos; Marketcheck indexes the dealer's own upload feed which often has
-    // watermark overlays on every shot (e.g. "Santa Monica Audi" on all 29 photos).
-    // For non-CarGurus URLs: Marketcheck wins — we can't scrape those reliably.
-    // CarGurus direct API (residential IP only) always tried first if available.
+    // Photo priority: CarGurus direct API → CarGurus scraped → scraped listing → Auto.dev → static map
     const dedupPhotos = (urls: string[]): string[] => {
       const seen = new Set<string>();
       return urls.filter(u => {
@@ -608,42 +595,16 @@ export async function POST(request: NextRequest) {
     };
     const isCarGurusUrl = !!(url && url.includes("cargurus.com"));
     const scrapedPhotos = result.data.photo_urls?.length ? dedupPhotos(result.data.photo_urls) : [];
-    const mcRaw = mcData?.success ? mcData.photo_links : [];
-    const mcVinPhotos = dedupPhotos(mcRaw);
-    if (mcRaw.length !== mcVinPhotos.length) {
-      console.log(`[Fetch] Marketcheck dedup: ${mcRaw.length} → ${mcVinPhotos.length} photos`);
-    }
-    // Marketcheck indexes dealer upload feeds which can have watermarks or be cross-contaminated
-    // (e.g. a dealer who previously had a Tesla uploads photos under the wrong VIN).
-    // For CarGurus URLs, only use Marketcheck if the photo filenames plausibly match the
-    // extracted make — e.g. "tesla" in URL when listing says Tesla, not EQE.
-    const mcMakeSlug = (fields.make ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
-    const mcPhotosMatchMake = mcVinPhotos.length === 0 || mcMakeSlug.length === 0 ||
-      mcVinPhotos.some(u => u.toLowerCase().includes(mcMakeSlug)) ||
-      // Allow for common slug variations (mercedes-benz → mercedesbenz / mercedes)
-      (mcMakeSlug === "mercedesbenz" && mcVinPhotos.some(u => /mercedes/.test(u.toLowerCase())));
-    const mcPhotosFiltered = mcPhotosMatchMake ? mcVinPhotos : [];
-    if (!mcPhotosMatchMake) {
-      console.log(`[Fetch] Marketcheck photos rejected — make slug "${mcMakeSlug}" not found in URLs (cross-contamination guard)`);
-    }
 
     if (cgApiPhotos.length >= 3) {
       fields.photo_urls = cgApiPhotos;
       console.log(`[Fetch] Using ${cgApiPhotos.length} CarGurus API photos`);
     } else if (isCarGurusUrl && scrapedPhotos.length > 0) {
-      // CarGurus scraped = clean unbranded photos from the actual listing; always prefer
-      // over Marketcheck which can have watermarks or wrong-car cross-contamination
       fields.photo_urls = scrapedPhotos;
       console.log(`[Fetch] Using ${scrapedPhotos.length} scraped CarGurus photos`);
-    } else if (mcPhotosFiltered.length >= 3) {
-      fields.photo_urls = mcPhotosFiltered;
-      console.log(`[Fetch] Using ${mcPhotosFiltered.length} Marketcheck photos`);
     } else if (scrapedPhotos.length > 0) {
       fields.photo_urls = scrapedPhotos;
       console.log(`[Fetch] Using ${scrapedPhotos.length} scraped listing photos`);
-    } else if (mcPhotosFiltered.length > 0) {
-      fields.photo_urls = mcPhotosFiltered;
-      console.log(`[Fetch] Using ${mcPhotosFiltered.length} Marketcheck photos (< 3)`);
     } else if (autoDevData && Array.isArray((autoDevData as { photo_urls: string[] }).photo_urls) && (autoDevData as { photo_urls: string[] }).photo_urls.length > 0) {
       fields.photo_urls = (autoDevData as { photo_urls: string[] }).photo_urls;
     } else {
