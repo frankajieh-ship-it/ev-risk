@@ -84,7 +84,8 @@ Nissan,LEAF,2018,9999,/vehicles/2023-nissan-leaf-sv-plus.webp,10,local
 Nissan,Ariya,2023,9999,/vehicles/2023-Nissan-ARIYA-ENGAGE+.webp,10,local
 Volkswagen,ID.4,2021,9999,/vehicles/2023-volkswagen-id.4-ev-pro-s.webp,10,local
 Volvo,C40 Recharge,2022,9999,/vehicles/2022-volvo-c40-recharge-elctric-ultimate.webp,10,local
-Volvo,XC40 Recharge,2021,9999,/vehicles/2022-volvo-c40-recharge-elctric-ultimate.webp,10,local
+Volvo,XC40 Recharge,2021,9999,/vehicles/2021-volvo-xc40-recharge.webp,10,local
+Volvo,XC40 Recharge Electric,2021,9999,/vehicles/2021-volvo-xc40-recharge.webp,10,local DB model alias
 Ford,Focus Electric,2013,2018,/vehicles/2013-ford-focus-electric-hatchback.jpg,10,local
 Ford,Focus,2013,2018,/vehicles/2013-ford-focus-electric-hatchback.jpg,10,local DB model alias
 Ford,F-150 Lightning,2022,9999,/vehicles/ford-f150-lightning-2.webp,10,local
@@ -103,3 +104,5 @@ FIAT,500e,2013,2020,/vehicles/fiat-500e-2014.webp,10,local
 Fiat,500e,2013,2020,/vehicles/fiat-500e-2014.webp,10,local lowercase alias
 Fisker,Ocean,2022,2024,/vehicles/2023-fisker-ocean.jpeg,10,local
 Fisker,Ocean One,2022,2024,/vehicles/2023-fisker-ocean.jpeg,10,local trim alias
+Kia,Niro EV,2019,9999,/vehicles/2022-kia-niro-ev.jpg,10,local
+Kia,Niro,2019,9999,/vehicles/2022-kia-niro-ev.jpg,10,local alias
