@@ -467,19 +467,19 @@ export default function VehicleRecommendations({
     }
   }, [showTieBreakQuestion]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch curated deals matching the top 3 vehicle picks
+  // Fetch curated deals matching the top 3 vehicle picks.
+  // Re-runs whenever top3 changes (including after Adjust panel updates).
   useEffect(() => {
     if (loading || top3.length === 0) return;
     // Build a set of "make|model_short" keys for quick lookup
     const top3Keys = new Set(top3.map(r => `${r.make.toLowerCase()}|${r.model_short.toLowerCase()}`));
-    fetch("/api/deals?verdict=GREEN,YELLOW&per_page=50&page=1")
+    fetch("/api/deals?per_page=50&page=1")
       .then(r => r.ok ? r.json() : null)
       .then((data: { deals?: CuratedDeal[] } | null) => {
         if (!data?.deals) return;
         const matched = data.deals.filter(d => {
           if (!d.make || !d.model) return false;
           const key = `${d.make.toLowerCase()}|${d.model.toLowerCase()}`;
-          // also try model_short partial match
           return top3Keys.has(key) || top3.some(r =>
             r.make.toLowerCase() === d.make!.toLowerCase() &&
             d.model!.toLowerCase().includes(r.model_short.toLowerCase())
@@ -488,7 +488,7 @@ export default function VehicleRecommendations({
         setMatchedDeals(matched);
       })
       .catch(() => {});
-  }, [loading, top3.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loading, top3]);  
 
   // Available category filters
   const availableCategories = CATEGORY_FILTERS.filter(
