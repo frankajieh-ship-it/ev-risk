@@ -882,8 +882,9 @@ export default function VehicleRecommendations({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ duration: 0.15 }}
-                    className="bg-white/[0.05] border border-white/[0.10] rounded-2xl p-4 space-y-4"
+                    className="bg-white/[0.05] border border-white/[0.10] rounded-2xl p-4"
                   >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
                     {/* Budget */}
                     <div>
                       <p className="text-xs font-semibold text-white/60 mb-1.5">Budget</p>
@@ -1397,8 +1398,10 @@ export default function VehicleRecommendations({
                       </div>
                     </div>
 
+                    </div>{/* end grid */}
+
                     {/* Actions */}
-                    <div className="flex items-center gap-2 pt-1 border-t border-white/[0.08]">
+                    <div className="flex items-center gap-2 pt-4 border-t border-white/[0.08]">
                       <button
                         onClick={() => {
                           recomputeWithRoutine(localRoutine);
@@ -1565,25 +1568,9 @@ export default function VehicleRecommendations({
             </div>
           )}
 
-          {/* Category filter pills — only in browse phase */}
-          {refinePhase === "browse" && availableCategories.length > 2 && (
+          {/* View mode + Narrow to Top 3 toolbar — only in browse phase */}
+          {refinePhase === "browse" && (
             <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
-              {availableCategories.map((cat) => (
-                <button
-                  key={cat.value}
-                  onClick={() => {
-                    setCategoryFilter(cat.value);
-                    trackEvent("recommendation_filtered", { filter: cat.value });
-                  }}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                    categoryFilter === cat.value
-                      ? "bg-[#00d97e] text-[#0d1117]"
-                      : "bg-white/[0.07] text-white/60 hover:bg-white/[0.10] hover:text-white/80"
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
               <button
                 onClick={() => {
                   setRefinePhase("refine");
