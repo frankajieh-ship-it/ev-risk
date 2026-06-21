@@ -86,6 +86,7 @@ Volkswagen,ID.4,2021,9999,/vehicles/2023-volkswagen-id.4-ev-pro-s.webp,10,local
 Volvo,C40 Recharge,2022,9999,/vehicles/2022-volvo-c40-recharge-elctric-ultimate.webp,10,local
 Volvo,XC40 Recharge,2021,9999,/vehicles/2022-volvo-c40-recharge-elctric-ultimate.webp,10,local
 Ford,Focus Electric,2013,2018,/vehicles/2013-ford-focus-electric-hatchback.jpg,10,local
+Ford,Focus,2013,2018,/vehicles/2013-ford-focus-electric-hatchback.jpg,10,local DB model alias
 Ford,F-150 Lightning,2022,9999,/vehicles/ford-f150-lightning-2.webp,10,local
 Audi,e-tron,2019,9999,/vehicles/audi-a6-sportback-e-tron-a6-e-tron.jpg,10,local
 GMC,Hummer EV,2022,9999,/vehicles/2024-gmc-hummer-ev.webp,10,local
@@ -95,3 +96,8 @@ Nissan,Leaf,2011,2017,/vehicles/2012-nissan-leaf-sv.jpg,10,local
 Nissan,LEAF,2011,2017,/vehicles/2012-nissan-leaf-sv.jpg,10,local
 Mitsubishi,i-MiEV,2011,2017,/vehicles/2012-mitsubishi-i-miev.jpg,10,local
 BMW,i3,2014,2021,/vehicles/2014-bmw-i3.webp,10,local
+Volkswagen,e-Golf,2015,2020,/vehicles/2016-volkswagen-e-golf-se.webp,10,local
+Kia,Soul EV,2014,2021,/vehicles/2015-kia-soul-ev+.jpg,10,local
+Kia,Soul,2014,2021,/vehicles/2015-kia-soul-ev+.jpg,10,local DB model alias
+FIAT,500e,2013,2020,/vehicles/fiat-500e-2014.webp,10,local
+Fiat,500e,2013,2020,/vehicles/fiat-500e-2014.webp,10,local lowercase alias
