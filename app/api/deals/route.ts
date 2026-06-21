@@ -100,6 +100,8 @@ export async function GET(request: NextRequest) {
   const yearMin = params.get("year_min") ? parseInt(params.get("year_min")!) : null;
   const yearMax = params.get("year_max") ? parseInt(params.get("year_max")!) : null;
   const location = params.get("location")?.trim() ?? null;
+  const verdictParam = params.get("verdict")?.trim() ?? null; // e.g. "GREEN" or "GREEN,YELLOW"
+  const titleStatus = params.get("title_status")?.trim() ?? null; // e.g. "clean"
   const sort = params.get("sort") ?? "quality";
 
   // Pagination applied AFTER dedup — fetch all matching rows first, dedup, then slice.
@@ -122,7 +124,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("curated_deals")
-    .select("id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, receipt_id, photo_url, last_analyzed_at, vin, dealership_id, dealerships(name, slug)")
+    .select("id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, receipt_id, photo_url, last_analyzed_at, vin, dealership_id, verdict, title_status, dealerships(name, slug)")
     .eq("is_active", true)
     .not("vehicle_label", "is", null)
     .not("make", "is", null)
@@ -147,6 +149,17 @@ export async function GET(request: NextRequest) {
   }
   if (yearMax && !isNaN(yearMax)) {
     query = query.lte("year", yearMax);
+  }
+  if (verdictParam) {
+    const verdicts = verdictParam.split(",").map((v) => v.trim().toUpperCase()).filter(Boolean);
+    if (verdicts.length === 1) {
+      query = query.eq("verdict", verdicts[0]);
+    } else if (verdicts.length > 1) {
+      query = query.in("verdict", verdicts);
+    }
+  }
+  if (titleStatus) {
+    query = query.eq("title_status", titleStatus);
   }
   if (location) {
     if (location.length === 2) {

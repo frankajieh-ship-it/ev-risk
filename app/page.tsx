@@ -776,6 +776,11 @@ export default function Home() {
       </section>
 
 
+      {/* ── Section 7: Deal Watch ────────────────────────────────────── */}
+      <div className="bg-[#0d1117]">
+        <FeaturedDeals />
+      </div>
+
       {/* ── Section 8: FAQ + Contact ──────────────────────────────────── */}
       <section className="py-10 md:py-16 bg-[#111827]">
         <div className="max-w-5xl mx-auto px-4">

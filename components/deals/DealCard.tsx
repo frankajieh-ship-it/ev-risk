@@ -27,6 +27,8 @@ export interface CuratedDeal {
   dealership_id?: string | null;
   dealership_name?: string | null;
   dealership_slug?: string | null;
+  verdict?: string | null;
+  title_status?: string | null;
 }
 
 const SAVED_DEALS_KEY = "offo_saved_deals";

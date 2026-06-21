@@ -9,7 +9,15 @@ import DealCard, { type CuratedDeal } from "@/components/deals/DealCard";
 import { useEventTracking } from "@/hooks/useEventTracking";
 type SortOption = "price_asc" | "price_desc" | "mileage" | "newest";
 
-const MAKES = ["All Makes", "Tesla", "Chevrolet", "Hyundai", "Volkswagen", "Ford", "Kia", "Nissan", "BMW", "Rivian"];
+const MAKES = ["All Makes", "Tesla", "Chevrolet", "Hyundai", "Volkswagen", "Ford", "Kia", "Nissan", "BMW", "Rivian", "Mitsubishi", "Volvo", "Audi", "Mercedes-Benz", "FIAT"];
+const YEAR_OPTIONS = [
+  { label: "Any Year", min: null, max: null },
+  { label: "2022 or newer", min: 2022, max: null },
+  { label: "2020 or newer", min: 2020, max: null },
+  { label: "2018 or newer", min: 2018, max: null },
+  { label: "2015 or newer", min: 2015, max: null },
+  { label: "2014 or older", min: null, max: 2014 },
+];
 const US_STATES = ["Any State","AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"];
 const PRICE_OPTIONS = [
   { label: "Any Price", value: null },
@@ -53,6 +61,8 @@ function DealsPageInner() {
   });
   const [priceMax, setPriceMax] = useState<number | null>(null);
   const [mileageMax, setMileageMax] = useState<number | null>(null);
+  const [yearMin, setYearMin] = useState<number | null>(null);
+  const [yearMax, setYearMax] = useState<number | null>(null);
   const [locationState, setLocationState] = useState(() => {
     if (!paramState) return "Any State";
     return US_STATES.find((s) => s.toLowerCase() === paramState.toLowerCase()) ?? "Any State";
@@ -66,6 +76,8 @@ function DealsPageInner() {
       if (make !== "All Makes") params.set("make", make);
       if (priceMax) params.set("price_max", String(priceMax));
       if (mileageMax) params.set("mileage_max", String(mileageMax));
+      if (yearMin) params.set("year_min", String(yearMin));
+      if (yearMax) params.set("year_max", String(yearMax));
       if (locationState !== "Any State") params.set("location", locationState);
 
       const res = await fetch(`/api/deals?${params}`);
@@ -81,7 +93,7 @@ function DealsPageInner() {
     } finally {
       setLoading(false);
     }
-  }, [make, priceMax, mileageMax, locationState, sort]);
+  }, [make, priceMax, mileageMax, yearMin, yearMax, locationState, sort]);
 
   useEffect(() => {
     fetchDeals(1);
@@ -114,14 +126,21 @@ function DealsPageInner() {
             )}
             {total > 0 && <span className="text-white/15 text-sm">·</span>}
             <span className="text-white/25 text-xs">Updated every 24 hours — some listings may have sold</span>
-            {(make !== "All Makes" || locationState !== "Any State") && (
+            {(make !== "All Makes" || locationState !== "Any State" || yearMin || yearMax || priceMax || mileageMax) && (
               <>
                 <span className="text-white/15 text-sm">·</span>
                 <button
-                  onClick={() => { setMake("All Makes"); setLocationState("Any State"); }}
+                  onClick={() => {
+                    setMake("All Makes");
+                    setLocationState("Any State");
+                    setPriceMax(null);
+                    setMileageMax(null);
+                    setYearMin(null);
+                    setYearMax(null);
+                  }}
                   className="text-xs text-[#00d97e]/70 hover:text-[#00d97e] transition-colors underline underline-offset-2"
                 >
-                  Clear filters
+                  Clear all filters
                 </button>
               </>
             )}
@@ -166,6 +185,24 @@ function DealsPageInner() {
             {MILEAGE_OPTIONS.map((o) => (
               <option key={o.label} value={o.value ?? ""}>{o.label}</option>
             ))}
+          </select>
+
+          {/* Year select */}
+          <select
+            value={yearMin !== null ? `min:${yearMin}` : yearMax !== null ? `max:${yearMax}` : ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (!v) { setYearMin(null); setYearMax(null); }
+              else if (v.startsWith("min:")) { setYearMin(parseInt(v.slice(4))); setYearMax(null); }
+              else if (v.startsWith("max:")) { setYearMax(parseInt(v.slice(4))); setYearMin(null); }
+              trackEvent("deals_filter_applied", { filter: "year", value: v || "any" });
+            }}
+            className="bg-[#161b22] border border-white/[0.08] text-white/70 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-[#00d97e]/40"
+          >
+            {YEAR_OPTIONS.map((o) => {
+              const val = o.min ? `min:${o.min}` : o.max ? `max:${o.max}` : "";
+              return <option key={o.label} value={val}>{o.label}</option>;
+            })}
           </select>
 
           {/* State select */}
