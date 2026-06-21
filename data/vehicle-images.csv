@@ -105,4 +105,7 @@ Fiat,500e,2013,2020,/vehicles/fiat-500e-2014.webp,10,local lowercase alias
 Fisker,Ocean,2022,2024,/vehicles/2023-fisker-ocean.jpeg,10,local
 Fisker,Ocean One,2022,2024,/vehicles/2023-fisker-ocean.jpeg,10,local trim alias
 Kia,Niro EV,2019,9999,/vehicles/2022-kia-niro-ev.jpg,10,local
+Kia,Niro EV EX,2019,9999,/vehicles/2022-kia-niro-ev.jpg,10,local trim alias
 Kia,Niro,2019,9999,/vehicles/2022-kia-niro-ev.jpg,10,local alias
+VinFast,VF8,2023,9999,/vehicles/2023-vinfast-vf.webp,10,local
+Volkswagen,ID.4 1st Edition,2021,2021,/vehicles/2021_volkswagen_id_4.jpeg,10,local year alias
