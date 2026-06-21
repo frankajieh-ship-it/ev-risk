@@ -101,3 +101,5 @@ Kia,Soul EV,2014,2021,/vehicles/2015-kia-soul-ev+.jpg,10,local
 Kia,Soul,2014,2021,/vehicles/2015-kia-soul-ev+.jpg,10,local DB model alias
 FIAT,500e,2013,2020,/vehicles/fiat-500e-2014.webp,10,local
 Fiat,500e,2013,2020,/vehicles/fiat-500e-2014.webp,10,local lowercase alias
+Fisker,Ocean,2022,2024,/vehicles/2023-fisker-ocean.jpeg,10,local
+Fisker,Ocean One,2022,2024,/vehicles/2023-fisker-ocean.jpeg,10,local trim alias
