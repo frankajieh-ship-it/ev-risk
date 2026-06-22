@@ -185,13 +185,21 @@ export async function POST(request: NextRequest) {
               headers: { 'content-type': 'text/html' },
             });
           }
-          console.warn(`[Proxy Fetch] ScrapingBee ${siteName} result blocked — falling through to direct fetch`);
+          console.warn(`[Proxy Fetch] ScrapingBee ${siteName} result blocked — returning blocked immediately`);
+          // AutoTrader/Cars.com use Akamai — direct fetch always fails too. Return blocked
+          // immediately so the scraper shows a useful error rather than timing out on direct fetch.
+          return NextResponse.json({ success: false, error: 'blocked', blocked: true }, { status: 403 });
         } else {
-          console.warn(`[Proxy Fetch] ScrapingBee ${siteName} returned ${sbRes.status} — falling through to direct fetch`);
+          console.warn(`[Proxy Fetch] ScrapingBee ${siteName} returned ${sbRes.status}`);
+          return NextResponse.json({ success: false, error: `ScrapingBee ${sbRes.status}`, blocked: true }, { status: 403 });
         }
       } catch (sbErr) {
         clearTimeout(sbTimeoutId);
-        console.warn(`[Proxy Fetch] ScrapingBee ${isAutoTrader ? 'AutoTrader' : 'Cars.com'} failed:`, sbErr instanceof Error ? sbErr.message : String(sbErr));
+        const sbMsg = sbErr instanceof Error ? sbErr.message : String(sbErr);
+        console.warn(`[Proxy Fetch] ScrapingBee ${isAutoTrader ? 'AutoTrader' : 'Cars.com'} failed:`, sbMsg);
+        // ScrapingBee threw (likely timeout abort) — return blocked so scraper doesn't waste
+        // time on a direct fetch that Akamai will immediately reject.
+        return NextResponse.json({ success: false, error: 'proxy_error', blocked: true }, { status: 503 });
       }
     }
 
