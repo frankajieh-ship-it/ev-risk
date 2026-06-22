@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
     // __remixContext (VIN, photos, history). Googlebot direct is a fast cheap fallback.
     if (parsedUrl.hostname.includes('cargurus.com') && SCRAPINGBEE_KEY) {
       const sbController = new AbortController();
-      const sbTimeoutId = setTimeout(() => sbController.abort(), 30000);
+      const sbTimeoutId = setTimeout(() => sbController.abort(), 50000);
       try {
         console.log('[Proxy Fetch] CarGurus: trying ScrapingBee primary');
         const sbParams = new URLSearchParams({

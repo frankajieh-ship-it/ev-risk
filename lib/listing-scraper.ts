@@ -1276,7 +1276,7 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
 
     // CarGurus uses Nimbleway. AutoTrader/Cars.com/CarMax use ScrapingBee stealth_proxy (~32s).
     const jsRenderSources: VehicleData['dataSource'][] = ['cargurus'];
-    const sourceProxyCap = jsRenderSources.includes(dataSource) ? 32000 : 50000;
+    const sourceProxyCap = jsRenderSources.includes(dataSource) ? 48000 : 50000;
 
     if (remainingBudget() > 1000) {
       const proxyStart = Date.now();
