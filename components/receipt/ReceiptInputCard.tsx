@@ -339,19 +339,25 @@ export default function ReceiptInputCard({
     }
     if (!/^https?:\/\/.+/.test(pasted)) return;
     if (isExtracting || pasted === lastAutoExtractedUrl.current) return;
-    setListingUrl(pasted);
-    lastAutoExtractedUrl.current = pasted;
+    // Strip doubled URLs before storing (e.g. copy-paste artifact from some browsers)
+    let cleanPasted = pasted;
+    const secondHttps = cleanPasted.indexOf("https://", 8);
+    const secondHttp = cleanPasted.indexOf("http://", 7);
+    if (secondHttps !== -1) cleanPasted = cleanPasted.slice(0, secondHttps);
+    else if (secondHttp !== -1) cleanPasted = cleanPasted.slice(0, secondHttp);
+    setListingUrl(cleanPasted);
+    lastAutoExtractedUrl.current = cleanPasted;
     setExtractError(null);
-    if (isFacebookMarketplaceUrl(pasted)) { setShowFbPasteModal(true); return; }
-    if (isCarGurusSearchUrl(pasted)) {
-      setCarGurusCleanId(extractCarGurusListingId(pasted));
+    if (isFacebookMarketplaceUrl(cleanPasted)) { setShowFbPasteModal(true); return; }
+    if (isCarGurusSearchUrl(cleanPasted)) {
+      setCarGurusCleanId(extractCarGurusListingId(cleanPasted));
       setShowCarGurusBanner(true);
       return;
     }
     setShowCarGurusBanner(false);
     autoRetryDoneRef.current = false;
     if (autoExtractTimerRef.current) clearTimeout(autoExtractTimerRef.current);
-    autoExtractTimerRef.current = setTimeout(() => handleExtract(pasted), 300);
+    autoExtractTimerRef.current = setTimeout(() => handleExtract(cleanPasted), 300);
   };
 
   // ── Extraction ─────────────────────────────────────────────────────────────
@@ -379,7 +385,13 @@ export default function ReceiptInputCard({
     try {
       const bodyPayload: Record<string, string> = {};
       if (urlOverride || pasteMode === "url") {
-        bodyPayload.url = urlOverride ?? listingUrl.trim();
+        let rawUrl = urlOverride ?? listingUrl.trim();
+        // Fix doubled URLs (e.g. "https://autotrader.com/...https://autotrader.com/...")
+        const secondHttps = rawUrl.indexOf("https://", 8);
+        const secondHttp = rawUrl.indexOf("http://", 7);
+        if (secondHttps !== -1) rawUrl = rawUrl.slice(0, secondHttps);
+        else if (secondHttp !== -1) rawUrl = rawUrl.slice(0, secondHttp);
+        bodyPayload.url = rawUrl;
       } else {
         bodyPayload.text = listingText.trim();
       }
