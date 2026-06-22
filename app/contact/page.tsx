@@ -163,7 +163,7 @@ function ContactForm() {
                 Create a free profile so we can link your message directly to your receipts and history — no back-and-forth needed.
               </p>
               <Link
-                href="/login"
+                href="/auth/login"
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#00d97e] hover:text-[#00c970] transition-colors"
               >
                 Create a free profile →
