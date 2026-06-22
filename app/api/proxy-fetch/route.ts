@@ -49,8 +49,10 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { url } = body;
-    // Clamp timeout — never trust caller-supplied value
-    const timeout = Math.min(Math.max(Number(body.timeout) || 10000, 1000), 30000);
+    // Clamp timeout — AutoTrader stealth_proxy via ScrapingBee needs up to 55s
+    const isAutoTraderUrl = typeof body.url === 'string' && body.url.includes('autotrader.com');
+    const maxTimeout = isAutoTraderUrl ? 55000 : 30000;
+    const timeout = Math.min(Math.max(Number(body.timeout) || 10000, 1000), maxTimeout);
 
     if (!url || typeof url !== 'string') {
       return NextResponse.json(
