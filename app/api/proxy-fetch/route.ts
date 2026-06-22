@@ -195,22 +195,63 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // --- CarGurus: ScrapingBee primary (residential proxy + JS render) ---
-    // CarGurus blocks datacenter IPs and Googlebot UA. ScrapingBee with premium_proxy
-    // uses residential IPs and a real browser session — reliably returns full HTML with
-    // __remixContext (VIN, photos, history). Googlebot direct is a fast cheap fallback.
+    // --- CarGurus: Googlebot direct (free, fast, ~2s when it works) ---
+    // Try this first. CarGurus serves rendered HTML to Googlebot UA from Netlify edge IPs
+    // often enough that it should be the primary path. ScrapingBee is the fallback.
+    if (parsedUrl.hostname.includes('cargurus.com')) {
+      try {
+        const cgController = new AbortController();
+        const cgTimeoutId = setTimeout(() => cgController.abort(), 15000);
+        const cgRes = await fetch(url, {
+          signal: cgController.signal,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': 'https://www.google.com/',
+          },
+          redirect: 'follow',
+        });
+        clearTimeout(cgTimeoutId);
+        if (cgRes.ok) {
+          const cgHtml = await cgRes.text();
+          const hasRemixContext = cgHtml.includes('__remixContext') || cgHtml.includes('__NEXT_DATA__');
+          const hasListingId = cgListingId ? cgHtml.includes(cgListingId) : true;
+          const isBlocked = cgHtml.length < 5000 || cgHtml.toLowerCase().includes('just a moment');
+          console.log(`[Proxy Fetch] CarGurus Googlebot: length=${cgHtml.length} hasRemix=${hasRemixContext} hasListingId=${hasListingId} blocked=${isBlocked}`);
+          if (!isBlocked && hasListingId && hasRemixContext) {
+            return NextResponse.json({
+              success: true,
+              html: cgHtml,
+              contentLength: cgHtml.length,
+              status: 200,
+              fetchMethod: 'googlebot_direct',
+              headers: { 'content-type': 'text/html' },
+            });
+          }
+        }
+        console.warn('[Proxy Fetch] CarGurus Googlebot blocked — falling through to ScrapingBee');
+      } catch (cgErr) {
+        console.warn('[Proxy Fetch] CarGurus Googlebot failed:', cgErr instanceof Error ? cgErr.message : String(cgErr));
+      }
+    }
+
+    // --- CarGurus: ScrapingBee fallback (residential proxy + JS render, slow but reliable) ---
+    // Only reached when Googlebot is blocked. Uses wait_for_selector instead of static wait
+    // to return as soon as listing content appears (saves 2-5s vs wait:8000).
     if (parsedUrl.hostname.includes('cargurus.com') && SCRAPINGBEE_KEY) {
       const sbController = new AbortController();
       const sbTimeoutId = setTimeout(() => sbController.abort(), 50000);
       try {
-        console.log('[Proxy Fetch] CarGurus: trying ScrapingBee primary');
+        console.log('[Proxy Fetch] CarGurus: trying ScrapingBee fallback');
         const sbParams = new URLSearchParams({
           api_key: SCRAPINGBEE_KEY,
           url,
           render_js: 'true',
           premium_proxy: 'true',
           country_code: 'us',
-          wait: '8000',
+          wait_for: '.listing-container,[data-cg-ft="vdp-listing-price"],h1',
+          wait: '3000',
         });
         const sbRes = await fetch(`https://app.scrapingbee.com/api/v1/?${sbParams}`, {
           signal: sbController.signal,
@@ -234,52 +275,13 @@ export async function POST(request: NextRequest) {
               headers: { 'content-type': 'text/html' },
             });
           }
-          console.warn(`[Proxy Fetch] ScrapingBee result insufficient — falling through to Googlebot`);
+          console.warn(`[Proxy Fetch] ScrapingBee result insufficient — falling through to Nimbleway`);
         } else {
-          console.warn(`[Proxy Fetch] ScrapingBee returned ${sbRes.status} — falling through to Googlebot`);
+          console.warn(`[Proxy Fetch] ScrapingBee returned ${sbRes.status} — falling through to Nimbleway`);
         }
       } catch (sbErr) {
         clearTimeout(sbTimeoutId);
         console.warn('[Proxy Fetch] ScrapingBee failed:', sbErr instanceof Error ? sbErr.message : String(sbErr));
-      }
-    }
-
-    // --- CarGurus: Googlebot direct fallback (free, fast, sometimes works) ---
-    if (parsedUrl.hostname.includes('cargurus.com')) {
-      try {
-        const cgController = new AbortController();
-        const cgTimeoutId = setTimeout(() => cgController.abort(), 15000);
-        const cgRes = await fetch(url, {
-          signal: cgController.signal,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': 'https://www.google.com/',
-          },
-          redirect: 'follow',
-        });
-        clearTimeout(cgTimeoutId);
-        if (cgRes.ok) {
-          const cgHtml = await cgRes.text();
-          const hasRemixContext = cgHtml.includes('__remixContext') || cgHtml.includes('__NEXT_DATA__');
-          const hasListingId = cgListingId ? cgHtml.includes(cgListingId) : true;
-          const isBlocked = cgHtml.length < 5000 || cgHtml.toLowerCase().includes('just a moment');
-          console.log(`[Proxy Fetch] Googlebot fallback: length=${cgHtml.length} hasRemix=${hasRemixContext} hasListingId=${hasListingId}`);
-          if (!isBlocked && hasListingId && hasRemixContext) {
-            return NextResponse.json({
-              success: true,
-              html: cgHtml,
-              contentLength: cgHtml.length,
-              status: 200,
-              fetchMethod: 'googlebot_direct',
-              headers: { 'content-type': 'text/html' },
-            });
-          }
-        }
-        console.warn('[Proxy Fetch] Googlebot fallback blocked — falling through to Nimbleway');
-      } catch (cgErr) {
-        console.warn('[Proxy Fetch] Googlebot fallback failed:', cgErr instanceof Error ? cgErr.message : String(cgErr));
       }
     }
 
