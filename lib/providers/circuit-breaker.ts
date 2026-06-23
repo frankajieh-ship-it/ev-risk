@@ -50,7 +50,7 @@ const windows: Record<ProviderName, Entry[]> = {
   anthropic: [],
 }; // gemini + openai retained for type compat but not in DEFAULT_ORDER
 
-const DEFAULT_ORDER: ProviderName[] = ["grok", "anthropic"];
+const DEFAULT_ORDER: ProviderName[] = ["grok", "anthropic", "openai"];
 
 function prune(entries: Entry[]): Entry[] {
   const cutoff = Date.now() - WINDOW_MS;
