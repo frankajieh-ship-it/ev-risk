@@ -84,6 +84,5 @@ export default async function handler() {
   console.log("[send-weekly-digest] All batches complete:", JSON.stringify(batchResults));
 }
 
-export const config: Config = {
-  schedule: "0 13 * * 1",
-};
+// Paused — no automated emails until sequences are reviewed and approved.
+export const config: Config = {};
