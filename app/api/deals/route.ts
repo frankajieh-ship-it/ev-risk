@@ -116,7 +116,9 @@ export async function GET(request: NextRequest) {
     mileage:    { col: "mileage", asc: true  },
     newest:     { col: "year",    asc: false },
   };
-  const { col: sortCol, asc: sortAsc } = sortMap[sort] ?? sortMap.price_asc;
+  // "value" sort = mileage × price ascending, computed in memory after fetch
+  const isValueSort = sort === "value";
+  const { col: sortCol, asc: sortAsc } = sortMap[isValueSort ? "price_asc" : sort] ?? sortMap.price_asc;
 
   // When a location filter is active we need a higher cap — state-specific deals
   // may all rank below the global top 500, causing the filter to appear broken.
@@ -210,6 +212,16 @@ export async function GET(request: NextRequest) {
     const bIsDealer = b.dealership_id != null ? 1 : 0;
     return bIsDealer - aIsDealer;
   });
+
+  // Value sort: mileage × price ascending (lowest combined score = best deal)
+  // Applied after dedup so it ranks across the full candidate set, not just one page.
+  if (isValueSort) {
+    deduped.sort((a, b) => {
+      const aScore = (a.price ?? Infinity) * (a.mileage ?? Infinity);
+      const bScore = (b.price ?? Infinity) * (b.mileage ?? Infinity);
+      return aScore - bScore;
+    });
+  }
 
   const total = deduped.length;
   const offset = (page - 1) * perPage;

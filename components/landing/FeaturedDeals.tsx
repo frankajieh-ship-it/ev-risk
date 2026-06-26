@@ -13,7 +13,7 @@ export default function FeaturedDeals() {
   const viewedFired = useRef(false);
 
   useEffect(() => {
-    fetch("/api/deals?sort=mileage&per_page=10&page=1")
+    fetch("/api/deals?sort=value&per_page=10&page=1")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data?.deals?.length) {
@@ -43,7 +43,7 @@ export default function FeaturedDeals() {
             Today&apos;s Best EV Deals
           </h2>
           <p className="text-white/40 text-sm mt-1 max-w-md">
-            Curated EV listings sorted by lowest mileage — run analysis to see if it&apos;s a good deal.
+            Curated EV listings sorted by best value (lowest price × mileage) — run analysis to see if it&apos;s a good deal.
           </p>
         </div>
         <Link
