@@ -18,6 +18,8 @@ export type ListingSignalId =
   | "routine_impossible"
   | "dcfc_required_but_absent"
   | "odometer_title_mismatch"
+  | "repair_risk_critical"
+  | "open_safety_recall"
   // Fit penalties (deduct from 100)
   | "no_home_charging"
   | "single_site_dependency"
@@ -33,6 +35,8 @@ export type ListingSignalId =
   | "battery_replaced_unverified"
   | "dealer_addon_pressure"
   | "model_known_limit_vs_routine"
+  | "service_network_sparse"
+  | "independent_shop_restricted"
   // Evidence bonuses (add to 50)
   | "clean_title_explicit"
   | "battery_report_recent"
@@ -83,6 +87,8 @@ export const HARD_BLOCKERS: ReceiptRule[] = [
   { id: "routine_impossible", type: "hard_blocker", category: "routine_friction", points: 0, label: "Routine cannot work with this charging setup", risk_v2: 0, confidence_v2: 0, evidence_type: "negative" },
   { id: "dcfc_required_but_absent", type: "hard_blocker", category: "routine_friction", points: 0, label: "DC fast charging required but not available on this model", risk_v2: 0, confidence_v2: 0, evidence_type: "negative" },
   { id: "odometer_title_mismatch", type: "hard_blocker", category: "listing_risk", points: 0, label: "Odometer, title, or VIN inconsistency detected", risk_v2: 0, confidence_v2: 0, evidence_type: "negative" },
+  { id: "repair_risk_critical", type: "hard_blocker", category: "listing_risk", points: -15, label: "Brand has critical repair/service risk (bankruptcy, discontinued, or no service network)", risk_v2: 3, confidence_v2: 0, evidence_type: "negative" },
+  { id: "open_safety_recall", type: "hard_blocker", category: "listing_risk", points: -12, label: "Open safety recall confirmed on NHTSA — remedy completion unverified", risk_v2: 2, confidence_v2: 0, evidence_type: "negative" },
 ];
 
 // --- Fit Penalties (deduct from 100) ---
@@ -104,6 +110,9 @@ export const FIT_PENALTIES: ReceiptRule[] = [
   { id: "battery_replaced_unverified", type: "fit_penalty", category: "listing_risk", points: -12, label: "Battery replacement mentioned but proof or source unclear", risk_v2: 2, confidence_v2: 0, evidence_type: "negative" },
   { id: "dealer_addon_pressure", type: "fit_penalty", category: "listing_risk", points: -10, label: "Dealer add-ons or fees likely inflate out-the-door cost", risk_v2: 2, confidence_v2: 0, evidence_type: "negative" },
   { id: "model_known_limit_vs_routine", type: "fit_penalty", category: "listing_risk", points: -12, label: "Known model limitation conflicts with expected usage", risk_v2: 2, confidence_v2: 0, evidence_type: "friction" },
+  // Service / repair access
+  { id: "service_network_sparse", type: "fit_penalty", category: "listing_risk", points: -5, label: "Sparse service network — verify dealer access before committing", risk_v2: 1, confidence_v2: 0, evidence_type: "friction" },
+  { id: "independent_shop_restricted", type: "fit_penalty", category: "listing_risk", points: -4, label: "Independent shops cannot service this brand — dealer-only for warranty and software", risk_v2: 1, confidence_v2: 0, evidence_type: "friction" },
 ];
 
 // --- Evidence Bonuses (add to 50) ---

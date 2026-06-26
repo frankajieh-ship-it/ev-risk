@@ -219,7 +219,7 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     // Hedged generation: OpenAI starts immediately, Anthropic at T+4s, Grok at T+8s
     const hedgeResult = await hedgedGenerate({
       systemPrompt: SYSTEM_PROMPT,
-      userPrompt: buildUserPrompt(input),
+      userPrompt: await buildUserPrompt(input),
       jsonSchema: RECEIPT_JSON_SCHEMA as Record<string, unknown>,
       schemaName: "receipt",
       temperature: 0.3,

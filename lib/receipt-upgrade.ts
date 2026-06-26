@@ -81,7 +81,7 @@ export async function runReceiptUpgrade(payload: UpgradePayload): Promise<void> 
 
   const hedgeResult = await hedgedGenerate({
     systemPrompt: SYSTEM_PROMPT,
-    userPrompt: buildUserPrompt(input),
+    userPrompt: await buildUserPrompt(input),
     jsonSchema: RECEIPT_JSON_SCHEMA as Record<string, unknown>,
     schemaName: "receipt",
     temperature: 0.3,

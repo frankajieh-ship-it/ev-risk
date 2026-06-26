@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   try {
     const hedgeResult = await hedgedGenerate({
       systemPrompt: SYSTEM_PROMPT,
-      userPrompt: buildUserPrompt(input),
+      userPrompt: await buildUserPrompt(input),
       jsonSchema: RECEIPT_JSON_SCHEMA as Record<string, unknown>,
       schemaName: "receipt",
       temperature: 0.3,

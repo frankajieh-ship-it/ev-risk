@@ -17,6 +17,7 @@ import { scoreFallbackReceipt } from "./receipt-scoring";
 import type { ReceiptScoringResult } from "./receipt-scoring";
 import { RULES_BY_ID, type ListingSignalId } from "./receipt-rules";
 import { getModelKnowledge } from "./vehicle-model-knowledge";
+import { fetchNhtsaRecalls } from "./nhtsa-recall-client";
 
 let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI {
@@ -222,8 +223,8 @@ RULES:
 - Tone: direct, specific, concrete numbers. Like a friend who's bought 50 cars.
 
 SIGNAL LIBRARY — use exact IDs in listing_signals[]:
-Hard blockers: title_salvage, frame_damage_major, routine_impossible, dcfc_required_but_absent, odometer_title_mismatch
-Fit penalties: no_home_charging, single_site_dependency, plan_b_weak, winter_high_exposure, longest_day_tight_buffer, public_charging_cost_risk, multi_driver_one_charger, price_over_market_10_15, price_over_market_15_plus, prior_damage_minor, ownership_turnover_high, battery_replaced_unverified, dealer_addon_pressure, model_known_limit_vs_routine
+Hard blockers: title_salvage, frame_damage_major, routine_impossible, dcfc_required_but_absent, odometer_title_mismatch, repair_risk_critical
+Fit penalties: no_home_charging, single_site_dependency, plan_b_weak, winter_high_exposure, longest_day_tight_buffer, public_charging_cost_risk, multi_driver_one_charger, price_over_market_10_15, price_over_market_15_plus, prior_damage_minor, ownership_turnover_high, battery_replaced_unverified, dealer_addon_pressure, model_known_limit_vs_routine, service_network_sparse, independent_shop_restricted
 Evidence bonuses: clean_title_explicit, battery_report_recent, battery_warranty_info, service_records_shown, dcfc_confirmed, charging_port_photo, vin_decoded, ownership_history_clear, fees_disclosed, tire_condition_visible, recall_status_clear
 Evidence penalties: battery_proof_missing, battery_warranty_unclear, service_records_missing, ownership_history_unclear, title_status_unclear, vin_missing
 
@@ -251,7 +252,7 @@ function sanitizeForPrompt(value: string | undefined | null, maxLen = 200): stri
 
 // --- User Prompt Builder ---
 
-export function buildUserPrompt(input: ReceiptGenerateRequest): string {
+export async function buildUserPrompt(input: ReceiptGenerateRequest): Promise<string> {
   const parts: string[] = ["ANALYZE THIS LISTING:", ""];
 
   if (input.listing_url) {
@@ -405,16 +406,34 @@ export function buildUserPrompt(input: ReceiptGenerateRequest): string {
   const modelKnowledge = getModelKnowledge(input.year ?? null, input.make ?? "", input.model ?? "");
   if (modelKnowledge) {
     const knowledgeLines = ["MODEL KNOWLEDGE — use this to inform signals, inspection items, and advice:"];
-    knowledgeLines.push(modelKnowledge.known_issues_block);
+    if (modelKnowledge.known_issues_block) {
+      knowledgeLines.push(modelKnowledge.known_issues_block);
+    }
     if (modelKnowledge.battery_warranty) {
       knowledgeLines.push(`Battery warranty: ${modelKnowledge.battery_warranty}`);
     }
     if (modelKnowledge.lease_return_note) {
       knowledgeLines.push(`Market context: ${modelKnowledge.lease_return_note}`);
     }
-    knowledgeLines.push(`Reliability score: ${modelKnowledge.reliability_score}/10`);
+    if (modelKnowledge.reliability_score > 0) {
+      knowledgeLines.push(`Reliability score: ${modelKnowledge.reliability_score}/10`);
+    }
+    if (modelKnowledge.service_block) {
+      knowledgeLines.push(modelKnowledge.service_block);
+    }
     parts.push(knowledgeLines.join("\n"));
     parts.push("");
+  }
+
+  // Live NHTSA recall injection — grounded facts prevent AI from inventing recall details
+  if (input.year && input.make && input.model) {
+    try {
+      const recallData = await fetchNhtsaRecalls(input.year, input.make, input.model);
+      parts.push(recallData.prompt_block);
+      parts.push("");
+    } catch {
+      // Non-fatal — proceed without recall data rather than failing the receipt
+    }
   }
 
   parts.push("Generate the receipt JSON now. Return ONLY the JSON object.");
@@ -428,7 +447,7 @@ export async function generateReceipt(
   input: ReceiptGenerateRequest
 ): Promise<{ receipt: ListingReceipt; raw_response: string; retried: boolean }> {
   const startTime = Date.now();
-  const userPrompt = buildUserPrompt(input);
+  const userPrompt = await buildUserPrompt(input);
 
   // First attempt
   const messages: OpenAI.ChatCompletionMessageParam[] = [
@@ -1105,14 +1124,21 @@ function buildDeepDiveUserPrompt(baseReceipt: ListingReceipt): string {
   const modelKnowledge = getModelKnowledge(ls.year ?? null, ls.make ?? "", ls.model ?? "");
   if (modelKnowledge) {
     const knowledgeLines = ["MODEL KNOWLEDGE — use this to ground model_known_issues[], inspection items, and advice:"];
-    knowledgeLines.push(modelKnowledge.known_issues_block);
+    if (modelKnowledge.known_issues_block) {
+      knowledgeLines.push(modelKnowledge.known_issues_block);
+    }
     if (modelKnowledge.battery_warranty) {
       knowledgeLines.push(`Battery warranty: ${modelKnowledge.battery_warranty}`);
     }
     if (modelKnowledge.lease_return_note) {
       knowledgeLines.push(`Market context: ${modelKnowledge.lease_return_note}`);
     }
-    knowledgeLines.push(`Reliability score: ${modelKnowledge.reliability_score}/10`);
+    if (modelKnowledge.reliability_score > 0) {
+      knowledgeLines.push(`Reliability score: ${modelKnowledge.reliability_score}/10`);
+    }
+    if (modelKnowledge.service_block) {
+      knowledgeLines.push(modelKnowledge.service_block);
+    }
     parts.push(knowledgeLines.join("\n"));
     parts.push("");
   }

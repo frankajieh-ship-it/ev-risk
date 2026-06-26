@@ -87,7 +87,7 @@ export async function scoreWithAi(
   try {
     const hedgeResult = await hedgedGenerate({
       systemPrompt: SYSTEM_PROMPT,
-      userPrompt: buildUserPrompt(input as Parameters<typeof buildUserPrompt>[0]),
+      userPrompt: await buildUserPrompt(input as Parameters<typeof buildUserPrompt>[0]),
       jsonSchema: RECEIPT_JSON_SCHEMA as Record<string, unknown>,
       schemaName: "receipt",
       temperature: 0.3,
