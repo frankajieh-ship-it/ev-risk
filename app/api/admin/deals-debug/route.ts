@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
+import { lookupLocalImages } from "@/lib/vehicle-image-db";
 
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
 
@@ -43,5 +44,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Query failed" }, { status: 500 });
   }
 
-  return NextResponse.json({ deals: data ?? [] });
+  // Enrich photo_url the same way /api/deals does — vehicle-images.csv first,
+  // then DB fallback if it's already a local path, reject external URLs.
+  const deals = (data ?? []).map((d) => {
+    let photoUrl: string | null = d.photo_url ?? null;
+    if (d.make && d.model) {
+      const local = lookupLocalImages(d.make, d.model, d.year ?? undefined);
+      if (local.matched && local.urls.length > 0) {
+        const url = local.urls[0];
+        photoUrl = url.includes("upload.wikimedia.org")
+          ? `/api/img?url=${encodeURIComponent(url)}`
+          : url;
+      } else if (photoUrl && photoUrl.startsWith("/")) {
+        // keep as-is
+      } else {
+        photoUrl = null;
+      }
+    }
+    return { ...d, photo_url: photoUrl };
+  });
+
+  return NextResponse.json({ deals });
 }

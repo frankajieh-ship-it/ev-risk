@@ -96,6 +96,7 @@ Mercedes-Benz,EQE,2022,9999,/vehicles/2023-mercedes-benz-eqe-amg-4matic.jpg,10,l
 Nissan,Leaf,2011,2017,/vehicles/2012-nissan-leaf-sv.jpg,10,local
 Nissan,LEAF,2011,2017,/vehicles/2012-nissan-leaf-sv.jpg,10,local
 Mitsubishi,i-MiEV,2011,2017,/vehicles/2012-mitsubishi-i-miev.jpg,10,local
+Mitsubishi,MiEV,2011,2017,/vehicles/2012-mitsubishi-i-miev.jpg,10,alias from DB typo
 BMW,i3,2014,2021,/vehicles/2014-bmw-i3.webp,10,local
 Volkswagen,e-Golf,2015,2020,/vehicles/2016-volkswagen-e-golf-se.webp,10,local
 Kia,Soul EV,2014,2021,/vehicles/2015-kia-soul-ev+.jpg,10,local
@@ -109,3 +110,36 @@ Kia,Niro EV EX,2019,9999,/vehicles/2022-kia-niro-ev.jpg,10,local trim alias
 Kia,Niro,2019,9999,/vehicles/2022-kia-niro-ev.jpg,10,local alias
 VinFast,VF8,2023,9999,/vehicles/2023-vinfast-vf.webp,10,local
 Volkswagen,ID.4 1st Edition,2021,2021,/vehicles/2021_volkswagen_id_4.jpeg,10,local year alias
+Dodge,Charger Daytona,2024,9999,/vehicles/2024-dodge-charger-daytona.jpg,10,local
+Jeep,Wagoneer S,2024,9999,/vehicles/2025-jeep-wagoneer-s-limited.jpg,10,local
+Honda,Prologue,2024,9999,/vehicles/my24-prologue-touring.webp,10,local
+Honda,Prologue Touring,2024,9999,/vehicles/my24-prologue-touring.webp,10,local trim alias
+Honda,Prologue EX,2024,9999,/vehicles/2024-honda-prologue-ex.jpg,10,local trim alias
+Audi,S6 e-tron,2025,9999,/vehicles/audi-a6-sportback-e-tron-a6-e-tron.jpg,10,local
+Audi,A6 e-tron,2024,9999,/vehicles/audi-a6-sportback-e-tron-a6-e-tron.jpg,10,local
+Audi,e-tron Sportback,2025,9999,/vehicles/audi-a6-sportback-e-tron-a6-e-tron.jpg,10,local trim alias
+Chevrolet,Blazer EV,2024,9999,/vehicles/2024-chevrolet-blazer-ev.jpg,10,local
+Chevrolet,Blazer EV LT,2026,9999,/vehicles/2026-chevloret-blazer-ev-lt-rwd.jpg,10,local
+Chevrolet,Blazer EV 2LT,2024,9999,/vehicles/2024-chevrolet-blazer-ev.jpg,10,local trim alias
+Chevrolet,Blazer EV RS,2024,9999,/vehicles/2024-chevrolet-blazer-ev.jpg,10,local trim alias
+Chevrolet,Equinox EV,2024,9999,/vehicles/2025-chevrolet-equinox-ev-rs.jpg,10,local
+Chevrolet,Equinox EV RS,2024,9999,/vehicles/2025-chevrolet-equinox-ev-rs.jpg,10,local trim alias
+Chevloret,Blazer EV,2024,9999,/vehicles/2024-chevrolet-blazer-ev.jpg,10,typo alias from DB
+Chevloret,Blazer EV LT,2026,9999,/vehicles/2026-chevloret-blazer-ev-lt-rwd.jpg,10,typo alias from DB
+Chevloret,Blazer EV 2LT,2024,9999,/vehicles/2024-chevrolet-blazer-ev.jpg,10,typo alias from DB
+Chevloret,Blazer EV RS,2024,9999,/vehicles/2024-chevrolet-blazer-ev.jpg,10,typo alias from DB
+Chevloret,Equinox EV,2024,9999,/vehicles/2025-chevrolet-equinox-ev-rs.jpg,10,typo alias from DB
+Chevloret,Equinox EV RS,2024,9999,/vehicles/2025-chevrolet-equinox-ev-rs.jpg,10,typo alias from DB
+Chevloret,Bolt EV,2017,2023,/vehicles/2020-chevy-bolt-ev-premier.webp,10,typo alias from DB
+Chevloret,Bolt EUV,2022,2024,/vehicles/chevy-bolt-euv-2022.webp,10,typo alias from DB
+Cadillac,LYRIQ,2024,9999,/vehicles/2024-cadillac-lyric-sport-1.jpg,10,local overrides Wikimedia
+Cadillac,Lyriq,2023,9999,/vehicles/2024-cadillac-lyric-sport-1.jpg,10,local lowercase alias
+Cadillac,LYRIQ Sport 1,2024,9999,/vehicles/2024-cadillac-lyric-sport-1.jpg,10,local trim alias
+Cadillac,LYRIQ Luxury 1,2024,9999,/vehicles/2024-cadillac-lyric-sport-1.jpg,10,local trim alias
+Mercedes-Benz,EQE 350,2023,9999,/vehicles/2023-mercedes-benz-eqe-350-4matic.jpg,10,local
+Mercedez-Benz,EQE 350,2023,9999,/vehicles/2023-mercedes-benz-eqe-350-4matic.jpg,10,local typo alias from CSV
+BMW,i4 eDrive40,2023,9999,/vehicles/2023-bmw-i4-eDrive40.jpg,10,local
+Ford,Mustang Mach-E GT,2023,9999,/vehicles/2023-ford-mustang-mach-e-gt.jpg,10,local
+Dodge,Charger Daytona,2024,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/2024_Dodge_Charger_Daytona_RT%2C_front_4.14.25.jpg/960px-2024_Dodge_Charger_Daytona_RT%2C_front_4.14.25.jpg,1,wikimedia fallback
+Jeep,Wagoneer S,2024,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/25_Jeep_Wagoneer_S_Limited_%28cropped%29.jpg/960px-25_Jeep_Wagoneer_S_Limited_%28cropped%29.jpg,1,wikimedia fallback
+Honda,Prologue,2024,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/2024_Honda_Prologue_Touring%2C_front_7.11.25.jpg/960px-2024_Honda_Prologue_Touring%2C_front_7.11.25.jpg,1,wikimedia fallback

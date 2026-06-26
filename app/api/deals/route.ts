@@ -216,16 +216,26 @@ export async function GET(request: NextRequest) {
   const pageDeals = deduped.slice(offset, offset + perPage);
 
   // Flatten the dealerships join into flat fields for the client.
-  // Always resolve photo_url to a local /vehicles/ path from our CSV when available —
-  // this ensures new deals added in future automatically get the correct image.
+  // Always resolve photo_url from our CSV when available — handles both local /vehicles/
+  // paths and Wikimedia URLs (proxied through /api/img so DealCard's startsWith("/") check passes).
   const flatDeals = pageDeals.map((d) => {
     const dealer = Array.isArray(d.dealerships) ? d.dealerships[0] : d.dealerships;
-    // Prefer local CSV image over whatever is stored in DB (external URLs can be wrong car)
+    // Resolve photo: vehicle-images.csv lookup first (brand-level curated),
+    // then fall back to whatever was stored in DB at import time (already file-validated).
+    // Wikimedia URLs proxied so they start with "/" and pass DealCard's local-only check.
     let photoUrl: string | null = d.photo_url ?? null;
     if (d.make && d.model) {
       const local = lookupLocalImages(d.make, d.model, d.year ?? undefined);
       if (local.matched && local.urls.length > 0) {
-        photoUrl = local.urls[0];
+        const url = local.urls[0];
+        photoUrl = url.includes("upload.wikimedia.org")
+          ? `/api/img?url=${encodeURIComponent(url)}`
+          : url;
+      } else if (photoUrl && photoUrl.startsWith("/")) {
+        // DB photo_url was validated at import time — use it directly
+        // (no-op: photoUrl is already set, just skip the override)
+      } else {
+        photoUrl = null; // reject non-local DB URLs (wrong-car listing photos)
       }
     }
     return {
