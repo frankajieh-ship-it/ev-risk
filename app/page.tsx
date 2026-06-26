@@ -341,7 +341,7 @@ export default function Home() {
     { q: "Can I charge an EV at an apartment without a garage?", a: "Yes — many apartment dwellers rely on Level 2 public chargers or workplace charging. OFFO's routine fit check accounts for your charging access and flags if a given vehicle's range makes apartment charging viable for your daily pattern." },
     { q: "Can I drive long distances with an EV?", a: "Absolutely. Most modern EVs have 250–350 mi EPA range. OFFO maps your longest single-day drive against the vehicle's real-world range (accounting for climate and highway speed) and tells you if you'll need a mid-trip charge stop." },
     { q: "What are the benefits of buying a used EV?", a: "Used EVs often cost 30–50% less than new, still qualify for up to $4,000 federal used-EV tax credits, and have fewer mechanical parts to fail. OFFO helps you avoid the pitfalls — high-degradation batteries, open recalls, and overpriced salvage vehicles." },
-    { q: "Is OFFO a Carfax alternative for used EVs?", a: "Yes — OFFO is built specifically for used EV buyers. Unlike Carfax, OFFO includes battery health estimates, DC fast charge capability, EV-specific recall tracking, and a routine fit score showing whether the vehicle matches your commute and charging situation. The basic report is free with no sign-up." },
+    { q: "Is OFFO a Carfax alternative for used EVs?", a: "Unlike Carfax, OFFO checks if the EV actually fits your life — not just its history." },
   ];
 
 
@@ -520,13 +520,39 @@ export default function Home() {
       {/* Original Header hidden — replaced above for homepage */}
       <div className="hidden"><Header variant="homepage" /></div>
 
+      {/* ── Section: Dual entry point CTA ────────────────────────────── */}
+      <div className="bg-[#0d1117] border-t border-white/[0.06]">
+        <div className="max-w-2xl mx-auto px-4 py-5 grid grid-cols-2 gap-3">
+          {/* Left: reinforce listing analysis */}
+          <div className="bg-white/[0.04] border border-white/[0.07] rounded-xl px-4 py-4">
+            <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-1">Have a listing?</p>
+            <p className="text-sm text-white/80 font-medium leading-snug">Paste the URL or VIN above</p>
+            <p className="text-xs text-white/35 mt-1">Get a risk verdict in seconds</p>
+          </div>
+          {/* Right: quiz entry point */}
+          <button
+            onClick={() => {
+              setCurrentStep("routine");
+              setTimeout(() => {
+                document.getElementById("fit-check")?.scrollIntoView({ behavior: "smooth" });
+              }, 50);
+            }}
+            className="bg-[#00d97e]/10 border border-[#00d97e]/25 rounded-xl px-4 py-4 text-left hover:bg-[#00d97e]/15 hover:border-[#00d97e]/40 transition-colors group"
+          >
+            <p className="text-xs font-semibold text-[#00d97e]/70 uppercase tracking-wider mb-1">Not sure yet?</p>
+            <p className="text-sm text-white/80 font-medium leading-snug group-hover:text-white transition-colors">60-second EV quiz</p>
+            <p className="text-xs text-white/35 mt-1">Find EVs that fit your life →</p>
+          </button>
+        </div>
+      </div>
+
       {/* ── Section: EV Routine Wizard ───────────────────────────────── */}
       {currentStep === "routine" && (
         <div className="max-w-2xl mx-auto px-4 py-6 bg-[#0d1117]">
           <div className="flex items-center gap-4">
             <div className="flex-1 h-px bg-white/10" />
             <span className="text-xs font-medium text-white/40 uppercase tracking-wider whitespace-nowrap">
-              EV Routine Check
+              Find your fit in 60 seconds
             </span>
             <div className="flex-1 h-px bg-white/10" />
           </div>
