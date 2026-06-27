@@ -474,6 +474,12 @@ export default function ReceiptInputCard({
       setInventoryIdExtracted(data.inventory_id ?? null);
       setExtractError(null);
 
+      // Auto-decode VIN when URL extraction got a VIN but missed make/model/year
+      if (f.vin && (!f.make || !f.model || !f.year)) {
+        setVinValue(f.vin);
+        handleVinLookupWithVin(f.vin);
+      }
+
       trackEvent?.("receipt_extract_succeeded", {
         input_mode: pasteMode, anon_id: receiptToken,
         fields_extracted: data.extractedFields?.length ?? 0,
