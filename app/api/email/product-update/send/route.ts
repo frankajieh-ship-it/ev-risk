@@ -1,14 +1,14 @@
 /**
- * Product Update Broadcast — June 2026
+ * Product Update Broadcast — July 2026
  *
  * POST /api/email/product-update/send
  *
- * One-time send to all opted-in users announcing the Scan the Listing
- * + photo analysis features. Covers two pools:
+ * One-time send to all opted-in users announcing AutoTrader & Cars.com
+ * URL extraction + VIN history coming soon teaser. Covers two pools:
  *   Pool A: authenticated users (auth.users)
  *   Pool B: anon email captures (checklist_email_captures)
  *
- * Idempotency key: product-update:june2026:{userId|email}
+ * Idempotency key: product-update:july2026:{userId|email}
  * Safe to call multiple times — duplicate sends are suppressed by the
  * unique constraint on crm_email_sends.idempotency_key.
  *
@@ -22,9 +22,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { isResendConfigured } from "@/lib/resend";
 import { safeSend } from "@/lib/crm-email";
-import { buildProductUpdateJune2026 } from "@/lib/crm-templates/product-update";
+import { buildProductUpdateJuly2026 } from "@/lib/crm-templates/product-update";
 
-const CAMPAIGN_KEY = "product-update:june2026";
+const CAMPAIGN_KEY = "product-update:july2026";
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const { subject, html } = buildProductUpdateJune2026({ email });
+      const { subject, html } = buildProductUpdateJuly2026({ email });
       const idempotencyKey = userId
         ? `${CAMPAIGN_KEY}:${userId}`
         : `${CAMPAIGN_KEY}:${email}`;
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         email,
         userId,
         sequenceType: "activation",
-        sequenceStep: "product_update_june2026",
+        sequenceStep: "product_update_july2026",
         subject,
         html,
         idempotencyKey,

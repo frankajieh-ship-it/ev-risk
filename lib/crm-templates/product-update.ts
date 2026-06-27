@@ -1,8 +1,8 @@
 /**
- * Product Update Email Template — June 2026
+ * Product Update Email Templates
  *
- * One-time broadcast to all opted-in registered users announcing
- * the Scan the Listing + photo analysis feature.
+ * June 2026: Scan the Listing + photo analysis
+ * July 2026: AutoTrader & Cars.com URL extraction + VIN history teaser
  */
 
 import { SITE_URL, ctaButton } from "./shared";
@@ -68,6 +68,60 @@ export function buildProductUpdateJune2026(ctx: ProductUpdateContext): { subject
 
   return {
     subject: "OFFO update: paste a listing URL and we'll read it for you",
+    html: emailWrapper(body),
+  };
+}
+
+export function buildProductUpdateJuly2026(ctx: ProductUpdateContext): { subject: string; html: string } {
+  const { email, firstName } = ctx;
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+
+  const body = `
+    ${OFFO_HEADER}
+
+    <p style="font-size:15px;color:#c9d1d9;margin:0 0 20px;">${greeting}</p>
+
+    <p style="font-size:15px;color:#c9d1d9;margin:0 0 20px;">
+      Two things shipped this week that make OFFO a lot more useful if you're actively shopping.
+    </p>
+
+    <!-- Feature 1 -->
+    <div style="background:#161b22;border-radius:12px;padding:20px 22px;margin-bottom:14px;border:1px solid #30363d;">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#00d97e;text-transform:uppercase;letter-spacing:0.08em;">Now live — AutoTrader & Cars.com</p>
+      <p style="margin:0 0 10px;font-size:16px;font-weight:700;color:#e6edf3;">Paste any listing link. We do the rest.</p>
+      <p style="font-size:14px;color:#c9d1d9;margin:0;">
+        AutoTrader and Cars.com links now extract automatically — price, mileage, VIN, and full listing details pulled in under 30 seconds. Combined with CarGurus (already supported), you can now paste listings from any of the three biggest EV marketplaces and get an instant risk verdict.
+      </p>
+    </div>
+
+    <!-- Feature 2 -->
+    <div style="background:#161b22;border-radius:12px;padding:20px 22px;margin-bottom:24px;border:1px solid #30363d;">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#00d97e;text-transform:uppercase;letter-spacing:0.08em;">Coming next — VIN History Reports</p>
+      <p style="margin:0 0 10px;font-size:16px;font-weight:700;color:#e6edf3;">Title status, open liens, accident history — all in one place.</p>
+      <p style="font-size:14px;color:#c9d1d9;margin:0;">
+        We're integrating VIN history data so you can see ownership history, title checks, and open liens without paying $40 for a separate report. You'll get this as part of the full OFFO analysis. More details soon.
+      </p>
+    </div>
+
+    <!-- CTA -->
+    <div style="text-align:center;margin-bottom:28px;">
+      ${ctaButton("Scan a listing now →", `${SITE_URL}/receipt?utm_source=email&utm_medium=product_update&utm_campaign=july2026`)}
+    </div>
+
+    <div style="background:rgba(0,217,126,0.07);border-radius:10px;padding:14px 18px;border:1px solid rgba(0,217,126,0.18);margin-bottom:8px;">
+      <p style="font-size:13px;color:#86efac;margin:0;">
+        CarGurus · AutoTrader · Cars.com · Free · No account required
+      </p>
+    </div>
+
+    <p style="font-size:13px;color:#8b949e;margin:20px 0 0;">
+      Reply to this email if you have feedback or a listing you want us to look at. We read every reply.
+    </p>
+
+    ${emailFooter(email, "activation")}`;
+
+  return {
+    subject: "OFFO: AutoTrader & Cars.com links now work — paste any listing",
     html: emailWrapper(body),
   };
 }
