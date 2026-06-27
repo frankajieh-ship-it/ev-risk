@@ -37,6 +37,9 @@ export interface AutofillDiagnostics {
   directDurationMs?: number;
   parseDurationMs?: number;
   htmlLength?: number;
+  htmlSnippet?: string;
+  sbStatus?: number;
+  sbAbortMs?: number;
   errorMessage?: string;
 }
 
@@ -1323,11 +1326,15 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
             diagnostics.htmlLength = html!.length;
             console.log('[Listing Scraper] Proxy fetch succeeded, length:', html!.length);
           } else if (proxyResult.blocked) {
-            diagnostics.failureReason = 'blocked_by_bot_protection';
+            diagnostics.failureReason = proxyResult.failureReason || 'blocked_by_bot_protection';
             diagnostics.botProtectionDetected = true;
             diagnostics.botProtectionType = proxyResult.error?.toLowerCase().includes('akamai') ? 'akamai'
               : proxyResult.error?.toLowerCase().includes('cloudflare') ? 'cloudflare' : 'unknown';
             diagnostics.errorMessage = proxyResult.error;
+            if (proxyResult.htmlLength !== undefined) diagnostics.htmlLength = proxyResult.htmlLength;
+            if (proxyResult.htmlSnippet) diagnostics.htmlSnippet = proxyResult.htmlSnippet;
+            if (proxyResult.sbStatus) diagnostics.sbStatus = proxyResult.sbStatus;
+            if (proxyResult.sbAbortMs) diagnostics.sbAbortMs = proxyResult.sbAbortMs;
             finalize();
             return {
               success: false,

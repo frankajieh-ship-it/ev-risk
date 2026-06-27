@@ -196,19 +196,34 @@ export async function POST(request: NextRequest) {
           console.warn(`[Proxy Fetch] ScrapingBee ${siteName} result blocked — returning blocked immediately`);
           // AutoTrader/Cars.com use Akamai — direct fetch always fails too. Return blocked
           // immediately so the scraper shows a useful error rather than timing out on direct fetch.
-          return NextResponse.json({ success: false, error: 'blocked', blocked: true }, { status: 403 });
+          return NextResponse.json({
+            success: false, error: 'blocked', blocked: true,
+            failureReason: 'content_signals_missing',
+            htmlLength: sbHtml.length,
+            htmlSnippet: sbHtml.substring(0, 300),
+          }, { status: 403 });
         } else {
           const errBody = await sbRes.text().catch(() => '');
           console.warn(`[Proxy Fetch] ScrapingBee ${siteName} error ${sbRes.status}:`, errBody.substring(0, 500));
-          return NextResponse.json({ success: false, error: `ScrapingBee ${sbRes.status}`, blocked: true }, { status: 403 });
+          const failureReason = sbRes.status === 402 ? 'credits_exhausted'
+            : sbRes.status === 401 ? 'invalid_api_key' : 'scrapingbee_error';
+          return NextResponse.json({
+            success: false, error: `ScrapingBee ${sbRes.status}`, blocked: true,
+            failureReason, sbStatus: sbRes.status,
+          }, { status: 403 });
         }
       } catch (sbErr) {
         clearTimeout(sbTimeoutId);
         const sbMsg = sbErr instanceof Error ? sbErr.message : String(sbErr);
+        const isAbort = sbErr instanceof Error && sbErr.name === 'AbortError';
         console.warn(`[Proxy Fetch] ScrapingBee ${isAutoTrader ? 'AutoTrader' : isCarscom ? 'Cars.com' : isCarMax ? 'CarMax' : 'Carvana'} failed:`, sbMsg);
         // ScrapingBee threw (likely timeout abort) — return blocked so scraper doesn't waste
         // time on a direct fetch that Akamai will immediately reject.
-        return NextResponse.json({ success: false, error: 'proxy_error', blocked: true }, { status: 503 });
+        return NextResponse.json({
+          success: false, error: 'proxy_error', blocked: true,
+          failureReason: isAbort ? 'scrapingbee_timeout' : 'scrapingbee_threw',
+          sbAbortMs: SB_ABORT_MS,
+        }, { status: 503 });
       }
     }
 

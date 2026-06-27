@@ -412,14 +412,25 @@ export default function ReceiptInputCard({
           setExtractError({ message: "Only CarGurus, AutoTrader, and Cars.com links are supported. For other sites, switch to the \"Paste Text\" tab and copy the listing details." });
           setPasteMode("text");
         } else if (data.diagnostics?.botProtectionDetected) {
-          const siteName = _domain.includes("autotrader") ? "AutoTrader"
-            : _domain.includes("cars.com") ? "Cars.com"
-            : "CarGurus";
-          const msg = `${siteName} blocked auto-fetch. Open the listing, select all the text (Ctrl+A), copy it, and paste below — takes 10 seconds.`;
-          setExtractError({ message: msg });
-          setPasteMode("text");
-          setTimeout(() => textareaRef.current?.focus(), 100);
-          _trackFail("bot_protection");
+          if (data.diagnostics?.failureReason === 'credits_exhausted') {
+            setExtractError({ message: "Auto-extraction is temporarily unavailable. Enter the details manually below." });
+            setPasteMode("text");
+            _trackFail("credits_exhausted");
+          } else {
+            const siteName = _domain.includes("autotrader") ? "AutoTrader"
+              : _domain.includes("cars.com") ? "Cars.com"
+              : "CarGurus";
+            const reasonSuffix = data.diagnostics?.failureReason === 'scrapingbee_timeout'
+              ? " (timed out)"
+              : data.diagnostics?.failureReason === 'content_signals_missing'
+              ? ` (html: ${data.diagnostics?.htmlLength ?? '?'})`
+              : "";
+            const msg = `${siteName} blocked auto-fetch${reasonSuffix}. Open the listing, select all the text (Ctrl+A), copy it, and paste below — takes 10 seconds.`;
+            setExtractError({ message: msg });
+            setPasteMode("text");
+            setTimeout(() => textareaRef.current?.focus(), 100);
+            _trackFail(data.diagnostics?.failureReason || "bot_protection");
+          }
         } else if (data.diagnostics?.failureReason === "timeout") {
           if (!autoRetryDoneRef.current && (urlOverride || pasteMode === "url")) {
             autoRetryDoneRef.current = true;
