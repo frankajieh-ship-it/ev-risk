@@ -6,6 +6,7 @@
  */
 
 import ownerIssueClusters from "@/data_v1.0/owner_issue_clusters.json";
+import { buildServiceBlock } from "./service-knowledge";
 
 interface IssueCluster {
   common_issues: Array<{
@@ -55,6 +56,7 @@ export interface ModelKnowledge {
   battery_warranty: string | null;
   lease_return_note: string | null;
   reliability_score: number;
+  service_block: string | null;
 }
 
 function normalizeKey(make: string, model: string): string {
@@ -86,7 +88,22 @@ export function getModelKnowledge(
     }
   }
 
-  if (!entry) return null;
+  // Service profile is brand-level — available even when no issue cluster entry exists
+  const service_block = buildServiceBlock(make, model);
+
+  if (!entry) {
+    // No issue cluster, but we may still have service knowledge worth injecting
+    if (service_block) {
+      return {
+        known_issues_block: "",
+        battery_warranty: null,
+        lease_return_note: null,
+        reliability_score: 0,
+        service_block,
+      };
+    }
+    return null;
+  }
 
   // Format known issues
   const issueLines = entry.common_issues.map((issue) => {
@@ -118,5 +135,6 @@ export function getModelKnowledge(
     battery_warranty,
     lease_return_note,
     reliability_score: entry.reliability_score,
+    service_block,
   };
 }
