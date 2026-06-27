@@ -147,8 +147,9 @@ export async function POST(request: NextRequest) {
     // CarMax/Carvana are JS SPAs — direct fetch returns an empty React shell with no vehicle data.
     // ScrapingBee stealth_proxy uses a real browser fingerprint and bypasses Akamai reliably.
     if ((isAutoTrader || isCarscom || isCarMax || isCarvana) && SCRAPINGBEE_KEY) {
-      // Keep ScrapingBee call under 22s so it returns before Netlify's 26s Pro timeout
-      const SB_ABORT_MS = 22000;
+      // maxDuration=60 on this function; give ScrapingBee stealth_proxy up to 35s
+      // (stealth_proxy + wait=8000 for Akamai bypass needs ~15-30s total round-trip)
+      const SB_ABORT_MS = 35000;
       const sbController = new AbortController();
       const sbTimeoutId = setTimeout(() => sbController.abort(), SB_ABORT_MS);
       try {
