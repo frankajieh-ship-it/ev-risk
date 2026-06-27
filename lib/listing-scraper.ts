@@ -1536,6 +1536,7 @@ export async function extractVehicleData(url: string, opts?: { adminKey?: string
         extractedData = await extractFromCars(html);
         break;
       case 'carmax':
+      case 'carvana':
         extractedData = await extractFromCarMax(html);
         break;
       default:

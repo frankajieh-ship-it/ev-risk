@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
             || sbHtml.toLowerCase().includes('access denied')
             || sbHtml.includes('Autotrader - page unavailable')
             || (isCarMax && !sbHtml.includes('car-detail'))
-            || (isCarscom && !sbHtml.includes('/vehicledetail/'));
+            || (isCarscom && !sbHtml.includes('cars.com/vehicledetail') && !sbHtml.includes('"@type":"Vehicle"') && !sbHtml.includes('"@type":"Car"'));
           console.log(`[Proxy Fetch] ScrapingBee ${siteName} html length=${sbHtml.length} blocked=${isBlocked}`);
           if (!isBlocked) {
             return NextResponse.json({
