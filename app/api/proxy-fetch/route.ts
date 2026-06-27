@@ -156,8 +156,9 @@ export async function POST(request: NextRequest) {
         console.log(`[Proxy Fetch] ${siteName}: trying ScrapingBee`);
         // AutoTrader/Cars.com use Akamai — stealth_proxy (highest tier) bypasses it reliably.
         // CarMax/Carvana are React SPAs; premium_proxy is sufficient (no Akamai).
-        // wait: AutoTrader needs 8000ms for Akamai bypass; other sites are faster with 3000ms.
-        const sbWait = isAutoTrader ? '8000' : '3000';
+        // wait: Akamai-protected sites (AutoTrader, Cars.com) need 8000ms for JS to inject
+        // listing JSON into the DOM; CarMax/Carvana render faster with 3000ms.
+        const sbWait = (isAutoTrader || isCarscom) ? '8000' : '3000';
         const sbParams = new URLSearchParams({
           api_key: SCRAPINGBEE_KEY,
           url,
@@ -165,6 +166,8 @@ export async function POST(request: NextRequest) {
           ...((isCarMax || isCarvana) ? { premium_proxy: 'true' } : { stealth_proxy: 'true' }),
           country_code: 'us',
           wait: sbWait,
+          // For Cars.com: return early as soon as listing content appears (faster than fixed wait)
+          ...(isCarscom ? { wait_for: 'h1,script[type="application/ld+json"]' } : {}),
         });
         const sbRes = await fetch(`https://app.scrapingbee.com/api/v1/?${sbParams}`, {
           signal: sbController.signal,
