@@ -49,9 +49,9 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { url } = body;
-    // Clamp timeout — AutoTrader stealth_proxy via ScrapingBee needs up to 55s
+    // Clamp timeout — ScrapingBee stealth_proxy is capped at 22s internally; direct fallback adds a few more.
     const isAutoTraderUrl = typeof body.url === 'string' && body.url.includes('autotrader.com');
-    const maxTimeout = isAutoTraderUrl ? 55000 : 30000;
+    const maxTimeout = isAutoTraderUrl ? 25000 : 25000;
     const timeout = Math.min(Math.max(Number(body.timeout) || 10000, 1000), maxTimeout);
 
     if (!url || typeof url !== 'string') {
@@ -140,27 +140,31 @@ export async function POST(request: NextRequest) {
     const isAutoTrader = parsedUrl.hostname.includes('autotrader.com');
     const isCarscom = parsedUrl.hostname.includes('cars.com');
     const isCarMax = parsedUrl.hostname.includes('carmax.com');
+    const isCarvana = parsedUrl.hostname.includes('carvana.com');
 
-    // --- AutoTrader + Cars.com + CarMax: ScrapingBee (residential proxy + JS render) ---
+    // --- AutoTrader + Cars.com + CarMax + Carvana: ScrapingBee (residential proxy + JS render) ---
     // AutoTrader uses Akamai which blocks all datacenter IPs including Netlify functions.
-    // CarMax is a JS SPA — direct fetch returns an empty React shell with no vehicle data.
-    // ScrapingBee premium_proxy routes through residential IPs — only reliable bypass.
-    if ((isAutoTrader || isCarscom || isCarMax) && SCRAPINGBEE_KEY) {
+    // CarMax/Carvana are JS SPAs — direct fetch returns an empty React shell with no vehicle data.
+    // ScrapingBee stealth_proxy uses a real browser fingerprint and bypasses Akamai reliably.
+    if ((isAutoTrader || isCarscom || isCarMax || isCarvana) && SCRAPINGBEE_KEY) {
+      // Keep ScrapingBee call under 22s so it returns before Netlify's 26s Pro timeout
+      const SB_ABORT_MS = 22000;
       const sbController = new AbortController();
-      const sbTimeoutId = setTimeout(() => sbController.abort(), 55000);
+      const sbTimeoutId = setTimeout(() => sbController.abort(), SB_ABORT_MS);
       try {
-        const siteName = isAutoTrader ? 'AutoTrader' : isCarscom ? 'Cars.com' : 'CarMax';
+        const siteName = isAutoTrader ? 'AutoTrader' : isCarscom ? 'Cars.com' : isCarMax ? 'CarMax' : 'Carvana';
         console.log(`[Proxy Fetch] ${siteName}: trying ScrapingBee`);
-        // AutoTrader uses Akamai which blocks premium_proxy IPs — stealth_proxy (higher tier)
-        // uses a real browser fingerprint and bypasses Akamai reliably.
-        // CarMax is a React SPA; premium_proxy is sufficient (no Akamai).
+        // AutoTrader/Cars.com use Akamai — stealth_proxy (highest tier) bypasses it reliably.
+        // CarMax/Carvana are React SPAs; premium_proxy is sufficient (no Akamai).
+        // wait: AutoTrader needs 8000ms for Akamai bypass; other sites are faster with 3000ms.
+        const sbWait = isAutoTrader ? '8000' : '3000';
         const sbParams = new URLSearchParams({
           api_key: SCRAPINGBEE_KEY,
           url,
           render_js: 'true',
-          ...(isCarMax ? { premium_proxy: 'true' } : { stealth_proxy: 'true' }),
+          ...((isCarMax || isCarvana) ? { premium_proxy: 'true' } : { stealth_proxy: 'true' }),
           country_code: 'us',
-          wait: '8000',
+          wait: sbWait,
         });
         const sbRes = await fetch(`https://app.scrapingbee.com/api/v1/?${sbParams}`, {
           signal: sbController.signal,
@@ -173,7 +177,8 @@ export async function POST(request: NextRequest) {
             || sbHtml.toLowerCase().includes('just a moment')
             || sbHtml.toLowerCase().includes('access denied')
             || sbHtml.includes('Autotrader - page unavailable')
-            || (isCarMax && !sbHtml.includes('car-detail'));
+            || (isCarMax && !sbHtml.includes('car-detail'))
+            || (isCarscom && !sbHtml.includes('/vehicledetail/'));
           console.log(`[Proxy Fetch] ScrapingBee ${siteName} html length=${sbHtml.length} blocked=${isBlocked}`);
           if (!isBlocked) {
             return NextResponse.json({
@@ -190,13 +195,14 @@ export async function POST(request: NextRequest) {
           // immediately so the scraper shows a useful error rather than timing out on direct fetch.
           return NextResponse.json({ success: false, error: 'blocked', blocked: true }, { status: 403 });
         } else {
-          console.warn(`[Proxy Fetch] ScrapingBee ${siteName} returned ${sbRes.status}`);
+          const errBody = await sbRes.text().catch(() => '');
+          console.warn(`[Proxy Fetch] ScrapingBee ${siteName} error ${sbRes.status}:`, errBody.substring(0, 500));
           return NextResponse.json({ success: false, error: `ScrapingBee ${sbRes.status}`, blocked: true }, { status: 403 });
         }
       } catch (sbErr) {
         clearTimeout(sbTimeoutId);
         const sbMsg = sbErr instanceof Error ? sbErr.message : String(sbErr);
-        console.warn(`[Proxy Fetch] ScrapingBee ${isAutoTrader ? 'AutoTrader' : 'Cars.com'} failed:`, sbMsg);
+        console.warn(`[Proxy Fetch] ScrapingBee ${isAutoTrader ? 'AutoTrader' : isCarscom ? 'Cars.com' : isCarMax ? 'CarMax' : 'Carvana'} failed:`, sbMsg);
         // ScrapingBee threw (likely timeout abort) — return blocked so scraper doesn't waste
         // time on a direct fetch that Akamai will immediately reject.
         return NextResponse.json({ success: false, error: 'proxy_error', blocked: true }, { status: 503 });
