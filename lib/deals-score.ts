@@ -94,7 +94,7 @@ export async function scoreWithAi(
       maxTokens: 1800,
       timeoutMs: 45_000,
       // Always try all providers regardless of circuit breaker state built up across batch
-      providerOrder: ["openai", "grok", "gemini", "anthropic"],
+      providerOrder: ["openai", "grok", "anthropic"],
       validate: (json) => {
         const v = validateReceiptSchema(json);
         return { valid: v.valid, errors: v.errors };

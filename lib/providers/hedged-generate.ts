@@ -67,7 +67,7 @@ export async function hedgedGenerate(opts: HedgeOpts): Promise<HedgeResult> {
   const {
     temperature = 0.3,
     maxTokens = 1800,
-    hedgeDelays = [5000, 9000],
+    hedgeDelays = [3000, 6000],
     onEvent,
   } = opts;
 

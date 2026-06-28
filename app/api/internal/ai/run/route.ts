@@ -21,7 +21,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { openaiAdapter } from "@/lib/providers/openai-adapter";
 import { grokAdapter } from "@/lib/providers/grok-adapter";
-import { geminiAdapter } from "@/lib/providers/gemini-adapter";
 
 export const maxDuration = 30;
 
@@ -151,12 +150,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Select provider adapter
-  const adapter =
-    task.model === "grok"
-      ? grokAdapter
-      : task.model === "gemini"
-        ? geminiAdapter
-        : openaiAdapter;
+  const adapter = task.model === "grok" ? grokAdapter : openaiAdapter;
 
   if (!adapter.isConfigured()) {
     return NextResponse.json(
