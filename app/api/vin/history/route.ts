@@ -64,6 +64,20 @@ export async function POST(request: Request) {
       );
     }
 
+    // Extract sale records from CarsXE raw historyInformation if available
+    type CarsXEHistoryRecord = {
+      TitleIssueDate?: { Date?: string };
+      TitleIssuingAuthorityName?: string;
+      VehicleOdometerReadingMeasure?: string;
+    };
+    const rawHistory = (historyResult.raw as { history?: { historyInformation?: CarsXEHistoryRecord[] } } | null);
+    const historyRecords: CarsXEHistoryRecord[] = rawHistory?.history?.historyInformation ?? [];
+    const saleRecords = historyRecords.map((r) => ({
+      date: r.TitleIssueDate?.Date ? new Date(r.TitleIssueDate.Date).toLocaleDateString("en-US", { year: "numeric", month: "short" }) : undefined,
+      odometer: r.VehicleOdometerReadingMeasure ? String(parseInt(r.VehicleOdometerReadingMeasure, 10)) : undefined,
+      seller: r.TitleIssuingAuthorityName ? `State: ${r.TitleIssuingAuthorityName}` : undefined,
+    }));
+
     // Map normalized result → VinAuditLiteResult shape the card expects
     const result: VinAuditLiteResult = {
       success: true,
@@ -72,12 +86,12 @@ export async function POST(request: Request) {
         theft_reported: historyResult.theft_reported,
         salvage_reported: historyResult.salvage_reported,
         accident_count: historyResult.accident_count,
-        sale_count: historyResult.ownership_count ?? 0,
+        sale_count: historyResult.ownership_count ?? saleRecords.length,
       },
       theft: historyResult.theft_reported ? [{ status: "Reported" }] : [],
       salvage: historyResult.salvage_reported ? [{ source: historyResult.provider }] : [],
       accidents: [],
-      sales: [],
+      sales: saleRecords,
     };
 
     cache.set(cleanVin, { result, expiresAt: Date.now() + CACHE_TTL_MS });
