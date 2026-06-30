@@ -21,6 +21,7 @@ interface OwnershipHistoryCardProps {
   paymentsEnabled: boolean;
   onPaywallClick?: () => void;
   trackEvent: (name: string, data?: Record<string, unknown>) => void;
+  onHistoryLoaded?: (result: VinAuditLiteResult) => void;
 }
 
 type FetchState = "idle" | "loading" | "done" | "error" | "not_configured";
@@ -32,6 +33,7 @@ export default function OwnershipHistoryCard({
   paymentsEnabled,
   onPaywallClick,
   trackEvent,
+  onHistoryLoaded,
 }: OwnershipHistoryCardProps) {
   const [fetchState, setFetchState] = useState<FetchState>("idle");
   const [result, setResult] = useState<VinAuditLiteResult | null>(null);
@@ -67,8 +69,10 @@ export default function OwnershipHistoryCard({
         return;
       }
 
-      setResult(data as VinAuditLiteResult);
+      const historyResult = data as VinAuditLiteResult;
+      setResult(historyResult);
       setFetchState("done");
+      onHistoryLoaded?.(historyResult);
       trackEvent("ownership_history_loaded", {
         vin,
         theft: data.summary.theft_reported,

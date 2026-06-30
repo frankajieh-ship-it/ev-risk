@@ -392,12 +392,14 @@ export default function ReceiptPage() {
   // immediately on mount, so CDN expiry is not a concern.
   const [listingPhotos, setListingPhotos] = useState<string[]>([]);
   const [serverRecalls, setServerRecalls] = useState<import("@/lib/nhtsa-recalls").RecallResult | null>(null);
+  const [vinHistory, setVinHistory] = useState<import("@/lib/vinaudit-client").VinAuditLiteResult | null>(null);
 
   // Reset photos and recalls when receipt is cleared (new submission starting)
   useEffect(() => {
     if (!receipt) {
       setListingPhotos([]);
       setServerRecalls(null);
+      setVinHistory(null);
     }
   }, [receipt]);
 
@@ -1087,6 +1089,7 @@ export default function ReceiptPage() {
                   return fresh.length ? [...prev, ...fresh] : prev;
                 })}
                 serverRecalls={serverRecalls}
+                vinHistory={vinHistory}
               />
               </div>
 
@@ -1120,6 +1123,7 @@ export default function ReceiptPage() {
                   paymentsEnabled={paymentsEnabled}
                   onPaywallClick={() => handlePremiumAction("ownership_history")}
                   trackEvent={(name, data) => { trackEvent(name, data as Parameters<typeof trackEvent>[1]); }}
+                  onHistoryLoaded={(result) => setVinHistory(result)}
                 />
               )}
 

@@ -19,6 +19,7 @@ interface VehicleFactsBarProps {
   paymentsEnabled?: boolean;
   onPaywallClick?: () => void;
   serverRecalls?: import("@/lib/nhtsa-recalls").RecallResult | null;
+  vinHistory?: import("@/lib/vinaudit-client").VinAuditLiteResult | null;
 }
 
 
@@ -67,7 +68,7 @@ interface NhtsaRecall {
 
 type RecallStatus = "idle" | "loading" | "done" | "error";
 
-export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsEnabled = false, onPaywallClick, serverRecalls }: VehicleFactsBarProps) {
+export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsEnabled = false, onPaywallClick, serverRecalls, vinHistory }: VehicleFactsBarProps) {
   const ls = receipt.listing_summary;
   const make = ls?.make || "";
   const model = ls?.model || "";
@@ -133,21 +134,39 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
   const originalRange = ev ? getOriginalRange(make, model) : 0;
   const estimatedRange = ev && originalRange > 0 ? Math.round(originalRange * (1 - degradation / 100)) : 0;
 
-  // Title status pill config — "clean" is amber (unverified, self-reported by seller)
+  const historyVerified = vinHistory?.success === true;
+  const titleVerifiedClean = historyVerified && !vinHistory!.summary.salvage_reported;
+  const titleVerifiedSalvage = historyVerified && vinHistory!.summary.salvage_reported;
+  const accidentsVerifiedClean = historyVerified && vinHistory!.summary.accident_count === 0;
+  const accidentsVerifiedPresent = historyVerified && vinHistory!.summary.accident_count > 0;
+
+  // Title status pill — green "verified" when history check confirms clean, amber when unverified
   const titleConfig = {
-    clean: { label: "Clean title (unverified)", icon: ShieldAlert, cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+    clean: titleVerifiedClean
+      ? { label: "Clean title (verified)", icon: CheckCircle, cls: "text-green-400 bg-green-500/10 border-green-500/20" }
+      : titleVerifiedSalvage
+        ? { label: "Salvage title (verified)", icon: ShieldAlert, cls: "text-red-400 bg-red-500/10 border-red-500/20" }
+        : { label: "Clean title (unverified)", icon: ShieldAlert, cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
     rebuilt: { label: "Rebuilt title", icon: ShieldAlert, cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
     salvage: { label: "Salvage title", icon: ShieldAlert, cls: "text-red-400 bg-red-500/10 border-red-500/20" },
-    unknown: { label: "Title unknown", icon: Shield, cls: "text-white/40 bg-white/[0.06] border-white/10" },
+    unknown: titleVerifiedClean
+      ? { label: "Clean title (verified)", icon: CheckCircle, cls: "text-green-400 bg-green-500/10 border-green-500/20" }
+      : { label: "Title unknown", icon: Shield, cls: "text-white/40 bg-white/[0.06] border-white/10" },
   };
   const tc = titleConfig[titleStatus as keyof typeof titleConfig] || titleConfig.unknown;
   const TitleIcon = tc.icon;
 
-  // Accident pill config — "no accidents" is amber (unverified, self-reported by seller)
+  // Accident pill — green "verified" when history check confirms no accidents
   const accidentConfig = {
     yes: { label: "Accidents reported (listing)", cls: "text-red-400 bg-red-500/10 border-red-500/20", icon: AlertTriangle },
-    no: { label: "No accidents reported (unverified)", cls: "text-amber-400 bg-amber-500/10 border-amber-500/20", icon: ShieldAlert },
-    unknown: { label: "Accident history unknown", cls: "text-white/40 bg-white/[0.06] border-white/10", icon: AlertTriangle },
+    no: accidentsVerifiedClean
+      ? { label: "No accidents (verified)", cls: "text-green-400 bg-green-500/10 border-green-500/20", icon: CheckCircle }
+      : { label: "No accidents reported (unverified)", cls: "text-amber-400 bg-amber-500/10 border-amber-500/20", icon: ShieldAlert },
+    unknown: accidentsVerifiedClean
+      ? { label: "No accidents (verified)", cls: "text-green-400 bg-green-500/10 border-green-500/20", icon: CheckCircle }
+      : accidentsVerifiedPresent
+        ? { label: `${vinHistory!.summary.accident_count} accident${vinHistory!.summary.accident_count !== 1 ? "s" : ""} found`, cls: "text-red-400 bg-red-500/10 border-red-500/20", icon: AlertTriangle }
+        : { label: "Accident history unknown", cls: "text-white/40 bg-white/[0.06] border-white/10", icon: AlertTriangle },
   };
   const ac = accidentConfig[accidents as keyof typeof accidentConfig] || accidentConfig.unknown;
   const AccidentIcon = ac.icon;
@@ -183,11 +202,17 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
           {ac.label}
         </span>
 
-        {/* VIN history — coming soon (VINaudit + ClearVin integration pending) */}
-        {showFull && (
-          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-[#00d97e]/20 text-[#00d97e]/60 bg-[#00d97e]/[0.04]">
+        {/* VIN history — shows "coming soon" until history check runs, then switches to verified pill */}
+        {showFull && !historyVerified && (
+          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-white/10 text-white/30 bg-white/[0.03]">
             <Shield className="w-3 h-3" />
-            Full VIN history — coming soon
+            VIN history — run check below
+          </span>
+        )}
+        {historyVerified && (
+          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-[#00d97e]/30 text-[#00d97e]/80 bg-[#00d97e]/[0.06]">
+            <CheckCircle className="w-3 h-3" />
+            VIN history checked{vinHistory!.summary.sale_count > 0 ? ` · ${vinHistory!.summary.sale_count} owner${vinHistory!.summary.sale_count !== 1 ? "s" : ""}` : ""}
           </span>
         )}
 

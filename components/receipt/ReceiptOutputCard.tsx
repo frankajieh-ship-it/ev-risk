@@ -73,6 +73,7 @@ interface ReceiptOutputCardProps {
   onPhotosFailed?: () => void;
   onAddPhotos?: (dataUrls: string[]) => void;
   serverRecalls?: import("@/lib/nhtsa-recalls").RecallResult | null;
+  vinHistory?: import("@/lib/vinaudit-client").VinAuditLiteResult | null;
 }
 
 const VERDICT_STYLES = {
@@ -153,6 +154,7 @@ export default function ReceiptOutputCard({
   onPhotosFailed,
   onAddPhotos,
   serverRecalls,
+  vinHistory,
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [scoringTooltipOpen, setScoringTooltipOpen] = useState(false);
@@ -643,7 +645,7 @@ export default function ReceiptOutputCard({
       )}
 
       {/* Vehicle Facts Bar — title status, accidents, live NHTSA recalls, battery estimate */}
-      <VehicleFactsBar receipt={receipt} isUnlocked={isUnlocked} paymentsEnabled={paymentsEnabled} onPaywallClick={onPaywallClick} serverRecalls={serverRecalls} />
+      <VehicleFactsBar receipt={receipt} isUnlocked={isUnlocked} paymentsEnabled={paymentsEnabled} onPaywallClick={onPaywallClick} serverRecalls={serverRecalls} vinHistory={vinHistory} />
 
       {/* Why not GREEN? — collapsible */}
       {whyNotGreen && whyNotGreen.length > 0 && receipt.verdict !== "GREEN" && (
