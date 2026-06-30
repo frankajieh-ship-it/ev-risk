@@ -3,14 +3,12 @@
  *
  * Tier 0 (sync): static curated Wikimedia map — covers all common EVs instantly.
  * Tier 0b (sync): make-level fallback — generic make photo when model unknown.
- * Tier 1 (async): VinAudit stock image lookup.
- * Tier 2 (async): Auto.dev market listing scrape.
+ * Tier 1 (async): Auto.dev market listing scrape.
  *
  * Always call this instead of fetching /api/photos from server-side code.
  */
 
 import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
-import { getVehicleImages } from "@/lib/vinaudit-client";
 import { searchListings } from "@/lib/auto-dev-client";
 
 function proxyIfWikimedia(url: string): string {
@@ -105,11 +103,7 @@ export async function resolveVehiclePhoto(opts: {
   const makeFallback = MAKE_FALLBACK_MAP[make.toLowerCase()];
   if (makeFallback) return proxyIfWikimedia(makeFallback);
 
-  // Tier 1: VinAudit
-  const vaResult = await getVehicleImages({ year: opts.year ?? undefined, make, model: rawModel, limit: 1 });
-  if (vaResult.success && vaResult.photo_urls.length > 0) return vaResult.photo_urls[0];
-
-  // Tier 2: Auto.dev
+  // Tier 1: Auto.dev
   const { make: normMake, model: normModel } = normalizeForAutodev(make, rawModel);
   let result = await searchListings({ make: normMake, model: normModel, year: opts.year ?? undefined, limit: 3 });
   if (!result?.records?.length && opts.year) {

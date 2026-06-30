@@ -1,15 +1,13 @@
 /**
  * GET /api/photos?make=Tesla&model=Model+3&year=2023&vin=...
  *
- * Fetches professional vehicle images.
- * Primary:    VinAudit Vehicle Images API (stock images, consistent quality)
+ * Fetches vehicle images.
+ * Primary:    Static curated Wikimedia map (instant, zero latency)
  * Fallback 1: Auto.dev market listings (actual listing photos)
- * Fallback 2: Imagin Studios CDN renders (free, no API key required)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { searchListings } from "@/lib/auto-dev-client";
-import { getVehicleImages } from "@/lib/vinaudit-client";
 
 import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
 import { extractVehicleImages } from "@/lib/image-extractor";
@@ -260,7 +258,7 @@ export async function GET(request: NextRequest) {
     try {
       const extracted = await extractVehicleImages({ make, model: rawModel, year, vin, trim: undefined });
       if (extracted.urls.length > 0 && (extracted.cache_hit || extracted.source === "offo_local")) {
-        const SAFE_PATTERNS = ["upload.wikimedia.org", "vinaudit", "/api/img"];
+        const SAFE_PATTERNS = ["upload.wikimedia.org", "/api/img"];
         const isSafe = extracted.source === "offo_local" ||
           extracted.urls.every(u => SAFE_PATTERNS.some(p => u.includes(p)));
         if (isSafe) {
@@ -272,15 +270,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 1. VinAudit VIN lookup
-  if (vin) {
-    const result = await getVehicleImages({ vin, year, make, model: rawModel, limit: 6 });
-    if (result.success && result.photo_urls.length > 0) {
-      return NextResponse.json({ photo_urls: result.photo_urls, source: "vinaudit" });
-    }
-  }
-
-  // 2. Static curated map
+  // 1. Static curated map
   if (!skipStatic) {
     const staticUrl = getStaticPhotoUrl(make, rawModel, year ?? undefined);
     if (staticUrl) {
@@ -292,15 +282,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 3. VinAudit YMM lookup
-  if (make) {
-    const result = await getVehicleImages({ year, make, model: rawModel, limit: 6 });
-    if (result.success && result.photo_urls.length > 0) {
-      return NextResponse.json({ photo_urls: result.photo_urls, source: "vinaudit_ymm" });
-    }
-  }
-
-  // 4. Auto.dev listing photos — last resort (skipped when no_market=1 to avoid wrong-car photos)
+  // 2. Auto.dev listing photos — last resort (skipped when no_market=1 to avoid wrong-car photos)
   if (noMarket) {
     return NextResponse.json({ photo_urls: [], source: "none" });
   }

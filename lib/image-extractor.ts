@@ -2,22 +2,17 @@
  * OFFO Image Extractor
  *
  * Unified vehicle image pipeline with Supabase caching, quality scoring,
- * and a 5-tier extraction chain:
+ * and a 3-tier extraction chain:
  *   Tier 0: OFFO local CSV DB     (quality 100) — your own curated photos
- *   Tier 1: VinAudit by VIN      (quality 95)  — exact vehicle match
- *   Tier 2: VinAudit by YMM      (quality 80)  — model stock photos
- *   Tier 3: Listing scrape        (quality 50-70) — actual listing photos
- *   Tier 4: Wikimedia static map  (quality 70)  — curated fallback
+ *   Tier 1: Listing scrape        (quality 50-70) — actual listing photos
+ *   Tier 2: Wikimedia static map  (quality 70)  — curated fallback
  *
  * Cache TTLs:
  *   Local CSV:    no cache (reads file, hot-reloads on CSV change)
- *   VIN-keyed:    90 days  (exact vehicle, photos don't change)
- *   YMM-keyed:    30 days  (model photos are stable)
  *   Scrape-sourced: 7 days (listing photos expire when listing sells)
  *   Wikimedia:    60 days  (stable CDN)
  */
 
-import { getVehicleImages } from "@/lib/vinaudit-client";
 import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { lookupLocalImages } from "@/lib/vehicle-image-db";
@@ -28,8 +23,6 @@ import { lookupLocalImages } from "@/lib/vehicle-image-db";
 
 export type ImageSource =
   | "offo_local"
-  | "vinaudit_vin"
-  | "vinaudit_ymm"
   | "listing_scrape"
   | "wikimedia"
   | "none";
@@ -49,7 +42,7 @@ export interface ImageExtractParams {
   year: number;
   vin?: string;
   trim?: string;
-  /** Raw HTML from listing scraper — used for Tier 3 */
+  /** Raw HTML from listing scraper — used for Tier 1 */
   listing_html?: string;
 }
 
@@ -103,7 +96,6 @@ async function cacheSet(params: ImageExtractParams, result: Omit<ExtractedImages
   if (!isSupabaseConfigured() || result.urls.length === 0) return;
 
   const ttlDays = result.source === "offo_local" ? 1   // short TTL: re-reads CSV daily so edits propagate
-    : result.source === "vinaudit_vin" ? 90
     : result.source === "wikimedia" ? 60
     : result.source === "listing_scrape" ? 7
     : 30;
@@ -139,7 +131,7 @@ async function cacheSet(params: ImageExtractParams, result: Omit<ExtractedImages
 }
 
 // ---------------------------------------------------------------------------
-// Tier 3: Extract photos from raw listing HTML
+// Tier 1: Extract photos from raw listing HTML
 // ---------------------------------------------------------------------------
 
 // CDN domains that serve real vehicle listing photos
@@ -226,8 +218,6 @@ export function extractPhotosFromHtml(html: string, limit = 8): string[] {
 
 function scoreResult(source: ImageSource, urls: string[], trim?: string, trimMatched?: boolean): number {
   if (source === "offo_local") return 100;
-  if (source === "vinaudit_vin") return 95;
-  if (source === "vinaudit_ymm") return trimMatched ? 85 : 80;
   if (source === "wikimedia") return 70;
   if (source === "listing_scrape") {
     let score = 50;
@@ -266,37 +256,7 @@ export async function extractVehicleImages(params: ImageExtractParams): Promise<
     return { ...out, cache_hit: false };
   }
 
-  // --- Tier 1: VinAudit by VIN ---
-  if (params.vin) {
-    const result = await getVehicleImages({ vin: params.vin, year: params.year, make: params.make, model: params.model, limit: 6 });
-    if (result.success && result.photo_urls.length > 0) {
-      const out: Omit<ExtractedImages, "cache_hit"> = {
-        urls: result.photo_urls,
-        primary_url: result.photo_urls[0],
-        source: "vinaudit_vin",
-        quality_score: 95,
-        extraction_ms: Date.now() - start,
-      };
-      cacheSet(params, out); // async, non-blocking
-      return { ...out, cache_hit: false };
-    }
-  }
-
-  // --- Tier 2: VinAudit by YMM ---
-  const ymmResult = await getVehicleImages({ year: params.year, make: params.make, model: params.model, trim: params.trim, limit: 6 });
-  if (ymmResult.success && ymmResult.photo_urls.length > 0) {
-    const out: Omit<ExtractedImages, "cache_hit"> = {
-      urls: ymmResult.photo_urls,
-      primary_url: ymmResult.photo_urls[0],
-      source: "vinaudit_ymm",
-      quality_score: scoreResult("vinaudit_ymm", ymmResult.photo_urls, params.trim),
-      extraction_ms: Date.now() - start,
-    };
-    cacheSet(params, out);
-    return { ...out, cache_hit: false };
-  }
-
-  // --- Tier 3: Listing scrape photos ---
+  // --- Tier 1: Listing scrape photos ---
   if (params.listing_html) {
     const scraped = extractPhotosFromHtml(params.listing_html);
     if (scraped.length > 0) {
@@ -312,7 +272,7 @@ export async function extractVehicleImages(params: ImageExtractParams): Promise<
     }
   }
 
-  // --- Tier 4: Wikimedia static map ---
+  // --- Tier 2: Wikimedia static map ---
   const staticUrl = getStaticPhotoUrl(params.make, params.model, params.year);
   const makeFallback = !staticUrl ? (MAKE_FALLBACK_MAP[params.make.toLowerCase()] ?? null) : null;
   const fallbackUrl = staticUrl ?? makeFallback;

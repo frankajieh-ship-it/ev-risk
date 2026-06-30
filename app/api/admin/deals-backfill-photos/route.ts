@@ -2,7 +2,7 @@
  * POST /api/admin/deals-backfill-photos
  *
  * Batch-fills photo_url for all active curated_deals rows where photo_url IS NULL.
- * Fetches photos via local CSV → static Wikimedia map → make fallback → VinAudit.
+ * Fetches photos via local CSV → static Wikimedia map → make fallback.
  * Does NOT call Auto.dev (returns wrong-car images for non-matching vehicles).
  * Rows that still have no photo stay NULL; the client DealCard fallback handles them.
  * Processes up to 50 rows per call to avoid timeouts.
@@ -12,7 +12,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
-import { getVehicleImages } from "@/lib/vinaudit-client";
 import { getStaticPhotoUrl, MAKE_FALLBACK_MAP } from "@/lib/vehicle-photo";
 import { lookupLocalImages } from "@/lib/vehicle-image-db";
 
@@ -44,12 +43,6 @@ async function fetchPhoto(row: { id: string; make: string | null; model: string 
   // Tier 0b: make-level fallback
   const makeFallback = make ? MAKE_FALLBACK_MAP[make.toLowerCase()] : undefined;
   if (makeFallback) return proxyIfWikimedia(makeFallback);
-
-  // Tier 1: VinAudit
-  const vinauditResult = await getVehicleImages({ year: row.year ?? undefined, make, model: rawModel, limit: 1 });
-  if (vinauditResult.success && vinauditResult.photo_urls.length > 0) {
-    return vinauditResult.photo_urls[0];
-  }
 
   // No Auto.dev here — it returns wrong-car results for vehicles it can't match
   // (e.g. returns Audi e-tron for everything). Rows with no photo stay NULL;
