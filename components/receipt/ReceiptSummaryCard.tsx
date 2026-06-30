@@ -220,8 +220,11 @@ export default function ReceiptSummaryCard({
 
   if (status === "not_requested" || !summary) return null;
 
-  const visibleBody = bodyExpanded ? summary.body : summary.body.slice(0, 2);
-  const hasMore = summary.body.length > 2;
+  const bodyArr = Array.isArray(summary.body) ? summary.body : [];
+  if (bodyArr.length === 0) return null;
+
+  const visibleBody = bodyExpanded ? bodyArr : bodyArr.slice(0, 2);
+  const hasMore = bodyArr.length > 2;
 
   return (
     <div className={`rounded-xl border ${styles.border} ${styles.bg} overflow-hidden`}>
