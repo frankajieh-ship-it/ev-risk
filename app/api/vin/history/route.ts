@@ -69,15 +69,12 @@ export async function POST(request: Request) {
         salvage_reported: historyResult.salvage_reported,
         accident_count: historyResult.accident_count,
         sale_count: historyResult.ownership_count ?? 0,
-        open_lien: historyResult.open_lien ?? false,
       },
-      // Provide empty arrays — CarsXE doesn't return structured event arrays in the same shape
-      theft_records: historyResult.theft_reported ? [{ source: historyResult.provider, date: null, description: "Theft event reported" }] : [],
-      salvage_records: historyResult.salvage_reported ? [{ source: historyResult.provider, date: null, title_state: null, description: "Salvage/junk record" }] : [],
-      accident_records: [],
-      sale_records: [],
-      provider: historyResult.provider,
-    } as unknown as VinAuditLiteResult;
+      theft: historyResult.theft_reported ? [{ status: "Reported" }] : [],
+      salvage: historyResult.salvage_reported ? [{ source: historyResult.provider }] : [],
+      accidents: [],
+      sales: [],
+    };
 
     cache.set(cleanVin, { result, expiresAt: Date.now() + CACHE_TTL_MS });
     if (cache.size > 500) {

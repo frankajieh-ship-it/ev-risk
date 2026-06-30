@@ -67,14 +67,12 @@ async function tryCarSXE(vin: string): Promise<VinHistoryResult | null> {
 
     if (histRes?.ok) {
       const d = await histRes.json().catch(() => null);
-      if (d?.success) historyData = d;
-      else console.warn("[vin-history] CarsXE /history success=false:", d?.message);
+      if (d !== null) historyData = d;
     }
 
     if (ltRes?.ok) {
       const d = await ltRes.json().catch(() => null);
-      if (d?.success) lienTheftData = d;
-      else console.warn("[vin-history] CarsXE /v1/lien-theft success=false:", d?.message);
+      if (d !== null) lienTheftData = d;
     }
   } catch {
     console.warn("[vin-history] CarsXE fetch failed (network/timeout)");
