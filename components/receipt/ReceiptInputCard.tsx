@@ -401,7 +401,19 @@ export default function ReceiptInputCard({
         body: JSON.stringify(bodyPayload),
         signal: controller.signal,
       });
-      const data = await res.json();
+      let data: Record<string, unknown>;
+      try {
+        data = await res.json();
+      } catch {
+        // Netlify returned a non-JSON body (e.g. 504 HTML error page)
+        if (res.status === 504 || res.status === 502 || res.status >= 500) {
+          setExtractError({ message: "Server error — try again in a moment." });
+        } else {
+          setExtractError({ message: "Extraction timed out — fill in the details below." });
+        }
+        trackEvent?.("receipt_extract_failed", { reason: `non_json_${res.status}`, input_mode: pasteMode });
+        return;
+      }
 
       if (!res.ok || !data.success) {
         if (data.partial_fields) applyExtractedFields(data.partial_fields);

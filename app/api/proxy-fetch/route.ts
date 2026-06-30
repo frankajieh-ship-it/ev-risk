@@ -274,7 +274,7 @@ export async function POST(request: NextRequest) {
     // to return as soon as listing content appears (saves 2-5s vs wait:8000).
     if (parsedUrl.hostname.includes('cargurus.com') && SCRAPINGBEE_KEY) {
       const sbController = new AbortController();
-      const sbTimeoutId = setTimeout(() => sbController.abort(), 50000);
+      const sbTimeoutId = setTimeout(() => sbController.abort(), 15000);
       try {
         console.log('[Proxy Fetch] CarGurus: trying ScrapingBee fallback');
         const sbParams = new URLSearchParams({
