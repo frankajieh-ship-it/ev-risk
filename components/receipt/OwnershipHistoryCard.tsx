@@ -54,7 +54,6 @@ export default function OwnershipHistoryCard({
       });
 
       const data = await res.json();
-      console.log("[OwnershipHistory] API response:", res.status, JSON.stringify(data));
 
       if (!res.ok || !data.success) {
         if (data.code === "not_configured") {
@@ -87,9 +86,9 @@ export default function OwnershipHistoryCard({
     }
   };
 
-  // Auto-fetch on mount so Vehicle Facts Bar pills update without user interaction
+  // Only auto-fetch after payment — CarsXE costs money per call
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetch_history(); }, [vin]);
+  useEffect(() => { if (isUnlocked || !paymentsEnabled) fetch_history(); }, [vin, isUnlocked, paymentsEnabled]);
 
   // Not configured — hide entirely, nothing useful to show
   if (fetchState === "not_configured") return null;
