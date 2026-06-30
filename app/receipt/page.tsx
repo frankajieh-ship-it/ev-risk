@@ -659,9 +659,32 @@ export default function ReceiptPage() {
   }, [receipt?.receipt_id, sellerPackUnlocked, freeMode, paymentsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
-  // Payments disabled — no-op stub so existing call sites don't error
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handlePremiumAction = useCallback((_trigger: string) => {}, []);
+  const handlePremiumAction = useCallback(async (_trigger: string) => {
+    if (!receipt?.receipt_id || !receiptToken) return;
+    try {
+      const res = await fetch("/api/payments/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scenario_type: "receipt",
+          scenario_id: receipt.receipt_id,
+          anon_id: receiptToken,
+          pack_tier: "buyer_pass",
+          page_source: _trigger,
+        }),
+      });
+      const data = await res.json();
+      if (data.status === "paid") {
+        await refetchPayment();
+        return;
+      }
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch {
+      // Silent fail — user stays on page
+    }
+  }, [receipt?.receipt_id, receiptToken, refetchPayment]);
 
 
 
@@ -1132,6 +1155,7 @@ export default function ReceiptPage() {
                 <ReceiptPaywallCard
                   receiptToken={receiptToken}
                   scenarioId={receipt.receipt_id}
+                  onPaywallClick={() => handlePremiumAction("paywall_card")}
                 />
               ) : (
                 <>

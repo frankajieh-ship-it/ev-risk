@@ -1,31 +1,36 @@
 "use client";
 
 import { useState } from "react";
-import { Zap, TrendingDown, FileText, Lock, Search, ClipboardList } from "lucide-react";
+import { Zap, TrendingDown, FileText, Lock, Search, ClipboardList, Shield, Download } from "lucide-react";
 
 interface ReceiptPaywallCardProps {
   receiptToken: string;
   scenarioId: string;
-  /** Called when Stripe checkout URL is ready — redirect happens here */
-  onCheckout?: (url: string) => void;
+  onPaywallClick?: () => void;
 }
 
 const FEATURES = [
   { icon: Search, text: "Market comparables — is this listing overpriced?" },
+  { icon: Shield, text: "VIN history — theft, salvage & accident records (NMVTIS)" },
   { icon: ClipboardList, text: "10-point inspection checklist for this exact model" },
   { icon: FileText, text: "3 negotiation scripts ready to copy & send" },
   { icon: TrendingDown, text: "Battery health deep dive & recall status" },
+  { icon: Download, text: "PDF export of the full report" },
 ];
 
 export default function ReceiptPaywallCard({
   receiptToken,
   scenarioId,
-  onCheckout,
+  onPaywallClick,
 }: ReceiptPaywallCardProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handlePay = async () => {
+    if (onPaywallClick) {
+      onPaywallClick();
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -36,13 +41,12 @@ export default function ReceiptPaywallCard({
           scenario_type: "receipt",
           scenario_id: scenarioId,
           anon_id: receiptToken,
-          pack_tier: "receipt_single",
+          pack_tier: "buyer_pass",
         }),
       });
       const data = await res.json();
       if (data.url) {
-        if (onCheckout) onCheckout(data.url);
-        else window.location.href = data.url;
+        window.location.href = data.url;
       } else if (data.status === "paid") {
         window.location.reload();
       } else {
@@ -63,16 +67,16 @@ export default function ReceiptPaywallCard({
           <div className="flex items-center gap-2 mb-2">
             <Lock className="w-4 h-4 text-[#00d97e]" />
             <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wide">
-              Deep dive ready
+              Full analysis ready
             </span>
           </div>
           <h2 className="text-xl font-bold text-white leading-tight">
-            Get the full deep dive on this exact listing
+            Unlock the complete report for this listing
           </h2>
           <p className="text-sm text-white/50 mt-1">
-            Market comparables · inspection checklist · 3 negotiation scripts.
+            VIN history · deep dive · negotiation scripts · PDF export.
             <br />
-            $3.99 · One listing · No subscription.
+            $9.99 · This listing · No subscription.
           </p>
         </div>
 
@@ -103,7 +107,7 @@ export default function ReceiptPaywallCard({
             ) : (
               <>
                 <Zap className="w-4 h-4" />
-                Unlock full deep dive — $3.99
+                Unlock everything — $9.99
               </>
             )}
           </button>
