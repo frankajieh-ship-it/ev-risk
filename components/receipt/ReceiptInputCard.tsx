@@ -401,7 +401,38 @@ export default function ReceiptInputCard({
         body: JSON.stringify(bodyPayload),
         signal: controller.signal,
       });
-      let data: Record<string, unknown>;
+      let data: {
+        success?: boolean;
+        unsupported_domain?: boolean;
+        partial_fields?: FetchedListingFields;
+        fields?: FetchedListingFields;
+        photo_urls?: string[];
+        raw_text?: string;
+        listing_source?: string;
+        dealer_info?: { id: string; name: string; slug: string; logo_url: string | null } | null;
+        inventory_id?: string;
+        extraction_id?: string;
+        extractedFields?: string[];
+        remaining_free?: number;
+        captcha_required?: boolean;
+        resetAt?: string;
+        error?: string;
+        diagnostics?: {
+          failureReason?: string;
+          botProtectionDetected?: boolean;
+          botProtectionType?: string;
+          htmlLength?: number;
+          htmlSnippet?: string;
+          sbStatus?: number;
+          sbAbortMs?: number;
+          fetchMethod?: string;
+          proxyStatusCode?: number;
+          directStatusCode?: number;
+          extractedFieldCount?: number;
+          durationMs?: number;
+          errorMessage?: string;
+        };
+      };
       try {
         data = await res.json();
       } catch {
@@ -475,7 +506,7 @@ export default function ReceiptInputCard({
         return;
       }
 
-      const f: FetchedListingFields = data.fields;
+      const f: FetchedListingFields = data.fields as FetchedListingFields;
       applyExtractedFields(f);
       setHasExtracted(true);
       setVinCompelDismissed(false);
