@@ -9,6 +9,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { DeepDiveContent } from "@/types/receipt";
 
 const MAX_202_RETRIES = 15;
+const MAX_500_RETRIES = 2;
 const RETRY_DELAY_MS = 10_000;
 const INITIAL_DELAY_MS = 15_000; // give the AI upgrade a head start before first attempt
 
@@ -28,7 +29,7 @@ export function useDeepDive({
   // Reset deep dive when receipt changes
   useEffect(() => {
     setDeepDive(null); // eslint-disable-line react-hooks/set-state-in-effect
-    setDeepDiveFailed(false);  
+    setDeepDiveFailed(false);
     retryCountRef.current = 0;
   }, [receiptId]);
 
@@ -37,6 +38,7 @@ export function useDeepDive({
     setDeepDiveFailed(false);
     setIsLoadingDeepDive(true);
     retryCountRef.current = 0;
+    let errorRetries = 0;
 
     async function attempt(): Promise<void> {
       try {
@@ -68,6 +70,19 @@ export function useDeepDive({
           return;
         }
 
+        if (res.status === 500 || res.status === 503) {
+          // Transient AI or server error — retry up to MAX_500_RETRIES times
+          if (errorRetries < MAX_500_RETRIES) {
+            errorRetries += 1;
+            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+            if (!cancelledRef.current) return attempt();
+          } else {
+            setIsLoadingDeepDive(false);
+            setDeepDiveFailed(true);
+          }
+          return;
+        }
+
         if (data.success && data.deep_dive) {
           setDeepDive(data.deep_dive);
           setDeepDiveFailed(false);
@@ -80,6 +95,12 @@ export function useDeepDive({
           console.error("[DeepDive] Fetch error:", err);
         }
         if (!cancelledRef.current) {
+          // Network error — retry once before giving up
+          if (errorRetries < MAX_500_RETRIES) {
+            errorRetries += 1;
+            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+            if (!cancelledRef.current) return attempt();
+          }
           setIsLoadingDeepDive(false);
           setDeepDiveFailed(true);
         }
