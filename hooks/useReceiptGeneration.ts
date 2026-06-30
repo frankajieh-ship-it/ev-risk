@@ -128,7 +128,7 @@ export function useReceiptGeneration({
     };
   }, []);
 
-  const startUpgradePolling = useCallback((receiptId: string) => {
+  const startUpgradePolling = useCallback((receiptId: string, vin?: string) => {
     if (upgradePollingRef.current) clearInterval(upgradePollingRef.current);
 
     setIsUpgrading(true);
@@ -146,7 +146,10 @@ export function useReceiptGeneration({
         if (data.generation_status === "full" && data.receipt) {
           clearInterval(poll);
           upgradePollingRef.current = null;
-          setReceipt(data.receipt);
+          const upgradedReceipt = vin && !data.receipt.vin
+            ? { ...data.receipt, vin }
+            : data.receipt;
+          setReceipt(upgradedReceipt);
           if (data.sections) setSections(data.sections);
           setIsUpgrading(false);
           setIsFallback(false);
@@ -302,6 +305,7 @@ export function useReceiptGeneration({
           ? { ...result.receipt, vin: data.fields.vin }
           : result.receipt;
         setReceipt(receiptWithVin);
+        setCurrentVin(data.fields.vin || undefined);
         setLintPassed(result.lint_passed);
         setLintErrors(result.lint_error_codes || []);
         setIsFallback(!!result.fallback);
@@ -344,7 +348,7 @@ export function useReceiptGeneration({
             verdict: result.receipt.verdict,
             fit_score: result.receipt.fit_score,
           });
-          startUpgradePolling(result.receipt_id);
+          startUpgradePolling(result.receipt_id, data.fields.vin || undefined);
         }
 
         trackEvent("receipt_generate", {
