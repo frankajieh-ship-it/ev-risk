@@ -185,6 +185,33 @@ export interface FetchedListingFields {
     msrp?: number;
     used_tmv?: number;
   };
+  /** NHTSA recall data — fetched free on every receipt */
+  recalls?: {
+    recall_count: number;
+    park_it: boolean;
+    park_outside: boolean;
+    recalls: Array<{
+      campaign_number: string;
+      component: string;
+      summary: string;
+      consequence: string;
+      remedy: string;
+      report_date: string;
+      park_it: boolean;
+      park_outside: boolean;
+      over_the_air_update: boolean;
+    }>;
+  };
+  /** VIN history — only present on paid receipts */
+  vin_history?: {
+    provider: string;
+    title_status: "clean" | "salvage" | "rebuilt" | "unknown";
+    accident_count: number;
+    theft_reported: boolean;
+    salvage_reported: boolean;
+    ownership_count: number | null;
+    open_lien: boolean | null;
+  };
 }
 
 // --- Extraction Confidence ---

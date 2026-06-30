@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { decodeVin, searchListings } from "@/lib/auto-dev-client";
+import { getNhtsaRecalls } from "@/lib/nhtsa-recalls";
 
 export const maxDuration = 15;
 
@@ -153,6 +154,7 @@ export async function POST(request: NextRequest) {
     decodeVin(vin),
     searchListings({ vin, limit: 6 }),
   ]);
+  // Resolve make/model/year first, then fetch recalls in parallel with NHTSA vPIC fallback
 
   // Fall back to NHTSA vPIC when Auto.dev doesn't recognize the VIN
   // (NHTSA has broader coverage: Volvo, Polestar, Genesis, etc.)
@@ -217,6 +219,17 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Fetch recalls in parallel with photo extraction
+  const recallMake = fields.make as string | undefined;
+  const recallModel = fields.model as string | undefined;
+  const recallYear = fields.year as number | undefined;
+  const [recallData] = await Promise.all([
+    (recallMake && recallModel && recallYear)
+      ? getNhtsaRecalls(recallMake, recallModel, recallYear).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+  if (recallData) fields.recalls = recallData;
+
   // Pull photos from listings
   const photoUrls: string[] = [];
   if (listingsData?.records) {
@@ -270,5 +283,6 @@ export async function POST(request: NextRequest) {
     market_price_range: market_price_range ?? null,
     vehicle_label: vehicleLabel ?? null,
     auto_dev_specs,
+    recalls: recallData ?? null,
   });
 }

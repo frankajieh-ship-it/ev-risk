@@ -28,6 +28,7 @@ import type { FieldConfidence } from "@/types/receipt";
 import { logApi, startTimer } from "@/lib/api-logger";
 import { hashIP } from "@/lib/server-session-utils";
 import { isInternalTester } from "@/lib/rollout-flags";
+import { getNhtsaRecalls } from "@/lib/nhtsa-recalls";
 
 /** Extract EV-specific specs from raw listing page text using regex */
 function parseEvSpecsFromText(text: string): Pick<FetchedListingFields, 'range_mi' | 'battery_kwh' | 'dc_fast_kw' | 'efficiency_mi_per_kwh'> {
@@ -576,13 +577,16 @@ export async function POST(request: NextRequest) {
       if (derived >= 1 && derived <= 10) fields.efficiency_mi_per_kwh = derived;
     }
 
-    // Await Auto.dev + CarGurus API enrichment in parallel.
-    // Skip wait when no VIN was extracted.
-    const [autoDevData, cgApiPhotos] = await Promise.all([
+    // Await Auto.dev + CarGurus API + NHTSA recalls in parallel.
+    // Skip Auto.dev wait when no VIN was extracted.
+    const [autoDevData, cgApiPhotos, recallData] = await Promise.all([
       result.data.vin
         ? autoDevPromise
         : (autoDevPromise.catch(() => {}), Promise.resolve({ photo_urls: [], market_price_range: undefined, vin_data: undefined, source: "none" as const })),
       cgPhotosPromise,
+      (fields.make && fields.model && fields.year)
+        ? getNhtsaRecalls(fields.make, fields.model, fields.year).catch(() => null)
+        : Promise.resolve(null),
     ]);
 
     // Photo priority: CarGurus API > scraped > Auto.dev > static map
@@ -634,6 +638,9 @@ export async function POST(request: NextRequest) {
       };
       // Fill missing trim from VIN decode if not extracted
       if (!fields.trim && vd.trim) fields.trim = vd.trim;
+    }
+    if (recallData) {
+      fields.recalls = recallData;
     }
     // NOTE: We intentionally do NOT backfill VIN from autoDevData.listing_vin.
     // Auto.dev listings search returns comps for the same make/model/year — assigning
