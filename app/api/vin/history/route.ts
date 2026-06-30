@@ -53,7 +53,11 @@ export async function POST(request: Request) {
     const historyResult = await getVinHistory(cleanVin);
 
     if (!historyResult.success) {
-      // All providers failed — return not_configured so card hides gracefully
+      console.error("[VIN History] All providers failed:", {
+        vin: cleanVin,
+        error: historyResult.error,
+        providers: historyResult.providers_attempted,
+      });
       return NextResponse.json(
         { success: false, error: historyResult.error, code: "not_configured" },
         { status: 503 }
