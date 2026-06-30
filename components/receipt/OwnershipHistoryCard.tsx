@@ -115,7 +115,7 @@ export default function OwnershipHistoryCard({
               onClick={onPaywallClick}
               className="w-full py-2.5 rounded-lg bg-[#00d97e] text-black text-sm font-semibold hover:bg-[#00c070] transition-colors"
             >
-              Unlock Full Report · $10
+              Unlock everything · $9.99
             </button>
           </div>
         </div>

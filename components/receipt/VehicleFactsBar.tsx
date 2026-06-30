@@ -190,29 +190,49 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
           </span>
         )}
 
-        {/* Title status — always free (scraped from listing) */}
-        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${tc.cls}`}>
-          <TitleIcon className="w-3 h-3" />
-          {tc.label}
-        </span>
+        {/* Title status — show unverified scraped label for free; verified label only when unlocked */}
+        {showFull ? (
+          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${tc.cls}`}>
+            <TitleIcon className="w-3 h-3" />
+            {tc.label}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-amber-400 bg-amber-500/10 border-amber-500/20">
+            <ShieldAlert className="w-3 h-3" />
+            {titleStatus === "salvage" ? "Salvage title" : titleStatus === "rebuilt" ? "Rebuilt title" : "Clean title (unverified)"}
+          </span>
+        )}
 
-        {/* Accidents — always free (scraped from listing) */}
-        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${ac.cls}`}>
-          <AccidentIcon className="w-3 h-3" />
-          {ac.label}
-        </span>
+        {/* Accidents — show unverified scraped label for free; verified label only when unlocked */}
+        {showFull ? (
+          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${ac.cls}`}>
+            <AccidentIcon className="w-3 h-3" />
+            {ac.label}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-amber-400 bg-amber-500/10 border-amber-500/20">
+            <ShieldAlert className="w-3 h-3" />
+            {accidents === "yes" ? "Accidents reported (listing)" : "No accidents reported (unverified)"}
+          </span>
+        )}
 
-        {/* VIN history — shows "coming soon" until history check runs, then switches to verified pill */}
+        {/* VIN history — locked until payment; verified result only when unlocked */}
         {showFull && !historyVerified && (
           <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-white/10 text-white/30 bg-white/[0.03]">
             <Shield className="w-3 h-3" />
             VIN history — run check below
           </span>
         )}
-        {historyVerified && (
+        {showFull && historyVerified && (
           <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-[#00d97e]/30 text-[#00d97e]/80 bg-[#00d97e]/[0.06]">
             <CheckCircle className="w-3 h-3" />
             VIN history checked{vinHistory!.summary.sale_count > 0 ? ` · ${vinHistory!.summary.sale_count} owner${vinHistory!.summary.sale_count !== 1 ? "s" : ""}` : ""}
+          </span>
+        )}
+        {!showFull && (
+          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-white/10 text-white/30 bg-white/[0.03]">
+            <Lock className="w-3 h-3" />
+            VIN history — unlock to check
           </span>
         )}
 

@@ -215,7 +215,7 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
             className="flex items-center gap-2 text-xs font-semibold text-[#00d97e] hover:text-[#00c970] transition-colors"
           >
             <Zap className="w-3.5 h-3.5" />
-            Unlock photo analysis — $3.99
+            Unlock photo analysis — $9.99
           </button>
         </div>
       </div>
