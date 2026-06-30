@@ -8,7 +8,7 @@
  * NHTSA recalls, and battery health estimate (EVs).
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Shield, ShieldAlert, AlertTriangle, CheckCircle, Zap, ExternalLink, Loader2, Lock } from "lucide-react";
 import type { ListingReceipt } from "@/types/receipt";
@@ -18,6 +18,7 @@ interface VehicleFactsBarProps {
   isUnlocked?: boolean;
   paymentsEnabled?: boolean;
   onPaywallClick?: () => void;
+  serverRecalls?: import("@/lib/nhtsa-recalls").RecallResult | null;
 }
 
 
@@ -66,7 +67,7 @@ interface NhtsaRecall {
 
 type RecallStatus = "idle" | "loading" | "done" | "error";
 
-export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsEnabled = false, onPaywallClick }: VehicleFactsBarProps) {
+export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsEnabled = false, onPaywallClick, serverRecalls }: VehicleFactsBarProps) {
   const ls = receipt.listing_summary;
   const make = ls?.make || "";
   const model = ls?.model || "";
@@ -75,27 +76,38 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
   const titleStatus = ls?.title_status || "unknown";
   const accidents = ls?.accidents_reported || "unknown";
 
-  const [recalls, setRecalls] = useState<NhtsaRecall[]>([]);
-  const [recallStatus, setRecallStatus] = useState<RecallStatus>("idle");
+  // When serverRecalls is provided, derive the display list directly (no state sync)
+  const serverRecallList = useMemo<NhtsaRecall[]>(() =>
+    serverRecalls ? serverRecalls.recalls.map(r => ({
+      NHTSACampaignNumber: r.campaign_number,
+      Component: r.component,
+      Summary: r.summary,
+    })) : []
+  , [serverRecalls]);
+
+  const [clientRecalls, setClientRecalls] = useState<NhtsaRecall[]>([]);
+  const [recallStatus, setRecallStatus] = useState<RecallStatus>(serverRecalls ? "done" : "idle");
   const [recallExpanded, setRecallExpanded] = useState(false);
 
-  // Live NHTSA recall fetch
+  const recalls = serverRecalls ? serverRecallList : clientRecalls;
+
+  // Client-side NHTSA fetch — only runs when server didn't provide recall data
   useEffect(() => {
+    if (serverRecalls) return;
     if (!make || !model || !year) return;
     setRecallStatus("loading"); // eslint-disable-line react-hooks/set-state-in-effect
-    // NHTSA needs the base model name — strip battery/trim suffixes (e.g. "Model S 90D AWD" → "Model S")
+    // NHTSA needs the base model name — strip battery/trim suffixes
     const nhtsaModel = model
       .replace(/\s+(p100d|p90d|p85d\+?|p85|100d|90d|85d|75d|70d|60d)\b.*/i, "")
       .replace(/\s+(long range|standard range plus|standard range|performance|plaid\+?|dual motor|tri motor|awd|rwd|fwd|4wd)\b.*/i, "")
       .trim();
     const recallUrl = `/api/recalls/nhtsa?make=${encodeURIComponent(make)}&model=${encodeURIComponent(nhtsaModel)}&year=${encodeURIComponent(String(year))}`;
-    // Retry once on failure — NHTSA can be flaky
     const tryFetch = (attempt: number): void => {
       fetch(recallUrl)
         .then((r) => r.json())
         .then((data) => {
           if (data.success) {
-            setRecalls(data.recalls || []);
+            setClientRecalls(data.recalls || []);
             setRecallStatus("done");
           } else if (attempt < 1) {
             setTimeout(() => tryFetch(attempt + 1), 2000);
@@ -112,7 +124,7 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
         });
     };
     tryFetch(0);
-  }, [make, model, year]);
+  }, [make, model, year, serverRecalls]);
 
   const ev = isEv(make, model);
   const currentYear = new Date().getFullYear();
@@ -195,13 +207,21 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
           </a>
         )}
         {recallStatus === "done" && recalls.length > 0 && (
-          <button onClick={() => setRecallExpanded((o) => !o)}
-            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-red-400 bg-red-500/10 border-red-500/20"
-          >
-            <AlertTriangle className="w-3 h-3" />
-            {recalls.length} recall campaign{recalls.length !== 1 ? "s" : ""} (NHTSA)
-            <span className="ml-0.5 text-red-400/70">{recallExpanded ? "▲" : "▼"}</span>
-          </button>
+          <>
+            <button onClick={() => setRecallExpanded((o) => !o)}
+              className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-red-400 bg-red-500/10 border-red-500/20"
+            >
+              <AlertTriangle className="w-3 h-3" />
+              {recalls.length} recall campaign{recalls.length !== 1 ? "s" : ""} (NHTSA)
+              <span className="ml-0.5 text-red-400/70">{recallExpanded ? "▲" : "▼"}</span>
+            </button>
+            {(serverRecalls?.park_it || serverRecalls?.park_outside) && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-orange-400 bg-orange-500/10 border-orange-500/20">
+                <AlertTriangle className="w-3 h-3" />
+                {serverRecalls.park_it ? "Do not park indoors" : "Park outside only"} — fire risk recall
+              </span>
+            )}
+          </>
         )}
         {recallStatus === "error" && (
           <a href={nhtsaUrl} target="_blank" rel="noopener noreferrer"

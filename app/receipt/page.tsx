@@ -47,6 +47,7 @@ const CompareSelectModal = dynamic(() => import("@/components/receipt/CompareSel
 const ShareModal = dynamic(() => import("@/components/receipt/ShareModal"), { ssr: false });
 const OFfoChat = dynamic(() => import("@/components/chat/OFfoChat"), { ssr: false });
 const ReceiptPaywallCard = dynamic(() => import("@/components/receipt/ReceiptPaywallCard"), { ssr: false });
+const OwnershipHistoryCard = dynamic(() => import("@/components/receipt/OwnershipHistoryCard"), { ssr: false });
 
 const PdfDownloadButton = dynamic(() => import("@/components/receipt/PdfDownloadButton"), { ssr: false });
 const ReceiptToolsSection = dynamic(() => import("@/components/receipt/ReceiptToolsSection"), { ssr: false });
@@ -390,10 +391,14 @@ export default function ReceiptPage() {
   // by user drag-and-drop. PhotoDueDiligenceCard converts all URLs to resized base64
   // immediately on mount, so CDN expiry is not a concern.
   const [listingPhotos, setListingPhotos] = useState<string[]>([]);
+  const [serverRecalls, setServerRecalls] = useState<import("@/lib/nhtsa-recalls").RecallResult | null>(null);
 
-  // Reset photos when receipt is cleared (new submission starting)
+  // Reset photos and recalls when receipt is cleared (new submission starting)
   useEffect(() => {
-    if (!receipt) setListingPhotos([]);
+    if (!receipt) {
+      setListingPhotos([]);
+      setServerRecalls(null);
+    }
   }, [receipt]);
 
   const handlePhotosFailed = useCallback(() => {}, []);
@@ -931,6 +936,7 @@ export default function ReceiptPage() {
           onPhotosExtracted={(photos) => {
             if (photos?.length) setListingPhotos([photos[0]]);
           }}
+          onRecallsExtracted={(recalls) => setServerRecalls(recalls)}
           isGenerating={isGenerating}
           generatingStep={generatingStep}
           remainingFree={null}
@@ -1022,6 +1028,24 @@ export default function ReceiptPage() {
                 vin={(receipt as unknown as Record<string, unknown>).vin as string | undefined}
               />
 
+              {/* Quick share — surfaces sharing before user scrolls to bottom */}
+              <div className="flex justify-end px-1">
+                <button
+                  onClick={handleShareClick}
+                  disabled={isSharing}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-white/10 text-white/50 hover:text-white/80 hover:border-white/20 transition-colors disabled:opacity-40"
+                >
+                  {isSharing ? (
+                    <span className="animate-pulse">Generating…</span>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                      Share result
+                    </>
+                  )}
+                </button>
+              </div>
+
               <div data-tutorial="receipt-output">
               <ReceiptOutputCard
                 receipt={receipt}
@@ -1062,13 +1086,41 @@ export default function ReceiptPage() {
                   const fresh = incoming.filter(u => !existingSet.has(u));
                   return fresh.length ? [...prev, ...fresh] : prev;
                 })}
+                serverRecalls={serverRecalls}
               />
               </div>
 
 
+              {/* Compare nudge — shown after saving, prompts user to build shortlist */}
+              {hasSaved && (
+                <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.07]">
+                  <p className="text-sm text-white/60">
+                    Considering other EVs? <span className="text-white/80">Compare them side by side.</span>
+                  </p>
+                  <Link
+                    href="/shortlist"
+                    className="shrink-0 text-xs font-semibold text-[#00d97e] hover:text-[#00c970] whitespace-nowrap transition-colors"
+                  >
+                    View Shortlist →
+                  </Link>
+                </div>
+              )}
+
               {/* Retention hook — shown immediately after result so unauthenticated users see it first */}
               {!isAuthenticated && (
                 <WorkspaceSaveNudge onSignIn={() => setShowAuthPrompt(true)} />
+              )}
+
+              {/* VIN ownership history — theft, salvage, accidents, sales (VINaudit) */}
+              {receipt.vin && (
+                <OwnershipHistoryCard
+                  vin={receipt.vin}
+                  receiptToken={receiptToken}
+                  isUnlocked={isUnlocked}
+                  paymentsEnabled={paymentsEnabled}
+                  onPaywallClick={() => handlePremiumAction("ownership_history")}
+                  trackEvent={(name, data) => { trackEvent(name, data as Parameters<typeof trackEvent>[1]); }}
+                />
               )}
 
               {/* ── Paywall or deep sections ── */}

@@ -76,6 +76,7 @@ interface ReceiptInputCardProps {
   onExtractionSuccess?: (vehicleSummary: string) => void;
   onExtractionFields?: (fields: { year?: number; make?: string; model?: string; trim?: string; mileage?: number }) => void;
   onPhotosExtracted?: (photos: string[]) => void;
+  onRecallsExtracted?: (recalls: import("@/lib/nhtsa-recalls").RecallResult) => void;
   isGenerating: boolean;
   generatingStep?: number;
   remainingFree: number | null;
@@ -133,6 +134,7 @@ export default function ReceiptInputCard({
   onExtractionSuccess,
   onExtractionFields,
   onPhotosExtracted,
+  onRecallsExtracted,
   isGenerating,
   generatingStep = 0,
   remainingFree,
@@ -311,6 +313,7 @@ export default function ReceiptInputCard({
       setVinFilled(true);
       setExtractError(null);
       trackEvent?.("vin_lookup_success", { vin, anon_id: receiptToken });
+      if (data.recalls) onRecallsExtracted?.(data.recalls);
       setTimeout(() => priceInputRef.current?.focus(), 150);
     } catch {
       setVinStatus("error");
@@ -533,6 +536,7 @@ export default function ReceiptInputCard({
       onExtractionSuccess?.(summary || "your vehicle");
       onExtractionFields?.({ year: f.year, make: f.make, model: f.model, trim: f.trim, mileage: f.mileage });
       if (data.photo_urls?.length) onPhotosExtracted?.(data.photo_urls);
+      if (f.recalls) onRecallsExtracted?.(f.recalls);
     } catch (err) {
       const _domain = (() => { try { return new URL((urlOverride ?? listingUrl).trim()).hostname.replace(/^www\./, ""); } catch { return "unknown"; } })();
       if (err instanceof Error && err.name === "AbortError") {
