@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ShieldAlert,
   ShieldCheck,
@@ -42,6 +42,7 @@ export default function OwnershipHistoryCard({
   const [salesOpen, setSalesOpen] = useState(false);
 
   const fetch_history = async () => {
+    if (fetchState === "loading") return;
     setFetchState("loading");
     trackEvent("ownership_history_requested", { vin });
 
@@ -85,6 +86,10 @@ export default function OwnershipHistoryCard({
       setFetchState("error");
     }
   };
+
+  // Auto-fetch on mount so Vehicle Facts Bar pills update without user interaction
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetch_history(); }, [vin]);
 
   // Not configured — hide entirely, nothing useful to show
   if (fetchState === "not_configured") return null;
