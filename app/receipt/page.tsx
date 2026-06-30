@@ -1051,6 +1051,9 @@ export default function ReceiptPage() {
                 initialStatus={sections?.receipt_summary?.status}
                 verdict={receipt.verdict}
                 vin={(receipt as unknown as Record<string, unknown>).vin as string | undefined}
+                isUnlocked={isUnlocked}
+                paymentsEnabled={paymentsEnabled}
+                onPaywallClick={() => handlePremiumAction("summary_card")}
               />
 
               {/* Quick share — surfaces sharing before user scrolls to bottom */}

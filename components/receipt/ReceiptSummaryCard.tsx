@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Loader2, RefreshCw, MessageSquare, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronUp, CheckCircle } from "lucide-react";
+import { Loader2, RefreshCw, MessageSquare, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronUp, CheckCircle, Lock, Zap } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import { getOrCreateReceiptToken } from "@/lib/session-utils";
 import type { ListingAISummary } from "@/lib/receipt-sections";
@@ -21,6 +21,9 @@ interface ReceiptSummaryCardProps {
   initialStatus?: string;
   verdict: "GREEN" | "YELLOW" | "RED";
   vin?: string | null;
+  isUnlocked?: boolean;
+  paymentsEnabled?: boolean;
+  onPaywallClick?: () => void;
 }
 
 type Tone = "proceed" | "caution" | "stop";
@@ -80,6 +83,9 @@ export default function ReceiptSummaryCard({
   initialStatus,
   verdict,
   vin,
+  isUnlocked = false,
+  paymentsEnabled = false,
+  onPaywallClick,
 }: ReceiptSummaryCardProps) {
   const { trackEvent } = useEventTracking();
   const retryCountRef = useRef(0);
@@ -222,6 +228,50 @@ export default function ReceiptSummaryCard({
 
   const bodyArr = Array.isArray(summary.body) ? summary.body : [];
   if (bodyArr.length === 0) return null;
+
+  // Paywall gate — show blurred teaser with unlock CTA
+  if (paymentsEnabled && !isUnlocked) {
+    return (
+      <div className={`rounded-xl border ${styles.border} ${styles.bg} overflow-hidden relative`}>
+        {/* Blurred preview */}
+        <div className="blur-sm pointer-events-none select-none opacity-60">
+          <div className="flex items-center gap-3 px-5 pt-4 pb-3">
+            <div className={`w-8 h-8 rounded-full ${styles.iconBg} flex items-center justify-center shrink-0`}>
+              <Icon className={`w-4 h-4 ${styles.iconColor}`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className={`text-[11px] font-semibold uppercase tracking-widest ${styles.iconColor} opacity-70`}>
+                {styles.label}
+              </span>
+              <p className={`text-sm font-bold leading-snug mt-0.5 ${styles.headlineColor}`}>
+                {summary.headline}
+              </p>
+            </div>
+          </div>
+          <div className="px-5 pb-3 space-y-2">
+            {bodyArr.slice(0, 2).map((sentence: string, i: number) => (
+              <p key={i} className="text-sm text-white/70 leading-relaxed">{sentence}</p>
+            ))}
+          </div>
+        </div>
+        {/* Overlay CTA */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0d1117]/60 backdrop-blur-[2px] rounded-xl px-6">
+          <div className="flex items-center gap-2 text-white/70 text-sm font-medium">
+            <Lock className="w-4 h-4 text-[#00d97e]" />
+            Full analysis ready — unlock to read
+          </div>
+          <button
+            onClick={onPaywallClick}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[#00d97e] hover:bg-[#00c970] text-[#0d1117] text-sm font-bold rounded-xl transition-colors"
+          >
+            <Zap className="w-4 h-4" />
+            Unlock everything — $9.99
+          </button>
+          <p className="text-[11px] text-white/30">One listing · No subscription</p>
+        </div>
+      </div>
+    );
+  }
 
   const visibleBody = bodyExpanded ? bodyArr : bodyArr.slice(0, 2);
   const hasMore = bodyArr.length > 2;
