@@ -74,6 +74,7 @@ interface ReceiptOutputCardProps {
   onAddPhotos?: (dataUrls: string[]) => void;
   serverRecalls?: import("@/lib/nhtsa-recalls").RecallResult | null;
   vinHistory?: import("@/lib/vinaudit-client").VinAuditLiteResult | null;
+  emailUnlocked?: boolean;
 }
 
 const VERDICT_STYLES = {
@@ -155,6 +156,7 @@ export default function ReceiptOutputCard({
   onAddPhotos,
   serverRecalls,
   vinHistory,
+  emailUnlocked = false,
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [scoringTooltipOpen, setScoringTooltipOpen] = useState(false);
@@ -288,6 +290,7 @@ export default function ReceiptOutputCard({
   const verdict = VERDICT_STYLES[receipt.verdict];
   const VerdictIcon = verdict.icon;
   const price = PRICE_STYLES[receipt.price_sanity?.label || "UNKNOWN"];
+  const verdictLocked = paymentsEnabled && !isUnlocked && !emailUnlocked;
 
   // Vehicle description
   const ls = receipt.listing_summary;
@@ -379,7 +382,7 @@ export default function ReceiptOutputCard({
       )}
 
       {/* Verdict banner — neutral/pending style while upgrading */}
-      <div className={`${isUpgrading ? "bg-[#161b22] border-white/[0.08]" : `${verdict.bg} ${verdict.border}`} border-b px-5 py-4`}>
+      <div className={`${(isUpgrading || verdictLocked) ? "bg-[#161b22] border-white/[0.08]" : `${verdict.bg} ${verdict.border}`} border-b px-5 py-4`}>
         <div className="flex items-center justify-between mb-2">
           <p className="text-xs font-semibold text-white/40 uppercase tracking-widest">Overall Verdict</p>
           {/* Quick-action icons — save + compare without scrolling */}
@@ -408,40 +411,63 @@ export default function ReceiptOutputCard({
           )}
         </div>
         <div className="flex items-center gap-3">
-          {isUpgrading
-            ? <HelpCircle className="w-6 h-6 text-white/40" />
-            : <VerdictIcon className={`w-6 h-6 ${verdict.text}`} />
-          }
-          <div>
-            <div className="flex items-center gap-2">
-              {isUpgrading ? (
-                <span className="text-lg font-bold text-white/40">Analyzing…</span>
-              ) : (
-                <>
-                  <span className={`text-lg font-bold ${verdict.text}`}>
-                    {receipt.verdict}
-                  </span>
-                  <span className={`text-sm font-medium ${verdict.text} opacity-80`}>
-                    — {verdict.label}
-                  </span>
-                </>
+          {verdictLocked ? (
+            <>
+              <Lock className="w-6 h-6 text-white/30 shrink-0" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-white/20 blur-[6px] select-none">GREEN</span>
+                  <span className="text-sm text-white/20 blur-[6px] select-none">— Good Deal</span>
+                </div>
+                <p className="text-xs text-white/40 mt-0.5">Sign up free to reveal verdict</p>
+              </div>
+              {onPaywallClick && (
+                <button
+                  onClick={onPaywallClick}
+                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#00d97e]/10 text-[#00d97e] hover:bg-[#00d97e]/20 transition-colors shrink-0"
+                >
+                  Reveal
+                </button>
               )}
-              {!isUpgrading && receipt.evidence_label === "STRONG" && (
-                <Badge variant="primary">Strong Evidence</Badge>
-              )}
-            </div>
-            {vehicleDesc && (
-              <p className="text-sm text-white/70 mt-0.5">
-                {vehicleDesc}
-                {priceStr && <span className="font-semibold"> · {priceStr}</span>}
-              </p>
-            )}
-            {listingAgeBadge && (
-              <span className={`inline-block mt-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border ${listingAgeBadge.cls}`}>
-                {listingAgeBadge.label}
-              </span>
-            )}
-          </div>
+            </>
+          ) : (
+            <>
+              {isUpgrading
+                ? <HelpCircle className="w-6 h-6 text-white/40" />
+                : <VerdictIcon className={`w-6 h-6 ${verdict.text}`} />
+              }
+              <div>
+                <div className="flex items-center gap-2">
+                  {isUpgrading ? (
+                    <span className="text-lg font-bold text-white/40">Analyzing…</span>
+                  ) : (
+                    <>
+                      <span className={`text-lg font-bold ${verdict.text}`}>
+                        {receipt.verdict}
+                      </span>
+                      <span className={`text-sm font-medium ${verdict.text} opacity-80`}>
+                        — {verdict.label}
+                      </span>
+                    </>
+                  )}
+                  {!isUpgrading && receipt.evidence_label === "STRONG" && (
+                    <Badge variant="primary">Strong Evidence</Badge>
+                  )}
+                </div>
+                {vehicleDesc && (
+                  <p className="text-sm text-white/70 mt-0.5">
+                    {vehicleDesc}
+                    {priceStr && <span className="font-semibold"> · {priceStr}</span>}
+                  </p>
+                )}
+                {listingAgeBadge && (
+                  <span className={`inline-block mt-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border ${listingAgeBadge.cls}`}>
+                    {listingAgeBadge.label}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Photo strip — empty state CTA when no photos, otherwise hero + thumbnails */}

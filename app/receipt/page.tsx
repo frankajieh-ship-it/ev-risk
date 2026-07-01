@@ -1104,6 +1104,7 @@ export default function ReceiptPage() {
                 isUpgrading={isUpgrading}
                 upgradeFailed={upgradeFailed}
                 isUnlocked={isUnlocked}
+                emailUnlocked={emailUnlocked}
                 paymentsEnabled={paymentsEnabled}
                 onPaywallClick={() => handlePremiumAction("output_card")}
                 photos={listingPhotos}
