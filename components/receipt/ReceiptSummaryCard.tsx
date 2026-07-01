@@ -8,9 +8,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Loader2, RefreshCw, MessageSquare, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronUp, CheckCircle, Lock, Zap } from "lucide-react";
+import { Loader2, RefreshCw, MessageSquare, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronUp, CheckCircle, Lock, Zap, Mail } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
-import { getOrCreateReceiptToken } from "@/lib/session-utils";
+import { getOrCreateReceiptToken, getOrCreatePersistentSessionId } from "@/lib/session-utils";
+import { getAttributionForEvent } from "@/lib/attribution";
 import type { ListingAISummary } from "@/lib/receipt-sections";
 
 interface ReceiptSummaryCardProps {
@@ -22,8 +23,10 @@ interface ReceiptSummaryCardProps {
   verdict: "GREEN" | "YELLOW" | "RED";
   vin?: string | null;
   isUnlocked?: boolean;
+  emailUnlocked?: boolean;
   paymentsEnabled?: boolean;
   onPaywallClick?: () => void;
+  onEmailCapture?: () => void;
 }
 
 type Tone = "proceed" | "caution" | "stop";
@@ -84,15 +87,17 @@ export default function ReceiptSummaryCard({
   verdict,
   vin,
   isUnlocked = false,
+  emailUnlocked = false,
   paymentsEnabled = false,
   onPaywallClick,
+  onEmailCapture,
 }: ReceiptSummaryCardProps) {
   const { trackEvent } = useEventTracking();
   const retryCountRef = useRef(0);
 
   const [vinAuditClean, setVinAuditClean] = useState<boolean | null>(null);
   useEffect(() => {
-    if (!vin) return;
+    if (!vin || !isUnlocked) return;
     const token = getOrCreateReceiptToken();
     if (!token) return;
     fetch("/api/vin/history", {
@@ -108,7 +113,47 @@ export default function ReceiptSummaryCard({
         }
       })
       .catch(() => {});
-  }, [vin]);
+  }, [vin, isUnlocked]);
+
+  // Inline email gate state
+  const [emailInput, setEmailInput] = useState("");
+  const [emailGateState, setEmailGateState] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [emailGateError, setEmailGateError] = useState<string | null>(null);
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = emailInput.trim();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailGateError("Enter a valid email address");
+      return;
+    }
+    setEmailGateState("submitting");
+    setEmailGateError(null);
+    try {
+      const res = await fetch("/api/checklist/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: trimmed,
+          attribution: getAttributionForEvent(),
+          persistent_session_id: getOrCreatePersistentSessionId(),
+          source: "summary_email_gate",
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem("offo_email_captured", "1");
+        setEmailGateState("success");
+        setTimeout(() => onEmailCapture?.(), 600);
+      } else {
+        setEmailGateState("error");
+        setEmailGateError(data.error || "Something went wrong.");
+      }
+    } catch {
+      setEmailGateState("error");
+      setEmailGateError("Connection error. Try again.");
+    }
+  };
 
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isUpgradingRef = useRef(isUpgrading);
@@ -229,12 +274,15 @@ export default function ReceiptSummaryCard({
   const bodyArr = Array.isArray(summary.body) ? summary.body : [];
   if (bodyArr.length === 0) return null;
 
-  // Paywall gate — show blurred teaser with unlock CTA
-  if (paymentsEnabled && !isUnlocked) {
+  // Gate logic: email captures summary, payment captures everything else
+  const showSummary = isUnlocked || emailUnlocked;
+
+  if (paymentsEnabled && !showSummary) {
+    // Email gate — first step, free
     return (
       <div className={`rounded-xl border ${styles.border} ${styles.bg} overflow-hidden relative`}>
         {/* Blurred preview */}
-        <div className="blur-sm pointer-events-none select-none opacity-60">
+        <div className="blur-sm pointer-events-none select-none opacity-50">
           <div className="flex items-center gap-3 px-5 pt-4 pb-3">
             <div className={`w-8 h-8 rounded-full ${styles.iconBg} flex items-center justify-center shrink-0`}>
               <Icon className={`w-4 h-4 ${styles.iconColor}`} />
@@ -254,20 +302,55 @@ export default function ReceiptSummaryCard({
             ))}
           </div>
         </div>
-        {/* Overlay CTA */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0d1117]/60 backdrop-blur-[2px] rounded-xl px-6">
-          <div className="flex items-center gap-2 text-white/70 text-sm font-medium">
-            <Lock className="w-4 h-4 text-[#00d97e]" />
-            Full analysis ready — unlock to read
-          </div>
-          <button
-            onClick={onPaywallClick}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#00d97e] hover:bg-[#00c970] text-[#0d1117] text-sm font-bold rounded-xl transition-colors"
-          >
-            <Zap className="w-4 h-4" />
-            Unlock everything — $9.99
-          </button>
-          <p className="text-[11px] text-white/30">One listing · No subscription</p>
+        {/* Email gate overlay */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0d1117]/70 backdrop-blur-[2px] rounded-xl px-6">
+          {emailGateState === "success" ? (
+            <div className="flex flex-col items-center gap-2">
+              <CheckCircle className="w-7 h-7 text-[#00d97e]" />
+              <p className="text-sm font-medium text-white">Unlocking summary…</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 text-white/80 text-sm font-semibold">
+                <Mail className="w-4 h-4 text-[#00d97e]" />
+                Your analysis is ready
+              </div>
+              <p className="text-xs text-white/40 text-center max-w-[220px]">
+                Enter your email to read the full AI summary — free, no card needed.
+              </p>
+              <form onSubmit={handleEmailSubmit} className="w-full max-w-[260px] space-y-2">
+                <input
+                  type="email"
+                  value={emailInput}
+                  onChange={(e) => { setEmailInput(e.target.value); setEmailGateError(null); }}
+                  placeholder="your@email.com"
+                  autoFocus
+                  disabled={emailGateState === "submitting"}
+                  className="w-full px-3 py-2.5 text-sm bg-white/[0.08] border border-white/[0.15] rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-[#00d97e]/50 focus:border-[#00d97e]/50"
+                />
+                {emailGateError && <p className="text-xs text-red-400">{emailGateError}</p>}
+                <button
+                  type="submit"
+                  disabled={emailGateState === "submitting" || !emailInput.trim()}
+                  className="w-full py-2.5 rounded-xl font-semibold text-sm text-[#0d1117] bg-[#00d97e] hover:bg-[#00c970] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {emailGateState === "submitting" ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin" />Unlocking…</>
+                  ) : "Read free summary →"}
+                </button>
+              </form>
+              <p className="text-[10px] text-white/25">No spam · Unsubscribe anytime</p>
+              {onPaywallClick && (
+                <button
+                  onClick={onPaywallClick}
+                  className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/50 transition-colors mt-1"
+                >
+                  <Zap className="w-3 h-3" />
+                  Skip to full unlock — $9.99
+                </button>
+              )}
+            </>
+          )}
         </div>
       </div>
     );
@@ -341,6 +424,22 @@ export default function ReceiptSummaryCard({
           <p className="text-[11px] text-green-400/70 leading-relaxed">
             NMVTIS confirmed: no accident or theft records found for this VIN.
           </p>
+        </div>
+      )}
+
+      {/* Soft upsell — shown when email captured but not yet paid */}
+      {paymentsEnabled && !isUnlocked && showSummary && onPaywallClick && (
+        <div className="px-5 py-3 border-t border-white/[0.05] flex items-center justify-between gap-3">
+          <p className="text-xs text-white/35">
+            VIN history · negotiation scripts · photo analysis
+          </p>
+          <button
+            onClick={onPaywallClick}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#00d97e]/10 hover:bg-[#00d97e]/20 text-[#00d97e] text-xs font-semibold transition-colors"
+          >
+            <Zap className="w-3 h-3" />
+            Unlock all · $9.99
+          </button>
         </div>
       )}
     </div>

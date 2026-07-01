@@ -30,7 +30,7 @@ export const anthropicAdapter: ProviderAdapter = {
 
   async generate(opts: GenerateOpts): Promise<GenerateResult> {
     const t0 = Date.now();
-    const model = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001";
+    const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 
     // Use tool_use for guaranteed JSON output matching the schema
     const tool: Anthropic.Tool = {

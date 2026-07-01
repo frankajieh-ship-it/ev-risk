@@ -15,12 +15,14 @@ import type { RedditDraft } from "@/types/receipt";
 
 interface RedditDraftSectionProps {
   receiptId: string;
+  anonId?: string | null;
   initialDraft?: RedditDraft | null;
   initialStatus?: string; // "not_requested" | "ready" | "running" | "failed"
 }
 
 export default function RedditDraftSection({
   receiptId,
+  anonId,
   initialDraft,
   initialStatus,
 }: RedditDraftSectionProps) {
@@ -39,6 +41,8 @@ export default function RedditDraftSection({
     try {
       const res = await fetch(`/api/receipt/${receiptId}/generate/reddit_draft`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anon_id: anonId ?? null }),
       });
       const json = await res.json();
 
@@ -66,7 +70,7 @@ export default function RedditDraftSection({
         reason: err instanceof Error ? err.message : "network_error",
       });
     }
-  }, [receiptId, trackEvent]);
+  }, [receiptId, anonId, trackEvent]);
 
   const copyText = useCallback(async () => {
     if (!draft) return;

@@ -18,6 +18,8 @@ import {
   generateNegotiationDeep,
   generateReceiptSummary,
 } from "@/lib/receipt-sections";
+import { checkPurchaseStatus } from "@/lib/payment-status";
+import { isFreeMode, isPaymentsEnabledFor } from "@/lib/rollout-flags";
 import type { ListingReceipt } from "@/types/receipt";
 
 const sectionRateLimiter = new RateLimiter(60 * 1000, 10); // 10 req/min per IP
@@ -30,6 +32,8 @@ export async function POST(
   { params }: { params: Promise<{ receiptId: string; section: string }> }
 ) {
   const { receiptId, section } = await params;
+  const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+  const anonId = typeof body.anon_id === "string" ? body.anon_id : null;
 
   // Validate section name
   if (!VALID_SECTIONS.includes(section as Section)) {
@@ -62,6 +66,18 @@ export async function POST(
       { success: false, error: "Too many requests" },
       { status: 429 }
     );
+  }
+
+  // Payment gate — receipt_summary is email-gated (free), all other sections require payment
+  const paymentsEnabled = !isFreeMode() && isPaymentsEnabledFor(anonId ?? "");
+  if (paymentsEnabled && sectionKey !== "receipt_summary") {
+    if (!anonId) {
+      return NextResponse.json({ success: false, error: "Authentication required" }, { status: 401 });
+    }
+    const purchaseStatus = await checkPurchaseStatus("receipt", receiptId, anonId);
+    if (!purchaseStatus.unlocked_base) {
+      return NextResponse.json({ success: false, error: "Purchase required", code: "payment_required" }, { status: 402 });
+    }
   }
 
   // Load receipt

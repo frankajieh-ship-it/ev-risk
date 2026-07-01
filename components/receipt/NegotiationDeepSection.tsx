@@ -11,6 +11,7 @@ import type { NegotiationScript } from "@/lib/receipt-sections";
 
 interface NegotiationDeepSectionProps {
   receiptId: string;
+  anonId?: string | null;
   initialScripts?: NegotiationScript[] | null;
   initialStatus?: string;
   isUnlocked?: boolean;
@@ -20,6 +21,7 @@ interface NegotiationDeepSectionProps {
 
 export default function NegotiationDeepSection({
   receiptId,
+  anonId,
   initialScripts,
   initialStatus,
   isUnlocked = false,
@@ -50,7 +52,11 @@ export default function NegotiationDeepSection({
     setStatus("running");
     const t0 = Date.now();
     try {
-      const res = await fetch(`/api/receipt/${receiptId}/generate/negotiation_deep`, { method: "POST" });
+      const res = await fetch(`/api/receipt/${receiptId}/generate/negotiation_deep`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anon_id: anonId ?? null }),
+      });
       const json = await res.json();
 
       if (res.status === 409) {
@@ -81,7 +87,7 @@ export default function NegotiationDeepSection({
       setStatus("failed");
       trackEvent("section_generate_failed", { receipt_id: receiptId, section_name: "negotiation_deep", reason: err instanceof Error ? err.message : "network_error" });
     }
-  }, [receiptId, trackEvent]);
+  }, [receiptId, anonId, trackEvent]);
   useEffect(() => { generateRef.current = generate; });
 
   const copyScript = async (script: NegotiationScript, i: number) => {

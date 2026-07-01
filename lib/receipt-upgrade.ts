@@ -85,9 +85,9 @@ export async function runReceiptUpgrade(payload: UpgradePayload): Promise<void> 
     jsonSchema: RECEIPT_JSON_SCHEMA as Record<string, unknown>,
     schemaName: "receipt",
     temperature: 0.3,
-    maxTokens: 1800,
-    hedgeDelays: [4000, 7000],
-    timeoutMs: 15_000,
+    maxTokens: 2400,
+    hedgeDelays: [5000, 10000],
+    timeoutMs: 25_000,
     validate: (json) => {
       const v = validateReceiptSchema(json);
       return { valid: v.valid, errors: v.errors };

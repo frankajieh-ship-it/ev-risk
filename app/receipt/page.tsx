@@ -387,6 +387,11 @@ export default function ReceiptPage() {
   );
   const [emailSkippedThisSession, setEmailSkippedThisSession] = useState(false);
 
+  // Email unlock — summary visible after email signup, full deep dive still requires payment
+  const [emailUnlocked, setEmailUnlocked] = useState(() =>
+    typeof window !== "undefined" && localStorage.getItem("offo_email_captured") === "1"
+  );
+
   // Listing photos — seeded from scraped CDN URLs on extraction, then supplemented
   // by user drag-and-drop. PhotoDueDiligenceCard converts all URLs to resized base64
   // immediately on mount, so CDN expiry is not a concern.
@@ -1052,8 +1057,13 @@ export default function ReceiptPage() {
                 verdict={receipt.verdict}
                 vin={(receipt as unknown as Record<string, unknown>).vin as string | undefined}
                 isUnlocked={isUnlocked}
+                emailUnlocked={emailUnlocked}
                 paymentsEnabled={paymentsEnabled}
                 onPaywallClick={() => handlePremiumAction("summary_card")}
+                onEmailCapture={() => {
+                  setEmailUnlocked(true);
+                  setEmailCaptured(true);
+                }}
               />
 
               {/* Quick share — surfaces sharing before user scrolls to bottom */}
@@ -1165,6 +1175,7 @@ export default function ReceiptPage() {
                   {receipt.receipt_id && (
                     <NegotiationDeepSection
                       receiptId={receipt.receipt_id}
+                      anonId={receiptToken}
                       initialScripts={(receipt as unknown as Record<string, unknown>).negotiation_deep as import("@/lib/receipt-sections").NegotiationScript[] ?? null}
                       initialStatus={sections?.negotiation_deep?.status}
                       isUnlocked={isUnlocked}
