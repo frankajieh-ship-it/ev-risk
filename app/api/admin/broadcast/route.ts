@@ -18,91 +18,39 @@ function buildEmailHtml(email: string): string {
   const footer = emailFooter(email, "activation");
 
   const body = `
-    <!-- Logo -->
-    <div style="text-align:center;margin-bottom:32px;">
-      <img src="https://offolab.com/offo-logo.png" alt="OFFO" width="80" style="height:auto;" />
-    </div>
+    <h2 style="font-size:20px;font-weight:700;color:#ffffff;margin:0 0 16px;line-height:1.3;">
+      Temporary issue with VIN history lookup
+    </h2>
 
-    <!-- Heading -->
-    <h1 style="font-size:22px;font-weight:700;color:#ffffff;margin:0 0 12px;line-height:1.3;">
-      Thank you for being part of OFFO from the beginning
-    </h1>
-
-    <!-- Intro -->
     <p style="font-size:15px;color:#c9d1d9;line-height:1.7;margin:0 0 20px;">
-      Hey — we mean it. You found OFFO early, when it was rough around the edges and still
-      figuring itself out. That kind of trust is rare, and we don't take it lightly.
+      Hi — just a quick heads up.
     </p>
 
     <p style="font-size:15px;color:#c9d1d9;line-height:1.7;margin:0 0 20px;">
-      We're currently going through a revamp — updating the website, improving how things work,
-      and building features that are actually worth your time. Some parts of the site may be
-      temporarily limited while we finish up. We'll be back to full functionality shortly.
+      Our VIN history data provider is currently experiencing an issue that is affecting the
+      ownership and accident history feature on OFFO. VIN history lookups may not return
+      results right now.
     </p>
 
-    <!-- Free forever pledge -->
-    <div style="background:#00d97e14;border:1px solid #00d97e33;border-radius:12px;padding:20px 24px;margin:0 0 24px;">
-      <p style="font-size:15px;font-weight:700;color:#00d97e;margin:0 0 8px;">
-        OFFO will always be free for you — now and in the future.
-      </p>
+    <p style="font-size:15px;color:#c9d1d9;line-height:1.7;margin:0 0 20px;">
+      All other features — AI receipt analysis, price sanity checks, inspection checklists,
+      and negotiation scripts — are working normally.
+    </p>
+
+    <div style="background:#00d97e14;border:1px solid #00d97e33;border-radius:10px;padding:18px 22px;margin:0 0 24px;">
+      <p style="font-size:14px;color:#00d97e;font-weight:600;margin:0 0 6px;">We'll notify you when it's back online.</p>
       <p style="font-size:14px;color:#c9d1d9;line-height:1.6;margin:0;">
-        Because you were here from the start, OFFO is and will remain completely free for early
-        users like you — no paywalls, no subscription, no catches. That's a promise.
-        Whatever we build next, you're covered.
+        We're working to restore full VIN history access as quickly as possible.
+        You'll hear from us the moment it's live again.
       </p>
     </div>
 
-    <!-- What's coming -->
-    <div style="background:#161b22;border:1px solid #21262d;border-radius:12px;padding:24px;margin:0 0 24px;">
-      <p style="font-size:13px;font-weight:600;color:#00d97e;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 16px;">
-        What's coming next
-      </p>
+    <p style="font-size:15px;color:#c9d1d9;line-height:1.7;margin:0 0 32px;">
+      Sorry for the inconvenience — and thanks for your patience.
+    </p>
 
-      <div style="display:flex;align-items:flex-start;margin-bottom:14px;">
-        <span style="font-size:16px;margin-right:12px;line-height:1.4;">🔋</span>
-        <div>
-          <p style="font-size:14px;font-weight:600;color:#ffffff;margin:0 0 2px;">Real battery health data</p>
-          <p style="font-size:13px;color:#8b949e;margin:0;line-height:1.5;">
-            Actual State of Health readings from physical OBD scans — not estimates.
-            Know exactly what battery you're buying before you commit.
-          </p>
-        </div>
-      </div>
-
-      <div style="display:flex;align-items:flex-start;margin-bottom:14px;">
-        <span style="font-size:16px;margin-right:12px;line-height:1.4;">✅</span>
-        <div>
-          <p style="font-size:14px;font-weight:600;color:#ffffff;margin:0 0 2px;">OFFO Verified listings</p>
-          <p style="font-size:13px;color:#8b949e;margin:0;line-height:1.5;">
-            Used EVs physically inspected and verified by OFFO — dealer inventory you can
-            trust, listed directly on the platform.
-          </p>
-        </div>
-      </div>
-
-      <div style="display:flex;align-items:flex-start;">
-        <span style="font-size:16px;margin-right:12px;line-height:1.4;">🚗</span>
-        <div>
-          <p style="font-size:14px;font-weight:600;color:#ffffff;margin:0 0 2px;">Smarter receipt analysis</p>
-          <p style="font-size:13px;color:#8b949e;margin:0;line-height:1.5;">
-            Faster verdicts, cleaner UI, and more accurate title and accident history
-            — so you get answers in seconds, not minutes.
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- CTA -->
-    <div style="text-align:center;margin:28px 0;">
-      <a href="https://offolab.com/receipt"
-         style="display:inline-block;background:#00d97e;color:#0d1117;font-size:14px;font-weight:700;
-                padding:13px 28px;border-radius:8px;text-decoration:none;letter-spacing:0.02em;">
-        Run a free receipt check
-      </a>
-    </div>
-
-    <p style="font-size:13px;color:#8b949e;line-height:1.7;margin:0 0 8px;text-align:center;">
-      Free for early users, always. No account required.
+    <p style="font-size:15px;color:#c9d1d9;line-height:1.7;margin:0;">
+      — The OFFO Team
     </p>
 
     ${footer}
@@ -142,10 +90,10 @@ export async function POST(request: NextRequest) {
         email,
         userId: user.id,
         sequenceType: "activation",
-        sequenceStep: "revamp_announcement_2026_05",
-        subject: "You're part of something — a note from OFFO 🔋",
+        sequenceStep: "vin_outage_2026_07",
+        subject: "Heads up: VIN history temporarily unavailable",
         html: buildEmailHtml(email),
-        idempotencyKey: `broadcast_revamp_2026_05_${user.id}`,
+        idempotencyKey: `broadcast_vin_outage_2026_07_${user.id}`,
       });
 
       if (result.sent) results.sent++;
