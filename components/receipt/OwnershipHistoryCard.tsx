@@ -57,10 +57,7 @@ export default function OwnershipHistoryCard({
 
       if (!res.ok || !data.success) {
         if (data.code === "not_configured") {
-          // Show error instead of silently hiding — lets us see failures during QA
-          setErrorMsg("No history data available for this VIN.");
-          setFetchState("error");
-          trackEvent("ownership_history_failed", { vin, error: "not_configured" });
+          setFetchState("not_configured");
           return;
         }
         setErrorMsg(data.error || "History lookup failed.");
