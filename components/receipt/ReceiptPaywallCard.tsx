@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Zap, TrendingDown, FileText, Lock, Search, ClipboardList, Shield, Download } from "lucide-react";
+import { Zap, TrendingDown, FileText, Lock, Search, ClipboardList, Shield, Download, AlertCircle } from "lucide-react";
 
 interface ReceiptPaywallCardProps {
   receiptToken: string;
@@ -9,9 +9,11 @@ interface ReceiptPaywallCardProps {
   onPaywallClick?: () => void;
 }
 
+const VIN_HISTORY_UNAVAILABLE = true;
+
 const FEATURES = [
   { icon: Search, text: "Market comparables — is this listing overpriced?" },
-  { icon: Shield, text: "VIN history — theft, salvage & accident records (NMVTIS)" },
+  { icon: Shield, text: "VIN history — theft, salvage & accident records (NMVTIS)", unavailable: VIN_HISTORY_UNAVAILABLE },
   { icon: ClipboardList, text: "10-point inspection checklist for this exact model" },
   { icon: FileText, text: "3 negotiation scripts ready to copy & send" },
   { icon: TrendingDown, text: "Battery health deep dive & recall status" },
@@ -82,27 +84,45 @@ export default function ReceiptPaywallCard({
 
         {/* Features */}
         <div className="px-6 py-5 space-y-3">
-          {FEATURES.map(({ icon: Icon, text }) => (
+          {FEATURES.map(({ icon: Icon, text, unavailable }) => (
             <div key={text} className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-[#00d97e]/10 flex items-center justify-center flex-shrink-0">
-                <Icon className="w-3.5 h-3.5 text-[#00d97e]" />
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${unavailable ? "bg-amber-500/10" : "bg-[#00d97e]/10"}`}>
+                <Icon className={`w-3.5 h-3.5 ${unavailable ? "text-amber-400" : "text-[#00d97e]"}`} />
               </div>
-              <span className="text-sm text-white/70">{text}</span>
+              <span className={`text-sm ${unavailable ? "text-white/40" : "text-white/70"}`}>
+                {text}
+                {unavailable && <span className="ml-2 text-[11px] text-amber-400 font-medium">· temporarily unavailable</span>}
+              </span>
             </div>
           ))}
         </div>
+
+        {/* VIN history outage notice */}
+        {VIN_HISTORY_UNAVAILABLE && (
+          <div className="mx-6 mb-5 flex items-start gap-2.5 bg-amber-500/[0.08] border border-amber-500/20 rounded-xl px-4 py-3">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-200/70 leading-relaxed">
+              VIN history is temporarily unavailable due to a provider issue. We&apos;ll notify you when it&apos;s back online. All other features are working normally.
+            </p>
+          </div>
+        )}
 
         {/* CTA */}
         <div className="px-6 pb-6">
           <button
             onClick={handlePay}
-            disabled={loading}
-            className="w-full bg-[#00d97e] hover:bg-[#00c970] disabled:opacity-60 disabled:cursor-not-allowed text-[#0d1117] font-bold text-base py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
+            disabled={loading || VIN_HISTORY_UNAVAILABLE}
+            className="w-full bg-[#00d97e] hover:bg-[#00c970] disabled:opacity-40 disabled:cursor-not-allowed text-[#0d1117] font-bold text-base py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
                 <span className="w-4 h-4 border-2 border-[#0d1117]/30 border-t-[#0d1117] rounded-full animate-spin" />
                 Preparing checkout…
+              </>
+            ) : VIN_HISTORY_UNAVAILABLE ? (
+              <>
+                <AlertCircle className="w-4 h-4" />
+                Payments paused — provider issue
               </>
             ) : (
               <>
@@ -115,7 +135,7 @@ export default function ReceiptPaywallCard({
             <p className="text-red-400 text-xs text-center mt-3">{error}</p>
           )}
           <p className="text-white/25 text-xs text-center mt-3">
-            Secure payment via Stripe · One listing · No recurring charges
+            {VIN_HISTORY_UNAVAILABLE ? "Payments temporarily disabled until VIN history is restored" : "Secure payment via Stripe · One listing · No recurring charges"}
           </p>
         </div>
       </div>
