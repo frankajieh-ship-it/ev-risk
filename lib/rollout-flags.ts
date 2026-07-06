@@ -94,6 +94,7 @@ export function isInternalUserId(userId: string | null | undefined): boolean {
  * Returns true if globally enabled OR if user is an internal tester.
  */
 export function isPaymentsEnabledFor(anonId: string): boolean {
+  if (process.env.NODE_ENV === "development") return false;
   if (isFreeMode()) return false;
   const flags = getPaymentFlags();
   if (flags.payments_enabled) return true;
