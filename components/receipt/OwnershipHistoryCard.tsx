@@ -135,7 +135,7 @@ export default function OwnershipHistoryCard({
             Check NMVTIS records for theft, salvage title, accident history, and previous sale prices.
           </p>
           <button
-            onClick={fetch_history}
+            onClick={() => fetch_history()}
             className="w-full py-2.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.08] text-white/70 hover:text-white text-sm font-medium transition-colors"
           >
             Run History Check
@@ -172,7 +172,7 @@ export default function OwnershipHistoryCard({
         <div className="p-5 space-y-3">
           <p className="text-sm text-white/40 italic">History lookup unavailable — try again later.</p>
           <button
-            onClick={fetch_history}
+            onClick={() => fetch_history()}
             className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
           >
             <RefreshCw className="w-3 h-3" /> Try again
