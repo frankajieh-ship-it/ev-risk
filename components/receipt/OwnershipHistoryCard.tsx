@@ -41,8 +41,8 @@ export default function OwnershipHistoryCard({
   const [accidentsOpen, setAccidentsOpen] = useState(false);
   const [salesOpen, setSalesOpen] = useState(false);
 
-  const fetch_history = async () => {
-    if (fetchState === "loading") return;
+  const fetch_history = async (skipLoadingGuard = false) => {
+    if (!skipLoadingGuard && fetchState === "loading") return;
     setFetchState("loading");
     trackEvent("ownership_history_requested", { vin });
 
@@ -83,9 +83,12 @@ export default function OwnershipHistoryCard({
     }
   };
 
-  // Only auto-fetch after payment — CarsXE costs money per call
+  // Auto-fetch when unlocked or payments are off — but only once receiptToken is ready.
+  useEffect(() => {
+    if (!receiptToken || (!isUnlocked && paymentsEnabled)) return;
+    fetch_history(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (isUnlocked || !paymentsEnabled) fetch_history(); }, [vin, isUnlocked, paymentsEnabled]);
+  }, [vin, receiptToken, isUnlocked, paymentsEnabled]);
 
   // Not configured — hide entirely, nothing useful to show
   if (fetchState === "not_configured") return null;
