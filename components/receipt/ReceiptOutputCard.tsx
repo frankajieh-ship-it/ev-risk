@@ -292,7 +292,7 @@ export default function ReceiptOutputCard({
   const verdict = VERDICT_STYLES[receipt.verdict];
   const VerdictIcon = verdict.icon;
   const price = PRICE_STYLES[receipt.price_sanity?.label || "UNKNOWN"];
-  const verdictLocked = paymentsEnabled && !isStarterUnlocked && !emailUnlocked;
+  const verdictLocked = paymentsEnabled && !isStarterUnlocked;
 
   // Vehicle description
   const ls = receipt.listing_summary;
