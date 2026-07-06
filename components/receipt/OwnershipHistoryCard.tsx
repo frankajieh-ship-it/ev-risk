@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ShieldAlert,
   ShieldCheck,
@@ -36,15 +36,20 @@ export default function OwnershipHistoryCard({
   onHistoryLoaded,
 }: OwnershipHistoryCardProps) {
   const [fetchState, setFetchState] = useState<FetchState>("idle");
+  const fetchStateRef = useRef<FetchState>("idle");
   const [result, setResult] = useState<VinAuditLiteResult | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [accidentsOpen, setAccidentsOpen] = useState(false);
   const [salesOpen, setSalesOpen] = useState(false);
 
+  const setFetchStateSync = (s: FetchState) => {
+    fetchStateRef.current = s;
+    setFetchState(s);
+  };
+
   const fetch_history = async (autoFetch = false) => {
-    if (fetchState === "loading") return;
-    if (autoFetch && fetchState !== "idle") return;
-    setFetchState("loading");
+    if (fetchStateRef.current === "loading") return;
+    if (autoFetch && fetchStateRef.current !== "idle") return;
+    setFetchStateSync("loading");
     trackEvent("ownership_history_requested", { vin });
 
     try {
@@ -58,18 +63,17 @@ export default function OwnershipHistoryCard({
 
       if (!res.ok || !data.success) {
         if (data.code === "not_configured") {
-          setFetchState("not_configured");
+          setFetchStateSync("not_configured");
           return;
         }
-        setErrorMsg(data.error || "History lookup failed.");
-        setFetchState("error");
+        setFetchStateSync("error");
         trackEvent("ownership_history_failed", { vin, error: data.error });
         return;
       }
 
       const historyResult = data as VinAuditLiteResult;
       setResult(historyResult);
-      setFetchState("done");
+      setFetchStateSync("done");
       onHistoryLoaded?.(historyResult);
       trackEvent("ownership_history_loaded", {
         vin,
@@ -79,8 +83,7 @@ export default function OwnershipHistoryCard({
         sales: data.summary.sale_count,
       });
     } catch {
-      setErrorMsg("Network error. Please try again.");
-      setFetchState("error");
+      setFetchStateSync("error");
     }
   };
 
