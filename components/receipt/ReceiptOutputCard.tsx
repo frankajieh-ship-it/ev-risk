@@ -57,6 +57,7 @@ interface ReceiptOutputCardProps {
   isUpgrading?: boolean;
   upgradeFailed?: boolean;
   isUnlocked?: boolean;
+  isStarterUnlocked?: boolean;
   paymentsEnabled?: boolean;
   onPaywallClick?: () => void;
   photos?: string[];
@@ -139,6 +140,7 @@ export default function ReceiptOutputCard({
   isUpgrading,
   upgradeFailed,
   isUnlocked = false,
+  isStarterUnlocked = false,
   paymentsEnabled = false,
   onPaywallClick,
   photos = [],
@@ -290,7 +292,7 @@ export default function ReceiptOutputCard({
   const verdict = VERDICT_STYLES[receipt.verdict];
   const VerdictIcon = verdict.icon;
   const price = PRICE_STYLES[receipt.price_sanity?.label || "UNKNOWN"];
-  const verdictLocked = paymentsEnabled && !isUnlocked && !emailUnlocked;
+  const verdictLocked = paymentsEnabled && !isStarterUnlocked && !emailUnlocked;
 
   // Vehicle description
   const ls = receipt.listing_summary;
@@ -665,6 +667,7 @@ export default function ReceiptOutputCard({
           photoUrls={photoSrcs}
           onHighlightPhoto={(index) => { setPhotoIndex(index); }}
           isUnlocked={isUnlocked}
+          isStarterUnlocked={isStarterUnlocked}
           paymentsEnabled={paymentsEnabled}
           onPaywallClick={onPaywallClick}
         />

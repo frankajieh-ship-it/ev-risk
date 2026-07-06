@@ -23,6 +23,7 @@ interface ReceiptSummaryCardProps {
   verdict: "GREEN" | "YELLOW" | "RED";
   vin?: string | null;
   isUnlocked?: boolean;
+  isStarterUnlocked?: boolean;
   emailUnlocked?: boolean;
   paymentsEnabled?: boolean;
   onPaywallClick?: () => void;
@@ -87,6 +88,7 @@ export default function ReceiptSummaryCard({
   verdict,
   vin,
   isUnlocked = false,
+  isStarterUnlocked = false,
   emailUnlocked = false,
   paymentsEnabled = false,
   onPaywallClick,
@@ -274,8 +276,8 @@ export default function ReceiptSummaryCard({
   const bodyArr = Array.isArray(summary.body) ? summary.body : [];
   if (bodyArr.length === 0) return null;
 
-  // Gate logic: email captures summary, payment captures everything else
-  const showSummary = isUnlocked || emailUnlocked;
+  // Gate logic: email or any paid tier ($3.99+) unlocks the summary
+  const showSummary = isStarterUnlocked || emailUnlocked;
 
   if (paymentsEnabled && !showSummary) {
     // Email gate — first step, free

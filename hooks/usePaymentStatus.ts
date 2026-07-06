@@ -10,12 +10,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 type PurchaseStatus = "pending" | "paid" | "failed" | "refunded" | "none";
-type PackTier = "buyer_pass" | "seller_questions";
+type PackTier = "buyer_pass" | "seller_questions" | "receipt_single" | "copart_report";
 type EntitlementLevel = "free" | "seller_pack" | "buyer_pass";
 
 export interface UsePaymentStatusReturn {
   purchaseStatus: PurchaseStatus;
   isUnlocked: boolean;
+  isStarterUnlocked: boolean;
   packTier: PackTier | null;
   compareRemaining: number;
   compareBoundTo: string | null;
@@ -35,6 +36,7 @@ export function usePaymentStatus(
 ): UsePaymentStatusReturn {
   const [purchaseStatus, setPurchaseStatus] = useState<PurchaseStatus>("none");
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isStarterUnlocked, setIsStarterUnlocked] = useState(false);
   const [packTier, setPackTier] = useState<PackTier | null>(null);
   const [compareRemaining, setCompareRemaining] = useState(0);
   const [compareBoundTo, setCompareBoundTo] = useState<string | null>(null);
@@ -66,9 +68,12 @@ export function usePaymentStatus(
 
       const isFree = data.free_mode === true;
       const paymentsOn = data.payments_enabled === true;
+      const tier = data.pack_tier ?? null;
       setPurchaseStatus(data.purchase_status || "none");
-      // isUnlocked: content is accessible when free_mode=true OR when a paid purchase is confirmed
-      setIsUnlocked(isFree || data.unlocked_base === true);
+      // isStarterUnlocked: any paid tier ($3.99 receipt_single OR $9.99 buyer_pass) or free_mode
+      setIsStarterUnlocked(isFree || data.unlocked_base === true);
+      // isUnlocked: full tier only — buyer_pass ($9.99) or copart_report
+      setIsUnlocked(isFree || (data.unlocked_base === true && (tier === "buyer_pass" || tier === "copart_report")));
       setPackTier(data.pack_tier || null);
       setCompareRemaining(data.compare_remaining || 0);
       setCompareBoundTo(data.compare_bound_to || null);
@@ -92,6 +97,7 @@ export function usePaymentStatus(
   return {
     purchaseStatus,
     isUnlocked,
+    isStarterUnlocked,
     packTier,
     compareRemaining,
     compareBoundTo,

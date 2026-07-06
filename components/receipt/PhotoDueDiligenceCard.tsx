@@ -11,6 +11,7 @@ interface Props {
   /** Called when user clicks a damage finding — highlights that photo index in the carousel */
   onHighlightPhoto?: (index: number) => void;
   isUnlocked?: boolean;
+  isStarterUnlocked?: boolean;
   paymentsEnabled?: boolean;
   onPaywallClick?: () => void;
 }
@@ -59,7 +60,7 @@ function resizeDataUrl(dataUrl: string): Promise<string> {
   });
 }
 
-export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighlightPhoto, isUnlocked, paymentsEnabled, onPaywallClick }: Props) {
+export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighlightPhoto, isUnlocked, isStarterUnlocked, paymentsEnabled, onPaywallClick }: Props) {
   // Start as pending — component only renders when photos are present
   const [status, setStatus] = useState<JobStatus>("pending");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -188,8 +189,8 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
     );
   }
 
-  // Paywall gate — photos present but user hasn't paid
-  const isLocked = paymentsEnabled && !isUnlocked;
+  // Paywall gate — photos present but user hasn't paid starter tier ($3.99+)
+  const isLocked = paymentsEnabled && !isStarterUnlocked;
   if (isLocked) {
     return (
       <div className="border-b border-white/[0.08] bg-[#0d1117]">
@@ -215,7 +216,7 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
             className="flex items-center gap-2 text-xs font-semibold text-[#00d97e] hover:text-[#00c970] transition-colors"
           >
             <Zap className="w-3.5 h-3.5" />
-            Unlock photo analysis — $9.99
+            Unlock photo analysis — $3.99
           </button>
         </div>
       </div>

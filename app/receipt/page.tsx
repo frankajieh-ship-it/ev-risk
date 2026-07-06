@@ -47,6 +47,7 @@ const CompareSelectModal = dynamic(() => import("@/components/receipt/CompareSel
 const ShareModal = dynamic(() => import("@/components/receipt/ShareModal"), { ssr: false });
 const OFfoChat = dynamic(() => import("@/components/chat/OFfoChat"), { ssr: false });
 const ReceiptPaywallCard = dynamic(() => import("@/components/receipt/ReceiptPaywallCard"), { ssr: false });
+const StarterPaywallCard = dynamic(() => import("@/components/receipt/StarterPaywallCard"), { ssr: false });
 const OwnershipHistoryCard = dynamic(() => import("@/components/receipt/OwnershipHistoryCard"), { ssr: false });
 
 const PdfDownloadButton = dynamic(() => import("@/components/receipt/PdfDownloadButton"), { ssr: false });
@@ -327,6 +328,7 @@ export default function ReceiptPage() {
   // Payment status hook (needs receipt which comes from useReceiptGeneration above)
   const {
     isUnlocked,
+    isStarterUnlocked,
     compareRemaining,
     compareBoundTo,
     purchaseId,
@@ -1057,6 +1059,7 @@ export default function ReceiptPage() {
                 verdict={receipt.verdict}
                 vin={(receipt as unknown as Record<string, unknown>).vin as string | undefined}
                 isUnlocked={isUnlocked}
+                isStarterUnlocked={isStarterUnlocked}
                 emailUnlocked={emailUnlocked}
                 paymentsEnabled={paymentsEnabled}
                 onPaywallClick={() => handlePremiumAction("summary_card")}
@@ -1104,6 +1107,7 @@ export default function ReceiptPage() {
                 isUpgrading={isUpgrading}
                 upgradeFailed={upgradeFailed}
                 isUnlocked={isUnlocked}
+                isStarterUnlocked={isStarterUnlocked}
                 emailUnlocked={emailUnlocked}
                 paymentsEnabled={paymentsEnabled}
                 onPaywallClick={() => handlePremiumAction("output_card")}
@@ -1164,14 +1168,29 @@ export default function ReceiptPage() {
                 />
               )}
 
-              {/* ── Paywall or deep sections ── */}
-              {!isUnlocked && paymentsEnabled ? (
+              {/* ── Tiered paywall + deep sections ── */}
+
+              {/* $3.99 Starter paywall — shown when not starter-unlocked */}
+              {!isStarterUnlocked && paymentsEnabled && (
+                <StarterPaywallCard
+                  receiptToken={receiptToken}
+                  scenarioId={receipt.receipt_id}
+                  onPaywallClick={() => handlePremiumAction("starter_paywall")}
+                  onFullUpgradeClick={() => handlePremiumAction("paywall_card")}
+                />
+              )}
+
+              {/* $9.99 Full paywall — shown when starter unlocked but not full */}
+              {isStarterUnlocked && !isUnlocked && paymentsEnabled && (
                 <ReceiptPaywallCard
                   receiptToken={receiptToken}
                   scenarioId={receipt.receipt_id}
                   onPaywallClick={() => handlePremiumAction("paywall_card")}
                 />
-              ) : (
+              )}
+
+              {/* Deep sections — only when fully unlocked ($9.99) */}
+              {isUnlocked && (
                 <>
                   {receipt.receipt_id && (
                     <NegotiationDeepSection
