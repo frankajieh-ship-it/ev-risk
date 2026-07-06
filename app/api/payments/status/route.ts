@@ -42,6 +42,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing or invalid anon_id" }, { status: 400 });
   }
 
+  // On localhost (NODE_ENV=development) treat every session as fully unlocked
+  if (process.env.NODE_ENV === "development") {
+    return NextResponse.json({
+      purchase_status: "paid",
+      unlocked_base: true,
+      payments_enabled: false,
+      free_mode: true,
+      entitlement_level: "buyer_pass",
+      seller_pack_unlocked: true,
+      compare_remaining: 99,
+      compare_bound_to: null,
+      purchase_id: null,
+      pack_tier: "buyer_pass",
+    });
+  }
+
   const status = await checkPurchaseStatus(scenarioType, scenarioId, anonId);
 
   const freeMode = isFreeMode();
