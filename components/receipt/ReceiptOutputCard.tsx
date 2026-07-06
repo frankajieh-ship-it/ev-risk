@@ -60,6 +60,7 @@ interface ReceiptOutputCardProps {
   isStarterUnlocked?: boolean;
   paymentsEnabled?: boolean;
   onPaywallClick?: () => void;
+  onFullUpgradeClick?: () => void;
   photos?: string[];
   receiptId?: string;
   vin?: string;
@@ -143,6 +144,7 @@ export default function ReceiptOutputCard({
   isStarterUnlocked = false,
   paymentsEnabled = false,
   onPaywallClick,
+  onFullUpgradeClick,
   photos = [],
   receiptId,
   vin,
@@ -414,24 +416,35 @@ export default function ReceiptOutputCard({
         </div>
         <div className="flex items-center gap-3">
           {verdictLocked ? (
-            <>
-              <Lock className="w-6 h-6 text-white/30 shrink-0" />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-white/20 blur-[6px] select-none">GREEN</span>
-                  <span className="text-sm text-white/20 blur-[6px] select-none">— Good Deal</span>
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-3">
+                <Lock className="w-5 h-5 text-white/30 shrink-0" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-white/20 blur-[6px] select-none">GREEN</span>
+                    <span className="text-sm text-white/20 blur-[6px] select-none">— Good Deal</span>
+                  </div>
+                  <p className="text-xs text-white/40 mt-0.5">Unlock to reveal your verdict</p>
                 </div>
-                <p className="text-xs text-white/40 mt-0.5">Sign up free to reveal verdict</p>
               </div>
-              {onPaywallClick && (
+              <div className="flex items-center gap-2 pt-1">
                 <button
                   onClick={onPaywallClick}
-                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#00d97e]/10 text-[#00d97e] hover:bg-[#00d97e]/20 transition-colors shrink-0"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#00d97e] text-[#0d1117] hover:bg-[#00c970] transition-colors shrink-0"
                 >
-                  Reveal
+                  Starter — $3.99
                 </button>
-              )}
-            </>
+                <span className="text-white/20 text-xs">verdict · summary · photos</span>
+                <span className="text-white/15 text-xs mx-1">·</span>
+                <button
+                  onClick={onFullUpgradeClick ?? onPaywallClick}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/[0.08] text-white/60 hover:bg-white/[0.12] hover:text-white/80 transition-colors shrink-0"
+                >
+                  Everything — $9.99
+                </button>
+                <span className="text-white/20 text-xs">+ history · deep dive</span>
+              </div>
+            </div>
           ) : (
             <>
               {isUpgrading

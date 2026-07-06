@@ -1111,6 +1111,7 @@ export default function ReceiptPage() {
                 emailUnlocked={emailUnlocked}
                 paymentsEnabled={paymentsEnabled}
                 onPaywallClick={() => handlePremiumAction("output_card")}
+                onFullUpgradeClick={() => handlePremiumAction("paywall_card")}
                 photos={listingPhotos}
                 receiptId={receipt?.receipt_id}
                 vin={receipt?.vin ?? undefined}
