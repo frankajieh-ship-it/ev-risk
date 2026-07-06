@@ -9,7 +9,7 @@ interface ReceiptPaywallCardProps {
   onPaywallClick?: () => void;
 }
 
-const VIN_HISTORY_UNAVAILABLE = true;
+const VIN_HISTORY_UNAVAILABLE = false;
 
 const FEATURES = [
   { icon: Search, text: "Market comparables — is this listing overpriced?" },

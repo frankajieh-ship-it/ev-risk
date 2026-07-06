@@ -11,7 +11,8 @@ import { NextResponse } from "next/server";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import { validateVin } from "@/lib/vin-service";
 import { getVinHistory } from "@/lib/vin-history-client";
-import type { VinAuditLiteResult } from "@/lib/vinaudit-client";
+import { auctionHistory } from "@/lib/vehicledatabases-client";
+import type { VinAuditLiteResult, VinAuditSaleRecord } from "@/lib/vinaudit-client";
 
 const historyRateLimiter = new RateLimiter(10 * 60 * 1000, 10);
 
@@ -50,7 +51,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ ...cached.result, cached: true });
     }
 
-    const historyResult = await getVinHistory(cleanVin);
+    // Fetch VIN history + auction records in parallel
+    const [historyResult, auctionResult] = await Promise.all([
+      getVinHistory(cleanVin),
+      auctionHistory(cleanVin).catch(() => null),
+    ]);
 
     if (!historyResult.success) {
       console.error("[VIN History] All providers failed:", {
@@ -72,26 +77,40 @@ export async function POST(request: Request) {
     };
     const rawHistory = (historyResult.raw as { history?: { historyInformation?: CarsXEHistoryRecord[] } } | null);
     const historyRecords: CarsXEHistoryRecord[] = rawHistory?.history?.historyInformation ?? [];
-    const saleRecords = historyRecords.map((r) => ({
+    const carsxeSales: VinAuditSaleRecord[] = historyRecords.map((r) => ({
       date: r.TitleIssueDate?.Date ? new Date(r.TitleIssueDate.Date).toLocaleDateString("en-US", { year: "numeric", month: "short" }) : undefined,
       odometer: r.VehicleOdometerReadingMeasure ? String(parseInt(r.VehicleOdometerReadingMeasure, 10)) : undefined,
       seller: r.TitleIssuingAuthorityName ? `State: ${r.TitleIssuingAuthorityName}` : undefined,
     }));
 
+    // Merge auction records as sale records (most recent first)
+    const auctionSales: VinAuditSaleRecord[] = (auctionResult?.success ? auctionResult.records : []).map((r) => ({
+      date: r.auction_date,
+      price: r.price.replace(/[^0-9.]/g, "") || undefined,
+      odometer: r.odometer.replace(/[^0-9]/g, "") || undefined,
+      seller: [r.location, r.title_type ? `Title: ${r.title_type}` : "", r.primary_damage ? `Damage: ${r.primary_damage}` : ""].filter(Boolean).join(" · ") || undefined,
+    }));
+
+    const allSales = [...auctionSales, ...carsxeSales];
+
     // Map normalized result → VinAuditLiteResult shape the card expects
+    const salvageFromAuction = auctionResult?.success
+      ? auctionResult.records.some((r) => r.title_type?.toLowerCase().includes("salvage"))
+      : false;
+
     const result: VinAuditLiteResult = {
       success: true,
       vin: cleanVin,
       summary: {
         theft_reported: historyResult.theft_reported,
-        salvage_reported: historyResult.salvage_reported,
+        salvage_reported: historyResult.salvage_reported || salvageFromAuction,
         accident_count: historyResult.accident_count,
-        sale_count: historyResult.ownership_count ?? saleRecords.length,
+        sale_count: historyResult.ownership_count ?? allSales.length,
       },
       theft: historyResult.theft_reported ? [{ status: "Reported" }] : [],
-      salvage: historyResult.salvage_reported ? [{ source: historyResult.provider }] : [],
+      salvage: (historyResult.salvage_reported || salvageFromAuction) ? [{ source: historyResult.provider }] : [],
       accidents: [],
-      sales: saleRecords,
+      sales: allSales,
     };
 
     cache.set(cleanVin, { result, expiresAt: Date.now() + CACHE_TTL_MS });

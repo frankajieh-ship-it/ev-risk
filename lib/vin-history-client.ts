@@ -7,10 +7,11 @@
  * Env vars:
  *   VINAUDIT_KEY / VINAUDIT_USER / VINAUDIT_PASS  — VinAudit Lite Check
  *   Cars_XE                                        — CarsXE history API
- *   Vehicle_database                               — VehicleDatabases API
+ *   VEHICLEDATABASES_API_KEY                       — VehicleDatabases title-check
  */
 
 import { liteCheck } from "@/lib/vinaudit-client";
+import { titleCheck } from "@/lib/vehicledatabases-client";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -154,57 +155,27 @@ async function tryCarSXE(vin: string): Promise<VinHistoryResult | null> {
 // ---------------------------------------------------------------------------
 
 async function tryVehicleDatabases(vin: string): Promise<VinHistoryResult | null> {
-  const key = process.env.Vehicle_database;
-  if (!key) return null;
-
-  let res: Response;
-  try {
-    res = await fetch(`https://api.vehicledatabases.com/vehicle-history/${vin}`, {
-      headers: { "x-api-key": key },
-      signal: AbortSignal.timeout(12000),
-    });
-  } catch {
-    console.warn("[vin-history] VehicleDatabases fetch failed (network/timeout)");
+  const r = await titleCheck(vin);
+  if (!r.success) {
+    if (r.code !== "not_configured") {
+      console.warn(`[vin-history] VehicleDatabases title-check failed: ${r.error}`);
+    }
     return null;
   }
 
-  if (!res.ok) {
-    console.warn(`[vin-history] VehicleDatabases returned ${res.status}`);
-    return null;
-  }
-
-  let data: Record<string, unknown>;
-  try {
-    data = await res.json();
-  } catch {
-    return null;
-  }
-
-  // Map VehicleDatabases response — shape TBD pending credential activation
-  // Placeholder mapping based on documented fields
-  const titleObj = data.title as Record<string, unknown> | undefined;
-  const titleStatusRaw = (titleObj?.status as string | undefined)?.toLowerCase() ?? "";
-  let title_status: VinHistoryResult["title_status"] = "unknown";
-  if (titleStatusRaw.includes("clean")) title_status = "clean";
-  else if (titleStatusRaw.includes("salvage")) title_status = "salvage";
-  else if (titleStatusRaw.includes("rebuilt") || titleStatusRaw.includes("reconstructed")) title_status = "rebuilt";
-
-  const accidents = (data.accidents as unknown[]) ?? [];
-  const theft = data.theft_reported as boolean | undefined;
-  const lien = data.open_lien as boolean | undefined;
-  const owners = data.ownership_count as number | undefined;
+  const title_status: VinHistoryResult["title_status"] = r.salvage ? "salvage" : "clean";
 
   return {
     success: true,
     provider: "vehicledatabases",
-    vin,
+    vin: r.vin,
     title_status,
-    accident_count: accidents.length,
-    theft_reported: theft ?? false,
-    salvage_reported: title_status === "salvage",
-    ownership_count: typeof owners === "number" ? owners : null,
-    open_lien: typeof lien === "boolean" ? lien : null,
-    raw: data,
+    accident_count: 0,
+    theft_reported: false,
+    salvage_reported: r.salvage,
+    ownership_count: null,
+    open_lien: null,
+    raw: { salvage: r.salvage, salvage_details: r.salvage_details },
   };
 }
 
