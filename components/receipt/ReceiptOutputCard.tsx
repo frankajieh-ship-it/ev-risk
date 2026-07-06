@@ -60,6 +60,7 @@ interface ReceiptOutputCardProps {
   isStarterUnlocked?: boolean;
   paymentsEnabled?: boolean;
   onPaywallClick?: () => void;
+  onStarterClick?: () => void;
   onFullUpgradeClick?: () => void;
   photos?: string[];
   receiptId?: string;
@@ -144,6 +145,7 @@ export default function ReceiptOutputCard({
   isStarterUnlocked = false,
   paymentsEnabled = false,
   onPaywallClick,
+  onStarterClick,
   onFullUpgradeClick,
   photos = [],
   receiptId,
@@ -429,7 +431,7 @@ export default function ReceiptOutputCard({
               </div>
               <div className="flex items-center gap-2 pt-1">
                 <button
-                  onClick={onPaywallClick}
+                  onClick={onStarterClick ?? onPaywallClick}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#00d97e] text-[#0d1117] hover:bg-[#00c970] transition-colors shrink-0"
                 >
                   Starter — $3.99

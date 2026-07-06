@@ -666,7 +666,7 @@ export default function ReceiptPage() {
   }, [receipt?.receipt_id, sellerPackUnlocked, freeMode, paymentsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
-  const handlePremiumAction = useCallback(async (_trigger: string) => {
+  const handlePremiumAction = useCallback(async (_trigger: string, tier: "buyer_pass" | "receipt_single" = "buyer_pass") => {
     if (!receipt?.receipt_id || !receiptToken) return;
     try {
       const res = await fetch("/api/payments/checkout", {
@@ -676,7 +676,7 @@ export default function ReceiptPage() {
           scenario_type: "receipt",
           scenario_id: receipt.receipt_id,
           anon_id: receiptToken,
-          pack_tier: "buyer_pass",
+          pack_tier: tier,
           page_source: _trigger,
         }),
       });
@@ -1110,8 +1110,9 @@ export default function ReceiptPage() {
                 isStarterUnlocked={isStarterUnlocked}
                 emailUnlocked={emailUnlocked}
                 paymentsEnabled={paymentsEnabled}
-                onPaywallClick={() => handlePremiumAction("output_card")}
-                onFullUpgradeClick={() => handlePremiumAction("paywall_card")}
+                onPaywallClick={() => handlePremiumAction("output_card", "receipt_single")}
+                onStarterClick={() => handlePremiumAction("output_card_starter", "receipt_single")}
+                onFullUpgradeClick={() => handlePremiumAction("paywall_card", "buyer_pass")}
                 photos={listingPhotos}
                 receiptId={receipt?.receipt_id}
                 vin={receipt?.vin ?? undefined}
@@ -1176,7 +1177,6 @@ export default function ReceiptPage() {
                 <StarterPaywallCard
                   receiptToken={receiptToken}
                   scenarioId={receipt.receipt_id}
-                  onPaywallClick={() => handlePremiumAction("starter_paywall")}
                   onFullUpgradeClick={() => handlePremiumAction("paywall_card")}
                 />
               )}
