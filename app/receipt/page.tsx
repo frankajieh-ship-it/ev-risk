@@ -339,6 +339,11 @@ export default function ReceiptPage() {
     refetch: refetchPayment,
   } = usePaymentStatus("receipt", receipt?.receipt_id ?? null, receiptToken);
 
+  // Refs so the post-payment poll can read payment state without stale closures
+  const isStarterUnlockedRef = useRef(isStarterUnlocked);
+  useEffect(() => { isStarterUnlockedRef.current = isStarterUnlocked; }, [isStarterUnlocked]);
+  const isUnlockedRef = useRef(isUnlocked);
+  useEffect(() => { isUnlockedRef.current = isUnlocked; }, [isUnlocked]);
 
   // Compare state (hook)
   const {
@@ -411,6 +416,9 @@ export default function ReceiptPage() {
   }, [receipt]);
 
   const handlePhotosFailed = useCallback(() => {}, []);
+
+  // Payment confirmation toast — shown briefly after Stripe redirect confirms payment
+  const [paymentToast, setPaymentToast] = useState<"starter" | "full" | null>(null);
 
   // Matching deals for this vehicle
   const [matchingDeals, setMatchingDeals] = useState<import("@/components/deals/DealCard").CuratedDeal[]>([]);
@@ -555,15 +563,21 @@ export default function ReceiptPage() {
     url.searchParams.delete("scenario_id");
     window.history.replaceState({}, "", url.pathname + url.search);
 
-    // Poll payment status until purchase is confirmed paid (max 30s), then auto-generate
+    // Poll until payment confirmed or 60s hard cap — stops as soon as isStarterUnlocked flips true
     let attempts = 0;
-    const maxAttempts = 15;
+    const maxAttempts = 30;
     const poll = setInterval(async () => {
       attempts++;
       await refetchPayment();
-      // Once payment confirmed, re-run generate with last known input
-      if (attempts >= maxAttempts) {
+      if (isStarterUnlockedRef.current || attempts >= maxAttempts) {
         clearInterval(poll);
+        // Show toast once payment status confirmed — read packTier from ref to determine tier
+        if (isStarterUnlockedRef.current) {
+          const confirmedTier = isUnlockedRef.current ? "full" : "starter";
+          trackEvent("payment_confirmed", { tier: confirmedTier, receipt_id: receipt?.receipt_id });
+          setPaymentToast(confirmedTier);
+          setTimeout(() => setPaymentToast(null), 5000);
+        }
       }
     }, 2000);
 
@@ -851,6 +865,18 @@ export default function ReceiptPage() {
 
   return (
     <div className="min-h-screen bg-[#0d1117]">
+      {/* Payment confirmation toast */}
+      {paymentToast && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-[#161b22] border border-[#00d97e]/40 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <span className="w-5 h-5 rounded-full bg-[#00d97e] flex items-center justify-center flex-shrink-0">
+            <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#0d1117" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </span>
+          {paymentToast === "full"
+            ? "Full Report unlocked — ownership history, deep dive & scripts are ready below."
+            : "Starter Report unlocked — verdict, summary & photo analysis are ready below."}
+        </div>
+      )}
+
       {/* Dark nav — same pattern as homepage */}
       <nav className="sticky top-0 z-50 bg-[#0d1117] border-b border-white/[0.06]">
         <div className="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between">
@@ -1178,6 +1204,7 @@ export default function ReceiptPage() {
                   receiptToken={receiptToken}
                   scenarioId={receipt.receipt_id}
                   onFullUpgradeClick={() => handlePremiumAction("paywall_card")}
+                  onTrackEvent={(name, data) => trackEvent(name, data as Parameters<typeof trackEvent>[1])}
                 />
               )}
 
@@ -1187,6 +1214,8 @@ export default function ReceiptPage() {
                   receiptToken={receiptToken}
                   scenarioId={receipt.receipt_id}
                   onPaywallClick={() => handlePremiumAction("paywall_card")}
+                  isUpgrade
+                  onTrackEvent={(name, data) => trackEvent(name, data as Parameters<typeof trackEvent>[1])}
                 />
               )}
 

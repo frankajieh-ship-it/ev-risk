@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Zap, CheckCircle, Camera, Lock } from "lucide-react";
 
 interface StarterPaywallCardProps {
@@ -8,6 +8,7 @@ interface StarterPaywallCardProps {
   scenarioId: string;
   onPaywallClick?: () => void;
   onFullUpgradeClick?: () => void;
+  onTrackEvent?: (name: string, data?: Record<string, unknown>) => void;
 }
 
 const STARTER_FEATURES = [
@@ -21,11 +22,17 @@ export default function StarterPaywallCard({
   scenarioId,
   onPaywallClick,
   onFullUpgradeClick,
+  onTrackEvent,
 }: StarterPaywallCardProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    onTrackEvent?.("paywall_seen", { tier: "starter", scenario_id: scenarioId });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handlePay = async () => {
+    onTrackEvent?.("paywall_cta_clicked", { tier: "starter", scenario_id: scenarioId });
     if (onPaywallClick) {
       onPaywallClick();
       return;
@@ -33,6 +40,7 @@ export default function StarterPaywallCard({
     setLoading(true);
     setError(null);
     try {
+      onTrackEvent?.("checkout_opened", { tier: "starter", scenario_id: scenarioId });
       const res = await fetch("/api/payments/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -49,9 +57,11 @@ export default function StarterPaywallCard({
       } else if (data.status === "paid") {
         window.location.reload();
       } else {
+        onTrackEvent?.("checkout_abandoned", { tier: "starter", reason: "api_error", scenario_id: scenarioId });
         setError(data.error || "Failed to start checkout. Please try again.");
       }
     } catch {
+      onTrackEvent?.("checkout_abandoned", { tier: "starter", reason: "network_error", scenario_id: scenarioId });
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
@@ -121,7 +131,7 @@ export default function StarterPaywallCard({
               onClick={onFullUpgradeClick}
               className="text-xs text-white/35 hover:text-white/60 transition-colors underline underline-offset-2"
             >
-              Or get everything (ownership history, deep dive &amp; more) — $9.99 →
+              Or skip to the Full Report (ownership history, deep dive &amp; more) — $9.99 total →
             </button>
           </div>
         </div>

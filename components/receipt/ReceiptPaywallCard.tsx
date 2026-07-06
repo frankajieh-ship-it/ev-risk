@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Zap, TrendingDown, FileText, Lock, Search, ClipboardList, Shield, Download, AlertCircle } from "lucide-react";
 
 interface ReceiptPaywallCardProps {
   receiptToken: string;
   scenarioId: string;
   onPaywallClick?: () => void;
+  /** True when user already paid $3.99 Starter — changes price copy to "$9.99 more" */
+  isUpgrade?: boolean;
+  onTrackEvent?: (name: string, data?: Record<string, unknown>) => void;
 }
 
 const VIN_HISTORY_UNAVAILABLE = false;
@@ -24,11 +27,18 @@ export default function ReceiptPaywallCard({
   receiptToken,
   scenarioId,
   onPaywallClick,
+  isUpgrade = false,
+  onTrackEvent,
 }: ReceiptPaywallCardProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    onTrackEvent?.("paywall_seen", { tier: "full", is_upgrade: isUpgrade, scenario_id: scenarioId });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handlePay = async () => {
+    onTrackEvent?.("paywall_cta_clicked", { tier: "full", is_upgrade: isUpgrade, scenario_id: scenarioId });
     if (onPaywallClick) {
       onPaywallClick();
       return;
@@ -36,6 +46,7 @@ export default function ReceiptPaywallCard({
     setLoading(true);
     setError(null);
     try {
+      onTrackEvent?.("checkout_opened", { tier: "full", is_upgrade: isUpgrade, scenario_id: scenarioId });
       const res = await fetch("/api/payments/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -52,9 +63,11 @@ export default function ReceiptPaywallCard({
       } else if (data.status === "paid") {
         window.location.reload();
       } else {
+        onTrackEvent?.("checkout_abandoned", { tier: "full", reason: "api_error", scenario_id: scenarioId });
         setError(data.error || "Failed to start checkout. Please try again.");
       }
     } catch {
+      onTrackEvent?.("checkout_abandoned", { tier: "full", reason: "network_error", scenario_id: scenarioId });
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
@@ -69,16 +82,16 @@ export default function ReceiptPaywallCard({
           <div className="flex items-center gap-2 mb-2">
             <Lock className="w-4 h-4 text-[#00d97e]" />
             <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wide">
-              Full analysis ready
+              {isUpgrade ? "Upgrade to Full Report" : "Full analysis ready"}
             </span>
           </div>
           <h2 className="text-xl font-bold text-white leading-tight">
-            Unlock the complete report for this listing
+            {isUpgrade ? "Add ownership history, deep dive & negotiation scripts" : "Unlock the complete report for this listing"}
           </h2>
           <p className="text-sm text-white/50 mt-1">
             VIN history · deep dive · negotiation scripts · PDF export.
             <br />
-            $9.99 · This listing · No subscription.
+            {isUpgrade ? "$9.99 more · You've already unlocked the Starter." : "$9.99 · This listing · No subscription."}
           </p>
         </div>
 

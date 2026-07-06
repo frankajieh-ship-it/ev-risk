@@ -157,6 +157,78 @@ export function buildPurchaseConfirmEmail(ctx: PurchaseConfirmContext): { subjec
   };
 }
 
+// ── Receipt Payment Confirmation ─────────────────────────────────────────────
+
+export interface ReceiptPaymentConfirmContext {
+  email: string;
+  vehicle?: string;
+  receiptId: string;
+  tier: "receipt_single" | "buyer_pass";
+}
+
+export function buildReceiptPaymentConfirm(ctx: ReceiptPaymentConfirmContext): { subject: string; html: string } {
+  const { email, vehicle, receiptId, tier } = ctx;
+  const vehicleLabel = vehicle || "your listing";
+  const receiptUrl = `${SITE_URL}/receipt?id=${receiptId}&utm_source=email&utm_medium=transactional&utm_campaign=purchase_confirm`;
+  const isStarter = tier === "receipt_single";
+
+  const unlockedItems = isStarter
+    ? ["Risk verdict — GREEN, YELLOW, or RED with evidence", "Full AI summary — plain-language breakdown", "Photo angle analysis — missing or suspicious photos flagged"]
+    : ["Risk verdict + full AI summary", "Ownership history — title, accidents, open liens", "Negotiation scripts — 3 ready-to-send scenarios", "Battery deep dive + recall status", "Market comparables + price verdict", "PDF export of the full report"];
+
+  const upgradeBlock = isStarter ? `
+    <div style="background:rgba(0,217,126,0.06);border-radius:10px;padding:14px 18px;border:1px solid rgba(0,217,126,0.15);margin-bottom:8px;">
+      <p style="font-size:13px;color:#86efac;margin:0 0 6px;font-weight:600;">Want ownership history + negotiation scripts?</p>
+      <p style="font-size:13px;color:#86efac;margin:0;">
+        Upgrade to the Full Report for $9.99 more — adds VIN history, deep dive, and 3 negotiation scripts.
+        <a href="${receiptUrl}" style="color:#00d97e;text-decoration:underline;">Upgrade from your receipt →</a>
+      </p>
+    </div>` : `
+    <div style="background:rgba(0,217,126,0.06);border-radius:10px;padding:14px 18px;border:1px solid rgba(0,217,126,0.15);margin-bottom:8px;">
+      <p style="font-size:13px;color:#86efac;margin:0;">
+        <strong>Tip:</strong> Use the negotiation scripts in your receipt before you message the seller —
+        they're built around the specific risk flags we found on this listing.
+      </p>
+    </div>`;
+
+  const body = `
+    ${OFFO_HEADER}
+    <div style="text-align:center;margin-bottom:20px;">
+      <h1 style="font-size:22px;color:#e6edf3;margin:0 0 6px;">
+        ${isStarter ? "Starter Report unlocked" : "Full Report unlocked"}
+      </h1>
+      <p style="font-size:14px;color:#8b949e;margin:0;">${vehicleLabel}</p>
+    </div>
+
+    <div style="background:#161b22;border-radius:12px;padding:20px 22px;margin-bottom:14px;border:1px solid #30363d;">
+      <p style="font-size:13px;font-weight:700;color:#00d97e;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 12px;">
+        What&apos;s now available in your report
+      </p>
+      <ul style="margin:0;padding:0 0 0 18px;font-size:14px;color:#c9d1d9;line-height:1.9;">
+        ${unlockedItems.map(item => `<li>${item}</li>`).join("")}
+      </ul>
+    </div>
+
+    <div style="text-align:center;margin-bottom:20px;">
+      ${ctaButton("Open my report →", receiptUrl)}
+    </div>
+
+    ${upgradeBlock}
+
+    <p style="font-size:13px;color:#8b949e;margin:20px 0 0;">
+      Reply to this email if anything looks off or you have questions about the report. We read every reply.
+    </p>
+
+    ${emailFooter(email, "activation")}`;
+
+  return {
+    subject: isStarter
+      ? `Your Starter Report is ready — ${vehicleLabel}`
+      : `Your Full Report is ready — ${vehicleLabel}`,
+    html: emailWrapper(body),
+  };
+}
+
 // ── Day 3 ────────────────────────────────────────────────────────────────────
 
 export function buildActivationDay3(ctx: ActivationContext): { subject: string; html: string } {

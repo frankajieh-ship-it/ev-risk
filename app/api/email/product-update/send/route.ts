@@ -1,14 +1,14 @@
 /**
- * Product Update Broadcast — July 2026
+ * Product Update Broadcast — July 2026 v2
  *
  * POST /api/email/product-update/send
  *
- * One-time send to all opted-in users announcing AutoTrader & Cars.com
- * URL extraction + VIN history coming soon teaser. Covers two pools:
+ * One-time send to all opted-in users announcing ownership history now live
+ * + two-tier paywall ($3.99 Starter / $9.99 Full). Covers two pools:
  *   Pool A: authenticated users (auth.users)
  *   Pool B: anon email captures (checklist_email_captures)
  *
- * Idempotency key: product-update:july2026:{userId|email}
+ * Idempotency key: product-update:ownership-history:{userId|email}
  * Safe to call multiple times — duplicate sends are suppressed by the
  * unique constraint on crm_email_sends.idempotency_key.
  *
@@ -22,9 +22,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { isResendConfigured } from "@/lib/resend";
 import { safeSend } from "@/lib/crm-email";
-import { buildProductUpdateJuly2026 } from "@/lib/crm-templates/product-update";
+import { buildProductUpdateOwnershipHistory } from "@/lib/crm-templates/product-update";
 
-const CAMPAIGN_KEY = "product-update:july2026";
+const CAMPAIGN_KEY = "product-update:ownership-history";
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const { subject, html } = buildProductUpdateJuly2026({ email });
+      const { subject, html } = buildProductUpdateOwnershipHistory({ email });
       const idempotencyKey = userId
         ? `${CAMPAIGN_KEY}:${userId}`
         : `${CAMPAIGN_KEY}:${email}`;

@@ -95,9 +95,8 @@ export async function POST(request: NextRequest) {
   }
 
   // 1. Validate scenario exists and verify ownership
-  // chat_pass and receipt_single skip this check — no DB row exists yet at payment time
-  // (receipt_single is paid before generation; chat_pass uses sessionId as scenarioId)
-  if (scenarioType !== "chat" && packTier !== "receipt_single") {
+  // chat_pass skips this check — sessionId is used as scenarioId (no DB row)
+  if (scenarioType !== "chat") {
     const tableMap: Record<string, { table: string; select: string; ownerColumn: string | null; idColumn?: string }> = {
       receipt: { table: "receipts", select: "id, session_id", ownerColumn: "session_id" },
       evroutine: { table: "reports", select: "id", ownerColumn: null },
@@ -130,7 +129,16 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // 2. Check for existing paid purchase
+  // 2. Check for existing paid purchase — allow upgrades to higher tiers
+  // Tier rank: receipt_single/seller_questions/chat_pass (1) < buyer_pass/copart_report (2)
+  const TIER_RANK: Record<string, number> = {
+    receipt_single: 1,
+    seller_questions: 1,
+    chat_pass: 1,
+    copart_report: 2,
+    buyer_pass: 2,
+  };
+
   const { data: existingPurchase } = await supabase
     .from("purchases")
     .select("purchase_id, status, price_variant, amount, pack_tier")
@@ -140,13 +148,18 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (existingPurchase) {
-    return NextResponse.json({
-      status: "paid",
-      purchase_id: existingPurchase.purchase_id,
-      price_variant: existingPurchase.price_variant,
-      amount: existingPurchase.amount,
-      pack_tier: existingPurchase.pack_tier || "buyer_pass",
-    });
+    const existingRank = TIER_RANK[existingPurchase.pack_tier ?? ""] ?? 0;
+    const requestedRank = TIER_RANK[packTier] ?? 0;
+    // Block only if already at same or higher tier — fall through to allow upgrades
+    if (existingRank >= requestedRank) {
+      return NextResponse.json({
+        status: "paid",
+        purchase_id: existingPurchase.purchase_id,
+        price_variant: existingPurchase.price_variant,
+        amount: existingPurchase.amount,
+        pack_tier: existingPurchase.pack_tier || "buyer_pass",
+      });
+    }
   }
 
   // 3. Resolve price variant from pack tier (seller pack uses A/B via anonId hash)

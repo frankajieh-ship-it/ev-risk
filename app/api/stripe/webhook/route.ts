@@ -24,6 +24,8 @@ import Stripe from "stripe";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { audit } from "@/lib/audit-logger";
 import { sendChecklistEmail, isResendConfigured } from "@/lib/resend";
+import { safeSend } from "@/lib/crm-email";
+import { buildReceiptPaymentConfirm } from "@/lib/crm-templates/activation";
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -724,6 +726,35 @@ async function fulfillBuyerPass(session: Stripe.Checkout.Session) {
         .update({ funnel_stage: "purchased", updated_at: new Date().toISOString() })
         .eq("anon_id", anonId)
         .then(() => {});
+    }
+
+    // Send post-purchase confirmation email (fire-and-forget)
+    const customerEmail = session.customer_details?.email;
+    if (customerEmail && isResendConfigured() && (packTier === "receipt_single" || packTier === "buyer_pass")) {
+      // Fetch vehicle label from receipt for personalization
+      let vehicle: string | undefined;
+      if (baseScenarioId && scenarioType === "receipt") {
+        try {
+          const { data: receiptRow } = await supabase
+            .from("receipts")
+            .select("output_json")
+            .eq("id", baseScenarioId)
+            .maybeSingle();
+          const output = receiptRow?.output_json as Record<string, unknown> | null;
+          if (output?.year && output?.make && output?.model) {
+            vehicle = `${output.year} ${output.make} ${output.model}`;
+          }
+        } catch { /* non-critical */ }
+      }
+      safeSend({
+        email: customerEmail,
+        sequenceType: "activation",
+        sequenceStep: `purchase_confirm_${packTier}`,
+        subject: buildReceiptPaymentConfirm({ email: customerEmail, vehicle, receiptId: baseScenarioId, tier: packTier as "receipt_single" | "buyer_pass" }).subject,
+        html: buildReceiptPaymentConfirm({ email: customerEmail, vehicle, receiptId: baseScenarioId, tier: packTier as "receipt_single" | "buyer_pass" }).html,
+        idempotencyKey: `purchase-confirm:${session.id}`,
+        metadata: { pack_tier: packTier, scenario_id: baseScenarioId },
+      }).catch(() => { /* non-critical */ });
     }
 
     return true;
