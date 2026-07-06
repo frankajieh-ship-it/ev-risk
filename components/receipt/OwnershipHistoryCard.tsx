@@ -41,8 +41,9 @@ export default function OwnershipHistoryCard({
   const [accidentsOpen, setAccidentsOpen] = useState(false);
   const [salesOpen, setSalesOpen] = useState(false);
 
-  const fetch_history = async (skipLoadingGuard = false) => {
-    if (!skipLoadingGuard && fetchState === "loading") return;
+  const fetch_history = async (autoFetch = false) => {
+    if (fetchState === "loading") return;
+    if (autoFetch && fetchState !== "idle") return;
     setFetchState("loading");
     trackEvent("ownership_history_requested", { vin });
 
@@ -84,9 +85,10 @@ export default function OwnershipHistoryCard({
   };
 
   // Auto-fetch when unlocked or payments are off — but only once receiptToken is ready.
+  // autoFetch=true means the call is skipped if already loading/done/errored.
   useEffect(() => {
     if (!receiptToken || (!isUnlocked && paymentsEnabled)) return;
-    fetch_history(true);
+    fetch_history(true); // autoFetch=true: skips if not idle
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vin, receiptToken, isUnlocked, paymentsEnabled]);
 
