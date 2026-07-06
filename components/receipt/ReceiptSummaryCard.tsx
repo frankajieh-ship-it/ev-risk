@@ -296,11 +296,6 @@ export default function ReceiptSummaryCard({
               </p>
             </div>
           </div>
-          <div className="px-5 pb-3 space-y-2">
-            {bodyArr.slice(0, 2).map((sentence: string, i: number) => (
-              <p key={i} className="text-sm text-white/70 leading-relaxed">{sentence}</p>
-            ))}
-          </div>
         </div>
         {/* Email gate overlay */}
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0d1117]/70 backdrop-blur-[2px] rounded-xl px-6">
