@@ -66,21 +66,30 @@ export function buildActivationDay1(ctx: ActivationContext): { subject: string; 
     </p>`;
   } else {
     // YELLOW or unknown
-    headlineHtml = `Your receipt is ready`;
+    headlineHtml = verdict === "YELLOW" ? `Your receipt has open questions` : `Your receipt is ready`;
     if (verdict === "YELLOW") {
       badgeHtml = `<div style="text-align:center;margin-bottom:20px;">
         <span style="display:inline-block;padding:4px 16px;border-radius:20px;font-size:13px;font-weight:700;color:#fff;background:${verdictColor("YELLOW")};">
           ${verdictLabel("YELLOW")}
         </span>
       </div>`;
+      bodyHtml = `<p style="font-size:14px;color:#c9d1d9;margin:0 0 12px;">
+        OFFO found some open questions on <strong style="color:#e6edf3;">${vehicle}</strong> — nothing that's a dealbreaker yet,
+        but worth clarifying before you commit.
+      </p>
+      <p style="font-size:14px;color:#c9d1d9;margin:0;">
+        Your receipt has the specific flags to raise with the seller before your visit. Resolving even one
+        of them can save you hundreds in negotiation.
+      </p>`;
+    } else {
+      bodyHtml = `<p style="font-size:14px;color:#c9d1d9;margin:0 0 12px;">
+        Your OFFO receipt for <strong style="color:#e6edf3;">${vehicle}</strong> is ready — including risk flags,
+        must-ask questions, and a price verdict.
+      </p>
+      <p style="font-size:14px;color:#c9d1d9;margin:0;">
+        Review your full receipt to see what to watch out for before you visit the seller.
+      </p>`;
     }
-    bodyHtml = `<p style="font-size:14px;color:#c9d1d9;margin:0 0 12px;">
-      Your OFFO receipt for <strong style="color:#e6edf3;">${vehicle}</strong> is ready — including risk flags,
-      must-ask questions, and a price verdict.
-    </p>
-    <p style="font-size:14px;color:#c9d1d9;margin:0;">
-      Review your full receipt to see what to watch out for before you visit the seller.
-    </p>`;
   }
 
   const body = `
@@ -104,8 +113,16 @@ export function buildActivationDay1(ctx: ActivationContext): { subject: string; 
     </div>
     ${emailFooter(email, "activation")}`;
 
+  const subject = verdict === "GREEN"
+    ? `Your ${vehicle} receipt looks clean — here's what to do next`
+    : verdict === "RED"
+    ? `Your ${vehicle} receipt has red flags — read this before you proceed`
+    : verdict === "YELLOW"
+    ? `Your ${vehicle} receipt has open questions — here's how to resolve them`
+    : `Your ${vehicle} receipt is ready — here's what we found`;
+
   return {
-    subject: `Your ${vehicle} receipt is ready — here's what we found`,
+    subject,
     html: emailWrapper(body),
   };
 }

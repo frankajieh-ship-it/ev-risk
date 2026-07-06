@@ -127,6 +127,24 @@ export async function POST(req: NextRequest) {
   // Classify the vehicle
   const classification = classifyVehicle(make, model, trim);
 
+  // Capture listing URL and price at save time for price drop alerts
+  let listingUrl: string | null = null;
+  let listingPriceAtSave: number | null = null;
+  if (receipt_id) {
+    const { data: receipt } = await supabase
+      .from("receipts")
+      .select("listing_url, output_json")
+      .eq("id", receipt_id)
+      .maybeSingle();
+    if (receipt) {
+      listingUrl = receipt.listing_url ?? null;
+      const summary = (receipt.output_json as Record<string, unknown> | null)
+        ?.listing_summary as Record<string, unknown> | undefined;
+      const rawPrice = summary?.price;
+      listingPriceAtSave = rawPrice ? Math.round(Number(rawPrice) * 100) : null;
+    }
+  }
+
   const { data, error } = await supabase
     .from("garage_vehicles")
     .insert({
@@ -140,6 +158,8 @@ export async function POST(req: NextRequest) {
       classification,
       receipt_id: receipt_id || null,
       notes: notes || null,
+      listing_url: listingUrl,
+      listing_price_at_save: listingPriceAtSave,
     })
     .select("*")
     .single();
