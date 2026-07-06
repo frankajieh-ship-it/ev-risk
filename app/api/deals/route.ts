@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("curated_deals")
-    .select("id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, receipt_id, photo_url, last_analyzed_at, vin, dealership_id, verdict, title_status, dealerships(name, slug)")
+    .select("id, listing_url, url_domain, vehicle_label, year, make, model, trim, price, mileage, location, receipt_id, photo_url, last_analyzed_at, created_at, vin, dealership_id, verdict, title_status, dealerships(name, slug)")
     .eq("is_active", true)
     .not("vehicle_label", "is", null)
     .not("make", "is", null)

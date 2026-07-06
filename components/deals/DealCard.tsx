@@ -23,6 +23,7 @@ export interface CuratedDeal {
   receipt_id: string | null;
   photo_url: string | null;
   last_analyzed_at: string | null;
+  created_at?: string | null;
   vin: string | null;
   dealership_id?: string | null;
   dealership_name?: string | null;
@@ -60,7 +61,7 @@ function FreshnessLabel({ timestamp }: { timestamp: string }) {
   const diffMs = new Date().getTime() - new Date(timestamp).getTime();
   const h = Math.floor(diffMs / 3600000);
   const d = Math.floor(diffMs / 86400000);
-  const label = h < 1 ? "just now" : h < 24 ? `${h}h ago` : `${d}d ago`;
+  const label = h < 24 ? `${h}h ago` : d < 7 ? `${d}d ago` : d < 30 ? `${Math.floor(d / 7)}w ago` : `${Math.floor(d / 30)}mo ago`;
   return <p className="text-[10px] text-white/20">Listed {label}</p>;
 }
 
@@ -234,8 +235,8 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
         </div>
 
         {/* Freshness — not shown in preview */}
-        {!preview && deal.last_analyzed_at && (
-          <FreshnessLabel timestamp={deal.last_analyzed_at} />
+        {!preview && (deal.created_at || deal.last_analyzed_at) && (
+          <FreshnessLabel timestamp={(deal.created_at || deal.last_analyzed_at)!} />
         )}
 
         {/* Actions */}
