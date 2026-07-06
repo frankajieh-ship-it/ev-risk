@@ -191,15 +191,15 @@ export interface EvSpecsError {
   code: "not_configured" | "api_error" | "not_found" | "timeout";
 }
 
+// Actual response shape from vehicledatabases.com /electric-vehicle endpoint:
+// data.powertrain is a flat object with string keys like "Hybrid traction battery capacity (kWh)"
+// data.features.mechanical_features is an array of strings containing range/battery text
 type RawEvSpecs = {
-  powertrain?: {
-    battery_capacity_kwh?: number | string;
-    range?: { city?: number | string; highway?: number | string; combined?: number | string };
-    charging_times?: {
-      level2_hours?: number | string;
-      dc_fast_charge_minutes?: number | string;
-    };
-    horsepower?: number | string;
+  status?: string;
+  data?: {
+    basic?: { year?: number; make?: string; model?: string; trim?: string };
+    powertrain?: Record<string, string>;
+    features?: { mechanical_features?: string[] };
   };
 };
 
@@ -229,31 +229,72 @@ export async function evSpecs(
     return { success: false, error: `EV specs API error: ${res.status}`, code: res.status === 404 ? "not_found" : "api_error" };
   }
 
-  let body: RawEvSpecs & Record<string, unknown>;
+  let body: RawEvSpecs;
   try {
     body = await res.json();
   } catch {
     return { success: false, error: "EV specs: invalid response", code: "api_error" };
   }
 
-  const pt = body.powertrain ?? {};
-  const toNum = (v: number | string | undefined): number | null =>
-    v !== undefined && v !== "" ? Number(v) || null : null;
+  if (body.status !== "success" || !body.data) {
+    return { success: false, error: "EV specs: no data returned", code: "not_found" };
+  }
 
-  const range = pt.range;
-  const range_miles = toNum(range?.combined ?? range?.highway ?? range?.city);
+  const pt = body.data.powertrain ?? {};
+  const mechFeatures = body.data.features?.mechanical_features ?? [];
+
+  const toNum = (v: string | undefined): number | null => {
+    if (!v || v.trim() === "") return null;
+    const n = parseFloat(v.replace(/[^0-9.]/g, ""));
+    return isNaN(n) ? null : n;
+  };
+
+  // Battery kWh: from "Hybrid traction battery capacity (kWh)" field,
+  // or parse from mechanical_features text like "11.5 kW Onboard Charger"
+  let battery_capacity_kwh = toNum(pt["Hybrid traction battery capacity (kWh)"]);
+  if (!battery_capacity_kwh) {
+    // e.g. "Lithium Ion Traction Battery w/11.5 kW Onboard Charger and 10 Hrs Charge Time @ 220/240V"
+    const batteryText = mechFeatures.find((f) => /traction battery/i.test(f));
+    const kwhMatch = batteryText?.match(/(\d+\.?\d*)\s*kWh/i);
+    battery_capacity_kwh = kwhMatch ? parseFloat(kwhMatch[1]) : null;
+  }
+
+  // Range: from "Hybrid traction battery all electric range" or mechanical features text
+  // e.g. "325+ mi estimated range"
+  let range_miles = toNum(pt["Hybrid traction battery all electric range"]);
+  if (!range_miles) {
+    const rangeText = mechFeatures.find((f) => /mi.*range|range.*mi/i.test(f));
+    const rangeMatch = rangeText?.match(/(\d+)\+?\s*mi/i);
+    range_miles = rangeMatch ? parseFloat(rangeMatch[1]) : null;
+  }
+  // Also try MPGe combined as MPGe ≈ mi/33.7kWh — skip, not meaningful for range
+
+  // L2 charge time: "Hybrid traction battery charge time (hrs) @ 240V"
+  // or from mechanical features text like "10 Hrs Charge Time @ 220/240V"
+  let charge_time_l2_hours = toNum(pt["Hybrid traction battery charge time (hrs) @ 240V"]);
+  if (!charge_time_l2_hours) {
+    const chargeText = mechFeatures.find((f) => /hrs.*charge time|charge time.*hrs/i.test(f));
+    const hrsMatch = chargeText?.match(/(\d+\.?\d*)\s*Hrs/i);
+    charge_time_l2_hours = hrsMatch ? parseFloat(hrsMatch[1]) : null;
+  }
+
+  // DC fast charge time
+  const charge_time_dc_fast_minutes = toNum(pt["Hybrid traction battery peak DC fast charge time (minutes)"]);
+
+  // Horsepower: from specs or electric motor field
+  const horsepower = toNum(pt["Horsepower"]) ?? toNum(pt["Electric motor horsepower"]);
 
   return {
     success: true,
     year,
     make,
     model,
-    trim,
-    battery_capacity_kwh: toNum(pt.battery_capacity_kwh),
+    trim: body.data.basic?.trim ?? trim,
+    battery_capacity_kwh,
     range_miles,
-    charge_time_l2_hours: toNum(pt.charging_times?.level2_hours),
-    charge_time_dc_fast_minutes: toNum(pt.charging_times?.dc_fast_charge_minutes),
-    horsepower: toNum(pt.horsepower),
-    raw: body,
+    charge_time_l2_hours,
+    charge_time_dc_fast_minutes,
+    horsepower,
+    raw: body as unknown as Record<string, unknown>,
   };
 }
