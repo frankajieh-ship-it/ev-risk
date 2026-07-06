@@ -356,24 +356,32 @@ export default function ReceiptSummaryCard({
   const visibleBody = bodyExpanded ? bodyArr : bodyArr.slice(0, 2);
   const hasMore = bodyArr.length > 2;
 
+  // Email-only: show body text but keep header neutral — verdict color requires payment
+  const coloredHeader = isStarterUnlocked;
+
   return (
-    <div className={`rounded-xl border ${styles.border} ${styles.bg} overflow-hidden`}>
+    <div className={`rounded-xl border ${coloredHeader ? styles.border : "border-white/[0.08]"} ${coloredHeader ? styles.bg : "bg-[#161b22]"} overflow-hidden`}>
       <div className="flex items-center gap-3 px-5 pt-4 pb-3">
-        <div className={`w-8 h-8 rounded-full ${styles.iconBg} flex items-center justify-center shrink-0`}>
-          <Icon className={`w-4 h-4 ${styles.iconColor}`} />
+        <div className={`w-8 h-8 rounded-full ${coloredHeader ? styles.iconBg : "bg-white/[0.06]"} flex items-center justify-center shrink-0`}>
+          {coloredHeader
+            ? <Icon className={`w-4 h-4 ${styles.iconColor}`} />
+            : <MessageSquare className="w-4 h-4 text-white/40" />
+          }
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className={`text-[11px] font-semibold uppercase tracking-widest ${styles.iconColor} opacity-70`}>
-              {styles.label}
+            <span className={`text-[11px] font-semibold uppercase tracking-widest ${coloredHeader ? `${styles.iconColor} opacity-70` : "text-white/30"}`}>
+              {coloredHeader ? styles.label : "AI Summary"}
             </span>
-            <span className="text-[11px] text-white/20">·</span>
-            <span className="text-[11px] text-white/30 flex items-center gap-1">
-              <MessageSquare className="w-2.5 h-2.5" />
-              Summary
-            </span>
+            {coloredHeader && <span className="text-[11px] text-white/20">·</span>}
+            {coloredHeader && (
+              <span className="text-[11px] text-white/30 flex items-center gap-1">
+                <MessageSquare className="w-2.5 h-2.5" />
+                Summary
+              </span>
+            )}
           </div>
-          <p className={`text-sm font-bold leading-snug mt-0.5 ${styles.headlineColor}`}>
+          <p className={`text-sm font-bold leading-snug mt-0.5 ${coloredHeader ? styles.headlineColor : "text-white/70"}`}>
             {summary.headline}
           </p>
         </div>

@@ -404,9 +404,13 @@ You are like a trusted friend who has looked over the analysis and is giving the
 
 RULES:
 - headline: the single most important fact about this listing. 8-100 chars. Specific numbers where possible.
+  - Do NOT include the verdict color (GREEN, YELLOW, RED) or verdict label (Good Deal, Caution, etc.) in the headline.
+  - Focus on a concrete fact: mileage, price vs market, key risk, battery age, etc.
+  - Good: "Low-mileage 2025 Equinox listed below market" / "Open recalls on discontinued model with no service records"
+  - Bad: "Green verdict on low-mileage listing" / "Yellow — proceed with caution"
 - body: 2-4 sentences. Each sentence stands alone. Plain English. No jargon.
-  - Sentence 1: What the overall picture is and why (reference the actual verdict)
-  - Sentence 2: The biggest specific risk or strength (reference concrete facts: mileage, title, price vs market, specific flag)
+  - Sentence 1: What the overall picture is — WITHOUT stating the verdict color or label.
+  - Sentence 2: The biggest specific risk or strength (reference concrete facts: mileage, price vs market, specific flag)
   - Sentence 3 (optional): The evidence quality — what's confirmed vs missing
   - Sentence 4 (optional): Routine fit or charging situation — ONLY if ROUTINE FIT data is provided. Never invent or assume fit scores.
 - bottom_line: A single concrete action sentence starting with a verb. Not wishy-washy. 20-180 chars.
