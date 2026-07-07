@@ -487,6 +487,15 @@ export default function ReceiptPage() {
       window.history.replaceState({}, "", "/receipt");
     }
 
+    // Dealer badge deep-link: ?listing_url=<encoded listing URL>
+    // Used when dealers embed the badge on individual vehicle listing pages.
+    const listingUrlParam = params.get("listing_url");
+    if (listingUrlParam && !extUrl) {
+      setPageSource("dealer_badge");
+      setPrefillUrl(decodeURIComponent(listingUrlParam));
+      window.history.replaceState({}, "", "/receipt");
+    }
+
     // Check for make/model prefill from vehicle landing pages (?make=Tesla&model=Model+3)
     const prefillMake = params.get("make");
     const prefillModel = params.get("model");

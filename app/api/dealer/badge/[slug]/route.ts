@@ -36,6 +36,7 @@ export async function GET(
 
   const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
   const profileUrl = `${SITE_URL}/dealers/${slug}`;
+  const badgeReceiptUrl = `${SITE_URL}/receipt?src=dealer_badge&utm_source=dealer_badge&utm_medium=badge&utm_campaign=${encodeURIComponent(slug)}`;
 
   // Truncate name to keep badge compact
   const displayName = dealerName.length > 22 ? dealerName.slice(0, 21) + "…" : dealerName;
@@ -56,8 +57,8 @@ export async function GET(
   <text x="32" y="22" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="11" font-weight="700" fill="#00d97e" letter-spacing="0.05em">OFFO</text>
   <text x="32" y="36" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="10" fill="#c9d1d9">${displayName}</text>
   <text x="32" y="47" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="9" fill="#6b7280">Verified Dealer</text>
-  <!-- invisible link target -->
-  <a href="${profileUrl}"><rect width="200" height="52" rx="10" fill="transparent"/></a>
+  <!-- invisible link target — opens receipt page with UTM from dealer badge -->
+  <a href="${badgeReceiptUrl}"><rect width="200" height="52" rx="10" fill="transparent"/></a>
 </svg>`
     : `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="40" viewBox="0 0 160 40">
   <rect width="160" height="40" rx="8" fill="#161b22" stroke="#21262d" stroke-width="1"/>

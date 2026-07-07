@@ -49,6 +49,8 @@ export interface VinAuditSaleRecord {
   odometer?: string;
   seller?: string;
   photo_urls?: string[];
+  /** Classified source of the sale event */
+  owner_type?: "dealer" | "fleet_rental" | "private" | "unknown";
 }
 
 export interface VinAuditLiteResult {
@@ -64,6 +66,10 @@ export interface VinAuditLiteResult {
     salvage_reported: boolean;
     accident_count: number;
     sale_count: number;
+    /** Breakdown of sale records by owner type */
+    owner_type_breakdown?: { dealer: number; fleet_rental: number; private: number; unknown: number };
+    /** True when rapid-turnover pattern suggests commercial/fleet use */
+    possible_fleet_history?: boolean;
   };
 }
 

@@ -81,17 +81,45 @@ export async function POST(request: Request) {
       date: r.TitleIssueDate?.Date ? new Date(r.TitleIssueDate.Date).toLocaleDateString("en-US", { year: "numeric", month: "short" }) : undefined,
       odometer: r.VehicleOdometerReadingMeasure ? String(parseInt(r.VehicleOdometerReadingMeasure, 10)) : undefined,
       seller: r.TitleIssuingAuthorityName ? `State: ${r.TitleIssuingAuthorityName}` : undefined,
+      owner_type: "private" as const,
     }));
 
     // Merge auction records as sale records (most recent first)
+    // All auction records = commercial/dealer transactions
     const auctionSales: VinAuditSaleRecord[] = (auctionResult?.success ? auctionResult.records : []).map((r) => ({
       date: r.auction_date,
       price: r.price.replace(/[^0-9.]/g, "") || undefined,
       odometer: r.odometer.replace(/[^0-9]/g, "") || undefined,
       seller: [r.location, r.title_type ? `Title: ${r.title_type}` : "", r.primary_damage ? `Damage: ${r.primary_damage}` : ""].filter(Boolean).join(" · ") || undefined,
+      owner_type: "dealer" as const,
     }));
 
     const allSales = [...auctionSales, ...carsxeSales];
+
+    // Fleet/rental pattern detection: 2+ consecutive sales each < 90 days apart
+    // indicates rapid commercial turnover (fleet disposal, rental, dealer flipping)
+    function detectFleetPattern(records: VinAuditSaleRecord[]): boolean {
+      if (records.length < 2) return false;
+      const dates = records
+        .map((r) => (r.date ? new Date(r.date).getTime() : NaN))
+        .filter((d) => !isNaN(d))
+        .sort((a, b) => a - b);
+      if (dates.length < 2) return false;
+      let rapidPairs = 0;
+      for (let i = 1; i < dates.length; i++) {
+        const daysBetween = (dates[i] - dates[i - 1]) / (1000 * 60 * 60 * 24);
+        if (daysBetween < 90) rapidPairs++;
+      }
+      return rapidPairs >= 2;
+    }
+
+    const possible_fleet_history = detectFleetPattern(allSales);
+
+    // Build owner type breakdown
+    const breakdown = { dealer: 0, fleet_rental: 0, private: 0, unknown: 0 };
+    for (const s of allSales) {
+      breakdown[s.owner_type ?? "unknown"]++;
+    }
 
     // Map normalized result → VinAuditLiteResult shape the card expects
     const salvageFromAuction = auctionResult?.success
@@ -106,6 +134,8 @@ export async function POST(request: Request) {
         salvage_reported: historyResult.salvage_reported || salvageFromAuction,
         accident_count: historyResult.accident_count,
         sale_count: historyResult.ownership_count ?? allSales.length,
+        owner_type_breakdown: breakdown,
+        possible_fleet_history,
       },
       theft: historyResult.theft_reported ? [{ status: "Reported" }] : [],
       salvage: (historyResult.salvage_reported || salvageFromAuction) ? [{ source: historyResult.provider }] : [],

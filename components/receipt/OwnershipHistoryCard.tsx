@@ -192,6 +192,21 @@ export default function OwnershipHistoryCard({
   const { summary, theft, salvage, accidents, sales } = result;
   const allClear = !summary.theft_reported && !summary.salvage_reported && summary.accident_count === 0;
 
+  // Build human-readable owner breakdown string e.g. "3 owners (1 dealer, 2 private)"
+  function ownerBreakdownLabel(): string | null {
+    const b = summary.owner_type_breakdown;
+    if (!b) return null;
+    const total = b.dealer + b.fleet_rental + b.private + b.unknown;
+    if (total === 0) return null;
+    const parts: string[] = [];
+    if (b.dealer > 0) parts.push(`${b.dealer} dealer`);
+    if (b.fleet_rental > 0) parts.push(`${b.fleet_rental} fleet/rental`);
+    if (b.private > 0) parts.push(`${b.private} private`);
+    if (parts.length === 0) return null;
+    return `${total} owner${total !== 1 ? "s" : ""} (${parts.join(", ")})`;
+  }
+  const ownerLabel = ownerBreakdownLabel();
+
   return (
     <div className="rounded-xl border border-white/[0.08] bg-[#161b22] overflow-hidden">
       <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center gap-2">
@@ -206,8 +221,19 @@ export default function OwnershipHistoryCard({
           <Pill label="Theft" value={summary.theft_reported ? "Reported" : "None found"} bad={summary.theft_reported} />
           <Pill label="Salvage" value={summary.salvage_reported ? "Reported" : "None found"} bad={summary.salvage_reported} />
           <Pill label="Accidents" value={summary.accident_count > 0 ? `${summary.accident_count} found` : "None found"} bad={summary.accident_count > 0} />
-          <Pill label="Sale records" value={summary.sale_count > 0 ? `${summary.sale_count} found` : "None"} bad={false} />
+          <Pill label="Ownership" value={ownerLabel ?? (summary.sale_count > 0 ? `${summary.sale_count} records` : "None")} bad={false} />
         </div>
+
+        {/* Fleet/rental pattern flag */}
+        {summary.possible_fleet_history && (
+          <div className="flex items-start gap-2.5 bg-amber-500/[0.08] border border-amber-500/20 rounded-lg px-4 py-3">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-400">Possible fleet or rental history</p>
+              <p className="text-xs text-amber-300/60 mt-0.5">Multiple ownership transfers in quick succession — typical of rental fleet, dealer rotation, or commercial vehicle disposal.</p>
+            </div>
+          </div>
+        )}
 
         {/* All clear */}
         {allClear && (
@@ -292,8 +318,13 @@ export default function OwnershipHistoryCard({
             {salesOpen && (
               <ul className="divide-y divide-white/[0.05]">
                 {sales.map((r, i) => (
-                  <li key={i} className="px-4 py-3 text-sm text-white/60 space-y-0.5">
-                    {r.date && <p className="font-medium text-white/80">{r.date}</p>}
+                  <li key={i} className="px-4 py-3 text-sm text-white/60 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {r.date && <p className="font-medium text-white/80">{r.date}</p>}
+                      {r.owner_type && r.owner_type !== "unknown" && (
+                        <OwnerTypePill type={r.owner_type} />
+                      )}
+                    </div>
                     {r.price && <p>Price: <span className="font-semibold text-white/80">${Number(r.price).toLocaleString()}</span></p>}
                     {r.odometer && <p>Odometer: {Number(r.odometer).toLocaleString()} mi</p>}
                     {r.seller && <p className="text-white/30 text-xs">Seller: {r.seller}</p>}
@@ -316,5 +347,19 @@ function Pill({ label, value, bad }: { label: string; value: string; bad: boolea
       <p className="text-xs text-white/30 mb-0.5">{label}</p>
       <p className={`text-sm font-semibold ${bad ? "text-red-400" : "text-white/70"}`}>{value}</p>
     </div>
+  );
+}
+
+function OwnerTypePill({ type }: { type: "dealer" | "fleet_rental" | "private" }) {
+  const config = {
+    dealer: { label: "Dealer sale", className: "bg-blue-500/10 text-blue-300 border-blue-500/20" },
+    fleet_rental: { label: "Fleet/Rental", className: "bg-amber-500/10 text-amber-300 border-amber-500/20" },
+    private: { label: "Private", className: "bg-white/[0.06] text-white/40 border-white/10" },
+  };
+  const { label, className } = config[type];
+  return (
+    <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${className}`}>
+      {label}
+    </span>
   );
 }
