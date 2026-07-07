@@ -10,6 +10,7 @@ interface SharePageClientProps {
   snapshot: ShareSnapshot;
   createdAt: string;
   slug: string;
+  refUserId?: string | null;
 }
 
 const VERDICT_CONFIG = {
@@ -36,7 +37,7 @@ const VERDICT_CONFIG = {
   },
 } as const;
 
-export default function SharePageClient({ snapshot, createdAt, slug }: SharePageClientProps) {
+export default function SharePageClient({ snapshot, createdAt, slug, refUserId }: SharePageClientProps) {
   const { trackEvent } = useEventTracking();
 
   useEffect(() => {
@@ -129,11 +130,11 @@ export default function SharePageClient({ snapshot, createdAt, slug }: SharePage
 
         {/* CTA */}
         <Link
-          href="/receipt"
-          onClick={() => trackEvent("share_link_to_receipt_start_click", { share_slug: slug })}
+          href={refUserId ? `/receipt?ref=${encodeURIComponent(refUserId)}` : "/receipt"}
+          onClick={() => trackEvent("share_link_to_receipt_start_click", { share_slug: slug, has_ref: !!refUserId })}
           className="flex items-center justify-center gap-2 w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors"
         >
-          Run your own listing check
+          Get your own OFFO receipt — it&apos;s free
           <ArrowRight className="w-4 h-4" />
         </Link>
       </div>

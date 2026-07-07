@@ -682,6 +682,33 @@ async function fulfillBuyerPass(session: Stripe.Checkout.Session) {
       // Non-critical — don't fail fulfillment over analytics
     }
 
+    // Referral credit — if this purchase came from a referral link, award 1 credit to referrer
+    const referrerId = session.metadata?.referrer_user_id;
+    if (referrerId && data.purchase_id) {
+      try {
+        await supabase.from("referral_credits").upsert({
+          referrer_user_id: referrerId,
+          referred_purchase_id: data.purchase_id,
+          credit_amount: 1,
+        }, { onConflict: "referred_purchase_id", ignoreDuplicates: true });
+
+        await supabase.rpc("increment_referral_credit", { p_user_id: referrerId });
+
+        await supabase.from("purchases")
+          .update({ referral_credit_awarded: true, updated_at: new Date().toISOString() })
+          .eq("purchase_id", data.purchase_id);
+
+        await supabase.from("user_events").insert({
+          event_name: "referral_credit_awarded",
+          event_data: { referrer_user_id: referrerId, referred_purchase_id: data.purchase_id },
+          timestamp: new Date().toISOString(),
+        });
+      } catch {
+        // Non-fatal — referral credit can be granted manually if needed
+        console.error("⚠️ Failed to award referral credit for purchase", data.purchase_id);
+      }
+    }
+
     // Sellers Report PDF entitlement — insert when pack_tier is sellers_report_pdf
     if (packTier === "sellers_report_pdf" && baseScenarioId) {
       const userId = session.metadata?.user_id;

@@ -387,6 +387,9 @@ export default function ReceiptPage() {
   const [showPostReceiptPopup, setShowPostReceiptPopup] = useState(false);
   const postReceiptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Referral — ?ref= query param, persisted for checkout
+  const [referrerUserId, setReferrerUserId] = useState<string | null>(null);
+
   // Email gate modal — triggered by receipt generation or Save button
   // emailModalFromSave tracks whether the modal was opened specifically from the Save button
   // so that onSubmit/onSkip know whether to also call doSave()
@@ -507,6 +510,10 @@ export default function ReceiptPage() {
       setPrefillUrl(decodeURIComponent(listingUrlParam));
       window.history.replaceState({}, "", "/receipt");
     }
+
+    // Capture referral param — ?ref={userId} appended by ShareModal
+    const refParam = params.get("ref");
+    if (refParam) setReferrerUserId(refParam);
 
     // Check for make/model prefill from vehicle landing pages (?make=Tesla&model=Model+3)
     const prefillMake = params.get("make");
@@ -713,6 +720,7 @@ export default function ReceiptPage() {
           anon_id: receiptToken,
           pack_tier: tier,
           page_source: _trigger,
+          ...(referrerUserId && { referrer_user_id: referrerUserId }),
         }),
       });
       const data = await res.json();
@@ -726,7 +734,7 @@ export default function ReceiptPage() {
     } catch {
       // Silent fail — user stays on page
     }
-  }, [receipt?.receipt_id, receiptToken, refetchPayment]);
+  }, [receipt?.receipt_id, receiptToken, refetchPayment, referrerUserId]);
 
 
 
@@ -1651,6 +1659,7 @@ export default function ReceiptPage() {
           shareSlug={shareSlug}
           receiptId={receipt.receipt_id}
           receipt={receipt}
+          userId={session?.user?.id}
         />
       )}
 

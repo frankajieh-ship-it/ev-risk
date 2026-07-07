@@ -6,6 +6,7 @@ import SharePageClient from "./SharePageClient";
 
 interface SharePageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 async function getShareData(slug: string): Promise<{
@@ -62,8 +63,10 @@ export async function generateMetadata({ params }: SharePageProps): Promise<Meta
   };
 }
 
-export default async function SharePage({ params }: SharePageProps) {
+export default async function SharePage({ params, searchParams }: SharePageProps) {
   const { slug } = await params;
+  const resolvedSearch = await searchParams;
+  const refUserId = typeof resolvedSearch?.ref === "string" ? resolvedSearch.ref : null;
   const data = await getShareData(slug);
 
   if (!data) notFound();
@@ -80,5 +83,5 @@ export default async function SharePage({ params }: SharePageProps) {
       .then(() => {});
   }
 
-  return <SharePageClient snapshot={data.snapshot} createdAt={data.created_at} slug={slug} />;
+  return <SharePageClient snapshot={data.snapshot} createdAt={data.created_at} slug={slug} refUserId={refUserId} />;
 }

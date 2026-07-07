@@ -78,6 +78,9 @@ export async function POST(request: NextRequest) {
     // Non-critical — proceed with body user_id or null
   }
   const pageSource = (body.page_source as string) || null;
+  let referrerUserId = (body.referrer_user_id as string) || null;
+  // Block self-referrals
+  if (referrerUserId && referrerUserId === userId) referrerUserId = null;
   const rawTier = (body.pack_tier as string) || "buyer_pass";
   const packTier: PackTier = VALID_PACK_TIERS.includes(rawTier as PackTier)
     ? (rawTier as PackTier)
@@ -218,6 +221,7 @@ export async function POST(request: NextRequest) {
         ...(pageSource && { page_source: pageSource }),
         price_variant: variant,
         pack_tier: packTier,
+        ...(referrerUserId && { referrer_user_id: referrerUserId }),
         ...utmFields,
       },
       success_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : scenarioType === "compare" ? "/compare" : scenarioType === "chat" ? "/receipt" : scenarioType === "copart" ? "/copart" : scenarioType === "owned_ev" ? `/workspace/garage/${scenarioId}/owned-ev` : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
@@ -276,6 +280,7 @@ export async function POST(request: NextRequest) {
       base_scenario_id: scenarioId,
       anon_id: anonId,
       user_id: userId,
+      referrer_user_id: referrerUserId || null,
       price_variant: variant,
       pack_tier: packTier,
       amount: amountCents,

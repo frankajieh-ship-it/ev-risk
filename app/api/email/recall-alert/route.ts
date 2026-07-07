@@ -4,7 +4,7 @@
  * Sends a recall notification email when the daily recall scanner detects
  * new active recalls on a user's saved garage vehicle.
  *
- * Protected by ADMIN_API_KEY (same as nudge/send).
+ * Protected by ADMIN_API_KEY.
  * Called by tools/recall-scanner/recall_scanner.py after upsert.
  *
  * Body: { vehicle_id: string, user_id: string, new_recall_ids: string[] }
@@ -12,21 +12,24 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
-import { sendChecklistEmail, isResendConfigured } from "@/lib/resend";
+import { isResendConfigured } from "@/lib/resend";
+import { safeSend } from "@/lib/crm-email";
 
-const SITE_URL = "https://offolab.com";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
 
 function buildRecallAlertHtml(
   vehicleLabel: string,
   recalls: Array<{ component: string; ai_summary: string; routine_impact_score: number; is_safety_critical: boolean }>,
   userEmail: string
 ): string {
+  const hasCritical = recalls.some((r) => r.is_safety_critical);
+
   const recallItems = recalls
     .map(
       (r) => `
-    <div style="border-left:3px solid ${r.is_safety_critical ? "#dc2626" : "#f59e0b"};padding:10px 14px;margin-bottom:10px;background:#fff;">
-      <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#111827;">${r.component}</p>
-      <p style="margin:0 0 4px;font-size:13px;color:#374151;">${r.ai_summary}</p>
+    <div style="border-left:3px solid ${r.is_safety_critical ? "#dc2626" : "#f59e0b"};padding:10px 14px;margin-bottom:10px;background:#161b22;border-radius:0 6px 6px 0;">
+      <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#e6edf3;">${r.component}</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#8b949e;">${r.ai_summary}</p>
       <p style="margin:0;font-size:12px;color:#6b7280;">Routine impact: ${r.routine_impact_score}/10${r.is_safety_critical ? " &mdash; <strong style='color:#dc2626;'>Safety critical</strong>" : ""}</p>
     </div>`
     )
@@ -37,28 +40,35 @@ function buildRecallAlertHtml(
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<body style="margin:0;padding:0;background:#0d1117;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
-    <div style="text-align:center;margin-bottom:24px;">
-      <h1 style="font-size:22px;color:#1e293b;margin:0 0 6px;">Recall Alert</h1>
-      <p style="font-size:14px;color:#64748b;margin:0;">${vehicleLabel}</p>
+    <div style="text-align:center;padding-bottom:24px;margin-bottom:24px;border-bottom:1px solid #21262d;">
+      <span style="font-size:22px;font-weight:800;color:#00d97e;letter-spacing:-0.5px;">OFFO</span><span style="font-size:22px;font-weight:800;color:#e6edf3;letter-spacing:-0.5px;"> Lab</span>
     </div>
 
-    <div style="background:white;border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #e5e7eb;">
-      <p style="font-size:14px;color:#374151;margin:0 0 16px;">
-        ${recalls.length === 1 ? "A new recall was detected" : `${recalls.length} new recalls were detected`} for your saved vehicle:
-      </p>
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="display:inline-block;background:${hasCritical ? "rgba(220,38,38,0.12)" : "rgba(245,158,11,0.12)"};border:1px solid ${hasCritical ? "rgba(220,38,38,0.3)" : "rgba(245,158,11,0.3)"};border-radius:20px;padding:4px 16px;margin-bottom:12px;">
+        <span style="font-size:13px;font-weight:700;color:${hasCritical ? "#ef4444" : "#f59e0b"};">${hasCritical ? "Safety Recall" : "Recall Alert"}</span>
+      </div>
+      <h1 style="font-size:22px;color:#e6edf3;margin:0 0 6px;">${recalls.length === 1 ? "A new recall" : `${recalls.length} new recalls`} for your vehicle</h1>
+      <p style="font-size:14px;color:#8b949e;margin:0;">${vehicleLabel}</p>
+    </div>
+
+    <div style="background:#0d1117;border-radius:12px;padding:20px;margin-bottom:20px;border:1px solid #30363d;">
       ${recallItems}
     </div>
 
-    <div style="text-align:center;margin-bottom:24px;">
-      <a href="${SITE_URL}/workspace/garage" style="display:inline-block;padding:12px 28px;background:#dc2626;color:white;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">View recall details in My Garage →</a>
+    <div style="text-align:center;margin-bottom:20px;">
+      <a href="${SITE_URL}/workspace/garage" style="display:inline-block;background:${hasCritical ? "#dc2626" : "#00d97e"};color:${hasCritical ? "#ffffff" : "#0d1117"};font-size:14px;font-weight:700;padding:13px 28px;border-radius:8px;text-decoration:none;">
+        View recall details in My Garage →
+      </a>
     </div>
 
-    <div style="text-align:center;padding-top:20px;border-top:1px solid #e5e7eb;margin-top:24px;">
-      <p style="font-size:12px;color:#9ca3af;margin:0;">
-        Sent by <a href="${SITE_URL}" style="color:#6b7280;">OFFO Lab</a> &mdash;
-        <a href="${SITE_URL}/api/email/nudge/unsubscribe?token=${encodeURIComponent(unsubToken)}" style="color:#9ca3af;">Unsubscribe</a>
+    <div style="text-align:center;padding-top:20px;border-top:1px solid #21262d;margin-top:24px;">
+      <p style="font-size:12px;color:#8b949e;margin:0;line-height:1.6;">
+        Sent by <a href="${SITE_URL}" style="color:#00d97e;text-decoration:none;">OFFO Lab</a>
+        &nbsp;&middot;&nbsp;
+        <a href="${SITE_URL}/api/email/crm/unsubscribe?token=${encodeURIComponent(unsubToken)}&seq=recall" style="color:#8b949e;text-decoration:underline;">Unsubscribe</a>
       </p>
     </div>
   </div>
@@ -67,7 +77,6 @@ function buildRecallAlertHtml(
 }
 
 export async function POST(request: NextRequest) {
-  // Auth guard
   const authHeader = request.headers.get("authorization");
   const adminKey = process.env.ADMIN_API_KEY;
   if (adminKey && authHeader !== `Bearer ${adminKey}`) {
@@ -93,7 +102,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "vehicle_id, user_id, and new_recall_ids are required" }, { status: 400 });
   }
 
-  // Fetch vehicle details
   const { data: vehicle } = await supabase
     .from("garage_vehicles")
     .select("make, model, year, nickname")
@@ -107,7 +115,6 @@ export async function POST(request: NextRequest) {
   const vehicleLabel = vehicle.nickname
     || `${vehicle.year ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""}`.trim();
 
-  // Fetch recall details
   const { data: recalls } = await supabase
     .from("vehicle_recalls")
     .select("recall_id, component, ai_summary, routine_impact_score, is_safety_critical")
@@ -119,7 +126,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, sent: 0, reason: "no matching recalls" });
   }
 
-  // Fetch user email via admin auth API
   const { data: { user } } = await supabase.auth.admin.getUserById(user_id);
   const userEmail = user?.email;
 
@@ -127,20 +133,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, sent: 0, reason: "user has no email" });
   }
 
-  const subject = `Recall Alert: ${vehicleLabel}`;
-  const html = buildRecallAlertHtml(vehicleLabel, recalls, userEmail);
-  const result = await sendChecklistEmail(userEmail, subject, html);
+  const hasCritical = recalls.some((r) => r.is_safety_critical);
+  const subject = hasCritical
+    ? `Safety recall issued for your ${vehicleLabel} — action required`
+    : `New recall for your ${vehicleLabel}`;
 
-  if (result.success) {
-    // Mark these recalls as notified
+  const html = buildRecallAlertHtml(vehicleLabel, recalls, userEmail);
+
+  // Use first recall_id as part of idempotency key; if multiple, key on the batch
+  const recallKey = new_recall_ids.slice().sort().join(",");
+  const result = await safeSend({
+    email: userEmail,
+    userId: user_id,
+    sequenceType: "recall",
+    sequenceStep: "new_recall",
+    subject,
+    html,
+    idempotencyKey: `recall:${vehicle_id}:${recallKey}`,
+    metadata: { vehicle_id, recall_ids: new_recall_ids },
+  });
+
+  if (result.sent) {
     await supabase
       .from("vehicle_recalls")
       .update({ notified_at: new Date().toISOString() })
       .eq("vehicle_id", vehicle_id)
       .in("recall_id", new_recall_ids);
-  } else {
+  } else if (result.error) {
     console.error("[recall-alert] Email send failed:", result.error);
   }
 
-  return NextResponse.json({ ok: result.success, sent: result.success ? recalls.length : 0 });
+  return NextResponse.json({ ok: result.sent, sent: result.sent ? recalls.length : 0, skipped: result.skipped });
 }

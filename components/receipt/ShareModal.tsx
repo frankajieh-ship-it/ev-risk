@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { X, Copy, Download, Check, Loader2 } from "lucide-react";
+import { X, Copy, Download, Check, Loader2, Share2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { QRCodeCanvas } from "qrcode.react";
 import { useEventTracking } from "@/hooks/useEventTracking";
@@ -23,6 +23,7 @@ interface ShareModalProps {
   shareSlug: string;
   receiptId: string;
   receipt: ListingReceipt;
+  userId?: string;
 }
 
 export default function ShareModal({
@@ -32,15 +33,18 @@ export default function ShareModal({
   shareSlug,
   receiptId,
   receipt,
+  userId,
 }: ShareModalProps) {
   const { trackEvent } = useEventTracking();
   const [copied, setCopied] = useState(false);
+  const [redditCopied, setRedditCopied] = useState(false);
   const [cardDataUrl, setCardDataUrl] = useState<string | null>(null);
   const [isGeneratingCard, setIsGeneratingCard] = useState(false);
   const qrRef = useRef<HTMLDivElement>(null);
 
+  const refSuffix = userId ? `&ref=${encodeURIComponent(userId)}` : "";
   const fullUrl = typeof window !== "undefined"
-    ? `${window.location.origin}${shareUrl}?utm_source=offo_share&utm_medium=qr&utm_campaign=receipt_share`
+    ? `${window.location.origin}${shareUrl}?utm_source=offo_share&utm_medium=qr&utm_campaign=receipt_share${refSuffix}`
     : shareUrl;
 
   // Track modal open
@@ -139,6 +143,22 @@ export default function ShareModal({
     trackEvent("share_tweet_clicked", { share_slug: shareSlug, receipt_id: receiptId, verdict: receipt.verdict });
   }, [receipt, shareSlug, receiptId, trackEvent]);
 
+  const handleRedditShare = useCallback(async () => {
+    const verdictEmoji = receipt.verdict === "GREEN" ? "🟢" : receipt.verdict === "RED" ? "🔴" : "🟡";
+    const vehicle = [receipt.listing_summary?.year, receipt.listing_summary?.make, receipt.listing_summary?.model]
+      .filter(Boolean).join(" ");
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://offolab.com";
+    const redditText = `Checked a ${vehicle || "used EV"} on OFFO — ${verdictEmoji} ${receipt.verdict_reason}\n\n${baseUrl}${shareUrl}?utm_source=reddit&utm_medium=share&utm_campaign=receipt_share`;
+    try {
+      await navigator.clipboard.writeText(redditText);
+      setRedditCopied(true);
+      trackEvent("share_reddit_copied", { share_slug: shareSlug, receipt_id: receiptId, verdict: receipt.verdict });
+      setTimeout(() => setRedditCopied(false), 2500);
+    } catch {
+      // ignore clipboard errors
+    }
+  }, [receipt, shareSlug, shareUrl, receiptId, trackEvent]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -205,8 +225,8 @@ export default function ShareModal({
                 )}
               </div>
 
-              {/* Action buttons */}
-              <div className="flex gap-3">
+              {/* Action buttons — row 1: primary actions */}
+              <div className="flex gap-2 mb-2">
                 <button
                   onClick={handleCopy}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
@@ -241,6 +261,24 @@ export default function ShareModal({
                   Post
                 </button>
               </div>
+
+              {/* Action buttons — row 2: Reddit */}
+              <button
+                onClick={handleRedditShare}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium bg-[#FF4500] text-white hover:bg-[#e03d00] transition-colors"
+              >
+                {redditCopied ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Copied for Reddit!
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-4 h-4" />
+                    Copy for Reddit
+                  </>
+                )}
+              </button>
             </div>
           </motion.div>
         </>
