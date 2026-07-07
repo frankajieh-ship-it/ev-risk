@@ -7,9 +7,9 @@
 
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
-import { Upload, FileText, CheckCircle, XCircle, AlertTriangle, Loader2, ArrowLeft, Download } from "lucide-react";
+import { Upload, FileText, CheckCircle, XCircle, AlertTriangle, Loader2, ArrowLeft, Download, Lock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface FailedRow {
@@ -40,7 +40,22 @@ export default function DealerInventoryImportPage() {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tierAllowed, setTierAllowed] = useState<boolean | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!session?.access_token) return;
+    fetch("/api/dealer/profile", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const tier = data.dealership?.subscription_tier;
+        const status = data.dealership?.subscription_status;
+        setTierAllowed((tier === "growth" || tier === "pro") && status === "active");
+      })
+      .catch(() => setTierAllowed(false));
+  }, [session?.access_token]);
 
   const parsePreview = useCallback((text: string) => {
     const lines = text.split(/\r?\n/).filter((l) => l.trim());
@@ -207,8 +222,26 @@ export default function DealerInventoryImportPage() {
         </div>
       )}
 
+      {/* Tier gate — show upgrade prompt for non-Growth/Pro dealers */}
+      {tierAllowed === false && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-6 text-center">
+          <Lock className="w-8 h-8 text-amber-400 mx-auto mb-3" />
+          <p className="text-sm font-semibold text-amber-300 mb-1">Growth or Pro plan required</p>
+          <p className="text-sm text-white/40 mb-4">
+            CSV bulk import is available on Growth ($299/mo) and Pro ($499/mo) plans.
+            Upgrade to import up to 500 vehicles at once.
+          </p>
+          <Link
+            href="/dealer/settings/billing"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#00d97e] text-[#0d1117] rounded-lg text-sm font-semibold hover:bg-[#00f090] transition-colors"
+          >
+            Upgrade plan →
+          </Link>
+        </div>
+      )}
+
       {/* Drop zone */}
-      {!result && (
+      {!result && tierAllowed !== false && (
         <div
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
@@ -249,7 +282,7 @@ export default function DealerInventoryImportPage() {
       )}
 
       {/* Preview table */}
-      {preview.length > 0 && !result && (
+      {preview.length > 0 && !result && tierAllowed !== false && (
         <div className="mt-6">
           <p className="text-sm font-medium text-white/60 mb-3">
             Preview (first {preview.length} rows)

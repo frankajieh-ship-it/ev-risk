@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, getDealershipId, getSupabaseAdmin } from "@/lib/api-auth";
+import { classifyVehicle } from "@/lib/vehicle-classifier";
 
 const MAX_ROWS = 500;
 
@@ -63,6 +64,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Dealership not found" }, { status: 404 });
   }
 
+  // CSV import is a Growth/Pro feature
+  const supabaseCheck = getSupabaseAdmin()!;
+  const { data: dealership } = await supabaseCheck
+    .from("dealerships")
+    .select("subscription_tier, subscription_status")
+    .eq("id", dealershipId)
+    .maybeSingle();
+
+  const tier = dealership?.subscription_tier;
+  const subStatus = dealership?.subscription_status;
+  if ((tier !== "growth" && tier !== "pro") || subStatus !== "active") {
+    return NextResponse.json(
+      { success: false, error: "CSV import requires an active Growth or Pro subscription." },
+      { status: 403 }
+    );
+  }
+
   let formData: FormData;
   try {
     formData = await req.formData();
@@ -97,7 +115,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const supabase = getSupabaseAdmin()!;
+  const supabase = supabaseCheck;
   const inserted: string[] = [];
   const failed: Array<{ row: number; reason: string }> = [];
 
@@ -141,6 +159,7 @@ export async function POST(req: NextRequest) {
     const listingUrl = r["listingurl"]?.trim() || null;
     const trim = r["trim"]?.trim() || null;
     const exteriorColor = r["color"]?.trim() || null;
+    const classification = classifyVehicle(make, model, trim ?? undefined);
 
     const { data, error } = await supabase
       .from("dealer_inventory")
@@ -156,6 +175,7 @@ export async function POST(req: NextRequest) {
         exterior_color: exteriorColor,
         status,
         listing_url: listingUrl,
+        classification,
       })
       .select("id")
       .single();
