@@ -651,9 +651,27 @@ export default function ReceiptPage() {
       .catch(() => {});
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Stock photo fallback intentionally removed — only show photos extracted
-  // directly from the listing page (onPhotosExtracted). Generic make/model
-  // lookups return wrong-year or wrong-trim stock images that mislead users.
+  // Vehicle DB image fallback — fires after receipt generation when no listing
+  // photo was scraped. Uses make+model+year from the receipt (not a generic
+  // lookup) so the year/trim is always accurate for this specific vehicle.
+  useEffect(() => {
+    if (!receipt?.receipt_id) return;
+    if (listingPhotos.length > 0) return; // scraped photo already present
+    const make = receipt.listing_summary?.make;
+    const model = receipt.listing_summary?.model;
+    const year = receipt.listing_summary?.year;
+    if (!make || !model) return;
+    const params = new URLSearchParams({ make, model, no_market: "1" });
+    if (year) params.set("year", String(year));
+    fetch(`/api/photos?${params}`)
+      .then((r) => r.json())
+      .then((d: { urls?: string[] }) => {
+        if (d.urls?.length && listingPhotos.length === 0) {
+          setListingPhotos([d.urls[0]]);
+        }
+      })
+      .catch(() => {});
+  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset popup + listing age signals when a new receipt comes in
   useEffect(() => {

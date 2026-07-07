@@ -20,6 +20,7 @@ import { extractFieldsFromText } from "@/lib/text-extractor";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
 
 import { getStaticPhotoUrl } from "@/lib/vehicle-photo";
+import { lookupLocalImages } from "@/lib/vehicle-image-db";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { liteCheck } from "@/lib/vinaudit-client";
@@ -602,7 +603,16 @@ export async function POST(request: NextRequest) {
     const isCarGurusUrl = !!(url && url.includes("cargurus.com"));
     const scrapedPhotos = result.data.photo_urls?.length ? dedupPhotos(result.data.photo_urls) : [];
 
-    if (cgApiPhotos.length >= 3) {
+    // Tier 0: OFFO local CSV — always wins when we have a curated image for this vehicle.
+    // This prevents wrong cars scraped from listing pages (e.g. nearby inventory thumbnails).
+    const localImages = fields.make && fields.model
+      ? lookupLocalImages(fields.make, fields.model, fields.year ?? undefined)
+      : { matched: false, urls: [] };
+
+    if (localImages.matched && localImages.urls.length > 0) {
+      fields.photo_urls = localImages.urls;
+      console.log(`[Fetch] Using ${localImages.urls.length} OFFO local DB photos`);
+    } else if (cgApiPhotos.length >= 3) {
       fields.photo_urls = cgApiPhotos;
       console.log(`[Fetch] Using ${cgApiPhotos.length} CarGurus API photos`);
     } else if (isCarGurusUrl && scrapedPhotos.length > 0) {
