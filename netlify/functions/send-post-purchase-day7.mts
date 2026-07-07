@@ -1,11 +1,9 @@
 /**
- * Scheduled Win-Back Email Sender
+ * Post-Purchase Day 7 Scanner
  *
- * Runs daily at 11:00 UTC.
- * Calls /api/email/win-back/send to process 30-day and 60-day win-back emails.
- *
- * Note: The 30-day window means no emails will fire for 30 days after first deploy.
- * This is expected — do not backfill retroactively on day 1.
+ * Runs daily at 14:00 UTC via Netlify scheduled functions.
+ * Calls /api/email/post-purchase-day7/send to find purchases made
+ * 6–8 days ago and send the "did you buy it?" check-in email.
  */
 
 import type { Config } from "@netlify/functions";
@@ -33,16 +31,16 @@ export default async function handler() {
   const adminKey = process.env.ADMIN_API_KEY;
 
   if (!adminKey) {
-    console.error("[send-win-back-emails] ADMIN_API_KEY not set — aborting");
+    console.error("[send-post-purchase-day7] ADMIN_API_KEY not set — aborting");
     await alertOps(
-      "⚠️ send-win-back-emails: missing ADMIN_API_KEY",
-      "The scheduled win-back email job could not run because ADMIN_API_KEY is not set."
+      "⚠️ send-post-purchase-day7: missing ADMIN_API_KEY",
+      "The Day 7 post-purchase email could not run because ADMIN_API_KEY is not set."
     );
     return;
   }
 
   try {
-    const response = await fetch(`${siteUrl}/api/email/win-back/send`, {
+    const response = await fetch(`${siteUrl}/api/email/post-purchase-day7/send`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${adminKey}`,
@@ -52,23 +50,23 @@ export default async function handler() {
 
     if (!response.ok) {
       const text = await response.text().catch(() => "(no body)");
-      console.error(`[send-win-back-emails] API returned ${response.status}: ${text}`);
+      console.error(`[send-post-purchase-day7] API returned ${response.status}: ${text}`);
       await alertOps(
-        `⚠️ send-win-back-emails: HTTP ${response.status}`,
-        `The win-back email API returned status ${response.status}. Response: ${text.slice(0, 500)}`
+        `⚠️ send-post-purchase-day7: HTTP ${response.status}`,
+        `The Day 7 email API returned status ${response.status}. Response: ${text.slice(0, 500)}`
       );
       return;
     }
 
     const data = await response.json();
-    console.log("[send-win-back-emails] Result:", JSON.stringify(data));
+    console.log("[send-post-purchase-day7] Result:", JSON.stringify(data));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[send-win-back-emails] Failed:", err);
-    await alertOps("⚠️ send-win-back-emails: exception", `The win-back email job threw an exception: ${msg}`);
+    console.error("[send-post-purchase-day7] Failed:", err);
+    await alertOps("⚠️ send-post-purchase-day7: exception", `The Day 7 email scan threw an exception: ${msg}`);
   }
 }
 
 export const config: Config = {
-  schedule: "0 11 * * *", // 11am UTC daily
+  schedule: "0 14 * * *",
 };

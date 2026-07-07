@@ -397,7 +397,19 @@ export async function getDigestRecipients(
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id);
 
-    if ((dealWatchCount ?? 0) === 0 && (savedCount ?? 0) === 0) continue;
+    const { count: purchaseCount } = await supabase
+      .from("purchases")
+      .select("purchase_id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "paid");
+
+    const { count: receiptCount } = await supabase
+      .from("receipts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString());
+
+    if ((dealWatchCount ?? 0) === 0 && (savedCount ?? 0) === 0 && (purchaseCount ?? 0) === 0 && (receiptCount ?? 0) === 0) continue;
 
     // Check suppression
     const { data: pref } = await supabase

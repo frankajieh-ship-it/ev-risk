@@ -143,6 +143,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly" as const,
       priority: 0.8,
     },
+    {
+      url: `${SITE_URL}/guides/buying-a-used-ev`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.85,
+    },
+    {
+      url: `${SITE_URL}/guides/ev-battery-health`,
+      lastModified: now,
+      changeFrequency: "weekly" as const,
+      priority: 0.80,
+    },
+    {
+      url: `${SITE_URL}/guides/ev-dealer-resources`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.70,
+    },
   ];
 
   // VIN landing pages — top 500 receipts with a VIN, newest first

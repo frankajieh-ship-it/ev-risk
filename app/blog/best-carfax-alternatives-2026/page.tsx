@@ -1,5 +1,6 @@
 import Link from "next/link";
 import RelatedPosts from "@/components/RelatedPosts";
+import BlogEmailCapture from "@/components/blog/BlogEmailCapture";
 
 const RELATED_POSTS = [
   { slug: "carfax-alternative-used-ev", title: "I Was Paying $45 for Carfax Reports. Then I Found a Better Way.", badge: "Buyer's Guide", badgeColor: "bg-blue-500/20 text-blue-300", excerpt: "After testing every major VIN report on real EV listings, one free tool changed everything." },
@@ -1213,6 +1214,8 @@ export default function BestCarfaxAlternatives2026() {
                 Try OFFO free →
               </Link>
             </div>
+
+            <BlogEmailCapture source="blog_carfax_alternatives" />
 
             <RelatedPosts posts={RELATED_POSTS} />
           </main>

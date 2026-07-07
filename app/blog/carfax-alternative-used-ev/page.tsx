@@ -1,5 +1,6 @@
 import Link from "next/link";
 import RelatedPosts from "@/components/RelatedPosts";
+import BlogEmailCapture from "@/components/blog/BlogEmailCapture";
 
 const RELATED_POSTS = [
   { slug: "best-carfax-alternatives-2026", title: "Best Carfax Alternatives of 2026 — Tested Head-to-Head", badge: "Comparison", badgeColor: "bg-green-500/20 text-green-300", excerpt: "We tested 7 VIN report services. OFFO ranks #1 for used EV buyers." },
@@ -295,6 +296,8 @@ export default function CarfaxAlternativeUsedEvPage() {
             Try OFFO free →
           </Link>
         </div>
+
+        <BlogEmailCapture source="blog_carfax_alternative" />
 
         <RelatedPosts posts={RELATED_POSTS} />
       </main>

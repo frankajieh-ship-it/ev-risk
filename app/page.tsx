@@ -22,6 +22,7 @@ import Footer from "@/components/landing/Footer";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import UniqueAdvantageSection from "@/components/landing/UniqueAdvantageSection";
 import FeaturedDeals from "@/components/landing/FeaturedDeals";
+import EmailCaptureBar from "@/components/landing/EmailCaptureBar";
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
 import { getReceiptHistory } from "@/lib/receipt-history";
 import { anonGarageCount } from "@/lib/anon-garage";
@@ -341,7 +342,7 @@ export default function Home() {
     { q: "Can I charge an EV at an apartment without a garage?", a: "Yes — many apartment dwellers rely on Level 2 public chargers or workplace charging. OFFO's routine fit check accounts for your charging access and flags if a given vehicle's range makes apartment charging viable for your daily pattern." },
     { q: "Can I drive long distances with an EV?", a: "Absolutely. Most modern EVs have 250–350 mi EPA range. OFFO maps your longest single-day drive against the vehicle's real-world range (accounting for climate and highway speed) and tells you if you'll need a mid-trip charge stop." },
     { q: "What are the benefits of buying a used EV?", a: "Used EVs often cost 30–50% less than new, still qualify for up to $4,000 federal used-EV tax credits, and have fewer mechanical parts to fail. OFFO helps you avoid the pitfalls — high-degradation batteries, open recalls, and overpriced salvage vehicles." },
-    { q: "Is OFFO a Carfax alternative for used EVs?", a: "Unlike Carfax, OFFO checks if the EV actually fits your life — not just its history." },
+    { q: "Is OFFO a Carfax alternative for used EVs?", a: "OFFO is the only vehicle history report built specifically for EVs. Carfax tells you what happened to the car — accident history, ownership count. OFFO tells you what matters for an EV: is the battery degraded, will it charge on your setup, does the range hold up in your climate. Carfax can't pivot to this without rebuilding their model from scratch." },
   ];
 
 
@@ -449,16 +450,16 @@ export default function Home() {
         <section className="max-w-4xl mx-auto px-5 pt-20 pb-16 text-center">
           {/* Headline */}
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-5 tracking-tight" style={{ lineHeight: "1.05" }}>
-            Know before you buy.<br />
-            <span className="text-[#00d97e]">Paste any listing.</span>
+            The only vehicle history report<br />
+            <span className="text-[#00d97e]">built for EVs.</span>
           </h1>
 
           <p className="text-base md:text-lg text-white/50 mb-5 max-w-xl mx-auto" style={{ lineHeight: "1.6" }}>
-            Instantly see open recalls, battery health estimate, market price vs. comparables, and 3 copy-paste negotiation scripts — for that exact listing. Full VIN &amp; title history coming soon.
+            Battery health estimate, charging fit score, open recalls, and a negotiation script — for any used EV listing. Carfax can&apos;t tell you if the battery is degraded or if the car fits your charging life. OFFO can.
           </p>
 
           <p className="text-sm text-white/30 mb-10 max-w-xl mx-auto">
-            Found a CarGurus listing? Paste it to analyze and get a verdict.
+            Paste a listing from CarGurus, AutoTrader, or Cars.com — get a verdict in seconds.
           </p>
 
           {/* URL / VIN input row */}
@@ -500,6 +501,14 @@ export default function Home() {
           </p>
 
         </section>
+
+        {/* Email capture — shown to non-authenticated visitors */}
+        {!isAuthenticated && (
+          <div className="max-w-2xl mx-auto px-5 pb-6 text-center">
+            <p className="text-xs text-white/30 mb-2">Or get weekly EV deal alerts — no sign-up required</p>
+            <EmailCaptureBar source="homepage_hero" />
+          </div>
+        )}
 
         {/* Return visitor nudge — shown when local receipt history exists but not signed in */}
         {!isAuthenticated && localReceiptCount > 0 && (
@@ -557,10 +566,10 @@ export default function Home() {
             <div className="flex-1 h-px bg-white/10" />
           </div>
           <p className="text-center text-sm text-white/60 mt-3 font-medium">
-            Unlike Carfax, OFFO checks if the EV actually fits your life — not just its history.
+            Carfax tells you what happened. OFFO tells you if the battery can handle your life.
           </p>
           <p className="text-center text-xs text-white/35 mt-1">
-            3 questions. No sign-up. Personalized vehicle match.
+            3 questions. No sign-up. EV-specific vehicle match.
           </p>
         </div>
       )}
@@ -683,10 +692,10 @@ export default function Home() {
 
           {/* Heading */}
           <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-3">
-            Paste the listing. OFFO reads it for you.
+            Paste any used EV listing. Get a battery verdict.
           </h2>
           <p className="text-white/50 text-center text-base max-w-xl mx-auto mb-14">
-            Drop a CarGurus, AutoTrader, or Cars.com URL and OFFO automatically pulls the price, mileage, VIN, and listing photos — then runs an AI analysis before you ever call the dealer.
+            Drop a CarGurus, AutoTrader, or Cars.com URL and OFFO extracts price, mileage, and VIN — then runs 38 EV-specific checks including battery health, charging fit, and open recalls before you ever call the dealer.
           </p>
 
           {/* 3-step visual flow */}
@@ -850,13 +859,13 @@ export default function Home() {
       {/* ── Section 9: Final CTA ─────────────────────────────────────── */}
       <section className="section text-center bg-[#0d1117] border-t border-white/[0.06]">
         <div className="max-w-lg mx-auto px-4">
-          <h2 className="text-3xl font-bold text-white mb-3" style={{ lineHeight: "var(--leading-snug)" }}>Ready to check a listing?</h2>
-          <p className="text-[0.9375rem] text-white/40 mb-8">Takes under 30 seconds. Free, no account needed.</p>
+          <h2 className="text-3xl font-bold text-white mb-3" style={{ lineHeight: "var(--leading-snug)" }}>Run a battery health check on any used EV.</h2>
+          <p className="text-[0.9375rem] text-white/40 mb-8">Paste a listing URL or VIN. Free, no account needed.</p>
           <button
             onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); document.getElementById("listing-input")?.focus(); }}
             className="px-8 py-3.5 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-xl hover:bg-[#00f090] transition-colors"
           >
-            Enter VIN →
+            Check a listing — free →
           </button>
         </div>
       </section>
@@ -891,7 +900,7 @@ export default function Home() {
 
       {/* Sticky bottom CTA — visible on mobile for spike traffic that scrolls past hero */}
       <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-[#0d1117]/95 backdrop-blur-sm border-t border-white/[0.08] px-4 py-3 flex items-center gap-3">
-        <p className="flex-1 text-sm text-white/60 leading-tight">Got a listing? Get your free EV receipt.</p>
+        <p className="flex-1 text-sm text-white/60 leading-tight">Used EV? Get a free battery health check.</p>
         <Link
           href="/receipt"
           onClick={() => { try { sessionStorage.setItem("offo_page_source", "homepage_sticky"); } catch {} }}

@@ -1,11 +1,13 @@
 /**
- * Scheduled Win-Back Email Sender
+ * Dealer Cold Outreach Scheduler
  *
- * Runs daily at 11:00 UTC.
- * Calls /api/email/win-back/send to process 30-day and 60-day win-back emails.
+ * Runs daily at 15:00 UTC (offset from other daily senders).
+ * Calls /api/email/dealer-cold-outreach/send to:
+ *   - Send intro emails to new prospects
+ *   - Send 7-day follow-ups to prospects who got an intro but haven't signed up
  *
- * Note: The 30-day window means no emails will fire for 30 days after first deploy.
- * This is expected — do not backfill retroactively on day 1.
+ * Volume is intentionally capped at 50 prospects/day in the route handler
+ * to keep outreach warm and avoid spam filters.
  */
 
 import type { Config } from "@netlify/functions";
@@ -33,16 +35,16 @@ export default async function handler() {
   const adminKey = process.env.ADMIN_API_KEY;
 
   if (!adminKey) {
-    console.error("[send-win-back-emails] ADMIN_API_KEY not set — aborting");
+    console.error("[send-dealer-cold-outreach] ADMIN_API_KEY not set — aborting");
     await alertOps(
-      "⚠️ send-win-back-emails: missing ADMIN_API_KEY",
-      "The scheduled win-back email job could not run because ADMIN_API_KEY is not set."
+      "⚠️ send-dealer-cold-outreach: missing ADMIN_API_KEY",
+      "Dealer cold outreach could not run because ADMIN_API_KEY is not set."
     );
     return;
   }
 
   try {
-    const response = await fetch(`${siteUrl}/api/email/win-back/send`, {
+    const response = await fetch(`${siteUrl}/api/email/dealer-cold-outreach/send`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${adminKey}`,
@@ -52,23 +54,23 @@ export default async function handler() {
 
     if (!response.ok) {
       const text = await response.text().catch(() => "(no body)");
-      console.error(`[send-win-back-emails] API returned ${response.status}: ${text}`);
+      console.error(`[send-dealer-cold-outreach] API returned ${response.status}: ${text}`);
       await alertOps(
-        `⚠️ send-win-back-emails: HTTP ${response.status}`,
-        `The win-back email API returned status ${response.status}. Response: ${text.slice(0, 500)}`
+        `⚠️ send-dealer-cold-outreach: HTTP ${response.status}`,
+        `Response: ${text.slice(0, 500)}`
       );
       return;
     }
 
     const data = await response.json();
-    console.log("[send-win-back-emails] Result:", JSON.stringify(data));
+    console.log("[send-dealer-cold-outreach] Result:", JSON.stringify(data));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[send-win-back-emails] Failed:", err);
-    await alertOps("⚠️ send-win-back-emails: exception", `The win-back email job threw an exception: ${msg}`);
+    console.error("[send-dealer-cold-outreach] Failed:", err);
+    await alertOps("⚠️ send-dealer-cold-outreach: exception", `Dealer outreach scan threw: ${msg}`);
   }
 }
 
 export const config: Config = {
-  schedule: "0 11 * * *", // 11am UTC daily
+  schedule: "0 15 * * *", // 3pm UTC daily
 };

@@ -30,6 +30,18 @@ export interface BlogPost {
 
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "offo-carfax-for-evs",
+    badge: "Industry First",
+    badgeColor: "bg-[#00d97e]/15 text-[#00d97e]",
+    title: "We Built the Carfax for EVs — Because Carfax Can't",
+    description:
+      "OFFO is the first vehicle history report built specifically for used EVs. Battery degradation, charging fit, EV-specific recalls — the checks every used EV buyer needs and that Carfax structurally cannot run.",
+    excerpt:
+      "Carfax was built for gas cars. Battery health, charging fit, and EV-specific recall data aren't in its model. We built the report that is.",
+    readTime: "8 min read",
+    datePublished: "2026-07-07",
+  },
+  {
     slug: "how-to-price-used-ev-inventory",
     badge: "Dealer Guide",
     badgeColor: "bg-purple-500/20 text-purple-300",

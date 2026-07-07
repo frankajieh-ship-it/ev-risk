@@ -19,6 +19,7 @@ import RecallBadge, { type Recall } from "@/components/garage/RecallBadge";
 import RecallPanel from "@/components/garage/RecallPanel";
 import StarRating from "@/components/garage/StarRating";
 import ReviewModal, { type GarageReview } from "@/components/garage/ReviewModal";
+import ReferralCreditBanner from "@/components/ReferralCreditBanner";
 
 interface GarageVehicle {
   id: string;
@@ -323,6 +324,13 @@ export default function GaragePage() {
           Add Vehicle
         </button>
       </div>
+
+      {/* Referral credit balance — for authenticated users */}
+      {isAuthenticated && (
+        <div className="mb-5">
+          <ReferralCreditBanner />
+        </div>
+      )}
 
       {/* ── Anon persistence nudge ──────────────────────────── */}
       {!isAuthenticated && anonItems.length > 0 && (

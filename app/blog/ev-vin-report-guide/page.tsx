@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import RelatedPosts from "@/components/RelatedPosts";
+import BlogEmailCapture from "@/components/blog/BlogEmailCapture";
 import { useVisitorTracking } from "@/hooks/useVisitorTracking";
 
 const EV_SIGNALS = [
@@ -211,6 +212,8 @@ export default function EvVinReportGuidePage() {
           </div>
 
         </div>
+
+        <BlogEmailCapture source="blog_vin_report_guide" />
 
         <RelatedPosts posts={RELATED} />
       </article>

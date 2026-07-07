@@ -59,6 +59,7 @@ import { SourcesFooter } from "@/components/blocks/SourcesFooter";
 import ReturnToRoutinePrompt from "@/components/receipt/ReturnToRoutinePrompt";
 import RecallBanner from "@/components/receipt/RecallBanner";
 import WorkspaceSaveNudge from "@/components/receipt/WorkspaceSaveNudge";
+import ReferralCreditBanner from "@/components/ReferralCreditBanner";
 import PostReceiptPopup from "@/components/receipt/PostReceiptPopup";
 import EmailGateModal from "@/components/receipt/EmailGateModal";
 import { PurchaseConfirmButton } from "@/components/receipt/PurchaseConfirmButton";
@@ -390,6 +391,16 @@ export default function ReceiptPage() {
   // Referral — ?ref= query param, persisted for checkout
   const [referrerUserId, setReferrerUserId] = useState<string | null>(null);
 
+  // Referral credits available to redeem (authenticated users only)
+  const [referralCredits, setReferralCredits] = useState(0);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetch("/api/user/referral-credits")
+      .then((r) => r.json())
+      .then((d) => { if (d.authenticated) setReferralCredits(d.credits ?? 0); })
+      .catch(() => {});
+  }, [isAuthenticated]);
+
   // Email gate modal — triggered by receipt generation or Save button
   // emailModalFromSave tracks whether the modal was opened specifically from the Save button
   // so that onSubmit/onSkip know whether to also call doSave()
@@ -429,6 +440,18 @@ export default function ReceiptPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [receipt?.receipt_id]);
+
+  // Exit-intent: re-open email gate when user tabs away / closes tab after skipping
+  useEffect(() => {
+    if (emailCaptured || isAuthenticated) return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden" && receipt && emailSkippedThisSession && !emailModalOpen) {
+        setEmailModalOpen(true);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [emailCaptured, isAuthenticated, receipt, emailSkippedThisSession, emailModalOpen]);
 
   const handlePhotosFailed = useCallback(() => {}, []);
 
@@ -1251,13 +1274,20 @@ export default function ReceiptPage() {
 
               {/* ── Tiered paywall + deep sections ── */}
 
+              {/* Referral credit balance — authenticated users only, above paywall */}
+              {isAuthenticated && !isStarterUnlocked && paymentsEnabled && (
+                <ReferralCreditBanner onShareClick={() => handleShareClick()} />
+              )}
+
               {/* $3.99 Starter paywall — shown when not starter-unlocked */}
               {!isStarterUnlocked && paymentsEnabled && (
                 <StarterPaywallCard
                   receiptToken={receiptToken}
                   scenarioId={receipt.receipt_id}
+                  availableCredits={referralCredits}
                   onFullUpgradeClick={() => handlePremiumAction("paywall_card")}
                   onTrackEvent={(name, data) => trackEvent(name, data as Parameters<typeof trackEvent>[1])}
+                  onCreditRedeemed={() => { setReferralCredits((c) => Math.max(0, c - 1)); refetchPayment(); }}
                 />
               )}
 

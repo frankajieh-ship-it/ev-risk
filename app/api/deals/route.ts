@@ -131,6 +131,8 @@ export async function GET(request: NextRequest) {
     .not("vehicle_label", "is", null)
     .not("make", "is", null)
     .not("price", "is", null)
+    .not("model", "ilike", "%Mirai%")
+    .not("model", "ilike", "%NEXO%")
     .order(sortCol, { ascending: sortAsc, nullsFirst: false })
     .limit(fetchLimit);
 
@@ -232,10 +234,10 @@ export async function GET(request: NextRequest) {
   // paths and Wikimedia URLs (proxied through /api/img so DealCard's startsWith("/") check passes).
   const flatDeals = pageDeals.map((d) => {
     const dealer = Array.isArray(d.dealerships) ? d.dealerships[0] : d.dealerships;
-    // Resolve photo: vehicle-images.csv lookup first (brand-level curated),
-    // then fall back to whatever was stored in DB at import time (already file-validated).
+    // Resolve photo exclusively from vehicle-images.csv — never trust DB photo_url.
+    // DB photo_url values come from listing scrapes (wrong-car photos are common).
     // Wikimedia URLs proxied so they start with "/" and pass DealCard's local-only check.
-    let photoUrl: string | null = d.photo_url ?? null;
+    let photoUrl: string | null = null;
     if (d.make && d.model) {
       const local = lookupLocalImages(d.make, d.model, d.year ?? undefined);
       if (local.matched && local.urls.length > 0) {
@@ -243,11 +245,6 @@ export async function GET(request: NextRequest) {
         photoUrl = url.includes("upload.wikimedia.org")
           ? `/api/img?url=${encodeURIComponent(url)}`
           : url;
-      } else if (photoUrl && photoUrl.startsWith("/")) {
-        // DB photo_url was validated at import time — use it directly
-        // (no-op: photoUrl is already set, just skip the override)
-      } else {
-        photoUrl = null; // reject non-local DB URLs (wrong-car listing photos)
       }
     }
     return {

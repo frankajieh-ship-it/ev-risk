@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Zap, CheckCircle, Camera, Lock } from "lucide-react";
+import { Zap, CheckCircle, Camera, Lock, Gift } from "lucide-react";
 
 interface StarterPaywallCardProps {
   receiptToken: string;
   scenarioId: string;
+  availableCredits?: number;
   onPaywallClick?: () => void;
   onFullUpgradeClick?: () => void;
   onTrackEvent?: (name: string, data?: Record<string, unknown>) => void;
+  onCreditRedeemed?: () => void;
 }
 
 const STARTER_FEATURES = [
@@ -20,16 +22,42 @@ const STARTER_FEATURES = [
 export default function StarterPaywallCard({
   receiptToken,
   scenarioId,
+  availableCredits = 0,
   onPaywallClick,
   onFullUpgradeClick,
   onTrackEvent,
+  onCreditRedeemed,
 }: StarterPaywallCardProps) {
   const [loading, setLoading] = useState(false);
+  const [creditLoading, setCreditLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     onTrackEvent?.("paywall_seen", { tier: "starter", scenario_id: scenarioId });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRedeemCredit = async () => {
+    onTrackEvent?.("referral_credit_redeemed", { scenario_id: scenarioId });
+    setCreditLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/payments/redeem-credit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scenario_id: scenarioId, anon_id: receiptToken }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onCreditRedeemed?.();
+      } else {
+        setError(data.error || "Failed to redeem credit. Please try again.");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setCreditLoading(false);
+    }
+  };
 
   const handlePay = async () => {
     onTrackEvent?.("paywall_cta_clicked", { tier: "starter", scenario_id: scenarioId });
@@ -103,6 +131,27 @@ export default function StarterPaywallCard({
 
         {/* CTA */}
         <div className="px-6 pb-6 space-y-3">
+          {/* Referral credit redemption — shown when user has credits */}
+          {availableCredits > 0 && (
+            <button
+              onClick={handleRedeemCredit}
+              disabled={creditLoading}
+              className="w-full bg-[#00d97e]/10 hover:bg-[#00d97e]/20 border border-[#00d97e]/40 disabled:opacity-40 disabled:cursor-not-allowed text-[#00d97e] font-bold text-base py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              {creditLoading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-[#00d97e]/30 border-t-[#00d97e] rounded-full animate-spin" />
+                  Redeeming credit…
+                </>
+              ) : (
+                <>
+                  <Gift className="w-4 h-4" />
+                  Use 1 referral credit — free ({availableCredits} available)
+                </>
+              )}
+            </button>
+          )}
+
           <button
             onClick={handlePay}
             disabled={loading}
