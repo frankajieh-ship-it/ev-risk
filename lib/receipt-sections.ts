@@ -439,6 +439,9 @@ OWNERSHIP RULES (important):
   - If signals are positive → "The history signals look solid" or "No major flags in the title area."
   - If signals are negative/mixed → "Title or history concerns worth verifying." (no specifics)
 - Use "verify" language only for fields that are genuinely unknown or unconfirmed.
+- CRITICAL: If ACCIDENTS and THEFT in the prompt both say "NMVTIS confirmed clean", the history
+  has been checked. Do NOT say ownership history is "missing" or "unconfirmed" — say it "looks solid"
+  or "no major flags." Only use "missing" for fields not covered by NMVTIS (e.g. service records).
 
 VOICE:
 - Write "this listing" not "this vehicle" or "this car"
