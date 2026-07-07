@@ -94,14 +94,12 @@ const REDDIT_DRAFT_SYSTEM = `You write Reddit posts for used-car buyers. Given a
 
 RULES:
 - body_*: first-person buyer voice ("I plan to...", "I wasn't able to confirm..."). Never imperative ("Check the...", "Verify...").
-- title: "Would you buy this [year] [make] [model] for [price]?" format. Include the single biggest concern or standout fact after a dash if space allows. 10-200 chars. Must end with a question mark.
-  Examples: "Would you buy this 2016 Ford Focus Electric for $8,995 — open recall and no service history?"
-            "Would you buy this 2022 Kia Niro EV for $18,800 — 30k miles, clean title, unknown battery health?"
+- title: starts with year/make/model and price. 10-200 chars.
 - body_facts: 1-5 items, 5-200 chars each. Concrete, specific, numbers where possible.
 - body_uncertainty: 0-3 items, 5-200 chars each. Only genuine unknowns.
 - body_next_steps: 0-3 items, 5-200 chars each.
-- questions: EXACTLY 1 item. 10-200 chars. Must target the single biggest risk or decision factor. No question mark (the title uses the one allowed).
-- Only 1 question mark total across ALL fields (use it in title).
+- questions: EXACTLY 1 item. 10-200 chars. Must target the single biggest risk.
+- Only 1 question mark total across ALL fields.
 - No verdict language (good deal, bad deal, buy it, skip it, hard pass, I'd lean, avoid).
 - No URLs. No smart quotes. No markdown * or _. Use "or" not "/".
 - style.format: "short_paragraph". style.max_questions: 1.
