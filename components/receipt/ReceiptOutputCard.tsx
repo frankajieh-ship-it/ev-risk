@@ -78,6 +78,8 @@ interface ReceiptOutputCardProps {
   serverRecalls?: import("@/lib/nhtsa-recalls").RecallResult | null;
   vinHistory?: import("@/lib/vinaudit-client").VinAuditLiteResult | null;
   emailUnlocked?: boolean;
+  emailCaptured?: boolean;
+  onEmailGateOpen?: () => void;
 }
 
 const VERDICT_STYLES = {
@@ -163,6 +165,8 @@ export default function ReceiptOutputCard({
   serverRecalls,
   vinHistory,
   emailUnlocked = false,
+  emailCaptured = false,
+  onEmailGateOpen,
 }: ReceiptOutputCardProps) {
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
   const [scoringTooltipOpen, setScoringTooltipOpen] = useState(false);
@@ -297,6 +301,7 @@ export default function ReceiptOutputCard({
   const VerdictIcon = verdict.icon;
   const price = PRICE_STYLES[receipt.price_sanity?.label || "UNKNOWN"];
   const verdictLocked = paymentsEnabled && !isStarterUnlocked;
+  const verdictEmailLocked = verdictLocked && !emailCaptured;
 
   // Vehicle description
   const ls = receipt.listing_summary;
@@ -417,7 +422,29 @@ export default function ReceiptOutputCard({
           )}
         </div>
         <div className="flex items-center gap-3">
-          {verdictLocked ? (
+          {verdictEmailLocked ? (
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-3">
+                <Lock className="w-5 h-5 text-white/30 shrink-0" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-white/20 blur-[6px] select-none">GREEN</span>
+                    <span className="text-sm text-white/20 blur-[6px] select-none">— Good Deal</span>
+                  </div>
+                  <p className="text-xs text-white/40 mt-0.5">Enter your email to reveal your verdict</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  onClick={onEmailGateOpen}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#00d97e] text-[#0d1117] hover:bg-[#00c970] transition-colors shrink-0"
+                >
+                  Reveal verdict — free
+                </button>
+                <span className="text-white/20 text-xs">no payment required</span>
+              </div>
+            </div>
+          ) : verdictLocked ? (
             <div className="flex-1 space-y-2">
               <div className="flex items-center gap-3">
                 <Lock className="w-5 h-5 text-white/30 shrink-0" />

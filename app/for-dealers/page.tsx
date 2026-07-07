@@ -289,7 +289,13 @@ export default function ForDealersPage() {
       {/* ── Pricing ──────────────────────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-4 pb-20">
         <h2 className="text-2xl font-bold text-center mb-3">Simple, transparent pricing</h2>
-        <p className="text-sm text-white/40 text-center mb-10">Free to apply · No credit card required · Cancel anytime</p>
+        <p className="text-sm text-white/40 text-center mb-6">14-day free trial · No credit card required · Cancel anytime</p>
+
+        <div className="flex justify-center mb-8">
+          <span className="text-xs bg-[#00d97e]/10 text-[#00d97e] border border-[#00d97e]/20 px-3 py-1.5 rounded-full font-medium">
+            14-day free trial — no credit card required
+          </span>
+        </div>
 
         <div className="grid sm:grid-cols-3 gap-5 items-start">
 
@@ -321,8 +327,14 @@ export default function ForDealersPage() {
               onClick={() => trackEvent("dealer_apply_cta_clicked", { position: "pricing_starter" })}
               className="flex items-center justify-center w-full py-2.5 border border-white/[0.12] text-white/60 rounded-xl text-sm font-semibold hover:bg-white/[0.05] hover:text-white/80 transition-colors"
             >
-              Get started
+              Start free trial
             </Link>
+            <a
+              href="mailto:hello@offolab.com?subject=Demo Request — Starter Plan"
+              className="block text-center text-xs text-white/30 hover:text-white/55 mt-2 transition-colors"
+            >
+              or Request a demo →
+            </a>
           </div>
 
           {/* Growth — highlighted */}
@@ -358,9 +370,15 @@ export default function ForDealersPage() {
               onClick={() => trackEvent("dealer_apply_cta_clicked", { position: "pricing_growth" })}
               className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#00d97e] text-[#0d1117] rounded-xl text-sm font-semibold hover:bg-[#00f090] transition-colors"
             >
-              Join the dealer network
+              Start free trial
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
+            <a
+              href="mailto:hello@offolab.com?subject=Demo Request — Growth Plan"
+              className="block text-center text-xs text-white/40 hover:text-white/65 mt-2 transition-colors"
+            >
+              or Request a demo →
+            </a>
           </div>
 
           {/* Pro */}
@@ -390,8 +408,14 @@ export default function ForDealersPage() {
               onClick={() => trackEvent("dealer_apply_cta_clicked", { position: "pricing_pro" })}
               className="flex items-center justify-center w-full py-2.5 border border-white/[0.12] text-white/60 rounded-xl text-sm font-semibold hover:bg-white/[0.05] hover:text-white/80 transition-colors"
             >
-              Contact us
+              Start free trial
             </Link>
+            <a
+              href="mailto:hello@offolab.com?subject=Demo Request — Pro Plan"
+              className="block text-center text-xs text-white/30 hover:text-white/55 mt-2 transition-colors"
+            >
+              or Request a demo →
+            </a>
           </div>
 
         </div>

@@ -162,6 +162,23 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // 3a. If upgrading from receipt_single → buyer_pass, apply $3.99 credit as a one-time coupon
+  let upgradeCouponId: string | undefined;
+  if (existingPurchase?.pack_tier === "receipt_single" && packTier === "buyer_pass") {
+    try {
+      const coupon = await stripe.coupons.create({
+        amount_off: 399,
+        currency: "usd",
+        duration: "once",
+        name: "Starter upgrade credit",
+        max_redemptions: 1,
+      });
+      upgradeCouponId = coupon.id;
+    } catch {
+      // Non-fatal — proceed without coupon rather than blocking the upgrade
+    }
+  }
+
   // 3. Resolve price variant from pack tier (seller pack uses A/B via anonId hash)
   const variant: PriceVariant = getVariantForTier(packTier, anonId);
 
@@ -205,6 +222,7 @@ export async function POST(request: NextRequest) {
       },
       success_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : scenarioType === "compare" ? "/compare" : scenarioType === "chat" ? "/receipt" : scenarioType === "copart" ? "/copart" : scenarioType === "owned_ev" ? `/workspace/garage/${scenarioId}/owned-ev` : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}${scenarioType === "routine" ? "/routine" : scenarioType === "evroutine" ? "/report" : scenarioType === "compare" ? "/compare" : scenarioType === "chat" ? "/receipt" : scenarioType === "copart" ? "/copart" : scenarioType === "owned_ev" ? `/workspace/garage/${scenarioId}/owned-ev` : "/receipt"}?scenario_type=${scenarioType}&scenario_id=${scenarioId}&checkout=cancel`,
+      ...(upgradeCouponId && { discounts: [{ coupon: upgradeCouponId }] }),
     };
 
     // Use pre-created Price if available, otherwise inline price_data

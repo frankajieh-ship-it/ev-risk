@@ -387,7 +387,10 @@ export default function ReceiptPage() {
   const [showPostReceiptPopup, setShowPostReceiptPopup] = useState(false);
   const postReceiptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Email gate modal — triggered by Save button, suppressed if already captured or skipped this session
+  // Email gate modal — triggered by receipt generation or Save button
+  // emailModalFromSave tracks whether the modal was opened specifically from the Save button
+  // so that onSubmit/onSkip know whether to also call doSave()
+  const emailModalFromSaveRef = useRef(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [emailCaptured, setEmailCaptured] = useState(() =>
     typeof window !== "undefined" && localStorage.getItem("offo_email_captured") === "1"
@@ -414,6 +417,15 @@ export default function ReceiptPage() {
       setVinHistory(null);
     }
   }, [receipt]);
+
+  // Auto-open email gate after receipt generation if email not yet captured
+  useEffect(() => {
+    if (receipt && !emailCaptured && !emailSkippedThisSession && !emailModalOpen) {
+      emailModalFromSaveRef.current = false;
+      setEmailModalOpen(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [receipt?.receipt_id]);
 
   const handlePhotosFailed = useCallback(() => {}, []);
 
@@ -818,6 +830,7 @@ export default function ReceiptPage() {
     if (!receipt) return;
     // If email not yet captured and not skipped this session, show modal first — save completes after
     if (!emailCaptured && !emailSkippedThisSession) {
+      emailModalFromSaveRef.current = true;
       setEmailModalOpen(true);
       return;
     }
@@ -1168,6 +1181,11 @@ export default function ReceiptPage() {
                 })}
                 serverRecalls={serverRecalls}
                 vinHistory={vinHistory}
+                emailCaptured={emailCaptured}
+                onEmailGateOpen={() => {
+                  emailModalFromSaveRef.current = false;
+                  setEmailModalOpen(true);
+                }}
               />
               </div>
 
@@ -1498,14 +1516,18 @@ export default function ReceiptPage() {
             : undefined
         }
         onSubmit={() => {
+          const fromSave = emailModalFromSaveRef.current;
+          emailModalFromSaveRef.current = false;
           setEmailModalOpen(false);
           setEmailCaptured(true);
-          doSave();
+          if (fromSave) doSave();
         }}
         onSkip={() => {
+          const fromSave = emailModalFromSaveRef.current;
+          emailModalFromSaveRef.current = false;
           setEmailModalOpen(false);
           setEmailSkippedThisSession(true);
-          doSave();
+          if (fromSave) doSave();
         }}
       />
 

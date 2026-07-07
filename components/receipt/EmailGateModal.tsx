@@ -125,14 +125,14 @@ export default function EmailGateModal({
               <div className="flex items-center gap-2 mb-3">
                 <Mail className="w-5 h-5 text-[#00d97e]" />
                 <h3 className="text-base font-bold text-white">
-                  Save to your garage
+                  Your receipt is ready
                 </h3>
               </div>
 
               <p className="text-sm text-white/60 mb-4">
                 {vehicleSummary
-                  ? `Enter your email to save the ${vehicleSummary} receipt and get the inspection checklist.`
-                  : "Enter your email to save this receipt and get the inspection checklist."}
+                  ? `Where should we send the ${vehicleSummary} receipt? We'll also reveal your verdict — GREEN, YELLOW, or RED.`
+                  : "Where should we send it? We'll also reveal your verdict — GREEN, YELLOW, or RED."}
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-3">
@@ -161,10 +161,10 @@ export default function EmailGateModal({
                   {state === "submitting" ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Saving...
+                      Sending...
                     </>
                   ) : (
-                    "Save receipt"
+                    "Send my receipt"
                   )}
                 </button>
               </form>
@@ -173,7 +173,7 @@ export default function EmailGateModal({
                 onClick={handleSkip}
                 className="w-full mt-2 text-xs text-white/30 hover:text-white/50 transition-colors py-1"
               >
-                Skip for now
+                Skip — show me the verdict anyway
               </button>
 
               <p className="text-xs text-white/20 text-center mt-2">

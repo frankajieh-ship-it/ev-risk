@@ -91,7 +91,7 @@ export default function ReceiptPaywallCard({
           <p className="text-sm text-white/50 mt-1">
             VIN history · deep dive · negotiation scripts · PDF export.
             <br />
-            {isUpgrade ? "$9.99 more · You've already unlocked the Starter." : "$9.99 · This listing · No subscription."}
+            {isUpgrade ? "$6.00 more · $3.99 Starter credit applied." : "$9.99 · This listing · No subscription."}
           </p>
         </div>
 
@@ -140,7 +140,7 @@ export default function ReceiptPaywallCard({
             ) : (
               <>
                 <Zap className="w-4 h-4" />
-                Unlock everything — $9.99
+                {isUpgrade ? "Upgrade for $6.00" : "Unlock everything — $9.99"}
               </>
             )}
           </button>

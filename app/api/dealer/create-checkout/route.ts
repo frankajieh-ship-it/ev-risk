@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
     metadata: { dealership_id: dealershipId },
-    subscription_data: { metadata: { dealership_id: dealershipId, tier } },
+    subscription_data: { trial_period_days: 14, metadata: { dealership_id: dealershipId, tier } },
     success_url: `${baseUrl}/dealer?subscribed=true`,
     cancel_url: `${baseUrl}/dealer`,
   };

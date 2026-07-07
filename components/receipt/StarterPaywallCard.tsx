@@ -131,7 +131,7 @@ export default function StarterPaywallCard({
               onClick={onFullUpgradeClick}
               className="text-xs text-white/35 hover:text-white/60 transition-colors underline underline-offset-2"
             >
-              Or skip to the Full Report (ownership history, deep dive &amp; more) — $9.99 total →
+              $9.99 total — or pay $3.99 now and apply it toward the full report later →
             </button>
           </div>
         </div>

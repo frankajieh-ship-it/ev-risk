@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { email, attribution, persistent_session_id, anon_id } = body;
+    const { email, attribution, persistent_session_id, anon_id, source } = body;
 
     if (!email || typeof email !== "string" || !EMAIL_REGEX.test(email)) {
       return NextResponse.json(
@@ -96,10 +96,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Enroll in activation sequence (Day 1/3/7 emails via Netlify cron)
+    // email_gate source uses verdict-personalized activation; others use newsletter flow
+    const triggerEvent = source === "email_gate" ? "receipt_email_gate" : "newsletter_signup";
     void supabase.from("email_sequences").insert({
       email: normalizedEmail,
       anon_id: anon_id || persistent_session_id || null,
-      trigger_event: "newsletter_signup",
+      trigger_event: triggerEvent,
       trigger_id: null,
       metadata: { source: attribution?.page_source || "unknown" },
     });
