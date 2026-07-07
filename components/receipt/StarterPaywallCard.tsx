@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Zap, CheckCircle, Camera, Lock, Gift } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface StarterPaywallCardProps {
   receiptToken: string;
@@ -28,6 +29,7 @@ export default function StarterPaywallCard({
   onTrackEvent,
   onCreditRedeemed,
 }: StarterPaywallCardProps) {
+  const { session } = useAuth();
   const [loading, setLoading] = useState(false);
   const [creditLoading, setCreditLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +45,10 @@ export default function StarterPaywallCard({
     try {
       const res = await fetch("/api/payments/redeem-credit", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({ scenario_id: scenarioId, anon_id: receiptToken }),
       });
       const data = await res.json();

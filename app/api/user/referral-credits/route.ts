@@ -2,29 +2,14 @@
  * GET /api/user/referral-credits
  *
  * Returns the total unspent referral credits for the authenticated user.
- * Requires a valid Supabase session cookie.
+ * Requires Authorization: Bearer <token> header.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { getSupabaseAdmin } from "@/lib/api-auth";
+import { getUserFromRequest, getSupabaseAdmin } from "@/lib/api-auth";
 
-export async function GET(_request: NextRequest) {
-  const cookieStore = await cookies();
-
-  const supabaseUser = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: () => {},
-      },
-    }
-  );
-
-  const { data: { user } } = await supabaseUser.auth.getUser();
+export async function GET(request: NextRequest) {
+  const user = await getUserFromRequest(request);
   if (!user) {
     return NextResponse.json({ credits: 0, authenticated: false });
   }

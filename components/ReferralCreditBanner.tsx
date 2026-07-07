@@ -2,22 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { Gift } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ReferralCreditBannerProps {
   onShareClick?: () => void;
 }
 
 export default function ReferralCreditBanner({ onShareClick }: ReferralCreditBannerProps) {
+  const { session } = useAuth();
   const [credits, setCredits] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("/api/user/referral-credits")
+    const token = session?.access_token;
+    if (!token) return;
+    fetch("/api/user/referral-credits", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
       .then((r) => r.json())
       .then((d) => {
         if (d.authenticated) setCredits(d.credits ?? 0);
       })
       .catch(() => {});
-  }, []);
+  }, [session]);
 
   // Only render for authenticated users who have credits or to prompt sharing
   if (credits === null) return null;

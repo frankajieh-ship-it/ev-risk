@@ -2,32 +2,17 @@
  * POST /api/payments/redeem-credit
  *
  * Redeems one referral credit to unlock a receipt starter report.
- * Requires an authenticated session (referral credits are user-scoped).
+ * Requires Authorization: Bearer <token> header.
  *
  * Body: { scenario_id: string, anon_id: string }
  * Returns: { success: true } or { error: string }
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { getSupabaseAdmin } from "@/lib/api-auth";
+import { getUserFromRequest, getSupabaseAdmin } from "@/lib/api-auth";
 
 export async function POST(request: NextRequest) {
-  const cookieStore = await cookies();
-
-  const supabaseUser = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: () => {},
-      },
-    }
-  );
-
-  const { data: { user } } = await supabaseUser.auth.getUser();
+  const user = await getUserFromRequest(request);
   if (!user) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
