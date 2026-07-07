@@ -37,9 +37,9 @@ const TEXT_DARK = "#374151";
 const TEXT_MUTED = "#6B7280";
 
 const VERDICT_STYLES = {
-  GREEN: { bg: "#DCFCE7", text: "#166534", label: "LOW RISK" },
-  YELLOW: { bg: "#FEF3C7", text: "#92400E", label: "YELLOW" },
-  RED: { bg: "#FEE2E2", text: "#991B1B", label: "HIGH RISK" },
+  GREEN: { bg: "#DCFCE7", text: "#166534", label: "LOW RISK", border: "#16a34a" },
+  YELLOW: { bg: "#FEF3C7", text: "#92400E", label: "PROCEED WITH CAUTION", border: "#d97706" },
+  RED: { bg: "#FEE2E2", text: "#991B1B", label: "HIGH RISK", border: "#dc2626" },
 } as const;
 
 const FONT = "system-ui, -apple-system, 'Segoe UI', sans-serif";
@@ -132,13 +132,13 @@ export function generateShareCard(
   ctx.fillRect(0, 0, W, H);
 
   // ------------------------------------------------------------------
-  // 2. Main card — white with light blue border
+  // 2. Main card — white with verdict-colored border
   // ------------------------------------------------------------------
   roundRect(ctx, CARD_X, CARD_Y, CARD_W, CARD_H, 24);
   ctx.fillStyle = CARD_WHITE;
   ctx.fill();
-  ctx.strokeStyle = LIGHT_BLUE_BORDER;
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = verdict.border;
+  ctx.lineWidth = 3;
   ctx.stroke();
 
   // ------------------------------------------------------------------
@@ -173,25 +173,47 @@ export function generateShareCard(
   ctx.fillText("OFFO", LEFT_X, 95);
 
   // ------------------------------------------------------------------
-  // B) Headline — "Used EV Listing Verdict"
+  // B) Headline — vehicle name (year make model) or fallback
   // ------------------------------------------------------------------
-  ctx.font = `800 52px ${FONT}`;
-  ctx.fillStyle = NAVY;
-  ctx.fillText("Used EV Listing", LEFT_X, 175);
-  ctx.fillText("Verdict", LEFT_X, 235);
+  const vehicleLabel = [data.year, data.make, data.model].filter(Boolean).join(" ");
+  const hasVehicle = vehicleLabel.length > 0;
 
-  // ------------------------------------------------------------------
-  // C) Subheadline
-  // ------------------------------------------------------------------
-  ctx.font = `400 21px ${FONT}`;
-  ctx.fillStyle = TEXT_MUTED;
-  ctx.fillText("Routine-first used EV check", LEFT_X, 272);
+  if (hasVehicle) {
+    // Year in accent color, make+model in navy
+    ctx.font = `700 30px ${FONT}`;
+    ctx.fillStyle = TEXT_MUTED;
+    ctx.fillText("OFFO Receipt —", LEFT_X, 160);
+
+    ctx.font = `800 48px ${FONT}`;
+    ctx.fillStyle = NAVY;
+    const vehicleDisplay = truncateText(ctx, vehicleLabel, LEFT_MAX - LEFT_X);
+    ctx.fillText(vehicleDisplay, LEFT_X, 220);
+
+    // Price + mileage subline
+    const detailParts: string[] = [];
+    if (data.price) detailParts.push(`$${data.price.toLocaleString()}`);
+    if (data.mileage) detailParts.push(`${data.mileage.toLocaleString()} mi`);
+    if (detailParts.length > 0) {
+      ctx.font = `400 21px ${FONT}`;
+      ctx.fillStyle = TEXT_MUTED;
+      ctx.fillText(detailParts.join(" · "), LEFT_X, 258);
+    }
+  } else {
+    ctx.font = `800 52px ${FONT}`;
+    ctx.fillStyle = NAVY;
+    ctx.fillText("Used EV Listing", LEFT_X, 175);
+    ctx.fillText("Verdict", LEFT_X, 235);
+
+    ctx.font = `400 21px ${FONT}`;
+    ctx.fillStyle = TEXT_MUTED;
+    ctx.fillText("Routine-first used EV check", LEFT_X, 272);
+  }
 
   // ------------------------------------------------------------------
   // D) Verdict banner strip
   // ------------------------------------------------------------------
   const bannerX = LEFT_X;
-  const bannerY = 305;
+  const bannerY = hasVehicle ? 285 : 305;
   const bannerW = LEFT_MAX - LEFT_X + 30;
   const bannerH = 56;
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Search, AlertCircle, MessageSquare, ChevronDown, ChevronUp, Lightbulb, SlidersHorizontal, Bookmark, BookmarkCheck, Check, LayoutGrid, LayoutList, List, ArrowRight, Zap } from "lucide-react";
+import { ArrowLeft, Search, AlertCircle, MessageSquare, ChevronDown, ChevronUp, Lightbulb, SlidersHorizontal, Bookmark, BookmarkCheck, Check, LayoutGrid, LayoutList, List, ArrowRight, Zap, GitCompare } from "lucide-react";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import RecommendationCard from "./RecommendationCard";
 import RecommendationCardGrid from "./RecommendationCardGrid";
@@ -18,6 +18,9 @@ import DealCard, { type CuratedDeal } from "@/components/deals/DealCard";
 import type { MinimumViableRoutine } from "@/types/v2";
 import type { VehicleRecommendation, RecommendationsResponse, DataSources } from "@/types/recommendations";
 import { computeConfidencePct } from "@/lib/routine-confidence";
+import { addToShortlist, clearShortlist } from "@/lib/shortlist-store";
+import type { ShortlistCandidate } from "@/lib/shortlist-coach";
+import { useRouter } from "next/navigation";
 
 interface VehicleRecommendationsProps {
   routine: MinimumViableRoutine;
@@ -243,6 +246,7 @@ export default function VehicleRecommendations({
   onShortlistSave,
 }: VehicleRecommendationsProps) {
   const { trackEvent, trackVehicleListGenerated, trackVehicleFullReportClicked, getPersistentSessionId } = useEventTracking();
+  const router = useRouter();
 
   const [recommendations, setRecommendations] = useState<VehicleRecommendation[]>([]);
   const [dealerQuestions, setDealerQuestions] = useState<string[]>([]);
@@ -586,6 +590,34 @@ export default function VehicleRecommendations({
         ].filter(Boolean),
       }),
     }).catch(() => {});
+  }
+
+  function recToShortlistCandidate(rec: VehicleRecommendation): ShortlistCandidate {
+    return {
+      run_id: `rec_${rec.year}_${rec.model.replace(/\s+/g, "_")}`,
+      vehicle_label: `${rec.year} ${rec.make} ${rec.model_short}`,
+      fit_score: {
+        score_0_100: rec.fit_score,
+        label: rec.fit_label,
+        mental_load: rec.mental_load,
+        stress_flags: [],
+        breakpoints_ranked: [],
+        confidence: { level: "medium" as const, note: "From routine recommendations", has_vehicle_data: false, has_battery_data: false },
+        dimensions: rec.dimensions ?? { charging: rec.fit_score, range: rec.fit_score, recovery: rec.fit_score, climate: rec.fit_score },
+        failure_probability: (100 - rec.fit_score) / 100,
+        top_risk_dimension: null,
+        confidence_adjusted_score: rec.fit_score,
+      },
+    };
+  }
+
+  function handleCompareAll() {
+    clearShortlist();
+    for (const rec of top3) {
+      addToShortlist(recToShortlistCandidate(rec));
+    }
+    trackEvent("compare_all_top3_clicked", { count: top3.length });
+    router.push("/shortlist");
   }
 
   function handleAddToGarage(rec: VehicleRecommendation) {
@@ -1671,6 +1703,27 @@ export default function VehicleRecommendations({
               ))}
               {/* Extension nudge — shown after list loads (card view only) */}
               {viewMode === "card" && <ExtensionNudge context="fits" />}
+            </div>
+          )}
+
+          {/* Compare all top-3 CTA */}
+          {refinePhase === "browse" && top3.length >= 2 && (
+            <div className="mb-5 flex items-center justify-between gap-3 px-4 py-3 bg-[#00d97e]/[0.06] border border-[#00d97e]/20 rounded-xl">
+              <div>
+                <p className="text-sm font-semibold text-white/80">
+                  Compare {top3.length === 3 ? "all 3" : "both"} side by side
+                </p>
+                <p className="text-xs text-white/40 mt-0.5">
+                  Get a fit score breakdown and tie-breaker ranking
+                </p>
+              </div>
+              <button
+                onClick={handleCompareAll}
+                className="flex items-center gap-2 px-4 py-2 bg-[#00d97e] text-[#0d1117] text-sm font-semibold rounded-xl hover:bg-[#00c970] transition-colors shrink-0"
+              >
+                <GitCompare className="w-4 h-4" />
+                Compare {top3.length === 3 ? "all 3" : "both"} →
+              </button>
             </div>
           )}
 

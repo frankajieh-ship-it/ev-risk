@@ -1,7 +1,7 @@
 // Cache key is replaced at deploy time by scripts/inject-sw-version.mjs
 // with the git commit hash (e.g. "offo-abc1234"). This ensures every deploy
 // invalidates the old cache across all user browsers automatically.
-const CACHE = "offo-__DEPLOY_ID__";
+const CACHE = "offo-8bda7348";
 const PRECACHE = ["/", "/manifest.json"];
 
 self.addEventListener("install", (e) => {
