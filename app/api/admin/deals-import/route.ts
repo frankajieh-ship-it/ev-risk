@@ -237,6 +237,11 @@ export async function POST(request: NextRequest) {
         photoUrl = normalized.slice(publicIdx + "/public".length);
       }
     }
+    // Normalize bare relative paths → root-relative paths
+    // e.g. "vehicles/foo.jpg" → "/vehicles/foo.jpg"
+    if (photoUrl && !photoUrl.startsWith("/") && !photoUrl.startsWith("http")) {
+      photoUrl = "/" + photoUrl;
+    }
 
     // For /vehicles/ paths: verify file exists; if not, try alternate extensions
     // Handles missing extensions (e.g. "/vehicles/foo" → "/vehicles/foo.webp")
@@ -262,8 +267,14 @@ export async function POST(request: NextRequest) {
     })();
 
     // Resolve photo: local CSV → static map → make fallback (all sync, no HTTP)
-    if (!photoUrl && make) {
-      photoUrl = resolvePhotoSync(make, model, year);
+    // Local vehicle-images.csv always wins — it's the curated source of truth
+    if (make) {
+      const localOverride = model ? lookupLocalImages(make, model, year ?? undefined) : { matched: false, urls: [] };
+      if (localOverride.matched && localOverride.urls.length > 0) {
+        photoUrl = proxyIfWikimedia(localOverride.urls[0]);
+      } else if (!photoUrl) {
+        photoUrl = resolvePhotoSync(make, model, year);
+      }
     }
 
     // Compute scores from structured fields — no AI call needed for basic signals.
