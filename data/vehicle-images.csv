@@ -77,8 +77,20 @@ Kia,EV6,2022,9999,/vehicles/2022-kia-ev6-gt-line.webp,10,local
 Hyundai,Ioniq 5,2022,9999,/vehicles/2024-hyundai-ioniq-5-limited.webp,10,local
 Hyundai,Kona,2018,9999,/vehicles/hyundai-kona.webp,10,local
 Hyundai,Kona Electric,2018,9999,/vehicles/hyundai-kona.webp,10,local
-Chevrolet,Bolt EV,2017,9999,/vehicles/2023-chevrolet-bolt-ev-lt.webp,10,local
-Chevrolet,Bolt,2017,9999,/vehicles/chevloret-bolt.webp,10,local
+Chevrolet,Bolt EV,2022,9999,/vehicles/2023-chevrolet-bolt-ev-lt.webp,10,local
+Chevrolet,Bolt EV,2017,2021,/vehicles/chevloret-bolt.webp,10,local gen1
+Chevrolet,Bolt EV LT,2022,9999,/vehicles/2023-chevrolet-bolt-ev-lt.webp,10,DB trim alias
+Chevrolet,Bolt EV LT FWD,2022,9999,/vehicles/2023-chevrolet-bolt-ev-lt.webp,10,DB trim alias
+Chevrolet,Bolt EV 1LT,2017,2021,/vehicles/chevloret-bolt.webp,10,DB trim alias
+Chevrolet,Bolt EV 2LT,2017,2021,/vehicles/chevloret-bolt.webp,10,DB trim alias
+Chevrolet,Bolt EV Premier,2017,2021,/vehicles/chevloret-bolt.webp,10,DB trim alias
+Chevrolet,Bolt EV Premier FWD,2017,2021,/vehicles/chevloret-bolt.webp,10,DB trim alias
+Chevrolet,Bolt,2022,9999,/vehicles/2023-chevrolet-bolt-ev-lt.webp,10,DB model alias gen2
+Chevrolet,Bolt,2017,2021,/vehicles/chevloret-bolt.webp,10,DB model alias gen1
+Chevloret,Bolt EV,2022,9999,/vehicles/2023-chevrolet-bolt-ev-lt.webp,10,typo alias gen2
+Chevloret,Bolt EV,2017,2021,/vehicles/chevloret-bolt.webp,10,typo alias gen1
+Chevloret,Bolt EV Premier,2017,2021,/vehicles/chevloret-bolt.webp,10,typo alias
+Chevloret,Bolt EV Premier FWD,2017,2021,/vehicles/chevloret-bolt.webp,10,typo alias
 Nissan,Leaf,2018,9999,/vehicles/nissan-leaf.webp,10,local
 Nissan,LEAF,2018,9999,/vehicles/nissan-leaf.webp,10,local
 Nissan,Ariya,2023,9999,/vehicles/2023-Nissan-ARIYA-ENGAGE+.webp,10,local
@@ -147,8 +159,13 @@ Cadillac,VISTIQ,2026,9999,/vehicles/2026-cadillac-visiq-sport.webp,10,local
 GMC,Hummer EV Pickup,2024,9999,/vehicles/2024-gmc-hummer-ev.webp,10,local
 Smart,ForTwo Electric,2015,9999,/vehicles/2018-smart-for-two-electric-drive.jpg,10,local
 Chevrolet,Spark EV,2014,2016,/vehicles/2016-chevrolet-spark-ev.webp,10,local
-Chevrolet,Spark,2014,2016,/vehicles/2016-chevrolet-spark-ev.webp,10,DB model alias - Spark in DB = Spark EV
+Chevrolet,Spark EV 1LT,2014,2016,/vehicles/2016-chevrolet-spark-ev.webp,10,DB trim alias
+Chevrolet,Spark EV 2LT,2014,2016,/vehicles/2016-chevrolet-spark-ev.webp,10,DB trim alias
+Chevrolet,Spark,2014,2016,/vehicles/2016-chevrolet-spark-ev.webp,10,DB model alias
+Chevrolet,Spark 1LT,2014,2016,/vehicles/2016-chevrolet-spark-ev.webp,10,DB trim alias
 Chevloret,Spark EV,2014,2016,/vehicles/2016-chevrolet-spark-ev.webp,10,typo alias from DB
+Chevloret,Spark EV 1LT,2014,2016,/vehicles/2016-chevrolet-spark-ev.webp,10,typo alias from DB
+Chevloret,Spark EV 2LT,2014,2016,/vehicles/2016-chevrolet-spark-ev.webp,10,typo alias from DB
 Chevloret,Spark,2014,2016,/vehicles/2016-chevrolet-spark-ev.webp,10,typo alias from DB
 Hyundai,NEXO,2019,9999,/vehicles/2021-hyundai-nexo-limited.jpg,10,local
 Hyundai,NEXO Limited,2019,9999,/vehicles/2021-hyundai-nexo-limited.jpg,10,DB trim alias
