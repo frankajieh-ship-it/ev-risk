@@ -58,13 +58,13 @@ export async function POST(request: Request) {
     ]);
 
     if (!historyResult.success) {
-      console.error("[VIN History] All providers failed:", {
+      console.error("[VIN History] Provider failed:", {
         vin: cleanVin,
         error: historyResult.error,
         providers: historyResult.providers_attempted,
       });
       return NextResponse.json(
-        { success: false, error: historyResult.error, code: "not_configured" },
+        { success: false, error: historyResult.error, code: "unavailable" },
         { status: 503 }
       );
     }
