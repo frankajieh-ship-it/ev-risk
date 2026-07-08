@@ -45,8 +45,9 @@ export async function POST(request: Request) {
     }
 
     // Verify the receipt_token corresponds to a paid receipt
+    // Skip in development — payments are disabled locally so no paid receipts exist
     const supabase = getSupabaseAdmin();
-    if (supabase) {
+    if (supabase && process.env.NODE_ENV !== "development") {
       const { data: receipt } = await supabase
         .from("receipts")
         .select("generation_status, is_pro")
