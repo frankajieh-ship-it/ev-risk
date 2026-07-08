@@ -24,7 +24,7 @@ interface OwnershipHistoryCardProps {
   onHistoryLoaded?: (result: VinAuditLiteResult) => void;
 }
 
-type FetchState = "idle" | "loading" | "done" | "error" | "not_configured";
+type FetchState = "idle" | "loading" | "done" | "error";
 
 export default function OwnershipHistoryCard({
   vin,
@@ -62,10 +62,6 @@ export default function OwnershipHistoryCard({
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        if (data.code === "not_configured") {
-          setFetchStateSync("not_configured");
-          return;
-        }
         setFetchStateSync("error");
         trackEvent("ownership_history_failed", { vin, error: data.error });
         return;
@@ -94,9 +90,6 @@ export default function OwnershipHistoryCard({
     fetch_history(true); // autoFetch=true: skips if not idle
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vin, receiptToken, isUnlocked, paymentsEnabled]);
-
-  // Not configured — hide entirely, nothing useful to show
-  if (fetchState === "not_configured") return null;
 
   // Paywall gate
   if (!isUnlocked && paymentsEnabled) {

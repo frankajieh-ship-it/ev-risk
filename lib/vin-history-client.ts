@@ -1,17 +1,15 @@
 /**
- * VIN History Client — Unified waterfall across providers
+ * VIN History Client — VehicleDatabases primary source
  *
- * Priority order: VinAudit → CarsXE → VehicleDatabases
- * Returns a normalized result regardless of which provider succeeds.
+ * Uses VehicleDatabases /vehicle-history endpoint for full ownership
+ * history: theft, salvage, accidents, title status, ownership count.
  *
  * Env vars:
- *   VINAUDIT_KEY / VINAUDIT_USER / VINAUDIT_PASS  — VinAudit Lite Check
- *   Cars_XE                                        — CarsXE history API
- *   VEHICLEDATABASES_API_KEY                       — VehicleDatabases title-check
+ *   VEHICLEDATABASES_API_KEY  — VehicleDatabases API key (x-authkey header)
  */
 
-import { liteCheck } from "@/lib/vinaudit-client";
 import { titleCheck } from "@/lib/vehicledatabases-client";
+import { auctionHistory } from "@/lib/vehicledatabases-client";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -19,7 +17,7 @@ import { titleCheck } from "@/lib/vehicledatabases-client";
 
 export interface VinHistoryResult {
   success: true;
-  provider: "vinaudit" | "carsxe" | "vehicledatabases";
+  provider: "vehicledatabases";
   vin: string;
   title_status: "clean" | "salvage" | "rebuilt" | "unknown";
   accident_count: number;
@@ -38,138 +36,84 @@ export interface VinHistoryError {
 }
 
 // ---------------------------------------------------------------------------
-// CarsXE
+// VehicleDatabases — full vehicle history endpoint
 // ---------------------------------------------------------------------------
 
-// CarsXE brand codes indicating salvage title (applied brands only — ones with a `record` field)
-const CARSXE_SALVAGE_CODES = new Set(["11", "49", "50", "16", "31", "32"]);
-// CarsXE brand codes indicating rebuilt/reconstructed title
-const CARSXE_REBUILT_CODES = new Set(["09", "10", "52"]);
-// CarsXE brand code 00 = "Clear" (no brand)
-const CARSXE_CLEAR_CODE = "00";
-
-async function tryCarSXE(vin: string): Promise<VinHistoryResult | null> {
-  const key = process.env.Cars_XE;
-  if (!key) return null;
-
-  // Run history + lien-theft in parallel
-  let historyData: Record<string, unknown> | null = null;
-  let lienTheftData: Record<string, unknown> | null = null;
-
-  try {
-    const [histRes, ltRes] = await Promise.all([
-      fetch(`https://api.carsxe.com/history?key=${key}&vin=${vin}`, {
-        signal: AbortSignal.timeout(12000),
-      }).catch(() => null),
-      fetch(`https://api.carsxe.com/v1/lien-theft?key=${key}&vin=${vin}`, {
-        signal: AbortSignal.timeout(12000),
-      }).catch(() => null),
-    ]);
-
-    if (histRes?.ok) {
-      const d = await histRes.json().catch(() => null);
-      if (d !== null) historyData = d;
-    }
-
-    if (ltRes?.ok) {
-      const d = await ltRes.json().catch(() => null);
-      if (d !== null) lienTheftData = d;
-    }
-  } catch {
-    console.warn("[vin-history] CarsXE fetch failed (network/timeout)");
-  }
-
-  // Need at least one endpoint to succeed
-  if (!historyData && !lienTheftData) return null;
-
-  // If only lien-theft succeeded (history 500'd), default title to "clean" —
-  // absence of brand records means no known title issue, not unknown.
-  const historyUnavailable = !historyData;
-
-  // --- Title status from /history ---
-  // brandsInformation contains the full NHTSA codebook; only entries with a `record`
-  // field are actually applied to this vehicle.
-  // When history is unavailable, default to "clean" (no evidence of issue)
-  let title_status: VinHistoryResult["title_status"] = historyUnavailable ? "clean" : "unknown";
-  let salvage_reported = false;
-  let ownership_count: number | null = null;
-
-  if (historyData) {
-    const brands = (historyData.brandsInformation as Array<{ code?: string; record?: unknown }>) ?? [];
-    const appliedBrands = brands.filter((b) => b.record != null && b.code !== CARSXE_CLEAR_CODE);
-
-    if ((historyData.brandsRecordCount as number) === 0 || appliedBrands.length === 0) {
-      title_status = "clean";
-    } else {
-      const codes = new Set(appliedBrands.map((b) => b.code!));
-      if ([...codes].some((c) => CARSXE_SALVAGE_CODES.has(c))) {
-        title_status = "salvage";
-      } else if ([...codes].some((c) => CARSXE_REBUILT_CODES.has(c))) {
-        title_status = "rebuilt";
-      } else {
-        title_status = "clean"; // branded but not salvage/rebuilt (e.g. odometer, rental)
-      }
-    }
-
-    const junkRecords = (historyData.junkAndSalvageInformation as unknown[]) ?? [];
-    salvage_reported = junkRecords.length > 0 || title_status === "salvage";
-
-    const historyRecords = (historyData.historyInformation as unknown[]) ?? [];
-    ownership_count = historyRecords.length > 0 ? historyRecords.length : null;
-  }
-
-  // --- Theft + lien from /v1/lien-theft ---
-  let theft_reported = false;
-  let open_lien: boolean | null = null;
-
-  if (lienTheftData) {
-    const events = (lienTheftData.events as Array<{ event?: string }>) ?? [];
-    const theftKeywords = ["theft", "stolen", "recovered theft"];
-    theft_reported = events.some((e) =>
-      theftKeywords.some((kw) => e.event?.toLowerCase().includes(kw))
-    );
-
-    const lienKeywords = ["lien", "repossession", "repo"];
-    const hasLienEvent = events.some((e) =>
-      lienKeywords.some((kw) => e.event?.toLowerCase().includes(kw))
-    );
-    open_lien = hasLienEvent ? true : false;
-  }
-
-  return {
-    success: true,
-    provider: "carsxe",
-    vin,
-    title_status,
-    accident_count: 0, // CarsXE history doesn't return accident records
-    theft_reported,
-    salvage_reported,
-    ownership_count,
-    open_lien,
-    raw: { history: historyData, lien_theft: lienTheftData },
+interface VehicleHistoryRaw {
+  status?: string;
+  data?: {
+    theft?: { records?: Array<{ date?: string; status?: string }> };
+    salvage?: { records?: Array<{ date?: string; source?: string; disposition?: string }> };
+    accidents?: { count?: number; records?: Array<{ date?: string; severity?: string }> };
+    ownership?: { count?: number };
+    title?: { status?: string };
+    lien?: { open?: boolean };
   };
 }
 
-// ---------------------------------------------------------------------------
-// VehicleDatabases
-// ---------------------------------------------------------------------------
-
 async function tryVehicleDatabases(vin: string): Promise<VinHistoryResult | null> {
-  const r = await titleCheck(vin);
-  if (!r.success) {
-    if (r.code !== "not_configured") {
-      console.warn(`[vin-history] VehicleDatabases title-check failed: ${r.error}`);
-    }
+  const key = process.env.VEHICLEDATABASES_API_KEY;
+  if (!key) return null;
+
+  let res: Response;
+  try {
+    res = await fetch(`https://api.vehicledatabases.com/vehicle-history/${vin.toUpperCase()}`, {
+      headers: { "x-authkey": key },
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch (err) {
+    console.warn("[vin-history] VehicleDatabases /vehicle-history fetch failed:", err instanceof Error ? err.message : err);
     return null;
   }
 
-  const title_status: VinHistoryResult["title_status"] = r.salvage ? "salvage" : "clean";
+  if (!res.ok) {
+    console.warn(`[vin-history] VehicleDatabases /vehicle-history ${res.status} for ${vin}`);
+    // Fall through to titleCheck fallback
+    return null;
+  }
+
+  let body: VehicleHistoryRaw;
+  try {
+    body = await res.json();
+  } catch {
+    return null;
+  }
+
+  if (body.status !== "success" || !body.data) {
+    console.warn(`[vin-history] VehicleDatabases /vehicle-history non-success for ${vin}:`, body.status);
+    return null;
+  }
+
+  const d = body.data;
+  const titleStatus = d.title?.status?.toLowerCase() ?? "";
+  const title_status: VinHistoryResult["title_status"] =
+    titleStatus.includes("salvage") ? "salvage" :
+    titleStatus.includes("rebuilt") || titleStatus.includes("reconstructed") ? "rebuilt" :
+    titleStatus.includes("clean") ? "clean" : "unknown";
 
   return {
     success: true,
     provider: "vehicledatabases",
-    vin: r.vin,
+    vin: vin.toUpperCase(),
     title_status,
+    accident_count: d.accidents?.count ?? (d.accidents?.records?.length ?? 0),
+    theft_reported: (d.theft?.records?.length ?? 0) > 0,
+    salvage_reported: title_status === "salvage" || (d.salvage?.records?.length ?? 0) > 0,
+    ownership_count: d.ownership?.count ?? null,
+    open_lien: d.lien?.open ?? null,
+    raw: body as unknown as Record<string, unknown>,
+  };
+}
+
+// Fallback: title-check only (salvage flag, no ownership/accident detail)
+async function tryTitleCheckOnly(vin: string): Promise<VinHistoryResult | null> {
+  const r = await titleCheck(vin);
+  if (!r.success) return null;
+  return {
+    success: true,
+    provider: "vehicledatabases",
+    vin: r.vin,
+    title_status: r.salvage ? "salvage" : "clean",
     accident_count: 0,
     theft_reported: false,
     salvage_reported: r.salvage,
@@ -184,66 +128,39 @@ async function tryVehicleDatabases(vin: string): Promise<VinHistoryResult | null
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch VIN history from the best available provider.
- * Tries VinAudit → CarsXE → VehicleDatabases in order.
+ * Fetch VIN history from VehicleDatabases.
+ * Tries /vehicle-history first (full data), falls back to /title-check (salvage only).
  * Returns a normalized result or error — never throws.
  */
 export async function getVinHistory(vin: string): Promise<VinHistoryResult | VinHistoryError> {
-  const attempted: string[] = [];
   const vinUpper = vin.toUpperCase();
+  const attempted: string[] = ["vehicledatabases"];
 
-  // 1. VinAudit
-  attempted.push("vinaudit");
   try {
-    const r = await liteCheck(vinUpper);
-    if (r.success) {
-      console.log("[vin-history] succeeded via vinaudit");
-      return {
-        success: true,
-        provider: "vinaudit",
-        vin: vinUpper,
-        title_status: r.summary.salvage_reported ? "salvage" : "clean",
-        accident_count: r.summary.accident_count,
-        theft_reported: r.summary.theft_reported,
-        salvage_reported: r.summary.salvage_reported,
-        ownership_count: r.summary.sale_count > 0 ? r.summary.sale_count : null,
-        open_lien: null,
-        raw: r as unknown as Record<string, unknown>,
-      };
-    }
-    console.log(`[vin-history] VinAudit failed: ${r.error}`);
-  } catch (err) {
-    console.warn("[vin-history] VinAudit threw:", err instanceof Error ? err.message : err);
-  }
-
-  // 2. CarsXE
-  attempted.push("carsxe");
-  try {
-    const r = await tryCarSXE(vinUpper);
-    if (r) {
-      console.log("[vin-history] succeeded via carsxe");
-      return r;
+    const full = await tryVehicleDatabases(vinUpper);
+    if (full) {
+      console.log("[vin-history] succeeded via vehicledatabases /vehicle-history");
+      return full;
     }
   } catch (err) {
-    console.warn("[vin-history] CarsXE threw:", err instanceof Error ? err.message : err);
+    console.warn("[vin-history] VehicleDatabases /vehicle-history threw:", err instanceof Error ? err.message : err);
   }
 
-  // 3. VehicleDatabases
-  attempted.push("vehicledatabases");
+  // Fallback: title-check only
   try {
-    const r = await tryVehicleDatabases(vinUpper);
-    if (r) {
-      console.log("[vin-history] succeeded via vehicledatabases");
-      return r;
+    const titleOnly = await tryTitleCheckOnly(vinUpper);
+    if (titleOnly) {
+      console.log("[vin-history] succeeded via vehicledatabases /title-check (fallback)");
+      return titleOnly;
     }
   } catch (err) {
-    console.warn("[vin-history] VehicleDatabases threw:", err instanceof Error ? err.message : err);
+    console.warn("[vin-history] VehicleDatabases /title-check threw:", err instanceof Error ? err.message : err);
   }
 
-  console.warn(`[vin-history] all providers failed for VIN ${vinUpper}`);
+  console.warn(`[vin-history] VehicleDatabases unavailable for VIN ${vinUpper}`);
   return {
     success: false,
-    error: "VIN history unavailable — all providers failed or are not configured",
+    error: "Ownership history unavailable — VehicleDatabases did not return data for this VIN",
     providers_attempted: attempted,
   };
 }
