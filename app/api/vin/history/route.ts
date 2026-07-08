@@ -12,8 +12,12 @@ import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import { validateVin } from "@/lib/vin-service";
 import { getVinHistory } from "@/lib/vin-history-client";
 import { auctionHistory } from "@/lib/vehicledatabases-client";
+import { getSupabaseAdmin } from "@/lib/api-auth";
 
 export const maxDuration = 30;
+
+const PAID_STATUSES = new Set(["full", "paid_full_risk"]);
+
 interface SaleRecord {
   date?: string;
   price?: string;
@@ -39,6 +43,29 @@ export async function POST(request: Request) {
     const cleanVin = validateVin(vin);
     if (!cleanVin) {
       return NextResponse.json({ success: false, error: "Invalid VIN format" }, { status: 400 });
+    }
+
+    // Verify the receipt_token corresponds to a paid receipt
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      const { data: receipt } = await supabase
+        .from("receipts")
+        .select("generation_status, is_pro")
+        .eq("session_id", receipt_token)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const isPaid =
+        receipt?.is_pro === true ||
+        PAID_STATUSES.has(receipt?.generation_status ?? "");
+
+      if (!isPaid) {
+        return NextResponse.json(
+          { success: false, error: "Ownership history requires a paid report", code: "unpaid" },
+          { status: 403 }
+        );
+      }
     }
 
     const clientIP = getClientIP(request);
