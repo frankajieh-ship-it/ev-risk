@@ -237,15 +237,13 @@ export async function GET(request: NextRequest) {
       if (local.matched && local.urls.length > 0) {
         return NextResponse.json({ photo_urls: local.urls, source: "offo_local" }, { headers: noStoreHeaders });
       }
-      // 2. Static Wikimedia map
+      // 2. Static Wikimedia map (model-specific only — no make-level fallback)
+      // Make-level fallback (MAKE_FALLBACK_MAP) is intentionally skipped here:
+      // showing the wrong car (e.g. Mach-E for any Ford) is worse than showing
+      // a silhouette. Add a CSV entry to fix a missing vehicle instead.
       const staticUrl = getStaticPhotoUrl(make, rawModel, year ?? undefined);
-      if (staticUrl) {
+      if (staticUrl && !staticUrl.includes(MAKE_FALLBACK_MAP[make.toLowerCase()] ?? "__never__")) {
         return NextResponse.json({ photo_urls: [proxyIfWikimedia(staticUrl)], source: "static" }, { headers: noStoreHeaders });
-      }
-      // 3. Make-level fallback
-      const makeFallbackUrl = MAKE_FALLBACK_MAP[make.toLowerCase()];
-      if (makeFallbackUrl) {
-        return NextResponse.json({ photo_urls: [proxyIfWikimedia(makeFallbackUrl)], source: "make_fallback" }, { headers: noStoreHeaders });
       }
     }
     return NextResponse.json({ photo_urls: [], source: "none" }, { headers: noStoreHeaders });

@@ -44,25 +44,28 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Query failed" }, { status: 500 });
   }
 
-  // Enrich photo_url the same way /api/deals does — vehicle-images.csv first,
-  // then DB fallback if it's already a local path, reject external URLs.
   const deals = (data ?? []).map((d) => {
-    let photoUrl: string | null = d.photo_url ?? null;
+    let photoUrl: string | null = null;
+    let csvMatched = false;
     if (d.make && d.model) {
       const local = lookupLocalImages(d.make, d.model, d.year ?? undefined);
+      csvMatched = local.matched;
       if (local.matched && local.urls.length > 0) {
         const url = local.urls[0];
         photoUrl = url.includes("upload.wikimedia.org")
           ? `/api/img?url=${encodeURIComponent(url)}`
           : url;
-      } else if (photoUrl && photoUrl.startsWith("/")) {
-        // keep as-is
-      } else {
-        photoUrl = null;
       }
     }
-    return { ...d, photo_url: photoUrl };
+    return { ...d, photo_url: photoUrl, csv_matched: csvMatched };
   });
 
-  return NextResponse.json({ deals });
+  // Summary of unmatched vehicles — useful for finding missing CSV entries
+  const unmatched = deals
+    .filter((d) => !d.csv_matched && d.is_active)
+    .map((d) => ({ make: d.make, model: d.model, year: d.year, vehicle_label: d.vehicle_label }))
+    .filter((v, i, arr) => arr.findIndex((x) => x.make === v.make && x.model === v.model) === i)
+    .sort((a, b) => (a.make ?? "").localeCompare(b.make ?? ""));
+
+  return NextResponse.json({ deals, unmatched_vehicles: unmatched });
 }
