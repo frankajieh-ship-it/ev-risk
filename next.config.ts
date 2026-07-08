@@ -7,9 +7,6 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       // Wikimedia Commons — static fallback photos
       { protocol: "https", hostname: "upload.wikimedia.org" },
-      // VinAudit stock images
-      { protocol: "https", hostname: "api.vinaudit.com" },
-      { protocol: "https", hostname: "*.vinaudit.com" },
       // Auto.dev
       { protocol: "https", hostname: "auto.dev" },
       { protocol: "https", hostname: "*.auto.dev" },

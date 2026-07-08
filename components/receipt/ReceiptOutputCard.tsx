@@ -76,7 +76,7 @@ interface ReceiptOutputCardProps {
   onPhotosFailed?: () => void;
   onAddPhotos?: (dataUrls: string[]) => void;
   serverRecalls?: import("@/lib/nhtsa-recalls").RecallResult | null;
-  vinHistory?: import("@/lib/vinaudit-client").VinAuditLiteResult | null;
+  vinHistory?: import("@/components/receipt/OwnershipHistoryCard").HistoryResult | null;
   emailUnlocked?: boolean;
   emailCaptured?: boolean;
   onEmailGateOpen?: () => void;

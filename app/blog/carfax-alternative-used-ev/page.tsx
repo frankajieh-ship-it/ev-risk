@@ -162,7 +162,7 @@ export default function CarfaxAlternativeUsedEvPage() {
               <div>
                 <p className="text-white font-medium mb-1">VIN Extraction &amp; Audit</p>
                 <p className="text-white/50 text-sm leading-relaxed">
-                  OFFO pulls the VIN from the listing and runs it through VinAudit (accident history,
+                  OFFO pulls the VIN from the listing and cross-checks it against NMVTIS (accident history,
                   salvage records, theft reports) and the NHTSA database (official decode, open recalls).
                   This is the same underlying data as a paid report — just not wrapped in a $45 PDF.
                 </p>

@@ -12,7 +12,13 @@ import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import { validateVin } from "@/lib/vin-service";
 import { getVinHistory } from "@/lib/vin-history-client";
 import { auctionHistory } from "@/lib/vehicledatabases-client";
-import type { VinAuditSaleRecord } from "@/lib/vinaudit-client";
+interface SaleRecord {
+  date?: string;
+  price?: string;
+  odometer?: string;
+  seller?: string;
+  owner_type?: "dealer" | "fleet_rental" | "private" | "unknown";
+}
 
 const historyRateLimiter = new RateLimiter(10 * 60 * 1000, 10);
 
@@ -61,7 +67,7 @@ export async function POST(request: Request) {
     }
 
     // Merge auction records as sale records
-    const auctionSales: VinAuditSaleRecord[] = (auctionResult?.success ? auctionResult.records : []).map((r) => ({
+    const auctionSales: SaleRecord[] = (auctionResult?.success ? auctionResult.records : []).map((r) => ({
       date: r.auction_date,
       price: r.price.replace(/[^0-9.]/g, "") || undefined,
       odometer: r.odometer.replace(/[^0-9]/g, "") || undefined,
@@ -70,7 +76,7 @@ export async function POST(request: Request) {
     }));
 
     // Fleet/rental pattern: 2+ consecutive sales each < 90 days apart
-    function detectFleetPattern(records: VinAuditSaleRecord[]): boolean {
+    function detectFleetPattern(records: SaleRecord[]): boolean {
       if (records.length < 2) return false;
       const dates = records
         .map((r) => (r.date ? new Date(r.date).getTime() : NaN))

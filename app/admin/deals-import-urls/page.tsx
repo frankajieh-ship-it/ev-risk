@@ -160,7 +160,7 @@ export default function DealsImportUrlsPage() {
         <p>1. Each URL is fetched and vehicle data extracted (year, make, model, price, mileage, location, VIN)</p>
         <p>2. Signals are inferred from the listing (VIN present, title status, mileage, DCFC, etc.)</p>
         <p>3. OFFO deterministic scoring runs — generates verdict (GREEN/YELLOW/RED), fit score, evidence score, risk flags</p>
-        <p>4. Deal photo is auto-fetched from VinAudit/Auto.dev</p>
+        <p>4. Deal photo is auto-fetched from local CSV or Auto.dev</p>
         <p>5. Deal is upserted into <code className="bg-white/[0.06] px-1 rounded">curated_deals</code> and immediately visible on <code className="bg-white/[0.06] px-1 rounded">/deals</code></p>
       </div>
 

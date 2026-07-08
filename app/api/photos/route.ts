@@ -216,7 +216,7 @@ export async function GET(request: NextRequest) {
   const rawModel = p.get("model") || undefined;
   const year = p.get("year") ? Number(p.get("year")) : undefined;
   const skipStatic = p.get("skip_static") === "1";
-  // no_market=1: skip Auto.dev listing photos at the end (but still serve static/VinAudit stock).
+  // no_market=1: skip Auto.dev listing photos (serve local CSV / Wikimedia only).
   // Use this on generic vehicle cards where wrong-car listing photos are undesirable.
   const noMarket = p.get("no_market") === "1";
 
@@ -250,7 +250,7 @@ export async function GET(request: NextRequest) {
   }
 
   // 0b. OFFO image extractor — local CSV (Tier 0) or Supabase cache hit
-  // Only serve cache hits whose URLs come from known-safe sources (Wikimedia, VinAudit, /api/img proxy).
+  // Only serve cache hits whose URLs come from known-safe sources (Wikimedia, /api/img proxy).
   // Listing CDN URLs cached from marketplace sources can be wrong-car photos — silently bypass them.
   if (make && rawModel && year) {
     try {

@@ -22,7 +22,7 @@ const LOCKED_SECTIONS = [
   {
     icon: Shield,
     label: "Title, accident & NMVTIS history",
-    detail: "Cross-checked against NHTSA + VinAudit salvage, theft, and accident records.",
+    detail: "Cross-checked against NHTSA + NMVTIS salvage, theft, and accident records.",
   },
   {
     icon: TrendingDown,

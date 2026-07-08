@@ -4,7 +4,7 @@
  * VehicleFactsBar — compact inline row of key vehicle facts
  *
  * Always shown in free tier, below the verdict banner.
- * Surfaces: title status, accident history, theft/salvage (VinAudit),
+ * Surfaces: title status, accident history, theft/salvage (VehicleDatabases),
  * NHTSA recalls, and battery health estimate (EVs).
  */
 
@@ -19,7 +19,7 @@ interface VehicleFactsBarProps {
   paymentsEnabled?: boolean;
   onPaywallClick?: () => void;
   serverRecalls?: import("@/lib/nhtsa-recalls").RecallResult | null;
-  vinHistory?: import("@/lib/vinaudit-client").VinAuditLiteResult | null;
+  vinHistory?: import("@/components/receipt/OwnershipHistoryCard").HistoryResult | null;
 }
 
 

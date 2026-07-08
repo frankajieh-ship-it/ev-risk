@@ -97,7 +97,7 @@ export default function ReceiptSummaryCard({
   const { trackEvent } = useEventTracking();
   const retryCountRef = useRef(0);
 
-  const [vinAuditClean, setVinAuditClean] = useState<boolean | null>(null);
+  const [historyClean, setHistoryClean] = useState<boolean | null>(null);
   useEffect(() => {
     if (!vin || !isUnlocked) return;
     const token = getOrCreateReceiptToken();
@@ -111,7 +111,7 @@ export default function ReceiptSummaryCard({
       .then((data) => {
         if (data.success && data.summary) {
           const clean = data.summary.accident_count === 0 && !data.summary.theft_reported;
-          setVinAuditClean(clean);
+          setHistoryClean(clean);
         }
       })
       .catch(() => {});
@@ -423,7 +423,7 @@ export default function ReceiptSummaryCard({
         </div>
       )}
 
-      {vinAuditClean === true && (
+      {historyClean === true && (
         <div className="px-5 py-2.5 border-t border-white/[0.05] flex items-center gap-1.5">
           <CheckCircle className="w-3 h-3 text-green-400/70 shrink-0" />
           <p className="text-[11px] text-green-400/70 leading-relaxed">

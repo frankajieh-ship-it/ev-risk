@@ -37,7 +37,7 @@ function mergeSignals(aiSignals: string[], structured: string[]): string[] {
     // VIN conflicts
     if (s === "vin_decoded") merged.delete("vin_missing");
     if (s === "vin_missing") merged.delete("vin_decoded");
-    // DCFC: if VinAudit/NHTSA confirms DCFC present, remove AI's hard-blocker assumption
+    // DCFC: if NHTSA confirms DCFC present, remove AI's hard-blocker assumption
     if (s === "dcfc_confirmed") {
       merged.delete("dcfc_required_but_absent");
       merged.delete("no_dcfc_support");
@@ -114,7 +114,7 @@ export async function runRescore(since?: string) {
         // Map battery_report/service_records DB columns to ScrapedListing fields
         // AI prompt will receive these so signals can be accurate
       };
-      // Pre-seed signals from structured data (CSV columns + VinAudit extracted_signals)
+      // Pre-seed signals from structured data (CSV columns + extracted_signals)
       const structuredSignals: string[] = [];
       const batteryReport = row.battery_report as string | null;
       const serviceRecords = row.service_records as string | null;
@@ -122,13 +122,13 @@ export async function runRescore(since?: string) {
       else if (batteryReport === "no") structuredSignals.push("battery_proof_missing");
       if (serviceRecords === "yes") structuredSignals.push("service_records_shown");
       else if (serviceRecords === "no") structuredSignals.push("service_records_missing");
-      // Merge pre-computed VinAudit + NHTSA signals (deterministic facts, highest priority)
+      // Merge pre-computed title check + NHTSA signals (deterministic facts, highest priority)
       const extractedSignals = (row.extracted_signals as string[] | null) ?? [];
       const allStructured = [...structuredSignals, ...extractedSignals];
 
       // AI scoring (falls back to deterministic if AI fails)
       const aiResult = await scoreWithAi(row.listing_url as string | undefined, d);
-      // Structured facts override AI assumptions — VinAudit/NHTSA signals are ground truth
+      // Structured facts override AI assumptions — title/NHTSA signals are ground truth
       const aiSignals = aiResult.signals.length > 0 ? aiResult.signals : inferSignalsFromListing(d);
       const mergedSignals = mergeSignals(aiSignals, allStructured);
       const signals = mergedSignals;

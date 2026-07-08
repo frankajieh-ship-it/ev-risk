@@ -201,17 +201,17 @@ export async function POST(
         } catch { /* non-critical */ }
       }
 
-      // Fetch VinAudit NMVTIS data server-side so summary generation has real accident/theft data
+      // Fetch VehicleDatabases title check so summary generation has real salvage data
       let vinAuditSummary: { accident_count: number; theft_reported: boolean; salvage_reported: boolean } | null = null;
       if (vin) {
         try {
-          const { liteCheck } = await import("@/lib/vinaudit-client");
-          const vaResult = await liteCheck(vin);
-          if (vaResult.success && vaResult.summary) {
+          const { titleCheck } = await import("@/lib/vehicledatabases-client");
+          const tcResult = await titleCheck(vin);
+          if (tcResult.success) {
             vinAuditSummary = {
-              accident_count: vaResult.summary.accident_count ?? 0,
-              theft_reported: vaResult.summary.theft_reported ?? false,
-              salvage_reported: vaResult.summary.salvage_reported ?? false,
+              accident_count: 0,
+              theft_reported: false,
+              salvage_reported: tcResult.salvage,
             };
           }
         } catch { /* non-critical — fall back to listing-scraped data */ }

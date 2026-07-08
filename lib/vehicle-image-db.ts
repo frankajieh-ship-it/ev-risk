@@ -2,8 +2,7 @@
  * OFFO Local Vehicle Image Database
  *
  * Reads data/vehicle-images.csv and provides fast O(1) lookup.
- * This is Tier 0 in the image extraction chain — checked before VinAudit
- * and all external APIs. You own the data; edit the CSV to add images.
+ * This is Tier 0 in the image extraction chain — checked before all external APIs. You own the data; edit the CSV to add images.
  *
  * CSV format:
  *   make, model, year_from, year_to, image_url, priority, notes

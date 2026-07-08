@@ -12,7 +12,21 @@ import {
   ChevronUp,
   RefreshCw,
 } from "lucide-react";
-import type { VinAuditLiteResult } from "@/lib/vinaudit-client";
+export interface HistoryResult {
+  success: boolean;
+  summary: {
+    theft_reported: boolean;
+    salvage_reported: boolean;
+    accident_count: number;
+    sale_count: number;
+    owner_type_breakdown?: { dealer: number; fleet_rental: number; private: number; unknown: number };
+    possible_fleet_history?: boolean;
+  };
+  theft: Array<{ date?: string; status?: string }>;
+  salvage: Array<{ date?: string; source?: string; disposition?: string }>;
+  accidents: Array<{ date?: string; severity?: string; airbags_deployed?: string; damage_description?: string; source?: string }>;
+  sales: Array<{ date?: string; price?: string; odometer?: string; seller?: string; owner_type?: "dealer" | "fleet_rental" | "private" | "unknown" }>;
+}
 
 interface OwnershipHistoryCardProps {
   vin: string;
@@ -21,7 +35,7 @@ interface OwnershipHistoryCardProps {
   paymentsEnabled: boolean;
   onPaywallClick?: () => void;
   trackEvent: (name: string, data?: Record<string, unknown>) => void;
-  onHistoryLoaded?: (result: VinAuditLiteResult) => void;
+  onHistoryLoaded?: (result: HistoryResult) => void;
 }
 
 type FetchState = "idle" | "loading" | "done" | "error";
@@ -37,7 +51,7 @@ export default function OwnershipHistoryCard({
 }: OwnershipHistoryCardProps) {
   const [fetchState, setFetchState] = useState<FetchState>("idle");
   const fetchStateRef = useRef<FetchState>("idle");
-  const [result, setResult] = useState<VinAuditLiteResult | null>(null);
+  const [result, setResult] = useState<HistoryResult | null>(null);
   const [accidentsOpen, setAccidentsOpen] = useState(false);
   const [salesOpen, setSalesOpen] = useState(false);
 
@@ -67,7 +81,7 @@ export default function OwnershipHistoryCard({
         return;
       }
 
-      const historyResult = data as VinAuditLiteResult;
+      const historyResult = data as HistoryResult;
       setResult(historyResult);
       setFetchStateSync("done");
       onHistoryLoaded?.(historyResult);
@@ -328,7 +342,7 @@ export default function OwnershipHistoryCard({
           </div>
         )}
 
-        <p className="text-xs text-white/20">Data sourced from NMVTIS via VinAudit. Records may not capture all incidents.</p>
+        <p className="text-xs text-white/20">Data sourced from NMVTIS via VehicleDatabases. Records may not capture all incidents.</p>
       </div>
     </div>
   );

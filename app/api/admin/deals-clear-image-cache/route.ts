@@ -4,7 +4,7 @@
  * Deletes all rows from vehicle_images where the cached URL is from a
  * marketplace listing CDN (CarGurus, CarMax, Auto.dev, etc.) rather than
  * a reliable stock image source. This forces the next /api/photos call to
- * re-derive from the static Wikimedia map or VinAudit instead.
+ * re-derive from the local CSV or Wikimedia static map instead.
  *
  * Protected by ADMIN_API_KEY bearer token.
  */

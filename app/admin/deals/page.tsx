@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { RefreshCw, ArrowUpDown, ExternalLink, Upload, Download, Link2 } from "lucide-react";
 import Link from "next/link";
 
-interface VinAuditSummary {
+interface VinHistorySummary {
   salvage: boolean;
   theft: boolean;
   accident_count: number;
@@ -25,7 +25,7 @@ interface DealRow {
   title_status: "clean" | "salvage" | "rebuilt" | "unknown" | null;
   battery_report: "yes" | "no" | null;
   service_records: "yes" | "no" | null;
-  vin_audit_summary: VinAuditSummary | null;
+  vin_audit_summary: VinHistorySummary | null;
   extracted_signals: string[] | null;
   receipt_id: string | null;
   last_analyzed_at: string | null;
@@ -237,7 +237,7 @@ export default function AdminDealsPage() {
 
   const handleClearImageCache = async () => {
     if (!adminKey) { alert("Enter your admin API key first"); return; }
-    if (!confirm("Delete all marketplace CDN entries from the vehicle_images cache? This forces /deals to re-derive photos from Wikimedia/VinAudit instead of stale CarGurus/CarMax URLs.")) return;
+    if (!confirm("Delete all marketplace CDN entries from the vehicle_images cache? This forces /deals to re-derive photos from local CSV / Wikimedia instead of stale CarGurus/CarMax URLs.")) return;
     setClearingImageCache(true);
     setImportStatus("Clearing stale image cache...");
     try {

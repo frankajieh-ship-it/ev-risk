@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   if (!supabase) return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
 
   // Clear ALL photo_url values for non-dealer marketplace rows.
-  // This forces a clean refetch via the correct pipeline (Wikimedia static map → VinAudit → etc).
+  // This forces a clean refetch via the correct pipeline (local CSV → Wikimedia static map).
   // Dealer rows (dealership_id IS NOT NULL) keep their own uploaded photos.
   const { data, error } = await supabase
     .from("curated_deals")

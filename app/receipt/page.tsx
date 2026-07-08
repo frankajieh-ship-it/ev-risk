@@ -421,7 +421,7 @@ export default function ReceiptPage() {
   // immediately on mount, so CDN expiry is not a concern.
   const [listingPhotos, setListingPhotos] = useState<string[]>([]);
   const [serverRecalls, setServerRecalls] = useState<import("@/lib/nhtsa-recalls").RecallResult | null>(null);
-  const [vinHistory, setVinHistory] = useState<import("@/lib/vinaudit-client").VinAuditLiteResult | null>(null);
+  const [vinHistory, setVinHistory] = useState<import("@/components/receipt/OwnershipHistoryCard").HistoryResult | null>(null);
 
   // Reset photos and recalls when receipt is cleared (new submission starting)
   useEffect(() => {

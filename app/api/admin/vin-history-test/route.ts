@@ -1,13 +1,13 @@
 /**
  * GET /api/admin/vin-history-test?vin=XXX&key=ADMIN_API_KEY
  *
- * Hits all three VIN history providers with a raw call and returns
- * the full response from each. Used to verify credentials and inspect
- * response shapes before finalizing mappers. Local dev only.
+ * Hits VehicleDatabases with a raw call and returns the full response.
+ * Used to verify credentials and inspect response shapes. Local dev only.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getVinHistory } from "@/lib/vin-history-client";
+import { titleCheck, auctionHistory } from "@/lib/vehicledatabases-client";
 
 export const maxDuration = 30;
 
@@ -39,46 +39,31 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Provide a 17-character VIN via ?vin=" }, { status: 400 });
   }
 
-  const [vinaudit, carsxe, vehicledb] = await Promise.all([
-    // VinAudit Lite Check
-    (async () => {
-      const k = process.env.VINAUDIT_KEY;
-      const u = process.env.VINAUDIT_USER;
-      const p = process.env.VINAUDIT_PASS;
-      if (!k || !u || !p) return { configured: false };
-      const url = `https://api.vinaudit.com/v2/pullreport?format=json&key=${k}&user=${encodeURIComponent(u)}&pass=${encodeURIComponent(p)}&mode=lite&vin=${vin}`;
-      return { configured: true, ...(await fetchWithTimeout(url, {}, 12000)) };
-    })(),
+  const vdKey = process.env.VEHICLEDATABASES_API_KEY;
 
-    // CarsXE Vehicle History
-    (async () => {
-      const k = process.env.Cars_XE;
-      if (!k) return { configured: false };
-      const url = `https://api.carsxe.com/history?key=${k}&vin=${vin}`;
-      return { configured: true, ...(await fetchWithTimeout(url, {}, 12000)) };
-    })(),
+  const [vehicleHistory, titleRaw, auctionRaw, normalized] = await Promise.all([
+    // VehicleDatabases /vehicle-history (full — may be 401 on current plan)
+    vdKey
+      ? fetchWithTimeout(`https://api.vehicledatabases.com/vehicle-history/${vin}`, { headers: { "x-authkey": vdKey } }, 15000)
+      : Promise.resolve({ configured: false, ok: false, status: 0, body: null }),
 
-    // VehicleDatabases Vehicle History — try both auth styles
-    (async () => {
-      const k = process.env.Vehicle_database;
-      if (!k) return { configured: false };
-      // Try query param style first
-      const url = `https://api.vehicledatabases.com/vehicle-history/${vin}?x-api-key=${k}`;
-      const r1 = await fetchWithTimeout(url, {}, 12000);
-      if (r1.ok) return { configured: true, auth_style: "query_param", ...r1 };
-      // Fall back to header style
-      const url2 = `https://api.vehicledatabases.com/vehicle-history/${vin}`;
-      const r2 = await fetchWithTimeout(url2, { headers: { "x-api-key": k, "Ocp-Apim-Subscription-Key": k } }, 12000);
-      return { configured: true, auth_style: "header", ...r2 };
-    })(),
+    // VehicleDatabases /title-check (active on current plan)
+    titleCheck(vin),
+
+    // VehicleDatabases /auction (active on current plan)
+    auctionHistory(vin),
+
+    // Normalized waterfall result
+    getVinHistory(vin).catch((e) => ({ success: false as const, error: String(e), providers_attempted: [] })),
   ]);
-
-  // Also run the normalized waterfall so we can see the mapped output
-  const normalized = await getVinHistory(vin).catch((e) => ({ success: false as const, error: String(e), providers_attempted: [] }));
 
   return NextResponse.json({
     vin,
     normalized,
-    providers: { vinaudit, carsxe, vehicledb },
+    raw: {
+      vehicle_history: vehicleHistory,
+      title_check: titleRaw,
+      auction: auctionRaw,
+    },
   });
 }

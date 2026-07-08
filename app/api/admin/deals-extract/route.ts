@@ -9,7 +9,7 @@
  *   from the raw text. Skips rows that already have a VIN.
  *
  * Pass 2 — VIN lookup (for all rows that now have a VIN):
- *   Calls VinAudit liteCheck to get salvage/theft/accident history.
+ *   Calls VehicleDatabases titleCheck to get salvage flag.
  *   Calls NHTSA decodeVin for fuel type, year/make/model.
  *   Calls NHTSA recalls API for open recall count.
  *   Stores vin_audit_summary (JSONB) and extracted_signals (TEXT[]) for use in rescore.
@@ -24,7 +24,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { extractVehicleData } from "@/lib/listing-scraper";
-import { liteCheck } from "@/lib/vinaudit-client";
+import { titleCheck } from "@/lib/vehicledatabases-client";
 import { validateVin, decodeVin } from "@/lib/vin-service";
 
 export const maxDuration = 60;
@@ -204,33 +204,26 @@ async function runExtract(since?: string) {
       // Always mark VIN as decoded
       extractedSignals.push("vin_decoded");
 
-      // VinAudit lite check — title status, salvage/theft, accident/sale counts
-      const vaResult = await liteCheck(cleanVin);
-      if (vaResult.success) {
-        const isSalvage = vaResult.summary.salvage_reported || vaResult.summary.theft_reported;
+      // Title check via VehicleDatabases — salvage flag only
+      const titleResult = await titleCheck(cleanVin);
+      if (titleResult.success) {
+        const isSalvage = titleResult.salvage;
         update.title_status = isSalvage ? "salvage" : "clean";
         update.vin_audit_summary = {
-          salvage: vaResult.summary.salvage_reported,
-          theft: vaResult.summary.theft_reported,
-          accident_count: vaResult.summary.accident_count,
-          sale_count: vaResult.summary.sale_count,
+          salvage: isSalvage,
+          theft: false,
+          accident_count: 0,
+          sale_count: 0,
         };
         if (isSalvage) {
           extractedSignals.push("title_salvage");
         } else {
           extractedSignals.push("clean_title_explicit");
-        }
-        if (vaResult.summary.accident_count > 0) {
-          extractedSignals.push("prior_damage_minor");
-        }
-        if (vaResult.summary.sale_count >= 3) {
-          extractedSignals.push("ownership_turnover_high");
-        } else if (!isSalvage) {
           extractedSignals.push("ownership_history_clear");
         }
-        console.log(`[deals-extract] VinAudit ${cleanVin}: salvage=${vaResult.summary.salvage_reported}, accidents=${vaResult.summary.accident_count}, sales=${vaResult.summary.sale_count}`);
+        console.log(`[deals-extract] titleCheck ${cleanVin}: salvage=${isSalvage}`);
       } else {
-        console.warn(`[deals-extract] VinAudit failed for ${cleanVin}: ${vaResult.error}`);
+        console.warn(`[deals-extract] titleCheck failed for ${cleanVin}: ${titleResult.error}`);
       }
 
       // NHTSA decode — fill in any missing year/make/model/trim; check fuel type

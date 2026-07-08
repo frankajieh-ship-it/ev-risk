@@ -191,22 +191,6 @@ async function fetchVinData(vin: string): Promise<Record<string, unknown>> {
     }
   }
 
-  // VINaudit
-  if (process.env.VINAUDIT_API_KEY) {
-    try {
-      const ac = new AbortController();
-      const id = setTimeout(() => ac.abort(), timeout);
-      const res = await fetch(
-        `https://api.vinaudit.com/query.php?key=${process.env.VINAUDIT_API_KEY}&vin=${vin}&format=json`,
-        { signal: ac.signal }
-      );
-      clearTimeout(id);
-      if (res.ok) data.vinaudit = await res.json();
-    } catch {
-      // ignore
-    }
-  }
-
   vinCache.set(vin, { data, expiresAt: Date.now() + 24 * 60 * 60 * 1000 });
   return data;
 }

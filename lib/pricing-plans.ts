@@ -14,7 +14,7 @@ export const PRICING_PLANS = {
     billing_type: "one_time" as const,
     features: [
       "Full risk breakdown",
-      "Ownership & accident history (VinAudit)",
+      "Ownership & accident history (NMVTIS)",
       "Theft & salvage record check",
       "Negotiation script",
       "Checklist",

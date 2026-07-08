@@ -23,7 +23,7 @@ import { getStaticPhotoUrl } from "@/lib/vehicle-photo";
 import { lookupLocalImages } from "@/lib/vehicle-image-db";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/api-auth";
-import { liteCheck } from "@/lib/vinaudit-client";
+import { titleCheck } from "@/lib/vehicledatabases-client";
 import type { FetchedListingFields } from "@/types/receipt";
 import type { FieldConfidence } from "@/types/receipt";
 import { logApi, startTimer } from "@/lib/api-logger";
@@ -348,14 +348,13 @@ export async function POST(request: NextRequest) {
           if (staticUrl) photoUrls.push(staticUrl);
         }
 
-        // VIN history lookup — run in parallel, non-fatal if it fails
+        // VIN title check — non-fatal if it fails
         let titleStatus: FetchedListingFields["title_status"] = undefined;
-        let accidentsReported: FetchedListingFields["accidents_reported"] = undefined;
+        const accidentsReported: FetchedListingFields["accidents_reported"] = undefined;
         if (inv.vin) {
-          const vinResult = await liteCheck(inv.vin).catch(() => null);
+          const vinResult = await titleCheck(inv.vin).catch(() => null);
           if (vinResult?.success) {
-            titleStatus = vinResult.summary.salvage_reported ? "salvage" : "clean";
-            accidentsReported = vinResult.summary.accident_count > 0 ? "yes" : "no";
+            titleStatus = vinResult.salvage ? "salvage" : "clean";
           }
         }
 
