@@ -1,4 +1,3 @@
-"use server";
 /**
  * POST /api/vin/history
  *
