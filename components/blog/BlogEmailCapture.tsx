@@ -1,3 +1,5 @@
+"use client";
+
 import EmailCaptureBar from "@/components/landing/EmailCaptureBar";
 
 interface BlogEmailCaptureProps {
