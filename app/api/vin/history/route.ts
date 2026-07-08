@@ -3,8 +3,8 @@
  * POST /api/vin/history
  *
  * Fetches VIN ownership history via VehicleDatabases.
- * No in-process cache — VehicleDatabases responses are fast enough
- * and caching stale failure results was causing cards to disappear.
+ * No in-process cache — caching stale failure results was causing cards to disappear.
+ * VehicleDatabases /title-check can take 8-20s; maxDuration=30 ensures it completes.
  */
 
 import { NextResponse } from "next/server";
@@ -12,6 +12,8 @@ import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import { validateVin } from "@/lib/vin-service";
 import { getVinHistory } from "@/lib/vin-history-client";
 import { auctionHistory } from "@/lib/vehicledatabases-client";
+
+export const maxDuration = 30;
 interface SaleRecord {
   date?: string;
   price?: string;

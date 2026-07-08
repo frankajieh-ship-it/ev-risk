@@ -50,7 +50,7 @@ export async function titleCheck(vin: string): Promise<TitleCheckResult | TitleC
   try {
     res = await fetch(`${BASE}/title-check/${vin.toUpperCase()}`, {
       headers: authHeaders(),
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(25000),
     });
   } catch (err) {
     const isAbort = err instanceof DOMException && err.name === "AbortError";
