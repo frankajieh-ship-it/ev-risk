@@ -76,6 +76,11 @@ export default function OwnershipHistoryCard({
       const data = await res.json();
 
       if (!res.ok || !data.success) {
+        // 403 unpaid = server confirmed not paid — show paywall, not error
+        if (res.status === 403 && data.code === "unpaid") {
+          setFetchStateSync("idle");
+          return;
+        }
         setFetchStateSync("error");
         trackEvent("ownership_history_failed", { vin, error: data.error });
         return;
