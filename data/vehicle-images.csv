@@ -156,6 +156,8 @@ Dodge,Charger Daytona,2024,9999,https://upload.wikimedia.org/wikipedia/commons/t
 Jeep,Wagoneer S,2024,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/25_Jeep_Wagoneer_S_Limited_%28cropped%29.jpg/960px-25_Jeep_Wagoneer_S_Limited_%28cropped%29.jpg,1,wikimedia fallback
 Honda,Prologue,2024,9999,https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/2024_Honda_Prologue_Touring%2C_front_7.11.25.jpg/960px-2024_Honda_Prologue_Touring%2C_front_7.11.25.jpg,1,wikimedia fallback
 Cadillac,VISTIQ,2026,9999,/vehicles/2026-cadillac-visiq-sport.webp,10,local
+Cadillac,VISTIQ Sport,2026,9999,/vehicles/2026-cadillac-visiq-sport.webp,10,DB trim alias
+Cadillac,VISTIQ Sport AWD,2026,9999,/vehicles/2026-cadillac-visiq-sport.webp,10,DB trim alias
 GMC,Hummer EV Pickup,2024,9999,/vehicles/2024-gmc-hummer-ev.webp,10,local
 Smart,ForTwo Electric,2015,9999,/vehicles/2018-smart-for-two-electric-drive.jpg,10,local
 Chevrolet,Spark EV,2014,2016,/vehicles/2016-chevrolet-spark-ev.webp,10,local
@@ -172,7 +174,13 @@ Hyundai,NEXO Limited,2019,9999,/vehicles/2021-hyundai-nexo-limited.jpg,10,DB tri
 Subaru,Solterra,2022,9999,/vehicles/2023-subaru-solterra.jpg,10,local
 Subaru,Solterra Limited,2022,9999,/vehicles/2023-subaru-solterra.jpg,10,DB trim alias
 Chevrolet,Silverado EV,2024,9999,/vehicles/2025-chevrolet-silverado-ev-lt.jpg,10,local
+Chevrolet,Silverado EV LT,2024,9999,/vehicles/2025-chevrolet-silverado-ev-lt.jpg,10,DB trim alias
+Chevrolet,Silverado EV LT Crew Cab,2024,9999,/vehicles/2025-chevrolet-silverado-ev-lt.jpg,10,DB trim alias
+Chevrolet,Silverado EV LT Crew Cab e4WD,2025,9999,/vehicles/2025-chevrolet-silverado-ev-lt.jpg,10,DB trim alias
 Chevloret,Silverado EV,2024,9999,/vehicles/2025-chevrolet-silverado-ev-lt.jpg,10,typo alias from DB
+Chevloret,Silverado EV LT,2024,9999,/vehicles/2025-chevrolet-silverado-ev-lt.jpg,10,typo alias from DB
+Chevloret,Silverado EV LT Crew Cab,2024,9999,/vehicles/2025-chevrolet-silverado-ev-lt.jpg,10,typo alias from DB
+Chevloret,Silverado EV LT Crew Cab e4WD,2025,9999,/vehicles/2025-chevrolet-silverado-ev-lt.jpg,10,typo alias from DB
 Ford,Mustang Mach-E,2021,9999,/vehicles/2021-ford-mustang-mach-e.jpg,10,local
 Ford,Mustang,2021,9999,/vehicles/2021-ford-mustang-mach-e.jpg,10,DB model alias - Mustang in DB = Mach-E
 Ford,Mustang Mach-E Premium,2021,9999,/vehicles/2021-ford-mustang-mach-e.jpg,10,DB trim alias
