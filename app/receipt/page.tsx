@@ -337,6 +337,7 @@ export default function ReceiptPage() {
     paymentsEnabled,
     freeMode,
     sellerPackUnlocked,
+    isLoading: isPaymentLoading,
     refetch: refetchPayment,
   } = usePaymentStatus("receipt", receipt?.receipt_id ?? null, receiptToken);
 
@@ -415,6 +416,10 @@ export default function ReceiptPage() {
   const [emailUnlocked, setEmailUnlocked] = useState(() =>
     typeof window !== "undefined" && localStorage.getItem("offo_email_captured") === "1"
   );
+  // Auto-unlock summary for first-time free users once payment status resolves
+  useEffect(() => {
+    if (isStarterUnlocked) setEmailUnlocked(true);
+  }, [isStarterUnlocked]);
 
   // Listing photos — seeded from scraped CDN URLs on extraction, then supplemented
   // by user drag-and-drop. PhotoDueDiligenceCard converts all URLs to resized base64
@@ -1159,6 +1164,7 @@ export default function ReceiptPage() {
                 isStarterUnlocked={isStarterUnlocked}
                 emailUnlocked={emailUnlocked}
                 paymentsEnabled={paymentsEnabled}
+                isPaymentLoading={isPaymentLoading}
                 onPaywallClick={() => handlePremiumAction("summary_card")}
                 onEmailCapture={() => {
                   setEmailUnlocked(true);

@@ -26,6 +26,7 @@ interface ReceiptSummaryCardProps {
   isStarterUnlocked?: boolean;
   emailUnlocked?: boolean;
   paymentsEnabled?: boolean;
+  isPaymentLoading?: boolean;
   onPaywallClick?: () => void;
   onEmailCapture?: () => void;
 }
@@ -91,6 +92,7 @@ export default function ReceiptSummaryCard({
   isStarterUnlocked = false,
   emailUnlocked = false,
   paymentsEnabled = false,
+  isPaymentLoading = false,
   onPaywallClick,
   onEmailCapture,
 }: ReceiptSummaryCardProps) {
@@ -279,7 +281,7 @@ export default function ReceiptSummaryCard({
   // Gate logic: email or any paid tier ($3.99+) unlocks the summary
   const showSummary = isStarterUnlocked || emailUnlocked;
 
-  if (paymentsEnabled && !showSummary) {
+  if (paymentsEnabled && !showSummary && !isPaymentLoading) {
     // Email gate — first step, free
     return (
       <div className={`rounded-xl border ${styles.border} ${styles.bg} overflow-hidden relative`}>
