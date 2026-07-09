@@ -144,6 +144,9 @@ export default function ReceiptPaywallCard({
               </>
             )}
           </button>
+          {isUpgrade && !error && (
+            <p className="text-white/30 text-xs text-center mt-3">Stripe will show $9.99 — your $3.99 Starter credit is applied at checkout.</p>
+          )}
           {error && (
             <p className="text-red-400 text-xs text-center mt-3">{error}</p>
           )}
