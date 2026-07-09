@@ -462,13 +462,20 @@ export default function ReceiptInputCard({
       try {
         data = await res.json();
       } catch {
-        // Netlify returned a non-JSON body (e.g. 504 HTML error page)
-        if (res.status === 504 || res.status === 502 || res.status >= 500) {
-          setExtractError({ message: "Server error — try again in a moment." });
-        } else {
-          setExtractError({ message: "Extraction timed out — fill in the details below." });
+        // Netlify returned a non-JSON body (e.g. 504/502 HTML error page or function timeout)
+        const _failUrl = urlOverride ?? listingUrl.trim();
+        if (pasteMode === "url" && _failUrl) {
+          if (lastFailedUrlRef.current !== _failUrl) {
+            lastFailedUrlRef.current = _failUrl;
+            extractFailCountRef.current = 1;
+          } else {
+            extractFailCountRef.current += 1;
+          }
         }
-        trackEvent?.("receipt_extract_failed", { reason: `non_json_${res.status}`, input_mode: pasteMode });
+        trackEvent?.("receipt_extract_failed", { reason: `non_json_${res.status}`, input_mode: pasteMode, fail_count: extractFailCountRef.current });
+        setPasteMode("text");
+        setExtractError({ message: "Auto-extraction failed — open the listing, select all the text (Ctrl+A), copy it, and paste below." });
+        setTimeout(() => textareaRef.current?.focus(), 100);
         return;
       }
 
@@ -489,7 +496,7 @@ export default function ReceiptInputCard({
         if (data.unsupported_domain) {
           setExtractError({ message: "Only CarGurus, AutoTrader, and Cars.com links are supported. For other sites, switch to the \"Paste Text\" tab and copy the listing details." });
           setPasteMode("text");
-        } else if (data.diagnostics?.botProtectionDetected) {
+        } else if (data.diagnostics?.botProtectionDetected || data.diagnostics?.failureReason === 'scrapingbee_timeout' || data.diagnostics?.failureReason === 'scrapingbee_threw') {
           if (data.diagnostics?.failureReason === 'credits_exhausted') {
             setExtractError({ message: "Auto-extraction is temporarily unavailable. Enter the details manually below." });
             setPasteMode("text");
