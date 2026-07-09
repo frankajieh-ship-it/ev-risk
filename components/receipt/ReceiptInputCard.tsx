@@ -184,6 +184,9 @@ export default function ReceiptInputCard({
   const autoRetryDoneRef = useRef(false);
   const lastAutoExtractedUrl = useRef<string | null>(null);
   const networkErrorCountRef = useRef(0);
+  // Track consecutive extract failures for the same URL — after 2, stop trying and force manual
+  const extractFailCountRef = useRef(0);
+  const lastFailedUrlRef = useRef<string | null>(null);
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const modelOptions = selectedMake && EV_CATALOG[selectedMake] ? EV_CATALOG[selectedMake] : [];
@@ -359,6 +362,11 @@ export default function ReceiptInputCard({
     }
     setShowCarGurusBanner(false);
     autoRetryDoneRef.current = false;
+    // New URL — reset failure tracking so it gets fresh extract attempts
+    if (cleanPasted !== lastFailedUrlRef.current) {
+      extractFailCountRef.current = 0;
+      lastFailedUrlRef.current = null;
+    }
     if (autoExtractTimerRef.current) clearTimeout(autoExtractTimerRef.current);
     autoExtractTimerRef.current = setTimeout(() => handleExtract(cleanPasted), 300);
   };
@@ -380,6 +388,21 @@ export default function ReceiptInputCard({
       setShowFbPasteModal(true);
       return;
     }
+    // After 2 consecutive failures on the same URL, stop burning ScrapingBee credits
+    // and force the user to manual/text mode instead
+    const currentUrl = urlOverride ?? listingUrl.trim();
+    if (
+      pasteMode === "url" &&
+      currentUrl &&
+      lastFailedUrlRef.current === currentUrl &&
+      extractFailCountRef.current >= 2
+    ) {
+      setPasteMode("text");
+      setExtractError({ message: "Auto-extraction failed twice for this URL. Open the listing, select all text (Ctrl+A), copy it, and paste below." });
+      setTimeout(() => textareaRef.current?.focus(), 100);
+      return;
+    }
+
     trackEvent?.("receipt_extract_clicked", { input_mode: pasteMode, anon_id: receiptToken });
     setIsExtracting(true);
     setExtractError(null);
@@ -453,7 +476,16 @@ export default function ReceiptInputCard({
         if (data.partial_fields) applyExtractedFields(data.partial_fields);
         const _activeUrl = urlOverride ?? listingUrl.trim();
         const _domain = (() => { try { return new URL(_activeUrl).hostname.replace(/^www\./, ""); } catch { return "unknown"; } })();
-        const _trackFail = (reason: string) => trackEvent?.("receipt_extract_failed", { reason, input_mode: pasteMode, anon_id: receiptToken, domain: _domain });
+        // Track consecutive failures per URL to gate further extract attempts
+        if (pasteMode === "url" && _activeUrl) {
+          if (lastFailedUrlRef.current !== _activeUrl) {
+            lastFailedUrlRef.current = _activeUrl;
+            extractFailCountRef.current = 1;
+          } else {
+            extractFailCountRef.current += 1;
+          }
+        }
+        const _trackFail = (reason: string) => trackEvent?.("receipt_extract_failed", { reason, input_mode: pasteMode, anon_id: receiptToken, domain: _domain, fail_count: extractFailCountRef.current });
         if (data.unsupported_domain) {
           setExtractError({ message: "Only CarGurus, AutoTrader, and Cars.com links are supported. For other sites, switch to the \"Paste Text\" tab and copy the listing details." });
           setPasteMode("text");
@@ -486,6 +518,11 @@ export default function ReceiptInputCard({
             setExtractError({ message: "Timed out — fill in the details below." });
             _trackFail("timeout");
           }
+        } else if (data.diagnostics?.failureReason === "session_extract_limit") {
+          setPasteMode("text");
+          setExtractError({ message: "Too many attempts on this URL. Open the listing, select all text (Ctrl+A), copy it, and paste below." });
+          setTimeout(() => textareaRef.current?.focus(), 100);
+          _trackFail("session_extract_limit");
         } else if (data.diagnostics?.failureReason === "listing_sold") {
           setExtractError({ message: "This listing has sold or been removed." });
           _trackFail("listing_sold");
@@ -519,6 +556,8 @@ export default function ReceiptInputCard({
       setDealerInfoExtracted(data.dealer_info ?? null);
       setInventoryIdExtracted(data.inventory_id ?? null);
       setExtractError(null);
+      extractFailCountRef.current = 0;
+      lastFailedUrlRef.current = null;
 
       // Auto-decode VIN when URL extraction got a VIN but missed make/model/year
       if (f.vin && (!f.make || !f.model || !f.year)) {

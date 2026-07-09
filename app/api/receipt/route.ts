@@ -180,7 +180,10 @@ export async function POST(request: NextRequest) {
   // 5. Turnstile + Auth + idempotency ALL in parallel (saves 2-4s)
   const forceRegenerate = body.force_regenerate === true;
   const accessToken = request.cookies.get("sb-access-token")?.value;
-  const serverSessionId = request.cookies.get("receipt_session")?.value;
+  // receipt_session: HttpOnly cookie that survives localStorage clears.
+  // If not yet set, generate one now — it gets written into Set-Cookie on the response.
+  const existingServerSession = request.cookies.get("receipt_session")?.value;
+  const serverSessionId = existingServerSession || `ss_${Date.now()}_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
   const ipHash = hashIP(clientIP);
 
   const inputHash = computeInputHash({
@@ -411,6 +414,7 @@ export async function POST(request: NextRequest) {
       price_drop_cents: priceDropCents,
       is_active: true,
       photo_urls: (body.photo_urls as string[] | undefined) ?? [],
+      server_session_id: serverSessionId,
     });
     if (insertErr) {
       console.error("[Receipt API] Lite DB insert failed:", insertErr.message, insertErr.code);
@@ -659,11 +663,25 @@ export async function POST(request: NextRequest) {
     persistTrace(trace);
   }
 
-  return NextResponse.json({
+  const responseJson = NextResponse.json({
     ...litePayload,
     recalls,
     has_active_recalls: recalls.length > 0,
   });
+
+  // Set HttpOnly receipt_session cookie — survives localStorage clears.
+  // Used as a second identity signal in the first-receipt-free check.
+  if (!existingServerSession) {
+    responseJson.cookies.set("receipt_session", serverSessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365, // 1 year
+      path: "/",
+    });
+  }
+
+  return responseJson;
   } catch (err) {
     // Failsafe: restore any credit consumed this request so the user is not charged
     if (creditDecrementedForToken) {

@@ -20,6 +20,13 @@ export const receiptBurstLimiter = new RateLimiter(
   isDev ? 100 : 5
 );
 
+// Per-session extract limiter: max 5 extraction attempts per session per 10 minutes.
+// Prevents a single user from hammering ScrapingBee on repeat failures.
+export const extractSessionLimiter = new RateLimiter(
+  10 * 60 * 1000, // 10-minute window
+  isDev ? 100 : 5
+);
+
 const FREE_DAILY_LIMIT = isDev ? 999 : 5;
 
 // In-memory fallback when Supabase is not configured

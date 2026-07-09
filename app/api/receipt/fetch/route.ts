@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { getClientIP } from "@/lib/rate-limiter";
-import { receiptBurstLimiter } from "@/lib/receipt-rate-limiter";
+import { receiptBurstLimiter, extractSessionLimiter } from "@/lib/receipt-rate-limiter";
 import { extractVehicleData } from "@/lib/listing-scraper";
 import { extractFieldsFromText } from "@/lib/text-extractor";
 import { enrichFromAutodev } from "@/lib/auto-dev-client";
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
   const elapsed = startTimer();
   const clientIP = getClientIP(request);
 
-  // Rate limit
+  // IP burst limit — coarse guard
   const burst = receiptBurstLimiter.check(clientIP);
   if (!burst.allowed) {
     return NextResponse.json(
@@ -155,6 +155,25 @@ export async function POST(request: NextRequest) {
 
   const url = body.url as string | undefined;
   const text = body.text as string | undefined;
+  const sessionId = (body.receipt_token as string) || null;
+  const extractSessionKey = sessionId || clientIP;
+
+  // Per-session extract limit — prevents a single session from burning ScrapingBee
+  // credits on repeated failed attempts. 5 extractions per session per 10 minutes.
+  // Only applies to URL mode (text extraction is cheap).
+  if (url) {
+    const sessionExtractLimit = extractSessionLimiter.check(extractSessionKey);
+    if (!sessionExtractLimit.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Too many extraction attempts. Fill in the details manually below.",
+          diagnostics: { failureReason: "session_extract_limit" },
+        },
+        { status: 429 }
+      );
+    }
+  }
 
   if (
     (!url || typeof url !== "string") &&
@@ -168,8 +187,6 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-
-  const sessionId = (body.receipt_token as string) || null;
 
   // --- Text-mode extraction (no URL) ---
   if (text && !url) {

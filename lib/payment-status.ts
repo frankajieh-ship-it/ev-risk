@@ -6,6 +6,7 @@
  */
 
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/api-auth";
 
 export type PurchaseStatus = "pending" | "paid" | "failed" | "refunded" | "none";
 
@@ -31,11 +32,16 @@ export interface PaymentStatusResult {
 /**
  * Check purchase status for a scenario.
  * Returns entitlement info including receipt credit state.
+ *
+ * ipHash / serverSessionId are used to harden the first-receipt-free check
+ * against token cycling (clearing localStorage to get a new anon_id).
  */
 export async function checkPurchaseStatus(
   scenarioType: string,
   scenarioId: string,
-  anonId: string
+  anonId: string,
+  ipHash?: string,
+  serverSessionId?: string,
 ): Promise<PaymentStatusResult> {
   const none: PaymentStatusResult = {
     unlocked_base: false,
@@ -156,6 +162,68 @@ export async function checkPurchaseStatus(
         receipt_credits_total: creditsTotal,
         ...deriveEntitlement(anyTier),
       };
+    }
+
+    // First receipt free: if this session has never completed a receipt before,
+    // treat this one as unlocked at starter tier (same as receipt_single paid).
+    // Uses admin client to query receipts table securely.
+    //
+    // Three-signal check to prevent token cycling (clearing localStorage):
+    //   1. anon_id (receipt_token) — primary identity
+    //   2. ip_hash — same IP that already got a free receipt can't get another
+    //   3. server_session_id — HttpOnly cookie set server-side, survives localStorage clear
+    // Any one signal showing a prior completed receipt blocks the free unlock.
+    try {
+      const adminSupabase = getSupabaseAdmin();
+      if (adminSupabase) {
+        // Signal 1: by anon_id on receipts table
+        const { count: byToken } = await adminSupabase
+          .from("receipts")
+          .select("id", { count: "exact", head: true })
+          .eq("session_id", anonId)
+          .eq("generation_status", "full");
+
+        // Signal 2: by ip_hash on receipt_events (generate events only)
+        let byIp = 0;
+        if (ipHash) {
+          const { count: ipCount } = await adminSupabase
+            .from("receipt_events")
+            .select("id", { count: "exact", head: true })
+            .eq("ip_hash", ipHash)
+            .eq("event_type", "generate");
+          byIp = ipCount ?? 0;
+        }
+
+        // Signal 3: by server_session_id on receipts table (HttpOnly cookie, survives localStorage clear)
+        let byServerSession = 0;
+        if (serverSessionId) {
+          const { count: ssCount } = await adminSupabase
+            .from("receipts")
+            .select("id", { count: "exact", head: true })
+            .eq("server_session_id", serverSessionId)
+            .eq("generation_status", "full");
+          byServerSession = ssCount ?? 0;
+        }
+
+        const hasPriorReceipt = (byToken ?? 0) > 0 || byIp > 0 || byServerSession > 0;
+
+        if (!hasPriorReceipt) {
+          return {
+            unlocked_base: true,
+            pack_tier: "receipt_single",
+            purchase_status: "none",
+            compare_remaining: 0,
+            compare_bound_to: null,
+            receipt_credits_remaining: 0,
+            receipt_credits_total: 0,
+            entitlement_level: "buyer_pass",
+            seller_pack_unlocked: true,
+            chat_unlocked: false,
+          };
+        }
+      }
+    } catch {
+      // Non-critical — fall through to locked state if this check fails
     }
 
     return none;

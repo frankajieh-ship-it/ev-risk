@@ -12,6 +12,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 import { checkPurchaseStatus } from "@/lib/payment-status";
 import { isPaymentsEnabledFor, isFreeMode } from "@/lib/rollout-flags";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
+import { hashIP } from "@/lib/server-session-utils";
 
 const VALID_SCENARIO_TYPES = ["receipt", "evroutine", "routine", "compare", "chat"];
 
@@ -58,7 +59,9 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const status = await checkPurchaseStatus(scenarioType, scenarioId, anonId);
+  const ipHash = hashIP(ip) ?? undefined;
+  const serverSessionId = request.cookies.get("receipt_session")?.value;
+  const status = await checkPurchaseStatus(scenarioType, scenarioId, anonId, ipHash, serverSessionId);
 
   const freeMode = isFreeMode();
 
