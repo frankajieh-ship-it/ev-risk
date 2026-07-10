@@ -464,6 +464,7 @@ export default function ReceiptInputCard({
       } catch {
         // Netlify returned a non-JSON body (e.g. 504/502 HTML error page or function timeout)
         const _failUrl = urlOverride ?? listingUrl.trim();
+        const _failDomain = (() => { try { return new URL(_failUrl).hostname.replace(/^www\./, ""); } catch { return "unknown"; } })();
         if (pasteMode === "url" && _failUrl) {
           if (lastFailedUrlRef.current !== _failUrl) {
             lastFailedUrlRef.current = _failUrl;
@@ -472,7 +473,7 @@ export default function ReceiptInputCard({
             extractFailCountRef.current += 1;
           }
         }
-        trackEvent?.("receipt_extract_failed", { reason: `non_json_${res.status}`, input_mode: pasteMode, fail_count: extractFailCountRef.current });
+        trackEvent?.("receipt_extract_failed", { reason: `non_json_${res.status}`, input_mode: pasteMode, fail_count: extractFailCountRef.current, domain: _failDomain, listing_url: _failUrl, anon_id: receiptToken });
         setPasteMode("text");
         setExtractError({ message: "Auto-extraction failed — open the listing, select all the text (Ctrl+A), copy it, and paste below." });
         setTimeout(() => textareaRef.current?.focus(), 100);
