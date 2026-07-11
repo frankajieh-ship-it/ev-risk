@@ -86,7 +86,11 @@ export interface SafeSendResult {
   error?: string;
 }
 
-const DAILY_SEND_CAP = 3;
+const DAILY_SEND_CAP = 1;
+// Transactional sequences that bypass the daily cap and cooldown
+const UNCAPPED_SEQUENCES: SequenceType[] = ["deal_watch", "recall", "listing_gone", "lead_notification", "post_purchase_day7"];
+// Minimum hours between any two marketing emails to the same address
+const MIN_HOURS_BETWEEN_EMAILS = 48;
 
 export async function safeSend(params: SafeSendParams): Promise<SafeSendResult> {
   const supabase = getSupabaseAdmin();
@@ -106,16 +110,38 @@ export async function safeSend(params: SafeSendParams): Promise<SafeSendResult> 
     }
   }
 
-  // 2. Check daily send cap (max 3 emails/address/24h)
-  const { count } = await supabase
-    .from("crm_email_sends")
-    .select("id", { count: "exact", head: true })
-    .eq("email", params.email)
-    .eq("status", "sent")
-    .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+  const isUncapped = UNCAPPED_SEQUENCES.includes(params.sequenceType);
 
-  if ((count ?? 0) >= DAILY_SEND_CAP) {
-    return { sent: false, skipped: true };
+  // 2. Check daily send cap and 48h cooldown for marketing emails
+  if (!isUncapped) {
+    const { count } = await supabase
+      .from("crm_email_sends")
+      .select("id", { count: "exact", head: true })
+      .eq("email", params.email)
+      .eq("status", "sent")
+      .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+    if ((count ?? 0) >= DAILY_SEND_CAP) {
+      return { sent: false, skipped: true };
+    }
+
+    // 48h cooldown — don't send marketing email if one went out recently
+    const { data: lastSent } = await supabase
+      .from("crm_email_sends")
+      .select("created_at")
+      .eq("email", params.email)
+      .eq("status", "sent")
+      .not("sequence_type", "in", `(${UNCAPPED_SEQUENCES.map(s => `"${s}"`).join(",")})`)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastSent?.created_at) {
+      const hoursSinceLast = (Date.now() - new Date(lastSent.created_at).getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLast < MIN_HOURS_BETWEEN_EMAILS) {
+        return { sent: false, skipped: true };
+      }
+    }
   }
 
   // 3. Send via Resend
