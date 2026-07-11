@@ -71,5 +71,6 @@ export default async function handler() {
   }
 }
 
-// Paused — no automated emails until sequences are reviewed and approved.
-export const config: Config = {};
+export const config: Config = {
+  schedule: "0 10 * * *",
+};

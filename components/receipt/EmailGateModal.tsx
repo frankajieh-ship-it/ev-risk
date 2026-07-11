@@ -20,6 +20,7 @@ interface EmailGateModalProps {
   onSubmit: (email: string) => void;
   onSkip: () => void;
   vehicleSummary?: string;
+  receiptId?: string;
 }
 
 type ModalState = "idle" | "submitting" | "success" | "error";
@@ -29,6 +30,7 @@ export default function EmailGateModal({
   onSubmit,
   onSkip,
   vehicleSummary,
+  receiptId,
 }: EmailGateModalProps) {
   const { trackEvent } = useEventTracking();
   const [email, setEmail] = useState("");
@@ -60,6 +62,7 @@ export default function EmailGateModal({
           attribution: getAttributionForEvent(),
           persistent_session_id: getOrCreatePersistentSessionId(),
           source: "email_gate",
+          ...(receiptId && { trigger_id: receiptId }),
         }),
       });
       const data = await res.json();

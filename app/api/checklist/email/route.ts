@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { email, attribution, persistent_session_id, anon_id, source } = body;
+    const { email, attribution, persistent_session_id, anon_id, source, trigger_id } = body;
 
     if (!email || typeof email !== "string" || !EMAIL_REGEX.test(email)) {
       return NextResponse.json(
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       email: normalizedEmail,
       anon_id: anon_id || persistent_session_id || null,
       trigger_event: triggerEvent,
-      trigger_id: null,
+      trigger_id: (source === "email_gate" && trigger_id) ? trigger_id : null,
       metadata: { source: attribution?.page_source || "unknown" },
     });
 

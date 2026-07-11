@@ -1599,6 +1599,7 @@ export default function ReceiptPage() {
       {/* Email gate — shown when user clicks Save, proceeds to save after email or skip */}
       <EmailGateModal
         isOpen={emailModalOpen}
+        receiptId={receipt?.receipt_id}
         vehicleSummary={
           receipt
             ? [receipt.listing_summary?.year, receipt.listing_summary?.make, receipt.listing_summary?.model]
