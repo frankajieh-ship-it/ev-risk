@@ -463,7 +463,7 @@ export async function GET(request: NextRequest) {
       // High-confidence (form submits, checkout, completions): -20
       if (eventNames.has("email_capture_submitted")) score -= 20;
       if (eventNames.has("email_checklist_submit")) score -= 20;
-      if (eventNames.has("checkout_started")) score -= 20;
+      if (eventNames.has("checkout_opened")) score -= 20;
       if (eventNames.has("feedback_submitted")) score -= 20;
       if (eventNames.has("evfit_completed")) score -= 20;
       if (eventNames.has("evfit_completed_server")) score -= 20;
@@ -491,7 +491,7 @@ export async function GET(request: NextRequest) {
       if (eventNames.has("receipt_result_viewed")) score -= 5;
       if (eventNames.has("email_capture_shown")) score -= 5;
       if (eventNames.has("buyer_pass_teaser_shown")) score -= 5;
-      if (eventNames.has("paywall_shown")) score -= 5;
+      if (eventNames.has("paywall_seen")) score -= 5;
       if (eventNames.has("routine_result_viewed")) score -= 5;
       if (eventNames.has("receipt_lite_shown")) score -= 5;
       if (userAgent && BOT_UA_PATTERNS.test(userAgent)) score += 40;
@@ -1188,9 +1188,9 @@ export async function GET(request: NextRequest) {
 
     // Paywall / monetization
     const buyerPassTeaserShown = countEvents(filteredUserEvents, "buyer_pass_teaser_shown");
-    const paywallShown = countEvents(filteredUserEvents, "paywall_shown");
+    const paywallShown = countEvents(filteredUserEvents, "paywall_seen");
     const paywallDismissed = countEvents(filteredUserEvents, "paywall_dismissed");
-    const checkoutStarted = countEvents(filteredUserEvents, "checkout_started");
+    const checkoutStarted = countEvents(filteredUserEvents, "checkout_opened");
 
     // Feedback
     const feedbackShown = countEvents(filteredUserEvents, "feedback_shown");

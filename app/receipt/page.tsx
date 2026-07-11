@@ -605,8 +605,12 @@ export default function ReceiptPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") !== "success") return;
 
+    // Capture scenario_id BEFORE cleaning URL — used to reload the receipt
+    const returnedScenarioId = params.get("scenario_id");
+    const returnedScenarioType = params.get("scenario_type");
+
     trackEvent("receipt_purchase_succeeded", {
-      receipt_id: receipt?.receipt_id,
+      receipt_id: receipt?.receipt_id || returnedScenarioId,
       offer_type: "receipt_single_399",
       session_id: params.get("session_id"),
     });
@@ -618,6 +622,30 @@ export default function ReceiptPage() {
     url.searchParams.delete("scenario_type");
     url.searchParams.delete("scenario_id");
     window.history.replaceState({}, "", url.pathname + url.search);
+
+    // If the receipt isn't already loaded (user returned from Stripe cold), reload it now
+    if (returnedScenarioId && returnedScenarioType === "receipt" && !receipt?.receipt_id) {
+      (async () => {
+        try {
+          const localHistory = JSON.parse(localStorage.getItem("offo_receipt_history") || "[]");
+          const found = localHistory.find(
+            (e: { receipt_id?: string; receipt?: { receipt_id?: string } }) =>
+              e.receipt_id === returnedScenarioId || e.receipt?.receipt_id === returnedScenarioId
+          );
+          if (found?.receipt) {
+            setReceipt(found.receipt);
+          } else {
+            const res = await fetch(`/api/receipt/history?receipt_id=${encodeURIComponent(returnedScenarioId)}`);
+            const data = await res.json();
+            if (data.entries?.length > 0 && data.entries[0].receipt) {
+              setReceipt(data.entries[0].receipt);
+            }
+          }
+        } catch {
+          // Silently fail — user can regenerate
+        }
+      })();
+    }
 
     // Poll until payment confirmed or 60s hard cap — stops as soon as isStarterUnlocked flips true
     let attempts = 0;

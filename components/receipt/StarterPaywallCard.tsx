@@ -86,6 +86,7 @@ export default function StarterPaywallCard({
       });
       const data = await res.json();
       if (data.url) {
+        try { localStorage.setItem("offo_active_receipt_id", scenarioId); } catch {}
         window.location.href = data.url;
       } else if (data.status === "paid") {
         window.location.reload();
