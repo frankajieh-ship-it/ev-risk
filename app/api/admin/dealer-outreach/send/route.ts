@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     // Simple reply-to test — plain email, no dealer branding
     const { data, error } = await resend.emails.send({
       from: FROM,
-      reply_to: REPLY_TO,
+      replyTo: REPLY_TO,
       to,
       subject: "OFFO dealer email test — please reply to this",
       html: `
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await resend.emails.send({
     from: FROM,
-    reply_to: REPLY_TO,
+    replyTo: REPLY_TO,
     to,
     subject: `Your ${vehicle} is already on OFFO`,
     html: `
