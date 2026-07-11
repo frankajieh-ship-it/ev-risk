@@ -500,7 +500,7 @@ interface SummaryData {
     p95_latency_ms: number | null;
     avg_latency_ms: number | null;
   };
-  provider_health?: { note: string; providers: Array<{ provider: string; success_rate: number | null }> } | Array<{ provider: string; success_rate: number | null }>;
+  provider_health?: { note: string; providers: Array<{ provider: string; success_rate: number | null }> };
 }
 
 type Period = "day" | "week" | "last_30_days" | "month_to_date" | "custom";
@@ -1018,7 +1018,7 @@ export default function AdminDashboard() {
                   <p className="text-xs font-medium text-gray-500 mb-1">Provider Health <span className="text-gray-400 font-normal">(lifetime)</span></p>
                   <p className="text-[10px] text-gray-400 mb-2">Low % reflects early-dev failures, not current state. Gemini excluded from routing.</p>
                   <div className="space-y-1">
-                    {(Array.isArray(s.provider_health) ? s.provider_health : (s.provider_health as {providers: Array<{provider: string; success_rate: number | null}>}).providers).map((ph) => (
+                    {(s.provider_health.providers ?? []).map((ph) => (
                       <div key={ph.provider} className="flex items-center justify-between text-xs">
                         <span className="text-gray-600 capitalize">{ph.provider}</span>
                         <span className="font-semibold text-gray-500">
