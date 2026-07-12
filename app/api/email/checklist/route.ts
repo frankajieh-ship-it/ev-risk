@@ -315,18 +315,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Enroll in activation sequence (Day 1/3/7 emails via Netlify cron)
+    // Enroll in activation sequence only if no existing row for this email —
+    // prevents duplicate rows from multiple enrollment paths causing duplicate sends
     if (isSupabaseConfigured()) {
       const normalizedEmail = email.trim().toLowerCase();
       const vehicle = [summary.year, summary.make, summary.model].filter(Boolean).join(" ");
 
-      void supabase.from("email_sequences").insert({
-        email: normalizedEmail,
-        anon_id: anon_id || null,
-        trigger_event: "receipt_generated",
-        trigger_id: receipt_id,
-        metadata: { vehicle, verdict: receiptData.verdict },
-      });
+      const { count: existingSeqCount } = await supabase
+        .from("email_sequences")
+        .select("id", { count: "exact", head: true })
+        .eq("email", normalizedEmail)
+        .eq("unsubscribed", false);
+
+      if (!existingSeqCount || existingSeqCount === 0) {
+        void supabase.from("email_sequences").insert({
+          email: normalizedEmail,
+          anon_id: anon_id || null,
+          trigger_event: "receipt_generated",
+          trigger_id: receipt_id,
+          metadata: { vehicle, verdict: receiptData.verdict },
+        });
+      }
 
       void supabase.from("checklist_email_captures").upsert({
         email: normalizedEmail,

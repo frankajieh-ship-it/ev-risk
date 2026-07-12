@@ -12,6 +12,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { sendChecklistEmail, isResendConfigured } from "@/lib/resend";
 
+// Superseded by /api/email/activation/send which uses safeSend() with proper
+// idempotency, daily cap, and 48h cooldown. This route bypassed all guards.
+export async function POST(_req: NextRequest) {
+  return NextResponse.json(
+    { error: "Superseded by /api/email/activation/send" },
+    { status: 410 }
+  );
+}
+
 const SITE_URL = "https://offolab.com";
 
 // ─── Email HTML builders ────────────────────────────────────────────────────

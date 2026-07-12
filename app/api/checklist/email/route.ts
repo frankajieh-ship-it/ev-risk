@@ -95,16 +95,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Enroll in activation sequence (Day 1/3/7 emails via Netlify cron)
-    // email_gate source uses verdict-personalized activation; others use newsletter flow
-    const triggerEvent = source === "email_gate" ? "receipt_email_gate" : "newsletter_signup";
-    void supabase.from("email_sequences").insert({
-      email: normalizedEmail,
-      anon_id: anon_id || persistent_session_id || null,
-      trigger_event: triggerEvent,
-      trigger_id: (source === "email_gate" && trigger_id) ? trigger_id : null,
-      metadata: { source: attribution?.page_source || "unknown" },
-    });
+    // Enroll in activation sequence only if no existing row for this email —
+    // prevents duplicate rows from multiple enrollment paths causing duplicate sends
+    const { count: existingSeqCount } = await supabase
+      .from("email_sequences")
+      .select("id", { count: "exact", head: true })
+      .eq("email", normalizedEmail)
+      .eq("unsubscribed", false);
+
+    if (!existingSeqCount || existingSeqCount === 0) {
+      const triggerEvent = source === "email_gate" ? "receipt_email_gate" : "newsletter_signup";
+      void supabase.from("email_sequences").insert({
+        email: normalizedEmail,
+        anon_id: anon_id || persistent_session_id || null,
+        trigger_event: triggerEvent,
+        trigger_id: (source === "email_gate" && trigger_id) ? trigger_id : null,
+        metadata: { source: attribution?.page_source || "unknown" },
+      });
+    }
 
     // Track in user_events for analytics visibility
     const emailHash = createHash("sha256").update(normalizedEmail).digest("hex");

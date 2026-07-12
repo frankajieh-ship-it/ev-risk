@@ -94,17 +94,26 @@ export async function POST(request: NextRequest) {
     .lte("enrolled_at", new Date(now.getTime() - 23 * 60 * 60 * 1000).toISOString())
     .limit(BATCH_LIMIT);
 
-  for (const row of day1Rows || []) {
+  // Deduplicate by email — keep most recently enrolled row per address
+  const day1Unique = Object.values(
+    (day1Rows ?? []).reduce((acc: Record<string, Record<string, unknown>>, row: Record<string, unknown>) => {
+      const email = row.email as string;
+      if (!acc[email] || (row.enrolled_at as string) > (acc[email].enrolled_at as string)) acc[email] = row;
+      return acc;
+    }, {})
+  );
+
+  for (const row of day1Unique) {
     try {
       const ctx = await buildContext(row);
       const { subject, html } = buildActivationDay1(ctx);
       const r = await safeSend({
-        email: row.email,
+        email: row.email as string,
         sequenceType: "activation",
         sequenceStep: "day1",
         subject,
         html,
-        idempotencyKey: `activation:${row.id}:day1`,
+        idempotencyKey: `activation:${row.email as string}:day1`,
         metadata: { sequence_id: row.id, vehicle: ctx.vehicle, verdict: ctx.verdict },
       });
       if (r.sent) {
@@ -131,17 +140,25 @@ export async function POST(request: NextRequest) {
     .lte("enrolled_at", new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString())
     .limit(BATCH_LIMIT);
 
-  for (const row of day3Rows || []) {
+  const day3Unique = Object.values(
+    (day3Rows ?? []).reduce((acc: Record<string, Record<string, unknown>>, row: Record<string, unknown>) => {
+      const email = row.email as string;
+      if (!acc[email] || (row.enrolled_at as string) > (acc[email].enrolled_at as string)) acc[email] = row;
+      return acc;
+    }, {})
+  );
+
+  for (const row of day3Unique) {
     try {
       const ctx = await buildContext(row);
       const { subject, html } = buildActivationDay3(ctx);
       const r = await safeSend({
-        email: row.email,
+        email: row.email as string,
         sequenceType: "activation",
         sequenceStep: "day3",
         subject,
         html,
-        idempotencyKey: `activation:${row.id}:day3`,
+        idempotencyKey: `activation:${row.email as string}:day3`,
         metadata: { sequence_id: row.id, vehicle: ctx.vehicle },
       });
       if (r.sent) {
@@ -168,17 +185,25 @@ export async function POST(request: NextRequest) {
     .lte("enrolled_at", new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString())
     .limit(BATCH_LIMIT);
 
-  for (const row of day7Rows || []) {
+  const day7Unique = Object.values(
+    (day7Rows ?? []).reduce((acc: Record<string, Record<string, unknown>>, row: Record<string, unknown>) => {
+      const email = row.email as string;
+      if (!acc[email] || (row.enrolled_at as string) > (acc[email].enrolled_at as string)) acc[email] = row;
+      return acc;
+    }, {})
+  );
+
+  for (const row of day7Unique) {
     try {
       const ctx = await buildContext(row);
       const { subject, html } = buildActivationDay7(ctx);
       const r = await safeSend({
-        email: row.email,
+        email: row.email as string,
         sequenceType: "activation",
         sequenceStep: "day7",
         subject,
         html,
-        idempotencyKey: `activation:${row.id}:day7`,
+        idempotencyKey: `activation:${row.email as string}:day7`,
         metadata: { sequence_id: row.id, vehicle: ctx.vehicle },
       });
       if (r.sent) {
