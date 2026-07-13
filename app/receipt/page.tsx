@@ -1096,7 +1096,7 @@ export default function ReceiptPage() {
           onExtractionSuccess={() => {}}
           onExtractionFields={handleExtractionFields}
           onPhotosExtracted={(photos) => {
-            if (photos?.length) setListingPhotos([photos[0]]);
+            if (photos?.length) setListingPhotos(photos.slice(0, 20));
           }}
           onRecallsExtracted={(recalls) => setServerRecalls(recalls)}
           isGenerating={isGenerating}

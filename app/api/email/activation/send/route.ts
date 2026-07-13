@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       if (!acc[email] || (row.enrolled_at as string) > (acc[email].enrolled_at as string)) acc[email] = row;
       return acc;
     }, {})
-  );
+  ) as Record<string, unknown>[];
 
   for (const row of day1Unique) {
     try {
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
       if (!acc[email] || (row.enrolled_at as string) > (acc[email].enrolled_at as string)) acc[email] = row;
       return acc;
     }, {})
-  );
+  ) as Record<string, unknown>[];
 
   for (const row of day3Unique) {
     try {
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
       if (!acc[email] || (row.enrolled_at as string) > (acc[email].enrolled_at as string)) acc[email] = row;
       return acc;
     }, {})
-  );
+  ) as Record<string, unknown>[];
 
   for (const row of day7Unique) {
     try {

@@ -192,9 +192,10 @@ function buildNudgeEmail(day: 1 | 3 | 7, row: any): { subject: string; html: str
   }
 }
 
-// ─── Send handler ────────────────────────────────────────────────────────────
+// ─── Dead code below — kept for historical reference only ────────────────────
+// The active POST handler is at the top of this file (returns 410).
 
-export async function POST(request: NextRequest) {
+async function _deadSendHandler(request: NextRequest) {
   // Auth check
   const authHeader = request.headers.get("authorization");
   const adminKey = process.env.ADMIN_API_KEY;

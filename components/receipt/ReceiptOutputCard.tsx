@@ -230,6 +230,19 @@ export default function ReceiptOutputCard({
     }
   }, [processFiles, onAddPhotos, photos]);
 
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const files = Array.from(e.clipboardData.files ?? []).filter(f => f.type.startsWith("image/"));
+    if (files.length > 0) { processFiles(files); return; }
+    const text = e.clipboardData.getData("text/plain").trim();
+    if (text.startsWith("http")) {
+      const lower = text.toLowerCase();
+      if (!lower.includes("logo") && !lower.includes("banner") && !lower.includes("dealer")) {
+        onAddPhotos?.([text]);
+      }
+    }
+  }, [processFiles, onAddPhotos]);
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -523,9 +536,11 @@ export default function ReceiptOutputCard({
             className={`mt-3 border border-dashed rounded-xl overflow-hidden transition-colors ${
               dragOver ? "border-[#00d97e]/50 bg-[#00d97e]/[0.04]" : "border-white/15"
             }`}
+            tabIndex={0}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
+            onPaste={handlePaste}
           >
             {/* Selling point header */}
             <div className="px-5 pt-5 pb-4 border-b border-white/[0.07]">
@@ -562,10 +577,12 @@ export default function ReceiptOutputCard({
             {/* Hero image — also a drop target for drag-and-drop photo uploads */}
             <div
               className={`relative w-full aspect-[16/7] overflow-hidden cursor-pointer group transition-all ${dragOver ? "ring-2 ring-[#00d97e] ring-inset brightness-75" : ""}`}
+              tabIndex={0}
               onClick={() => setLightboxOpen(true)}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
+              onPaste={handlePaste}
             >
               <img
                 src={resolveImgSrc(photoSrcs[photoIndex])}
@@ -650,6 +667,11 @@ export default function ReceiptOutputCard({
                   </button>
                 ))}
               </div>
+            )}
+            {process.env.NODE_ENV === "development" && photoSrcs.length > 1 && (
+              <p className="text-[11px] text-white/25 text-center mt-1 pb-0.5">
+                {photoSrcs.length} photos from listing
+              </p>
             )}
 
             {/* Drag-and-drop invite — prominent CTA below thumbnail strip */}
