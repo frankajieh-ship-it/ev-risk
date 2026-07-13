@@ -743,11 +743,19 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
     }
   }
 
-  // Direct "pictures" array extraction — fastest path for ScrapingBee HTML which includes
-  // the full client-rendered gallery. Scans for "pictures":[...] keys in the raw HTML and
-  // picks the LARGEST single array (the main listing's gallery, not "similar vehicles" sections).
-  // This bypasses the full JSON.parse of the 1MB+ __remixContext blob.
+  // Direct "pictures" array extraction — finds 1024x768 URLs for pic IDs already known from
+  // the Remix context extraction above. If Remix already found photos, use those pic IDs as
+  // the allowlist so we never pull in photos from sidebar/similar-vehicle sections.
+  // Only falls back to scanning all "pictures":[...] arrays when Remix found nothing.
   {
+    // Build allowlist from whatever Remix extraction already found
+    const knownFromRemix = new Set<string>();
+    for (const u of (data.photo_urls ?? [])) {
+      const m = u.match(/pic-(\d+)/);
+      if (m) knownFromRemix.add(m[1]);
+    }
+    const hasRemixIds = knownFromRemix.size > 0;
+
     const urlPat = /"url":"(https:\/\/static\.cargurus\.com\/images\/forsale\/[^"]*-1024x768\.[a-z]+)"/g;
     let bestGallery: string[] = [];
     let sf = 0;
@@ -763,7 +771,6 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
         else if (c === ']' || c === '}') { d--; if (d === 0) { ei = i + 1; break; } }
       }
       const chunk = html.slice(bi, ei);
-      // Extract only 1024x768 URLs from url fields (not thumbnailUrl/scaledPictures nested keys)
       urlPat.lastIndex = 0;
       const seen = new Set<string>();
       const gallery: string[] = [];
@@ -773,17 +780,18 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
         const pmatch = picUrl.match(/pic-(\d+)/);
         if (!pmatch) continue;
         const picKey = pmatch[1];
+        // If Remix gave us a known ID set, only accept those — ignores sidebar vehicles
+        if (hasRemixIds && !knownFromRemix.has(picKey)) continue;
         if (!seen.has(picKey)) {
           seen.add(picKey);
           gallery.push(picUrl);
           if (gallery.length >= 50) break;
         }
       }
-      // Keep only the largest array — main listing gallery beats "similar vehicles" sidebars
       if (gallery.length > bestGallery.length) bestGallery = gallery;
       sf = ei;
     }
-    console.log(`[CarGurus pictures direct] Found ${bestGallery.length} 1024x768 photos`);
+    console.log(`[CarGurus pictures direct] Found ${bestGallery.length} 1024x768 photos (remix anchor: ${hasRemixIds})`);
     if (bestGallery.length > (data.photo_urls?.length ?? 0)) {
       data.photo_urls = bestGallery;
       data.photo_url = bestGallery[0];
