@@ -625,26 +625,11 @@ export async function POST(request: NextRequest) {
       ? lookupLocalImages(fields.make, fields.model, fields.year ?? undefined)
       : { matched: false, urls: [] };
 
-    // Determine listing photos from scraper / CarGurus API / auto.dev
-    let listingPhotos: string[] = [];
-    if (cgApiPhotos.length >= 3) {
-      listingPhotos = cgApiPhotos;
-      console.log(`[Fetch] ${cgApiPhotos.length} CarGurus API photos`);
-    } else if (scrapedPhotos.length > 0) {
-      listingPhotos = scrapedPhotos;
-      console.log(`[Fetch] ${scrapedPhotos.length} scraped listing photos`);
-    } else if (autoDevData && Array.isArray((autoDevData as { photo_urls: string[] }).photo_urls) && (autoDevData as { photo_urls: string[] }).photo_urls.length > 0) {
-      listingPhotos = (autoDevData as { photo_urls: string[] }).photo_urls;
-    }
-
+    // Photos: only use OFFO curated local images or Wikimedia static fallback.
+    // Scraped/CDN photos are excluded — users upload listing photos themselves for photo analysis.
     if (localImages.matched && localImages.urls.length > 0) {
-      // Tier 0: curated image leads; append listing photos for additional angles
-      const localSet = new Set(localImages.urls);
-      const extra = listingPhotos.filter(u => !localSet.has(u)).slice(0, 19);
-      fields.photo_urls = [...localImages.urls, ...extra];
-      console.log(`[Fetch] ${localImages.urls.length} local + ${extra.length} listing photos`);
-    } else if (listingPhotos.length > 0) {
-      fields.photo_urls = listingPhotos;
+      fields.photo_urls = localImages.urls;
+      console.log(`[Fetch] ${localImages.urls.length} local images`);
     } else {
       const staticUrl = getStaticPhotoUrl(fields.make, fields.model, fields.year ?? undefined);
       if (staticUrl) fields.photo_urls = [staticUrl];
