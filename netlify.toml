@@ -23,7 +23,7 @@
   external_node_modules = ["openai"]
 
 # Background function: per-receipt photo analysis via GPT-4o Vision
-[functions.analyze-receipt-photos]
+[functions.analyze-receipt-photos-background]
   timeout = 900
   external_node_modules = ["openai", "@anthropic-ai/sdk"]
 

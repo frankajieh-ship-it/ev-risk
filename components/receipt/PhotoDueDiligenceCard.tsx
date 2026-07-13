@@ -24,42 +24,6 @@ const SEVERITY_STYLES: Record<DamageFinding["severity"], { dot: string; label: s
   severe:   { dot: "bg-red-400",     label: "Severe"   },
 };
 
-// Resize images to max 1024px on the long edge at JPEG 0.85 before base64 encoding.
-// Full-res CDN images (800–2000px) bloat the JSON payload sent to OpenAI Vision;
-// 1024px retains all detail the model needs at ~15× smaller file size.
-const MAX_PX = 1024;
-const JPEG_QUALITY = 0.85;
-
-function drawResized(img: HTMLImageElement): string {
-  const scale = Math.min(1, MAX_PX / Math.max(img.width, img.height));
-  const w = Math.round(img.width * scale);
-  const h = Math.round(img.height * scale);
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
-  return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
-}
-
-function resizeBlob(blob: Blob): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const objectUrl = URL.createObjectURL(blob);
-    img.onload = () => { URL.revokeObjectURL(objectUrl); resolve(drawResized(img)); };
-    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(""); };
-    img.src = objectUrl;
-  });
-}
-
-function resizeDataUrl(dataUrl: string): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(drawResized(img));
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
-  });
-}
-
 export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighlightPhoto, isUnlocked, isStarterUnlocked, paymentsEnabled, onPaywallClick }: Props) {
   // Start as pending — component only renders when photos are present
   const [status, setStatus] = useState<JobStatus>("pending");
@@ -73,28 +37,17 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
   const pollCountRef = useRef(0);
   const MAX_POLLS = 200; // 10 minutes at 3s intervals
 
-  // Convert a URL to a resized base64 data: string for the analysis backend.
-  // CDN URLs are fetched via our /api/img proxy to bypass hotlink protection.
-  // All images are resized to ≤1024px before encoding — reduces payload 15× vs raw.
-  const toDataUrl = useCallback(async (url: string): Promise<string> => {
-    if (url.startsWith("data:")) return resizeDataUrl(url);
-    try {
-      // Local public/ paths serve directly — no proxy wrapping
-      const proxyUrl = url.startsWith("/") ? url : `/api/img?url=${encodeURIComponent(url)}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(12_000) });
-      if (!res.ok) return url;
-      const blob = await res.blob();
-      return resizeBlob(blob);
-    } catch {
-      return url; // fall back to raw URL — function will try its own proxy
-    }
-  }, []);
-
   const enqueueAnalysis = useCallback(async (urls: string[]) => {
-    // Convert https:// URLs to data: base64 so the background function can process them.
-    // CDN URLs (CarGurus, AutoTrader etc) block server-side fetches but load fine in browser.
-    // Filter out empty strings — resizeBlob returns "" on canvas/load failure.
-    const resolved = (await Promise.all(urls.slice(0, 20).map(toDataUrl))).filter(u => u.length > 0);
+    // Send raw URLs (local paths or CDN https://) to enqueue — the background
+    // function fetches them server-side via /api/img proxy. Do NOT convert to
+    // base64 here: 20 images at 1024px JPEG would be ~40MB, blowing Netlify's
+    // 6MB request body limit. Filter out any data: URIs (user-uploaded photos
+    // captured inline by canvas — those can't be fetched server-side anyway).
+    const rawUrls = urls
+      .slice(0, 20)
+      .filter((u) => typeof u === "string" && !u.startsWith("data:") && u.length > 0);
+
+    if (rawUrls.length === 0) return;
 
     // Defer state resets out of effect body to avoid lint setState-in-effect error
     setTimeout(() => {
@@ -105,7 +58,7 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
     fetch("/api/receipt/photo-analysis/enqueue", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ receipt_id: receiptId, photo_urls: resolved }),
+      body: JSON.stringify({ receipt_id: receiptId, photo_urls: rawUrls }),
     })
       .then((r) => r.json())
       .then((data: { job_id?: string; status?: string; photo_analysis?: PhotoAnalysisResult }) => {
@@ -120,7 +73,7 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
         }
       })
       .catch(() => setStatus("failed"));
-  }, [receiptId, toDataUrl]);
+  }, [receiptId]);
 
   // Enqueue on mount (idempotent). Initialize ref counts so re-enqueue effect
   // can correctly detect when new photos are added after initial analysis.

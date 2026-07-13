@@ -5,6 +5,11 @@
  * Idempotent: returns existing job_id if a pending/processing job already exists.
  *
  * Body: { receipt_id: string, photo_urls: string[] }
+ *
+ * photo_urls must be local paths (start with "/") or plain CDN https:// URLs —
+ * NOT base64 data: URIs. The background function fetches them server-side via
+ * the /api/img proxy. Storing data: URIs here would blow past Netlify's 6MB
+ * function request body limit.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -20,7 +25,13 @@ export async function POST(request: NextRequest) {
 
   const { receipt_id, photo_urls } = body as { receipt_id: string; photo_urls: string[] };
 
-  if (photo_urls.length === 0) {
+  // Strip out any data: URIs that slipped through — they'd bloat the DB write
+  // and make the payload unmanageably large. Only accept real URLs.
+  const filteredUrls = (photo_urls as string[]).filter(
+    (u) => typeof u === "string" && !u.startsWith("data:") && u.length > 0
+  );
+
+  if (filteredUrls.length === 0) {
     return NextResponse.json({ error: "No photos to analyse" }, { status: 400 });
   }
 
@@ -41,12 +52,8 @@ export async function POST(request: NextRequest) {
 
   if (existing) {
     if (existing.status === "pending" || existing.status === "processing") {
-      // Still running — don't double-enqueue
       return NextResponse.json({ job_id: existing.id, status: existing.status });
     }
-    // existing.status === "done" — check if analysis covers the current photo set.
-    // If the stored analysis has fewer photos than what we're now submitting (e.g. new
-    // photos were extracted after a fresh fetch), invalidate it and re-run.
     if (existing.status === "done") {
       const { data: receiptRow } = await supabase
         .from("receipts")
@@ -55,12 +62,10 @@ export async function POST(request: NextRequest) {
         .single();
       const analysis = receiptRow?.photo_analysis as { photos?: unknown[] } | null;
       const analysedCount = Array.isArray(analysis?.photos) ? analysis.photos.length : 0;
-      // Count all incoming photos — data: (user uploads) and scraped URLs both count.
-      const incomingCount = photo_urls.length;
-      if (analysis && analysedCount >= incomingCount) {
+      if (analysis && analysedCount >= filteredUrls.length) {
         return NextResponse.json({ job_id: existing.id, status: "done", photo_analysis: analysis });
       }
-      // Stale or missing — invalidate and re-enqueue
+      // Stale — invalidate and re-enqueue
       await supabase
         .from("receipt_photo_jobs")
         .update({ status: "failed", error: "stale_photo_set", finished_at: new Date().toISOString() })
@@ -72,10 +77,11 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Insert new job
+  // Insert new job — store URLs here so the background function can read them
+  // without needing them in the HTTP request body.
   const { data: job, error: insertErr } = await supabase
     .from("receipt_photo_jobs")
-    .insert({ receipt_id, status: "pending" })
+    .insert({ receipt_id, status: "pending", photo_urls: filteredUrls.slice(0, 20) })
     .select("id")
     .single();
 
@@ -84,16 +90,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to create job" }, { status: 500 });
   }
 
-  // Fire-and-forget: trigger background function
-  // Netlify sets URL automatically; NEXT_PUBLIC_SITE_URL is a fallback for local dev.
-  // In local dev, `netlify dev` runs on port 8888 — use that if next.js is on localhost.
+  // Fire background function with only IDs — no image data in the body.
+  // The background function reads photo_urls from the receipt_photo_jobs row.
   const rawBaseUrl = process.env.URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
   const isLocalDev = !rawBaseUrl || rawBaseUrl.includes("localhost");
   const baseUrl = isLocalDev ? "http://localhost:8888" : rawBaseUrl;
   const secret = process.env.PHOTO_ANALYSIS_SECRET;
   const functionUrl = `${baseUrl}/.netlify/functions/analyze-receipt-photos-background`;
 
-  console.log("[photo-analysis/enqueue] baseUrl:", baseUrl, "secret set:", Boolean(secret), "functionUrl:", functionUrl);
+  console.log("[photo-analysis/enqueue] baseUrl:", baseUrl, "secret set:", Boolean(secret), "photos:", filteredUrls.length);
 
   if (secret) {
     fetch(functionUrl, {
@@ -102,11 +107,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
         "X-Photo-Analysis-Secret": secret,
       },
-      body: JSON.stringify({
-        receipt_id,
-        job_id: job.id,
-        photo_urls: photo_urls.slice(0, 20),
-      }),
+      body: JSON.stringify({ receipt_id, job_id: job.id }),
     })
       .then(async (r) => {
         const text = await r.text().catch(() => "");
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
         console.error("[photo-analysis/enqueue] background trigger failed:", err);
       });
   } else {
-    console.warn("[photo-analysis/enqueue] skipping background trigger — baseUrl:", baseUrl, "secret:", Boolean(secret));
+    console.warn("[photo-analysis/enqueue] skipping background trigger — no PHOTO_ANALYSIS_SECRET");
   }
 
   return NextResponse.json({ job_id: job.id, status: "pending" });

@@ -23,7 +23,9 @@ import type { PhotoAnalysisResult, DamageFinding } from "../../lib/photo-due-dil
 interface PhotoAnalysisPayload {
   receipt_id: string;
   job_id: string;
-  photo_urls: string[];
+  // photo_urls is no longer sent in the HTTP body — the background function
+  // reads them from the receipt_photo_jobs row to avoid Netlify's 6MB body limit.
+  photo_urls?: string[];
 }
 
 function getSupabase() {
@@ -33,18 +35,17 @@ function getSupabase() {
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
-// Fetch image and return as base64 data URL so OpenAI can access it.
-// Routes through /api/img proxy so dealer CDNs with hotlink/Referer protection
-// don't block the request — the proxy adds the correct User-Agent and strips Referer.
+// Fetch image and return as base64 data URL so OpenAI/Anthropic can process it.
+// - Local paths (/vehicles/...) are fetched directly from the site origin.
+// - External CDN URLs are routed through /api/img proxy which adds the correct
+//   User-Agent and strips Referer to bypass hotlink protection.
 async function fetchAsBase64(url: string, siteUrl: string): Promise<string | null> {
-  // Use proxy for external URLs; fetch directly for data: URIs (shouldn't occur, but safe)
-  const fetchUrl = url.startsWith("data:")
-    ? url
+  // Local public/ path — fetch directly, no proxy needed
+  const fetchUrl = url.startsWith("/")
+    ? `${siteUrl}${url}`
     : `${siteUrl}/api/img?url=${encodeURIComponent(url)}`;
   try {
-    const res = await fetch(fetchUrl, {
-      signal: AbortSignal.timeout(15_000),
-    });
+    const res = await fetch(fetchUrl, { signal: AbortSignal.timeout(15_000) });
     if (!res.ok) {
       console.error("[fetchAsBase64] HTTP", res.status, "for", url.slice(0, 80));
       return null;
@@ -107,8 +108,8 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
     return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON" }) };
   }
 
-  const { receipt_id, job_id, photo_urls } = payload;
-  if (!receipt_id || !job_id || !Array.isArray(photo_urls)) {
+  const { receipt_id, job_id } = payload;
+  if (!receipt_id || !job_id) {
     return { statusCode: 400, body: JSON.stringify({ error: "Missing required fields" }) };
   }
 
@@ -126,6 +127,24 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
 
   const supabase = getSupabase();
 
+  // Read photo_urls from the job row — they were stored by the enqueue route
+  // so we don't have to receive them in the HTTP body (avoids 6MB Netlify limit).
+  const { data: jobRow } = await supabase
+    .from("receipt_photo_jobs")
+    .select("photo_urls")
+    .eq("id", job_id)
+    .single();
+
+  const photo_urls: string[] = Array.isArray(jobRow?.photo_urls) ? jobRow.photo_urls : [];
+  if (photo_urls.length === 0) {
+    console.error("[analyze-receipt-photos] No photo_urls found on job row:", job_id);
+    await supabase
+      .from("receipt_photo_jobs")
+      .update({ status: "failed", error: "no_photo_urls", finished_at: new Date().toISOString() })
+      .eq("id", job_id);
+    return { statusCode: 400, body: JSON.stringify({ error: "No photos to analyse" }) };
+  }
+
   // Mark job processing
   await supabase
     .from("receipt_photo_jobs")
@@ -134,7 +153,6 @@ const handler: Handler = async (event: HandlerEvent): Promise<HandlerResponse> =
 
   try {
     // Fetch up to 20 photos in full parallel — independent requests, no need to batch.
-    // 20 photos gives high coverage across all 9 required angles plus extras.
     const resolvedUrls = await Promise.all(
       photo_urls.slice(0, 20).map(async (url) => ({ url, dataUrl: await fetchAsBase64(url, siteUrl) }))
     );
