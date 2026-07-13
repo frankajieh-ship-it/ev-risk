@@ -744,12 +744,12 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
   }
 
   // Direct "pictures" array extraction — fastest path for ScrapingBee HTML which includes
-  // the full client-rendered gallery. Scans for every "pictures":[...] key in the raw HTML,
-  // walks balanced brackets, then regex-extracts 1024x768 URLs by pic ID (deduped).
+  // the full client-rendered gallery. Scans for "pictures":[...] keys in the raw HTML and
+  // picks the LARGEST single array (the main listing's gallery, not "similar vehicles" sections).
   // This bypasses the full JSON.parse of the 1MB+ __remixContext blob.
   {
-    const seen1024 = new Set<string>();
-    const gallery1024: string[] = [];
+    const urlPat = /"url":"(https:\/\/static\.cargurus\.com\/images\/forsale\/[^"]*-1024x768\.[a-z]+)"/g;
+    let bestGallery: string[] = [];
     let sf = 0;
     while (sf < html.length) {
       const ki = html.indexOf('"pictures"', sf);
@@ -764,25 +764,29 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
       }
       const chunk = html.slice(bi, ei);
       // Extract only 1024x768 URLs from url fields (not thumbnailUrl/scaledPictures nested keys)
-      const urlPat = /"url":"(https:\/\/static\.cargurus\.com\/images\/forsale\/[^"]*-1024x768\.[a-z]+)"/g;
+      urlPat.lastIndex = 0;
+      const seen = new Set<string>();
+      const gallery: string[] = [];
       let um: RegExpExecArray | null;
       while ((um = urlPat.exec(chunk)) !== null) {
         const picUrl = um[1];
         const pmatch = picUrl.match(/pic-(\d+)/);
         if (!pmatch) continue;
         const picKey = pmatch[1];
-        if (!seen1024.has(picKey)) {
-          seen1024.add(picKey);
-          gallery1024.push(picUrl);
-          if (gallery1024.length >= 50) break;
+        if (!seen.has(picKey)) {
+          seen.add(picKey);
+          gallery.push(picUrl);
+          if (gallery.length >= 50) break;
         }
       }
+      // Keep only the largest array — main listing gallery beats "similar vehicles" sidebars
+      if (gallery.length > bestGallery.length) bestGallery = gallery;
       sf = ei;
     }
-    console.log(`[CarGurus pictures direct] Found ${gallery1024.length} 1024x768 photos`);
-    if (gallery1024.length > (data.photo_urls?.length ?? 0)) {
-      data.photo_urls = gallery1024;
-      data.photo_url = gallery1024[0];
+    console.log(`[CarGurus pictures direct] Found ${bestGallery.length} 1024x768 photos`);
+    if (bestGallery.length > (data.photo_urls?.length ?? 0)) {
+      data.photo_urls = bestGallery;
+      data.photo_url = bestGallery[0];
     }
   }
 
@@ -797,30 +801,31 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
     }
 
     // Scan the raw HTML for large-size variants, constrained to listing photos only.
-    // "Listing photos" = pic IDs inside a "pictures":[...] JSON key, OR pic IDs we already know.
-    // Build a set of pic IDs that appear inside a pictures array context.
-    // Use a balanced-bracket parser to find the full array — non-greedy regex stops at first ].
+    // Use only the LARGEST "pictures":[...] block to avoid pulling in sidebar/similar-vehicle IDs.
     const listingPicIds = new Set<string>(knownPicIds);
-    let searchFrom = 0;
-    while (searchFrom < html.length) {
-      const keyIdx = html.indexOf('"pictures"', searchFrom);
-      if (keyIdx === -1) break;
-      const bracketStart = html.indexOf('[', keyIdx + 10);
-      if (bracketStart === -1 || bracketStart - keyIdx > 20) { searchFrom = keyIdx + 10; continue; }
-      // Walk forward with balanced bracket depth
-      let depth = 0; let end = bracketStart;
-      for (let i = bracketStart; i < html.length; i++) {
-        const ch = html[i];
-        if (ch === '[' || ch === '{') depth++;
-        else if (ch === ']' || ch === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+    {
+      let searchFrom = 0;
+      let bestIds: string[] = [];
+      while (searchFrom < html.length) {
+        const keyIdx = html.indexOf('"pictures"', searchFrom);
+        if (keyIdx === -1) break;
+        const bracketStart = html.indexOf('[', keyIdx + 10);
+        if (bracketStart === -1 || bracketStart - keyIdx > 20) { searchFrom = keyIdx + 10; continue; }
+        let depth = 0; let end = bracketStart;
+        for (let i = bracketStart; i < html.length; i++) {
+          const ch = html[i];
+          if (ch === '[' || ch === '{') depth++;
+          else if (ch === ']' || ch === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+        }
+        const chunk = html.slice(bracketStart, end);
+        const pidPattern = /pic-(\d+)/g;
+        const ids: string[] = [];
+        let pm: RegExpExecArray | null;
+        while ((pm = pidPattern.exec(chunk)) !== null) ids.push(pm[1]);
+        if (ids.length > bestIds.length) bestIds = ids;
+        searchFrom = end;
       }
-      const chunk = html.slice(bracketStart, end);
-      const pidPattern = /pic-(\d+)/g;
-      let pm: RegExpExecArray | null;
-      while ((pm = pidPattern.exec(chunk)) !== null) {
-        listingPicIds.add(pm[1]);
-      }
-      searchFrom = end;
+      for (const id of bestIds) listingPicIds.add(id);
     }
 
     const seen = new Set<string>();
