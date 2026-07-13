@@ -1396,7 +1396,7 @@ export default function ReceiptPage() {
               {/* ── Next-step CTA bar ────────────────────────────────── */}
               <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
                 <p className="text-xs text-white/40 uppercase tracking-wider mb-3">What&apos;s next?</p>
-                <div className="grid grid-cols-4 gap-2 mb-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
                   <Link
                     href={`/receipt?compare=${receipt.receipt_id}`}
                     onClick={() => trackEvent("cta_compare_clicked", { receipt_id: receipt.receipt_id })}

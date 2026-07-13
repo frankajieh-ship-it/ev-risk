@@ -437,7 +437,7 @@ export default function ReceiptOutputCard({
               <div className="flex items-center gap-2 pt-1">
                 <button
                   onClick={onEmailGateOpen}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#00d97e] text-[#0d1117] hover:bg-[#00c970] transition-colors shrink-0"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-[#00d97e] text-[#0d1117] hover:bg-[#00c970] transition-colors shrink-0 min-h-[36px]"
                 >
                   Reveal verdict — free
                 </button>
@@ -456,22 +456,25 @@ export default function ReceiptOutputCard({
                   <p className="text-xs text-white/40 mt-0.5">Unlock to reveal your verdict</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 pt-1">
-                <button
-                  onClick={onStarterClick ?? onPaywallClick}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#00d97e] text-[#0d1117] hover:bg-[#00c970] transition-colors shrink-0"
-                >
-                  Starter — $3.99
-                </button>
-                <span className="text-white/20 text-xs">verdict · summary · photos</span>
-                <span className="text-white/15 text-xs mx-1">·</span>
-                <button
-                  onClick={onFullUpgradeClick ?? onPaywallClick}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/[0.08] text-white/60 hover:bg-white/[0.12] hover:text-white/80 transition-colors shrink-0"
-                >
-                  Everything — $9.99
-                </button>
-                <span className="text-white/20 text-xs">+ history · deep dive</span>
+              <div className="flex flex-col gap-2 pt-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={onStarterClick ?? onPaywallClick}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-[#00d97e] text-[#0d1117] hover:bg-[#00c970] transition-colors shrink-0 min-h-[36px]"
+                  >
+                    Starter — $3.99
+                  </button>
+                  <span className="text-white/20 text-xs">verdict · summary · photos</span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={onFullUpgradeClick ?? onPaywallClick}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white/[0.08] text-white/60 hover:bg-white/[0.12] hover:text-white/80 transition-colors shrink-0 min-h-[36px]"
+                  >
+                    Everything — $9.99
+                  </button>
+                  <span className="text-white/20 text-xs">+ history · deep dive</span>
+                </div>
               </div>
             </div>
           ) : (
