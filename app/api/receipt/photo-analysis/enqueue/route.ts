@@ -85,14 +85,17 @@ export async function POST(request: NextRequest) {
   }
 
   // Fire-and-forget: trigger background function
-  // Netlify sets URL automatically; NEXT_PUBLIC_SITE_URL is a fallback for local dev
-  const baseUrl = process.env.URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
+  // Netlify sets URL automatically; NEXT_PUBLIC_SITE_URL is a fallback for local dev.
+  // In local dev, `netlify dev` runs on port 8888 — use that if next.js is on localhost.
+  const rawBaseUrl = process.env.URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
+  const isLocalDev = !rawBaseUrl || rawBaseUrl.includes("localhost");
+  const baseUrl = isLocalDev ? "http://localhost:8888" : rawBaseUrl;
   const secret = process.env.PHOTO_ANALYSIS_SECRET;
   const functionUrl = `${baseUrl}/.netlify/functions/analyze-receipt-photos`;
 
   console.log("[photo-analysis/enqueue] baseUrl:", baseUrl, "secret set:", Boolean(secret), "functionUrl:", functionUrl);
 
-  if (baseUrl && secret && !baseUrl.includes("localhost")) {
+  if (secret) {
     fetch(functionUrl, {
       method: "POST",
       headers: {

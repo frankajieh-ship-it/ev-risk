@@ -175,6 +175,7 @@ export default function ReceiptOutputCard({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const fallbackFiredRef = useRef(false);
   const photoFailedRef = useRef(false);
+  const failedIndexesRef = useRef<Set<number>>(new Set());
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
   const [dragOver, setDragOver] = useState(false);
@@ -263,9 +264,11 @@ export default function ReceiptOutputCard({
     return [...scraped, ...userUploaded];
   }, [photos, userUploaded]);
 
-  // Reset failed flag when a new photo set arrives
+  // Reset photo state when a new photo set arrives
   useEffect(() => {
     photoFailedRef.current = false;
+    failedIndexesRef.current = new Set();
+    setPhotoIndex(0);
   }, [photos]);
 
   const prevPhoto = useCallback(() =>
@@ -590,9 +593,14 @@ export default function ReceiptOutputCard({
                 src={resolveImgSrc(photoSrcs[photoIndex])}
                 alt={vehicleDesc ? `${vehicleDesc} — listing photo ${photoIndex + 1} of ${photoSrcs.length}` : `Listing photo ${photoIndex + 1} of ${photoSrcs.length}`}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                  if (!photoFailedRef.current) {
+                onError={() => {
+                  failedIndexesRef.current.add(photoIndex);
+                  // Find the next photo that hasn't already failed
+                  const next = photoSrcs.findIndex((_, i) => i > photoIndex && !failedIndexesRef.current.has(i));
+                  if (next !== -1) {
+                    setPhotoIndex(next);
+                  } else if (!photoFailedRef.current) {
+                    // All photos failed — notify parent
                     photoFailedRef.current = true;
                     onPhotosFailed?.();
                   }
