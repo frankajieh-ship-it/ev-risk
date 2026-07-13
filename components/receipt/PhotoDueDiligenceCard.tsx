@@ -79,7 +79,8 @@ export default function PhotoDueDiligenceCard({ receiptId, photoUrls, onHighligh
   const toDataUrl = useCallback(async (url: string): Promise<string> => {
     if (url.startsWith("data:")) return resizeDataUrl(url);
     try {
-      const proxyUrl = `/api/img?url=${encodeURIComponent(url)}`;
+      // Local public/ paths serve directly — no proxy wrapping
+      const proxyUrl = url.startsWith("/") ? url : `/api/img?url=${encodeURIComponent(url)}`;
       const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(12_000) });
       if (!res.ok) return url;
       const blob = await res.blob();

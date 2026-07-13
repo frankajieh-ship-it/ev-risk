@@ -284,6 +284,8 @@ export default function ReceiptOutputCard({
     if (url.startsWith("data:")) return url;
     // Already routed through our proxy — don't double-wrap
     if (url.startsWith("/api/img")) return url;
+    // Local public/ paths serve directly — no proxy needed
+    if (url.startsWith("/")) return url;
     // Use canonical non-www domain to avoid the www→offolab.com 301 redirect.
     const base = typeof window !== "undefined" && window.location.hostname === "www.offolab.com"
       ? "https://offolab.com"
