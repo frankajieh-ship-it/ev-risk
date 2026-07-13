@@ -707,6 +707,16 @@ export default function ReceiptPage() {
       .catch(() => {});
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Restore photo_urls saved on the receipt record — fires when a historical
+  // receipt is loaded and listingPhotos is still empty (onPhotosExtracted only
+  // fires during live URL extraction, not when loading from DB / localStorage).
+  useEffect(() => {
+    if (!receipt?.receipt_id) return;
+    if (listingPhotos.length > 0) return;
+    const saved = (receipt as unknown as Record<string, unknown>).photo_urls as string[] | undefined;
+    if (saved?.length) setListingPhotos(saved.slice(0, 20));
+  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Vehicle DB image fallback — fires after receipt generation when no listing
   // photo was scraped. Uses make+model+year from the receipt (not a generic
   // lookup) so the year/trim is always accurate for this specific vehicle.
