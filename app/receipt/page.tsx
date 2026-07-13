@@ -714,7 +714,11 @@ export default function ReceiptPage() {
     if (!receipt?.receipt_id) return;
     if (listingPhotos.length > 0) return;
     const saved = (receipt as unknown as Record<string, unknown>).photo_urls as string[] | undefined;
-    if (saved?.length) setListingPhotos(saved.slice(0, 20));
+    // Only restore local/curated images (start with "/") — skip old scraped CDN URLs
+    if (saved?.length) {
+      const local = saved.filter((u: string) => u.startsWith("/"));
+      if (local.length) setListingPhotos(local);
+    }
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Vehicle DB image fallback — fires after receipt generation when no listing
@@ -1106,7 +1110,11 @@ export default function ReceiptPage() {
           onExtractionSuccess={() => {}}
           onExtractionFields={handleExtractionFields}
           onPhotosExtracted={(photos) => {
-            if (photos?.length) setListingPhotos(photos.slice(0, 20));
+            // Only accept local curated images from the fetch route
+            if (photos?.length) {
+              const local = photos.filter((u: string) => u.startsWith("/"));
+              if (local.length) setListingPhotos(local);
+            }
           }}
           onRecallsExtracted={(recalls) => setServerRecalls(recalls)}
           isGenerating={isGenerating}

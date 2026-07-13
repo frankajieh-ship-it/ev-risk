@@ -284,7 +284,7 @@ export default function ReceiptSummaryCard({
   if (paymentsEnabled && !showSummary && !isPaymentLoading) {
     // Email gate — first step, free
     return (
-      <div className={`rounded-xl border ${styles.border} ${styles.bg} overflow-hidden relative min-h-[280px]`}>
+      <div className={`rounded-xl border ${styles.border} ${styles.bg} overflow-hidden relative min-h-[320px]`}>
         {/* Blurred preview */}
         <div className="blur-sm pointer-events-none select-none opacity-50">
           <div className="flex items-center gap-3 px-5 pt-4 pb-3">
