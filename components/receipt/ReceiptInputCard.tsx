@@ -407,7 +407,7 @@ export default function ReceiptInputCard({
     setIsExtracting(true);
     setExtractError(null);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 58000);
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
     try {
       const bodyPayload: Record<string, string> = {};
       if (urlOverride || pasteMode === "url") {
