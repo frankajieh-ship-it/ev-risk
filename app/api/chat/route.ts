@@ -22,8 +22,8 @@ import type { GenerateOpts } from "@/lib/providers/types";
 // Rate limiters
 // ---------------------------------------------------------------------------
 
-// All users: 200 messages per day (chat is free for shoppers)
-const paidChatLimiter = new RateLimiter(24 * 60 * 60 * 1000, 200);
+// All users: 10 messages per day (free tier teaser — upgrade for unlimited)
+const paidChatLimiter = new RateLimiter(24 * 60 * 60 * 1000, 10);
 
 // ---------------------------------------------------------------------------
 // Deal Watch suggestion — only once per session per serverless instance

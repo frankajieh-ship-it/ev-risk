@@ -119,7 +119,7 @@ const QUICK_QUESTIONS: Record<"receipt" | "compare" | "auction" | "advisor", str
   ],
 };
 
-const FREE_DAILY_LIMIT = 200;
+const FREE_DAILY_LIMIT = 10;
 
 // ---------------------------------------------------------------------------
 // Deal Watch Matches Card — real listings from user's active watches
