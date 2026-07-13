@@ -743,70 +743,57 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
     }
   }
 
-  // Direct "pictures" array extraction — finds 1024x768 URLs for pic IDs already known from
-  // the Remix context extraction above. If Remix already found photos, use those pic IDs as
-  // the allowlist so we never pull in photos from sidebar/similar-vehicle sections.
-  // Only falls back to scanning all "pictures":[...] arrays when Remix found nothing.
-  {
-    // Build allowlist from whatever Remix extraction already found
-    const knownFromRemix = new Set<string>();
-    for (const u of (data.photo_urls ?? [])) {
-      const m = u.match(/pic-(\d+)/);
-      if (m) knownFromRemix.add(m[1]);
-    }
-    const hasRemixIds = knownFromRemix.size > 0;
-
-    const urlPat = /"url":"(https:\/\/static\.cargurus\.com\/images\/forsale\/[^"]*-1024x768\.[a-z]+)"/g;
-    let bestGallery: string[] = [];
-    let sf = 0;
-    while (sf < html.length) {
-      const ki = html.indexOf('"pictures"', sf);
-      if (ki === -1) break;
-      const bi = html.indexOf('[', ki + 10);
-      if (bi === -1 || bi - ki > 20) { sf = ki + 10; continue; }
-      let d = 0; let ei = bi;
-      for (let i = bi; i < html.length; i++) {
-        const c = html[i];
-        if (c === '[' || c === '{') d++;
-        else if (c === ']' || c === '}') { d--; if (d === 0) { ei = i + 1; break; } }
-      }
-      const chunk = html.slice(bi, ei);
-      urlPat.lastIndex = 0;
-      const seen = new Set<string>();
-      const gallery: string[] = [];
-      let um: RegExpExecArray | null;
-      while ((um = urlPat.exec(chunk)) !== null) {
-        const picUrl = um[1];
-        const pmatch = picUrl.match(/pic-(\d+)/);
-        if (!pmatch) continue;
-        const picKey = pmatch[1];
-        // If Remix gave us a known ID set, only accept those — ignores sidebar vehicles
-        if (hasRemixIds && !knownFromRemix.has(picKey)) continue;
-        if (!seen.has(picKey)) {
-          seen.add(picKey);
-          gallery.push(picUrl);
-          if (gallery.length >= 50) break;
+  // Direct "pictures" scan + HTML raw-scan — only run when Remix found NO photos.
+  // If Remix already extracted photos, trust it completely: its structured JSON is the
+  // listing's own data, so there's no risk of sidebar/similar-vehicle bleed.
+  if (!(data.photo_urls?.length)) {
+    // Direct 1024x768 scan: walk every "pictures":[...] block, keep the largest gallery found.
+    {
+      const urlPat = /"url":"(https:\/\/static\.cargurus\.com\/images\/forsale\/[^"]*-1024x768\.[a-z]+)"/g;
+      let bestGallery: string[] = [];
+      let sf = 0;
+      while (sf < html.length) {
+        const ki = html.indexOf('"pictures"', sf);
+        if (ki === -1) break;
+        const bi = html.indexOf('[', ki + 10);
+        if (bi === -1 || bi - ki > 20) { sf = ki + 10; continue; }
+        let d = 0; let ei = bi;
+        for (let i = bi; i < html.length; i++) {
+          const c = html[i];
+          if (c === '[' || c === '{') d++;
+          else if (c === ']' || c === '}') { d--; if (d === 0) { ei = i + 1; break; } }
         }
+        const chunk = html.slice(bi, ei);
+        urlPat.lastIndex = 0;
+        const seen = new Set<string>();
+        const gallery: string[] = [];
+        let um: RegExpExecArray | null;
+        while ((um = urlPat.exec(chunk)) !== null) {
+          const picUrl = um[1];
+          const pmatch = picUrl.match(/pic-(\d+)/);
+          if (!pmatch) continue;
+          const picKey = pmatch[1];
+          if (!seen.has(picKey)) {
+            seen.add(picKey);
+            gallery.push(picUrl);
+            if (gallery.length >= 50) break;
+          }
+        }
+        if (gallery.length > bestGallery.length) bestGallery = gallery;
+        sf = ei;
       }
-      if (gallery.length > bestGallery.length) bestGallery = gallery;
-      sf = ei;
-    }
-    console.log(`[CarGurus pictures direct] Found ${bestGallery.length} 1024x768 photos (remix anchor: ${hasRemixIds})`);
-    if (bestGallery.length > (data.photo_urls?.length ?? 0)) {
-      data.photo_urls = bestGallery;
-      data.photo_url = bestGallery[0];
+      console.log(`[CarGurus pictures direct] Found ${bestGallery.length} 1024x768 photos (remix fallback)`);
+      if (bestGallery.length > 0) {
+        data.photo_urls = bestGallery;
+        data.photo_url = bestGallery[0];
+      }
     }
   }
 
   // HTML raw-scan for CarGurus — fallback for older page structures without full pictures[] array.
-  // Collects all static.cargurus.com URLs from the HTML, constrained to pic IDs seen in pictures[].
-  if (html) {
-    // Collect pic IDs we already have from remixContext
+  // Only runs when neither Remix nor the direct 1024x768 scan found anything.
+  if (html && !(data.photo_urls?.length)) {
     const knownPicIds = new Set<string>();
-    for (const u of (data.photo_urls ?? [])) {
-      const m = u.match(/pic-(\d+)/);
-      if (m) knownPicIds.add(m[1]);
-    }
 
     // Scan the raw HTML for large-size variants, constrained to listing photos only.
     // Use only the LARGEST "pictures":[...] block to avoid pulling in sidebar/similar-vehicle IDs.
