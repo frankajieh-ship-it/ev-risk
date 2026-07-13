@@ -1321,6 +1321,7 @@ export default function ReceiptPage() {
                   onPaywallClick={() => handlePremiumAction("ownership_history")}
                   trackEvent={(name, data) => { trackEvent(name, data as Parameters<typeof trackEvent>[1]); }}
                   onHistoryLoaded={(result) => setVinHistory(result)}
+                  listingAccidentsReported={receipt.listing_summary?.accidents_reported as "yes" | "no" | "unknown" | undefined}
                 />
               )}
 

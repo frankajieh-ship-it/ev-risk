@@ -36,6 +36,7 @@ interface OwnershipHistoryCardProps {
   onPaywallClick?: () => void;
   trackEvent: (name: string, data?: Record<string, unknown>) => void;
   onHistoryLoaded?: (result: HistoryResult) => void;
+  listingAccidentsReported?: "yes" | "no" | "unknown";
 }
 
 type FetchState = "idle" | "loading" | "done" | "error";
@@ -48,6 +49,7 @@ export default function OwnershipHistoryCard({
   onPaywallClick,
   trackEvent,
   onHistoryLoaded,
+  listingAccidentsReported,
 }: OwnershipHistoryCardProps) {
   const [fetchState, setFetchState] = useState<FetchState>("idle");
   const fetchStateRef = useRef<FetchState>("idle");
@@ -235,6 +237,16 @@ export default function OwnershipHistoryCard({
           <Pill label="Accidents" value={summary.accident_count > 0 ? `${summary.accident_count} found` : "None found"} bad={summary.accident_count > 0} />
           <Pill label="Ownership" value={ownerLabel ?? (summary.sale_count > 0 ? `${summary.sale_count} records` : "None")} bad={false} />
         </div>
+
+        {/* Conflict note: listing says accident reported but NMVTIS shows none */}
+        {listingAccidentsReported === "yes" && summary.accident_count === 0 && (
+          <div className="flex items-start gap-2.5 bg-amber-500/[0.08] border border-amber-500/20 rounded-lg px-4 py-3">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-300/80">
+              The listing discloses an accident, but no record appears in NMVTIS. This can happen when an incident wasn&apos;t reported to insurance. Ask the seller for the full CarFax or repair receipts.
+            </p>
+          </div>
+        )}
 
         {/* Fleet/rental pattern flag */}
         {summary.possible_fleet_history && (
