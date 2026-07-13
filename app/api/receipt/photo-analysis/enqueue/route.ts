@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
   const isLocalDev = !rawBaseUrl || rawBaseUrl.includes("localhost");
   const baseUrl = isLocalDev ? "http://localhost:8888" : rawBaseUrl;
   const secret = process.env.PHOTO_ANALYSIS_SECRET;
-  const functionUrl = `${baseUrl}/.netlify/functions/analyze-receipt-photos`;
+  const functionUrl = `${baseUrl}/.netlify/functions/analyze-receipt-photos-background`;
 
   console.log("[photo-analysis/enqueue] baseUrl:", baseUrl, "secret set:", Boolean(secret), "functionUrl:", functionUrl);
 
