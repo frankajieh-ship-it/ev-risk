@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
   // Fire background function with only IDs — no image data in the body.
   // The background function reads photo_urls from the receipt_photo_jobs row.
-  const rawBaseUrl = process.env.URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
+  const rawBaseUrl = process.env.SITE_URL || process.env.URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
   const isLocalDev = !rawBaseUrl || rawBaseUrl.includes("localhost");
   const baseUrl = isLocalDev ? "http://localhost:8888" : rawBaseUrl;
   const secret = process.env.PHOTO_ANALYSIS_SECRET;
