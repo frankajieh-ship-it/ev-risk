@@ -8,8 +8,8 @@
 
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
-import { REQUIRED_ANGLES } from "./photo-due-diligence-types.js";
-import type { DamageFinding } from "./photo-due-diligence-types.js";
+import { REQUIRED_ANGLES } from "./photo-due-diligence-types";
+import type { DamageFinding } from "./photo-due-diligence-types";
 
 let _openai: OpenAI | null = null;
 let _anthropic: Anthropic | null = null;
