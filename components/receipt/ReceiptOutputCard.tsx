@@ -34,6 +34,7 @@ import type { ListingReceipt, LintError } from "@/types/receipt";
 import type { Region } from "@/lib/region";
 import { formatPrice } from "@/lib/region";
 import VehicleFactsBar from "@/components/receipt/VehicleFactsBar";
+import WarrantyCoverageCard from "@/components/receipt/WarrantyCoverageCard";
 import PhotoDueDiligenceCard from "@/components/receipt/PhotoDueDiligenceCard";
 import { Badge } from "@/components/ui";
 import { REQUIRED_ANGLES } from "@/lib/photo-due-diligence-types";
@@ -268,6 +269,7 @@ export default function ReceiptOutputCard({
   useEffect(() => {
     photoFailedRef.current = false;
     failedIndexesRef.current = new Set();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPhotoIndex(0);
   }, [photos]);
 
@@ -535,6 +537,11 @@ export default function ReceiptOutputCard({
           )}
         </div>
 
+        {/* Vehicle Identity Block — VIN, body style, MSRP, assembly */}
+        {receipt.vin && (
+          <VehicleIdentityBlock receipt={receipt} />
+        )}
+
         {/* Photo strip — empty state CTA when no photos, otherwise hero + thumbnails */}
         {photoSrcs.length === 0 ? (
           <div
@@ -750,8 +757,18 @@ export default function ReceiptOutputCard({
         />
       )}
 
-      {/* Vehicle Facts Bar — title status, accidents, live NHTSA recalls, battery estimate */}
+      {/* Vehicle Facts Bar — At a Glance history grid, recalls, battery estimate */}
       <VehicleFactsBar receipt={receipt} isUnlocked={isUnlocked} paymentsEnabled={paymentsEnabled} onPaywallClick={onPaywallClick} serverRecalls={serverRecalls} vinHistory={vinHistory} />
+
+      {/* Warranty Coverage — derived from make/model/year/mileage, always free */}
+      {receipt.listing_summary?.make && receipt.listing_summary?.model && receipt.listing_summary?.year && receipt.listing_summary?.mileage && (
+        <WarrantyCoverageCard
+          make={receipt.listing_summary.make}
+          model={receipt.listing_summary.model}
+          year={receipt.listing_summary.year}
+          mileage={receipt.listing_summary.mileage}
+        />
+      )}
 
       {/* Why not GREEN? — collapsible */}
       {whyNotGreen && whyNotGreen.length > 0 && receipt.verdict !== "GREEN" && (
@@ -1000,6 +1017,73 @@ export default function ReceiptOutputCard({
         )}
       </AnimatePresence>
     </motion.div>
+  );
+}
+
+// --- Vehicle Identity Block ---
+
+const ASSEMBLY_BY_MAKE: Record<string, string> = {
+  tesla: "United States", rivian: "United States", lucid: "United States", ford: "United States",
+  chevrolet: "United States", gmc: "United States", buick: "United States", cadillac: "United States",
+  chrysler: "United States", dodge: "United States", jeep: "United States", ram: "United States",
+  hyundai: "South Korea", kia: "South Korea", genesis: "South Korea",
+  toyota: "Japan", honda: "Japan", nissan: "Japan", mazda: "Japan", subaru: "Japan", lexus: "Japan",
+  acura: "Japan", infiniti: "Japan", mitsubishi: "Japan",
+  volkswagen: "Germany", bmw: "Germany", mercedes: "Germany", audi: "Germany", porsche: "Germany",
+  volvo: "Sweden", polestar: "Sweden",
+  rivian_normal: "United States",
+};
+
+function VehicleIdentityBlock({ receipt }: { receipt: import("@/types/receipt").ListingReceipt }) {
+  const [vinCopied, setVinCopied] = useState(false);
+  const ls = receipt.listing_summary;
+  const specs = (ls as Record<string, unknown>)?.auto_dev_specs as Record<string, unknown> | undefined;
+  const vin = receipt.vin;
+  const bodyStyle = specs?.body_style as string | undefined;
+  const msrp = specs?.msrp as number | undefined;
+  const make = ls?.make?.toLowerCase() || "";
+  const year = ls?.year;
+  const assembly = ASSEMBLY_BY_MAKE[make] || null;
+  const inServiceEst = year ? `Est. ${year}` : null;
+
+  const copyVin = () => {
+    if (!vin) return;
+    navigator.clipboard.writeText(vin).then(() => {
+      setVinCopied(true);
+      setTimeout(() => setVinCopied(false), 2000);
+    }).catch(() => {});
+  };
+
+  const pills = [
+    bodyStyle && { label: bodyStyle },
+    assembly && { label: assembly },
+    msrp && { label: `$${msrp.toLocaleString()} MSRP new` },
+    inServiceEst && { label: inServiceEst },
+  ].filter(Boolean) as { label: string }[];
+
+  if (!vin && pills.length === 0) return null;
+
+  return (
+    <div className="px-5 py-2.5 border-b border-white/[0.06] bg-white/[0.01] flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      {vin && (
+        <button
+          onClick={copyVin}
+          className="flex items-center gap-1.5 font-mono text-[11px] text-white/40 hover:text-white/60 transition-colors group"
+          title="Copy VIN"
+        >
+          <span className="tracking-wider">{vin}</span>
+          <span className="text-[10px] text-white/20 group-hover:text-white/40">
+            {vinCopied ? "✓" : "copy"}
+          </span>
+        </button>
+      )}
+      {pills.length > 0 && (
+        <span className="text-white/[0.12] text-xs select-none">·</span>
+      )}
+      {pills.map((p, i) => (
+        <span key={i} className="text-[11px] text-white/30">{p.label}</span>
+      ))}
+    </div>
   );
 }
 

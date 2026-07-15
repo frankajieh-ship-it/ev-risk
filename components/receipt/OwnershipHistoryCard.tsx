@@ -21,6 +21,8 @@ export interface HistoryResult {
     sale_count: number;
     owner_type_breakdown?: { dealer: number; fleet_rental: number; private: number; unknown: number };
     possible_fleet_history?: boolean;
+    open_lien?: boolean | null;
+    odometer_rollback?: boolean;
   };
   theft: Array<{ date?: string; status?: string }>;
   salvage: Array<{ date?: string; source?: string; disposition?: string }>;
@@ -206,7 +208,6 @@ export default function OwnershipHistoryCard({
   const { summary, theft, salvage, accidents, sales } = result;
   const allClear = !summary.theft_reported && !summary.salvage_reported && summary.accident_count === 0;
 
-  // Build human-readable owner breakdown string e.g. "3 owners (1 dealer, 2 private)"
   function ownerBreakdownLabel(): string | null {
     const b = summary.owner_type_breakdown;
     if (!b) return null;
@@ -221,6 +222,46 @@ export default function OwnershipHistoryCard({
   }
   const ownerLabel = ownerBreakdownLabel();
 
+  // Build unified chronological event timeline from all record types
+  type TimelineEvent = { date: string; ts: number; icon: "sale" | "accident" | "salvage" | "theft"; label: string; detail?: string };
+  const timelineEvents: TimelineEvent[] = [
+    ...sales.map((r) => ({
+      date: r.date || "",
+      ts: r.date ? new Date(r.date).getTime() : 0,
+      icon: "sale" as const,
+      label: r.owner_type === "fleet_rental" ? "Fleet/Rental Sale" : r.owner_type === "private" ? "Private Sale" : "Dealer / Auction Sale",
+      detail: [r.odometer ? `${Number(r.odometer).toLocaleString()} mi` : "", r.price ? `$${Number(r.price).toLocaleString()}` : "", r.seller || ""].filter(Boolean).join(" · ") || undefined,
+    })),
+    ...accidents.map((r) => ({
+      date: r.date || "",
+      ts: r.date ? new Date(r.date).getTime() : 0,
+      icon: "accident" as const,
+      label: `Accident${r.severity ? ` — ${r.severity}` : ""}`,
+      detail: [r.damage_description, r.airbags_deployed ? `Airbags: ${r.airbags_deployed}` : ""].filter(Boolean).join(" · ") || undefined,
+    })),
+    ...salvage.map((r) => ({
+      date: r.date || "",
+      ts: r.date ? new Date(r.date).getTime() : 0,
+      icon: "salvage" as const,
+      label: `Salvage / Total Loss${r.disposition ? ` — ${r.disposition}` : ""}`,
+      detail: r.source || undefined,
+    })),
+    ...theft.map((r) => ({
+      date: r.date || "",
+      ts: r.date ? new Date(r.date).getTime() : 0,
+      icon: "theft" as const,
+      label: `Theft Record${r.status ? ` — ${r.status}` : ""}`,
+      detail: undefined,
+    })),
+  ].filter((e) => e.date).sort((a, b) => b.ts - a.ts); // newest first
+
+  const TIMELINE_ICON = {
+    sale:     { cls: "bg-blue-500/20 text-blue-400",   El: Car },
+    accident: { cls: "bg-yellow-500/20 text-yellow-400", El: AlertTriangle },
+    salvage:  { cls: "bg-orange-500/20 text-orange-400", El: AlertTriangle },
+    theft:    { cls: "bg-red-500/20 text-red-400",      El: ShieldAlert },
+  };
+
   return (
     <div className="rounded-xl border border-white/[0.08] bg-[#161b22] overflow-hidden">
       <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center gap-2">
@@ -230,6 +271,27 @@ export default function OwnershipHistoryCard({
       </div>
 
       <div className="p-5 space-y-4">
+        {/* Critical alerts — shown before summary */}
+        {summary.open_lien === true && (
+          <div className="flex items-start gap-2.5 bg-amber-500/[0.08] border border-amber-500/20 rounded-lg px-4 py-3">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-400">Lien on file</p>
+              <p className="text-xs text-amber-300/70 mt-0.5">Confirm the seller has paid off the existing loan before purchase. A lien means a lender still has a legal claim on this vehicle.</p>
+            </div>
+          </div>
+        )}
+
+        {summary.odometer_rollback === true && (
+          <div className="flex items-start gap-2.5 bg-red-500/[0.08] border border-red-500/20 rounded-lg px-4 py-3">
+            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-red-400">Possible odometer rollback</p>
+              <p className="text-xs text-red-300/70 mt-0.5">A later record shows a lower mileage reading than an earlier one. This is a serious red flag — do not purchase without a certified pre-purchase inspection.</p>
+            </div>
+          </div>
+        )}
+
         {/* Summary pills */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Pill label="Theft" value={summary.theft_reported ? "Reported" : "None found"} bad={summary.theft_reported} />
@@ -267,7 +329,35 @@ export default function OwnershipHistoryCard({
           </div>
         )}
 
-        {/* Theft */}
+        {/* Chronological event timeline */}
+        {timelineEvents.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-white/30 uppercase tracking-wider mb-3">Event Timeline</p>
+            <div className="relative pl-6 space-y-0">
+              {/* Vertical line */}
+              <div className="absolute left-[9px] top-2 bottom-2 w-px bg-white/[0.08]" />
+              {timelineEvents.map((ev, i) => {
+                const { cls, El } = TIMELINE_ICON[ev.icon];
+                return (
+                  <div key={i} className="relative flex gap-3 pb-4 last:pb-0">
+                    <div className={`absolute -left-6 w-[18px] h-[18px] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${cls}`}>
+                      <El className="w-2.5 h-2.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-[11px] font-mono text-white/30">{ev.date}</span>
+                        <span className="text-sm font-medium text-white/70">{ev.label}</span>
+                      </div>
+                      {ev.detail && <p className="text-xs text-white/40 mt-0.5 truncate">{ev.detail}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Theft records (detail) */}
         {theft.length > 0 && (
           <div className="bg-red-500/[0.08] border border-red-500/20 rounded-lg p-4">
             <p className="text-sm font-semibold text-red-400 mb-2 flex items-center gap-1.5">
@@ -283,7 +373,7 @@ export default function OwnershipHistoryCard({
           </div>
         )}
 
-        {/* Salvage */}
+        {/* Salvage records (detail) */}
         {salvage.length > 0 && (
           <div className="bg-orange-500/[0.08] border border-orange-500/20 rounded-lg p-4">
             <p className="text-sm font-semibold text-orange-400 mb-2 flex items-center gap-1.5">
@@ -299,7 +389,7 @@ export default function OwnershipHistoryCard({
           </div>
         )}
 
-        {/* Accidents — collapsible */}
+        {/* Accidents — collapsible detail */}
         {accidents.length > 0 && (
           <div className="border border-yellow-500/20 rounded-lg overflow-hidden">
             <button
@@ -307,7 +397,7 @@ export default function OwnershipHistoryCard({
               className="w-full flex items-center justify-between px-4 py-3 bg-yellow-500/[0.06] text-left"
             >
               <span className="text-sm font-semibold text-yellow-400 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4" /> Accident Records ({accidents.length})
+                <AlertTriangle className="w-4 h-4" /> Accident Detail ({accidents.length})
               </span>
               {accidentsOpen ? <ChevronUp className="w-4 h-4 text-yellow-500/60" /> : <ChevronDown className="w-4 h-4 text-yellow-500/60" />}
             </button>
@@ -327,7 +417,7 @@ export default function OwnershipHistoryCard({
           </div>
         )}
 
-        {/* Sales — collapsible */}
+        {/* Sales — collapsible detail */}
         {sales.length > 0 && (
           <div className="border border-white/[0.08] rounded-lg overflow-hidden">
             <button
@@ -335,7 +425,7 @@ export default function OwnershipHistoryCard({
               className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.03] text-left"
             >
               <span className="text-sm font-semibold text-white/60 flex items-center gap-1.5">
-                <Car className="w-4 h-4" /> Previous Sales ({sales.length})
+                <Car className="w-4 h-4" /> Sale Detail ({sales.length})
               </span>
               {salesOpen ? <ChevronUp className="w-4 h-4 text-white/30" /> : <ChevronDown className="w-4 h-4 text-white/30" />}
             </button>

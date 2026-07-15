@@ -122,6 +122,19 @@ export async function POST(request: Request) {
     const allSales = auctionSales;
     const possible_fleet_history = detectFleetPattern(allSales);
 
+    // Odometer rollback: flag if any later-dated record shows a lower reading
+    function detectOdometerRollback(records: SaleRecord[]): boolean {
+      const withOdo = records
+        .filter((r) => r.date && r.odometer)
+        .map((r) => ({ ts: new Date(r.date!).getTime(), odo: parseInt(r.odometer!, 10) }))
+        .filter((r) => !isNaN(r.ts) && !isNaN(r.odo))
+        .sort((a, b) => a.ts - b.ts);
+      for (let i = 1; i < withOdo.length; i++) {
+        if (withOdo[i].odo < withOdo[i - 1].odo - 500) return true; // 500mi tolerance for rounding
+      }
+      return false;
+    }
+
     const breakdown = { dealer: 0, fleet_rental: 0, private: 0, unknown: 0 };
     for (const s of allSales) {
       breakdown[s.owner_type ?? "unknown"]++;
@@ -141,6 +154,8 @@ export async function POST(request: Request) {
         sale_count: historyResult.ownership_count ?? allSales.length,
         owner_type_breakdown: breakdown,
         possible_fleet_history,
+        open_lien: historyResult.open_lien ?? null,
+        odometer_rollback: detectOdometerRollback(allSales),
       },
       theft: historyResult.theft_reported ? [{ status: "Reported" }] : [],
       salvage: (historyResult.salvage_reported || salvageFromAuction) ? [{ source: "VehicleDatabases" }] : [],

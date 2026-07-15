@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { Shield, ShieldAlert, AlertTriangle, CheckCircle, Zap, ExternalLink, Loader2, Lock } from "lucide-react";
+import { AlertTriangle, Zap, ExternalLink, Lock } from "lucide-react";
 import type { ListingReceipt } from "@/types/receipt";
 
 interface VehicleFactsBarProps {
@@ -68,7 +68,7 @@ interface NhtsaRecall {
 
 type RecallStatus = "idle" | "loading" | "done" | "error";
 
-export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsEnabled = false, onPaywallClick, serverRecalls, vinHistory }: VehicleFactsBarProps) {
+export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsEnabled = false, serverRecalls, vinHistory }: VehicleFactsBarProps) {
   const ls = receipt.listing_summary;
   const make = ls?.make || "";
   const model = ls?.model || "";
@@ -135,41 +135,10 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
   const estimatedRange = ev && originalRange > 0 ? Math.round(originalRange * (1 - degradation / 100)) : 0;
 
   const historyVerified = vinHistory?.success === true;
-  const titleVerifiedClean = historyVerified && !vinHistory!.summary.salvage_reported;
-  const titleVerifiedSalvage = historyVerified && vinHistory!.summary.salvage_reported;
+
+
   const accidentsVerifiedClean = historyVerified && vinHistory!.summary.accident_count === 0;
   const accidentsVerifiedPresent = historyVerified && vinHistory!.summary.accident_count > 0;
-
-  // Title status pill — green "verified" when history check confirms clean, amber when unverified
-  const titleConfig = {
-    clean: titleVerifiedClean
-      ? { label: "Clean title (verified)", icon: CheckCircle, cls: "text-green-400 bg-green-500/10 border-green-500/20" }
-      : titleVerifiedSalvage
-        ? { label: "Salvage title (verified)", icon: ShieldAlert, cls: "text-red-400 bg-red-500/10 border-red-500/20" }
-        : { label: "Clean title (unverified)", icon: ShieldAlert, cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-    rebuilt: { label: "Rebuilt title", icon: ShieldAlert, cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-    salvage: { label: "Salvage title", icon: ShieldAlert, cls: "text-red-400 bg-red-500/10 border-red-500/20" },
-    unknown: titleVerifiedClean
-      ? { label: "Clean title (verified)", icon: CheckCircle, cls: "text-green-400 bg-green-500/10 border-green-500/20" }
-      : { label: "Title unknown", icon: Shield, cls: "text-white/40 bg-white/[0.06] border-white/10" },
-  };
-  const tc = titleConfig[titleStatus as keyof typeof titleConfig] || titleConfig.unknown;
-  const TitleIcon = tc.icon;
-
-  // Accident pill — green "verified" when history check confirms no accidents
-  const accidentConfig = {
-    yes: { label: "Accidents reported (listing)", cls: "text-red-400 bg-red-500/10 border-red-500/20", icon: AlertTriangle },
-    no: accidentsVerifiedClean
-      ? { label: "No accidents (verified)", cls: "text-green-400 bg-green-500/10 border-green-500/20", icon: CheckCircle }
-      : { label: "No accidents reported (unverified)", cls: "text-amber-400 bg-amber-500/10 border-amber-500/20", icon: ShieldAlert },
-    unknown: accidentsVerifiedClean
-      ? { label: "No accidents (verified)", cls: "text-green-400 bg-green-500/10 border-green-500/20", icon: CheckCircle }
-      : accidentsVerifiedPresent
-        ? { label: `${vinHistory!.summary.accident_count} accident${vinHistory!.summary.accident_count !== 1 ? "s" : ""} found`, cls: "text-red-400 bg-red-500/10 border-red-500/20", icon: AlertTriangle }
-        : { label: "Accident history unknown", cls: "text-white/40 bg-white/[0.06] border-white/10", icon: AlertTriangle },
-  };
-  const ac = accidentConfig[accidents as keyof typeof accidentConfig] || accidentConfig.unknown;
-  const AccidentIcon = ac.icon;
 
   const nhtsaUrl = make && model && year
     ? `https://www.nhtsa.gov/recalls?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}&modelYear=${year}`
@@ -177,140 +146,186 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
 
   const showFull = isUnlocked || !paymentsEnabled;
 
+  // Derive At a Glance cell states
+  const serviceHistory = (receipt.listing_summary as Record<string, unknown>)?.service_history as string | undefined;
+  const owners = (receipt.listing_summary as Record<string, unknown>)?.owners as number | null | undefined;
+
+  type CellStatus = "ok" | "issue" | "warn" | "unknown" | "locked";
+  type Cell = { label: string; status: CellStatus; detail: string; free: boolean };
+
+  const recallStatus_cell: CellStatus = recallStatus === "done"
+    ? (recalls.length === 0 ? "ok" : (serverRecalls?.park_it ? "issue" : "warn"))
+    : recallStatus === "loading" ? "unknown" : "unknown";
+
+  const titleCell: Cell = {
+    label: "State Title",
+    status: titleStatus === "salvage" ? "issue" : titleStatus === "rebuilt" ? "warn" : "ok",
+    detail: titleStatus === "salvage" ? "Salvage" : titleStatus === "rebuilt" ? "Rebuilt" : "Clean",
+    free: true,
+  };
+
+  const accidentCell: Cell = {
+    label: "Accidents",
+    status: accidents === "yes" ? (accidentsVerifiedPresent ? "issue" : "warn")
+      : accidentsVerifiedPresent ? "issue"
+      : accidentsVerifiedClean ? "ok"
+      : accidents === "no" ? "warn"
+      : "unknown",
+    detail: accidentsVerifiedPresent
+      ? `${vinHistory!.summary.accident_count} found`
+      : accidentsVerifiedClean ? "None (verified)"
+      : accidents === "yes" ? "Reported"
+      : accidents === "no" ? "None (unverified)"
+      : "Unknown",
+    free: true,
+  };
+
+  const recallCell: Cell = {
+    label: "Open Recalls",
+    status: recallStatus_cell,
+    detail: recallStatus === "done"
+      ? (recalls.length === 0 ? "No open recalls" : `${recalls.length} campaign${recalls.length !== 1 ? "s" : ""}`)
+      : "Checking…",
+    free: true,
+  };
+
+  const serviceCell: Cell = {
+    label: "Service Records",
+    status: serviceHistory === "yes" ? "ok" : serviceHistory === "no" ? "warn" : "unknown",
+    detail: serviceHistory === "yes" ? "Records present" : serviceHistory === "no" ? "None disclosed" : "Not disclosed",
+    free: true,
+  };
+
+  const ownersCell: Cell = {
+    label: "Owners",
+    status: "ok",
+    detail: historyVerified
+      ? (vinHistory!.summary.sale_count > 0 ? `${vinHistory!.summary.sale_count} owner${vinHistory!.summary.sale_count !== 1 ? "s" : ""}` : "1 owner")
+      : (owners != null ? `${owners} owner${owners !== 1 ? "s" : ""} (listed)` : "Unknown"),
+    free: true,
+  };
+
+  const theftCell: Cell = {
+    label: "Theft Record",
+    status: showFull ? (historyVerified ? (vinHistory!.summary.theft_reported ? "issue" : "ok") : "unknown") : "locked",
+    detail: showFull ? (historyVerified ? (vinHistory!.summary.theft_reported ? "Reported" : "None found") : "Run history check") : "Unlock",
+    free: false,
+  };
+
+  const salvageCell: Cell = {
+    label: "Salvage / Loss",
+    status: showFull ? (historyVerified ? (vinHistory!.summary.salvage_reported ? "issue" : "ok") : "unknown") : "locked",
+    detail: showFull ? (historyVerified ? (vinHistory!.summary.salvage_reported ? "Reported" : "None found") : "Run history check") : "Unlock",
+    free: false,
+  };
+
+  const lienCell: Cell = {
+    label: "Open Lien",
+    status: showFull ? (historyVerified
+      ? ((vinHistory!.summary as Record<string, unknown>).open_lien === true ? "issue"
+        : (vinHistory!.summary as Record<string, unknown>).open_lien === false ? "ok" : "unknown")
+      : "unknown") : "locked",
+    detail: showFull ? (historyVerified
+      ? ((vinHistory!.summary as Record<string, unknown>).open_lien === true ? "Lien reported"
+        : (vinHistory!.summary as Record<string, unknown>).open_lien === false ? "No lien" : "Unknown")
+      : "Run history check") : "Unlock",
+    free: false,
+  };
+
+  const odometerCell: Cell = {
+    label: "Odometer Check",
+    status: showFull ? (historyVerified
+      ? ((vinHistory!.summary as Record<string, unknown>).odometer_rollback === true ? "issue" : "ok")
+      : "unknown") : "locked",
+    detail: showFull ? (historyVerified
+      ? ((vinHistory!.summary as Record<string, unknown>).odometer_rollback === true ? "Rollback detected" : "No issues")
+      : "Run history check") : "Unlock",
+    free: false,
+  };
+
+  const cells: Cell[] = [titleCell, accidentCell, recallCell, theftCell, salvageCell, odometerCell, lienCell, serviceCell, ownersCell];
+
+  const STATUS_STYLE: Record<CellStatus, { dot: string; text: string; badge: string }> = {
+    ok:      { dot: "bg-[#00d97e]",   text: "text-[#00d97e]",    badge: "text-[#00d97e]/70 bg-[#00d97e]/[0.06] border-[#00d97e]/20" },
+    warn:    { dot: "bg-amber-400",    text: "text-amber-400",    badge: "text-amber-400/70 bg-amber-500/[0.06] border-amber-500/20" },
+    issue:   { dot: "bg-red-400",      text: "text-red-400",      badge: "text-red-400/70 bg-red-500/[0.06] border-red-500/20" },
+    unknown: { dot: "bg-white/20",     text: "text-white/30",     badge: "text-white/30 bg-white/[0.04] border-white/[0.08]" },
+    locked:  { dot: "bg-white/10",     text: "text-white/20",     badge: "text-white/20 bg-white/[0.03] border-white/[0.06]" },
+  };
+
   return (
-    <div className="px-5 py-3 border-b border-white/[0.06] bg-white/[0.02] space-y-2.5">
-      <p className="text-xs font-semibold text-white/30 uppercase tracking-wider">Vehicle Facts</p>
-
-      {/* Pill row */}
-      <div className="flex flex-wrap gap-1.5">
-        {/* Mileage — always visible */}
+    <div className="px-5 py-4 border-b border-white/[0.06] bg-white/[0.02] space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-white/30 uppercase tracking-wider">Vehicle History at a Glance</p>
         {mileage > 0 && (
-          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-white/50 bg-white/[0.04] border-white/[0.08]">
-            {mileage.toLocaleString()} mi
-          </span>
-        )}
-
-        {/* Title status — show unverified scraped label for free; verified label only when unlocked */}
-        {showFull ? (
-          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${tc.cls}`}>
-            <TitleIcon className="w-3 h-3" />
-            {tc.label}
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-amber-400 bg-amber-500/10 border-amber-500/20">
-            <ShieldAlert className="w-3 h-3" />
-            {titleStatus === "salvage" ? "Salvage title" : titleStatus === "rebuilt" ? "Rebuilt title" : "Clean title (unverified)"}
-          </span>
-        )}
-
-        {/* Accidents — show unverified scraped label for free; verified label only when unlocked */}
-        {showFull ? (
-          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${ac.cls}`}>
-            <AccidentIcon className="w-3 h-3" />
-            {ac.label}
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-amber-400 bg-amber-500/10 border-amber-500/20">
-            <ShieldAlert className="w-3 h-3" />
-            {accidents === "yes" ? "Accidents reported (listing)" : "No accidents reported (unverified)"}
-          </span>
-        )}
-
-        {/* VIN history — locked until payment; verified result only when unlocked */}
-        {showFull && !historyVerified && (
-          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-white/10 text-white/30 bg-white/[0.03]">
-            <Shield className="w-3 h-3" />
-            VIN history — run check below
-          </span>
-        )}
-        {showFull && historyVerified && (
-          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-[#00d97e]/30 text-[#00d97e]/80 bg-[#00d97e]/[0.06]">
-            <CheckCircle className="w-3 h-3" />
-            VIN history checked{vinHistory!.summary.sale_count > 0 ? ` · ${vinHistory!.summary.sale_count} owner${vinHistory!.summary.sale_count !== 1 ? "s" : ""}` : ""}
-          </span>
-        )}
-        {!showFull && (
-          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-white/10 text-white/30 bg-white/[0.03]">
-            <Lock className="w-3 h-3" />
-            VIN history — unlock to check
-          </span>
-        )}
-
-        {/* Recalls — always free, sourced from NHTSA public data */}
-        {recallStatus === "loading" && (
-          <span className="inline-flex items-center gap-1 text-xs text-white/30 px-2 py-0.5 rounded-full border border-white/[0.08]">
-            <Loader2 className="w-3 h-3 animate-spin" />
-            Checking recalls…
-          </span>
-        )}
-        {recallStatus === "done" && recalls.length === 0 && (
-          <a href={nhtsaUrl} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-green-400 bg-green-500/10 border-green-500/20 hover:underline"
-          >
-            <CheckCircle className="w-3 h-3" />No recall campaigns (NHTSA)
-            <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
-          </a>
-        )}
-        {recallStatus === "done" && recalls.length > 0 && (
-          <>
-            <button onClick={() => setRecallExpanded((o) => !o)}
-              className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-red-400 bg-red-500/10 border-red-500/20"
-            >
-              <AlertTriangle className="w-3 h-3" />
-              {recalls.length} recall campaign{recalls.length !== 1 ? "s" : ""} (NHTSA)
-              <span className="ml-0.5 text-red-400/70">{recallExpanded ? "▲" : "▼"}</span>
-            </button>
-            {(serverRecalls?.park_it || serverRecalls?.park_outside) && (
-              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border text-orange-400 bg-orange-500/10 border-orange-500/20">
-                <AlertTriangle className="w-3 h-3" />
-                {serverRecalls.park_it ? "Do not park indoors" : "Park outside only"} — fire risk recall
-              </span>
-            )}
-          </>
-        )}
-        {recallStatus === "error" && (
-          <a href={nhtsaUrl} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs text-white/40 px-2 py-0.5 rounded-full border border-white/10 hover:underline"
-          >
-            Check NHTSA recalls <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
-          </a>
+          <span className="text-xs text-white/30">{mileage.toLocaleString()} mi</span>
         )}
       </div>
 
-      {/* Recall expansion — always free (NHTSA public data) */}
-      {recallExpanded && recalls.length > 0 && (
-        <div className="space-y-1.5 pl-1">
-          {recalls.slice(0, 4).map((r) => (
-            <div key={r.NHTSACampaignNumber} className="text-xs text-white/60 flex items-start gap-1.5">
-              <span className="text-red-400 mt-0.5 flex-shrink-0">!</span>
-              <span>
-                <span className="font-medium text-white/80">{r.Component}</span>
-                {r.Summary ? ` — ${r.Summary.slice(0, 120)}${r.Summary.length > 120 ? "…" : ""}` : ""}
-              </span>
+      {/* 3×3 check grid */}
+      <div className="grid grid-cols-3 gap-2">
+        {cells.map((cell) => {
+          const s = STATUS_STYLE[cell.status];
+          const locked = cell.status === "locked";
+          return (
+            <div key={cell.label} className={`rounded-lg border p-2.5 ${locked ? "border-white/[0.06] bg-white/[0.02]" : "border-white/[0.08] bg-white/[0.03]"}`}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+                <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wide leading-tight">{cell.label}</span>
+                {locked && <Lock className="w-2.5 h-2.5 text-white/20 ml-auto" />}
+              </div>
+              <p className={`text-xs font-medium leading-tight ${s.text} ${locked ? "blur-[3px] select-none" : ""}`}>
+                {locked ? "——" : cell.detail}
+              </p>
             </div>
-          ))}
-          {recalls.length > 4 && (
-            <a href={nhtsaUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-[#00d97e]/70 hover:text-[#00d97e] hover:underline flex items-center gap-1">
-              +{recalls.length - 4} more on NHTSA <ExternalLink className="w-2.5 h-2.5" />
-            </a>
+          );
+        })}
+      </div>
+
+      {/* Recall detail expansion */}
+      {recallStatus === "done" && recalls.length > 0 && (
+        <div>
+          <button onClick={() => setRecallExpanded((o) => !o)}
+            className="text-xs text-red-400/70 hover:text-red-400 flex items-center gap-1 transition-colors"
+          >
+            <AlertTriangle className="w-3 h-3" />
+            {recalls.length} recall campaign{recalls.length !== 1 ? "s" : ""} — see details
+            <span>{recallExpanded ? "▲" : "▼"}</span>
+          </button>
+          {(serverRecalls?.park_it || serverRecalls?.park_outside) && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-orange-400 bg-orange-500/[0.08] border border-orange-500/20 rounded-lg px-3 py-2">
+              <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+              {serverRecalls.park_it ? "Do not park indoors" : "Park outside only"} — fire risk recall
+            </div>
           )}
-          <p className="text-xs text-white/30 pt-0.5">
-            These are model-level campaigns — ask the seller if this specific vehicle has already had the remedy completed, or{" "}
-            <a
-              href={`https://www.nhtsa.gov/vehicle-safety/recalls#vin-search`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline hover:text-white/50 transition-colors"
-            >
-              check by VIN on NHTSA
-            </a>.
-          </p>
+          {recallExpanded && (
+            <div className="mt-2 space-y-1.5 pl-1">
+              {recalls.slice(0, 4).map((r) => (
+                <div key={r.NHTSACampaignNumber} className="text-xs text-white/60 flex items-start gap-1.5">
+                  <span className="text-red-400 mt-0.5 flex-shrink-0">!</span>
+                  <span>
+                    <span className="font-medium text-white/80">{r.Component}</span>
+                    {r.Summary ? ` — ${r.Summary.slice(0, 120)}${r.Summary.length > 120 ? "…" : ""}` : ""}
+                  </span>
+                </div>
+              ))}
+              {recalls.length > 4 && (
+                <a href={nhtsaUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-[#00d97e]/70 hover:text-[#00d97e] hover:underline flex items-center gap-1">
+                  +{recalls.length - 4} more on NHTSA <ExternalLink className="w-2.5 h-2.5" />
+                </a>
+              )}
+              <p className="text-xs text-white/30">
+                Ask the seller if the remedy has been completed, or{" "}
+                <a href="https://www.nhtsa.gov/vehicle-safety/recalls#vin-search" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/50">check by VIN on NHTSA</a>.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Battery health estimate (EVs only) — always visible */}
+      {/* Battery health estimate (EVs only) */}
       {ev && degradation > 0 && estimatedRange > 0 && (
-        <div className="flex items-start gap-2 text-xs text-white/50 pt-0.5">
+        <div className="flex items-start gap-2 text-xs text-white/50">
           <Zap className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
           <span>
             <span className="font-medium text-white/80">Battery est.</span>{" "}
