@@ -55,12 +55,9 @@ export async function POST(request: NextRequest) {
       // Job exists but may never have been triggered (e.g. background function URL was wrong).
       // Re-fire the background function — it's idempotent (checks status before processing).
       // Fall through to the trigger logic below using the existing job id.
-      const rawBaseUrl2 = process.env.SITE_URL || process.env.URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
-      const isLocalDev2 = !rawBaseUrl2 || rawBaseUrl2.includes("localhost");
-      const baseUrl2 = isLocalDev2 ? "http://localhost:8888" : rawBaseUrl2;
       const secret2 = process.env.PHOTO_ANALYSIS_SECRET;
-      const functionUrl2 = `${baseUrl2}/.netlify/functions/analyze-receipt-photos-background`;
-      console.log("[photo-analysis/enqueue] re-firing for existing job", existing.id, "baseUrl:", baseUrl2, "secret:", Boolean(secret2));
+      const functionUrl2 = `https://offolab.com/.netlify/functions/analyze-receipt-photos-background`;
+      console.log("[photo-analysis/enqueue] re-firing for existing job", existing.id, "secret:", Boolean(secret2));
       if (secret2) {
         fetch(functionUrl2, {
           method: "POST",
@@ -113,13 +110,13 @@ export async function POST(request: NextRequest) {
 
   // Fire background function with only IDs — no image data in the body.
   // The background function reads photo_urls from the receipt_photo_jobs row.
-  const rawBaseUrl = process.env.SITE_URL || process.env.URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
-  const isLocalDev = !rawBaseUrl || rawBaseUrl.includes("localhost");
-  const baseUrl = isLocalDev ? "http://localhost:8888" : rawBaseUrl;
   const secret = process.env.PHOTO_ANALYSIS_SECRET;
+  // Always use the canonical production URL — avoids deploy-preview URL mismatches
+  // and env var resolution issues in the Next.js runtime.
+  const baseUrl = "https://offolab.com";
   const functionUrl = `${baseUrl}/.netlify/functions/analyze-receipt-photos-background`;
 
-  console.log("[photo-analysis/enqueue] baseUrl:", baseUrl, "secret set:", Boolean(secret), "photos:", filteredUrls.length);
+  console.log("[photo-analysis/enqueue] job created:", job.id, "firing:", functionUrl, "secret:", Boolean(secret), "photos:", filteredUrls.length);
 
   if (secret) {
     fetch(functionUrl, {
