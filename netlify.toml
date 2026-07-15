@@ -22,9 +22,15 @@
   timeout = 900
   external_node_modules = ["openai"]
 
-# Background function: per-receipt photo analysis via GPT-4o Vision
+# Background function: per-receipt photo analysis via GPT-4o Vision (kept for reference)
 [functions.analyze-receipt-photos-background]
   timeout = 900
+  external_node_modules = ["openai", "@anthropic-ai/sdk"]
+
+# Scheduled function: poll receipt_photo_jobs for pending rows every minute and process them
+# Replaces HTTP-triggered background function — self-invocation via fetch was unreliable on Netlify
+[functions.scan-photo-jobs]
+  timeout = 55
   external_node_modules = ["openai", "@anthropic-ai/sdk"]
 
 # Background function: bulk rescore all curated_deals with AI (runs up to 15 minutes)
