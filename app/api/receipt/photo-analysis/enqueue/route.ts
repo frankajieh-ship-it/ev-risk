@@ -52,6 +52,27 @@ export async function POST(request: NextRequest) {
 
   if (existing) {
     if (existing.status === "pending" || existing.status === "processing") {
+      // Job exists but may never have been triggered (e.g. background function URL was wrong).
+      // Re-fire the background function — it's idempotent (checks status before processing).
+      // Fall through to the trigger logic below using the existing job id.
+      const rawBaseUrl2 = process.env.SITE_URL || process.env.URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
+      const isLocalDev2 = !rawBaseUrl2 || rawBaseUrl2.includes("localhost");
+      const baseUrl2 = isLocalDev2 ? "http://localhost:8888" : rawBaseUrl2;
+      const secret2 = process.env.PHOTO_ANALYSIS_SECRET;
+      const functionUrl2 = `${baseUrl2}/.netlify/functions/analyze-receipt-photos-background`;
+      console.log("[photo-analysis/enqueue] re-firing for existing job", existing.id, "baseUrl:", baseUrl2, "secret:", Boolean(secret2));
+      if (secret2) {
+        fetch(functionUrl2, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Photo-Analysis-Secret": secret2 },
+          body: JSON.stringify({ receipt_id, job_id: existing.id }),
+        })
+          .then(async (r) => {
+            const text = await r.text().catch(() => "");
+            console.log("[photo-analysis/enqueue] re-fire response:", r.status, text.slice(0, 200));
+          })
+          .catch((err) => console.error("[photo-analysis/enqueue] re-fire failed:", err));
+      }
       return NextResponse.json({ job_id: existing.id, status: existing.status });
     }
     if (existing.status === "done") {
