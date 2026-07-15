@@ -52,25 +52,14 @@ export async function POST(request: NextRequest) {
 
   if (existing) {
     if (existing.status === "pending" || existing.status === "processing") {
-      // Job exists but may never have been triggered (e.g. background function URL was wrong).
-      // Re-fire the background function — it's idempotent (checks status before processing).
-      // Fall through to the trigger logic below using the existing job id.
-      const secret2 = process.env.PHOTO_ANALYSIS_SECRET;
-      const functionUrl2 = `https://offolab.com/.netlify/functions/analyze-receipt-photos-background`;
-      console.log("[photo-analysis/enqueue] re-firing for existing job", existing.id, "secret:", Boolean(secret2));
-      if (secret2) {
-        fetch(functionUrl2, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Photo-Analysis-Secret": secret2 },
-          body: JSON.stringify({ receipt_id, job_id: existing.id }),
-        })
-          .then(async (r) => {
-            const text = await r.text().catch(() => "");
-            console.log("[photo-analysis/enqueue] re-fire response:", r.status, text.slice(0, 200));
-          })
-          .catch((err) => console.error("[photo-analysis/enqueue] re-fire failed:", err));
-      }
-      return NextResponse.json({ job_id: existing.id, status: existing.status });
+      // Invalidate the stuck/stale job and fall through to create a fresh one
+      // with the current photo set. This handles both stuck-never-fired jobs and
+      // re-enqueues triggered when new photos arrive after initial analysis.
+      await supabase
+        .from("receipt_photo_jobs")
+        .update({ status: "failed", error: "superseded", finished_at: new Date().toISOString() })
+        .eq("id", existing.id);
+      console.log("[photo-analysis/enqueue] invalidated stale job", existing.id, "— creating fresh job");
     }
     if (existing.status === "done") {
       const { data: receiptRow } = await supabase
