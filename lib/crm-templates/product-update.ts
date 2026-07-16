@@ -271,7 +271,7 @@ export function buildProductUpdateReportUpgrade(ctx: ProductUpdateContext): { su
       Reply to this email with a listing you want us to look at. We read every reply.
     </p>
 
-    ${emailFooter(email, "activation")}`;
+    ${emailFooter(email, "product_update")}`;
 
   return {
     subject: "OFFO: new — warranty coverage, 9-check history grid, and photo analysis fixed",

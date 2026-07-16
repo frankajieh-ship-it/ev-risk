@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       const r = await safeSend({
         email,
         userId,
-        sequenceType: "activation",
+        sequenceType: "product_update",
         sequenceStep: "product_update_july16_2026",
         subject,
         html,

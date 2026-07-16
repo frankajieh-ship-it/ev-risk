@@ -22,7 +22,8 @@ export type SequenceType =
   | "lead_notification"
   | "welcome"
   | "dealer_acquisition"
-  | "post_purchase_day7";
+  | "post_purchase_day7"
+  | "product_update";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
 
@@ -88,7 +89,7 @@ export interface SafeSendResult {
 
 const DAILY_SEND_CAP = 1;
 // Transactional sequences that bypass the daily cap and cooldown
-const UNCAPPED_SEQUENCES: SequenceType[] = ["deal_watch", "recall", "listing_gone", "lead_notification", "post_purchase_day7"];
+const UNCAPPED_SEQUENCES: SequenceType[] = ["deal_watch", "recall", "listing_gone", "lead_notification", "post_purchase_day7", "product_update"];
 // Minimum hours between any two marketing emails to the same address
 const MIN_HOURS_BETWEEN_EMAILS = 48;
 
