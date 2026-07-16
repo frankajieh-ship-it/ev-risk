@@ -35,6 +35,7 @@ import type { Region } from "@/lib/region";
 import { formatPrice } from "@/lib/region";
 import VehicleFactsBar from "@/components/receipt/VehicleFactsBar";
 import WarrantyCoverageCard from "@/components/receipt/WarrantyCoverageCard";
+import BatteryScanBadge from "@/components/receipt/BatteryScanBadge";
 import PhotoDueDiligenceCard from "@/components/receipt/PhotoDueDiligenceCard";
 import { Badge } from "@/components/ui";
 import { REQUIRED_ANGLES } from "@/lib/photo-due-diligence-types";
@@ -769,6 +770,9 @@ export default function ReceiptOutputCard({
           mileage={receipt.listing_summary.mileage}
         />
       )}
+
+      {/* Dealer-verified battery scan badge — shown when OBD scan exists for this VIN */}
+      {receipt.vin && <BatteryScanBadge vin={receipt.vin} />}
 
       {/* Why not GREEN? — collapsible */}
       {whyNotGreen && whyNotGreen.length > 0 && receipt.verdict !== "GREEN" && (
