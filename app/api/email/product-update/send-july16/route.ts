@@ -79,10 +79,12 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // ── Pool A: authenticated users ───────────────────────────────────────────
+  // ── Collect all recipients first, then send in parallel batches ─────────
+
+  const seenEmails = new Set<string>();
+  const queue: Array<{ email: string; userId?: string }> = [];
 
   const { data: authUsers } = await supabase.auth.admin.listUsers({ perPage: 500 });
-  const seenEmails = new Set<string>();
 
   for (const user of authUsers?.users ?? []) {
     if (!user.email) continue;
@@ -99,10 +101,8 @@ export async function POST(request: NextRequest) {
     }
 
     seenEmails.add(user.email);
-    await sendTo(user.email, user.id);
+    queue.push({ email: user.email, userId: user.id });
   }
-
-  // ── Pool B: anon email captures ───────────────────────────────────────────
 
   const { data: captures } = await supabase
     .from("checklist_email_captures")
@@ -126,7 +126,14 @@ export async function POST(request: NextRequest) {
     }
 
     seenEmails.add(cap.email);
-    await sendTo(cap.email);
+    queue.push({ email: cap.email });
+  }
+
+  // Send in parallel batches of 10 to stay well under the 60s timeout
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < queue.length; i += BATCH_SIZE) {
+    const batch = queue.slice(i, i + BATCH_SIZE);
+    await Promise.all(batch.map((r) => sendTo(r.email, r.userId)));
   }
 
   return NextResponse.json({
