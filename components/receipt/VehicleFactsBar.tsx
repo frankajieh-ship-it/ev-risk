@@ -64,6 +64,7 @@ interface NhtsaRecall {
   NHTSACampaignNumber: string;
   Component: string;
   Summary: string;
+  overTheAirUpdate?: boolean;
 }
 
 type RecallStatus = "idle" | "loading" | "done" | "error";
@@ -83,6 +84,7 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
       NHTSACampaignNumber: r.campaign_number,
       Component: r.component,
       Summary: r.summary,
+      overTheAirUpdate: r.over_the_air_update,
     })) : []
   , [serverRecalls]);
 
@@ -91,6 +93,9 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
   const [recallExpanded, setRecallExpanded] = useState(false);
 
   const recalls = serverRecalls ? serverRecallList : clientRecalls;
+  // Split by remedy type: OTA = fixed wirelessly, service = needs physical visit
+  const serviceRecalls = recalls.filter(r => !r.overTheAirUpdate);
+  const otaRecalls = recalls.filter(r => r.overTheAirUpdate);
 
   // Client-side NHTSA fetch — only runs when server didn't provide recall data
   useEffect(() => {
@@ -154,7 +159,7 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
   type Cell = { label: string; status: CellStatus; detail: string; free: boolean };
 
   const recallStatus_cell: CellStatus = recallStatus === "done"
-    ? (recalls.length === 0 ? "ok" : (serverRecalls?.park_it ? "issue" : "warn"))
+    ? (serviceRecalls.length === 0 ? (otaRecalls.length === 0 ? "ok" : "ok") : (serverRecalls?.park_it ? "issue" : "warn"))
     : recallStatus === "loading" ? "unknown" : "unknown";
 
   const titleCell: Cell = {
@@ -184,7 +189,11 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
     label: "Open Recalls",
     status: recallStatus_cell,
     detail: recallStatus === "done"
-      ? (recalls.length === 0 ? "No open recalls" : `${recalls.length} campaign${recalls.length !== 1 ? "s" : ""}`)
+      ? serviceRecalls.length === 0 && otaRecalls.length === 0
+        ? "No recalls found"
+        : serviceRecalls.length === 0
+        ? `${otaRecalls.length} OTA-resolved`
+        : `${serviceRecalls.length} need service${otaRecalls.length > 0 ? ` · ${otaRecalls.length} OTA-resolved` : ""}`
       : "Checking…",
     free: true,
   };
@@ -286,10 +295,13 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
       {recallStatus === "done" && recalls.length > 0 && (
         <div>
           <button onClick={() => setRecallExpanded((o) => !o)}
-            className="text-xs text-red-400/70 hover:text-red-400 flex items-center gap-1 transition-colors"
+            className={`text-xs flex items-center gap-1 transition-colors ${serviceRecalls.length > 0 ? "text-red-400/70 hover:text-red-400" : "text-white/40 hover:text-white/60"}`}
           >
             <AlertTriangle className="w-3 h-3" />
-            {recalls.length} recall campaign{recalls.length !== 1 ? "s" : ""} — see details
+            {serviceRecalls.length > 0
+              ? `${serviceRecalls.length} recall${serviceRecalls.length !== 1 ? "s" : ""} need service — see details`
+              : `${otaRecalls.length} recall${otaRecalls.length !== 1 ? "s" : ""} — all resolved via OTA update`
+            }
             <span>{recallExpanded ? "▲" : "▼"}</span>
           </button>
           {(serverRecalls?.park_it || serverRecalls?.park_outside) && (
@@ -299,24 +311,35 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
             </div>
           )}
           {recallExpanded && (
-            <div className="mt-2 space-y-1.5 pl-1">
-              {recalls.slice(0, 4).map((r) => (
-                <div key={r.NHTSACampaignNumber} className="text-xs text-white/60 flex items-start gap-1.5">
-                  <span className="text-red-400 mt-0.5 flex-shrink-0">!</span>
-                  <span>
-                    <span className="font-medium text-white/80">{r.Component}</span>
-                    {r.Summary ? ` — ${r.Summary.slice(0, 120)}${r.Summary.length > 120 ? "…" : ""}` : ""}
-                  </span>
+            <div className="mt-2 space-y-3 pl-1">
+              {serviceRecalls.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-bold text-red-400/80 uppercase tracking-wider">Needs service center visit</p>
+                  {serviceRecalls.map((r) => (
+                    <div key={r.NHTSACampaignNumber} className="text-xs text-white/60 flex items-start gap-1.5">
+                      <span className="text-red-400 mt-0.5 flex-shrink-0">!</span>
+                      <span>
+                        <span className="font-medium text-white/80">{r.Component}</span>
+                        {r.Summary ? ` — ${r.Summary.slice(0, 120)}${r.Summary.length > 120 ? "…" : ""}` : ""}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              {recalls.length > 4 && (
-                <a href={nhtsaUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-[#00d97e]/70 hover:text-[#00d97e] hover:underline flex items-center gap-1">
-                  +{recalls.length - 4} more on NHTSA <ExternalLink className="w-2.5 h-2.5" />
-                </a>
               )}
-              <p className="text-xs text-white/30">
-                Ask the seller if the remedy has been completed, or{" "}
-                <a href="https://www.nhtsa.gov/vehicle-safety/recalls#vin-search" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/50">check by VIN on NHTSA</a>.
+              {otaRecalls.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-wider">Resolved via OTA software update</p>
+                  {otaRecalls.map((r) => (
+                    <div key={r.NHTSACampaignNumber} className="text-xs text-white/30 flex items-start gap-1.5">
+                      <span className="mt-0.5 flex-shrink-0">✓</span>
+                      <span>{r.Component}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-white/25">
+                OTA recalls are fixed wirelessly — your vehicle may already have the update. Verify service recalls at{" "}
+                <a href="https://www.nhtsa.gov/vehicle-safety/recalls#vin-search" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/50">nhtsa.gov/recalls using your VIN</a>.
               </p>
             </div>
           )}
