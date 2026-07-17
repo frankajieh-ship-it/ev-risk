@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
 
   const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || "https://offolab.com").replace(/\/$/, "");
 
-  const results = { imported: 0, skipped: 0, deactivated: 0, errors: [] as string[] };
+  const results = { imported: 0, skipped: 0, deactivated: 0, dealers_upserted: 0, errors: [] as string[] };
 
   // Collect all valid URLs from this CSV so we can deactivate rows not in it
   const csvUrls = new Set(
@@ -153,6 +153,54 @@ export async function POST(request: NextRequest) {
       .map((r) => r["listing_url"]?.trim())
       .filter((u): u is string => !!u && u.startsWith("http"))
   );
+
+  // Pre-build dealer slug → id map from this CSV (upsert dealers first)
+  const dealerSlugToId = new Map<string, string>();
+  for (const row of rows) {
+    const dealerSlug = row["dealership_slug"]?.trim() || null;
+    const dealerName = row["dealership_name"]?.trim() || null;
+    if (!dealerSlug && !dealerName) continue;
+    if (dealerSlug && dealerSlugToId.has(dealerSlug)) continue; // already processed
+
+    const slug = dealerSlug || (dealerName?.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? null);
+    if (!slug) continue;
+
+    const dealerRating = row["dealer_rating"] ? parseFloat(row["dealer_rating"]) : null;
+    const prospectNotes = dealerRating !== null ? `Rating: ${dealerRating}/5` : null;
+
+    // Check if dealer already exists — don't downgrade approved/pending dealers to prospect
+    const { data: existing } = await supabase
+      .from("dealerships")
+      .select("id, status")
+      .eq("slug", slug)
+      .maybeSingle();
+
+    const isNewProspect = !existing;
+    const { data: upserted, error: dealerErr } = await supabase
+      .from("dealerships")
+      .upsert({
+        slug,
+        name: dealerName || slug,
+        city: row["city"]?.trim() || null,
+        state: row["state"]?.trim() || null,
+        phone: row["phone"]?.trim() || null,
+        contact_name: row["contact_name"]?.trim() || null,
+        contact_email: row["contact_email"]?.trim() || null,
+        website: row["website"]?.trim() || null,
+        // Only set prospect status for new dealers — don't overwrite approved/pending
+        ...(isNewProspect && { status: "prospect", prospect_source: "csv_import" }),
+        ...(prospectNotes && { prospect_notes: prospectNotes }),
+      }, { onConflict: "slug", ignoreDuplicates: false })
+      .select("id")
+      .single();
+
+    if (dealerErr) {
+      results.errors.push(`Dealer upsert failed (${slug}): ${dealerErr.message}`);
+    } else if (upserted?.id) {
+      dealerSlugToId.set(slug, upserted.id);
+      results.dealers_upserted++;
+    }
+  }
 
   for (const row of rows) {
     const listingUrl = row["listing_url"]?.trim();
@@ -266,6 +314,11 @@ export async function POST(request: NextRequest) {
       try { return new URL(listingUrl).hostname.replace("www.", ""); } catch { return null; }
     })();
 
+    // Resolve dealership_id from slug
+    const rowSlug = row["dealership_slug"]?.trim()
+      || (row["dealership_name"]?.trim()?.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? null);
+    const dealershipId = rowSlug ? (dealerSlugToId.get(rowSlug) ?? null) : null;
+
     // Resolve photo: local CSV → static map → make fallback (all sync, no HTTP)
     // Local vehicle-images.csv always wins — it's the curated source of truth
     if (make) {
@@ -337,6 +390,7 @@ export async function POST(request: NextRequest) {
         last_analyzed_at: new Date().toISOString(),
         last_seen_at: new Date().toISOString(),
         is_active: true,
+        ...(dealershipId && { dealership_id: dealershipId }),
         // v4 fields
         ...(dcfc_kw_max !== null && { dcfc_kw_max }),
         ...(ac_charger_kw !== null && { ac_charger_kw }),
@@ -412,6 +466,7 @@ export async function POST(request: NextRequest) {
     imported: results.imported,
     skipped: results.skipped,
     deactivated: results.deactivated,
+    dealers_upserted: results.dealers_upserted,
     rescore_started: true,
     errors: results.errors.slice(0, 20),
     total_rows: rows.length,

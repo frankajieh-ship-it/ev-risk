@@ -493,8 +493,9 @@ export default function AdminDealsPage() {
       const data = await res.json();
       if (data.success) {
         const deactivatedNote = data.deactivated > 0 ? `, ${data.deactivated} deactivated (not in CSV)` : "";
+        const dealersNote = data.dealers_upserted > 0 ? `, ${data.dealers_upserted} dealer prospects upserted` : "";
         const rescoreNote = data.rescore_started ? " — AI rescore started (refresh in ~1 min per listing)" : "";
-        setImportStatus(`✓ Imported ${data.imported} deals (${data.skipped} skipped${deactivatedNote})${rescoreNote}`);
+        setImportStatus(`✓ Imported ${data.imported} deals (${data.skipped} skipped${deactivatedNote}${dealersNote})${rescoreNote}`);
         fetchDeals();
       } else {
         setImportStatus(`✗ ${data.error}`);
