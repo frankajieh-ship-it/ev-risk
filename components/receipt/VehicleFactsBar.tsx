@@ -328,18 +328,22 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
               )}
               {otaRecalls.length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-wider">Resolved via OTA software update</p>
+                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-wider">Manufacturer reported OTA remedy</p>
                   {otaRecalls.map((r) => (
                     <div key={r.NHTSACampaignNumber} className="text-xs text-white/30 flex items-start gap-1.5">
                       <span className="mt-0.5 flex-shrink-0">✓</span>
                       <span>{r.Component}</span>
                     </div>
                   ))}
+                  <p className="text-xs text-white/20 pt-0.5">
+                    OTA = manufacturer pushed a software fix wirelessly. Most vehicles received it automatically, but delivery isn&apos;t guaranteed — some units may still need a service visit if the update wasn&apos;t applied.
+                  </p>
                 </div>
               )}
-              <p className="text-xs text-white/25">
-                OTA recalls are fixed wirelessly — your vehicle may already have the update. Verify service recalls at{" "}
-                <a href="https://www.nhtsa.gov/vehicle-safety/recalls#vin-search" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/50">nhtsa.gov/recalls using your VIN</a>.
+              <p className="text-xs text-white/25 pt-1 border-t border-white/5">
+                Confirm your specific VIN&apos;s open recall status at{" "}
+                <a href="https://www.nhtsa.gov/vehicle-safety/recalls#vin-search" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/50">nhtsa.gov/recalls</a>
+                {" "}— this is the only authoritative source per vehicle.
               </p>
             </div>
           )}
