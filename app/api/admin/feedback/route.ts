@@ -21,27 +21,32 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("report_feedback")
-    .select(`
-      id,
-      created_at,
-      rating,
-      feedback_text,
-      would_recommend,
-      report_id,
-      receipts (
-        listing_url,
-        vin,
-        listing_summary
-      )
-    `)
+    .select("id, created_at, rating, feedback_text, would_recommend, report_id")
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (rating) query = query.eq("rating", parseInt(rating));
 
-  const { data, error } = await query;
-
+  const { data: feedback, error } = await query;
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
 
-  return NextResponse.json({ success: true, feedback: data ?? [] });
+  if (!feedback?.length) return NextResponse.json({ success: true, feedback: [] });
+
+  // Manual join — report_id is not a FK in the schema
+  const reportIds = [...new Set(feedback.map(f => f.report_id).filter(Boolean))];
+  const { data: receipts } = reportIds.length
+    ? await supabase
+        .from("receipts")
+        .select("id, listing_url, vin, listing_summary")
+        .in("id", reportIds)
+    : { data: [] };
+
+  const receiptMap = Object.fromEntries((receipts ?? []).map(r => [r.id, r]));
+
+  const rows = feedback.map(f => ({
+    ...f,
+    receipts: f.report_id ? (receiptMap[f.report_id] ?? null) : null,
+  }));
+
+  return NextResponse.json({ success: true, feedback: rows });
 }
