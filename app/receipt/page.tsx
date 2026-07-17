@@ -264,6 +264,9 @@ export default function ReceiptPage() {
   const [dealerInfo, setDealerInfo] = useState<{ id: string; name: string; slug: string; logo_url: string | null; is_verified: boolean } | null>(null);
   const [showInquiryModal, setShowInquiryModal] = useState(false);
 
+  // Checkout error — shown inline near paywall when session creation fails
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
   // Receipt token
   const [receiptToken, setReceiptToken] = useState("");
 
@@ -798,6 +801,7 @@ export default function ReceiptPage() {
 
   const handlePremiumAction = useCallback(async (_trigger: string, tier: "buyer_pass" | "receipt_single" = "buyer_pass") => {
     if (!receipt?.receipt_id || !receiptToken) return;
+    setCheckoutError(null);
     try {
       const res = await fetch("/api/payments/checkout", {
         method: "POST",
@@ -818,9 +822,11 @@ export default function ReceiptPage() {
       }
       if (data.url) {
         window.location.href = data.url;
+      } else {
+        setCheckoutError(data.error || "Failed to start checkout. Please try again.");
       }
     } catch {
-      // Silent fail — user stays on page
+      setCheckoutError("Network error. Please try again.");
     }
   }, [receipt?.receipt_id, receiptToken, refetchPayment, referrerUserId]);
 
@@ -1334,25 +1340,35 @@ export default function ReceiptPage() {
 
               {/* $3.99 Starter paywall — shown when not starter-unlocked */}
               {!isStarterUnlocked && paymentsEnabled && (
-                <StarterPaywallCard
-                  receiptToken={receiptToken}
-                  scenarioId={receipt.receipt_id}
-                  availableCredits={referralCredits}
-                  onFullUpgradeClick={() => handlePremiumAction("paywall_card")}
-                  onTrackEvent={(name, data) => trackEvent(name, data as Parameters<typeof trackEvent>[1])}
-                  onCreditRedeemed={() => { setReferralCredits((c) => Math.max(0, c - 1)); refetchPayment(); }}
-                />
+                <>
+                  <StarterPaywallCard
+                    receiptToken={receiptToken}
+                    scenarioId={receipt.receipt_id}
+                    availableCredits={referralCredits}
+                    onFullUpgradeClick={() => handlePremiumAction("paywall_card")}
+                    onTrackEvent={(name, data) => trackEvent(name, data as Parameters<typeof trackEvent>[1])}
+                    onCreditRedeemed={() => { setReferralCredits((c) => Math.max(0, c - 1)); refetchPayment(); }}
+                  />
+                  {checkoutError && (
+                    <p className="text-red-400 text-xs text-center mt-2">{checkoutError}</p>
+                  )}
+                </>
               )}
 
               {/* $9.99 Full paywall — shown when starter unlocked but not full */}
               {isStarterUnlocked && !isUnlocked && paymentsEnabled && (
-                <ReceiptPaywallCard
-                  receiptToken={receiptToken}
-                  scenarioId={receipt.receipt_id}
-                  onPaywallClick={() => handlePremiumAction("paywall_card")}
-                  isUpgrade
-                  onTrackEvent={(name, data) => trackEvent(name, data as Parameters<typeof trackEvent>[1])}
-                />
+                <>
+                  <ReceiptPaywallCard
+                    receiptToken={receiptToken}
+                    scenarioId={receipt.receipt_id}
+                    onPaywallClick={() => handlePremiumAction("paywall_card")}
+                    isUpgrade
+                    onTrackEvent={(name, data) => trackEvent(name, data as Parameters<typeof trackEvent>[1])}
+                  />
+                  {checkoutError && (
+                    <p className="text-red-400 text-xs text-center mt-2">{checkoutError}</p>
+                  )}
+                </>
               )}
 
               {/* Deep sections — only when fully unlocked ($9.99) */}

@@ -266,9 +266,11 @@ export async function POST(request: NextRequest) {
       ];
     }
 
-    // Stripe idempotency key prevents duplicate sessions for same scenario
+    // Stripe idempotency key: hour-bucketed so each hour gets a fresh session.
+    // A fully static key would re-return an expired session on retry, silently breaking checkout.
+    const hourBucket = Math.floor(Date.now() / (60 * 60 * 1000));
     const session = await stripe.checkout.sessions.create(sessionParams, {
-      idempotencyKey: `purchase:${scenarioType}:${scenarioId}:${anonId}:${variant}:${packTier}`,
+      idempotencyKey: `purchase:${scenarioType}:${scenarioId}:${anonId}:${variant}:${packTier}:${hourBucket}`,
     });
 
     // 6. Insert pending purchase row

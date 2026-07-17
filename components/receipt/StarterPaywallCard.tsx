@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Zap, CheckCircle, Camera, Lock, Gift } from "lucide-react";
+import { Zap, CheckCircle, Camera, Lock, Gift, Shield } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface StarterPaywallCardProps {
@@ -15,9 +15,10 @@ interface StarterPaywallCardProps {
 }
 
 const STARTER_FEATURES = [
-  { icon: CheckCircle, text: "Verdict color revealed — GREEN, YELLOW, or RED" },
-  { icon: CheckCircle, text: "Full AI summary — plain-language breakdown of what this listing means" },
-  { icon: Camera, text: "Photo angle analysis — flag missing or suspicious photos" },
+  { icon: Shield, text: "VIN history — theft, salvage & accident records" },
+  { icon: CheckCircle, text: "Full AI analysis — risk verdict, deal quality score, red flags" },
+  { icon: Camera, text: "Photo angle analysis — missing or suspicious angles flagged" },
+  { icon: CheckCircle, text: "Negotiation talking points for this exact listing" },
 ];
 
 export default function StarterPaywallCard({
@@ -114,12 +115,12 @@ export default function StarterPaywallCard({
             </span>
           </div>
           <h2 className="text-xl font-bold text-white leading-tight">
-            Reveal your verdict &amp; photo analysis
+            Get the full analysis for this listing
           </h2>
           <p className="text-sm text-white/50 mt-1">
-            Verdict color · AI summary · Photo analysis.
+            VIN history · theft · salvage · title check · AI deep-dive · negotiation scripts
             <br />
-            $3.99 · This listing · No subscription.
+            <span className="text-[#00d97e] font-semibold">$3.99</span> · This listing only · No subscription.
           </p>
         </div>
 
@@ -178,7 +179,10 @@ export default function StarterPaywallCard({
           {error && (
             <p className="text-red-400 text-xs text-center">{error}</p>
           )}
-          <p className="text-white/25 text-xs text-center">
+          <p className="text-white/40 text-xs text-center mt-2">
+            200+ buyers have used OFFO to check a listing like this one
+          </p>
+          <p className="text-white/20 text-xs text-center mt-1">
             Secure payment via Stripe · One listing · No recurring charges
           </p>
           <div className="text-center pt-1">
