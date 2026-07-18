@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { AlertTriangle, Zap, ExternalLink, Lock } from "lucide-react";
+import { AlertTriangle, Zap, Lock } from "lucide-react";
 import type { ListingReceipt } from "@/types/receipt";
 
 interface VehicleFactsBarProps {
@@ -69,7 +69,7 @@ interface NhtsaRecall {
 
 type RecallStatus = "idle" | "loading" | "done" | "error";
 
-export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsEnabled = false, serverRecalls, vinHistory }: VehicleFactsBarProps) {
+export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsEnabled = false, onPaywallClick, serverRecalls, vinHistory }: VehicleFactsBarProps) {
   const ls = receipt.listing_summary;
   const make = ls?.make || "";
   const model = ls?.model || "";
@@ -276,20 +276,49 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
         {cells.map((cell) => {
           const s = STATUS_STYLE[cell.status];
           const locked = cell.status === "locked";
-          return (
-            <div key={cell.label} className={`rounded-lg border p-2.5 ${locked ? "border-white/[0.06] bg-white/[0.02]" : "border-white/[0.08] bg-white/[0.03]"}`}>
+          return locked ? (
+            <button
+              key={cell.label}
+              onClick={onPaywallClick}
+              className="rounded-lg border border-white/[0.07] bg-white/[0.015] p-2.5 text-left hover:border-[#00d97e]/30 hover:bg-[#00d97e]/[0.03] transition-colors group"
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <Lock className="w-3 h-3 text-white/20 group-hover:text-[#00d97e]/50 transition-colors flex-shrink-0" />
+                <span className="text-[10px] font-semibold text-white/30 uppercase tracking-wide leading-tight group-hover:text-white/50 transition-colors">{cell.label}</span>
+              </div>
+              <p className="text-xs font-medium leading-tight text-white/20 group-hover:text-white/40 transition-colors">
+                Tap to check →
+              </p>
+            </button>
+          ) : (
+            <div key={cell.label} className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-2.5">
               <div className="flex items-center gap-1.5 mb-1">
                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
                 <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wide leading-tight">{cell.label}</span>
-                {locked && <Lock className="w-2.5 h-2.5 text-white/20 ml-auto" />}
               </div>
-              <p className={`text-xs font-medium leading-tight ${s.text} ${locked ? "blur-[3px] select-none" : ""}`}>
-                {locked ? "——" : cell.detail}
+              <p className={`text-xs font-medium leading-tight ${s.text}`}>
+                {cell.detail}
               </p>
             </div>
           );
         })}
       </div>
+
+      {/* Unlock CTA — shown only when locked cells exist */}
+      {!showFull && paymentsEnabled && (
+        <button
+          onClick={onPaywallClick}
+          className="w-full flex items-center justify-between gap-2 bg-[#00d97e]/[0.06] hover:bg-[#00d97e]/[0.10] border border-[#00d97e]/20 hover:border-[#00d97e]/40 rounded-xl px-3.5 py-2.5 transition-colors group"
+        >
+          <div className="flex items-center gap-2">
+            <Lock className="w-3.5 h-3.5 text-[#00d97e]/60 group-hover:text-[#00d97e] transition-colors flex-shrink-0" />
+            <span className="text-xs font-semibold text-[#00d97e]/70 group-hover:text-[#00d97e] transition-colors">
+              Unlock theft, salvage, lien &amp; odometer checks — <span className="text-[#00d97e]">$3.99</span>
+            </span>
+          </div>
+          <Zap className="w-3.5 h-3.5 text-[#00d97e]/50 group-hover:text-[#00d97e] transition-colors flex-shrink-0" />
+        </button>
+      )}
 
       {/* Recall detail expansion */}
       {recallStatus === "done" && recalls.length > 0 && (
