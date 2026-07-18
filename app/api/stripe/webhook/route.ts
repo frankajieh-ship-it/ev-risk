@@ -131,6 +131,12 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      case "checkout.session.expired": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await handleCheckoutExpired(session);
+        break;
+      }
+
       case "checkout.session.async_payment_failed":
       case "payment_intent.payment_failed": {
         const obj = event.data.object as Stripe.Checkout.Session | Stripe.PaymentIntent;
@@ -826,6 +832,120 @@ async function fulfillBuyerPass(session: Stripe.Checkout.Session) {
 }
 
 /**
+ * Handle checkout.session.expired — send a recovery email if we have the buyer's email.
+ * Email sources (in priority order):
+ *   1. session.customer_details.email (buyer entered email on Stripe page)
+ *   2. checklist_email_captures.email matched by anon_id from session metadata
+ */
+async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
+  const scenarioId = session.metadata?.base_scenario_id || session.client_reference_id;
+  const anonId = session.metadata?.anon_id || null;
+  const packTier = session.metadata?.pack_tier || "receipt_single";
+
+  // Mark the pending purchase as expired if it exists
+  if (session.id) {
+    await supabase
+      .from("purchases")
+      .update({ status: "expired", updated_at: new Date().toISOString() })
+      .eq("stripe_session_id", session.id)
+      .eq("status", "pending");
+  }
+
+  // Resolve email
+  let email = session.customer_details?.email || null;
+  if (!email && anonId) {
+    const { data: capture } = await supabase
+      .from("checklist_email_captures")
+      .select("email")
+      .eq("anon_id", anonId)
+      .maybeSingle();
+    email = capture?.email || null;
+  }
+
+  if (!email) {
+    console.log(`[Checkout expired] No email for session ${session.id} — skipping recovery`);
+    return;
+  }
+
+  // Resolve vehicle label from receipt
+  let vehicle: string | undefined;
+  if (scenarioId) {
+    try {
+      const { data: receipt } = await supabase
+        .from("receipts")
+        .select("output_json")
+        .eq("id", scenarioId)
+        .maybeSingle();
+      const out = receipt?.output_json as Record<string, unknown> | null;
+      const ls = out?.listing_summary as Record<string, unknown> | null;
+      if (ls?.year || ls?.make || ls?.model) {
+        vehicle = [ls.year, ls.make, ls.model].filter(Boolean).join(" ");
+      }
+    } catch { /* non-critical */ }
+  }
+
+  const priceLabel = packTier === "buyer_pass" ? "$9.99" : "$3.99";
+  const receiptUrl = scenarioId
+    ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com"}/receipt?id=${scenarioId}`
+    : `${process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com"}/receipt`;
+
+  const vehicleName = vehicle || "your listing";
+  const subject = `Your OFFO report is still waiting — ${priceLabel} unlocks everything`;
+
+  const { emailWrapper, emailFooter } = await import("@/lib/crm-email");
+  const footer = emailFooter(email, "conversion");
+  const html = emailWrapper(`
+    <h2 style="font-size:19px;font-weight:700;color:#ffffff;margin:0 0 14px;line-height:1.3;">
+      Your report is still waiting
+    </h2>
+
+    <p style="font-size:15px;color:#c9d1d9;line-height:1.7;margin:0 0 18px;">
+      You started to unlock the full OFFO analysis for <strong>${vehicleName}</strong> but didn't finish.
+      Your report is still saved — tap below to complete checkout.
+    </p>
+
+    <div style="background:#ffffff0a;border:1px solid #30363d;border-radius:10px;padding:16px 20px;margin:0 0 22px;">
+      <p style="font-size:13px;color:#8b949e;margin:0 0 8px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">What you'll unlock</p>
+      <ul style="margin:0;padding-left:18px;color:#c9d1d9;font-size:14px;line-height:1.8;">
+        <li>VIN history — theft, salvage &amp; accident records</li>
+        <li>Full AI risk verdict &amp; deal quality score</li>
+        <li>Photo angle analysis — missing or suspicious angles</li>
+        <li>Negotiation talking points for this exact listing</li>
+      </ul>
+    </div>
+
+    <div style="text-align:center;margin:28px 0;">
+      <a href="${receiptUrl}" style="display:inline-block;background:#00d97e;color:#0d1117;text-decoration:none;border-radius:10px;font-size:15px;font-weight:700;padding:14px 32px;">
+        Complete checkout — ${priceLabel} →
+      </a>
+    </div>
+
+    <p style="font-size:13px;color:#8b949e;line-height:1.7;margin:0 0 32px;text-align:center;">
+      One listing only · No subscription · Secure payment via Stripe
+    </p>
+
+    <p style="font-size:15px;color:#c9d1d9;margin:0;">
+      — Frank<br/>
+      <span style="color:#8b949e;font-size:13px;">Founder, OFFO · <a href="mailto:frank@offolab.com" style="color:#8b949e;">frank@offolab.com</a></span>
+    </p>
+    ${footer}
+  `);
+
+  await safeSend({
+    email,
+    anonId: anonId || undefined,
+    sequenceType: "conversion",
+    sequenceStep: "checkout_abandoned",
+    subject,
+    html,
+    idempotencyKey: `checkout_expired:${session.id}`,
+    metadata: { stripe_session_id: session.id, scenario_id: scenarioId, pack_tier: packTier },
+  });
+
+  console.log(`[Checkout expired] Recovery email sent to ${email} for session ${session.id}`);
+}
+
+/**
  * GET /api/stripe/webhook (for testing)
  * Returns webhook configuration status
  */
@@ -858,6 +978,7 @@ export async function GET() {
       "checkout.session.completed (payment successful)",
       "checkout.session.async_payment_succeeded",
       "checkout.session.async_payment_failed",
+      "checkout.session.expired (recovery email sent)",
     ],
   });
 }
