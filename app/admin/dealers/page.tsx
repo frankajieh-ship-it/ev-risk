@@ -16,19 +16,27 @@ interface Dealer {
   inventory_size: string | null;
   ev_focus: string | null;
   referral_source: string | null;
-  status: "pending" | "approved" | "rejected";
+  prospect_source: string | null;
+  outreach_step: string | null;
+  status: "pending" | "approved" | "rejected" | "prospect";
   is_verified: boolean;
   rejection_reason: string | null;
   reviewed_at: string | null;
   created_at: string;
 }
 
-const STATUS_TABS = ["pending", "approved", "rejected"] as const;
+const STATUS_TABS = ["pending", "approved", "rejected", "prospect"] as const;
+const TAB_LABELS: Record<string, string> = {
+  pending: "Pending",
+  approved: "Approved",
+  rejected: "Rejected",
+  prospect: "On File",
+};
 
 export default function AdminDealersPage() {
   const [apiKey, setApiKey] = useState("");
   const [authed, setAuthed] = useState(false);
-  const [tab, setTab] = useState<"pending" | "approved" | "rejected">("pending");
+  const [tab, setTab] = useState<"pending" | "approved" | "rejected" | "prospect">("pending");
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -116,11 +124,11 @@ export default function AdminDealersPage() {
             <button
               key={s}
               onClick={() => setTab(s)}
-              className={`px-4 py-1.5 text-sm font-medium rounded-lg capitalize transition-colors ${
+              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                 tab === s ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              {s}
+              {TAB_LABELS[s]}
             </button>
           ))}
         </div>
@@ -131,7 +139,7 @@ export default function AdminDealersPage() {
           </div>
         ) : dealers.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center">
-            <p className="text-sm text-gray-500">No {tab} dealers</p>
+            <p className="text-sm text-gray-500">No {TAB_LABELS[tab].toLowerCase()} dealers</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -166,9 +174,11 @@ export default function AdminDealersPage() {
                       </p>
                     )}
                     <p className="text-xs text-gray-400 mt-0.5">
-                      Signed up {new Date(dealer.created_at).toLocaleDateString()}
+                      {tab === "prospect" ? "On file since" : "Signed up"} {new Date(dealer.created_at).toLocaleDateString()}
                       {dealer.reviewed_at && ` · Reviewed ${new Date(dealer.reviewed_at).toLocaleDateString()}`}
+                      {dealer.prospect_source && ` · source: ${dealer.prospect_source}`}
                       {dealer.referral_source && ` · via ${dealer.referral_source}`}
+                      {dealer.outreach_step && ` · outreach: ${dealer.outreach_step}`}
                     </p>
                     {dealer.rejection_reason && (
                       <p className="text-xs text-red-600 mt-1">Reason: {dealer.rejection_reason}</p>
@@ -210,6 +220,22 @@ export default function AdminDealersPage() {
                     <span className="flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-100 px-2.5 py-1 rounded-full shrink-0">
                       <XCircle className="w-3 h-3" /> Rejected
                     </span>
+                  )}
+
+                  {tab === "prospect" && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+                        <Clock className="w-3 h-3" /> On File
+                      </span>
+                      {dealer.contact_email && (
+                        <a
+                          href={`mailto:${dealer.contact_email}?subject=Join%20OFFO%20Dealer%20Network&body=Hi%20${encodeURIComponent(dealer.contact_name || "there")}%2C%0A%0AWe%27d%20love%20to%20have%20${encodeURIComponent(dealer.name)}%20on%20OFFO.%20Apply%20here%3A%20https%3A%2F%2Foffolab.com%2Fdealers%2Fjoin%0A%0A%E2%80%94%20Frank%2C%20OFFO`}
+                          className="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full hover:bg-blue-100 transition-colors"
+                        >
+                          Invite to apply →
+                        </a>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

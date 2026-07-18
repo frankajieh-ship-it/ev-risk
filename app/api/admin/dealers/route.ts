@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("dealerships")
-    .select("id, name, slug, city, state, phone, contact_name, contact_email, website, inventory_size, ev_focus, referral_source, status, is_verified, rejection_reason, reviewed_at, created_at")
+    .select("id, name, slug, city, state, phone, contact_name, contact_email, website, inventory_size, ev_focus, referral_source, prospect_source, outreach_step, status, is_verified, rejection_reason, reviewed_at, created_at")
     .eq("status", status)
     .order("created_at", { ascending: false });
 
