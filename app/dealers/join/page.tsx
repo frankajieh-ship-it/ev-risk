@@ -10,7 +10,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Building, Check, Loader2, Mail, Upload, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEventTracking } from "@/hooks/useEventTracking";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
@@ -51,9 +51,13 @@ const EMPTY: FormData = {
 const inputCls = "w-full px-3 py-2.5 bg-[#0d1117] border border-white/[0.10] rounded-xl text-sm text-white placeholder:text-white/25 focus:ring-2 focus:ring-[#00d97e]/40 focus:border-[#00d97e]/40 outline-none transition-colors";
 const labelCls = "block text-xs font-medium text-white/50 mb-1";
 
+const VALID_TIERS = ["starter", "growth", "pro"] as const;
+type DealerTier = typeof VALID_TIERS[number];
+
 export default function DealerJoinPage() {
   const { isAuthenticated, isDealer, isReady } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { trackEvent } = useEventTracking();
   const [form, setForm] = useState<FormData>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
@@ -87,6 +91,8 @@ export default function DealerJoinPage() {
     if (!form.dealership_name.trim()) { setError("Dealership name is required."); return; }
     if (!form.contact_name.trim()) { setError("Your name is required."); return; }
     if (!form.email.trim()) { setError("Email is required."); return; }
+    if (!form.inventory_size) { setError("Please select your EV inventory size."); return; }
+    if (!form.ev_focus) { setError("Please select your EV focus type."); return; }
 
     setSubmitting(true);
 
@@ -94,6 +100,9 @@ export default function DealerJoinPage() {
       has_phone: !!form.phone.trim(),
       has_location: !!(form.city.trim() || form.zip.trim()),
     });
+
+    const rawTier = searchParams.get("tier") ?? "";
+    const tier: DealerTier | "" = VALID_TIERS.includes(rawTier as DealerTier) ? (rawTier as DealerTier) : "";
 
     try {
       localStorage.setItem("dealer_signup_pending", JSON.stringify({
@@ -107,6 +116,7 @@ export default function DealerJoinPage() {
         state: form.state,
         zip: form.zip.trim(),
       }));
+      if (tier) localStorage.setItem("dealer_signup_tier", tier);
       localStorage.setItem("auth_redirect", "/dealers/join/confirm");
       if (logoPreview) localStorage.setItem("dealer_signup_logo", logoPreview);
       else localStorage.removeItem("dealer_signup_logo");

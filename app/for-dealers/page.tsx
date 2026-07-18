@@ -152,7 +152,7 @@ export default function ForDealersPage() {
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10">
           <Link
-            href="/dealers/join"
+            href="/dealers/join?tier=growth"
             onClick={() => trackEvent("dealer_apply_cta_clicked", { position: "hero" })}
             className="inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-[#00d97e] text-[#0d1117] font-semibold rounded-xl hover:bg-[#00f090] transition-colors text-sm"
           >
@@ -323,7 +323,7 @@ export default function ForDealersPage() {
               ))}
             </ul>
             <Link
-              href="/dealers/join"
+              href="/dealers/join?tier=starter"
               onClick={() => trackEvent("dealer_apply_cta_clicked", { position: "pricing_starter" })}
               className="flex items-center justify-center w-full py-2.5 border border-white/[0.12] text-white/60 rounded-xl text-sm font-semibold hover:bg-white/[0.05] hover:text-white/80 transition-colors"
             >
@@ -366,7 +366,7 @@ export default function ForDealersPage() {
               ))}
             </ul>
             <Link
-              href="/dealers/join"
+              href="/dealers/join?tier=growth"
               onClick={() => trackEvent("dealer_apply_cta_clicked", { position: "pricing_growth" })}
               className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#00d97e] text-[#0d1117] rounded-xl text-sm font-semibold hover:bg-[#00f090] transition-colors"
             >
@@ -404,7 +404,7 @@ export default function ForDealersPage() {
               ))}
             </ul>
             <Link
-              href="/dealers/join"
+              href="/dealers/join?tier=pro"
               onClick={() => trackEvent("dealer_apply_cta_clicked", { position: "pricing_pro" })}
               className="flex items-center justify-center w-full py-2.5 border border-white/[0.12] text-white/60 rounded-xl text-sm font-semibold hover:bg-white/[0.05] hover:text-white/80 transition-colors"
             >
@@ -463,7 +463,7 @@ export default function ForDealersPage() {
             full access to buyer intelligence, pricing, and a verified profile from day one.
           </p>
           <Link
-            href="/dealers/join"
+            href="/dealers/join?tier=growth"
             onClick={() => trackEvent("dealer_apply_cta_clicked", { position: "bottom" })}
             className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#00d97e] text-[#0d1117] font-semibold rounded-xl hover:bg-[#00f090] transition-colors text-sm"
           >

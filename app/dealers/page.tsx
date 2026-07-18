@@ -115,7 +115,7 @@ export default function DealerDirectoryPage() {
             <p className="text-xs text-white/40 mt-0.5">Browse EV inventory across all listed dealers.</p>
           </div>
           <Link
-            href="/vehicles/browse"
+            href="/deals"
             className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-xl text-sm font-semibold hover:bg-blue-500/30 transition-colors"
           >
             <Car className="w-4 h-4" />

@@ -7,10 +7,11 @@
  * No global header/footer, single CTA, minimal escape paths.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Check, ShieldCheck, ChevronDown, ChevronUp } from "lucide-react";
+import { useEventTracking } from "@/hooks/useEventTracking";
 
 const FEATURES = [
   "Buyer intent dashboard — see who's researching your inventory",
@@ -63,6 +64,13 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 export default function DealerColdPage() {
+  const { trackEvent } = useEventTracking();
+
+  useEffect(() => {
+    trackEvent("for_dealers_cold_page_viewed", { source: "cold_email" });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#0d1117] text-white">
       {/* Minimal header — logo only */}
@@ -92,7 +100,8 @@ export default function DealerColdPage() {
             and a verified profile — so you spend less time guessing and more time closing.
           </p>
           <Link
-            href="/dealers/join"
+            href="/dealers/join?tier=growth"
+            onClick={() => trackEvent("dealer_apply_cold_cta_clicked", { position: "hero" })}
             className="inline-flex items-center gap-2 px-8 py-4 bg-[#00d97e] text-[#0d1117] font-bold rounded-xl hover:bg-[#00f090] transition-colors text-sm"
           >
             Claim your dealer profile
@@ -120,7 +129,8 @@ export default function DealerColdPage() {
 
         {/* CTA repeat */}
         <Link
-          href="/dealers/join"
+          href="/dealers/join?tier=growth"
+          onClick={() => trackEvent("dealer_apply_cold_cta_clicked", { position: "mid" })}
           className="flex items-center justify-center gap-2 w-full py-4 bg-[#00d97e] text-[#0d1117] font-bold rounded-xl hover:bg-[#00f090] transition-colors text-sm mb-12"
         >
           Claim your dealer profile
@@ -144,7 +154,8 @@ export default function DealerColdPage() {
             Apply in 2 minutes. Approved within 1 business day. Inventory live same day.
           </p>
           <Link
-            href="/dealers/join"
+            href="/dealers/join?tier=growth"
+            onClick={() => trackEvent("dealer_apply_cold_cta_clicked", { position: "bottom" })}
             className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#00d97e] text-[#0d1117] font-bold rounded-xl hover:bg-[#00f090] transition-colors text-sm"
           >
             Claim your dealer profile

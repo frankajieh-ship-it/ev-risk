@@ -16,16 +16,17 @@ interface HeaderProps {
 }
 
 // Main site nav (homepage, blog, news, deals, guides)
-const homepageNavLinks = [
+const homepageNavLinks: { label: string; href: string; accent?: boolean }[] = [
   { label: "EV Fit Check", href: "/routine" },
   { label: "Ask OFFO",     href: "/advisor" },
   { label: "Deal Watch",   href: "/deals" },
   { label: "EV News",      href: "/news" },
   { label: "Guides",       href: "/guides" },
+  { label: "For Dealers",  href: "/for-dealers", accent: true },
 ];
 
 // Tool-focused nav (receipt, auction pages)
-const toolNavLinks = [
+const toolNavLinks: { label: string; href: string; accent?: boolean }[] = [
   { label: "EV Fit Check",  href: "/routine" },
   { label: "Ask OFFO",      href: "/advisor" },
   { label: "Receipt Check", href: "/receipt" },
@@ -77,7 +78,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                 <Link
                   key={link.label}
                   href={link.href}
-                  className={navLinkCls}
+                  className={link.accent ? "text-[0.8125rem] font-medium tracking-[-0.01em] text-[#00d97e]/70 hover:text-[#00d97e] transition-colors" : navLinkCls}
                 >
                   {link.label}
                 </Link>
@@ -216,7 +217,7 @@ export default function Header({ variant = "receipt", historyCount, onHistoryCli
                     key={link.label}
                     href={link.href}
                     onClick={() => setMobileOpen(false)}
-                    className="block text-sm font-medium text-white/60 hover:text-white/90 py-2.5 border-b border-white/[0.05] last:border-0 transition-colors"
+                    className={`block text-sm font-medium py-2.5 border-b border-white/[0.05] last:border-0 transition-colors ${link.accent ? "text-[#00d97e]/80 hover:text-[#00d97e]" : "text-white/60 hover:text-white/90"}`}
                   >
                     {link.label}
                   </Link>

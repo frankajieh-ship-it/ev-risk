@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Notify admin of new dealer signup
-  const adminEmail = process.env.ADMIN_NOTIFY_EMAIL || "frankajieh@gmail.com";
+  const adminEmail = process.env.ADMIN_NOTIFY_EMAIL || "admin@offolab.com";
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://offolab.com";
   if (isResendConfigured()) {
     sendChecklistEmail(

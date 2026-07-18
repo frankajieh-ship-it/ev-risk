@@ -15,9 +15,8 @@ import { Resend } from "resend";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
-// Use noreply@offolab.com (same as lib/resend.ts) until dealers@offolab.com subdomain is verified in Resend
-const FROM = "OFFO for Dealers <noreply@offolab.com>";
-const REPLY_TO = "dealers@offolab.com";
+const FROM = "Frank at OFFO <frank@offolab.com>";
+const REPLY_TO = "frank@offolab.com";
 
 function buildOutreachEmail(dealerName: string, vehicleLabel: string): string {
   const name = dealerName || "team";
@@ -40,9 +39,9 @@ function buildOutreachEmail(dealerName: string, vehicleLabel: string): string {
 
       <p>Right now OFFO buyers are submitting inquiries cold — by the time they contact you, half have already moved on. Dealer Alerts puts you one step ahead.</p>
 
-      <p>After the trial it's $49/mo, cancel anytime.</p>
+      <p>Pricing starts at $149/mo after the trial — cancel anytime, no long-term contract.</p>
 
-      <p>Reply to this email and I'll set you up today, or you can visit <a href="https://offolab.com/for-dealers" style="color:#00a86b">offolab.com/for-dealers</a> to see the full program.</p>
+      <p>Reply to this email and I'll set you up today, or visit <a href="https://offolab.com/for-dealers" style="color:#00a86b">offolab.com/for-dealers</a> to see the full program.</p>
 
       <p>— Frank<br/>Founder, OFFO<br/><a href="mailto:dealers@offolab.com" style="color:#00a86b">dealers@offolab.com</a></p>
 
@@ -84,8 +83,8 @@ export async function POST(req: NextRequest) {
       .from("dealerships")
       .select("id, name, slug, contact_email, status, outreach_step, city, state")
       .order("created_at", { ascending: false })
-      .limit(50);
-    return NextResponse.json({ debug: true, dealers: all });
+      .limit(100);
+    return NextResponse.json({ debug: true, total: all?.length, dealers: all });
   }
 
   // Fetch all un-contacted prospects
@@ -124,7 +123,7 @@ export async function POST(req: NextRequest) {
 
     // Build vehicle label from dealer name if no specific vehicle info
     const vehicleLabel = `${dealer.name}'s EV inventory`;
-    const subject = `Buyers are researching your inventory on OFFO — claim your free 30-day trial`;
+    const subject = `${dealer.name}: OFFO buyers are searching for your EVs — free 30-day trial`;
 
     try {
       const { error: sendErr } = await resend.emails.send({
