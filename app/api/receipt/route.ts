@@ -44,6 +44,7 @@ import { detectListingSource } from "@/lib/listing-scraper";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { createTrace, finalizeTrace } from "@/lib/debug-trace";
 import { persistTrace } from "@/lib/debug-trace-store";
+import { notifyDealerOfLead } from "@/lib/dealer-lead-notify";
 
 export const maxDuration = 90;
 
@@ -420,6 +421,18 @@ export async function POST(request: NextRequest) {
       console.error("[Receipt API] Lite DB insert failed:", insertErr.message, insertErr.code);
     } else {
       liteDbSaved = true;
+
+      // Dealer lead notification — fire-and-forget, never blocks receipt response
+      notifyDealerOfLead({
+        listingUrl: input.listing_url || null,
+        vin: input.vin || null,
+        make: input.make || null,
+        model: input.model || null,
+        year: input.year || null,
+        price: input.price || null,
+        mileage: input.mileage || null,
+        receiptId: liteReceipt.receipt_id,
+      }).catch(() => {});
 
       // Exit win-back sequence if user is authenticated and in the win-back state
       if (userId) {
