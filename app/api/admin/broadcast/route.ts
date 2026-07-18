@@ -15,42 +15,59 @@ export const maxDuration = 60;
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
 
 function buildEmailHtml(email: string): string {
-  const footer = emailFooter(email, "activation");
+  const footer = emailFooter(email, "product_update");
 
   const body = `
     <h2 style="font-size:20px;font-weight:700;color:#ffffff;margin:0 0 16px;line-height:1.3;">
-      Temporary issue with VIN history lookup
+      What's new at OFFO this week
     </h2>
 
     <p style="font-size:15px;color:#c9d1d9;line-height:1.7;margin:0 0 20px;">
-      Hi — just a quick heads up.
+      Hi — it's been a few days since your last OFFO report. Here's a quick look at what we shipped while you were away.
     </p>
 
-    <p style="font-size:15px;color:#c9d1d9;line-height:1.7;margin:0 0 20px;">
-      Our VIN history data provider is currently experiencing an issue that is affecting the
-      ownership and accident history feature on OFFO. VIN history lookups may not return
-      results right now.
-    </p>
-
-    <p style="font-size:15px;color:#c9d1d9;line-height:1.7;margin:0 0 20px;">
-      All other features — AI receipt analysis, price sanity checks, inspection checklists,
-      and negotiation scripts — are working normally.
-    </p>
-
-    <div style="background:#00d97e14;border:1px solid #00d97e33;border-radius:10px;padding:18px 22px;margin:0 0 24px;">
-      <p style="font-size:14px;color:#00d97e;font-weight:600;margin:0 0 6px;">We'll notify you when it's back online.</p>
+    <!-- Update 1: Checkout fixed -->
+    <div style="background:#00d97e14;border:1px solid #00d97e33;border-radius:10px;padding:18px 22px;margin:0 0 20px;">
+      <p style="font-size:13px;color:#00d97e;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">✓ Checkout fixed</p>
       <p style="font-size:14px;color:#c9d1d9;line-height:1.6;margin:0;">
-        We're working to restore full VIN history access as quickly as possible.
-        You'll hear from us the moment it's live again.
+        We found and fixed a bug where the "Unlock Report" button was silently failing for some users.
+        If checkout ever gave you trouble before, it should work cleanly now — try it on your next listing.
       </p>
     </div>
 
-    <p style="font-size:15px;color:#c9d1d9;line-height:1.7;margin:0 0 32px;">
-      Sorry for the inconvenience — and thanks for your patience.
+    <!-- Update 2: OTA recall detection -->
+    <div style="background:#ffffff0a;border:1px solid #30363d;border-radius:10px;padding:18px 22px;margin:0 0 20px;">
+      <p style="font-size:13px;color:#e3b341;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">⚡ OTA recall auto-detection</p>
+      <p style="font-size:14px;color:#c9d1d9;line-height:1.6;margin:0;">
+        OFFO now automatically flags when a vehicle has an active over-the-air recall — the kind Tesla, Rivian, and Ford
+        push silently. We surface it in the report so you know whether it's been applied before you buy.
+      </p>
+    </div>
+
+    <!-- Update 3: Photo angle analysis -->
+    <div style="background:#ffffff0a;border:1px solid #30363d;border-radius:10px;padding:18px 22px;margin:0 0 20px;">
+      <p style="font-size:13px;color:#58a6ff;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">📷 Photo angle analysis</p>
+      <p style="font-size:14px;color:#c9d1d9;line-height:1.6;margin:0;">
+        The Starter Report now includes a photo audit — we flag listings that are missing standard angles
+        (undercarriage, frunk, charge port, rear seat) or that show signs of selective coverage.
+        Missing photos are often the most important red flag.
+      </p>
+    </div>
+
+    <!-- CTA -->
+    <div style="text-align:center;margin:32px 0 24px;">
+      <a href="https://offolab.com" style="display:inline-block;background:#00d97e;color:#0d1117;font-weight:700;font-size:15px;padding:14px 32px;border-radius:10px;text-decoration:none;">
+        Run a new check →
+      </a>
+    </div>
+
+    <p style="font-size:14px;color:#8b949e;line-height:1.7;margin:0 0 32px;">
+      As always — paste a CarGurus or Cars.com link and we'll do the rest. No account required for your first free check.
     </p>
 
     <p style="font-size:15px;color:#c9d1d9;line-height:1.7;margin:0;">
-      — The OFFO Team
+      — Frank<br/>
+      <span style="color:#8b949e;font-size:13px;">Founder, OFFO · <a href="mailto:frank@offolab.com" style="color:#8b949e;">frank@offolab.com</a></span>
     </p>
 
     ${footer}
@@ -89,11 +106,11 @@ export async function POST(request: NextRequest) {
       const result = await safeSend({
         email,
         userId: user.id,
-        sequenceType: "activation",
-        sequenceStep: "vin_outage_2026_07",
-        subject: "Heads up: VIN history temporarily unavailable",
+        sequenceType: "product_update",
+        sequenceStep: "product_update_jul17_2026",
+        subject: "What's new at OFFO this week",
         html: buildEmailHtml(email),
-        idempotencyKey: `broadcast_vin_outage_2026_07_${user.id}`,
+        idempotencyKey: `broadcast_product_update_jul17_2026_${user.id}`,
       });
 
       if (result.sent) results.sent++;
