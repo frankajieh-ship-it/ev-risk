@@ -15,7 +15,8 @@ import { Resend } from "resend";
 import { getSupabaseAdmin } from "@/lib/api-auth";
 
 const ADMIN_KEY = process.env.ADMIN_API_KEY;
-const FROM = "OFFO for Dealers <dealers@offolab.com>";
+// Use noreply@offolab.com (same as lib/resend.ts) until dealers@offolab.com subdomain is verified in Resend
+const FROM = "OFFO for Dealers <noreply@offolab.com>";
 const REPLY_TO = "dealers@offolab.com";
 
 function buildOutreachEmail(dealerName: string, vehicleLabel: string): string {
