@@ -325,6 +325,14 @@ export default function DealerLayout({ children }: { children: React.ReactNode }
             {/* Right side — user actions */}
             <div className="hidden md:flex items-center gap-3">
               <Link
+                href="/for-dealers"
+                className={`${navLinkCls} flex items-center gap-1.5`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View public page
+              </Link>
+              <Link
                 href="/workspace"
                 className={`${navLinkCls} flex items-center gap-1.5`}
               >

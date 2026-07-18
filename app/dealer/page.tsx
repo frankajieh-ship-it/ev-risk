@@ -22,9 +22,14 @@ interface DashboardData {
   dealership_name: string | null;
   metro: string | null;
   weekly_high_intent: number;
+  delta_high_intent: string | null;
   inventory_match_count: number;
   avg_days_on_lot: number | null;
   funnel: { views: number; reports: number; receipts: number };
+  delta_views_pct: string | null;
+  inventory_count: number;
+  subscription_tier: string | null;
+  subscription_status: string | null;
   computed_at: string;
 }
 
@@ -165,6 +170,38 @@ function GeoHeatMap({ points }: { points: HeatmapPoint[] }) {
         );
       })}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Plan Badge
+// ---------------------------------------------------------------------------
+
+interface PlanBadgeProps {
+  tier: string | null;
+  status: string | null;
+}
+
+function PlanBadge({ tier, status }: PlanBadgeProps) {
+  if (!status || status === "pending_payment" || status === "canceled" || status === "inactive") {
+    return null;
+  }
+
+  const tierLabel = tier
+    ? tier.charAt(0).toUpperCase() + tier.slice(1)
+    : null;
+
+  const label = status === "trial"
+    ? "Free Trial"
+    : tierLabel
+    ? `${tierLabel} Plan Active`
+    : "Plan Active";
+
+  return (
+    <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#00d97e]/15 text-[#00d97e] text-xs font-semibold border border-[#00d97e]/30 shrink-0">
+      <Zap className="w-3 h-3" />
+      {label}
+    </span>
   );
 }
 
@@ -369,16 +406,16 @@ export default function DealerDashboard() {
             </p>
           )}
         </div>
-        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#00d97e]/15 text-[#00d97e] text-xs font-semibold border border-[#00d97e]/30 shrink-0">
-          <Zap className="w-3 h-3" />
-          Pro Plan Active
-        </span>
+        <PlanBadge
+          tier={dashboard.subscription_tier}
+          status={dashboard.subscription_status}
+        />
       </div>
 
       {/* Onboarding checklist — only shown when inventory is empty */}
       {dashboard.inventory_match_count === 0 && dashboard.weekly_high_intent === 0 && (
         <OnboardingChecklist
-          hasInventory={false}
+          hasInventory={dashboard.inventory_count > 0}
           dealershipName={dashboard.dealership_name}
         />
       )}
@@ -388,32 +425,36 @@ export default function DealerDashboard() {
         <KpiCard
           label="High-Intent Buyers"
           value={dashboard.weekly_high_intent}
-          delta="+18 this week"
-          deltaPositive
+          delta={dashboard.delta_high_intent ?? undefined}
+          deltaPositive={
+            dashboard.delta_high_intent != null
+              ? !dashboard.delta_high_intent.startsWith("-")
+              : undefined
+          }
           icon={Users}
           iconCls="bg-blue-500/15 text-blue-400"
         />
         <KpiCard
-          label="Saved Your Listings"
+          label="Matched Inventory"
           value={dashboard.inventory_match_count}
-          delta="+11 this week"
-          deltaPositive
           icon={Bookmark}
           iconCls="bg-[#00d97e]/15 text-[#00d97e]"
         />
         <KpiCard
           label="Listing Views 7d"
           value={dashboard.funnel.views.toLocaleString()}
-          delta="+24% this week"
-          deltaPositive
+          delta={dashboard.delta_views_pct ?? undefined}
+          deltaPositive={
+            dashboard.delta_views_pct != null
+              ? !dashboard.delta_views_pct.startsWith("-")
+              : undefined
+          }
           icon={Eye}
           iconCls="bg-purple-500/15 text-purple-400"
         />
         <KpiCard
           label="Avg Days on Lot"
           value={dashboard.avg_days_on_lot != null ? `${dashboard.avg_days_on_lot}d` : "—"}
-          delta={dashboard.avg_days_on_lot != null ? "-3.1 days" : undefined}
-          deltaPositive={false}
           icon={Car}
           iconCls="bg-amber-500/15 text-amber-400"
         />

@@ -12,6 +12,20 @@ import { audit } from "@/lib/audit-logger";
 
 export const maxDuration = 15;
 
+/** Format a delta as "+N" / "-N" / null when insufficient data. */
+function formatCountDelta(current: number, prior: number): string | null {
+  if (prior === 0 && current === 0) return null;
+  const diff = current - prior;
+  return diff >= 0 ? `+${diff} vs last week` : `${diff} vs last week`;
+}
+
+/** Format a view-count delta as a percentage string, or null. */
+function formatPctDelta(current: number, prior: number): string | null {
+  if (prior === 0) return null;
+  const pct = Math.round(((current - prior) / prior) * 100);
+  return pct >= 0 ? `+${pct}% vs last week` : `${pct}% vs last week`;
+}
+
 export async function GET(req: NextRequest) {
   const authResult = await requireRole(req, "dealer_admin", "dealer_user");
   if (authResult instanceof NextResponse) return authResult;
@@ -26,10 +40,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Dealership not found" }, { status: 404 });
   }
 
-  // Fetch dealership meta (city/state for metro label)
+  // Fetch dealership meta (city/state for metro label + subscription info)
   const { data: dealership } = await supabase
     .from("dealerships")
-    .select("id, name, city, state")
+    .select("id, name, city, state, subscription_tier, subscription_status")
     .eq("id", dealershipId)
     .single();
 
@@ -38,19 +52,23 @@ export async function GET(req: NextRequest) {
     : null;
 
   const now = new Date();
-  const since7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const since7d  = new Date(now.getTime() -  7 * 24 * 60 * 60 * 1000).toISOString();
+  const since14d = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
   const since30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   // Run all queries in parallel
   const [
     highIntentResult,
+    highIntentPriorResult,
     topModelsResult,
     funnelViewsResult,
+    funnelViewsPriorResult,
     funnelReportsResult,
     funnelReceiptsResult,
     avgDaysResult,
+    inventoryCountResult,
   ] = await Promise.allSettled([
-    // 1. Weekly high-intent views in dealer metro
+    // 1. Weekly high-intent views in dealer metro (current 7d)
     supabase
       .from("user_events")
       .select("id", { count: "exact", head: true })
@@ -58,7 +76,16 @@ export async function GET(req: NextRequest) {
       .gte("timestamp", since7d)
       .eq("geo_metro", metro || ""),
 
-    // 2. Top 5 models researched in last 30d in dealer metro
+    // 2. Weekly high-intent views — prior 7d (for delta)
+    supabase
+      .from("user_events")
+      .select("id", { count: "exact", head: true })
+      .in("event_name", ["routine_result_viewed", "report_view", "receipt_generate"])
+      .gte("timestamp", since14d)
+      .lt("timestamp", since7d)
+      .eq("geo_metro", metro || ""),
+
+    // 3. Top 5 models researched in last 30d in dealer metro
     supabase
       .from("user_events")
       .select("event_data")
@@ -67,40 +94,60 @@ export async function GET(req: NextRequest) {
       .eq("geo_metro", metro || "")
       .limit(500),
 
-    // 3. Funnel: views (30d)
+    // 4. Funnel: views (current 7d)
     supabase
       .from("user_events")
       .select("id", { count: "exact", head: true })
       .eq("event_name", "report_view")
-      .gte("timestamp", since30d),
+      .gte("timestamp", since7d),
 
-    // 4. Funnel: reports generated (30d)
+    // 5. Funnel: views (prior 7d, for delta)
+    supabase
+      .from("user_events")
+      .select("id", { count: "exact", head: true })
+      .eq("event_name", "report_view")
+      .gte("timestamp", since14d)
+      .lt("timestamp", since7d),
+
+    // 6. Funnel: reports generated (30d)
     supabase
       .from("user_events")
       .select("id", { count: "exact", head: true })
       .in("event_name", ["routine_result_viewed", "evfit_completed"])
       .gte("timestamp", since30d),
 
-    // 5. Funnel: receipts analyzed (30d)
+    // 7. Funnel: receipts analyzed (30d)
     supabase
       .from("user_events")
       .select("id", { count: "exact", head: true })
       .eq("event_name", "receipt_generate")
       .gte("timestamp", since30d),
 
-    // 6. Avg days on lot for this dealership
+    // 8. Avg days on lot for this dealership
     supabase
       .from("dealer_inventory")
       .select("created_at")
       .eq("dealership_id", dealershipId)
       .eq("status", "active"),
+
+    // 9. Inventory count for onboarding checklist
+    supabase
+      .from("dealer_inventory")
+      .select("id", { count: "exact", head: true })
+      .eq("dealership_id", dealershipId)
+      .eq("status", "active"),
   ]);
 
-  // Weekly high-intent count
+  // Weekly high-intent count + delta
   const weeklyHighIntent =
     highIntentResult.status === "fulfilled"
       ? (highIntentResult.value.count ?? 0)
       : 0;
+  const weeklyHighIntentPrior =
+    highIntentPriorResult.status === "fulfilled"
+      ? (highIntentPriorResult.value.count ?? 0)
+      : 0;
+  const deltaHighIntent = formatCountDelta(weeklyHighIntent, weeklyHighIntentPrior);
 
   // Top models from event_data
   const topModelsMap = new Map<string, number>();
@@ -146,12 +193,23 @@ export async function GET(req: NextRequest) {
     avgDaysOnLot = Math.round(days.reduce((a, b) => a + b, 0) / days.length);
   }
 
+  // Funnel views delta
+  const currentViews = funnelViewsResult.status === "fulfilled" ? (funnelViewsResult.value.count ?? 0) : 0;
+  const priorViews   = funnelViewsPriorResult.status === "fulfilled" ? (funnelViewsPriorResult.value.count ?? 0) : 0;
+  const deltaViewsPct = formatPctDelta(currentViews, priorViews);
+
   // Funnel
   const funnel = {
-    views: funnelViewsResult.status === "fulfilled" ? (funnelViewsResult.value.count ?? 0) : 0,
-    reports: funnelReportsResult.status === "fulfilled" ? (funnelReportsResult.value.count ?? 0) : 0,
+    views:    currentViews,
+    reports:  funnelReportsResult.status === "fulfilled" ? (funnelReportsResult.value.count ?? 0) : 0,
     receipts: funnelReceiptsResult.status === "fulfilled" ? (funnelReceiptsResult.value.count ?? 0) : 0,
   };
+
+  // Inventory count
+  const inventoryCount =
+    inventoryCountResult.status === "fulfilled"
+      ? (inventoryCountResult.value.count ?? 0)
+      : 0;
 
   audit({
     actor_id: authResult.id,
@@ -166,10 +224,15 @@ export async function GET(req: NextRequest) {
     dealership_name: dealership?.name || null,
     metro,
     weekly_high_intent: weeklyHighIntent,
+    delta_high_intent: deltaHighIntent,
     top_models: topModels,
     inventory_match_count: inventoryMatchCount,
     avg_days_on_lot: avgDaysOnLot,
     funnel,
+    delta_views_pct: deltaViewsPct,
+    inventory_count: inventoryCount,
+    subscription_tier: dealership?.subscription_tier ?? null,
+    subscription_status: dealership?.subscription_status ?? null,
     computed_at: now.toISOString(),
   });
 }
