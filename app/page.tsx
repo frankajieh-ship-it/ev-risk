@@ -19,8 +19,6 @@ import VehicleRecommendations from "@/components/VehicleRecommendations";
 import RoutineStep from "@/components/RoutineStep";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
-import HowItWorksSection from "@/components/landing/HowItWorksSection";
-import UniqueAdvantageSection from "@/components/landing/UniqueAdvantageSection";
 import FeaturedDeals from "@/components/landing/FeaturedDeals";
 import EmailCaptureBar from "@/components/landing/EmailCaptureBar";
 import { type ManualEntryData } from "@/components/ManualEntryInlineForm";
@@ -458,9 +456,42 @@ export default function Home() {
             Battery health estimate, charging fit score, open recalls, and a negotiation script — for any used EV listing. Carfax can&apos;t tell you if the battery is degraded or if the car fits your charging life. OFFO can.
           </p>
 
-          <p className="text-sm text-white/30 mb-10 max-w-xl mx-auto">
+          <p className="text-sm text-white/30 mb-6 max-w-xl mx-auto">
             Paste a listing from CarGurus, AutoTrader, or Cars.com — get a verdict in seconds.
           </p>
+
+          {/* Social proof strip */}
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mb-8">
+            <div className="flex items-center gap-1.5">
+              <span className="flex gap-0.5">
+                {[...Array(5)].map((_, i) => (
+                  <svg key={i} className="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </span>
+              <span className="text-xs text-white/40 font-medium">
+                {totalReceipts !== null
+                  ? `${totalReceipts.toLocaleString()}+ battery checks run`
+                  : "Thousands of battery checks run"}
+              </span>
+            </div>
+            <span className="w-px h-3 bg-white/10 hidden sm:block" />
+            <div className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" aria-hidden>
+                <circle cx="10" cy="10" r="10" fill="#FF4500"/>
+                <path d="M16.67 10a1.46 1.46 0 00-2.47-1 7.12 7.12 0 00-3.85-1.23l.65-3.08 2.13.45a1 1 0 101.07-1 1 1 0 00-.96.68l-2.38-.5a.26.26 0 00-.31.2l-.73 3.44a7.14 7.14 0 00-3.89 1.23 1.46 1.46 0 10-1.61 2.39 2.87 2.87 0 000 .44c0 2.24 2.61 4.06 5.83 4.06s5.83-1.82 5.83-4.06a2.87 2.87 0 000-.44 1.46 1.46 0 00.6-1.18zM7.27 11a1 1 0 111 1 1 1 0 01-1-1zm5.6 2.71a3.58 3.58 0 01-2.87.89 3.58 3.58 0 01-2.87-.89.23.23 0 01.33-.33 3.15 3.15 0 002.54.71 3.15 3.15 0 002.54-.71.23.23 0 01.33.33zm-.2-1.71a1 1 0 111-1 1 1 0 01-1 1z" fill="white"/>
+              </svg>
+              <span className="text-xs text-white/40 font-medium">&ldquo;Saved me from a bad battery&rdquo; · r/electricvehicles</span>
+            </div>
+            <span className="w-px h-3 bg-white/10 hidden sm:block" />
+            <div className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 text-[#00d97e] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <span className="text-xs text-white/40 font-medium">Free · No account required</span>
+            </div>
+          </div>
 
           {/* URL / VIN input row */}
           <div className="flex flex-col sm:flex-row gap-3 max-w-2xl mx-auto">
@@ -529,48 +560,16 @@ export default function Home() {
       {/* Original Header hidden — replaced above for homepage */}
       <div className="hidden"><Header variant="homepage" /></div>
 
-      {/* ── Section: Dual entry point CTA ────────────────────────────── */}
-      <div className="bg-[#0d1117] border-t border-white/[0.06]">
-        <div className="max-w-2xl mx-auto px-4 py-5 grid grid-cols-2 gap-3">
-          {/* Left: reinforce listing analysis */}
-          <div className="bg-white/[0.04] border border-white/[0.07] rounded-xl px-4 py-4">
-            <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-1">Have a listing?</p>
-            <p className="text-sm text-white/80 font-medium leading-snug">Paste the URL or VIN above</p>
-            <p className="text-xs text-white/35 mt-1">Get a risk verdict in seconds</p>
-          </div>
-          {/* Right: quiz entry point */}
-          <button
-            onClick={() => {
-              setCurrentStep("routine");
-              setTimeout(() => {
-                document.getElementById("fit-check")?.scrollIntoView({ behavior: "smooth" });
-              }, 50);
-            }}
-            className="bg-[#00d97e]/10 border border-[#00d97e]/25 rounded-xl px-4 py-4 text-left hover:bg-[#00d97e]/15 hover:border-[#00d97e]/40 transition-colors group"
-          >
-            <p className="text-xs font-semibold text-[#00d97e]/70 uppercase tracking-wider mb-1">Not sure yet?</p>
-            <p className="text-sm text-white/80 font-medium leading-snug group-hover:text-white transition-colors">60-second EV quiz</p>
-            <p className="text-xs text-white/35 mt-1">Find EVs that fit your life →</p>
-          </button>
-        </div>
-      </div>
-
       {/* ── Section: EV Routine Wizard ───────────────────────────────── */}
       {currentStep === "routine" && (
         <div className="max-w-2xl mx-auto px-4 py-6 bg-[#0d1117]">
           <div className="flex items-center gap-4">
             <div className="flex-1 h-px bg-white/10" />
             <span className="text-xs font-medium text-white/40 uppercase tracking-wider whitespace-nowrap">
-              Find your fit in 60 seconds
+              Or — find your fit in 60 seconds
             </span>
             <div className="flex-1 h-px bg-white/10" />
           </div>
-          <p className="text-center text-sm text-white/60 mt-3 font-medium">
-            Carfax tells you what happened. OFFO tells you if the battery can handle your life.
-          </p>
-          <p className="text-center text-xs text-white/35 mt-1">
-            3 questions. No sign-up. EV-specific vehicle match.
-          </p>
         </div>
       )}
 
@@ -674,11 +673,51 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Section 3: How It Works ──────────────────────────────────── */}
-      <HowItWorksSection variant="homepage" dark />
-
-      {/* ── Section: What OFFO checks ────────────────────────────────── */}
-      <UniqueAdvantageSection />
+      {/* ── Section: What you get (3-icon) ──────────────────────────── */}
+      <div className="bg-[#0d1117] border-t border-white/[0.06]">
+        <div className="max-w-3xl mx-auto px-4 py-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            {
+              icon: (
+                <svg className="w-5 h-5 text-[#00d97e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              ),
+              accent: "bg-[#00d97e]/10 border-[#00d97e]/20",
+              label: "Battery Score",
+              desc: "Estimated health based on mileage, year, and known degradation curves — before you ever see the car.",
+            },
+            {
+              icon: (
+                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+              ),
+              accent: "bg-blue-500/10 border-blue-500/20",
+              label: "Charging Fit",
+              desc: "Does this EV actually work with your home setup, commute, and climate? Scored in 60 seconds.",
+            },
+            {
+              icon: (
+                <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              ),
+              accent: "bg-amber-500/10 border-amber-500/20",
+              label: "Negotiation Script",
+              desc: "Exact questions to ask the dealer, red flags to raise, and a fair price range — ready before you call.",
+            },
+          ].map(({ icon, accent, label, desc }) => (
+            <div key={label} className={`rounded-2xl border ${accent} bg-white/[0.02] p-5`}>
+              <div className={`w-9 h-9 rounded-xl border ${accent} flex items-center justify-center mb-4`}>
+                {icon}
+              </div>
+              <p className="text-sm font-semibold text-white mb-1">{label}</p>
+              <p className="text-xs text-white/40 leading-relaxed">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* ── Section: Scan the Listing ───────────────────────────────── */}
       <section className="bg-[#0d1117] py-20 px-4">
