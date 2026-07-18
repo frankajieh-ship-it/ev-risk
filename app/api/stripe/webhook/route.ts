@@ -633,17 +633,51 @@ async function fulfillBuyerPass(session: Stripe.Checkout.Session) {
       .single();
 
     if (error || !data) {
-      console.error(
-        `❌ Purchase for session ${session.id} not found or already fulfilled`
-      );
+      // Row may be missing if the checkout /api/payments/checkout insert failed silently.
+      // Upsert from webhook metadata so the buyer gets unlocked regardless.
+      console.warn(`⚠️ Purchase row missing for session ${session.id} — upserting from webhook metadata`);
+      const anonId = session.metadata?.anon_id || null;
+      const receiptCredits = packTier === "receipt_single" ? 1 : packTier === "seller_questions" ? 1 : packTier === "chat_pass" ? 0 : packTier === "copart_report" ? 1 : 10;
+      const { error: upsertErr } = await supabase
+        .from("purchases")
+        .upsert({
+          stripe_session_id: session.id,
+          status: "paid",
+          scenario_type: scenarioType || "receipt",
+          base_scenario_id: baseScenarioId,
+          anon_id: anonId,
+          user_id: session.metadata?.user_id || null,
+          price_variant: session.metadata?.price_variant || null,
+          pack_tier: packTier,
+          amount: session.amount_total || 0,
+          currency: session.currency || "usd",
+          stripe_payment_intent_id: typeof session.payment_intent === "string" ? session.payment_intent : null,
+          receipt_credits_total: receiptCredits,
+          receipt_credits_used: 0,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "stripe_session_id" });
+
+      if (upsertErr) {
+        console.error(`❌ Upsert also failed for session ${session.id}:`, upsertErr.message);
+        audit({
+          actor_type: "webhook",
+          action: "payment.fulfill_failed",
+          resource: `purchase:${baseScenarioId}`,
+          result: "error",
+          metadata: { stripe_session_id: session.id, scenario_type: scenarioType },
+        });
+        return false;
+      }
+      console.log(`✅ Recovered purchase via upsert for session ${session.id}`);
+      // Audit + analytics and return — skip referral credit (no original purchase_id)
       audit({
         actor_type: "webhook",
-        action: "payment.fulfill_failed",
-        resource: `purchase:${baseScenarioId}`,
-        result: "error",
-        metadata: { stripe_session_id: session.id, scenario_type: scenarioType },
+        action: "payment.fulfilled",
+        resource: `purchase:recovered:${baseScenarioId}`,
+        result: "ok",
+        metadata: { stripe_session_id: session.id, scenario_type: scenarioType, pack_tier: packTier, recovered: true },
       });
-      return false;
+      return true;
     }
 
     console.log(`✅ Buyer Pass fulfilled:`, {
