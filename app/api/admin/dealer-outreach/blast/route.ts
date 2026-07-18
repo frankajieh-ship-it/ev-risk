@@ -71,11 +71,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   }
 
-  let body: { dry_run?: boolean; limit?: number } = {};
+  let body: { dry_run?: boolean; limit?: number; debug?: boolean } = {};
   try { body = await req.json(); } catch { /* empty body is fine */ }
 
   const dryRun = body.dry_run === true;
+  const debug = body.debug === true;
   const limit = Math.min(body.limit ?? 50, 100);
+
+  // debug mode: return ALL dealers regardless of status/step so we can diagnose
+  if (debug) {
+    const { data: all } = await supabase
+      .from("dealerships")
+      .select("id, name, slug, contact_email, status, outreach_step, city, state")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    return NextResponse.json({ debug: true, dealers: all });
+  }
 
   // Fetch all un-contacted prospects
   const { data: prospects, error: fetchErr } = await supabase
