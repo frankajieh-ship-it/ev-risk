@@ -21,6 +21,8 @@ interface EmailGateModalProps {
   onSkip: () => void;
   vehicleSummary?: string;
   receiptId?: string;
+  /** The receipt token (anon_id) used for checkout — stored alongside email so recovery can match them */
+  anonId?: string;
 }
 
 type ModalState = "idle" | "submitting" | "success" | "error";
@@ -31,6 +33,7 @@ export default function EmailGateModal({
   onSkip,
   vehicleSummary,
   receiptId,
+  anonId,
 }: EmailGateModalProps) {
   const { trackEvent } = useEventTracking();
   const [email, setEmail] = useState("");
@@ -54,13 +57,16 @@ export default function EmailGateModal({
     setErrorMsg(null);
 
     try {
+      const persistentSessionId = getOrCreatePersistentSessionId();
       const res = await fetch("/api/checklist/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: trimmed,
           attribution: getAttributionForEvent(),
-          persistent_session_id: getOrCreatePersistentSessionId(),
+          persistent_session_id: persistentSessionId,
+          // Use receipt token as anon_id so it matches checkout session metadata
+          anon_id: anonId || persistentSessionId,
           source: "email_gate",
           ...(receiptId && { trigger_id: receiptId }),
         }),

@@ -1635,6 +1635,7 @@ export default function ReceiptPage() {
       <EmailGateModal
         isOpen={emailModalOpen}
         receiptId={receipt?.receipt_id}
+        anonId={receiptToken || undefined}
         vehicleSummary={
           receipt
             ? [receipt.listing_summary?.year, receipt.listing_summary?.make, receipt.listing_summary?.model]
