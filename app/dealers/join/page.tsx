@@ -5,7 +5,7 @@
  * Step 1 of 2: collect dealership details + email, then send magic link.
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Building, Check, Loader2, Mail, Upload, X } from "lucide-react";
@@ -54,7 +54,7 @@ const labelCls = "block text-xs font-medium text-white/50 mb-1";
 const VALID_TIERS = ["starter", "growth", "pro"] as const;
 type DealerTier = typeof VALID_TIERS[number];
 
-export default function DealerJoinPage() {
+function DealerJoinInner() {
   const { isAuthenticated, isDealer, isReady } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -476,5 +476,13 @@ export default function DealerJoinPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function DealerJoinPage() {
+  return (
+    <Suspense>
+      <DealerJoinInner />
+    </Suspense>
   );
 }
