@@ -89,7 +89,7 @@ export interface SafeSendResult {
 
 const DAILY_SEND_CAP = 1;
 // Transactional sequences that bypass the daily cap and cooldown
-const UNCAPPED_SEQUENCES: SequenceType[] = ["deal_watch", "recall", "listing_gone", "lead_notification", "post_purchase_day7", "product_update"];
+const UNCAPPED_SEQUENCES: SequenceType[] = ["deal_watch", "recall", "listing_gone", "lead_notification", "post_purchase_day7"];
 // Minimum hours between any two marketing emails to the same address
 const MIN_HOURS_BETWEEN_EMAILS = 48;
 
@@ -111,9 +111,20 @@ export async function safeSend(params: SafeSendParams): Promise<SafeSendResult> 
     }
   }
 
+  // 2a. Pre-send idempotency check — bail before calling Resend if already logged
+  const { data: existing } = await supabase
+    .from("crm_email_sends")
+    .select("id, status")
+    .eq("idempotency_key", params.idempotencyKey)
+    .maybeSingle();
+
+  if (existing) {
+    return { sent: false, skipped: true };
+  }
+
   const isUncapped = UNCAPPED_SEQUENCES.includes(params.sequenceType);
 
-  // 2. Check daily send cap and 48h cooldown for marketing emails
+  // 2b. Check daily send cap and 48h cooldown for marketing emails
   if (!isUncapped) {
     const { count } = await supabase
       .from("crm_email_sends")
