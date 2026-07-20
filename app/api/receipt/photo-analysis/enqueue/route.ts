@@ -60,9 +60,14 @@ export async function POST(request: NextRequest) {
 
   const { receipt_id, photo_urls } = body as { receipt_id: string; photo_urls: string[] };
 
-  const filteredUrls = (photo_urls as string[]).filter(
-    (u) => typeof u === "string" && !u.startsWith("data:") && u.length > 0
-  );
+  // Split into data: URLs (user-dragged, already base64) and remote URLs (fetch server-side).
+  // Both are valid — do NOT discard data: URLs; they are the primary source when users
+  // drag photos from a listing page.
+  const allUrls = (photo_urls as string[]).filter((u) => typeof u === "string" && u.length > 0);
+  const dataUrls = allUrls.filter((u) => u.startsWith("data:")).slice(0, 20);
+  const remoteUrls = allUrls.filter((u) => !u.startsWith("data:")).slice(0, 20);
+  // Cap combined total at 20
+  const filteredUrls = [...dataUrls, ...remoteUrls].slice(0, 20);
 
   if (filteredUrls.length === 0) {
     return NextResponse.json({ error: "No photos to analyse" }, { status: 400 });
@@ -98,7 +103,7 @@ export async function POST(request: NextRequest) {
         .single();
       const analysis = receiptRow?.photo_analysis as { photos?: unknown[] } | null;
       const analysedCount = Array.isArray(analysis?.photos) ? analysis.photos.length : 0;
-      if (analysis && analysedCount >= filteredUrls.length) {
+      if (analysis && analysedCount >= allUrls.length) {
         return NextResponse.json({ job_id: existing.id, status: "done", photo_analysis: analysis });
       }
       // Stale result — invalidate and re-run
@@ -110,10 +115,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Create fresh job
+  // Create fresh job — only store remote URLs in DB (data: URLs are too large for a column)
   const { data: job, error: insertErr } = await supabase
     .from("receipt_photo_jobs")
-    .insert({ receipt_id, status: "pending", photo_urls: filteredUrls.slice(0, 20) })
+    .insert({ receipt_id, status: "pending", photo_urls: remoteUrls.slice(0, 20) })
     .select("id")
     .single();
 
@@ -123,7 +128,7 @@ export async function POST(request: NextRequest) {
   }
 
   const jobId = job.id;
-  const urlsToProcess = filteredUrls.slice(0, 20);
+  const urlsToProcess = filteredUrls; // includes both data: and remote URLs
 
   console.log("[photo-analysis/enqueue] job", jobId, "created —", urlsToProcess.length, "photos, running after()");
 
@@ -148,10 +153,14 @@ export async function POST(request: NextRequest) {
 
     try {
       const resolvedUrls = await Promise.all(
-        urlsToProcess.map(async (url) => ({ url, dataUrl: await fetchAsBase64(url) }))
+        urlsToProcess.map(async (url) => ({
+          url,
+          // data: URLs are already base64 — pass through directly without fetching
+          dataUrl: url.startsWith("data:") ? url : await fetchAsBase64(url),
+        }))
       );
       const fetchable = resolvedUrls.filter((r) => r.dataUrl !== null);
-      console.log(`[photo-analysis] job ${jobId}: ${fetchable.length}/${resolvedUrls.length} photos fetched`);
+      console.log(`[photo-analysis] job ${jobId}: ${fetchable.length}/${resolvedUrls.length} photos resolved`);
 
       if (fetchable.length === 0) {
         await supabase
