@@ -71,6 +71,5 @@ export default async function handler() {
   }
 }
 
-export const config: Config = {
-  schedule: "0 15 * * *", // 3pm UTC daily
-};
+// Schedule removed — trigger manually via POST /api/admin/dealer-outreach/blast with ADMIN_API_KEY
+export const config: Config = {};

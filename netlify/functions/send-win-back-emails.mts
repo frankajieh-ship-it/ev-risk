@@ -69,6 +69,5 @@ export default async function handler() {
   }
 }
 
-export const config: Config = {
-  schedule: "0 11 * * *", // 11am UTC daily
-};
+// Schedule removed — trigger manually via POST /api/email/win-back/send with ADMIN_API_KEY
+export const config: Config = {};

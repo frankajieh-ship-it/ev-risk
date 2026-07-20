@@ -71,6 +71,5 @@ export default async function handler() {
   }
 }
 
-export const config: Config = {
-  schedule: "0 10 * * *",
-};
+// Schedule removed — trigger manually via POST /api/email/activation/send with ADMIN_API_KEY
+export const config: Config = {};
