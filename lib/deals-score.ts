@@ -17,7 +17,7 @@ import { validateReceiptSchema } from "@/lib/receipt-schema-validator";
 
 export interface ScrapedListing {
   vin?: string;
-  title_status?: "clean" | "salvage" | "rebuilt" | "unknown";
+  title_status?: "clean" | "salvage" | "rebuilt" | "lemon" | "unknown";
   accidents_reported?: "yes" | "no" | "unknown";
   mileage?: number;
   price?: number;

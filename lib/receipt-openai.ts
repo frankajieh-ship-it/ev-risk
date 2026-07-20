@@ -122,7 +122,7 @@ export const RECEIPT_JSON_SCHEMA = {
         model: { type: "string" },
         trim: { anyOf: [{ type: "string" }, { type: "null" }] },
         seller_type: { type: "string", enum: ["dealer", "private", "unknown"] },
-        title_status: { type: "string", enum: ["clean", "salvage", "rebuilt", "unknown"] },
+        title_status: { type: "string", enum: ["clean", "salvage", "rebuilt", "lemon", "unknown"] },
         accidents_reported: { type: "string", enum: ["yes", "no", "unknown"] },
         service_history: { type: "string", enum: ["yes", "no", "unknown"] },
         owners: { anyOf: [{ type: "number" }, { type: "null" }] },
@@ -209,7 +209,7 @@ export const SYSTEM_PROMPT = `You are OFFO Receipt Bot. Analyze a car listing �
 Return ONLY valid JSON. No markdown, no explanation.
 
 SCHEMA:
-{"schema_version":"v1","receipt_id":"<UUID v4>","mode":"single","verdict":"GREEN|YELLOW|RED","verdict_reason":"4-180ch","price_sanity":{"label":"UNDERPRICED|FAIR|OVERPRICED|UNKNOWN","confidence":0.0-1.0,"basis":"LISTING_ONLY|USER_MARKET_RANGE|UNKNOWN","rationale_short":"4-180ch","user_market_range":null},"risk_flags":["1-120ch","1-120ch","1-120ch"],"must_answer_questions":["1-140ch","1-140ch","1-140ch"],"inspect_first":["1-140ch",x5],"negotiation_opener":"8-420ch","one_followup_question":"max160ch or null","compare":null,"operator_notes":{"rationale":"10-500ch","assumptions":["1-120ch",0-6],"what_would_change_verdict":["1-140ch",0-4]},"listing_summary":{"listing_url":"str","url_domain":"str","country":"US|UK|CA|AU|OTHER","zip_or_postcode":"str","price":N,"currency":"str","mileage":N,"mileage_unit":"mi|km|unknown","year":N,"make":"str","model":"str","trim":"str|null","seller_type":"dealer|private|unknown","title_status":"clean|salvage|rebuilt|unknown","accidents_reported":"yes|no|unknown","service_history":"yes|no|unknown","owners":N|null,"carfax_available":"yes|no|unknown","financing_vs_cash":"financing|cash|unknown"},"listing_signals":["signal_id",...]}
+{"schema_version":"v1","receipt_id":"<UUID v4>","mode":"single","verdict":"GREEN|YELLOW|RED","verdict_reason":"4-180ch","price_sanity":{"label":"UNDERPRICED|FAIR|OVERPRICED|UNKNOWN","confidence":0.0-1.0,"basis":"LISTING_ONLY|USER_MARKET_RANGE|UNKNOWN","rationale_short":"4-180ch","user_market_range":null},"risk_flags":["1-120ch","1-120ch","1-120ch"],"must_answer_questions":["1-140ch","1-140ch","1-140ch"],"inspect_first":["1-140ch",x5],"negotiation_opener":"8-420ch","one_followup_question":"max160ch or null","compare":null,"operator_notes":{"rationale":"10-500ch","assumptions":["1-120ch",0-6],"what_would_change_verdict":["1-140ch",0-4]},"listing_summary":{"listing_url":"str","url_domain":"str","country":"US|UK|CA|AU|OTHER","zip_or_postcode":"str","price":N,"currency":"str","mileage":N,"mileage_unit":"mi|km|unknown","year":N,"make":"str","model":"str","trim":"str|null","seller_type":"dealer|private|unknown","title_status":"clean|salvage|rebuilt|lemon|unknown","accidents_reported":"yes|no|unknown","service_history":"yes|no|unknown","owners":N|null,"carfax_available":"yes|no|unknown","financing_vs_cash":"financing|cash|unknown"},"listing_signals":["signal_id",...]}
 
 ARRAY COUNTS (linter enforced): risk_flags=3, must_answer_questions=3, inspect_first=5. listing_signals=3-20.
 
@@ -232,7 +232,7 @@ SIGNAL RULES:
 - Include EVERY signal that applies. Err on the side of including more signals.
 - Hard blockers: only if strong evidence. Evidence bonuses: only if listing explicitly shows it. Evidence penalties: if listing does NOT address it.
 - "Not mentioned" = the corresponding "missing" or "unclear" penalty applies.
-- TITLE: if listing_summary.title_status="clean" → include clean_title_explicit. If "salvage" or "rebuilt" → include title_salvage. If "unknown" → include title_status_unclear.
+- TITLE: if listing_summary.title_status="clean" → include clean_title_explicit. If "salvage", "rebuilt", or "lemon" → include title_salvage. If "unknown" → include title_status_unclear. Set title_status="lemon" if the listing mentions lemon title, lemon law, or lemon buyback.
 - Do NOT include dcfc_unclear, fees_unclear, or tire_condition_unclear — these are not scored.`;
 
 // --- Prompt Sanitization ---
@@ -769,7 +769,7 @@ export function buildEnhancedFallbackReceipt(
 
   // Infer title_status from signals when user didn't provide it
   // title_salvage covers salvage/rebuilt/flood/lemon (single hard-blocker signal)
-  const inferredTitle: "clean" | "salvage" | "rebuilt" | "unknown" =
+  const inferredTitle: "clean" | "salvage" | "rebuilt" | "lemon" | "unknown" =
     input.title_status && input.title_status !== "unknown"
       ? input.title_status
       : signalSet.has("title_salvage" as ListingSignalId)
