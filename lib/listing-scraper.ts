@@ -72,7 +72,7 @@ export interface VehicleData {
   photo_urls?: string[];
 
   // Title and accident status extracted from listing text
-  title_status?: "clean" | "salvage" | "rebuilt" | "unknown";
+  title_status?: "clean" | "salvage" | "rebuilt" | "lemon" | "unknown";
   accidents_reported?: "yes" | "no" | "unknown";
   owners?: number;
 
@@ -400,7 +400,8 @@ async function extractFromAutoTrader(html: string, url?: string): Promise<Partia
 
   // Title/accident fallback from visible text
   if (!data.title_status) {
-    if (/clean\s+title/i.test(html)) data.title_status = 'clean';
+    if (/lemon\s+title|lemon\s+law/i.test(html)) data.title_status = 'lemon';
+    else if (/clean\s+title/i.test(html)) data.title_status = 'clean';
     else if (/salvage\s+title/i.test(html)) data.title_status = 'salvage';
     else if (/rebuilt\s+title/i.test(html)) data.title_status = 'rebuilt';
   }
@@ -512,7 +513,8 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
             listing.titleStatus ?? listing.title_status ?? listing.titleHistory?.status ??
             hist.titleStatus ?? hist.title ?? hist.titleHistory?.status ?? ""
           ).toString().toLowerCase();
-          if (rawTitle.includes("clean")) data.title_status = "clean";
+          if (rawTitle.includes("lemon")) data.title_status = "lemon";
+          else if (rawTitle.includes("clean")) data.title_status = "clean";
           else if (rawTitle.includes("salvage")) data.title_status = "salvage";
           else if (rawTitle.includes("rebuilt") || rawTitle.includes("reconstructed")) data.title_status = "rebuilt";
         }
@@ -679,7 +681,8 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
             const lsHist = (ls.vehicleHistory ?? ls.history ?? ls.carHistory ?? {}) as Record<string, unknown>;
             if (!data.title_status) {
               const rawTitle = ((ls.titleStatus ?? ls.title_status ?? lsHist.titleStatus ?? lsHist.title ?? "") as string).toLowerCase();
-              if (rawTitle.includes("clean")) data.title_status = "clean";
+              if (rawTitle.includes("lemon")) data.title_status = "lemon";
+              else if (rawTitle.includes("clean")) data.title_status = "clean";
               else if (rawTitle.includes("salvage")) data.title_status = "salvage";
               else if (rawTitle.includes("rebuilt") || rawTitle.includes("reconstructed")) data.title_status = "rebuilt";
             }
@@ -854,7 +857,8 @@ async function extractFromCarGurus(html: string): Promise<Partial<VehicleData>> 
 
   // Raw HTML regex fallback — catches CarGurus rendered text like "Clean title", "2 accidents reported"
   if (!data.title_status) {
-    if (/clean\s+title/i.test(html)) data.title_status = "clean";
+    if (/lemon\s+title|lemon\s+law/i.test(html)) data.title_status = "lemon";
+    else if (/clean\s+title/i.test(html)) data.title_status = "clean";
     else if (/salvage\s+title/i.test(html)) data.title_status = "salvage";
     else if (/rebuilt\s+title/i.test(html)) data.title_status = "rebuilt";
   }
@@ -1064,7 +1068,8 @@ async function extractFromCars(html: string): Promise<Partial<VehicleData>> {
 
   // Title status — Cars.com renders history as visible text
   if (!data.title_status) {
-    if (/clean\s+title/i.test(html)) data.title_status = "clean";
+    if (/lemon\s+title|lemon\s+law/i.test(html)) data.title_status = "lemon";
+    else if (/clean\s+title/i.test(html)) data.title_status = "clean";
     else if (/salvage\s+title/i.test(html)) data.title_status = "salvage";
     else if (/rebuilt\s+title|reconstructed\s+title/i.test(html)) data.title_status = "rebuilt";
   }

@@ -164,8 +164,15 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
 
   const titleCell: Cell = {
     label: "State Title",
-    status: titleStatus === "salvage" ? "issue" : titleStatus === "rebuilt" ? "warn" : "ok",
-    detail: titleStatus === "salvage" ? "Salvage" : titleStatus === "rebuilt" ? "Rebuilt" : "Clean",
+    status: (titleStatus === "salvage" || titleStatus === "lemon") ? "issue"
+      : titleStatus === "rebuilt" ? "warn"
+      : titleStatus === "clean" ? "ok"
+      : "unknown",
+    detail: titleStatus === "salvage" ? "Salvage"
+      : titleStatus === "lemon" ? "Lemon Title"
+      : titleStatus === "rebuilt" ? "Rebuilt"
+      : titleStatus === "clean" ? "Clean"
+      : "Unknown",
     free: true,
   };
 

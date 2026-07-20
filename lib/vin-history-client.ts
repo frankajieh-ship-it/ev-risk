@@ -19,7 +19,7 @@ export interface VinHistoryResult {
   success: true;
   provider: "vehicledatabases";
   vin: string;
-  title_status: "clean" | "salvage" | "rebuilt" | "unknown";
+  title_status: "clean" | "salvage" | "rebuilt" | "lemon" | "unknown";
   accident_count: number;
   theft_reported: boolean;
   salvage_reported: boolean;
@@ -87,6 +87,7 @@ async function tryVehicleDatabases(vin: string): Promise<VinHistoryResult | null
   const d = body.data;
   const titleStatus = d.title?.status?.toLowerCase() ?? "";
   const title_status: VinHistoryResult["title_status"] =
+    titleStatus.includes("lemon") ? "lemon" :
     titleStatus.includes("salvage") ? "salvage" :
     titleStatus.includes("rebuilt") || titleStatus.includes("reconstructed") ? "rebuilt" :
     titleStatus.includes("clean") ? "clean" : "unknown";

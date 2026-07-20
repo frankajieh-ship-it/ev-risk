@@ -39,7 +39,7 @@ export interface StructuredListingFields {
   vin?: string;
   location?: string;
   seller_type?: "dealer" | "private" | "unknown";
-  title_status?: "clean" | "salvage" | "rebuilt" | "unknown";
+  title_status?: "clean" | "salvage" | "rebuilt" | "lemon" | "unknown";
   accidents_reported?: "yes" | "no" | "unknown";
   service_history?: "yes" | "no" | "unknown";
   owners?: number;
@@ -92,7 +92,7 @@ export interface ReceiptGenerateRequest {
   location?: string;
   // Extended structured fields
   seller_type?: "dealer" | "private" | "unknown";
-  title_status?: "clean" | "salvage" | "rebuilt" | "unknown";
+  title_status?: "clean" | "salvage" | "rebuilt" | "lemon" | "unknown";
   accidents_reported?: "yes" | "no" | "unknown";
   service_history?: "yes" | "no" | "unknown";
   owners?: number;
@@ -164,7 +164,7 @@ export interface FetchedListingFields {
   vin?: string;
   location?: string;
   url_domain?: string;
-  title_status?: "clean" | "salvage" | "rebuilt" | "unknown";
+  title_status?: "clean" | "salvage" | "rebuilt" | "lemon" | "unknown";
   accidents_reported?: "yes" | "no" | "unknown";
   /** EV-specific specs extracted from listing page or text */
   range_mi?: number;
@@ -205,7 +205,7 @@ export interface FetchedListingFields {
   /** VIN history — only present on paid receipts */
   vin_history?: {
     provider: string;
-    title_status: "clean" | "salvage" | "rebuilt" | "unknown";
+    title_status: "clean" | "salvage" | "rebuilt" | "lemon" | "unknown";
     accident_count: number;
     theft_reported: boolean;
     salvage_reported: boolean;

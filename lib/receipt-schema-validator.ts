@@ -56,7 +56,7 @@ const ListingSummarySchema = z.object({
   model: z.string(),
   trim: z.string().nullable(),
   seller_type: z.enum(["dealer", "private", "unknown"]),
-  title_status: z.enum(["clean", "salvage", "rebuilt", "unknown"]),
+  title_status: z.enum(["clean", "salvage", "rebuilt", "lemon", "unknown"]),
   accidents_reported: z.enum(["yes", "no", "unknown"]),
   service_history: z.enum(["yes", "no", "unknown"]),
   owners: z.number().nullable(),
