@@ -443,6 +443,19 @@ export async function buildUserPrompt(input: ReceiptGenerateRequest): Promise<st
 
 // --- Main Generate Function ---
 
+// Pin listing_summary.title_status to the scraper-extracted value when available.
+// The AI reads raw listing_text and can misfire on legal boilerplate (e.g. "lemon law"
+// footer links on CarGurus). The structured field from the scraper is authoritative.
+function pinTitleStatus(receipt: ListingReceipt, input: ReceiptGenerateRequest): ListingReceipt {
+  const scraped = input.title_status;
+  if (!scraped || scraped === "unknown") return receipt;
+  const ls = receipt.listing_summary as Record<string, unknown> | undefined;
+  if (!ls) return receipt;
+  if (ls.title_status === scraped) return receipt;
+  console.log(`[generateReceipt] Pinning title_status: AI="${ls.title_status}" → scraper="${scraped}"`);
+  return { ...receipt, listing_summary: { ...ls, title_status: scraped } } as ListingReceipt;
+}
+
 export async function generateReceipt(
   input: ReceiptGenerateRequest
 ): Promise<{ receipt: ListingReceipt; raw_response: string; retried: boolean }> {
@@ -479,7 +492,7 @@ export async function generateReceipt(
 
   if (firstValidation.valid) {
     return {
-      receipt: firstValidation.sanitized!,
+      receipt: pinTitleStatus(firstValidation.sanitized!, input),
       raw_response: firstContent,
       retried: false,
     };
@@ -490,7 +503,7 @@ export async function generateReceipt(
   if (deterministicResult.fixed) {
     console.log("[Receipt OpenAI] Deterministic fixes resolved all lint errors, skipping retry");
     return {
-      receipt: deterministicResult.receipt as ListingReceipt,
+      receipt: pinTitleStatus(deterministicResult.receipt as ListingReceipt, input),
       raw_response: firstContent,
       retried: false,
     };
@@ -503,7 +516,7 @@ export async function generateReceipt(
       `[Receipt OpenAI] First attempt took ${elapsed}ms (budget: ${TIME_BUDGET_MS}ms), skipping retry`
     );
     return {
-      receipt: (firstValidation.sanitized || parsed) as ListingReceipt,
+      receipt: pinTitleStatus((firstValidation.sanitized || parsed) as ListingReceipt, input),
       raw_response: firstContent,
       retried: false,
     };
@@ -535,7 +548,7 @@ Fix ONLY these issues and return the corrected complete JSON. Keep all other con
   } catch {
     // Return first attempt if retry is unparseable
     return {
-      receipt: parsed as ListingReceipt,
+      receipt: pinTitleStatus(parsed as ListingReceipt, input),
       raw_response: firstContent,
       retried: true,
     };
@@ -551,14 +564,14 @@ Fix ONLY these issues and return the corrected complete JSON. Keep all other con
   // Return the better result (retry if it passed, otherwise first)
   if (retryValidation.valid || retryValidation.errors.length < firstValidation.errors.length) {
     return {
-      receipt: (retryValidation.sanitized || retryParsed) as ListingReceipt,
+      receipt: pinTitleStatus((retryValidation.sanitized || retryParsed) as ListingReceipt, input),
       raw_response: retryContent,
       retried: true,
     };
   }
 
   return {
-    receipt: (firstValidation.sanitized || parsed) as ListingReceipt,
+    receipt: pinTitleStatus((firstValidation.sanitized || parsed) as ListingReceipt, input),
     raw_response: firstContent,
     retried: true,
   };
