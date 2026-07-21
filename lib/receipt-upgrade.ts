@@ -126,6 +126,25 @@ export async function runReceiptUpgrade(payload: UpgradePayload): Promise<void> 
     } catch { /* keep going */ }
   }
 
+  // Pin listing_summary.title_status to the scraper-extracted value when available.
+  // The AI reads raw listing_text and can misfire on legal boilerplate (e.g. state
+  // lemon law footer text on CarGurus) — the structured field from the scraper is
+  // authoritative when it disagrees with the AI.
+  const scrapedTitleStatus = input.title_status;
+  if (
+    scrapedTitleStatus &&
+    scrapedTitleStatus !== "unknown" &&
+    finalReceipt.listing_summary
+  ) {
+    const ls = finalReceipt.listing_summary as Record<string, unknown>;
+    if (ls.title_status !== scrapedTitleStatus) {
+      console.log(
+        `[receipt-upgrade] Pinning title_status from AI "${ls.title_status}" → scraper "${scrapedTitleStatus}"`
+      );
+      ls.title_status = scrapedTitleStatus;
+    }
+  }
+
   // Patch listing_signals from listing_summary.title_status so title always maps correctly
   // even if AI forgets to emit the corresponding signal.
   if (finalReceipt.listing_summary) {
@@ -134,7 +153,7 @@ export async function runReceiptUpgrade(payload: UpgradePayload): Promise<void> 
     const hasTitleSignal = sigs.includes("clean_title_explicit") || sigs.includes("title_salvage") || sigs.includes("title_status_unclear");
     if (!hasTitleSignal) {
       if (ts === "clean") sigs.push("clean_title_explicit");
-      else if (ts === "salvage" || ts === "rebuilt") sigs.push("title_salvage");
+      else if (ts === "salvage" || ts === "rebuilt" || ts === "lemon") sigs.push("title_salvage");
       else sigs.push("title_status_unclear");
       finalReceipt = { ...finalReceipt, listing_signals: sigs } as typeof finalReceipt;
     }

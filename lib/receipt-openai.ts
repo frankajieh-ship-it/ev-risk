@@ -232,7 +232,7 @@ SIGNAL RULES:
 - Include EVERY signal that applies. Err on the side of including more signals.
 - Hard blockers: only if strong evidence. Evidence bonuses: only if listing explicitly shows it. Evidence penalties: if listing does NOT address it.
 - "Not mentioned" = the corresponding "missing" or "unclear" penalty applies.
-- TITLE: if listing_summary.title_status="clean" → include clean_title_explicit. If "salvage", "rebuilt", or "lemon" → include title_salvage. If "unknown" → include title_status_unclear. Set title_status="lemon" if the listing mentions lemon title, lemon law, or lemon buyback.
+- TITLE: The title_status in KNOWN DETAILS is pre-extracted from the listing — trust it. if listing_summary.title_status="clean" → include clean_title_explicit. If "salvage", "rebuilt", or "lemon" → include title_salvage. If "unknown" → include title_status_unclear. Only override title_status to "lemon" if the History section of the listing explicitly states a lemon title was issued — do NOT infer from legal boilerplate, footer disclosures, or generic lemon law mentions.
 - Do NOT include dcfc_unclear, fees_unclear, or tire_condition_unclear — these are not scored.`;
 
 // --- Prompt Sanitization ---
