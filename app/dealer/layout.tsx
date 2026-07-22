@@ -14,7 +14,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   LayoutDashboard, Package, Loader2, Clock, Settings, LogOut,
-  Bookmark, ArrowLeftRight, MessageSquare, ShieldCheck, Menu, X, CreditCard,
+  Bookmark, ArrowLeftRight, MessageSquare, ShieldCheck, Menu, X, CreditCard, Zap,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
@@ -23,6 +23,7 @@ const NAV_ITEMS = [
   { href: "/dealer",            label: "Dashboard",      icon: LayoutDashboard, exact: true },
   { href: "/dealer/inventory",  label: "Inventory",      icon: Package,         exact: false },
   { href: "/dealer/inquiries",  label: "Inquiries",      icon: MessageSquare,   exact: false },
+  { href: "/dealer/scan",       label: "Battery Scan",   icon: Zap,             exact: false },
   { href: "/dealer/badge",      label: "Verified Badge", icon: ShieldCheck,     exact: false },
   { href: "/dealer/saved",      label: "Saved",          icon: Bookmark,        exact: false },
 ];

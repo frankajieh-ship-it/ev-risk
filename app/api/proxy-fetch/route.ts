@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
     const allowedDomains = [
       'autotrader.com',
       'cargurus.com',
+      'cargurus.ca',
       'cars.com',
       'carvana.com',
       'carfax.com',
@@ -124,7 +125,7 @@ export async function POST(request: NextRequest) {
     console.log('[Proxy Fetch] Fetching URL:', url.substring(0, 100));
 
     // Sites that need JS rendering via Nimbleway
-    const needsJsRender = ['cargurus.com'].some(
+    const needsJsRender = ['cargurus.com', 'cargurus.ca'].some(
       d => parsedUrl.hostname.includes(d)
     );
 
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
 
     // Listing ID for CarGurus stale-cache detection — hoisted so both Nimbleway
     // and ScrapingBee blocks can validate the returned HTML against the requested listing.
-    const cgListingId = parsedUrl.hostname.includes('cargurus.com')
+    const cgListingId = (parsedUrl.hostname.includes('cargurus.com') || parsedUrl.hostname.includes('cargurus.ca'))
       ? (parsedUrl.pathname.match(/\/details\/(\d{7,12})/)?.[1] ?? null)
       : null;
 
@@ -231,7 +232,7 @@ export async function POST(request: NextRequest) {
     // --- CarGurus: Googlebot direct (free, fast, ~2s when it works) ---
     // Try this first. CarGurus serves rendered HTML to Googlebot UA from Netlify edge IPs
     // often enough that it should be the primary path. ScrapingBee is the fallback.
-    if (parsedUrl.hostname.includes('cargurus.com')) {
+    if (parsedUrl.hostname.includes('cargurus.com') || parsedUrl.hostname.includes('cargurus.ca')) {
       try {
         const cgController = new AbortController();
         const cgTimeoutId = setTimeout(() => cgController.abort(), 15000);
@@ -272,7 +273,7 @@ export async function POST(request: NextRequest) {
     // --- CarGurus: ScrapingBee fallback (residential proxy + JS render, slow but reliable) ---
     // Only reached when Googlebot is blocked. Uses wait_for_selector instead of static wait
     // to return as soon as listing content appears (saves 2-5s vs wait:8000).
-    if (parsedUrl.hostname.includes('cargurus.com') && SCRAPINGBEE_KEY) {
+    if ((parsedUrl.hostname.includes('cargurus.com') || parsedUrl.hostname.includes('cargurus.ca')) && SCRAPINGBEE_KEY) {
       const sbController = new AbortController();
       const sbTimeoutId = setTimeout(() => sbController.abort(), 15000);
       try {

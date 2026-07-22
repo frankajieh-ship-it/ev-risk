@@ -316,7 +316,7 @@ export async function POST(request: NextRequest) {
   const urlDomain = parsedUrl.hostname.replace("www.", "");
 
   // --- Supported domain check ---
-  const SUPPORTED_SCRAPE_DOMAINS = ["cargurus.com", "autotrader.com", "cars.com", "carvana.com", "carmax.com"];
+  const SUPPORTED_SCRAPE_DOMAINS = ["cargurus.com", "cargurus.ca", "autotrader.com", "cars.com", "carvana.com", "carmax.com"];
   const isOffoInventory =
     parsedUrl.hostname === "offolab.com" || parsedUrl.hostname === "www.offolab.com";
   const isSupportedDomain = isOffoInventory ||

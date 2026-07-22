@@ -2015,11 +2015,11 @@ export default function AdminDashboard() {
         {s.user_segments && (
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-1">🎯 User Segments</h2>
-            <p className="text-sm text-gray-500 mb-4">All-time counts (authenticated users). High intent = completed EVFit (all-time) + saved ≥1 vehicle (all-time) + ≥2 sessions in window.</p>
+            <p className="text-sm text-gray-500 mb-4">All-time counts (authenticated users). High intent = viewed EVFit wizard while logged in (all-time) + saved ≥1 vehicle (all-time) + ≥2 sessions in window.</p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <FunnelCard label="Saved a Vehicle" value={s.user_segments.users_with_garage_vehicle} color="emerald" />
               <FunnelCard label="Saved a Listing" value={s.user_segments.users_with_saved_listing} color="teal" />
-              <FunnelCard label="High Intent Users" value={s.user_segments.high_intent_users} color="violet" subtitle="EVFit + vehicle + 2+ sessions" />
+              <FunnelCard label="High Intent Users" value={s.user_segments.high_intent_users} color="violet" subtitle="EVFit viewed + vehicle saved + 2+ sessions" />
             </div>
           </div>
         )}

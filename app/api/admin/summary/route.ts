@@ -313,11 +313,13 @@ export async function GET(request: NextRequest) {
       .select("user_id")
       .or(`user_id.is.null,user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
-    // 11b. EVFit completions — all-time, for high-intent segment (must not be windowed)
+    // 11b. EVFit engagement — all-time, for high-intent segment (must not be windowed).
+    // evfit_completed fires anonymously (no user_id); workspace_evfit_viewed is the
+    // earliest authenticated EVFit signal — user opened the wizard while logged in.
     const evfitCompletionsPromise = supabase
       .from("user_events")
       .select("user_id")
-      .in("event_name", ["evfit_completed_server", "evfit_completed"])
+      .eq("event_name", "workspace_evfit_viewed")
       .not("user_id", "is", null)
       .or(`user_id.not.in.(${INTERNAL_USER_IDS_FILTER.join(",")})`);
 
@@ -1544,22 +1546,34 @@ export async function GET(request: NextRequest) {
       visitorSessionCounts.set(p.visitor_id, (visitorSessionCounts.get(p.visitor_id) || 0) + 1);
     }
 
-    // High intent: completed EVFit (all-time) + saved ≥1 garage vehicle (all-time) + ≥2 sessions in window
-    // evfitCompletions is all-time so users who completed EVFit before the window are included
+    // High intent: engaged with EVFit (all-time) + saved ≥1 garage vehicle (all-time) + ≥2 sessions in window.
+    //
+    // "Engaged with EVFit" = fired workspace_evfit_viewed while authenticated (has user_id).
+    // evfit_completed fires before auth so it never has user_id — unusable for this join.
+    // workspace_evfit_viewed is the earliest authenticated EVFit signal available.
     const evfitCompletedUserIds = new Set(
       (evfitCompletions || []).map((r: any) => r.user_id).filter(Boolean)
     );
-    let highIntentCount = 0;
-    for (const uid of evfitCompletedUserIds) {
-      if (usersWithGarage.has(uid)) {
-        const userSessions = filteredUserEvents
-          .filter(e => (e as any).user_id === uid)
-          .map(e => (e as any).session_id)
-          .filter(Boolean);
-        const distinctSessions = new Set(userSessions).size;
-        if (distinctSessions >= 2) highIntentCount++;
-      }
-    }
+
+    // visitor_ids that fired an evfit_completed event (either name) in the window
+    const evfitVisitorIds = new Set(
+      filteredUserEvents
+        .filter(e => e.event_name === "evfit_completed" || e.event_name === "evfit_completed_server")
+        .map(e => (e as any).visitor_id)
+        .filter(Boolean)
+    );
+
+    // Count users who meet EVFit + garage criteria (all-time, user_id based)
+    const highIntentByUserId = [...evfitCompletedUserIds].filter(uid => usersWithGarage.has(uid)).length;
+
+    // Count visitor_ids that completed EVFit in-window AND had ≥2 sessions in-window
+    // (proxy for high-intent repeat visitors who may not yet have a user_id in evfitCompletions)
+    const highIntentByVisitor = [...evfitVisitorIds].filter(
+      vid => (visitorSessionCounts.get(vid) || 0) >= 2
+    ).length;
+
+    // Use whichever signal gives a non-zero result; if both have data, take the larger
+    const highIntentCount = Math.max(highIntentByUserId, highIntentByVisitor);
 
     const user_segments = {
       users_with_garage_vehicle: usersWithGarage.size,

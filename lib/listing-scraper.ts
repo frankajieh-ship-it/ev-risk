@@ -98,7 +98,7 @@ export function detectListingSource(url: string): VehicleData['dataSource'] {
   const urlLower = url.toLowerCase();
 
   if (urlLower.includes('autotrader.com')) return 'autotrader';
-  if (urlLower.includes('cargurus.com')) return 'cargurus';
+  if (urlLower.includes('cargurus.com') || urlLower.includes('cargurus.ca')) return 'cargurus';
   if (urlLower.includes('cars.com')) return 'cars.com';
   if (urlLower.includes('carvana.com')) return 'carvana';
   if (urlLower.includes('facebook.com/marketplace') || urlLower.includes('fbmarketplace')) return 'facebook';
@@ -139,8 +139,8 @@ function isSearchPage(url: string): boolean {
     }
   }
 
-  // CarGurus search pages
-  if (urlLower.includes('cargurus.com')) {
+  // CarGurus search pages (.com and .ca)
+  if (urlLower.includes('cargurus.com') || urlLower.includes('cargurus.ca')) {
     // Individual pages have /details/ or /listing/
     if (urlLower.includes('/details/') || urlLower.includes('/listing/')) {
       return false;
