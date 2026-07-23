@@ -19,50 +19,50 @@ function buildEmailHtml(email: string): string {
 
   const body = `
     <h2 style="font-size:20px;font-weight:700;color:#ffffff;margin:0 0 16px;line-height:1.3;">
-      What's new at OFFO this week
+      Your OFFO reports are now saved to your account
     </h2>
 
     <p style="font-size:15px;color:#c9d1d9;line-height:1.7;margin:0 0 20px;">
-      Hi — it's been a few days since your last OFFO report. Here's a quick look at what we shipped while you were away.
+      Quick update — we just shipped something that a few of you asked for directly.
     </p>
 
-    <!-- Update 1: Checkout fixed -->
+    <!-- Main feature -->
     <div style="background:#00d97e14;border:1px solid #00d97e33;border-radius:10px;padding:18px 22px;margin:0 0 20px;">
-      <p style="font-size:13px;color:#00d97e;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">✓ Checkout fixed</p>
+      <p style="font-size:13px;color:#00d97e;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">✓ Reports saved to your profile</p>
       <p style="font-size:14px;color:#c9d1d9;line-height:1.6;margin:0;">
-        We found and fixed a bug where the "Unlock Report" button was silently failing for some users.
-        If checkout ever gave you trouble before, it should work cleanly now — try it on your next listing.
+        Every report you run on OFFO is now saved to your account under <strong style="color:#ffffff;">My Reports</strong>.
+        Open any of them anytime — no need to find the original listing URL again. If you paid for a full report,
+        it's waiting for you exactly as you left it.
       </p>
     </div>
 
-    <!-- Update 2: OTA recall detection -->
+    <!-- Garage feature -->
     <div style="background:#ffffff0a;border:1px solid #30363d;border-radius:10px;padding:18px 22px;margin:0 0 20px;">
-      <p style="font-size:13px;color:#e3b341;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">⚡ OTA recall auto-detection</p>
+      <p style="font-size:13px;color:#58a6ff;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">🚗 Save vehicles to your Garage</p>
       <p style="font-size:14px;color:#c9d1d9;line-height:1.6;margin:0;">
-        OFFO now automatically flags when a vehicle has an active over-the-air recall — the kind Tesla, Rivian, and Ford
-        push silently. We surface it in the report so you know whether it's been applied before you buy.
+        You can also save any listing to your Garage to track it over time. Your garage shows the OFFO deal score,
+        dealer questions to ask before the test drive, and ownership history — all in one place.
       </p>
     </div>
 
-    <!-- Update 3: Photo angle analysis -->
-    <div style="background:#ffffff0a;border:1px solid #30363d;border-radius:10px;padding:18px 22px;margin:0 0 20px;">
-      <p style="font-size:13px;color:#58a6ff;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">📷 Photo angle analysis</p>
+    <!-- Cross-device -->
+    <div style="background:#ffffff0a;border:1px solid #30363d;border-radius:10px;padding:18px 22px;margin:0 0 28px;">
+      <p style="font-size:13px;color:#e3b341;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;">📱 Works on any device</p>
       <p style="font-size:14px;color:#c9d1d9;line-height:1.6;margin:0;">
-        The Starter Report now includes a photo audit — we flag listings that are missing standard angles
-        (undercarriage, frunk, charge port, rear seat) or that show signs of selective coverage.
-        Missing photos are often the most important red flag.
+        Sign in from your phone, tablet, or a new browser — your reports and garage follow you.
+        No more losing a report because you switched devices or cleared your browser.
       </p>
     </div>
 
     <!-- CTA -->
-    <div style="text-align:center;margin:32px 0 24px;">
-      <a href="https://offolab.com" style="display:inline-block;background:#00d97e;color:#0d1117;font-weight:700;font-size:15px;padding:14px 32px;border-radius:10px;text-decoration:none;">
-        Run a new check →
+    <div style="text-align:center;margin:0 0 28px;">
+      <a href="https://offolab.com/workspace/receipts" style="display:inline-block;background:#00d97e;color:#0d1117;font-weight:700;font-size:15px;padding:14px 32px;border-radius:10px;text-decoration:none;">
+        View my saved reports →
       </a>
     </div>
 
     <p style="font-size:14px;color:#8b949e;line-height:1.7;margin:0 0 32px;">
-      As always — paste a CarGurus or Cars.com link and we'll do the rest. No account required for your first free check.
+      If you have any questions or ran into trouble accessing a report you paid for, reply to this email — I'll sort it out personally.
     </p>
 
     <p style="font-size:15px;color:#c9d1d9;line-height:1.7;margin:0;">
@@ -107,10 +107,10 @@ export async function POST(request: NextRequest) {
         email,
         userId: user.id,
         sequenceType: "product_update",
-        sequenceStep: "product_update_jul17_2026",
-        subject: "What's new at OFFO this week",
+        sequenceStep: "product_update_jul23_2026",
+        subject: "Your OFFO reports are now saved to your account",
         html: buildEmailHtml(email),
-        idempotencyKey: `broadcast_product_update_jul17_2026_${user.id}`,
+        idempotencyKey: `broadcast_product_update_jul23_2026_${user.id}`,
       });
 
       if (result.sent) results.sent++;
