@@ -149,9 +149,9 @@ export async function POST(request: NextRequest) {
     // CarMax/Carvana are JS SPAs — direct fetch returns an empty React shell with no vehicle data.
     // ScrapingBee stealth_proxy uses a real browser fingerprint and bypasses Akamai reliably.
     if ((isAutoTrader || isCarscom || isCarMax || isCarvana) && SCRAPINGBEE_KEY) {
-      // maxDuration=60 on this function; give ScrapingBee stealth_proxy up to 35s
-      // (stealth_proxy + wait=8000 for Akamai bypass needs ~15-30s total round-trip)
-      const SB_ABORT_MS = 35000;
+      // maxDuration=60 on this function; give ScrapingBee up to 20s so Nimbleway
+      // fallback still has ~20s to attempt if ScrapingBee times out or is blocked.
+      const SB_ABORT_MS = 20000;
       const sbController = new AbortController();
       const sbTimeoutId = setTimeout(() => sbController.abort(), SB_ABORT_MS);
       try {
@@ -317,7 +317,7 @@ export async function POST(request: NextRequest) {
     // --- Nimbleway path for JS-rendered sites ---
     if (needsJsRender && NIMBLEWAY_KEY) {
       const nmController = new AbortController();
-      const nmTimeoutId = setTimeout(() => nmController.abort(), 28000);
+      const nmTimeoutId = setTimeout(() => nmController.abort(), 20000);
       try {
         console.log('[Proxy Fetch] Trying Nimbleway:', url.substring(0, 80));
         const nmResponse = await fetch('https://sdk.nimbleway.com/v1/extract', {
@@ -336,7 +336,7 @@ export async function POST(request: NextRequest) {
             wait_for_selector: isAutoTrader
               ? 'h1, [data-cmp="vehicleDetails"], .vdp-header'
               : '[data-cg-ft="vdp-listing-price"], .listing-price, h1',
-            render_timeout: 18,
+            render_timeout: 15,
           }),
           signal: nmController.signal,
         });

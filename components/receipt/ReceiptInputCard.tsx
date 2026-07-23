@@ -523,7 +523,9 @@ export default function ReceiptInputCard({
             setExtractError({ message: "Taking a moment — retrying automatically..." });
             autoExtractTimerRef.current = setTimeout(() => handleExtract(_activeUrl), 1500);
           } else {
-            setExtractError({ message: "Timed out — fill in the details below." });
+            setPasteMode("text");
+            setExtractError({ message: `${_domain.includes("autotrader") ? "AutoTrader" : _domain.includes("cars.com") ? "Cars.com" : "This site"} blocked auto-fetch. Open the listing, select all the text (Ctrl+A), copy it, and paste below — takes 10 seconds.` });
+            setTimeout(() => textareaRef.current?.focus(), 100);
             _trackFail("timeout");
           }
         } else if (data.diagnostics?.failureReason === "session_extract_limit") {
@@ -547,7 +549,9 @@ export default function ReceiptInputCard({
             setExtractError({ message: "Taking a moment — retrying automatically..." });
             autoExtractTimerRef.current = setTimeout(() => handleExtract(_activeUrl), 1500);
           } else {
-            setExtractError({ message: "Couldn't extract listing details — fill in the year, make, model, price, and mileage below." });
+            setPasteMode("text");
+            setExtractError({ message: "Couldn't auto-extract. Open the listing, select all the text (Ctrl+A), copy it, and paste below." });
+            setTimeout(() => textareaRef.current?.focus(), 100);
             _trackFail(data.diagnostics?.failureReason || "unknown");
           }
         }
