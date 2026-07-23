@@ -51,6 +51,12 @@ interface GarageVehicle {
   listing_last_seen_at?: string | null;
   listing_is_active?: boolean | null;
   purchased_at?: string | null;
+  receipt_id?: string | null;
+  // Questions and negotiation (from linked receipt output_json)
+  must_answer_questions?: string[] | null;
+  negotiation_opener?: string | null;
+  inspect_first?: string[] | null;
+  walk_away_triggers?: string[] | null;
 }
 
 type GarageFilter = "all" | "shortlisted" | "owned";
@@ -66,6 +72,161 @@ interface OwnedEvReportHealth {
 
 function vehicleLabel(v: GarageVehicle): string {
   return `${v.year || ""} ${v.make} ${v.model}`.trim();
+}
+
+// Inline VIN history panel — garage-auth version (no receipt paywall)
+function GarageVinHistory({ vin, authToken }: { vin: string | null; authToken: string | null }) {
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [result, setResult] = useState<{
+    summary: { theft_reported: boolean; salvage_reported: boolean; accident_count: number; sale_count: number; possible_fleet_history?: boolean; open_lien?: boolean | null; odometer_rollback?: boolean };
+    theft: { date?: string; status?: string }[];
+    salvage: { date?: string; source?: string; disposition?: string }[];
+    accidents: { date?: string; severity?: string; airbags_deployed?: string; damage_description?: string }[];
+    sales: { date?: string; price?: string; odometer?: string; seller?: string }[];
+  } | null>(null);
+
+  const runCheck = async () => {
+    if (!vin || !authToken || state === "loading") return;
+    setState("loading");
+    try {
+      const res = await fetch(`/api/workspace/vin-history?vin=${encodeURIComponent(vin)}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) { setState("error"); return; }
+      setResult(data);
+      setState("done");
+    } catch {
+      setState("error");
+    }
+  };
+
+  if (!vin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <Clock className="w-10 h-10 text-white/10 mb-3" />
+        <p className="text-sm text-white/30">No VIN on this vehicle.</p>
+        <p className="text-xs text-white/20 mt-1">Edit the vehicle and add a VIN to unlock ownership history.</p>
+      </div>
+    );
+  }
+
+  if (state === "idle") {
+    return (
+      <div className="space-y-3">
+        <div className="bg-[#161b22] border border-white/[0.08] rounded-xl p-4 text-center space-y-3">
+          <p className="text-xs font-mono text-white/30">{vin}</p>
+          <p className="text-sm text-white/50">Check NMVTIS records for theft, salvage title, accidents, and sale history.</p>
+          <button
+            onClick={runCheck}
+            className="w-full py-2.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.08] text-white/70 hover:text-white text-sm font-medium transition-colors"
+          >
+            Run History Check
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (state === "loading") {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-3 text-white/40">
+        <Loader2 className="w-6 h-6 animate-spin text-[#00d97e]" />
+        <p className="text-sm">Checking NMVTIS records…</p>
+      </div>
+    );
+  }
+
+  if (state === "error" || !result) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+        <AlertTriangle className="w-8 h-8 text-amber-400/40" />
+        <p className="text-sm text-white/30">History check unavailable. Try again later.</p>
+        <button onClick={() => setState("idle")} className="text-xs text-white/40 hover:text-white/70 underline">Retry</button>
+      </div>
+    );
+  }
+
+  const { summary, theft, salvage, accidents, sales } = result;
+  const allClear = !summary.theft_reported && !summary.salvage_reported && summary.accident_count === 0;
+
+  return (
+    <div className="space-y-3">
+      {/* Summary pills */}
+      <div className="grid grid-cols-2 gap-2">
+        {([
+          { label: "Theft", flagged: summary.theft_reported, count: theft.length },
+          { label: "Salvage", flagged: summary.salvage_reported, count: salvage.length },
+          { label: "Accidents", flagged: summary.accident_count > 0, count: summary.accident_count },
+          { label: "Sales on Record", flagged: false, count: summary.sale_count, neutral: true },
+        ] as { label: string; flagged: boolean; count: number; neutral?: boolean }[]).map(({ label, flagged, count, neutral }) => (
+          <div key={label} className={`rounded-xl p-3 text-center border ${flagged ? "bg-red-500/10 border-red-500/20" : "bg-[#161b22] border-white/[0.08]"}`}>
+            <p className={`text-base font-bold ${flagged ? "text-red-400" : neutral ? "text-white/60" : "text-[#00d97e]"}`}>{count}</p>
+            <p className="text-[10px] text-white/30 mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {allClear && (
+        <div className="bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-xl p-3 flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-[#00d97e] shrink-0" />
+          <p className="text-sm text-[#00d97e]">No theft, salvage, or accident records found.</p>
+        </div>
+      )}
+
+      {summary.possible_fleet_history && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+          <p className="text-sm text-amber-300">Possible fleet or rental history detected.</p>
+        </div>
+      )}
+
+      {summary.odometer_rollback && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+          <p className="text-sm text-red-300">Possible odometer rollback detected.</p>
+        </div>
+      )}
+
+      {summary.open_lien && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+          <p className="text-sm text-red-300">Open lien reported on this vehicle.</p>
+        </div>
+      )}
+
+      {accidents.length > 0 && (
+        <div className="bg-[#161b22] border border-white/[0.08] rounded-xl p-3">
+          <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Accident Records</p>
+          <div className="space-y-2">
+            {accidents.map((a, i) => (
+              <div key={i} className="text-xs text-white/60 space-y-0.5">
+                {a.date && <p className="text-white/40">{a.date}</p>}
+                {a.severity && <p>Severity: <span className="text-white/80">{a.severity}</span></p>}
+                {a.damage_description && <p className="text-white/50">{a.damage_description}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {sales.length > 0 && (
+        <div className="bg-[#161b22] border border-white/[0.08] rounded-xl p-3">
+          <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Sale History</p>
+          <div className="space-y-2">
+            {sales.map((s, i) => (
+              <div key={i} className="text-xs text-white/60 flex justify-between">
+                <span>{s.date ?? "—"}</span>
+                {s.price && <span className="text-white/80">${parseInt(s.price).toLocaleString()}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <p className="text-[10px] text-white/20 text-center">Via NMVTIS · VehicleDatabases</p>
+    </div>
+  );
 }
 
 function verdictColor(verdict: string | null | undefined) {
@@ -861,22 +1022,80 @@ export default function GaragePage() {
                 </>
               )}
 
-              {detailTab === "questions" && (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <HelpCircle className="w-10 h-10 text-white/10 mb-3" />
-                  <p className="text-sm text-white/30">Dealer question templates coming soon.</p>
-                  <p className="text-xs text-white/20 mt-1">Questions suggested based on this vehicle&apos;s risk profile.</p>
-                </div>
-              )}
+              {detailTab === "questions" && (() => {
+                const questions = detailVehicle.must_answer_questions?.length
+                  ? detailVehicle.must_answer_questions
+                  : [
+                      "Can you provide the current battery State of Health (SoH) percentage?",
+                      "Are all manufacturer recalls completed?",
+                      "Has the battery been replaced or serviced under warranty?",
+                      "What is the remaining manufacturer warranty coverage?",
+                      "Can I get a pre-purchase inspection by a certified EV technician?",
+                      "Has this vehicle been in any accidents or had flood damage?",
+                      "What is the complete service history for this vehicle?",
+                    ];
+                const triggers = detailVehicle.walk_away_triggers?.length
+                  ? detailVehicle.walk_away_triggers
+                  : [
+                      "Battery State of Health (SoH) below 80%",
+                      "Any uncompleted safety recalls",
+                      "No documented service history available",
+                      "Seller refuses independent pre-purchase inspection",
+                      "Price significantly above market value",
+                      "Evidence of previous accident or flood damage",
+                    ];
+                return (
+                  <div className="space-y-4">
+                    {detailVehicle.negotiation_opener && (
+                      <div className="bg-[#00d97e]/10 border border-[#00d97e]/20 rounded-xl p-3">
+                        <p className="text-xs font-semibold text-[#00d97e] uppercase tracking-wider mb-1">Opening Line</p>
+                        <p className="text-sm text-white/80 leading-relaxed">&ldquo;{detailVehicle.negotiation_opener}&rdquo;</p>
+                      </div>
+                    )}
+                    <div className="bg-[#161b22] border border-white/[0.08] rounded-xl p-3">
+                      <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Questions to Ask</p>
+                      <ol className="space-y-2.5">
+                        {questions.map((q, i) => (
+                          <li key={i} className="flex gap-2.5 text-sm text-white/70 leading-snug">
+                            <span className="text-[#00d97e] font-bold text-xs mt-0.5 shrink-0">{i + 1}.</span>
+                            <span>{q}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                    {detailVehicle.inspect_first && detailVehicle.inspect_first.length > 0 && (
+                      <div className="bg-[#161b22] border border-white/[0.08] rounded-xl p-3">
+                        <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-3">Inspect First</p>
+                        <ul className="space-y-2">
+                          {detailVehicle.inspect_first.map((item, i) => (
+                            <li key={i} className="flex gap-2 text-sm text-white/70 leading-snug">
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <div className="bg-red-500/[0.06] border border-red-500/20 rounded-xl p-3">
+                      <p className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-3">Walk Away If</p>
+                      <ul className="space-y-2">
+                        {triggers.map((t, i) => (
+                          <li key={i} className="flex gap-2 text-sm text-white/60 leading-snug">
+                            <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+                            <span>{t}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {detailTab === "vin" && (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Clock className="w-10 h-10 text-white/10 mb-3" />
-                  <p className="text-sm text-white/30">VIN history coming soon.</p>
-                  {detailVehicle.vin && (
-                    <p className="text-xs font-mono text-white/20 mt-2">{detailVehicle.vin}</p>
-                  )}
-                </div>
+                <GarageVinHistory
+                  vin={detailVehicle.vin}
+                  authToken={session?.access_token ?? null}
+                />
               )}
             </div>
 

@@ -51,6 +51,10 @@ export async function GET(req: NextRequest) {
       listing_summary?: { price?: number; mileage?: number };
       price_sanity?: { user_market_range?: { low?: number; high?: number } };
       fit_score?: number;
+      must_answer_questions?: string[];
+      negotiation_opener?: string;
+      inspect_first?: string[];
+      walk_away_triggers?: string[];
     };
 
     const listedPrice = out.listing_summary?.price ?? null;
@@ -74,6 +78,10 @@ export async function GET(req: NextRequest) {
       impact_score: out.fit_score ?? vehicle.impact_score ?? null,
       listing_last_seen_at: receipt.first_seen_at ?? vehicle.listing_last_seen_at ?? null,
       listing_is_active: receipt.is_active ?? vehicle.listing_is_active ?? null,
+      must_answer_questions: out.must_answer_questions ?? null,
+      negotiation_opener: out.negotiation_opener ?? null,
+      inspect_first: out.inspect_first ?? null,
+      walk_away_triggers: out.walk_away_triggers ?? null,
     };
   });
 
