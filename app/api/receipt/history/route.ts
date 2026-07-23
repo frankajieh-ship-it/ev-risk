@@ -89,13 +89,20 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Backfill user_id on receipts created before auth fix (fire-and-forget)
+  // Backfill user_id on receipts and purchases created before auth fix (fire-and-forget)
   if (authUserId && anonId) {
     supabase
       .from("receipts")
       .update({ user_id: authUserId })
       .eq("session_id", anonId)
       .is("user_id", null)
+      .then(() => {});
+    supabase
+      .from("purchases")
+      .update({ user_id: authUserId })
+      .eq("anon_id", anonId)
+      .is("user_id", null)
+      .eq("status", "paid")
       .then(() => {});
   }
 

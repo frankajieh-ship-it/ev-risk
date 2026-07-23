@@ -22,12 +22,14 @@ import {
   LogOut,
   Plus,
   MessageSquare,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const NAV_ITEMS = [
   { href: "/workspace",              label: "Overview",      icon: LayoutDashboard, exact: true },
   { href: "/workspace/garage",       label: "My Garage",     icon: Car,             exact: false },
+  { href: "/workspace/receipts",     label: "My Reports",    icon: FileText,        exact: false },
   { href: "/workspace/inquiries",    label: "Inquiries",     icon: MessageSquare,   exact: false },
   // { href: "/workspace/deal-watch", label: "Deal Watch", icon: Eye, exact: false }, // suspended — rebuilding
   { href: "/workspace/ev-fit",       label: "EV Fit Score",  icon: Zap,             exact: false },

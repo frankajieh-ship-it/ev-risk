@@ -13,6 +13,7 @@ import { checkPurchaseStatus } from "@/lib/payment-status";
 import { isPaymentsEnabledFor, isFreeMode } from "@/lib/rollout-flags";
 import { RateLimiter, getClientIP } from "@/lib/rate-limiter";
 import { hashIP } from "@/lib/server-session-utils";
+import { getUserFromRequest } from "@/lib/api-auth";
 
 const VALID_SCENARIO_TYPES = ["receipt", "evroutine", "routine", "compare", "chat"];
 
@@ -61,7 +62,10 @@ export async function GET(request: NextRequest) {
 
   const ipHash = hashIP(ip) ?? undefined;
   const serverSessionId = request.cookies.get("receipt_session")?.value;
-  const status = await checkPurchaseStatus(scenarioType, scenarioId, anonId, ipHash, serverSessionId);
+  // Extract auth user_id if logged in — enables cross-device paid report access
+  const authUser = await getUserFromRequest(request).catch(() => null);
+  const authUserId = authUser && !(authUser instanceof NextResponse) ? authUser.id : undefined;
+  const status = await checkPurchaseStatus(scenarioType, scenarioId, anonId, ipHash, serverSessionId, authUserId);
 
   const freeMode = isFreeMode();
 

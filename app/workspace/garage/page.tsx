@@ -1013,7 +1013,9 @@ export default function GaragePage() {
                   <Link
                     href={detailVehicle.is_owned_ev
                       ? `/workspace/garage/${detailVehicle.id}/owned-ev`
-                      : `/receipt?vehicle=${encodeURIComponent(vehicleLabel(detailVehicle))}`}
+                      : detailVehicle.receipt_id
+                        ? `/receipt?id=${detailVehicle.receipt_id}`
+                        : `/receipt?vehicle=${encodeURIComponent(vehicleLabel(detailVehicle))}`}
                     className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.08] text-sm text-white/60 hover:text-white hover:border-white/15 transition-colors"
                   >
                     <ExternalLink className="w-4 h-4" />
@@ -1106,11 +1108,13 @@ export default function GaragePage() {
                 Share Report
               </button>
               <Link
-                href={`/receipt?vehicle=${encodeURIComponent(vehicleLabel(detailVehicle))}`}
+                href={detailVehicle.receipt_id
+                  ? `/receipt?id=${detailVehicle.receipt_id}`
+                  : `/receipt?vehicle=${encodeURIComponent(vehicleLabel(detailVehicle))}`}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#00d97e] text-[#0d1117] text-sm font-semibold hover:bg-[#00c970] transition-colors"
               >
                 <ExternalLink className="w-4 h-4" />
-                View Listing
+                {detailVehicle.receipt_id ? "Open Report" : "View Listing"}
               </Link>
             </div>
           </div>

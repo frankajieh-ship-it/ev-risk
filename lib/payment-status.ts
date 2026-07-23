@@ -42,6 +42,7 @@ export async function checkPurchaseStatus(
   anonId: string,
   ipHash?: string,
   serverSessionId?: string,
+  authUserId?: string,
 ): Promise<PaymentStatusResult> {
   const none: PaymentStatusResult = {
     unlocked_base: false,
@@ -162,6 +163,38 @@ export async function checkPurchaseStatus(
         receipt_credits_total: creditsTotal,
         ...deriveEntitlement(anyTier),
       };
+    }
+
+    // Cross-device unlock: if authenticated user has any paid purchase by user_id,
+    // grant access regardless of anon_id (covers different device / cleared localStorage).
+    if (authUserId) {
+      const { data: userPurchase } = await supabase
+        .from("purchases")
+        .select("purchase_id, status, amount, pack_tier, receipt_credits_total, receipt_credits_used")
+        .eq("user_id", authUserId)
+        .eq("status", "paid")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (userPurchase) {
+        const creditsTotal = userPurchase.receipt_credits_total || 0;
+        const creditsUsed = userPurchase.receipt_credits_used || 0;
+        const userTier = (userPurchase.pack_tier as PackTier) || "buyer_pass";
+
+        return {
+          unlocked_base: true,
+          pack_tier: userTier,
+          purchase_status: "paid",
+          purchase_id: userPurchase.purchase_id,
+          compare_remaining: 0,
+          compare_bound_to: null,
+          price_paid: userPurchase.amount,
+          receipt_credits_remaining: Math.max(0, creditsTotal - creditsUsed),
+          receipt_credits_total: creditsTotal,
+          ...deriveEntitlement(userTier),
+        };
+      }
     }
 
     // First receipt free: if this session has never completed a receipt before,

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Car, Plus, ArrowRight, Loader2, Zap, GitCompare,
-  TrendingUp, TrendingDown, Minus,
+  TrendingUp, TrendingDown, Minus, FileText, ExternalLink,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import VehicleImage from "@/components/VehicleImage";
@@ -25,6 +25,17 @@ interface GarageVehicle {
   listed_price?: number | null;
   market_avg?: number | null;
   vs_market?: number | null;
+}
+
+interface PaidReport {
+  purchase_id: string;
+  receipt_id: string;
+  purchased_at: string;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  price: number | null;
+  verdict: string | null;
 }
 
 interface ComparisonRecord {
@@ -68,6 +79,7 @@ export default function WorkspaceDashboard() {
   const { session } = useAuth();
   const [vehicles, setVehicles] = useState<GarageVehicle[]>([]);
   const [comparisons, setComparisons] = useState<ComparisonRecord[]>([]);
+  const [reports, setReports] = useState<PaidReport[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -76,12 +88,13 @@ export default function WorkspaceDashboard() {
 
     Promise.all([
       fetch("/api/workspace/garage", { headers }).then((r) => r.json()),
-      // Comparisons endpoint — graceful fallback if not implemented yet
       fetch("/api/workspace/comparisons?limit=7", { headers }).then((r) => r.json()).catch(() => ({ success: false })),
+      fetch("/api/workspace/receipts", { headers }).then((r) => r.json()).catch(() => ({ success: false })),
     ])
-      .then(([garageRes, compRes]) => {
+      .then(([garageRes, compRes, receiptsRes]) => {
         if (garageRes.success) setVehicles(garageRes.vehicles.slice(0, 6));
         if (compRes.success && compRes.comparisons) setComparisons(compRes.comparisons);
+        if (receiptsRes.success && receiptsRes.reports) setReports(receiptsRes.reports.slice(0, 3));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -197,6 +210,53 @@ export default function WorkspaceDashboard() {
           </div>
         )}
       </section>
+
+      {/* ── My Reports ──────────────────────────────────────── */}
+      {reports.length > 0 && (
+        <section className="bg-[#161b22] border border-white/[0.08] rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08]">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-white/40" />
+              <h2 className="font-semibold text-white/80">My Reports</h2>
+              <span className="text-xs text-white/30 bg-white/[0.06] px-1.5 py-0.5 rounded">{reports.length}</span>
+            </div>
+            <Link href="/workspace/receipts" className="text-xs text-[#00d97e]/70 hover:text-[#00d97e] flex items-center gap-1 transition-colors">
+              View all <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+          <div className="divide-y divide-white/[0.04]">
+            {reports.map((r) => {
+              const label = [r.year, r.make, r.model].filter(Boolean).join(" ") || "Unknown Vehicle";
+              const badge = verdictBadge(r.verdict);
+              return (
+                <Link
+                  key={r.purchase_id}
+                  href={`/receipt?id=${r.receipt_id}`}
+                  className="flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-white/[0.03] transition-colors group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4 text-white/20" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm text-white/80 truncate">{label}</p>
+                      {r.price != null && (
+                        <p className="text-xs text-white/30">${r.price.toLocaleString()}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {r.verdict && (
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${badge.cls}`}>{badge.text}</span>
+                    )}
+                    <ExternalLink className="w-3.5 h-3.5 text-white/20 group-hover:text-[#00d97e] transition-colors" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* ── Recent Comparisons ───────────────────────────────── */}
       <section className="bg-[#161b22] border border-white/[0.08] rounded-2xl overflow-hidden">
