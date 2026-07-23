@@ -125,7 +125,8 @@ export async function POST(request: NextRequest) {
     console.log('[Proxy Fetch] Fetching URL:', url.substring(0, 100));
 
     // Sites that need JS rendering via Nimbleway
-    const needsJsRender = ['cargurus.com', 'cargurus.ca'].some(
+    // AutoTrader is included as a fallback when ScrapingBee fails (Akamai evasion)
+    const needsJsRender = ['cargurus.com', 'cargurus.ca', 'autotrader.com'].some(
       d => parsedUrl.hostname.includes(d)
     );
 
@@ -195,15 +196,9 @@ export async function POST(request: NextRequest) {
               headers: { 'content-type': 'text/html' },
             });
           }
-          console.warn(`[Proxy Fetch] ScrapingBee ${siteName} result blocked — returning blocked immediately`);
-          // AutoTrader/Cars.com use Akamai — direct fetch always fails too. Return blocked
-          // immediately so the scraper shows a useful error rather than timing out on direct fetch.
-          return NextResponse.json({
-            success: false, error: 'blocked', blocked: true,
-            failureReason: 'content_signals_missing',
-            htmlLength: sbHtml.length,
-            htmlSnippet: sbHtml.substring(0, 300),
-          }, { status: 403 });
+          console.warn(`[Proxy Fetch] ScrapingBee ${siteName} result blocked — falling through to Nimbleway`);
+          // Don't return here — fall through to Nimbleway path below which uses a
+          // different residential proxy network and may succeed where ScrapingBee failed.
         } else {
           const errBody = await sbRes.text().catch(() => '');
           console.warn(`[Proxy Fetch] ScrapingBee ${siteName} error ${sbRes.status}:`, errBody.substring(0, 500));
@@ -337,9 +332,11 @@ export async function POST(request: NextRequest) {
             country: 'US',
             locale: 'en-US',
             cache: false,
-            // Wait for CarGurus listing content to fully render before returning HTML
-            wait_for_selector: '[data-cg-ft="vdp-listing-price"], .listing-price, h1',
-            render_timeout: 15,
+            // Wait for listing content — CarGurus and AutoTrader selectors
+            wait_for_selector: isAutoTrader
+              ? 'h1, [data-cmp="vehicleDetails"], .vdp-header'
+              : '[data-cg-ft="vdp-listing-price"], .listing-price, h1',
+            render_timeout: 18,
           }),
           signal: nmController.signal,
         });
@@ -365,7 +362,9 @@ export async function POST(request: NextRequest) {
             lowerHtml.includes('challenge-platform') ||
             lowerHtml.includes('autotrader - page unavailable') ||
             lowerHtml.includes('akamai-block') ||
-            html.length < 500;
+            html.length < 500 ||
+            // AutoTrader-specific: must have listing content signals
+            (isAutoTrader && html.length < 20000 && !lowerHtml.includes('vehicle') && !lowerHtml.includes('price'));
 
           // CarGurus sometimes returns a BLACKOUT_TEXAS JS shell (~2755 bytes) that lacks
           // vehicle history (title/accident). Fall through to direct fetch for small responses
@@ -424,15 +423,35 @@ export async function POST(request: NextRequest) {
             console.log('[Proxy Fetch] CarGurus thin shell from Nimbleway, trying direct fetch for history data');
           } else if (!isStaleCache) {
             console.warn('[Proxy Fetch] Nimbleway returned blocked/empty page, length:', html.length);
+            // AutoTrader: both ScrapingBee and Nimbleway failed — direct fetch won't work either
+            if (isAutoTrader) {
+              return NextResponse.json({
+                success: false, error: 'blocked', blocked: true,
+                failureReason: 'content_signals_missing',
+                htmlLength: html.length,
+              }, { status: 403 });
+            }
           }
         } else {
           const errText = await nmResponse.text().catch(() => '');
-          console.warn('[Proxy Fetch] Nimbleway error', nmResponse.status, errText.substring(0, 200), '— falling through to ScrapingBee');
+          console.warn('[Proxy Fetch] Nimbleway error', nmResponse.status, errText.substring(0, 200), '— falling through');
+          if (isAutoTrader) {
+            return NextResponse.json({
+              success: false, error: 'blocked', blocked: true,
+              failureReason: 'scrapingbee_and_nimbleway_failed',
+            }, { status: 503 });
+          }
         }
       } catch (nmErr) {
         clearTimeout(nmTimeoutId);
         const msg = nmErr instanceof Error ? nmErr.message : String(nmErr);
-        console.warn('[Proxy Fetch] Nimbleway threw:', msg, '— falling through to ScrapingBee');
+        console.warn('[Proxy Fetch] Nimbleway threw:', msg, '— falling through');
+        if (isAutoTrader) {
+          return NextResponse.json({
+            success: false, error: 'proxy_error', blocked: true,
+            failureReason: 'nimbleway_threw',
+          }, { status: 503 });
+        }
       }
 
     }
