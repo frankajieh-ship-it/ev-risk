@@ -1348,6 +1348,8 @@ export default function ReceiptPage() {
                     onFullUpgradeClick={() => handlePremiumAction("paywall_card")}
                     onTrackEvent={(name, data) => trackEvent(name, data as Parameters<typeof trackEvent>[1])}
                     onCreditRedeemed={() => { setReferralCredits((c) => Math.max(0, c - 1)); refetchPayment(); }}
+                    listingFirstSeenDays={listingFirstSeenAt ? Math.floor((Date.now() - new Date(listingFirstSeenAt).getTime()) / 86400000) : undefined}
+                    listingPriceDropCents={listingPriceDropCents ?? undefined}
                   />
                   {checkoutError && (
                     <p className="text-red-400 text-xs text-center mt-2">{checkoutError}</p>

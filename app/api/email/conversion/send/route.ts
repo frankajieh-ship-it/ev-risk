@@ -16,8 +16,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isResendConfigured } from "@/lib/resend";
 import { safeSend } from "@/lib/crm-email";
-import { getConversionCandidates, getAuctionNurtureCandidates } from "@/lib/crm-queries";
-import { buildConversionPaywall, buildConversionCheckout, buildAuctionNurture } from "@/lib/crm-templates/conversion";
+import { getConversionCandidates, getAuctionNurtureCandidates, getPaywallAbandonedCandidates } from "@/lib/crm-queries";
+import { buildConversionPaywall, buildConversionCheckout, buildAuctionNurture, buildPaywallAbandoned } from "@/lib/crm-templates/conversion";
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
     paywall_24h: { sent: 0, skipped: 0, errors: 0 },
     checkout_2h: { sent: 0, skipped: 0, errors: 0 },
     auction_nurture: { sent: 0, skipped: 0, errors: 0 },
+    paywall_seen_24h: { sent: 0, skipped: 0, errors: 0 },
   };
 
   // ── Paywall dismissed → 24h follow-up ────────────────────────────────────
@@ -136,6 +137,42 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       results.auction_nurture.errors++;
       console.error("[conversion/send] auction_nurture error:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  // ── Paywall seen → 24h follow-up ─────────────────────────────────────────
+  const paywallSeenCandidates = await getPaywallAbandonedCandidates(50);
+  for (const candidate of paywallSeenCandidates) {
+    try {
+      const { subject, html } = buildPaywallAbandoned({
+        email: candidate.email,
+        vehicle: candidate.vehicle,
+        receiptId: candidate.receiptId,
+        triggerType: "paywall_seen",
+        verdict: candidate.verdict as "GREEN" | "YELLOW" | "RED" | undefined,
+      });
+      const r = await safeSend({
+        email: candidate.email,
+        userId: candidate.userId,
+        anonId: candidate.anonId,
+        sequenceType: "conversion",
+        sequenceStep: "paywall_seen_24h",
+        subject,
+        html,
+        idempotencyKey: `conv:${candidate.eventId}:paywall_seen_24h`,
+        metadata: {
+          trigger_event_id: candidate.eventId,
+          receipt_id: candidate.receiptId,
+          vehicle: candidate.vehicle,
+          verdict: candidate.verdict,
+        },
+      });
+      if (r.sent) results.paywall_seen_24h.sent++;
+      else if (r.skipped) results.paywall_seen_24h.skipped++;
+      else results.paywall_seen_24h.errors++;
+    } catch (err) {
+      results.paywall_seen_24h.errors++;
+      console.error("[conversion/send] paywall_seen_24h error:", err instanceof Error ? err.message : err);
     }
   }
 

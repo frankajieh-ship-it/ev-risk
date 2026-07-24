@@ -19,7 +19,7 @@ export interface ConversionCandidate {
   receiptId?: string;
   vehicle?: string;
   verdict?: string;
-  triggerType: "paywall_dismissed" | "checkout_started";
+  triggerType: "paywall_dismissed" | "checkout_started" | "paywall_seen";
 }
 
 export interface AuctionNurtureCandidate {
@@ -165,6 +165,118 @@ export async function getConversionCandidates(
       vehicle,
       verdict,
       triggerType,
+    });
+
+    if (candidates.length >= limit) break;
+  }
+
+  return candidates;
+}
+
+// ── Paywall abandoned candidates ─────────────────────────────────────────────
+// Users who saw the paywall (paywall_seen event) 23–48h ago but never purchased.
+// Email resolution requires a prior checklist email capture for anon users.
+
+export async function getPaywallAbandonedCandidates(
+  limit = 50
+): Promise<ConversionCandidate[]> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+
+  const now = Date.now();
+  const windowStart = new Date(now - 48 * 60 * 60 * 1000).toISOString(); // 48h ago
+  const windowEnd = new Date(now - 23 * 60 * 60 * 1000).toISOString();   // 23h ago
+
+  const { data: events } = await supabase
+    .from("user_events")
+    .select("id, user_id, event_data, timestamp")
+    .eq("event_name", "paywall_seen")
+    .gte("timestamp", windowStart)
+    .lte("timestamp", windowEnd)
+    .not("is_internal", "eq", true)
+    .limit(limit * 2);
+
+  if (!events?.length) return [];
+
+  const candidates: ConversionCandidate[] = [];
+
+  for (const ev of events) {
+    const eventData = (ev.event_data || {}) as Record<string, unknown>;
+    const receiptId = eventData.receipt_id as string | undefined;
+    const anonId = (eventData.anon_id ?? eventData.persistent_session_id) as string | undefined;
+    const userId = ev.user_id as string | undefined;
+
+    // Skip if already sent this step
+    const { count: alreadySent } = await supabase
+      .from("crm_email_sends")
+      .select("id", { count: "exact", head: true })
+      .eq("idempotency_key", `conv:${ev.id}:paywall_seen_24h`);
+    if ((alreadySent ?? 0) > 0) continue;
+
+    // Skip if user has since purchased
+    if (receiptId) {
+      const { count: purchaseCount } = await supabase
+        .from("purchases")
+        .select("id", { count: "exact", head: true })
+        .eq("base_scenario_id", receiptId)
+        .eq("status", "paid");
+      if ((purchaseCount ?? 0) > 0) continue;
+    }
+
+    // Resolve email — auth user first, then anon email capture
+    let email: string | undefined;
+    if (userId) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+      email = authUser?.user?.email;
+    }
+    if (!email && anonId) {
+      const { data: capture } = await supabase
+        .from("checklist_email_captures")
+        .select("email")
+        .eq("anon_id", anonId)
+        .maybeSingle();
+      email = capture?.email;
+    }
+    if (!email) continue;
+
+    // Check suppression
+    const { data: pref } = await supabase
+      .from("crm_email_preferences")
+      .select("all_marketing, conversion, bounced")
+      .eq("email", email)
+      .maybeSingle();
+    if (pref && (!pref.all_marketing || !pref.conversion || pref.bounced)) continue;
+
+    // Fetch vehicle label and verdict from receipt
+    let vehicle: string | undefined;
+    let verdict: string | undefined;
+    if (receiptId) {
+      const { data: receipt } = await supabase
+        .from("receipts")
+        .select("output_json")
+        .eq("id", receiptId)
+        .maybeSingle();
+      if (receipt?.output_json) {
+        const out = receipt.output_json as Record<string, unknown>;
+        const summary = out.listing_summary as Record<string, unknown> | undefined;
+        vehicle = vehicleLabel(
+          summary?.year as number | null,
+          summary?.make as string | null,
+          summary?.model as string | null
+        );
+        verdict = out.verdict as string | undefined;
+      }
+    }
+
+    candidates.push({
+      email,
+      userId,
+      anonId,
+      eventId: ev.id as string,
+      receiptId,
+      vehicle,
+      verdict,
+      triggerType: "paywall_seen",
     });
 
     if (candidates.length >= limit) break;

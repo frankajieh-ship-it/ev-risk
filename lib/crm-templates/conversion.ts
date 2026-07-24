@@ -13,7 +13,7 @@ export interface ConversionContext {
   email: string;
   vehicle?: string;
   receiptId?: string;
-  triggerType: "paywall_dismissed" | "checkout_started";
+  triggerType: "paywall_dismissed" | "checkout_started" | "paywall_seen";
   verdict?: "GREEN" | "YELLOW" | "RED";
 }
 
@@ -97,6 +97,72 @@ export function buildConversionCheckout(ctx: ConversionContext): { subject: stri
 
   return {
     subject: `Complete your OFFO receipt unlock — ${vehicleName}`,
+    html: emailWrapper(body),
+  };
+}
+
+// ── Paywall abandoned (24h after paywall_seen, no purchase) ──────────────────
+
+export function buildPaywallAbandoned(ctx: ConversionContext): { subject: string; html: string } {
+  const { email, vehicle, receiptId, verdict } = ctx;
+  const vehicleName = vehicle || "your listing";
+  const receiptUrl = receiptId ? `${SITE_URL}/receipt?id=${receiptId}` : `${SITE_URL}/receipt`;
+
+  let verdictNote = "";
+  if (verdict) {
+    const color = verdictColor(verdict);
+    const label = verdictLabel(verdict);
+    verdictNote = `<div style="margin-bottom:16px;padding:10px 14px;border-radius:8px;border-left:3px solid ${color};background:rgba(0,0,0,0.2);">
+      <p style="font-size:13px;color:#c9d1d9;margin:0;">
+        OFFO verdict for ${vehicleName}: <strong style="color:${color};">${label}</strong>
+      </p>
+    </div>`;
+  }
+
+  const body = `
+    ${OFFO_HEADER}
+    <div style="text-align:center;margin-bottom:20px;">
+      <h1 style="font-size:21px;color:#e6edf3;margin:0 0 6px;">Still thinking about the ${vehicleName}?</h1>
+      <p style="font-size:14px;color:#8b949e;margin:0;">Your full analysis is one click away.</p>
+    </div>
+    ${verdictNote}
+    <div style="background:#161b22;border-radius:12px;padding:20px;margin-bottom:16px;border:1px solid #30363d;">
+      <p style="font-size:14px;color:#c9d1d9;margin:0 0 14px;">
+        You ran a free check on <strong style="color:#e6edf3;">${vehicleName}</strong>. Here's what unlocking reveals:
+      </p>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #21262d;">
+            <span style="font-size:13px;color:#30363d;filter:blur(3px);user-select:none;">VIN history — theft, salvage &amp; accident records</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #21262d;">
+            <span style="font-size:13px;color:#30363d;filter:blur(3px);user-select:none;">Must-ask questions tailored to this exact listing</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #21262d;">
+            <span style="font-size:13px;color:#30363d;filter:blur(3px);user-select:none;">Negotiation opener based on the listing price &amp; history</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 0;">
+            <span style="font-size:13px;color:#30363d;filter:blur(3px);user-select:none;">Price verdict vs. comparable listings</span>
+          </td>
+        </tr>
+      </table>
+    </div>
+    <div style="text-align:center;margin-bottom:16px;">
+      ${ctaButton("Unlock my receipt — $3.99 →", receiptUrl)}
+    </div>
+    <p style="font-size:12px;color:#8b949e;text-align:center;margin:0 0 8px;">
+      One-time unlock · No subscription · Or apply it toward the $9.99 full report
+    </p>
+    ${emailFooter(email, "conversion")}`;
+
+  return {
+    subject: `Still thinking about the ${vehicleName}?`,
     html: emailWrapper(body),
   };
 }
