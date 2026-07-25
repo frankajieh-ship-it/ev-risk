@@ -60,34 +60,40 @@ export function buildRecallAlert(
   recalls: NewsArticleMatch[]
 ): { subject: string; html: string } {
   const receiptUrl = `${SITE_URL}/receipt`;
-
   const recallBlocks = recalls.slice(0, 3).map(articleBlock).join("");
+  const count = recalls.length;
 
   const body = `
     ${OFFO_HEADER}
-    <div style="background:#da363320;border:1px solid #da363340;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">
-      <span style="font-size:20px;">⚠️</span>
-      <div>
-        <p style="font-size:13px;font-weight:700;color:#da3633;margin:0 0 2px;text-transform:uppercase;letter-spacing:0.05em;">Safety Recall</p>
-        <p style="font-size:14px;color:#e6edf3;margin:0;">Affects your saved listing: <strong>${vehicle}</strong></p>
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="display:inline-block;background:#f59e0b1a;border:1px solid #f59e0b33;border-radius:20px;padding:4px 16px;margin-bottom:12px;">
+        <span style="font-size:13px;font-weight:700;color:#f59e0b;">Open Recall${count > 1 ? "s" : ""} — Pre-Purchase Checklist</span>
       </div>
+      <h1 style="font-size:22px;color:#e6edf3;margin:0 0 6px;">${count === 1 ? "1 open recall" : `${count} open recalls`} on your saved listing</h1>
+      <p style="font-size:14px;color:#8b949e;margin:0;">${vehicle}</p>
     </div>
-    <p style="font-size:14px;color:#c9d1d9;margin:0 0 18px;line-height:1.6;">
-      A safety recall has been issued that may affect <strong style="color:#e6edf3;">${vehicle}</strong>.
-      ${recalls.length > 1 ? `There are <strong>${recalls.length} new recalls</strong> to review.` : ""}
-    </p>
+    <div style="background:#0d2818;border:1px solid #00d97e33;border-radius:10px;padding:14px 18px;margin-bottom:20px;">
+      <p style="font-size:14px;color:#c9d1d9;margin:0;line-height:1.6;">
+        <strong style="color:#00d97e;">This is a heads-up, not a dealbreaker.</strong> Open recalls are repaired by dealers at no cost to you — and a remedied recall means the issue is already fixed.
+        Before you sign, confirm each recall below has been completed on this VIN at
+        <a href="https://www.nhtsa.gov/vehicle/recalls" style="color:#00d97e;text-decoration:none;">nhtsa.gov</a>
+        or ask the dealer to show you the repair order.
+      </p>
+    </div>
     ${recallBlocks}
-    <div style="text-align:center;margin:24px 0 16px;">
-      ${ctaButton("View my OFFO report →", receiptUrl, "#da3633")}
+    <div style="background:#161b22;border-radius:8px;padding:12px 16px;margin-bottom:20px;border:1px solid #30363d;">
+      <p style="font-size:13px;color:#8b949e;margin:0;line-height:1.6;">
+        <strong style="color:#e6edf3;">What to ask:</strong> &ldquo;Has recall [campaign number] been completed on this VIN?&rdquo; Get it in writing on the buyers order before you purchase.
+      </p>
     </div>
-    <p style="font-size:12px;color:#8b949e;text-align:center;margin:0 0 24px;">
-      Contact your dealer to schedule a free recall repair.
-    </p>
+    <div style="text-align:center;margin:20px 0 16px;">
+      ${ctaButton("Check my OFFO report →", receiptUrl)}
+    </div>
     ${emailFooter(email, "recall")}`;
 
-  const subjectPrefix = recalls.length > 1 ? `${recalls.length} recalls` : "Safety recall";
+  const subjectPrefix = count > 1 ? `${count} open recalls` : "1 open recall";
   return {
-    subject: `${subjectPrefix} affecting your ${vehicle}`,
+    subject: `${subjectPrefix} on your ${vehicle} — confirm before you buy`,
     html: emailWrapper(body),
   };
 }

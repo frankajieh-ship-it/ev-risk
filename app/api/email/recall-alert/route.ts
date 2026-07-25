@@ -29,8 +29,8 @@ function buildRecallAlertHtml(
       (r) => `
     <div style="border-left:3px solid ${r.is_safety_critical ? "#dc2626" : "#f59e0b"};padding:10px 14px;margin-bottom:10px;background:#161b22;border-radius:0 6px 6px 0;">
       <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#e6edf3;">${r.component}</p>
-      <p style="margin:0 0 4px;font-size:13px;color:#8b949e;">${r.ai_summary}</p>
-      <p style="margin:0;font-size:12px;color:#6b7280;">Routine impact: ${r.routine_impact_score}/10${r.is_safety_critical ? " &mdash; <strong style='color:#dc2626;'>Safety critical</strong>" : ""}</p>
+      <p style="margin:0 0 6px;font-size:13px;color:#8b949e;">${r.ai_summary}</p>
+      <p style="margin:0;font-size:12px;color:#00d97e;font-weight:600;">&#10003; Dealers are required to fix this for free — confirm it&apos;s been completed before you sign.</p>
     </div>`
     )
     .join("");
@@ -50,17 +50,32 @@ function buildRecallAlertHtml(
       <div style="display:inline-block;background:${hasCritical ? "rgba(220,38,38,0.12)" : "rgba(245,158,11,0.12)"};border:1px solid ${hasCritical ? "rgba(220,38,38,0.3)" : "rgba(245,158,11,0.3)"};border-radius:20px;padding:4px 16px;margin-bottom:12px;">
         <span style="font-size:13px;font-weight:700;color:${hasCritical ? "#ef4444" : "#f59e0b"};">${hasCritical ? "Safety Recall" : "Recall Alert"}</span>
       </div>
-      <h1 style="font-size:22px;color:#e6edf3;margin:0 0 6px;">${recalls.length === 1 ? "A new recall" : `${recalls.length} new recalls`} for your vehicle</h1>
+      <h1 style="font-size:22px;color:#e6edf3;margin:0 0 6px;">${recalls.length === 1 ? "1 open recall" : `${recalls.length} open recalls`} on your saved listing</h1>
       <p style="font-size:14px;color:#8b949e;margin:0;">${vehicleLabel}</p>
+    </div>
+
+    <div style="background:#1a2332;border:1px solid #00d97e33;border-radius:10px;padding:14px 18px;margin-bottom:20px;">
+      <p style="font-size:14px;color:#c9d1d9;margin:0;line-height:1.6;">
+        <strong style="color:#00d97e;">Good news:</strong> open recalls are fixed by dealers at no cost to you.
+        Before you purchase, ask the dealer to confirm each recall below has been completed — or check the VIN yourself at
+        <a href="https://www.nhtsa.gov/vehicle/recalls" style="color:#00d97e;text-decoration:none;">nhtsa.gov</a>.
+        A remedied recall is a green flag, not a red one.
+      </p>
     </div>
 
     <div style="background:#0d1117;border-radius:12px;padding:20px;margin-bottom:20px;border:1px solid #30363d;">
       ${recallItems}
     </div>
 
+    <div style="background:#161b22;border-radius:8px;padding:12px 16px;margin-bottom:20px;border:1px solid #30363d;">
+      <p style="font-size:13px;color:#8b949e;margin:0;line-height:1.6;">
+        <strong style="color:#e6edf3;">What to ask the dealer:</strong> &ldquo;Has recall [campaign number] been completed on this VIN?&rdquo; — get it in writing on the buyers order.
+      </p>
+    </div>
+
     <div style="text-align:center;margin-bottom:20px;">
-      <a href="${SITE_URL}/workspace/garage" style="display:inline-block;background:${hasCritical ? "#dc2626" : "#00d97e"};color:${hasCritical ? "#ffffff" : "#0d1117"};font-size:14px;font-weight:700;padding:13px 28px;border-radius:8px;text-decoration:none;">
-        View recall details in My Garage →
+      <a href="${SITE_URL}/workspace/garage" style="display:inline-block;background:#00d97e;color:#0d1117;font-size:14px;font-weight:700;padding:13px 28px;border-radius:8px;text-decoration:none;">
+        View full recall details →
       </a>
     </div>
 
@@ -134,9 +149,8 @@ export async function POST(request: NextRequest) {
   }
 
   const hasCritical = recalls.some((r) => r.is_safety_critical);
-  const subject = hasCritical
-    ? `Safety recall issued for your ${vehicleLabel} — action required`
-    : `New recall for your ${vehicleLabel}`;
+  const recallCount = recalls.length;
+  const subject = `${recallCount === 1 ? "1 open recall" : `${recallCount} open recalls`} on your ${vehicleLabel} — confirm before you buy`;
 
   const html = buildRecallAlertHtml(vehicleLabel, recalls, userEmail);
 
