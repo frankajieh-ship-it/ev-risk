@@ -8,6 +8,7 @@
 
 import { getSupabaseAdmin } from "@/lib/api-auth";
 import { vehicleLabel } from "@/lib/crm-templates/shared";
+import { articleMatchesVehicle } from "@/lib/vehicle-tags";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -709,6 +710,154 @@ export async function getTopWeeklyNews(limit = 5): Promise<NewsDigestArticle[]> 
     .limit(limit);
 
   return (data ?? []) as NewsDigestArticle[];
+}
+
+// ── News alert candidates ─────────────────────────────────────────────────────
+// For each garage vehicle owner: find new high-impact articles or recalls in the
+// last 24h that match their vehicle. Groups into per-user digests.
+// Recalls (category='recall') are sent standalone; others batch into one digest.
+
+export interface NewsArticleMatch {
+  articleId: string;   // daily_routine_news.article_id
+  newsId: string;      // daily_routine_news.id (UUID)
+  title: string;
+  url: string;
+  source: string;
+  category: string;
+  impactScore: number;
+  aiSummary: string | null;
+  matchedVehicle: string; // "2021 Tesla Model 3"
+  isRecall: boolean;
+}
+
+export interface NewsAlertCandidate {
+  userId: string;
+  email: string;
+  articles: NewsArticleMatch[];
+  hasRecall: boolean;
+}
+
+export async function getNewsAlertCandidates(
+  limit = 200
+): Promise<NewsAlertCandidate[]> {
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const todayDate = new Date().toISOString().slice(0, 10);
+
+  // Fetch articles from last 24h: recalls at 50+, others at 65+
+  const { data: articles } = await supabase
+    .from("daily_routine_news")
+    .select("id, article_id, title, url, source, category, impact_score, key_routine_effects, ai_summary")
+    .gte("scored_at", since24h)
+    .or("impact_score.gte.65,category.eq.recall")
+    .order("impact_score", { ascending: false })
+    .limit(100);
+
+  if (!articles?.length) return [];
+
+  // Fetch all garage vehicles (shopping/considering, not owned) with user_id
+  const { data: vehicles } = await supabase
+    .from("garage_vehicles")
+    .select("id, user_id, make, model, year")
+    .eq("is_owned_ev", false)
+    .not("make", "is", null)
+    .not("model", "is", null)
+    .not("user_id", "is", null)
+    .limit(limit);
+
+  if (!vehicles?.length) return [];
+
+  // Group vehicles by user_id
+  const userVehicles = new Map<string, Array<{ make: string; model: string; year: number | null; label: string }>>();
+  for (const v of vehicles) {
+    const uid = v.user_id as string;
+    if (!userVehicles.has(uid)) userVehicles.set(uid, []);
+    userVehicles.get(uid)!.push({
+      make: v.make as string,
+      model: v.model as string,
+      year: v.year as number | null,
+      label: [v.year, v.make, v.model].filter(Boolean).join(" "),
+    });
+  }
+
+  const candidates: NewsAlertCandidate[] = [];
+
+  for (const [userId, userVehicleList] of userVehicles.entries()) {
+    // Collect matched articles for this user
+    const matched: NewsArticleMatch[] = [];
+
+    for (const article of articles) {
+      const effects: string[] = Array.isArray(article.key_routine_effects) ? article.key_routine_effects : [];
+      const isRecall = article.category === "recall";
+
+      // For each vehicle this user has saved, check if article is relevant
+      for (const v of userVehicleList) {
+        const isRelevant = isRecall
+          // Recalls: match on make name anywhere in title/effects OR effects tag match
+          ? (article.title.toLowerCase().includes(v.make.toLowerCase()) ||
+             articleMatchesVehicle(effects, v.make, v.model))
+          : articleMatchesVehicle(effects, v.make, v.model);
+
+        if (!isRelevant) continue;
+
+        // Check dedup — skip if already dispatched this article to this user
+        const { count: alreadySent } = await supabase
+          .from("news_alert_dispatches")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("article_id", article.article_id);
+
+        if ((alreadySent ?? 0) > 0) continue;
+
+        matched.push({
+          articleId: article.article_id as string,
+          newsId: article.id as string,
+          title: article.title as string,
+          url: article.url as string,
+          source: (article.source as string) || "",
+          category: article.category as string,
+          impactScore: article.impact_score as number,
+          aiSummary: (article.ai_summary as string) || null,
+          matchedVehicle: v.label,
+          isRecall,
+        });
+        break; // one match per article per user is enough
+      }
+    }
+
+    if (!matched.length) continue;
+
+    // Resolve email
+    const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+    const email = authUser?.user?.email;
+    if (!email) continue;
+
+    // Check suppression — recall uses 'recall' pref, news uses 'news_alerts' pref
+    const { data: pref } = await supabase
+      .from("crm_email_preferences")
+      .select("all_marketing, recall, news_alerts, bounced")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (pref?.bounced || pref?.all_marketing === false) continue;
+
+    // Filter articles by their pref: recalls need recall=true, others need news_alerts=true
+    const allowed = matched.filter((a) =>
+      a.isRecall ? pref?.recall !== false : pref?.news_alerts !== false
+    );
+    if (!allowed.length) continue;
+
+    candidates.push({
+      userId,
+      email,
+      articles: allowed,
+      hasRecall: allowed.some((a) => a.isRecall),
+    });
+  }
+
+  return candidates;
 }
 
 // ── Market snapshot ───────────────────────────────────────────────────────────

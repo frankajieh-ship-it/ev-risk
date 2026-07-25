@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest, getSupabaseAdmin } from "@/lib/api-auth";
 import { getIntelligenceFlags } from "@/lib/rollout-flags";
+import { vehicleToTags } from "@/lib/vehicle-tags";
 
 export const maxDuration = 15;
 
@@ -32,28 +33,6 @@ const ROUTINE_TAG_MAP: Record<string, string[]> = {
   high_mileage:         ["range", "charging_network", "battery_degradation"],
   daily_commuter:       ["commute", "efficiency", "charging_cost"],
 };
-
-// Vehicle-category tags (brand + model-specific for stronger relevance matching)
-function vehicleToTags(make: string, model: string): string[] {
-  const key = `${make} ${model}`.toLowerCase();
-  const tags: string[] = ["ev", "electric_vehicle"];
-  if (key.includes("tesla")) tags.push("tesla");
-  if (key.includes("rivian")) tags.push("rivian");
-  if (key.includes("ford") || key.includes("f-150") || key.includes("mach-e")) tags.push("ford");
-  if (key.includes("chevy") || key.includes("chevrolet") || key.includes("bolt")) tags.push("gm");
-  if (key.includes("hyundai") || key.includes("kia")) tags.push("hyundai_kia");
-  // Model-specific tags for higher-precision matching
-  if (key.includes("model y") || key.includes("model 3")) tags.push("tesla_model3y");
-  if (key.includes("model x") || key.includes("model s")) tags.push("tesla_modelsx");
-  if (key.includes("ioniq 5")) tags.push("ioniq5");
-  if (key.includes("ioniq 6")) tags.push("ioniq6");
-  if (key.includes("bolt")) tags.push("bolt_ev");
-  if (key.includes("mach-e") || key.includes("mach e")) tags.push("mach_e");
-  if (key.includes("id.4") || key.includes("id4")) tags.push("id4");
-  if (key.includes("leaf")) tags.push("leaf");
-  if (key.includes("r1s") || key.includes("r1t")) tags.push("rivian");
-  return tags;
-}
 
 export async function GET(req: NextRequest) {
   // Feature flag gate
