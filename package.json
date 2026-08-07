@@ -17,7 +17,7 @@
     "@anthropic-ai/sdk": "^0.91.1",
     "@google/generative-ai": "^0.24.1",
     "@netlify/functions": "^5.1.2",
-    "@supabase/supabase-js": "^2.91.0",
+    "@supabase/supabase-js": "^2.100.1",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
     "csv-parse": "^6.1.0",
