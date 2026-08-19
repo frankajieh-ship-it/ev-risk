@@ -329,20 +329,18 @@ export default function ReceiptPage() {
     },
   });
 
-  // Payment status hook (needs receipt which comes from useReceiptGeneration above)
-  const {
-    isUnlocked,
-    isStarterUnlocked,
-    compareRemaining,
-    compareBoundTo,
-    purchaseId,
-    packTier,
-    paymentsEnabled,
-    freeMode,
-    sellerPackUnlocked,
-    isLoading: isPaymentLoading,
-    refetch: refetchPayment,
-  } = usePaymentStatus("receipt", receipt?.receipt_id ?? null, receiptToken);
+  // Payments removed — everything is free
+  const isUnlocked = true;
+  const isStarterUnlocked = true;
+  const paymentsEnabled = false;
+  const freeMode = true;
+  const sellerPackUnlocked = true;
+  const compareRemaining = 99;
+  const compareBoundTo = null as string | null;
+  const purchaseId = null as string | null;
+  const packTier = null as string | null;
+  const isPaymentLoading = false;
+  const refetchPayment = () => {};
 
   // Refs so the post-payment poll can read payment state without stale closures
   const isStarterUnlockedRef = useRef(isStarterUnlocked);
@@ -396,6 +394,7 @@ export default function ReceiptPage() {
   const [referrerUserId, setReferrerUserId] = useState<string | null>(null);
 
   // Referral credits available to redeem (authenticated users only)
+  const [paywallDismissed, setPaywallDismissed] = useState(false);
   const [referralCredits, setReferralCredits] = useState(0);
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -547,17 +546,30 @@ export default function ReceiptPage() {
     if (refParam) setReferrerUserId(refParam);
 
     // Check for make/model prefill from vehicle landing pages (?make=Tesla&model=Model+3)
+    // Also handles deal card fallback params (?make=...&model=...&year=...&mileage=...&price=...&trim=...)
     const prefillMake = params.get("make");
     const prefillModel = params.get("model");
     if (prefillMake && prefillModel && !extUrl) {
       const year = params.get("year");
+      const mileage = params.get("mileage");
+      const price = params.get("price");
+      const trim = params.get("trim");
+      // Build a structured text snippet the extractor can parse
       const yearPrefix = year ? `${year} ` : "";
-      setPrefillText(`${yearPrefix}${prefillMake} ${prefillModel}`);
+      const trimSuffix = trim ? ` ${trim}` : "";
+      const detailLine = [
+        mileage ? `${Number(mileage).toLocaleString()} miles` : null,
+        price ? `$${Number(price).toLocaleString()}` : null,
+      ].filter(Boolean).join(" · ");
+      const textLines = [`${yearPrefix}${prefillMake} ${prefillModel}${trimSuffix}`, detailLine].filter(Boolean).join("\n");
+      setPrefillText(textLines);
       if (year) setPrefillYear(year);
       const src = params.get("src");
       if (src === "routine_rec") {
         setFromRoutine(true);
         setPageSource("routine_rec");
+      } else if (src === "deal_watch") {
+        setPageSource("deal_watch");
       } else {
         setPageSource("vehicle_landing");
       }
@@ -601,6 +613,23 @@ export default function ReceiptPage() {
       }
     }
   }, []);
+
+  // Checkout return: detect ?checkout=cancel (user hit back on Stripe page)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") !== "cancel") return;
+    const cancelledScenarioId = params.get("scenario_id");
+    trackEvent("checkout_cancelled", {
+      receipt_id: cancelledScenarioId || receipt?.receipt_id || null,
+      step: "stripe_page",
+    });
+    const url = new URL(window.location.href);
+    url.searchParams.delete("checkout");
+    url.searchParams.delete("scenario_type");
+    url.searchParams.delete("scenario_id");
+    window.history.replaceState({}, "", url.pathname + url.search);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Checkout return: detect ?checkout=success and poll for paid status
   useEffect(() => {
@@ -680,8 +709,12 @@ export default function ReceiptPage() {
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track receipt result viewed + scroll into view
+  const receiptViewedAtRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (!receipt?.receipt_id) return;
+    receiptViewedAtRef.current = Date.now();
+    setPaywallDismissed(false);
     trackEvent("receipt_result_viewed", {
       receipt_id: receipt.receipt_id,
       verdict: receipt.verdict,
@@ -690,6 +723,47 @@ export default function ReceiptPage() {
     setTimeout(() => {
       resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
+  }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Section scroll tracking — fires once per section per receipt load
+  useEffect(() => {
+    if (!receipt?.receipt_id) return;
+    const sections = [
+      { id: "section-verdict", label: "verdict" },
+      { id: "section-risk-flags", label: "risk_flags" },
+      { id: "section-negotiation", label: "negotiation" },
+      { id: "section-paywall", label: "paywall" },
+    ];
+    const fired = new Set<string>();
+    const observers: IntersectionObserver[] = [];
+    sections.forEach(({ id, label }) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const obs = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting && !fired.has(label)) {
+          fired.add(label);
+          trackEvent("receipt_section_viewed", {
+            section: label,
+            receipt_id: receipt.receipt_id,
+            seconds_since_load: receiptViewedAtRef.current
+              ? Math.round((Date.now() - receiptViewedAtRef.current) / 1000)
+              : null,
+          });
+          // For paywall specifically, also track time-to-paywall
+          if (label === "paywall" && receiptViewedAtRef.current) {
+            trackEvent("receipt_time_to_paywall", {
+              receipt_id: receipt.receipt_id,
+              seconds: Math.round((Date.now() - receiptViewedAtRef.current) / 1000),
+              verdict: receipt.verdict,
+            });
+          }
+          obs.disconnect();
+        }
+      }, { threshold: 0.3 });
+      obs.observe(el);
+      observers.push(obs);
+    });
+    return () => observers.forEach((o) => o.disconnect());
   }, [receipt?.receipt_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
@@ -1242,7 +1316,7 @@ export default function ReceiptPage() {
                 </button>
               </div>
 
-              <div data-tutorial="receipt-output">
+              <div data-tutorial="receipt-output" id="section-verdict">
               <ReceiptOutputCard
                 receipt={receipt}
                 lintPassed={lintPassed}
@@ -1333,49 +1407,10 @@ export default function ReceiptPage() {
 
               {/* ── Tiered paywall + deep sections ── */}
 
-              {/* Referral credit balance — authenticated users only, above paywall */}
-              {isAuthenticated && !isStarterUnlocked && paymentsEnabled && (
-                <ReferralCreditBanner onShareClick={() => handleShareClick()} />
-              )}
 
-              {/* $3.99 Starter paywall — shown when not starter-unlocked */}
-              {!isStarterUnlocked && paymentsEnabled && (
-                <>
-                  <StarterPaywallCard
-                    receiptToken={receiptToken}
-                    scenarioId={receipt.receipt_id}
-                    availableCredits={referralCredits}
-                    onFullUpgradeClick={() => handlePremiumAction("paywall_card")}
-                    onTrackEvent={(name, data) => trackEvent(name, data as Parameters<typeof trackEvent>[1])}
-                    onCreditRedeemed={() => { setReferralCredits((c) => Math.max(0, c - 1)); refetchPayment(); }}
-                    listingFirstSeenDays={listingFirstSeenAt ? Math.floor((Date.now() - new Date(listingFirstSeenAt).getTime()) / 86400000) : undefined}
-                    listingPriceDropCents={listingPriceDropCents ?? undefined}
-                  />
-                  {checkoutError && (
-                    <p className="text-red-400 text-xs text-center mt-2">{checkoutError}</p>
-                  )}
-                </>
-              )}
+              {/* Deep sections */}
+              <>
 
-              {/* $9.99 Full paywall — shown when starter unlocked but not full */}
-              {isStarterUnlocked && !isUnlocked && paymentsEnabled && (
-                <>
-                  <ReceiptPaywallCard
-                    receiptToken={receiptToken}
-                    scenarioId={receipt.receipt_id}
-                    onPaywallClick={() => handlePremiumAction("paywall_card")}
-                    isUpgrade
-                    onTrackEvent={(name, data) => trackEvent(name, data as Parameters<typeof trackEvent>[1])}
-                  />
-                  {checkoutError && (
-                    <p className="text-red-400 text-xs text-center mt-2">{checkoutError}</p>
-                  )}
-                </>
-              )}
-
-              {/* Deep sections — only when fully unlocked ($9.99) */}
-              {isUnlocked && (
-                <>
                   {receipt.receipt_id && (
                     <NegotiationDeepSection
                       receiptId={receipt.receipt_id}
@@ -1427,8 +1462,7 @@ export default function ReceiptPage() {
                       initialStatus={sections?.receipt_details?.status}
                     />
                   ) : null}
-                </>
-              )}
+              </>
 
               {/* ── Next-step CTA bar ────────────────────────────────── */}
               <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">

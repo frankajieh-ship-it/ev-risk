@@ -429,6 +429,77 @@ export async function POST(request: NextRequest) {
     // Inventory row not found — fall through to generic scraper (will fail gracefully)
   }
 
+  // --- receipts DB cache check ---
+  // If this listing was previously analyzed, return cached fields instantly.
+  // Match on base URL (path only) to handle tracking query params in stored URLs.
+  // Skips ScrapingBee entirely — works for any domain including Cars.com.
+  if (isSupabaseConfigured()) {
+    try {
+      const adminSb = getSupabaseAdmin();
+      if (adminSb) {
+        // Build base URL for matching: scheme + host + path, no query string.
+        // Generate both www and non-www variants since stored URLs may differ from pasted URLs.
+        const basePath = parsedUrl.pathname.replace(/\/$/, "");
+        const host = parsedUrl.hostname;
+        const altHost = host.startsWith("www.") ? host.slice(4) : `www.${host}`;
+        const dbCacheFilter = [
+          `listing_url.ilike."${parsedUrl.protocol}//${host}${basePath}%"`,
+          `listing_url.ilike."${parsedUrl.protocol}//${altHost}${basePath}%"`,
+        ].join(",");
+
+        const { data: cached } = await adminSb
+          .from("curated_deals")
+          .select("year, make, model, trim, price, mileage, vin, location, title_status, photo_url, listing_url")
+          .or(dbCacheFilter)
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle();
+
+        if (cached && cached.make && cached.model && cached.year) {
+          const fields: FetchedListingFields = {
+            year: cached.year ?? undefined,
+            make: cached.make,
+            model: cached.model,
+            trim: cached.trim ?? undefined,
+            mileage: cached.mileage ?? undefined,
+            price: cached.price ?? undefined,
+            vin: cached.vin ?? undefined,
+            location: cached.location ?? undefined,
+            title_status: (cached.title_status as FetchedListingFields["title_status"]) ?? undefined,
+          };
+          const extractedFieldKeys = (Object.keys(fields) as (keyof FetchedListingFields)[])
+            .filter((k) => fields[k] !== undefined && fields[k] !== null);
+          const field_confidence: Record<string, FieldConfidence> = {};
+          for (const k of ["year", "make", "model", "trim", "mileage", "price", "vin", "location", "title_status"]) {
+            field_confidence[k] = extractedFieldKeys.includes(k as keyof FetchedListingFields) ? "extracted" : "missing";
+          }
+          const photoUrls: string[] = [];
+          if (cached.photo_url?.startsWith("/")) photoUrls.push(cached.photo_url);
+          if (!photoUrls.length) {
+            const localImg = lookupLocalImages(cached.make, cached.model, cached.year);
+            if (localImg.urls.length) photoUrls.push(...localImg.urls);
+          }
+
+          return NextResponse.json({
+            success: true,
+            fields,
+            field_confidence,
+            extraction_id: uuidv4(),
+            listing_source: urlDomain,
+            photo_urls: photoUrls,
+            parse_confidence: "high",
+            extractedFields: extractedFieldKeys,
+            missingFields: [],
+            warnings: [],
+            diagnostics: { fetchMethod: "db_cache" },
+          });
+        }
+      }
+    } catch {
+      // Non-fatal — fall through to live scraper
+    }
+  }
+
   try {
     const result = await extractVehicleData(url!);
 

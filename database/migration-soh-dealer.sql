@@ -61,6 +61,7 @@ CREATE INDEX IF NOT EXISTS idx_battery_scans_verified
 
 ALTER TABLE battery_scans ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Dealers read own scans" ON battery_scans;
 CREATE POLICY "Dealers read own scans"
   ON battery_scans FOR SELECT
   USING (
@@ -69,6 +70,7 @@ CREATE POLICY "Dealers read own scans"
     )
   );
 
+DROP POLICY IF EXISTS "Service role full access battery_scans" ON battery_scans;
 CREATE POLICY "Service role full access battery_scans"
   ON battery_scans FOR ALL
   USING (auth.role() = 'service_role');
@@ -140,11 +142,12 @@ CREATE INDEX IF NOT EXISTS idx_soh_sessions_vin
 
 ALTER TABLE soh_pid_maps ENABLE ROW LEVEL SECURITY;
 
--- PID maps are public read (the PWA is unauthenticated at scan time)
+DROP POLICY IF EXISTS "Anyone can read pid maps" ON soh_pid_maps;
 CREATE POLICY "Anyone can read pid maps"
   ON soh_pid_maps FOR SELECT
   USING (true);
 
+DROP POLICY IF EXISTS "Service role manages pid maps" ON soh_pid_maps;
 CREATE POLICY "Service role manages pid maps"
   ON soh_pid_maps FOR ALL
   USING (auth.role() = 'service_role');
@@ -152,6 +155,7 @@ CREATE POLICY "Service role manages pid maps"
 
 ALTER TABLE soh_scan_sessions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Dealers read own sessions" ON soh_scan_sessions;
 CREATE POLICY "Dealers read own sessions"
   ON soh_scan_sessions FOR SELECT
   USING (
@@ -160,6 +164,7 @@ CREATE POLICY "Dealers read own sessions"
     )
   );
 
+DROP POLICY IF EXISTS "Dealers insert own sessions" ON soh_scan_sessions;
 CREATE POLICY "Dealers insert own sessions"
   ON soh_scan_sessions FOR INSERT
   WITH CHECK (
@@ -168,6 +173,7 @@ CREATE POLICY "Dealers insert own sessions"
     )
   );
 
+DROP POLICY IF EXISTS "Service role full access sessions" ON soh_scan_sessions;
 CREATE POLICY "Service role full access sessions"
   ON soh_scan_sessions FOR ALL
   USING (auth.role() = 'service_role');
@@ -180,19 +186,20 @@ CREATE POLICY "Service role full access sessions"
 
 -- Nissan Leaf (2011–2024) — uses proprietary Nissan CAN PIDs via mode 22
 INSERT INTO soh_pid_maps (make, model, year_min, year_max, pid_profile, protocol, soh_field, soh_formula, pids, notes)
-VALUES (
+VALUES
+(
   'Nissan', 'LEAF', 2011, 2024, 'leaf', 'ISO15765',
   'SOH', 'SOH = Hx / Hf * 100, where Hx is current maximum capacity from PID 5b3 and Hf is factory capacity',
-  '[
+  $$[
     {"name":"SOH",          "mode":"22","pid":"5b3","formula":"A / 2.0","unit":"%",    "description":"State of Health (0-100%)"},
     {"name":"SOC",          "mode":"22","pid":"5b4","formula":"A / 2.0","unit":"%",    "description":"State of Charge"},
     {"name":"PackVoltage",  "mode":"22","pid":"5bc","formula":"(A*256+B)/100.0","unit":"V","description":"HV battery pack voltage"},
     {"name":"PackCurrent",  "mode":"22","pid":"5bd","formula":"(A*256+B-32768)/100.0","unit":"A","description":"HV battery current"},
     {"name":"MaxCapacity",  "mode":"22","pid":"5b3","formula":"A / 2.0","unit":"Ah",   "description":"Battery max capacity"},
-    {"name":"CellTempMax",  "mode":"22","pid":"5c0","formula":"(A-40)","unit":"°C",    "description":"Max cell temperature"},
-    {"name":"CellTempMin",  "mode":"22","pid":"5c1","formula":"(A-40)","unit":"°C",    "description":"Min cell temperature"},
+    {"name":"CellTempMax",  "mode":"22","pid":"5c0","formula":"(A-40)","unit":"degC",  "description":"Max cell temperature"},
+    {"name":"CellTempMin",  "mode":"22","pid":"5c1","formula":"(A-40)","unit":"degC",  "description":"Min cell temperature"},
     {"name":"Odometer",     "mode":"22","pid":"412","formula":"(A*65536+B*256+C)","unit":"km","description":"Odometer reading"}
-  ]'::jsonb,
+  ]$$::jsonb,
   'Nissan Leaf 24kWh (Gen1), 30kWh, 40kWh, 62kWh. SOH PID works across all generations. Tested with LeafSpy and OBDLink MX+.'
 ),
 
@@ -200,7 +207,7 @@ VALUES (
 (
   'Chevrolet', 'Bolt EV', 2017, 2024, 'bolt', 'ISO15765',
   'PackSOH', 'SOH = PackSOH PID value directly (GM reports it natively as a percentage)',
-  '[
+  $$[
     {"name":"PackSOH",      "mode":"22","pid":"4140","formula":"A * 0.5","unit":"%",   "description":"Pack State of Health"},
     {"name":"PackSOC",      "mode":"22","pid":"4110","formula":"A * 0.5","unit":"%",   "description":"Pack State of Charge"},
     {"name":"PackVoltage",  "mode":"22","pid":"4113","formula":"(A*256+B) * 0.1","unit":"V","description":"HV pack voltage"},
@@ -209,7 +216,7 @@ VALUES (
     {"name":"MinCellVolt",  "mode":"22","pid":"4162","formula":"(A*256+B) * 0.001","unit":"V","description":"Minimum cell voltage"},
     {"name":"MaxCellVolt",  "mode":"22","pid":"4163","formula":"(A*256+B) * 0.001","unit":"V","description":"Maximum cell voltage"},
     {"name":"CycleCount",   "mode":"22","pid":"4151","formula":"A*256+B","unit":"",    "description":"Charge cycle count"}
-  ]'::jsonb,
+  ]$$::jsonb,
   'Chevrolet Bolt EV 2017-2023 (60kWh) and Bolt EUV 2022-2024 (65kWh). GM BMS reports SOH natively. Tested with OBDLink EX and ScanGauge.'
 ),
 
@@ -217,7 +224,7 @@ VALUES (
 (
   'Hyundai', 'IONIQ 5', 2022, 2024, 'ioniq5', 'ISO15765',
   'computed', 'SOH = (BMS_MaxCapacity / NominalCapacity) * 100 where nominal is 77.4kWh for long range',
-  '[
+  $$[
     {"name":"BMS_SOH",      "mode":"22","pid":"01050015","formula":"(A*256+B) * 0.1","unit":"%","description":"BMS reported SOH"},
     {"name":"BMS_SOC",      "mode":"22","pid":"01050016","formula":"(A*256+B) * 0.1","unit":"%","description":"BMS reported SOC"},
     {"name":"PackVoltage",  "mode":"22","pid":"01050001","formula":"(A*256+B) * 0.1","unit":"V","description":"HV battery voltage"},
@@ -225,8 +232,8 @@ VALUES (
     {"name":"MaxCapacity",  "mode":"22","pid":"01050021","formula":"(A*256+B) * 0.1","unit":"Ah","description":"Max available capacity"},
     {"name":"CellVoltMin",  "mode":"22","pid":"01050010","formula":"(A*256+B) * 0.001","unit":"V","description":"Min cell voltage"},
     {"name":"CellVoltMax",  "mode":"22","pid":"01050011","formula":"(A*256+B) * 0.001","unit":"V","description":"Max cell voltage"},
-    {"name":"ModuleTempMax","mode":"22","pid":"01050012","formula":"(A-40)","unit":"°C","description":"Max module temperature"}
-  ]'::jsonb,
+    {"name":"ModuleTempMax","mode":"22","pid":"01050012","formula":"(A-40)","unit":"degC","description":"Max module temperature"}
+  ]$$::jsonb,
   'Hyundai IONIQ 5 RWD (58kWh / 77.4kWh) and AWD. Uses Hyundai BMS CAN IDs. Same PIDs work on Kia EV6 — set pid_profile to ioniq5. Tested with OBDLink MX+.'
 ),
 
@@ -234,7 +241,7 @@ VALUES (
 (
   'Tesla', 'Model 3', 2018, 2024, 'model3y', 'ISO15765',
   'computed', 'SOH = (ChargeEnergyToFull / NominalEnergy) * 100; Nominal: 57.5kWh SR+, 75kWh LR, 82kWh Perf',
-  '[
+  $$[
     {"name":"BatteryLevel",    "mode":"22","pid":"0200","formula":"A * 0.5","unit":"%","description":"Battery level percent"},
     {"name":"PackVoltage",     "mode":"22","pid":"0210","formula":"(A*256+B) * 0.1","unit":"V","description":"Battery pack voltage"},
     {"name":"ChargeLimit",     "mode":"22","pid":"0204","formula":"A","unit":"%","description":"Charge limit setting"},
@@ -243,20 +250,20 @@ VALUES (
     {"name":"NominalFull",     "mode":"22","pid":"0261","formula":"(A*256+B) * 0.01","unit":"kWh","description":"Nominal full pack energy"},
     {"name":"Odometer",        "mode":"22","pid":"0280","formula":"(A*65536+B*256+C) * 0.1","unit":"mi","description":"Odometer"},
     {"name":"ChargeCount",     "mode":"22","pid":"0268","formula":"A*256+B","unit":"","description":"Charge count"}
-  ]'::jsonb,
+  ]$$::jsonb,
   'Tesla Model 3 and Model Y all variants. Requires Tesla-specific ELM327 adapter (TM3 BMS bridge mode). Standard OBD PIDs do not work on Tesla — must use mode 22 with BMS pairing. OBDLink CX or compatible adapter required.'
 ),
 (
   'Tesla', 'Model Y', 2020, 2024, 'model3y', 'ISO15765',
   'computed', 'SOH = (NominalFull / NominalCapacity) * 100; Nominal: 75kWh SR, 82kWh LR/Perf',
-  '[
+  $$[
     {"name":"BatteryLevel",    "mode":"22","pid":"0200","formula":"A * 0.5","unit":"%","description":"Battery level percent"},
     {"name":"PackVoltage",     "mode":"22","pid":"0210","formula":"(A*256+B) * 0.1","unit":"V","description":"Battery pack voltage"},
     {"name":"NominalRemaining","mode":"22","pid":"0260","formula":"(A*256+B) * 0.01","unit":"kWh","description":"Nominal energy remaining"},
     {"name":"NominalFull",     "mode":"22","pid":"0261","formula":"(A*256+B) * 0.01","unit":"kWh","description":"Nominal full pack energy"},
     {"name":"Odometer",        "mode":"22","pid":"0280","formula":"(A*65536+B*256+C) * 0.1","unit":"mi","description":"Odometer"},
     {"name":"ChargeCount",     "mode":"22","pid":"0268","formula":"A*256+B","unit":"","description":"Charge count"}
-  ]'::jsonb,
+  ]$$::jsonb,
   'Same PID profile as Model 3. Use pid_profile=model3y for both.'
 ),
 
@@ -264,7 +271,7 @@ VALUES (
 (
   'Volkswagen', 'ID.4', 2021, 2024, 'id4', 'ISO15765',
   'computed', 'SOH = (MaxCapacity_Ah / NominalCapacity_Ah) * 100; Nominal 77kWh = ~208Ah at 370V nominal',
-  '[
+  $$[
     {"name":"SOH",            "mode":"22","pid":"02a005","formula":"A","unit":"%","description":"BMS state of health"},
     {"name":"SOC",            "mode":"22","pid":"02a003","formula":"(A*256+B) * 0.1","unit":"%","description":"State of charge"},
     {"name":"PackVoltage",    "mode":"22","pid":"02a002","formula":"(A*256+B) * 0.1","unit":"V","description":"HV pack voltage"},
@@ -273,7 +280,8 @@ VALUES (
     {"name":"CellVoltMin",    "mode":"22","pid":"02a006","formula":"(A*256+B) * 0.001","unit":"V","description":"Min cell voltage"},
     {"name":"CellVoltMax",    "mode":"22","pid":"02a007","formula":"(A*256+B) * 0.001","unit":"V","description":"Max cell voltage"},
     {"name":"CellVoltDelta",  "mode":"22","pid":"02a008","formula":"(A*256+B)","unit":"mV","description":"Cell voltage spread"},
-    {"name":"TempMax",        "mode":"22","pid":"02a009","formula":"(A-40)","unit":"°C","description":"Max cell temperature"}
-  ]'::jsonb,
+    {"name":"TempMax",        "mode":"22","pid":"02a009","formula":"(A-40)","unit":"degC","description":"Max cell temperature"}
+  ]$$::jsonb,
   'VW ID.4 AWD and RWD (77kWh). MEB platform shared with Audi Q4 e-tron and Skoda Enyaq — same PIDs. VW reports SOH natively as a percentage via BMS. Tested with OBDLink MX+ and VCDS-compatible adapters.'
-);
+)
+ON CONFLICT (make, model, year_min, year_max) DO NOTHING;

@@ -106,42 +106,12 @@ export default function OwnershipHistoryCard({
     }
   };
 
-  // Auto-fetch when unlocked or payments are off — but only once receiptToken is ready.
-  // autoFetch=true means the call is skipped if already loading/done/errored.
+  // Auto-fetch as soon as receiptToken is ready
   useEffect(() => {
-    if (!receiptToken || (!isUnlocked && paymentsEnabled)) return;
+    if (!receiptToken) return;
     fetch_history(true); // autoFetch=true: skips if not idle
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vin, receiptToken, isUnlocked, paymentsEnabled]);
-
-  // Paywall gate
-  if (!isUnlocked && paymentsEnabled) {
-    return (
-      <div className="rounded-xl border border-white/[0.08] bg-[#161b22] overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-blue-400" />
-          <h3 className="text-xs font-semibold uppercase tracking-widest text-white/50">Ownership & Accident History</h3>
-          <Lock className="w-3.5 h-3.5 text-white/30 ml-auto" />
-        </div>
-        <div className="p-5">
-          <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] p-4 text-center space-y-3">
-            <div className="flex justify-center gap-4 text-xs text-white/50">
-              <span className="flex items-center gap-1.5"><ShieldAlert className="w-3.5 h-3.5 text-amber-400" /> Theft records</span>
-              <span className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-red-400" /> Accidents</span>
-              <span className="flex items-center gap-1.5"><Car className="w-3.5 h-3.5 text-blue-400" /> Sale history</span>
-            </div>
-            <p className="text-xs text-white/30">NMVTIS-sourced — same data used by dealers and insurers.</p>
-            <button
-              onClick={onPaywallClick}
-              className="w-full py-2.5 rounded-lg bg-[#00d97e] text-black text-sm font-semibold hover:bg-[#00c070] transition-colors"
-            >
-              Unlock everything · $9.99
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  }, [vin, receiptToken]);
 
   // Idle — show fetch button
   if (fetchState === "idle") {

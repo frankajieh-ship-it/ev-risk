@@ -92,28 +92,53 @@ export async function notifyDealerOfLead(params: {
   const supabase = getSupabaseAdmin();
   if (!supabase) return;
 
-  // Match dealer by listing URL domain
-  const urlDomain = listingUrl ? extractDomain(listingUrl) : null;
-  if (!urlDomain) return;
+  // Path 1: match via dealership_id on the curated_deals row (covers third-party platform URLs)
+  let matched: Array<{ id: string; name: string; contact_email: string; status: string; website: string | null }> = [];
 
-  const { data: dealersWithWebsite } = await supabase
-    .from("dealerships")
-    .select("id, name, contact_email, status, website")
-    .in("status", ["active", "prospect"])
-    .not("contact_email", "is", null)
-    .limit(100);
+  if (listingUrl) {
+    const { data: deal } = await supabase
+      .from("curated_deals")
+      .select("dealership_id")
+      .eq("listing_url", listingUrl)
+      .eq("is_active", true)
+      .not("dealership_id", "is", null)
+      .maybeSingle();
 
-  if (!dealersWithWebsite?.length) return;
+    if (deal?.dealership_id) {
+      const { data: dealer } = await supabase
+        .from("dealerships")
+        .select("id, name, contact_email, status, website")
+        .eq("id", deal.dealership_id)
+        .in("status", ["active", "prospect"])
+        .not("contact_email", "is", null)
+        .maybeSingle();
 
-  const matched = dealersWithWebsite.filter((d) => {
-    if (!d.website) return false;
-    const dealerDomain = extractDomain(d.website);
-    return dealerDomain && urlDomain && (
-      dealerDomain === urlDomain ||
-      urlDomain.endsWith(`.${dealerDomain}`) ||
-      dealerDomain.endsWith(`.${urlDomain}`)
-    );
-  });
+      if (dealer) matched = [dealer];
+    }
+  }
+
+  // Path 2: fallback — match by listing URL domain against dealerships.website
+  if (!matched.length && listingUrl) {
+    const urlDomain = extractDomain(listingUrl);
+    if (urlDomain) {
+      const { data: dealersWithWebsite } = await supabase
+        .from("dealerships")
+        .select("id, name, contact_email, status, website")
+        .in("status", ["active", "prospect"])
+        .not("contact_email", "is", null)
+        .limit(100);
+
+      matched = (dealersWithWebsite ?? []).filter((d) => {
+        if (!d.website) return false;
+        const dealerDomain = extractDomain(d.website);
+        return dealerDomain && (
+          dealerDomain === urlDomain ||
+          urlDomain.endsWith(`.${dealerDomain}`) ||
+          dealerDomain.endsWith(`.${urlDomain}`)
+        );
+      });
+    }
+  }
 
   if (!matched.length) return;
 
@@ -156,7 +181,7 @@ export async function notifyDealerOfLead(params: {
         dealer_id: dealer.id,
         receipt_id: receiptId,
         vin: vin || null,
-        url_domain: urlDomain,
+        listing_url: listingUrl,
       },
     }).then(() => {}, () => {});
 

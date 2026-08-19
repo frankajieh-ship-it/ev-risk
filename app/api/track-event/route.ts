@@ -148,6 +148,7 @@ const VALID_EVENT_NAMES = [
   "paywall_dismissed",
   "checkout_started",
   "checkout_completed",
+  "checkout_cancelled",
   // Human Signal Events
   "page_visible_10s",
   "scroll_depth_25",

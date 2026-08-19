@@ -940,7 +940,7 @@ function ComparePageContent() {
     const hasAnySpec = Object.values(specA).some(v => v != null) || Object.values(specB).some(v => v != null);
     const labelA = result.optionA.label || "Option A";
     const labelB = result.optionB.label || "Option B";
-    const unlocked = isUnlocked || freeMode || !paymentsEnabled;
+    const unlocked = true;
     const displayPrice = getDisplayPriceForRegion("499", regionResolved === "UK" ? "UK" : "US");
 
     // Real-world context (client-side formulas, no API)
@@ -1325,70 +1325,6 @@ function ComparePageContent() {
           </div>
         )}
 
-        {/* ── PAYWALL GATE ─────────────────────────────────────── */}
-        {!unlocked && (
-          <div className="bg-[#00d97e]/[0.04] rounded-2xl border-2 border-[#00d97e]/30 overflow-hidden">
-            {/* Blurred preview of deep analysis */}
-            <div className="relative">
-              <div className="pointer-events-none select-none blur-sm opacity-60 px-5 pt-5 space-y-3">
-                <div className="bg-[#161b22] rounded-xl border border-[#00d97e]/20 p-4">
-                  <p className="text-xs font-semibold text-white/50 uppercase mb-2">Deep Analysis — {labelA}</p>
-                  <p className="text-sm text-white/70">✓ Efficient for city driving — lower battery drain in stop-start</p>
-                  <p className="text-sm text-white/70 mt-1">✓ DC fast charging adequate for occasional road trips</p>
-                  <p className="text-sm text-white/50 mt-1">• Consider range anxiety on 150+ mile days without planning</p>
-                </div>
-                <div className="bg-[#161b22] rounded-xl border border-[#00d97e]/20 p-4">
-                  <p className="text-xs font-semibold text-white/50 uppercase mb-2">Deep Analysis — {labelB}</p>
-                  <p className="text-sm text-white/70">✓ Higher peak DC charging — faster top-ups on longer trips</p>
-                  <p className="text-sm text-white/70 mt-1">• Larger battery means more to charge overnight with L1</p>
-                </div>
-                <div className="bg-[#161b22] rounded-xl border border-[#00d97e]/20 p-4">
-                  <p className="text-xs font-semibold text-white/70 mb-2">Verdict: What would actually change?</p>
-                  <p className="text-sm text-white/70">→ Daily charging time increases by ~2 hours with L1</p>
-                  <p className="text-sm text-white/70 mt-1">→ Road trip planning effort differs significantly</p>
-                </div>
-              </div>
-              {/* Lock overlay */}
-              <div className="absolute inset-0 flex items-center justify-center bg-[#161b22]/40 backdrop-blur-[1px]">
-                <Lock className="w-8 h-8 text-[#00d97e]/50 opacity-80" />
-              </div>
-            </div>
-
-            {/* Unlock CTA */}
-            <div className="px-5 pb-5 pt-4 border-t border-indigo-100">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-[#00d97e] bg-[#00d97e]/10 px-2.5 py-1 rounded-full">OFFO Compare Pass</span>
-                <span className="text-base font-bold text-white">{displayPrice}</span>
-              </div>
-              <p className="text-sm font-semibold text-white mb-1">Unlock the full comparison</p>
-              <ul className="space-y-1.5 mb-3">
-                {[
-                  { icon: BarChart2, text: "Deep-dive analysis for both vehicles" },
-                  { icon: MessageSquare, text: "Verdict: what actually changes for your routine" },
-                ].map(({ icon: Icon, text }, i) => (
-                  <li key={i} className="flex items-center gap-2 text-xs text-white/60">
-                    <Icon className="w-3.5 h-3.5 text-[#00d97e]/50 shrink-0" />
-                    {text}
-                  </li>
-                ))}
-              </ul>
-              <p className="text-xs text-[#00d97e]/70 font-medium mb-3">See how these cars match your routine — one-time, no subscription.</p>
-              <button
-                onClick={handleCompareCheckout}
-                disabled={checkoutLoading || !compareSessionId}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r bg-[#00d97e] hover:bg-[#00c970] transition-all disabled:opacity-60 shadow-sm"
-              >
-                {checkoutLoading ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" />Redirecting...</>
-                ) : (
-                  <><ShieldCheck className="w-4 h-4" />See full analysis &amp; what changes — {displayPrice}</>
-                )}
-              </button>
-              {checkoutError && <p className="text-xs text-red-600 mt-2">{checkoutError}</p>}
-              {!compareSessionId && <p className="text-xs text-white/40 mt-2 text-center">Preparing checkout…</p>}
-            </div>
-          </div>
-        )}
 
         {/* ── UNLOCKED CONTENT ─────────────────────────────────── */}
         {unlocked && (

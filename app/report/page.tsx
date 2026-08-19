@@ -28,7 +28,6 @@ import DecisionResolution from "@/components/DecisionResolution";
 import { ResultPageLite } from "@/components/ResultPageLite";
 import { ResultPageV2 } from "@/components/ResultPageV2";
 import { ResultPageV2Split } from "@/components/ResultPageV2Split";
-import RoutineResultsPaywallCard from "@/components/routine/RoutineResultsPaywallCard";
 import { generateConfidenceData, type ConfidenceInputs } from "@/lib/confidence-calculator";
 import { transformToPresentation } from "@/lib/presentation-transformer";
 import { generateDebugData } from "@/lib/debug-helpers";
@@ -172,7 +171,7 @@ function ReportContent() {
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [reportV2Data, setReportV2Data] = useState<EvRiskReportV2 | null>(null);
   const [reportV2ContractData, setReportV2ContractData] = useState<EvRiskReportV2Contract | null>(null);
-  const [isPaid, setIsPaid] = useState(false);
+  const [isPaid] = useState(true);
   const [reportId, setReportId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -226,7 +225,7 @@ function ReportContent() {
     console.log("[Report Page] useEffect triggered:", { dataParam: !!dataParam, payloadParam: !!payloadParam });
 
     // Set paid status, reportId, and sessionId
-    setIsPaid(paidParam === "true");
+    // isPaid is always true — payments removed
     setReportId(reportIdParam);
 
     // Get session_id from URL params or sessionStorage

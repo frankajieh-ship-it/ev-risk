@@ -1,8 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Zap, CheckCircle, Camera, Lock, Gift, Shield, TrendingDown, AlertTriangle } from "lucide-react";
+import { Zap, CheckCircle, Camera, Lock, Gift, Shield, TrendingDown, AlertTriangle, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+
+interface OwnershipTeaser {
+  owners?: number | null;
+  accidentsReported?: "yes" | "no" | "unknown";
+  titleStatus?: "clean" | "salvage" | "rebuilt" | "lemon" | "unknown";
+}
 
 interface StarterPaywallCardProps {
   receiptToken: string;
@@ -12,8 +18,10 @@ interface StarterPaywallCardProps {
   onFullUpgradeClick?: () => void;
   onTrackEvent?: (name: string, data?: Record<string, unknown>) => void;
   onCreditRedeemed?: () => void;
+  onDismiss?: () => void;
   listingFirstSeenDays?: number;
   listingPriceDropCents?: number;
+  ownershipTeaser?: OwnershipTeaser;
 }
 
 const STARTER_FEATURES = [
@@ -23,6 +31,14 @@ const STARTER_FEATURES = [
   { icon: CheckCircle, text: "Negotiation talking points for this exact listing" },
 ];
 
+function hasUsefulTeaserData(t: OwnershipTeaser): boolean {
+  return (
+    (t.owners != null) ||
+    (t.accidentsReported === "yes" || t.accidentsReported === "no") ||
+    (t.titleStatus != null && t.titleStatus !== "unknown")
+  );
+}
+
 export default function StarterPaywallCard({
   receiptToken,
   scenarioId,
@@ -31,8 +47,10 @@ export default function StarterPaywallCard({
   onFullUpgradeClick,
   onTrackEvent,
   onCreditRedeemed,
+  onDismiss,
   listingFirstSeenDays,
   listingPriceDropCents,
+  ownershipTeaser,
 }: StarterPaywallCardProps) {
   const { session } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -41,7 +59,7 @@ export default function StarterPaywallCard({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    onTrackEvent?.("paywall_seen", { tier: "starter", scenario_id: scenarioId });
+    onTrackEvent?.("paywall_seen", { tier: "starter", scenario_id: scenarioId, paywall_version: "v2" });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRedeemCredit = async () => {
@@ -158,11 +176,25 @@ export default function StarterPaywallCard({
       <div className="bg-[#161b22] border border-[#00d97e]/30 rounded-2xl overflow-hidden">
         {/* Header */}
         <div className="bg-[#00d97e]/10 px-6 pt-6 pb-4 border-b border-white/[0.06]">
-          <div className="flex items-center gap-2 mb-2">
-            <Lock className="w-4 h-4 text-[#00d97e]" />
-            <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wide">
-              Unlock Your Report
-            </span>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Lock className="w-4 h-4 text-[#00d97e]" />
+              <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wide">
+                Unlock Your Report
+              </span>
+            </div>
+            {onDismiss && (
+              <button
+                onClick={() => {
+                  onTrackEvent?.("paywall_dismissed", { tier: "starter", scenario_id: scenarioId });
+                  onDismiss();
+                }}
+                className="p-1 rounded-lg text-white/25 hover:text-white/60 hover:bg-white/[0.06] transition-colors"
+                aria-label="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
           <h2 className="text-xl font-bold text-white leading-tight">
             Get the full analysis for this listing
@@ -191,6 +223,46 @@ export default function StarterPaywallCard({
             </div>
           ))}
         </div>
+
+        {/* Ownership history teaser — sourced from listing_summary, no fetch needed */}
+        {ownershipTeaser && hasUsefulTeaserData(ownershipTeaser) && (
+          <button
+            onClick={handlePay}
+            className="mx-6 mb-4 w-[calc(100%-3rem)] text-left bg-[#1a2535] border border-[#00d97e]/20 rounded-xl px-4 py-3 hover:border-[#00d97e]/40 transition-colors group"
+          >
+            <div className="flex items-center gap-2 mb-1.5">
+              <Lock className="w-3 h-3 text-[#00d97e] flex-shrink-0" />
+              <span className="text-xs font-semibold text-[#00d97e] uppercase tracking-wide">Ownership History</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {ownershipTeaser.owners != null && (
+                <span className="text-sm text-white/70">
+                  {ownershipTeaser.owners} prev. {ownershipTeaser.owners === 1 ? "owner" : "owners"}
+                </span>
+              )}
+              {ownershipTeaser.owners != null && (ownershipTeaser.accidentsReported === "yes" || ownershipTeaser.accidentsReported === "no" || (ownershipTeaser.titleStatus && ownershipTeaser.titleStatus !== "unknown")) && (
+                <span className="text-white/25">·</span>
+              )}
+              {ownershipTeaser.accidentsReported === "yes" && (
+                <span className="text-sm text-amber-400">1 accident reported</span>
+              )}
+              {ownershipTeaser.accidentsReported === "no" && (
+                <span className="text-sm text-white/70">No accidents</span>
+              )}
+              {ownershipTeaser.accidentsReported !== "unknown" && ownershipTeaser.titleStatus && ownershipTeaser.titleStatus !== "unknown" && (
+                <span className="text-white/25">·</span>
+              )}
+              {ownershipTeaser.titleStatus && ownershipTeaser.titleStatus !== "unknown" && (
+                <span className={`text-sm ${ownershipTeaser.titleStatus === "clean" ? "text-white/70" : "text-amber-400"}`}>
+                  {ownershipTeaser.titleStatus.charAt(0).toUpperCase() + ownershipTeaser.titleStatus.slice(1)} title
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-[#00d97e]/70 mt-1.5 group-hover:text-[#00d97e] transition-colors">
+              Unlock to see the full history →
+            </p>
+          </button>
+        )}
 
         {/* Social proof quote */}
         <div className="mx-6 mb-5 pl-3 border-l-2 border-[#00d97e]/50">

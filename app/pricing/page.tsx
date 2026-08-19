@@ -187,16 +187,12 @@ export default function PricingPage() {
                 a: "No. Paste a listing URL and get your analysis instantly — completely free, nothing recurring.",
               },
               {
-                q: "What if the analysis fails or I'm not satisfied?",
-                a: "If generation fails, your payment is automatically voided — you won't be charged. If you're unsatisfied with quality, email support@offolab.com within 48 hours for a full refund.",
-              },
-              {
                 q: "What listing sites are supported?",
                 a: "CarGurus, AutoTrader, Cars.com, Carvana, CarMax, Facebook Marketplace, Vroom, Edmunds, KBB, and more. Or paste listing text directly.",
               },
               {
-                q: "Do prices include tax?",
-                a: "Prices shown are in USD excluding applicable sales tax. Stripe calculates and collects tax at checkout where required.",
+                q: "Is this really free?",
+                a: "Yes — completely free. No account required, no credit card, no subscription. Paste a listing and get your analysis.",
               },
             ].map(({ q, a }) => (
               <div key={q}>

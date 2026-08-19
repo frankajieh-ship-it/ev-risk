@@ -358,6 +358,8 @@ export function useReceiptGeneration({
           lint_passed: result.lint_passed,
           fallback: !!result.fallback,
           generation_status: result.generation_status || "full",
+          input_method: data.input_mode || (data.listing_url ? "url" : data.listing_text ? "paste" : "structured"),
+          is_return_visit: result.source === "deal_cache" ? false : !!result.receipt?.receipt_id && result.generation_status !== "full",
         });
       } catch (err) {
         const isAbort = err instanceof DOMException && err.name === "AbortError";

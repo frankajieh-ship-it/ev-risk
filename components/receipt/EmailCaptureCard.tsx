@@ -20,9 +20,11 @@ interface EmailCaptureCardProps {
   onGarageSave?: () => void;
   /** When true, renders as a full unlock gate instead of a subtle nudge card */
   gateMode?: boolean;
+  /** Where the capture is placed — used to correlate email submissions in analytics */
+  captureSource?: "paywall" | "end_of_receipt" | "summary_card";
 }
 
-export default function EmailCaptureCard({ receiptId, onSubmit, onGarageSave, gateMode = false }: EmailCaptureCardProps) {
+export default function EmailCaptureCard({ receiptId, onSubmit, onGarageSave, gateMode = false, captureSource }: EmailCaptureCardProps) {
   const { trackEvent } = useEventTracking();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
@@ -55,7 +57,7 @@ export default function EmailCaptureCard({ receiptId, onSubmit, onGarageSave, ga
         const data = await res.json();
         if (data.success) {
           setStatus("success");
-          trackEvent("email_capture_submitted", { receipt_id: receiptId });
+          trackEvent("email_capture_submitted", { receipt_id: receiptId, capture_source: captureSource ?? null });
           onSubmit?.();
           onGarageSave?.();
         } else {
@@ -76,7 +78,7 @@ export default function EmailCaptureCard({ receiptId, onSubmit, onGarageSave, ga
         const data = await res.json();
         if (data.success) {
           setStatus("success");
-          trackEvent("email_capture_submitted", { receipt_id: receiptId });
+          trackEvent("email_capture_submitted", { receipt_id: receiptId, capture_source: captureSource ?? null });
           onSubmit?.();
           onGarageSave?.();
         } else {

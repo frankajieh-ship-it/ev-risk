@@ -170,6 +170,8 @@ interface SummaryData {
       paywall_shown: number;
       paywall_dismissed: number;
       checkout_started: number;
+      checkout_cancelled?: number;
+      checkout_session_expired?: number;
       teaser_to_paywall_rate: number;
       paywall_to_checkout_rate: number;
     };
@@ -236,7 +238,7 @@ interface SummaryData {
     crm_sends_by_sequence: Record<string, number>;
     suppressed: number;
   };
-  email_captures?: { submitted: number; sent: number; failed: number; auth_email_entered: number; auth_email_confirmed: number };
+  email_captures?: { submitted: number; sent: number; failed: number; auth_email_entered: number; auth_email_confirmed: number; by_source?: Record<string, number> };
   email_deliveries?: {
     total: number;
     sent: number;
@@ -447,6 +449,26 @@ interface SummaryData {
     charging_view_to_result: number;
     warranty_view_to_check: number;
     tco_view_to_result: number;
+  };
+  deal_card_engagement?: {
+    deals_page_views: number;
+    analyze_clicked: number;
+    external_listing_clicked: number;
+    saved: number;
+    filter_applied: number;
+    analyze_rate: number;
+    save_rate: number;
+  };
+  receipt_behavior?: {
+    sections_viewed: {
+      verdict: number;
+      risk_flags: number;
+      negotiation: number;
+      paywall: number;
+    };
+    scroll_to_paywall_rate: number;
+    avg_seconds_to_paywall: number | null;
+    input_methods: Record<string, number>;
   };
   page_reach?: {
     deals_views: number;
@@ -1560,13 +1582,19 @@ export default function AdminDashboard() {
             {/* Monetization Funnel */}
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Monetization Funnel</h3>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
                 <FunnelCard label="Teaser Shown" value={s.post_receipt_engagement.monetization.teaser_shown} color="amber" />
                 <FunnelCard label="Paywall Shown" value={s.post_receipt_engagement.monetization.paywall_shown} color="amber"
                   subtitle={`${s.post_receipt_engagement.monetization.teaser_to_paywall_rate}% of teaser`} />
                 <FunnelCard label="Paywall Dismissed" value={s.post_receipt_engagement.monetization.paywall_dismissed} color="red" />
                 <FunnelCard label="Checkout Started" value={s.post_receipt_engagement.monetization.checkout_started} color="green"
                   subtitle={`${s.post_receipt_engagement.monetization.paywall_to_checkout_rate}% of paywall`} />
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <FunnelCard label="Cancelled on Stripe" value={s.post_receipt_engagement.monetization.checkout_cancelled ?? 0} color="red"
+                  subtitle="hit back before paying" />
+                <FunnelCard label="Session Expired" value={s.post_receipt_engagement.monetization.checkout_session_expired ?? 0} color="red"
+                  subtitle="Stripe session timed out" />
                 <FunnelCard label="Paid" value={s.revenue?.total_transactions ?? 0} color="green"
                   subtitle={s.revenue ? `$${s.revenue.total_revenue.toFixed(2)} confirmed` : undefined} />
               </div>
@@ -1691,6 +1719,18 @@ export default function AdminDashboard() {
                   {Object.entries(s.email_list.crm_sends_by_sequence).sort(([, a], [, b]) => b - a).map(([seq, count]) => (
                     <span key={seq} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 rounded-full px-3 py-1 text-xs font-medium">
                       {seq.replace(/_/g, " ")} <span className="font-bold">{count}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {s.email_captures?.by_source && Object.keys(s.email_captures.by_source).length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Email captures by source</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(s.email_captures.by_source).sort(([, a], [, b]) => b - a).map(([src, count]) => (
+                    <span key={src} className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 rounded-full px-3 py-1 text-xs font-medium">
+                      {src.replace(/_/g, " ")} <span className="font-bold">{count}</span>
                     </span>
                   ))}
                 </div>
@@ -1879,6 +1919,53 @@ export default function AdminDashboard() {
               <FunnelCard label="Results Shown" value={s.tools_engagement.warranty_results} color="green" />
               <FunnelCard label="X Posts" value={s.tools_engagement.warranty_tweets} color="gray" />
               <FunnelCard label="View → Check" value={`${s.tools_engagement.warranty_view_to_check}%`} color="purple" />
+            </div>
+          </div>
+        )}
+
+        {/* Deal Card Engagement */}
+        {s.deal_card_engagement && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">🃏 Deal Card Engagement</h2>
+            <p className="text-sm text-gray-500 mb-4">What users do when browsing the /deals page</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <FunnelCard label="Deals Page Views" value={s.deal_card_engagement.deals_page_views} color="blue" />
+              <FunnelCard label="Run Analysis Clicked" value={s.deal_card_engagement.analyze_clicked} color="green" />
+              <FunnelCard label="External Listing Clicked" value={s.deal_card_engagement.external_listing_clicked} color="indigo" />
+              <FunnelCard label="Deal Saved" value={s.deal_card_engagement.saved} color="purple" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <FunnelCard label="Filter Applied" value={s.deal_card_engagement.filter_applied} color="yellow" />
+              <FunnelCard label="Analyze Rate" value={`${s.deal_card_engagement.analyze_rate}%`} color="green" />
+              <FunnelCard label="Save Rate" value={`${s.deal_card_engagement.save_rate}%`} color="purple" />
+            </div>
+          </div>
+        )}
+
+        {/* Receipt Behavior */}
+        {s.receipt_behavior && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">📜 Receipt Behavior</h2>
+            <p className="text-sm text-gray-500 mb-4">How far users read and how they submit listings</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Section Scroll Depth</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <FunnelCard label="Verdict Seen" value={s.receipt_behavior.sections_viewed.verdict} color="green" />
+              <FunnelCard label="Risk Flags Seen" value={s.receipt_behavior.sections_viewed.risk_flags} color="yellow" />
+              <FunnelCard label="Negotiation Seen" value={s.receipt_behavior.sections_viewed.negotiation} color="indigo" />
+              <FunnelCard label="Paywall Seen" value={s.receipt_behavior.sections_viewed.paywall} color="red" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <FunnelCard label="Scroll-to-Paywall Rate" value={`${s.receipt_behavior.scroll_to_paywall_rate}%`} color="red" />
+              <FunnelCard label="Avg Secs to Paywall" value={s.receipt_behavior.avg_seconds_to_paywall ?? "—"} color="yellow" />
+            </div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Input Methods</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {Object.entries(s.receipt_behavior.input_methods).length > 0
+                ? Object.entries(s.receipt_behavior.input_methods).map(([method, count]) => (
+                    <FunnelCard key={method} label={method} value={count} color="blue" />
+                  ))
+                : <p className="text-sm text-gray-400 col-span-4">No data yet — fires on next receipt generation</p>
+              }
             </div>
           </div>
         )}

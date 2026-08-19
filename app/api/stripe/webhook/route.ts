@@ -851,6 +851,23 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
       .eq("status", "pending");
   }
 
+  // Record abandonment — helps us see where in Stripe users dropped off
+  try {
+    await supabase.from("user_events").insert({
+      event_name: "checkout_session_expired",
+      event_data: {
+        stripe_session_id: session.id,
+        scenario_id: scenarioId,
+        pack_tier: packTier,
+        anon_id: anonId,
+        // payment_status: null means user never entered card; "unpaid" means they started but didn't finish
+        payment_status: session.payment_status ?? null,
+      },
+      page_path: "/api/stripe/webhook",
+      timestamp: new Date().toISOString(),
+    });
+  } catch { /* non-critical */ }
+
   // Resolve email
   let email = session.customer_details?.email || null;
   if (!email && anonId) {

@@ -72,9 +72,10 @@ interface DealCardProps {
   rank?: number;
   totalDeals?: number;
   onAnalyzeClick?: () => void;
+  onTrackEvent?: (name: string, data?: Record<string, unknown>) => void;
 }
 
-export default function DealCard({ deal, compact = false, preview = false, rank, totalDeals, onAnalyzeClick }: DealCardProps) {
+export default function DealCard({ deal, compact = false, preview = false, rank, totalDeals, onAnalyzeClick, onTrackEvent }: DealCardProps) {
   const { isAuthenticated, session } = useAuth();
 
   const priceStr = deal.price ? `$${deal.price.toLocaleString()}` : "Price unlisted";
@@ -110,6 +111,14 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
     }
     setSaved(true);
     saveLocally(deal.id);
+    onTrackEvent?.("deal_saved", {
+      deal_id: deal.id,
+      make: deal.make,
+      model: deal.model,
+      year: deal.year,
+      price: deal.price,
+      rank,
+    });
 
     const label = deal.vehicle_label || [deal.year, deal.make, deal.model].filter(Boolean).join(" ") || "EV Listing";
 
@@ -242,8 +251,31 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
         {/* Actions */}
         <div className="mt-auto flex flex-col gap-1.5 pt-1">
           <Link
-            href={`/receipt?url=${encodeURIComponent(deal.listing_url)}${deal.vin ? `&vin=${encodeURIComponent(deal.vin)}` : ""}&src=deal_watch`}
-            onClick={onAnalyzeClick}
+            href={(() => {
+              const p = new URLSearchParams();
+              p.set("url", deal.listing_url);
+              p.set("src", "deal_watch");
+              if (deal.vin) p.set("vin", deal.vin);
+              if (deal.make) p.set("make", deal.make);
+              if (deal.model) p.set("model", deal.model);
+              if (deal.year) p.set("year", String(deal.year));
+              if (deal.trim) p.set("trim", deal.trim);
+              if (deal.mileage) p.set("mileage", String(deal.mileage));
+              if (deal.price) p.set("price", String(deal.price));
+              return `/receipt?${p.toString()}`;
+            })()}
+            onClick={() => {
+              onAnalyzeClick?.();
+              onTrackEvent?.("deal_card_analyze_clicked", {
+                deal_id: deal.id,
+                make: deal.make,
+                model: deal.model,
+                year: deal.year,
+                price: deal.price,
+                rank,
+                domain: deal.url_domain,
+              });
+            }}
             className="flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg transition-colors bg-[#00d97e]/10 hover:bg-[#00d97e]/20 border border-[#00d97e]/20 text-[#00d97e]"
           >
             Run Analysis
@@ -252,6 +284,15 @@ export default function DealCard({ deal, compact = false, preview = false, rank,
             href={deal.listing_url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => onTrackEvent?.("deal_listing_external_clicked", {
+              deal_id: deal.id,
+              make: deal.make,
+              model: deal.model,
+              year: deal.year,
+              price: deal.price,
+              rank,
+              domain: deal.url_domain,
+            })}
             className="flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold rounded-lg transition-colors bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/50"
           >
             <ExternalLink className="w-3 h-3" />

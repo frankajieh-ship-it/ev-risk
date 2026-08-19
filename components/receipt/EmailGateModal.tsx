@@ -75,7 +75,8 @@ export default function EmailGateModal({
 
       if (data.success) {
         setState("success");
-        trackEvent("email_gate_submitted", { email_hash: trimmed.length });
+        trackEvent("email_gate_submitted", { email_hash: trimmed.length, capture_source: "email_gate" });
+        trackEvent("email_capture_submitted", { receipt_id: receiptId, capture_source: "email_gate" });
         localStorage.setItem("offo_email_captured", "1");
 
         // Brief success state before closing

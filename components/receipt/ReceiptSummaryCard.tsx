@@ -148,6 +148,7 @@ export default function ReceiptSummaryCard({
       if (data.success) {
         localStorage.setItem("offo_email_captured", "1");
         setEmailGateState("success");
+        trackEvent("email_capture_submitted", { receipt_id: receiptId, capture_source: "summary_card" });
         setTimeout(() => onEmailCapture?.(), 600);
       } else {
         setEmailGateState("error");

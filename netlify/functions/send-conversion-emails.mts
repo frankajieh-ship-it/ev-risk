@@ -68,5 +68,6 @@ export default async function handler() {
   }
 }
 
-// Paused — no automated emails until sequences are reviewed and approved.
-export const config: Config = {};
+export const config: Config = {
+  schedule: "0 */4 * * *", // every 4 hours — catches the 23–48h paywall_seen window within 2 runs
+};

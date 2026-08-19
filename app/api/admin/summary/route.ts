@@ -1138,6 +1138,16 @@ export async function GET(request: NextRequest) {
 
     // Count both event names: receipt page fires "email_checklist_submit",
     // EmailCaptureCard fires "email_capture_submitted" — both mean "user submitted email"
+    const captureSubmitEvents = filteredUserEvents.filter(
+      (e) => e.event_name === "email_capture_submitted" || e.event_name === "email_gate_submitted"
+    );
+    const captureBySource = captureSubmitEvents.reduce<Record<string, number>>((acc, e) => {
+      const src = (e.event_data as Record<string, unknown>)?.capture_source as string | undefined;
+      const key = src ?? "unknown";
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+
     const email_captures = {
       submitted: countEvents(filteredUserEvents, "email_checklist_submit") +
                  countEvents(filteredUserEvents, "email_capture_submitted"),
@@ -1146,6 +1156,8 @@ export async function GET(request: NextRequest) {
       // Auth-flow email events (magic link login via LoginModal + auth callback)
       auth_email_entered: countEvents(filteredUserEvents, "email_entry_submitted"),
       auth_email_confirmed: countEvents(filteredUserEvents, "email_confirmed"),
+      // Breakdown by where the user was when they submitted
+      by_source: captureBySource,
     };
 
     // -----------------------------------------------------------------------
@@ -1262,6 +1274,8 @@ export async function GET(request: NextRequest) {
         paywall_shown: paywallShown,
         paywall_dismissed: paywallDismissed,
         checkout_started: checkoutStarted,
+        checkout_cancelled: countEvents(filteredUserEvents, "checkout_cancelled"),
+        checkout_session_expired: countEvents(filteredUserEvents, "checkout_session_expired"),
         teaser_to_paywall_rate: buyerPassTeaserShown > 0
           ? Math.round((paywallShown / buyerPassTeaserShown) * 1000) / 10
           : 0,
@@ -1283,6 +1297,62 @@ export async function GET(request: NextRequest) {
         history_viewed: receiptHistoryViewed,
         model_info_link_clicked: countEvents(filteredUserEvents, "model_info_link_clicked"),
       },
+    };
+
+    // -----------------------------------------------------------------------
+    // Deal card engagement (new events from DealCard tracking)
+    // -----------------------------------------------------------------------
+
+    const dealCardAnalyzeClicked = countEvents(filteredUserEvents, "deal_card_analyze_clicked");
+    const dealListingExternalClicked = countEvents(filteredUserEvents, "deal_listing_external_clicked");
+    const dealSaved = countEvents(filteredUserEvents, "deal_saved");
+    const dealsPageViewed = countEvents(filteredUserEvents, "deals_page_viewed");
+    const dealsFilterApplied = countEvents(filteredUserEvents, "deals_filter_applied");
+
+    const deal_card_engagement = {
+      deals_page_views: dealsPageViewed,
+      analyze_clicked: dealCardAnalyzeClicked,
+      external_listing_clicked: dealListingExternalClicked,
+      saved: dealSaved,
+      filter_applied: dealsFilterApplied,
+      analyze_rate: dealsPageViewed > 0 ? Math.round((dealCardAnalyzeClicked / dealsPageViewed) * 1000) / 10 : 0,
+      save_rate: dealsPageViewed > 0 ? Math.round((dealSaved / dealsPageViewed) * 1000) / 10 : 0,
+    };
+
+    // -----------------------------------------------------------------------
+    // Receipt behavior (new events: section scroll, time-to-paywall, input method)
+    // -----------------------------------------------------------------------
+
+    const sectionVerdictViewed = filteredUserEvents.filter(e => e.event_name === "receipt_section_viewed" && (e.details as Record<string, unknown>)?.section === "verdict").length;
+    const sectionPaywallViewed = filteredUserEvents.filter(e => e.event_name === "receipt_section_viewed" && (e.details as Record<string, unknown>)?.section === "paywall").length;
+    const sectionNegotiationViewed = filteredUserEvents.filter(e => e.event_name === "receipt_section_viewed" && (e.details as Record<string, unknown>)?.section === "negotiation").length;
+    const sectionRiskFlagsViewed = filteredUserEvents.filter(e => e.event_name === "receipt_section_viewed" && (e.details as Record<string, unknown>)?.section === "risk_flags").length;
+
+    const timeToPaywallEvents = filteredUserEvents.filter(e => e.event_name === "receipt_time_to_paywall" && typeof (e.details as Record<string, unknown>)?.seconds === "number");
+    const avgTimeToPaywall = timeToPaywallEvents.length > 0
+      ? Math.round(timeToPaywallEvents.reduce((sum, e) => sum + ((e.details as Record<string, unknown>).seconds as number), 0) / timeToPaywallEvents.length)
+      : null;
+
+    const inputMethodCounts: Record<string, number> = {};
+    filteredUserEvents
+      .filter(e => e.event_name === "receipt_generate" && (e.details as Record<string, unknown>)?.input_method)
+      .forEach(e => {
+        const m = (e.details as Record<string, unknown>).input_method as string;
+        inputMethodCounts[m] = (inputMethodCounts[m] || 0) + 1;
+      });
+
+    const receipt_behavior = {
+      sections_viewed: {
+        verdict: sectionVerdictViewed,
+        risk_flags: sectionRiskFlagsViewed,
+        negotiation: sectionNegotiationViewed,
+        paywall: sectionPaywallViewed,
+      },
+      scroll_to_paywall_rate: sectionVerdictViewed > 0
+        ? Math.round((sectionPaywallViewed / sectionVerdictViewed) * 1000) / 10
+        : 0,
+      avg_seconds_to_paywall: avgTimeToPaywall,
+      input_methods: inputMethodCounts,
     };
 
     // -----------------------------------------------------------------------
@@ -2236,6 +2306,8 @@ export async function GET(request: NextRequest) {
       evfit_funnel,
       homepage_funnel,
       tools_engagement,
+      deal_card_engagement,
+      receipt_behavior,
       page_reach,
       user_segments,
       entry_mode,

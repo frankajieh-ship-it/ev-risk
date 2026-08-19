@@ -280,7 +280,15 @@ function DealsPageInner() {
                       setLocationState(localLocationState);
                       setSort(localSort);
                       setAdjustExpanded(false);
-                      trackEvent("deals_filter_applied", { make: localMake, price_max: localPriceMax, mileage_max: localMileageMax });
+                      trackEvent("deals_filter_applied", {
+                        make: localMake !== "All Makes" ? localMake : null,
+                        price_max: localPriceMax,
+                        mileage_max: localMileageMax,
+                        year_min: localYearMin,
+                        year_max: localYearMax,
+                        state: localLocationState !== "Any State" ? localLocationState : null,
+                        sort: localSort,
+                      });
                     }}
                     className="px-4 py-2 bg-[#00d97e] text-[#0d1117] rounded-xl text-sm font-semibold hover:bg-[#00f090] transition-colors"
                   >
@@ -345,6 +353,7 @@ function DealsPageInner() {
                   deal={deal}
                   rank={index + 1 + (page - 1) * 20}
                   totalDeals={total}
+                  onTrackEvent={(name, data) => { trackEvent(name, data as Parameters<typeof trackEvent>[1]); }}
                 />
               ))}
             </div>
