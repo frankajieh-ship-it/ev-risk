@@ -278,3 +278,70 @@ export function buildProductUpdateReportUpgrade(ctx: ProductUpdateContext): { su
     html: emailWrapper(body),
   };
 }
+
+export function buildProductUpdateFreeAugust2026(ctx: ProductUpdateContext): { subject: string; html: string } {
+  const { email, firstName } = ctx;
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+
+  const body = `
+    ${OFFO_HEADER}
+
+    <p style="font-size:15px;color:#c9d1d9;margin:0 0 20px;">${greeting}</p>
+
+    <p style="font-size:15px;color:#c9d1d9;margin:0 0 20px;">
+      We removed the paywall. Everything on OFFO is free right now — no account, no credit card, no catch.
+    </p>
+
+    <!-- What's free -->
+    <div style="background:#161b22;border-radius:12px;padding:20px 22px;margin-bottom:14px;border:1px solid #30363d;">
+      <p style="margin:0 0 10px;font-size:16px;font-weight:700;color:#e6edf3;">Everything. Free.</p>
+      <table style="width:100%;border-collapse:collapse;">
+        ${[
+          "Full AI risk verdict — GREEN / YELLOW / RED",
+          "Battery health assessment",
+          "Deal quality score + price vs. market",
+          "Open NHTSA recall check",
+          "Negotiation insights & seller questions",
+          "Ownership & accident history (when VIN available)",
+          "Deep dive analysis",
+          "EV Routine Fit — personalized match to how you drive",
+        ].map(f => `
+        <tr>
+          <td style="padding:5px 0;vertical-align:top;width:18px;">
+            <span style="color:#00d97e;font-size:14px;font-weight:700;">✓</span>
+          </td>
+          <td style="padding:5px 0;font-size:14px;color:#c9d1d9;">${f}</td>
+        </tr>`).join("")}
+      </table>
+    </div>
+
+    <!-- Why -->
+    <div style="background:#161b22;border-radius:12px;padding:20px 22px;margin-bottom:24px;border:1px solid #30363d;">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#00d97e;text-transform:uppercase;letter-spacing:0.08em;">Why free?</p>
+      <p style="font-size:14px;color:#c9d1d9;margin:0;">
+        We're building the next major version — full ownership history integration and deeper battery verification. While that's in progress, we'd rather have buyers using the tool than sitting behind a paywall. Free until the next update ships.
+      </p>
+    </div>
+
+    <!-- CTA -->
+    <div style="text-align:center;margin-bottom:28px;">
+      ${ctaButton("Run a free analysis →", `${SITE_URL}/receipt?utm_source=email&utm_medium=product_update&utm_campaign=free_aug2026`)}
+    </div>
+
+    <div style="background:rgba(0,217,126,0.07);border-radius:10px;padding:14px 18px;border:1px solid rgba(0,217,126,0.18);margin-bottom:8px;">
+      <p style="font-size:13px;color:#86efac;margin:0;">
+        Paste any CarGurus, AutoTrader, or Cars.com listing — results in under 30 seconds.
+      </p>
+    </div>
+
+    <p style="font-size:13px;color:#8b949e;margin:20px 0 0;">
+      Reply to this email with a listing you're considering. We read every reply.
+    </p>
+
+    ${emailFooter(email, "product_update")}`;
+
+  return {
+    subject: "OFFO is now fully free — no paywall, no account needed",
+    html: emailWrapper(body),
+  };
+}
