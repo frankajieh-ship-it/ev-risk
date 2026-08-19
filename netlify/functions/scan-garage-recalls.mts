@@ -178,6 +178,5 @@ export default async function handler() {
   });
 }
 
-export const config: Config = {
-  schedule: "0 13 * * *",
-};
+// Schedule disabled — recall emails paused
+export const config: Config = {};
