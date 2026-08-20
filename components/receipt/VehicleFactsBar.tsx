@@ -193,14 +193,14 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
   };
 
   const recallCell: Cell = {
-    label: "Open Recalls",
+    label: "Recall Campaigns",
     status: recallStatus_cell,
     detail: recallStatus === "done"
       ? serviceRecalls.length === 0 && otaRecalls.length === 0
-        ? "No recalls found"
+        ? "None on record"
         : serviceRecalls.length === 0
-        ? `${otaRecalls.length} OTA-resolved`
-        : `${serviceRecalls.length} need service${otaRecalls.length > 0 ? ` · ${otaRecalls.length} OTA-resolved` : ""}`
+        ? `${otaRecalls.length} on record (OTA)`
+        : `${serviceRecalls.length} on record${otaRecalls.length > 0 ? ` · ${otaRecalls.length} OTA` : ""}`
       : "Checking…",
     free: true,
   };
@@ -335,8 +335,8 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
           >
             <AlertTriangle className="w-3 h-3" />
             {serviceRecalls.length > 0
-              ? `${serviceRecalls.length} recall${serviceRecalls.length !== 1 ? "s" : ""} need service — see details`
-              : `${otaRecalls.length} recall${otaRecalls.length !== 1 ? "s" : ""} — all resolved via OTA update`
+              ? `${serviceRecalls.length} campaign${serviceRecalls.length !== 1 ? "s" : ""} on record for this model — see details`
+              : `${otaRecalls.length} campaign${otaRecalls.length !== 1 ? "s" : ""} on record — all OTA-resolved`
             }
             <span>{recallExpanded ? "▲" : "▼"}</span>
           </button>
@@ -376,10 +376,10 @@ export default function VehicleFactsBar({ receipt, isUnlocked = false, paymentsE
                   </p>
                 </div>
               )}
-              <p className="text-xs text-white/25 pt-1 border-t border-white/5">
-                Confirm your specific VIN&apos;s open recall status at{" "}
-                <a href="https://www.nhtsa.gov/vehicle-safety/recalls#vin-search" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/50">nhtsa.gov/recalls</a>
-                {" "}— this is the only authoritative source per vehicle.
+              <p className="text-xs text-amber-400/60 pt-1.5 border-t border-white/5">
+                These are model-year recall campaigns from NHTSA — not VIN-specific. Your vehicle may have already had these repaired.{" "}
+                <a href="https://www.nhtsa.gov/vehicle-safety/recalls#vin-search" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-400">Check your VIN at nhtsa.gov/recalls</a>
+                {" "}to see what&apos;s actually open for this specific car.
               </p>
             </div>
           )}

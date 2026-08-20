@@ -59,14 +59,14 @@ const DCFC_CAPABLE_MAKES = new Set([
 ]);
 
 // --- EVs known to LACK DCFC (or have very limited/optional DCFC) ---
+// NOTE: Only list models where DCFC is absent on ALL or nearly all trims/years.
+// The 2022+ Chevrolet Bolt EV/EUV added standard CCS DCFC — do NOT list Bolt here.
 const NO_DCFC_MODELS: Record<string, string[]> = {
-  nissan: ["leaf"],        // Base Leaf trims before 2018 lack CHAdeMO DCFC; later trims optional
+  nissan: ["leaf"],        // Base Leaf trims lack CHAdeMO; later trims optional — treat as unknown
   fiat: ["500e"],          // Pre-2024 500e has no DCFC
   mazda: ["mx-30"],        // No DCFC port
   smart: ["eq fortwo", "eq forfour"],  // No DCFC
   ford: ["focus electric"],  // No DCFC (J1772 AC only)
-  chevrolet: ["bolt", "bolt ev", "bolt euv"],  // No DCFC on Bolt (CCS optional on later models, not standard on most)
-  chevy: ["bolt", "bolt ev", "bolt euv"],
   mini: ["cooper se", "electric"],  // No DCFC on early models
 };
 
@@ -181,6 +181,9 @@ function getDcfcSupport(makeLower: string, modelLower: string): DcfcSupport {
     subaru: ["solterra"],
     honda: ["prologue"],
     acura: ["zdx"],
+    // 2022+ Bolt EV/EUV has standard CCS DC fast charging (up to 55 kW)
+    chevrolet: ["bolt", "bolt ev", "bolt euv"],
+    chevy: ["bolt", "bolt ev", "bolt euv"],
   };
 
   const dcfcModels = knownDcfcModels[makeLower];

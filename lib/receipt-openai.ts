@@ -233,6 +233,7 @@ SIGNAL RULES:
 - Hard blockers: only if strong evidence. Evidence bonuses: only if listing explicitly shows it. Evidence penalties: if listing does NOT address it.
 - "Not mentioned" = the corresponding "missing" or "unclear" penalty applies.
 - TITLE: The title_status in KNOWN DETAILS is pre-extracted from the listing — trust it. if listing_summary.title_status="clean" → include clean_title_explicit. If "salvage", "rebuilt", or "lemon" → include title_salvage. If "unknown" → include title_status_unclear. Only override title_status to "lemon" if the History section of the listing explicitly states a lemon title was issued — do NOT infer from legal boilerplate, footer disclosures, or generic lemon law mentions.
+- dcfc_required_but_absent: ONLY emit this when DCFC_SUPPORT=no (the vehicle is confirmed to lack DC fast charging hardware). NEVER emit it when DCFC_SUPPORT=yes or DCFC_SUPPORT=unknown. A slow DCFC speed (e.g. 55 kW) is NOT a reason to emit this signal — it means the vehicle HAS fast charging.
 - Do NOT include dcfc_unclear, fees_unclear, or tire_condition_unclear — these are not scored.`;
 
 // --- Prompt Sanitization ---
