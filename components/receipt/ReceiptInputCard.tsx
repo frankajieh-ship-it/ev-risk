@@ -49,6 +49,8 @@ const EV_CATALOG: Record<string, string[]> = {
   "Toyota":       ["bZ4X"],
   "Subaru":       ["Solterra"],
   "Mini":         ["Cooper SE", "Countryman"],
+  "Honda":        ["Prologue"],
+  "Acura":        ["ZDX"],
   "Other":        [],
 };
 

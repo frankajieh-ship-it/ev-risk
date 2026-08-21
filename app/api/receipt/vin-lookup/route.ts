@@ -71,6 +71,9 @@ const EV_SPECS: Record<string, EvSpecEntry> = {
   "gmc|hummer ev":           { battery_kwh: 212,  range_mi: 329, dc_fast_kw: 350, efficiency_mi_per_kwh: 1.6 },
   // Cadillac
   "cadillac|lyriq":          { battery_kwh: 102,  range_mi: 314, dc_fast_kw: 190, efficiency_mi_per_kwh: 2.9 },
+  // Honda / Acura (GM Ultium platform)
+  "honda|prologue":          { battery_kwh: 85,   range_mi: 296, dc_fast_kw: 150, efficiency_mi_per_kwh: 3.2 },
+  "acura|zdx":               { battery_kwh: 102,  range_mi: 313, dc_fast_kw: 190, efficiency_mi_per_kwh: 2.9 },
 };
 
 /**
