@@ -12,22 +12,22 @@ A single conversational agent that calls OFFO's existing capabilities as tools w
 - **Exists:** EVFit matching, VIN decode + history + recalls, OBD SOH scanning, the Copart 4-stage risk pipeline, negotiation generators, chat persistence (`chat_messages`, advisor sessions).
 - **Missing:** the current `/api/chat` is a fixed 4-model pipeline with no tool calling, and it can't reach any of the above. That orchestration layer is the build.
 
-## MVP scope (5 tools)
+> **The requirements are in [PRD.md](PRD.md)** (target customer, report contents, acceptance criteria). Feature mapping: [specs/reuse-inventory.md](specs/reuse-inventory.md).
+
+## MVP scope (5 tools) — revised 2026-10-19, see D-005
 | Tool | Wraps | Data owner |
 |---|---|---|
-| `match_evs` | EVFit engine | Data-Intel |
+| `analyze_listing` | Listing extraction + pricing/deal quality | Data-Intel |
 | `lookup_vin` | VIN decode + VINAudit/VehicleDatabases history + NHTSA recalls | Data-Intel |
-| `battery_health` | SOH computation | Data-Intel |
-| `auction_risk` | Copart pipeline | Tech Lead |
-| `draft_seller_message` | Negotiation generators | Product-UX (copy) |
+| `battery_health` | SOH computation + battery warranty | Data-Intel |
+| `match_fit` | EVFit routine fit + weather/chargers + ownership cost | Data-Intel |
+| `draft_seller_message` | Dealer questions + messaging templates | Product-UX (copy) |
 
 ## Out of scope for MVP
-Garage news, listing-photo fixes, the V1 report schema, dealer portal changes.
+Copart auction risk, garage news, listing-photo fixes, the V1 report schema, dealer portal changes.
 
 ## Success criteria
-- In 5 moderated sessions, the buyer reaches a confident go/no-go on a specific vehicle without leaving the chat
-- Agent turn p95 under 15s, with cost per session tracked
-- At least 3 of 10 interviewed buyers say they'd pay (price tested by Growth)
+See the acceptance criteria in [PRD.md](PRD.md).
 
 ## Open questions
 - Price and packaging → Growth + CEO, by 2026-11-14
