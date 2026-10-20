@@ -42,7 +42,7 @@ describe("Voice Linter - Banned Phrases", () => {
     const text = "The charger count in this area is growing rapidly.";
     const result = lintVoice(text);
     expect(result.ok).toBe(false);
-    expect(result.hits[0].rule).toContain("charger count");
+    expect(result.hits[0].rule.toLowerCase()).toContain("charger count");
   });
 
   it("should flag 'better than gas'", () => {

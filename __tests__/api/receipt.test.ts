@@ -107,7 +107,8 @@ function makeBody(overrides: Record<string, unknown> = {}) {
 function makeRequest(body: unknown, headers: Record<string, string> = {}) {
   return new NextRequest("http://localhost/api/receipt", {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...headers },
+    // Browser UA so lib/bot-guard.ts checkUserAgent() lets the request reach validation
+    headers: { "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (jest)", ...headers },
     body: JSON.stringify(body),
   });
 }

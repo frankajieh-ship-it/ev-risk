@@ -337,19 +337,24 @@ describe("classifyVehicle — DCFC support", () => {
     expect(result.dcfcSupport).toBe("yes");
   });
 
-  test("Ford Focus Electric has DCFC support = no", () => {
+  // DCFC on these models depends on model year / trim, and classifyVehicle() has no
+  // year input, so the only honest answer is "unknown" (data-audit §3: never guess).
+  // Facts (Data-Intel 2026-10-20): Bolt optional 2017–2020, standard 2021 Premier,
+  // standard all 2022+. Leaf and Focus Electric: to confirm per year (QA-12).
+  // test.failing = known open bug; flip to test() once the classifier is year-aware.
+  test.failing("QA-12: Ford Focus Electric DCFC is unknown without a model year", () => {
     const result = classifyVehicle("Ford", "Focus Electric");
-    expect(result.dcfcSupport).toBe("no");
+    expect(result.dcfcSupport).toBe("unknown");
   });
 
-  test("Chevrolet Bolt has DCFC support = no", () => {
+  test.failing("QA-3: Chevrolet Bolt EV DCFC is unknown without a model year", () => {
     const result = classifyVehicle("Chevrolet", "Bolt EV");
-    expect(result.dcfcSupport).toBe("no");
+    expect(result.dcfcSupport).toBe("unknown");
   });
 
-  test("Nissan Leaf has DCFC support = no", () => {
+  test.failing("QA-12: Nissan Leaf DCFC is unknown without a model year", () => {
     const result = classifyVehicle("Nissan", "Leaf");
-    expect(result.dcfcSupport).toBe("no");
+    expect(result.dcfcSupport).toBe("unknown");
   });
 
   test("Hyundai Ioniq 5 has DCFC support = yes", () => {

@@ -5,6 +5,7 @@
  * Loads report from database and redirects to legacy report page
  */
 
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { notFound, redirect } from "next/navigation";
 
@@ -48,12 +49,12 @@ export default async function ReportPage({
               {error instanceof Error ? error.message : String(error)}
             </pre>
           )}
-          <a
+          <Link
             href="/"
             className="text-blue-600 hover:text-blue-700 underline"
           >
             Return to Home
-          </a>
+          </Link>
         </div>
       </div>
     );

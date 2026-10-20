@@ -122,12 +122,12 @@ export default async function LocalCityPage({ params }: PageProps) {
       <div className="max-w-2xl mx-auto px-4 py-10">
         {/* Header */}
         <div className="flex items-center gap-2 mb-8">
-          <a
+          <Link
             href="/"
             className="text-xs font-medium text-blue-600 uppercase tracking-wider hover:text-blue-800 transition-colors"
           >
             OFFO
-          </a>
+          </Link>
           <span className="text-gray-300">/</span>
           <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
             {city.name}

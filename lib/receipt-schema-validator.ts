@@ -87,7 +87,7 @@ export const RedditDraftSchema = z.object({
   body_facts: z.array(z.string().min(5).max(200)).min(1).max(5),
   body_uncertainty: z.array(z.string().min(5).max(200)).max(3),
   body_next_steps: z.array(z.string().min(5).max(200)).max(3),
-  questions: z.array(z.string().min(10).max(200)).min(1).max(2),
+  questions: z.array(z.string().min(10).max(200)).min(1).max(1), // OFFO rule: exactly 1 question (QA-6)
   style: RedditDraftStyleSchema,
 });
 

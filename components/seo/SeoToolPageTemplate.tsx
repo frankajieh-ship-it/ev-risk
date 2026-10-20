@@ -42,6 +42,7 @@ import {
   MessageSquare,
   ThumbsUp,
 } from "lucide-react";
+import Link from "next/link";
 import type { SeoPageContent } from "@/content/types";
 import type { ComponentType } from "react";
 import JsonLd from "./JsonLd";
@@ -141,12 +142,12 @@ export default function SeoToolPageTemplate({
         {/* Header */}
         <div className="flex items-center gap-2 mb-8">
           <Receipt className="w-5 h-5 text-blue-600" />
-          <a
+          <Link
             href="/"
             className="text-xs font-medium text-blue-600 uppercase tracking-wider hover:text-blue-800 transition-colors"
           >
             OFFO
-          </a>
+          </Link>
         </div>
 
         {/* Hero */}
