@@ -25,9 +25,9 @@ export function lazyLoad<T extends React.ComponentType<any>>(
     const endMeasure = debugMeasure(`Lazy load: ${name}`);
 
     try {
-      const module = await importFunc();
+      const loaded = await importFunc();
       endMeasure();
-      return module;
+      return loaded;
     } catch (error) {
       endMeasure();
       debugWarn(`Failed to lazy load ${name}:`, error);
@@ -145,7 +145,7 @@ export function useRenderMeasure(componentName: string) {
 import dynamic from "next/dynamic";
 import type { DynamicOptions, Loader } from "next/dynamic";
 
-export function optimizeBundle<P = {}>(
+export function optimizeBundle<P = object>(
   loader: Loader<P>,
   options?: DynamicOptions<P>
 ) {

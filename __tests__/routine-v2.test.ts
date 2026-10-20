@@ -258,10 +258,12 @@ describe("computeRoutineFit", () => {
     expect(longRange.score_0_100).toBeGreaterThan(shortRange.score_0_100);
   });
 
-  it("defaults to 200mi range without vehicle", () => {
+  it("defaults to 200mi range without vehicle, minus the missing-range confidence penalty", () => {
+    // 12A in compute-routine-fit.ts: no range data → rangeScore − 8, confidence "low"
     const noVehicle = computeRoutineFit(MVR_HOME_EASY);
     const explicit200 = computeRoutineFit(MVR_HOME_EASY, { real_world_range_mi: 200 });
-    expect(noVehicle.score_0_100).toBe(explicit200.score_0_100);
+    expect(noVehicle.score_0_100).toBeLessThan(explicit200.score_0_100);
+    expect(noVehicle.confidence.level).toBe("low");
   });
 
   it("applies winter + public extra climate penalty", () => {
@@ -345,26 +347,43 @@ describe("computeRoutineFitV2", () => {
     expect(withWeather.score_0_100).toBe(without.score_0_100 + 3);
   });
 
-  it("applies -5 penalty for 0 chargers with public charging", () => {
-    const without = computeRoutineFitV2({ routine: MVR_PUBLIC_HARD, chargerCount: 1 });
-    const withZero = computeRoutineFitV2({ routine: MVR_PUBLIC_HARD, chargerCount: 0 });
-    expect(withZero.score_0_100).toBe(Math.max(0, without.score_0_100 - 5));
+  // Charger density rules: Team/02_Projects/buying-agent/specs/verdict-rules.md → Thresholds
+  // (Data-Intel, accepted as intended 2026-10-20). Asserted on the charging subscore,
+  // relative to no charger data. Density tiers: 0 Poor · 1–2 Moderate · 3–6 Good · 7+ Excellent.
+  // Plus a single-charger penalty (≤ 1 charger: public −8, work −6) that is in the code
+  // but not yet in the rules table.
+  const chargingDelta = (routine: MinimumViableRoutine, chargerCount: number) =>
+    computeRoutineFitV2({ routine, chargerCount }).dimensions!.charging -
+    computeRoutineFitV2({ routine }).dimensions!.charging;
+
+  it("public charging: Poor −18, Moderate −6, Good +10, Excellent +20 (+ single-charger −8)", () => {
+    expect(chargingDelta(MVR_PUBLIC_HARD, 0)).toBe(-18 - 8);
+    expect(chargingDelta(MVR_PUBLIC_HARD, 1)).toBe(-6 - 8);
+    expect(chargingDelta(MVR_PUBLIC_HARD, 2)).toBe(-6);
+    expect(chargingDelta(MVR_PUBLIC_HARD, 5)).toBe(10);
+    expect(chargingDelta(MVR_PUBLIC_HARD, 7)).toBe(20);
   });
 
-  it("applies +3 bonus for ≥2 chargers with public charging", () => {
-    const withOne = computeRoutineFitV2({ routine: MVR_PUBLIC_HARD, chargerCount: 1 });
-    const withMany = computeRoutineFitV2({ routine: MVR_PUBLIC_HARD, chargerCount: 3 });
-    expect(withMany.score_0_100).toBe(Math.min(100, withOne.score_0_100 + 3));
+  it("work charging: Poor −8, Moderate 0, Good +5, Excellent +10 (+ single-charger −6)", () => {
+    expect(chargingDelta(MVR_WORK_MODERATE, 0)).toBe(-8 - 6);
+    expect(chargingDelta(MVR_WORK_MODERATE, 1)).toBe(-6);
+    expect(chargingDelta(MVR_WORK_MODERATE, 2)).toBe(0);
+    expect(chargingDelta(MVR_WORK_MODERATE, 5)).toBe(5);
+    expect(chargingDelta(MVR_WORK_MODERATE, 7)).toBe(10);
   });
 
-  it("ignores charger count for home/work routines", () => {
+  it("ignores charger count for home routines", () => {
     const homeZero = computeRoutineFitV2({ routine: MVR_HOME_EASY, chargerCount: 0 });
     const homeMany = computeRoutineFitV2({ routine: MVR_HOME_EASY, chargerCount: 5 });
+    const homeUnknown = computeRoutineFitV2({ routine: MVR_HOME_EASY });
     expect(homeZero.score_0_100).toBe(homeMany.score_0_100);
+    expect(homeUnknown.score_0_100).toBe(homeMany.score_0_100);
+  });
 
-    const workZero = computeRoutineFitV2({ routine: MVR_WORK_MODERATE, chargerCount: 0 });
-    const workMany = computeRoutineFitV2({ routine: MVR_WORK_MODERATE, chargerCount: 5 });
-    expect(workZero.score_0_100).toBe(workMany.score_0_100);
+  it("charger density moves public-charging fit more than work-charging fit", () => {
+    const publicSwing = chargingDelta(MVR_PUBLIC_HARD, 7) - chargingDelta(MVR_PUBLIC_HARD, 0);
+    const workSwing = chargingDelta(MVR_WORK_MODERATE, 7) - chargingDelta(MVR_WORK_MODERATE, 0);
+    expect(publicSwing).toBeGreaterThan(workSwing);
   });
 
   it("upgrades confidence to high with real-time weather + vehicle", () => {

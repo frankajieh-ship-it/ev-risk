@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference -- MV3 service worker has no module import for chrome types
 /// <reference path="../node_modules/chrome-types/index.d.ts" />
 /**
  * OFFO Extension Service Worker
