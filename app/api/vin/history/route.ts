@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     }
 
     const clientIP = getClientIP(request);
-    const rateCheck = historyRateLimiter.check(`${clientIP}:${receipt_token}`);
+    const rateCheck = await historyRateLimiter.checkAsync(`${clientIP}:${receipt_token}`);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many history lookups. Please wait a few minutes.", resetAt: new Date(rateCheck.resetAt).toISOString() },

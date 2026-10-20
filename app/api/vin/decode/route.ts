@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     // --- Rate limiting ---
     const clientIP = getClientIP(request);
     const rateLimitKey = `${clientIP}:${receipt_token}`;
-    const rateCheck = vinRateLimiter.check(rateLimitKey);
+    const rateCheck = await vinRateLimiter.checkAsync(rateLimitKey);
 
     if (!rateCheck.allowed) {
       return NextResponse.json(

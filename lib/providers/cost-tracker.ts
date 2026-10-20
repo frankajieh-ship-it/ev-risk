@@ -12,11 +12,16 @@ interface CostRate {
   output: number;  // $ per token
 }
 
+// anthropic-adapter.ts defaults to claude-sonnet-4-6 when ANTHROPIC_MODEL
+// isn't set (confirmed unset in .env.local as of 2026-10-20; prod unconfirmed
+// — Tech Lead has no Netlify env access, see board). These rates must match
+// whichever model ANTHROPIC_MODEL actually resolves to in each environment,
+// or cost logging silently undercounts. Update this if that env var changes.
 const COST_RATES: Record<ProviderName, CostRate> = {
   openai:    { input: 0.15 / 1_000_000,  output: 0.60 / 1_000_000 },  // gpt-4o-mini
   gemini:    { input: 0.075 / 1_000_000, output: 0.30 / 1_000_000 },  // gemini-2.0-flash
   grok:      { input: 0.30 / 1_000_000,  output: 0.50 / 1_000_000 },  // grok-3-mini
-  anthropic: { input: 0.25 / 1_000_000,  output: 1.25 / 1_000_000 },  // claude-haiku-4-5
+  anthropic: { input: 3.00 / 1_000_000,  output: 15.00 / 1_000_000 }, // claude-sonnet-4-6 (default model)
 };
 
 export function estimateCost(result: GenerateResult): number {

@@ -202,7 +202,7 @@ function normalizeForAutodev(
 
 export async function GET(request: NextRequest) {
   const ip = getClientIP(request);
-  const rateCheck = photosRateLimiter.check(ip);
+  const rateCheck = await photosRateLimiter.checkAsync(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json(
       { success: false, error: "Too many requests. Please wait a moment." },

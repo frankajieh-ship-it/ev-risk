@@ -460,31 +460,11 @@ export default function Home() {
             Paste a listing from CarGurus, AutoTrader, or Cars.com — get a verdict in seconds.
           </p>
 
-          {/* Social proof strip */}
+          {/* Social proof strip — the battery-checks count and Reddit quote were
+              removed per D-021 (unsourced claims); only the one line we can actually
+              back stays. Growth: replacement copy tracked in
+              Team/01_Comms/handoffs/2026-10-19_decision-homepage-claims.md */}
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mb-8">
-            <div className="flex items-center gap-1.5">
-              <span className="flex gap-0.5">
-                {[...Array(5)].map((_, i) => (
-                  <svg key={i} className="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                ))}
-              </span>
-              <span className="text-xs text-white/40 font-medium">
-                {totalReceipts !== null
-                  ? `${totalReceipts.toLocaleString()}+ battery checks run`
-                  : "Thousands of battery checks run"}
-              </span>
-            </div>
-            <span className="w-px h-3 bg-white/10 hidden sm:block" />
-            <div className="flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 20 20" aria-hidden>
-                <circle cx="10" cy="10" r="10" fill="#FF4500"/>
-                <path d="M16.67 10a1.46 1.46 0 00-2.47-1 7.12 7.12 0 00-3.85-1.23l.65-3.08 2.13.45a1 1 0 101.07-1 1 1 0 00-.96.68l-2.38-.5a.26.26 0 00-.31.2l-.73 3.44a7.14 7.14 0 00-3.89 1.23 1.46 1.46 0 10-1.61 2.39 2.87 2.87 0 000 .44c0 2.24 2.61 4.06 5.83 4.06s5.83-1.82 5.83-4.06a2.87 2.87 0 000-.44 1.46 1.46 0 00.6-1.18zM7.27 11a1 1 0 111 1 1 1 0 01-1-1zm5.6 2.71a3.58 3.58 0 01-2.87.89 3.58 3.58 0 01-2.87-.89.23.23 0 01.33-.33 3.15 3.15 0 002.54.71 3.15 3.15 0 002.54-.71.23.23 0 01.33.33zm-.2-1.71a1 1 0 111-1 1 1 0 01-1 1z" fill="white"/>
-              </svg>
-              <span className="text-xs text-white/40 font-medium">&ldquo;Saved me from a bad battery&rdquo; · r/electricvehicles</span>
-            </div>
-            <span className="w-px h-3 bg-white/10 hidden sm:block" />
             <div className="flex items-center gap-1.5">
               <svg className="w-3.5 h-3.5 text-[#00d97e] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   }
 
   const ip = getClientIP(req);
-  const rl = inviteCreateLimiter.check(ip);
+  const rl = await inviteCreateLimiter.checkAsync(ip);
   if (!rl.allowed) {
     return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }

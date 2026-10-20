@@ -264,13 +264,9 @@ export default function StarterPaywallCard({
           </button>
         )}
 
-        {/* Social proof quote */}
-        <div className="mx-6 mb-5 pl-3 border-l-2 border-[#00d97e]/50">
-          <p className="text-xs text-white/60 italic leading-relaxed">
-            &ldquo;I was about to pay asking price. OFFO flagged a prior accident the CarFax missed — I got $1,200 off.&rdquo;
-          </p>
-          <p className="text-xs text-white/35 mt-1">— Marcus T., 2024 Chevy Bolt buyer</p>
-        </div>
+        {/* Social proof quote removed per D-021 — "Marcus T." was not an
+            authentic or authorized testimonial. Replacement copy tracked in
+            Team/01_Comms/handoffs/2026-10-19_decision-homepage-claims.md */}
 
         {/* CTAs */}
         <div className="px-6 pb-6 space-y-3">

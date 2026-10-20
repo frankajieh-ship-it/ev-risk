@@ -17,6 +17,7 @@ import { grokAdapter } from "@/lib/providers/grok-adapter";
 import { openaiAdapter } from "@/lib/providers/openai-adapter";
 import { anthropicAdapter } from "@/lib/providers/anthropic-adapter";
 import type { GenerateOpts } from "@/lib/providers/types";
+import { decodeVin as autoDevDecodeVin } from "@/lib/auto-dev-client";
 
 // ---------------------------------------------------------------------------
 // Rate limiters
@@ -173,22 +174,15 @@ async function fetchVinData(vin: string): Promise<Record<string, unknown>> {
 
   const data: Record<string, unknown> = {};
 
-  const timeout = 3_000;
-
-  // Auto.dev
-  if (process.env.AUTO_DEV_API_KEY) {
-    try {
-      const ac = new AbortController();
-      const id = setTimeout(() => ac.abort(), timeout);
-      const res = await fetch(
-        `https://auto.dev/api/vin/${vin}?apikey=${process.env.AUTO_DEV_API_KEY}`,
-        { signal: ac.signal }
-      );
-      clearTimeout(id);
-      if (res.ok) data.autodev = await res.json();
-    } catch {
-      // ignore
-    }
+  // Auto.dev — was checking process.env.AUTO_DEV_API_KEY, a name that exists
+  // nowhere else in the codebase (lib/auto-dev-client.ts reads AUTODEV_API),
+  // so this lookup never ran. Now uses the shared client, which reads the
+  // correct env var and already has its own timeout/error handling.
+  try {
+    const result = await autoDevDecodeVin(vin);
+    if (result) data.autodev = result;
+  } catch {
+    // ignore — chat degrades gracefully without auto.dev data
   }
 
   vinCache.set(vin, { data, expiresAt: Date.now() + 24 * 60 * 60 * 1000 });
@@ -359,7 +353,7 @@ export async function POST(request: NextRequest) {
   const limitKey = sessionId || clientIP;
 
   // Rate limiting: 200/day per session
-  const rateCheck = paidChatLimiter.check(limitKey);
+  const rateCheck = await paidChatLimiter.checkAsync(limitKey);
   if (!rateCheck.allowed) {
     const retryAfter = Math.ceil((rateCheck.resetAt - Date.now()) / 1000);
     return NextResponse.json(

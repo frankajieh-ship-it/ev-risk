@@ -30,7 +30,7 @@ export async function POST(
   { params }: { params: Promise<{ resultId: string }> }
 ) {
   const ip = getClientIP(request);
-  const rateCheck = rateLimiter.check(ip);
+  const rateCheck = await rateLimiter.checkAsync(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }

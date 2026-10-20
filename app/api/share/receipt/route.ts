@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
 
   // Rate limit
   const ip = getClientIP(req);
-  const rateCheck = shareRateLimiter.check(ip);
+  const rateCheck = await shareRateLimiter.checkAsync(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json(
       { success: false, error: "Too many share requests. Try again later." },

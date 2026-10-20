@@ -23,7 +23,7 @@ const VALID_CATEGORIES = new Set(["routine_impact", "recall", "used_market", "ch
 
 export async function GET(req: NextRequest) {
   const ip = getClientIP(req);
-  const rateCheck = rateLimiter.check(ip);
+  const rateCheck = await rateLimiter.checkAsync(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }

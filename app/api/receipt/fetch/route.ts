@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
   const clientIP = getClientIP(request);
 
   // IP burst limit — coarse guard
-  const burst = receiptBurstLimiter.check(clientIP);
+  const burst = await receiptBurstLimiter.checkAsync(clientIP);
   if (!burst.allowed) {
     return NextResponse.json(
       { success: false, error: "Too many requests. Please try again later." },
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
   // credits on repeated failed attempts. 5 extractions per session per 10 minutes.
   // Only applies to URL mode (text extraction is cheap).
   if (url) {
-    const sessionExtractLimit = extractSessionLimiter.check(extractSessionKey);
+    const sessionExtractLimit = await extractSessionLimiter.checkAsync(extractSessionKey);
     if (!sessionExtractLimit.allowed) {
       return NextResponse.json(
         {

@@ -12,7 +12,7 @@ export async function POST(
   const { id } = await params;
   const ip = getClientIP(request);
 
-  if (!reportLimiter.check(ip).allowed) {
+  if (!(await reportLimiter.checkAsync(ip)).allowed) {
     return NextResponse.json({ error: "Too many reports" }, { status: 429 });
   }
 

@@ -20,11 +20,14 @@ export interface EnhancedInputs {
   routine: MinimumViableRoutine;
   vehicle?: VehicleProfile;
   weather?: WeatherData;
+  /** Nearby public charger count. Omit (do not pass 0) when the lookup
+   *  failed or wasn't run — a missing count must not score as "confirmed
+   *  zero chargers nearby" (QA-1). Callers pass undefined on NREL failure. */
   chargerCount?: number;
 }
 
 export function computeRoutineFitV2(inputs: EnhancedInputs): RoutineFitScore {
-  const { routine, vehicle, weather, chargerCount = 0 } = inputs;
+  const { routine, vehicle, weather, chargerCount } = inputs;
 
   // Map vehicle profile to baseline VehicleBasics — pass all fields the engine uses
   const vehicleBasics = vehicle
@@ -40,8 +43,11 @@ export function computeRoutineFitV2(inputs: EnhancedInputs): RoutineFitScore {
       }
     : undefined;
 
-  // Build ChargerContext from chargerCount for Phase 4B integration
-  const chargerCtx: ChargerContext | undefined = chargerCount > 0 || chargerCount === 0
+  // Build ChargerContext only when we actually have a count. A missing count
+  // (NREL failed, no ZIP, etc.) must not be treated as a real zero — that
+  // silently scored public-charging buyers as "Poor" density with no data
+  // to back it (QA-1: 49 -> 32 for a public-charging buyer with no lookup).
+  const chargerCtx: ChargerContext | undefined = typeof chargerCount === "number"
     ? {
         dcfc_count: chargerCount,
         // Derive density tier from count (rough heuristic when ZIP not available)

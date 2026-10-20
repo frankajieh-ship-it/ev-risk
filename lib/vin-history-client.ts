@@ -19,12 +19,17 @@ export interface VinHistoryResult {
   success: true;
   provider: "vehicledatabases";
   vin: string;
+  /** "unknown" when the provider didn't return a title section at all — never defaulted to "clean" */
   title_status: "clean" | "salvage" | "rebuilt" | "lemon" | "unknown";
-  accident_count: number;
-  theft_reported: boolean;
+  /** null when the provider omitted the accidents section — absence is never 0 */
+  accident_count: number | null;
+  /** null when the provider omitted the theft section — absence is never false */
+  theft_reported: boolean | null;
   salvage_reported: boolean;
   ownership_count: number | null;
   open_lien: boolean | null;
+  /** True when this result only ran a salvage-only fallback check, not the full history endpoint */
+  partial: boolean;
   /** Raw provider response — for debugging and future field expansion */
   raw: Record<string, unknown>;
 }
@@ -92,21 +97,33 @@ async function tryVehicleDatabases(vin: string): Promise<VinHistoryResult | null
     titleStatus.includes("rebuilt") || titleStatus.includes("reconstructed") ? "rebuilt" :
     titleStatus.includes("clean") ? "clean" : "unknown";
 
+  // Absence of a section means the provider didn't check/return it — never a fact.
+  // Only count accidents/theft when the provider actually returned that section.
+  const accident_count: number | null =
+    d.accidents?.count !== undefined ? d.accidents.count
+    : d.accidents?.records !== undefined ? d.accidents.records.length
+    : null;
+  const theft_reported: boolean | null =
+    d.theft?.records !== undefined ? d.theft.records.length > 0 : null;
+
   return {
     success: true,
     provider: "vehicledatabases",
     vin: vin.toUpperCase(),
     title_status,
-    accident_count: d.accidents?.count ?? (d.accidents?.records?.length ?? 0),
-    theft_reported: (d.theft?.records?.length ?? 0) > 0,
+    accident_count,
+    theft_reported,
     salvage_reported: title_status === "salvage" || (d.salvage?.records?.length ?? 0) > 0,
     ownership_count: d.ownership?.count ?? null,
     open_lien: d.lien?.open ?? null,
+    partial: false,
     raw: body as unknown as Record<string, unknown>,
   };
 }
 
-// Fallback: title-check only (salvage flag, no ownership/accident detail)
+// Fallback: title-check only — this endpoint checks salvage status ONLY. It never
+// looks at accidents or theft, so it must never report "clean" (F-2): a title that
+// isn't flagged salvage here is "unknown", not verified clean.
 async function tryTitleCheckOnly(vin: string): Promise<VinHistoryResult | null> {
   const r = await titleCheck(vin);
   if (!r.success) return null;
@@ -114,12 +131,13 @@ async function tryTitleCheckOnly(vin: string): Promise<VinHistoryResult | null> 
     success: true,
     provider: "vehicledatabases",
     vin: r.vin,
-    title_status: r.salvage ? "salvage" : "clean",
-    accident_count: 0,
-    theft_reported: false,
+    title_status: r.salvage ? "salvage" : "unknown",
+    accident_count: null,
+    theft_reported: null,
     salvage_reported: r.salvage,
     ownership_count: null,
     open_lien: null,
+    partial: true,
     raw: { salvage: r.salvage, salvage_details: r.salvage_details },
   };
 }

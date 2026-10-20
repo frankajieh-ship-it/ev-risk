@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
   }
 
   const clientIP = getClientIP(req);
-  const rateCheck = garageHistoryLimiter.check(`garage:${user.id}:${clientIP}`);
+  const rateCheck = await garageHistoryLimiter.checkAsync(`garage:${user.id}:${clientIP}`);
   if (!rateCheck.allowed) {
     return NextResponse.json(
       { success: false, error: "Too many history lookups. Please wait a few minutes.", resetAt: new Date(rateCheck.resetAt).toISOString() },

@@ -24,7 +24,7 @@ export async function GET(
   { params }: { params: Promise<{ receiptId: string }> }
 ) {
   const ip = getClientIP(request);
-  const rateCheck = rateLimiter.check(ip);
+  const rateCheck = await rateLimiter.checkAsync(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }

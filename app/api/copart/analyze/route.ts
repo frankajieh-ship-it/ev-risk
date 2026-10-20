@@ -22,7 +22,7 @@ const rateLimiter = new RateLimiter(60 * 1000, 10); // 10/min per IP
 
 export async function POST(request: NextRequest) {
   const ip = getClientIP(request);
-  const rateCheck = rateLimiter.check(ip);
+  const rateCheck = await rateLimiter.checkAsync(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json(
       { success: false, error: "Too many requests. Please wait a moment." },

@@ -158,7 +158,8 @@ export interface DataSources {
   chargers_live: boolean;
   weather_temp_f?: number;
   weather_condition?: string;
-  charger_count: number;
+  /** undefined when no charger lookup ran or it failed — never a confirmed zero (QA-1) */
+  charger_count?: number;
   location_name?: string;
 }
 

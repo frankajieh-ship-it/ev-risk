@@ -139,7 +139,10 @@ export async function POST(request: NextRequest) {
     // ============================
     // 2. Search nearby chargers (public charging only)
     // ============================
-    let chargerCount = 0;
+    // undefined = no lookup happened or it failed — must not be treated as a
+    // confirmed zero chargers nearby (QA-1). Only a successful NREL response
+    // sets a real number, including a real 0.
+    let chargerCount: number | undefined = undefined;
     let chargersLive = false;
 
     if (routine.charging_access === "public" && zipCode) {
@@ -156,7 +159,7 @@ export async function POST(request: NextRequest) {
           }
         } catch (err) {
           console.warn("[recommendations] Charger search failed:", err);
-          // Gracefully degrade
+          // Gracefully degrade — chargerCount stays undefined, not 0
         }
       }
     }
@@ -180,7 +183,7 @@ export async function POST(request: NextRequest) {
       scored = batchScoreVehicles(
         routine,
         rangeRows,
-        weatherData || chargerCount > 0
+        weatherData !== undefined || chargerCount !== undefined
           ? { weather: weatherData, chargerCount }
           : undefined
       );
@@ -204,7 +207,7 @@ export async function POST(request: NextRequest) {
       scored = batchScoreVehicles(
         routine,
         csvData,
-        weatherData || chargerCount > 0
+        weatherData !== undefined || chargerCount !== undefined
           ? { weather: weatherData, chargerCount }
           : undefined
       );
