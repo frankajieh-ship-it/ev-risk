@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   }
 
   const ip = getClientIP(request);
-  if (!statusRateLimiter.check(ip).allowed) {
+  if (!(await statusRateLimiter.checkAsync(ip)).allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 

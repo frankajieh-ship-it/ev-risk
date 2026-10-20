@@ -81,7 +81,7 @@ const STATE_ZIP_PREFIXES: Record<string, string[]> = {
 
 export async function GET(request: NextRequest) {
   const ip = getClientIP(request);
-  if (!rateLimiter.check(ip).allowed) {
+  if (!(await rateLimiter.checkAsync(ip)).allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 

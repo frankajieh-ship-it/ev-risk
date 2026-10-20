@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   }
 
   const ip = getClientIP(request);
-  const rateCheck = checkoutRateLimiter.check(ip);
+  const rateCheck = await checkoutRateLimiter.checkAsync(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a moment and try again." },

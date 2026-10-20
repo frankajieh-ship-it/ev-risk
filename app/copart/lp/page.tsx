@@ -70,30 +70,6 @@ const DELIVERABLES = [
   { icon: "📊", label: "Profit Scenario Analysis", desc: "Repair-to-sell vs parts-out — which makes more sense" },
 ];
 
-const TESTIMONIALS = [
-  {
-    quote: "Saved me from bidding $8k on a lot that had $14k in hidden battery damage. The risk score said red immediately.",
-    name: "Marcus T.",
-    handle: "@marcust_flips",
-    avatar: "MT",
-    color: "bg-orange-500",
-  },
-  {
-    quote: "I use OFFO for every Copart lot now. The max safe bid calc is basically my ceiling — I don't go above it.",
-    name: "Sarah K.",
-    handle: "r/carflipping",
-    avatar: "SK",
-    color: "bg-blue-500",
-  },
-  {
-    quote: "Finally something that gives you actual numbers instead of just 'be careful.' The ARV estimate was within 3% of what I sold it for.",
-    name: "Jay M.",
-    handle: "@autoflipjay",
-    avatar: "JM",
-    color: "bg-green-600",
-  },
-];
-
 const FAQS = [
   {
     q: "Is this actually free?",
@@ -547,31 +523,10 @@ export default function CopartLandingPage() {
             </div>
           </section>
 
-          {/* ── SOCIAL PROOF ── */}
-          <section className="bg-[#0d1117] px-4 py-16 border-b border-white/[0.06]">
-            <div className="max-w-3xl mx-auto">
-              <p className="text-center text-xs font-semibold text-white/30 uppercase tracking-wider mb-8">What bidders say</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                {TESTIMONIALS.map((t) => (
-                  <div key={t.name} className="bg-[#161b22] border border-white/[0.08] rounded-2xl p-5">
-                    <div className="flex items-center gap-1 mb-3">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <span key={s} className="text-amber-400 text-sm">★</span>
-                      ))}
-                    </div>
-                    <p className="text-sm text-white/60 leading-relaxed mb-4">&ldquo;{t.quote}&rdquo;</p>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-7 h-7 ${t.color} rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0`}>{t.avatar}</div>
-                      <div>
-                        <p className="text-xs font-semibold text-white/80">{t.name}</p>
-                        <p className="text-xs text-white/30">{t.handle}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
+          {/* ── SOCIAL PROOF section removed per D-021 — the 3 testimonials
+              ("Marcus T.", "Sarah K.", "Jay M.") were not authentic or
+              authorized. Replacement copy tracked in
+              Team/01_Comms/handoffs/2026-10-19_decision-homepage-claims.md ── */}
 
           {/* ── RISK REVERSAL ── */}
           <section className="bg-orange-500/10 border-y border-orange-500/20 px-4 py-12 text-center">

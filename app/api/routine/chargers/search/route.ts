@@ -14,7 +14,7 @@ const rateLimiter = new RateLimiter(15 * 60 * 1000, 100);
 
 export async function GET(req: NextRequest) {
   const ip = getClientIP(req);
-  const limit = rateLimiter.check(ip);
+  const limit = await rateLimiter.checkAsync(ip);
   if (!limit.allowed) {
     return NextResponse.json(
       { success: false, error: "Rate limit exceeded" },

@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
   // 0b. IP rate limit (cheap, in-memory)
   const ip = getClientIP(request);
-  const ipCheck = deepDiveIPLimiter.check(ip);
+  const ipCheck = await deepDiveIPLimiter.checkAsync(ip);
   if (!ipCheck.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 0c. Per-anon rate limit (after body parse, before DB)
-  const anonCheck = deepDiveAnonLimiter.check(anonId);
+  const anonCheck = await deepDiveAnonLimiter.checkAsync(anonId);
   if (!anonCheck.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },

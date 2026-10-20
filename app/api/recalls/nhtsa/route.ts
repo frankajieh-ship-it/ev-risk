@@ -42,7 +42,7 @@ function normModelForNhtsa(model: string): string {
 
 export async function GET(req: NextRequest) {
   const ip = getClientIP(req);
-  const rateCheck = recallsRateLimiter.check(ip);
+  const rateCheck = await recallsRateLimiter.checkAsync(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json(
       { success: false, error: "Too many requests. Please wait a moment." },

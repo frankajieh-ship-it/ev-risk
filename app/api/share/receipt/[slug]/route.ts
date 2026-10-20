@@ -25,7 +25,7 @@ export async function GET(
   }
 
   const ip = getClientIP(req);
-  const rl = shareViewLimiter.check(ip);
+  const rl = await shareViewLimiter.checkAsync(ip);
   if (!rl.allowed) {
     return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }

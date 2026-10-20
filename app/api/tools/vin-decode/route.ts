@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     const clientIP = getClientIP(request);
-    const rateCheck = rateLimiter.check(clientIP);
+    const rateCheck = await rateLimiter.checkAsync(clientIP);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { success: false, error: "Too many requests — please wait a few minutes." },

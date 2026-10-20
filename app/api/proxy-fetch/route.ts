@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     if (!isAdminBypass) {
       const clientIP = getClientIP(request);
-      const rateLimit = extractionRateLimiter.check(clientIP);
+      const rateLimit = await extractionRateLimiter.checkAsync(clientIP);
 
       if (!rateLimit.allowed) {
         return NextResponse.json(

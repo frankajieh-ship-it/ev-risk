@@ -12,7 +12,7 @@ const rateLimiter = new RateLimiter(60 * 1000, 60);
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ip = getClientIP(request);
-  if (!rateLimiter.check(ip).allowed) {
+  if (!(await rateLimiter.checkAsync(ip)).allowed) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 

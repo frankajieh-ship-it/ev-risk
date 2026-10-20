@@ -44,7 +44,7 @@ export function DataSourcesBadge({ dataSources, chargingAccess }: DataSourcesBad
         {/* Charger data (only shown if public charging) */}
         {chargingAccess === "public" && (
           <>
-            {chargers_live && charger_count > 0 ? (
+            {chargers_live && charger_count !== undefined && charger_count > 0 ? (
               <li>• Chargers: {charger_count} nearby stations found (via NREL)</li>
             ) : chargers_live && charger_count === 0 ? (
               <li>• Chargers: No nearby stations found — consider mapping backup chargers</li>

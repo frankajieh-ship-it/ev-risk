@@ -61,7 +61,7 @@ export async function POST(
 
   // Rate limit
   const ip = getClientIP(request);
-  if (!sectionRateLimiter.check(ip).allowed) {
+  if (!(await sectionRateLimiter.checkAsync(ip)).allowed) {
     return NextResponse.json(
       { success: false, error: "Too many requests" },
       { status: 429 }

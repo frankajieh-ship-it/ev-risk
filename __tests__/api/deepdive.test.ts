@@ -49,6 +49,7 @@ jest.mock("@/lib/receipt-openai", () => ({
 jest.mock("@/lib/rate-limiter", () => ({
   RateLimiter: jest.fn().mockImplementation(() => ({
     check: jest.fn().mockReturnValue({ allowed: true, remaining: 2, resetAt: Date.now() + 3600000 }),
+    checkAsync: jest.fn().mockResolvedValue({ allowed: true, remaining: 2, resetAt: Date.now() + 3600000 }),
   })),
   getClientIP: jest.fn().mockReturnValue("127.0.0.1"),
 }));
@@ -248,13 +249,15 @@ describe("POST /api/deepdive/generate", () => {
 
     // Create a real in-memory rate limiter with limit=2 so we can exhaust it in 3 calls
     let callCount = 0;
+    const nextResult = () => {
+      callCount++;
+      return callCount <= 2
+        ? { allowed: true, remaining: 2 - callCount, resetAt: Date.now() + 3600000 }
+        : { allowed: false, remaining: 0, resetAt: Date.now() + 3600000 };
+    };
     RateLimiter.mockImplementation(() => ({
-      check: jest.fn(() => {
-        callCount++;
-        return callCount <= 2
-          ? { allowed: true, remaining: 2 - callCount, resetAt: Date.now() + 3600000 }
-          : { allowed: false, remaining: 0, resetAt: Date.now() + 3600000 };
-      }),
+      check: jest.fn(nextResult),
+      checkAsync: jest.fn(async () => nextResult()),
     }));
 
     // Use jest.resetModules + re-import to get fresh instances with the new mock

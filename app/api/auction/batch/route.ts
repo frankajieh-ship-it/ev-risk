@@ -48,7 +48,7 @@ interface BatchResultItem {
 
 export async function POST(request: NextRequest) {
   const ip = getClientIP(request);
-  const rateCheck = rateLimiter.check(ip);
+  const rateCheck = await rateLimiter.checkAsync(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json(
       { success: false, error: "Too many batch requests. Please wait a minute." },

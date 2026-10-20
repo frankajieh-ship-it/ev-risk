@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   const ip = getClientIP(req);
-  const limit = rateLimiter.check(ip);
+  const limit = await rateLimiter.checkAsync(ip);
   if (!limit.allowed) {
     return NextResponse.json(
       { success: false, error: "Rate limit exceeded" },
@@ -205,7 +205,7 @@ export async function GET(req: NextRequest) {
   }
 
   const ip = getClientIP(req);
-  const limit = rateLimiter.check(ip);
+  const limit = await rateLimiter.checkAsync(ip);
   if (!limit.allowed) {
     return NextResponse.json(
       { success: false, error: "Rate limit exceeded" },
@@ -263,7 +263,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const ip = getClientIP(req);
-  const limit = rateLimiter.check(ip);
+  const limit = await rateLimiter.checkAsync(ip);
   if (!limit.allowed) {
     return NextResponse.json(
       { success: false, error: "Rate limit exceeded" },

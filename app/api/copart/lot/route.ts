@@ -230,7 +230,7 @@ async function fetchFromApify(lotNumber: string): Promise<LotData | null> {
 
 export async function GET(request: NextRequest) {
   const ip = getClientIP(request);
-  const rateCheck = rateLimiter.check(ip);
+  const rateCheck = await rateLimiter.checkAsync(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json(
       { success: false, error: "Too many requests" },

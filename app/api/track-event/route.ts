@@ -390,7 +390,7 @@ export async function POST(req: NextRequest) {
 
   // Rate limit: 30 events/min per IP (uses shared analyticsRateLimiter singleton)
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || req.headers.get("x-real-ip") || "unknown";
-  const rlCheck = analyticsRateLimiter.check(ip);
+  const rlCheck = await analyticsRateLimiter.checkAsync(ip);
   if (!rlCheck.allowed) {
     return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
   }
